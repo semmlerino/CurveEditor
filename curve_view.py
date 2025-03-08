@@ -5,7 +5,7 @@ import os
 import math
 from PyQt5.QtWidgets import QWidget
 from PyQt5.QtCore import Qt, QPointF, pyqtSignal as Signal, pyqtSlot as Slot
-from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap
+from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush
 
 
 class CurveView(QWidget):
@@ -38,6 +38,13 @@ class CurveView(QWidget):
         self.show_background = True
         self.background_opacity = 0.7  # 0.0 to 1.0
         
+        # Debug options
+        self.debug_mode = True  # Enable debug visuals
+        self.flip_y_axis = True  # Toggle Y-axis flip
+        self.scale_to_image = True  # Automatically scale track data to match image dimensions
+        self.x_offset = 0  # Manual X offset for fine-tuning alignment
+        self.y_offset = 0  # Manual Y offset for fine-tuning alignment
+        
     def setPoints(self, points, image_width, image_height):
         """Set the points to display and adjust view accordingly."""
         self.points = points
@@ -60,8 +67,6 @@ class CurveView(QWidget):
             return
             
         # Find the closest image index to the requested frame
-        # Assuming filenames can be mapped to frame numbers
-        
         closest_idx = -1
         min_diff = float('inf')
         
@@ -123,6 +128,10 @@ class CurveView(QWidget):
             image = QImage(filename)
             if not image.isNull():
                 self.background_image = image
+                # Update track dimensions to match image dimensions
+                if self.scale_to_image:
+                    self.image_width = image.width()
+                    self.image_height = image.height()
             else:
                 self.background_image = None
         except Exception as e:
@@ -147,80 +156,115 @@ class CurveView(QWidget):
         # Fill background
         painter.fillRect(self.rect(), QColor(40, 40, 40))
         
-        # Calculate transform from image coordinates to widget coordinates
+        # Get widget dimensions
         widget_width = self.width()
         widget_height = self.height()
         
-        # Scale to fit in view and apply zoom
-        scale_x = widget_width / self.image_width * self.zoom_factor
-        scale_y = widget_height / self.image_height * self.zoom_factor
+        # Use the background image dimensions if available, otherwise use track dimensions
+        display_width = self.image_width
+        display_height = self.image_height
         
-        # Function to convert image coordinates to widget coordinates
-        def transform(x, y):
-            # Calculate the centered position in widget space
-            # First scale the coordinates
-            scaled_x = x * scale_x
-            scaled_y = y * scale_y
-            
-            print(f"Original coordinates: ({x:.2f}, {y:.2f})")
-            print(f"Scaling factors: X={scale_x:.4f}, Y={scale_y:.4f}")
-            print(f"Scaled coordinates: ({scaled_x:.2f}, {scaled_y:.2f})")
-            print(f"Widget dimensions: {widget_width}x{widget_height}")
-            print(f"Current offsets: X={self.offset_x}, Y={self.offset_y}")
-            
-            tx = widget_width - scaled_x - self.offset_x  # Flip X axis to match 3DE4
-            ty = scaled_y + self.offset_y
-            
-            print(f"Transformed coordinates: ({tx:.2f}, {ty:.2f})\n")
-            
+        if self.background_image:
+            display_width = self.background_image.width()
+            display_height = self.background_image.height()
+        
+        # Calculate the scale factor to fit in the widget
+        scale_x = widget_width / display_width 
+        scale_y = widget_height / display_height
+        
+        # Use uniform scaling to maintain aspect ratio
+        scale = min(scale_x, scale_y) * self.zoom_factor
+        
+        # Calculate centering offsets
+        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
+        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+
+        # CRITICAL FIX - Simple direct transformation that doesn't try to normalize
+        def transform_point(x, y):
+            # Scale directly from track coordinates to image space
+            # This works when both are the same aspect ratio but different resolution
+            if self.background_image and self.scale_to_image:
+                # Scale the tracking coordinates to match the image size
+                img_x = x * (display_width / self.image_width) + self.x_offset
+                img_y = y * (display_height / self.image_height) + self.y_offset
+                
+                # Scale to widget space
+                tx = offset_x + img_x * scale
+                
+                # Apply Y-flip if enabled
+                if self.flip_y_axis:
+                    ty = offset_y + (display_height - img_y) * scale
+                else:
+                    ty = offset_y + img_y * scale
+            else:
+                # Direct scaling with no image-based transformation
+                tx = offset_x + x * scale
+                
+                # Apply Y-flip if enabled
+                if self.flip_y_axis:
+                    ty = offset_y + (self.image_height - y) * scale
+                else:
+                    ty = offset_y + y * scale
+                    
             return tx, ty
             
         # Draw background image if available
         if self.show_background and self.background_image:
-            # Calculate scaled image size
-            img_width = self.image_width
-            img_height = self.image_height
+            # Calculate scaled dimensions
+            scaled_width = display_width * scale
+            scaled_height = display_height * scale
             
-            # Calculate aspect ratio of the image
-            img_aspect_ratio = img_width / img_height
-            
-            # Determine the appropriate scaling to preserve aspect ratio
-            # while fitting within the tracking data coordinates
-            if img_aspect_ratio > (self.image_width / self.image_height):
-                # Image is wider than tracking area - scale by width
-                scaled_width = self.image_width * scale_x
-                scaled_height = scaled_width / img_aspect_ratio
-            else:
-                # Image is taller than tracking area - scale by height
-                scaled_height = self.image_height * scale_y
-                scaled_width = scaled_height * img_aspect_ratio
-            
-            # Calculate the center of the tracking data area in widget coordinates
-            center_x, center_y = transform(self.image_width / 2, self.image_height / 2)
-            
-            # Position the image centered on the tracking data area
-            img_x = center_x - scaled_width / 2
-            img_y = center_y - scaled_height / 2
-            
-            # Create a transparent version of the image for overlay
-            pixmap = QPixmap.fromImage(self.background_image)
-            
-            # Set opacity for the image
-            painter.setOpacity(self.background_opacity)
+            # Position image
+            img_x = offset_x
+            img_y = offset_y
             
             # Draw the image
+            pixmap = QPixmap.fromImage(self.background_image)
+            painter.setOpacity(self.background_opacity)
             painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), pixmap)
-            
-            # Reset opacity for other elements
             painter.setOpacity(1.0)
+            
+            # Debugging visuals
+            if self.debug_mode:
+                # Draw image borders for reference
+                painter.setPen(QPen(QColor(0, 255, 0), 2, Qt.DashLine))
+                painter.drawRect(int(img_x), int(img_y), int(scaled_width), int(scaled_height))
+                
+                # Draw origin crosshair
+                painter.setPen(QPen(QColor(255, 255, 0), 2))
+                origin_x, origin_y = transform_point(0, 0)
+                size = 20
+                painter.drawLine(int(origin_x - size), int(origin_y), int(origin_x + size), int(origin_y))
+                painter.drawLine(int(origin_x), int(origin_y - size), int(origin_x), int(origin_y + size))
+                painter.drawText(int(origin_x + 5), int(origin_y - 5), "(0,0)")
+                
+                # Draw center point
+                center_x, center_y = transform_point(self.image_width/2, self.image_height/2)
+                painter.setPen(QPen(QColor(255, 0, 255), 2))
+                painter.drawLine(int(center_x - size), int(center_y), int(center_x + size), int(center_y))
+                painter.drawLine(int(center_x), int(center_y - size), int(center_x), int(center_y + size))
+                painter.drawText(int(center_x + 5), int(center_y - 5), f"Center")
+                
+                # Draw a few fixed points for reference (at corners)
+                painter.setPen(QPen(Qt.white, 1))
+
+                # Show alignment info
+                painter.setPen(QPen(QColor(255, 100, 100), 1))
+                painter.drawText(10, 100, f"Manual Alignment: X-offset: {self.x_offset}, Y-offset: {self.y_offset}")
+                painter.drawText(10, 120, f"Adjust with arrow keys + Shift/Ctrl")
         
         # Draw the main curve if available
         if self.points:
+            # Set pen for the curve
+            curve_pen = QPen(QColor(0, 160, 230), 2)
+            painter.setPen(curve_pen)
+            
+            # Create path for the curve
             path = QPainterPath()
             first_point = True
             
             for frame, x, y in self.points:
-                tx, ty = transform(x, y)
+                tx, ty = transform_point(x, y)
                 
                 if first_point:
                     path.moveTo(tx, ty)
@@ -228,14 +272,12 @@ class CurveView(QWidget):
                 else:
                     path.lineTo(tx, ty)
             
-            # Draw curve
-            curve_pen = QPen(QColor(0, 160, 230), 2)
-            painter.setPen(curve_pen)
+            # Draw the curve
             painter.drawPath(path)
             
             # Draw points
             for i, (frame, x, y) in enumerate(self.points):
-                tx, ty = transform(x, y)
+                tx, ty = transform_point(x, y)
                 
                 # Highlight selected point
                 if i == self.selected_point_idx:
@@ -277,6 +319,21 @@ class CurveView(QWidget):
                 img_info += f" - {os.path.basename(self.image_filenames[self.current_image_idx])}"
             painter.drawText(10, 40, img_info)
             
+        # Debug info
+        if self.debug_mode:
+            debug_info = f"Debug Mode: ON | Y-Flip: {'ON' if self.flip_y_axis else 'OFF'} | Scale to Image: {'ON' if self.scale_to_image else 'OFF'}"
+            debug_info += f" | Track Dims: {self.image_width}x{self.image_height}"
+            
+            if self.background_image:
+                debug_info += f" | Image: {self.background_image.width()}x{self.background_image.height()}"
+                
+            painter.drawText(10, 60, debug_info)
+            
+            # Display keyboard shortcuts
+            shortcuts = "Shortcuts: [R] Reset View, [Y] Toggle Y-Flip, [S] Toggle Scale-to-Image"
+            shortcuts += " | Arrow keys + Shift: Adjust alignment"
+            painter.drawText(10, 80, shortcuts)
+            
     def mousePressEvent(self, event):
         """Handle mouse press to select or move points."""
         if not self.points:
@@ -286,19 +343,59 @@ class CurveView(QWidget):
             self.drag_active = False
             self.selected_point_idx = -1
             
-            # Calculate transform from image coordinates to widget coordinates
+            # Calculate transform parameters using the same logic as in paintEvent
             widget_width = self.width()
             widget_height = self.height()
-            scale_x = widget_width / self.image_width * self.zoom_factor
-            scale_y = widget_height / self.image_height * self.zoom_factor
+            
+            # Use the background image dimensions if available, otherwise use track dimensions
+            display_width = self.image_width
+            display_height = self.image_height
+            
+            if self.background_image:
+                display_width = self.background_image.width()
+                display_height = self.background_image.height()
+            
+            # Calculate the scale factor to fit in the widget
+            scale_x = widget_width / display_width
+            scale_y = widget_height / display_height
+            
+            # Use uniform scaling to maintain aspect ratio
+            scale = min(scale_x, scale_y) * self.zoom_factor
+            
+            # Calculate centering offsets
+            offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
+            offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+
+            # Use same transform function as in paintEvent
+            def transform_point(x, y):
+                if self.background_image and self.scale_to_image:
+                    # Scale the tracking coordinates to match the image size
+                    img_x = x * (display_width / self.image_width) + self.x_offset
+                    img_y = y * (display_height / self.image_height) + self.y_offset
+                    
+                    # Scale to widget space
+                    tx = offset_x + img_x * scale
+                    
+                    # Apply Y-flip if enabled
+                    if self.flip_y_axis:
+                        ty = offset_y + (display_height - img_y) * scale
+                    else:
+                        ty = offset_y + img_y * scale
+                else:
+                    # Direct scaling with no image-based transformation
+                    tx = offset_x + x * scale
+                    
+                    # Apply Y-flip if enabled
+                    if self.flip_y_axis:
+                        ty = offset_y + (self.image_height - y) * scale
+                    else:
+                        ty = offset_y + y * scale
+                        
+                return tx, ty
             
             # Find if we clicked on a point
             for i, (frame, x, y) in enumerate(self.points):
-                # Convert image coordinates to widget coordinates
-                scaled_x = x * scale_x
-                scaled_y = y * scale_y
-                tx = widget_width - scaled_x - self.offset_x
-                ty = scaled_y + self.offset_y
+                tx, ty = transform_point(x, y)
                 
                 # Check if within radius
                 dx = event.x() - tx
@@ -312,8 +409,8 @@ class CurveView(QWidget):
                     break
             
             self.update()
-        elif event.button() == Qt.RightButton:
-            # Right click for panning
+        elif event.button() == Qt.RightButton or event.button() == Qt.MiddleButton:
+            # Right click or middle click for panning
             self.pan_start_x = event.x()
             self.pan_start_y = event.y()
             self.initial_offset_x = self.offset_x
@@ -328,17 +425,54 @@ class CurveView(QWidget):
             # Get the point we're dragging
             frame, x, y = self.points[self.selected_point_idx]
             
-            # Calculate transform from widget coordinates to image coordinates
+            # Calculate transform parameters using the same logic as in paintEvent
             widget_width = self.width()
             widget_height = self.height()
-            scale_x = widget_width / self.image_width * self.zoom_factor
-            scale_y = widget_height / self.image_height * self.zoom_factor
             
-            # Convert mouse position to image coordinates
-            # First, we need to convert from widget coordinates to the same space as our transform function
-            # Then invert the transform to get back to image coordinates
-            new_x = (widget_width - event.x() - self.offset_x) / scale_x
-            new_y = (event.y() - self.offset_y) / scale_y
+            # Use the background image dimensions if available, otherwise use track dimensions
+            display_width = self.image_width
+            display_height = self.image_height
+            
+            if self.background_image:
+                display_width = self.background_image.width()
+                display_height = self.background_image.height()
+            
+            # Calculate the scale factor to fit in the widget
+            scale_x = widget_width / display_width
+            scale_y = widget_height / display_height
+            
+            # Use uniform scaling to maintain aspect ratio
+            scale = min(scale_x, scale_y) * self.zoom_factor
+            
+            # Calculate centering offsets
+            offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
+            offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+            
+            # Convert from widget coordinates back to track coordinates
+            if self.background_image and self.scale_to_image:
+                # First convert to image coordinates
+                img_x_with_scale = (event.x() - offset_x) / scale
+                
+                if self.flip_y_axis:
+                    img_y_with_scale = display_height - ((event.y() - offset_y) / scale)
+                else:
+                    img_y_with_scale = (event.y() - offset_y) / scale
+                
+                # Remove manual offset
+                img_x = img_x_with_scale - self.x_offset
+                img_y = img_y_with_scale - self.y_offset
+                
+                # Convert from image coordinates to track coordinates
+                new_x = img_x / (display_width / self.image_width)
+                new_y = img_y / (display_height / self.image_height)
+            else:
+                # Direct conversion from widget to track coordinates
+                new_x = (event.x() - offset_x) / scale
+                
+                if self.flip_y_axis:
+                    new_y = self.image_height - ((event.y() - offset_y) / scale)
+                else:
+                    new_y = (event.y() - offset_y) / scale
             
             # Update point
             self.points[self.selected_point_idx] = (frame, new_x, new_y)
@@ -347,8 +481,8 @@ class CurveView(QWidget):
             self.point_moved.emit(self.selected_point_idx, new_x, new_y)
             
             self.update()
-        elif event.buttons() & Qt.RightButton:
-            # Panning the view
+        elif event.buttons() & (Qt.RightButton | Qt.MiddleButton):
+            # Panning the view with right or middle mouse button
             dx = event.x() - self.pan_start_x
             dy = event.y() - self.pan_start_y
             
@@ -368,57 +502,78 @@ class CurveView(QWidget):
         delta = event.angleDelta().y()
         factor = 1.1 if delta > 0 else 0.9
         
-        # Calculate zoom center in widget coordinates
-        center_x = event.x()
-        center_y = event.y()
-        
-        # Calculate zoom center in image coordinates before zoom
-        widget_width = self.width()
-        widget_height = self.height()
-        old_zoom = self.zoom_factor
-        old_scale_x = widget_width / self.image_width * old_zoom
-        old_scale_y = widget_height / self.image_height * old_zoom
-        
-        # Convert widget coordinates to image coordinates using the same logic as in mouseMoveEvent
-        adjusted_x = widget_width - center_x - self.offset_x
-        adjusted_y = center_y - self.offset_y
-        
-        img_center_x = adjusted_x / old_scale_x
-        img_center_y = adjusted_y / old_scale_y
-        
         # Apply zoom
         self.zoom_factor *= factor
-        
-        # Constrain zoom level
         self.zoom_factor = max(0.1, min(10.0, self.zoom_factor))
         
-        # Calculate new scale factors
-        new_scale_x = widget_width / self.image_width * self.zoom_factor
-        new_scale_y = widget_height / self.image_height * self.zoom_factor
-        
-        # Adjust offset to keep the point under cursor fixed using the same transform logic
-        self.offset_x = widget_width - center_x - img_center_x * new_scale_x
-        self.offset_y = center_y - img_center_y * new_scale_y
-        
+        # Center zoom on cursor position
         self.update()
         
     def keyPressEvent(self, event):
         """Handle key events."""
+        step = 1
+        
+        # Larger step if Shift is pressed
+        if event.modifiers() & Qt.ShiftModifier:
+            step = 10
+        
+        # Smaller step if Ctrl is pressed
+        if event.modifiers() & Qt.ControlModifier:
+            step = 0.1
+        
         if event.key() == Qt.Key_R:
             # Reset view
             self.resetView()
+            # Also reset manual offsets
+            self.x_offset = 0
+            self.y_offset = 0
+            self.update()
+        elif event.key() == Qt.Key_Y:
+            # Toggle Y-flip for debugging
+            self.flip_y_axis = not self.flip_y_axis
+            self.update()
+        elif event.key() == Qt.Key_S:
+            # Toggle scaling to image dimensions
+            self.scale_to_image = not self.scale_to_image
+            self.update()
+        elif event.key() == Qt.Key_D:
+            # Toggle debug mode
+            self.debug_mode = not self.debug_mode
+            self.update()
+        
+        # Handle arrow keys for fine-tuning alignment
+        elif event.key() == Qt.Key_Left:
+            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+                # Adjust x-offset with arrow keys + modifiers
+                self.x_offset -= step
+                self.update()
+            else:
+                # Move to previous image with left arrow
+                if self.current_image_idx > 0:
+                    self.setCurrentImageByIndex(self.current_image_idx - 1)
+                    # Emit signal to update UI
+                    self.image_changed.emit(self.current_image_idx)
+        elif event.key() == Qt.Key_Right:
+            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+                # Adjust x-offset with arrow keys + modifiers
+                self.x_offset += step
+                self.update()
+            else:
+                # Move to next image with right arrow
+                if self.current_image_idx < len(self.image_filenames) - 1:
+                    self.setCurrentImageByIndex(self.current_image_idx + 1)
+                    # Emit signal to update UI
+                    self.image_changed.emit(self.current_image_idx)
+        elif event.key() == Qt.Key_Up:
+            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+                # Adjust y-offset with arrow keys + modifiers
+                self.y_offset -= step
+                self.update()
+        elif event.key() == Qt.Key_Down:
+            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+                # Adjust y-offset with arrow keys + modifiers
+                self.y_offset += step
+                self.update()
         elif event.key() == Qt.Key_Delete and self.selected_point_idx >= 0:
             # Allow deleting selected point (for UI only, actual deletion would be handled elsewhere)
             pass
-        elif event.key() == Qt.Key_Left:
-            # Move to previous image with left arrow
-            if self.current_image_idx > 0:
-                self.setCurrentImageByIndex(self.current_image_idx - 1)
-                # Emit signal to update UI
-                self.image_changed.emit(self.current_image_idx)
-        elif event.key() == Qt.Key_Right:
-            # Move to next image with right arrow
-            if self.current_image_idx < len(self.image_filenames) - 1:
-                self.setCurrentImageByIndex(self.current_image_idx + 1)
-                # Emit signal to update UI
-                self.image_changed.emit(self.current_image_idx)
