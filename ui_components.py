@@ -25,7 +25,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel,
                               QPushButton, QSlider, QLineEdit, 
                               QGroupBox, QSplitter, QToolBar, QFrame, 
                               QGridLayout, QTabWidget, QSpacerItem, 
-                              QSizePolicy, QComboBox, QStatusBar)
+                              QSizePolicy, QComboBox, QStatusBar, QSpinBox)
 from PySide6.QtCore import Signal, Qt, QSize, QTimer, QEvent
 from PySide6.QtGui import QIcon, QFont, QAction, QKeySequence
 
@@ -757,6 +757,7 @@ class UIComponents:
         - Frame numbers toggle (using QPushButton from PySide6.QtWidgets)
         - Crosshair toggle (using QPushButton from PySide6.QtWidgets)
         - View centering (using QPushButton from PySide6.QtWidgets)
+        - Point size control (using QSpinBox from PySide6.QtWidgets)
         
         All buttons are initialized with proper tooltips and checkable states.
         Buttons are added to a QGroupBox (from PySide6.QtWidgets) with appropriate layout.
@@ -791,11 +792,22 @@ class UIComponents:
         main_window.center_on_point_button = QPushButton("Center")
         main_window.center_on_point_button.setToolTip("Center view on selected point (C)")
         
+        # Add point size control
+        point_size_layout = QHBoxLayout()
+        point_size_layout.addWidget(QLabel("Point Size:"))
+        main_window.point_size_spin = QSpinBox()
+        main_window.point_size_spin.setMinimum(1)
+        main_window.point_size_spin.setMaximum(10)
+        main_window.point_size_spin.setValue(2)  # Default matches EnhancedCurveView's default
+        main_window.point_size_spin.setToolTip("Change the size of points in the curve view")
+        point_size_layout.addWidget(main_window.point_size_spin)
+        
         enhanced_layout.addWidget(main_window.toggle_grid_button)
         enhanced_layout.addWidget(main_window.toggle_vectors_button)
         enhanced_layout.addWidget(main_window.toggle_frame_numbers_button)
         enhanced_layout.addWidget(main_window.toggle_crosshair_button)
         enhanced_layout.addWidget(main_window.center_on_point_button)
+        enhanced_layout.addLayout(point_size_layout)
         
         # Add to view controls section
         if hasattr(main_window, 'view_controls_layout'):
@@ -820,9 +832,9 @@ class UIComponents:
             print("WARNING: image_operations not found, some signals not connected")
             
         # Connect slider signals - timeline slider already connected in setup_timeline
-        if hasattr(main_window, 'point_size_slider'):
-            print("Connecting point_size_slider signal...")
-            main_window.point_size_slider.valueChanged.connect(
+        if hasattr(main_window, 'point_size_spin'):
+            print("Connecting point_size_spin signal...")
+            main_window.point_size_spin.valueChanged.connect(
                 lambda value: CurveViewOperations.set_point_size(main_window, value)
             )
             

@@ -33,6 +33,7 @@ class ShortcutManager:
         "toggle_crosshair": {"key": "X", "description": "Toggle crosshair"},
         "center_on_point": {"key": "C", "description": "Center on selected point"},
         "toggle_background": {"key": "B", "description": "Toggle background image"},
+        "toggle_fullscreen": {"key": "F11", "description": "Toggle fullscreen mode"},
         "zoom_in": {"key": "+", "description": "Zoom in"},
         "zoom_out": {"key": "-", "description": "Zoom out"},
         
@@ -166,7 +167,7 @@ class ShortcutsDialog(QDialog):
             "File": ["open_file", "save_file", "export_csv"],
             "Edit": ["undo", "redo", "select_all", "deselect_all", "delete_selected", "delete_selected_alt"],
             "View": ["reset_view", "toggle_grid", "toggle_velocity", "toggle_frame_numbers", 
-                    "toggle_crosshair", "center_on_point", "toggle_background", "zoom_in", "zoom_out"],
+                    "toggle_crosshair", "center_on_point", "toggle_background", "toggle_fullscreen", "zoom_in", "zoom_out"],
             "Navigation": ["next_frame", "prev_frame", "next_image", "prev_image", 
                           "play_pause", "first_frame", "last_frame"],
             "Tools": ["smooth_selected", "filter_selected", "detect_problems"]

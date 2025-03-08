@@ -43,6 +43,7 @@ The application follows a modular architecture with clear separation of concerns
    - Supports grid display, velocity vectors, and frame number visualization
    - Implements wheel event handling for zooming with proper position tracking
    - Provides advanced visual feedback for tracking quality analysis
+   - **Interpolated Points** feature allows "soft deletion" of points while maintaining navigation
 
 ### Utility Classes Architecture
 
@@ -290,15 +291,17 @@ The application supports loading and displaying image sequences as backgrounds f
    - Left/Right arrow keys to move between images
    - Timeline synchronization with tracking data frames
    - UI buttons for sequential navigation
+   - Up/Down arrow keys to adjust frame nudging increments
 4. **Display Options**:
    - Toggle background visibility
    - Adjust background opacity via slider control
    - Automatic scaling to match tracking data coordinates
+   - Fullscreen mode (F11 key) for maximized workspace
    - Proper aspect ratio preservation
+   - Visual indicator for current nudge increment value
 5. **Coordinate Alignment**:
    - Precise alignment between image space and tracking data space
    - Automatic centering of images relative to tracking area
-   - Visual indicators (crosshairs) for alignment verification
 
 ## Coordinate Transformation System
 

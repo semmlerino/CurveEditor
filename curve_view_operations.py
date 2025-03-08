@@ -232,7 +232,7 @@ class CurveViewOperations:
             main_window.statusBar().showMessage("Cleared selection", 2000)
     
     @staticmethod
-    def delete_selected_points(main_window, show_confirmation=True):
+    def delete_selected_points(main_window, show_confirmation=False):
         """Delete selected points from the curve.
         
         Args:
@@ -242,6 +242,16 @@ class CurveViewOperations:
         # Get selected points
         if not hasattr(main_window.curve_view, 'selected_points') or not main_window.curve_view.selected_points:
             return
+            
+        # Save the view state before any changes
+        view = main_window.curve_view
+        view_state = {
+            'zoom_factor': view.zoom_factor,
+            'offset_x': view.offset_x,
+            'offset_y': view.offset_y,
+            'x_offset': view.x_offset,
+            'y_offset': view.y_offset
+        }
             
         selected_indices = sorted(main_window.curve_view.selected_points, reverse=True)
         
@@ -261,18 +271,47 @@ class CurveViewOperations:
         # Delete points, working backwards to maintain valid indices
         for idx in selected_indices:
             if 0 <= idx < len(main_window.curve_data):
-                del main_window.curve_data[idx]
+                # Instead of deleting, mark the point as interpolated
+                # Get the current point data
+                if len(main_window.curve_data[idx]) == 3:  # If it's a standard (frame, x, y) tuple
+                    frame, x, y = main_window.curve_data[idx]
+                    # Replace with an extended tuple that includes 'interpolated' status
+                    main_window.curve_data[idx] = (frame, x, y, 'interpolated')
+                # We don't delete points anymore, just mark them as interpolated
+                # del main_window.curve_data[idx]
         
         # Clear selection
         main_window.curve_view.clearSelection()
         
-        # Update the view
+        # Preserve view state by manually assigning values after points update
+        # First update the points without view reset
         if hasattr(main_window.curve_view, 'setPoints'):
-            main_window.curve_view.setPoints(
-                main_window.curve_data,
-                main_window.image_width,
-                main_window.image_height
-            )
+            # Update points but don't reset the view
+            main_window.curve_view.points = main_window.curve_data
+            
+            # Manually restore all view state variables
+            view = main_window.curve_view
+            view.zoom_factor = view_state['zoom_factor']
+            view.offset_x = view_state['offset_x']
+            view.offset_y = view_state['offset_y']
+            view.x_offset = view_state['x_offset']
+            view.y_offset = view_state['y_offset']
+            
+            # Select a new point if any points remain, focusing on the one after the deleted point
+            if main_window.curve_data:
+                # Use the first index that was deleted as an approximate position
+                if selected_indices:
+                    new_idx = min(selected_indices[0], len(main_window.curve_data) - 1)
+                    if hasattr(main_window.curve_view, 'selectPointByIndex'):
+                        main_window.curve_view.selectPointByIndex(new_idx)
+                    else:
+                        # Fallback if the method doesn't exist
+                        main_window.curve_view.selected_point_idx = new_idx
+                        main_window.curve_view.selected_points = {new_idx}
+                        main_window.curve_view.point_selected.emit(new_idx)
+            
+            # Force update without resetting view
+            view.update()
         else:
             main_window.curve_view.update()
         
@@ -304,3 +343,14 @@ class CurveViewOperations:
         if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'zoomOut'):
             main_window.curve_view.zoomOut()
             main_window.statusBar().showMessage("Zoomed out", 1000)
+
+    @staticmethod
+    def set_point_size(main_window, size):
+        """Set the point display size.
+        
+        Args:
+            main_window: The main window that contains the curve_view
+            size: Integer representing the point radius
+        """
+        if hasattr(main_window, 'curve_view') and main_window.curve_view:
+            main_window.curve_view.set_point_radius(size)

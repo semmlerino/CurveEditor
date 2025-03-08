@@ -176,6 +176,12 @@ class FilterDialog(QDialog):
         self.on_filter_changed(0)
         self.on_range_changed(0)
         
+        # Generic accessor for window size - adds compatibility with existing code
+        self.window_size_spin = self.median_size
+        self.sigma_spin = None
+        self.cutoff_spin = None
+        self.order_spin = None
+        
     def create_param_widgets(self):
         """Create all parameter widgets for different filters."""
         # Median filter parameters
@@ -245,36 +251,49 @@ class FilterDialog(QDialog):
         
     def on_filter_changed(self, index):
         """Update parameter widgets based on selected filter."""
-        # Clear previous parameter widgets
-        for i in reversed(range(self.param_layout.count())):
-            layout_item = self.param_layout.itemAt(i)
-            if layout_item.layout():
-                # Remove all widgets in the layout
-                while layout_item.layout().count():
-                    item = layout_item.layout().takeAt(0)
-                    widget = item.widget()
-                    if widget:
-                        widget.setParent(None)
-                self.param_layout.removeItem(layout_item)
-            else:
-                widget = layout_item.widget()
-                if widget:
-                    widget.setParent(None)
-                    self.param_layout.removeWidget(widget)
+        # Clear existing parameter widgets
+        while self.param_layout.count():
+            item = self.param_layout.takeAt(0)
+            if item.layout():
+                # Remove items from the layout
+                while item.layout().count():
+                    item_widget = item.layout().takeAt(0)
+                    if item_widget.widget():
+                        item_widget.widget().setParent(None)
         
         # Add new parameter widgets based on filter type
         if index == 0:  # Median
             for layout, _ in self.median_widgets:
                 self.param_layout.addLayout(layout)
+            # Update generic accessors
+            self.window_size_spin = self.median_size
+            self.sigma_spin = None
+            self.cutoff_spin = None
+            self.order_spin = None
         elif index == 1:  # Gaussian
             for layout, _ in self.gaussian_widgets:
                 self.param_layout.addLayout(layout)
+            # Update generic accessors
+            self.window_size_spin = self.gaussian_size
+            self.sigma_spin = self.gaussian_sigma
+            self.cutoff_spin = None
+            self.order_spin = None
         elif index == 2:  # Average
             for layout, _ in self.average_widgets:
                 self.param_layout.addLayout(layout)
+            # Update generic accessors
+            self.window_size_spin = self.average_size
+            self.sigma_spin = None
+            self.cutoff_spin = None
+            self.order_spin = None
         elif index == 3:  # Butterworth
             for layout, _ in self.butterworth_widgets:
                 self.param_layout.addLayout(layout)
+            # Update generic accessors
+            self.window_size_spin = None
+            self.sigma_spin = None
+            self.cutoff_spin = self.butterworth_cutoff
+            self.order_spin = self.butterworth_order
                 
     def on_range_changed(self, index):
         """Handle range selection change."""

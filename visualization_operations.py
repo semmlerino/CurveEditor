@@ -58,8 +58,28 @@ class VisualizationOperations:
         """
         if hasattr(main_window.curve_view, 'toggleCrosshair'):
             main_window.curve_view.toggleCrosshair(checked)
-            main_window.toggle_crosshair_button.setChecked(checked)
-            main_window.statusBar().showMessage(f"Crosshair {'shown' if checked else 'hidden'}", 2000)
+            if hasattr(main_window, 'toggle_crosshair_button'):
+                main_window.toggle_crosshair_button.setChecked(checked)
+    
+    @staticmethod
+    def toggle_fullscreen(main_window):
+        """Toggle fullscreen mode for the main window.
+        
+        Args:
+            main_window: The main application window
+        """
+        if main_window.isFullScreen():
+            main_window.showNormal()
+            if hasattr(main_window, 'status_bar'):
+                main_window.status_bar.showMessage("Exited fullscreen mode", 2000)
+            elif hasattr(main_window, 'statusBar'):
+                main_window.statusBar().showMessage("Exited fullscreen mode", 2000)
+        else:
+            main_window.showFullScreen()
+            if hasattr(main_window, 'status_bar'):
+                main_window.status_bar.showMessage("Entered fullscreen mode (press F11 to exit)", 3000)
+            elif hasattr(main_window, 'statusBar'):
+                main_window.statusBar().showMessage("Entered fullscreen mode (press F11 to exit)", 3000)
     
     @staticmethod
     def center_on_selected_point(main_window):
