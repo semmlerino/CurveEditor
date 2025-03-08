@@ -4,11 +4,12 @@
 import sys
 import os
 import math
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
+from PySide6.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                               QHBoxLayout, QLabel, QPushButton, QFileDialog, 
                               QMessageBox, QSlider, QLineEdit, QGroupBox, QSplitter)
-from PyQt5.QtCore import Qt, QPointF, pyqtSignal as Signal, pyqtSlot as Slot
-from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QFont
+from PySide6.QtCore import Qt, QPointF, Signal, Slot
+from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont
+import csv_export
 
 class CurveView(QWidget):
     """Widget for displaying and editing the 2D tracking curve."""
@@ -274,9 +275,13 @@ class MainWindow(QMainWindow):
         self.reset_view_button = QPushButton("Reset View")
         self.reset_view_button.clicked.connect(self.reset_view)
         
+        self.export_csv_button = QPushButton("Export to CSV")
+        self.export_csv_button.clicked.connect(self.export_to_csv)
+        
         toolbar_layout.addWidget(self.load_button)
         toolbar_layout.addWidget(self.save_button)
         toolbar_layout.addWidget(self.reset_view_button)
+        toolbar_layout.addWidget(self.export_csv_button)
         toolbar_layout.addStretch()
         
         # Add info label
@@ -496,6 +501,29 @@ class MainWindow(QMainWindow):
             
         except ValueError:
             QMessageBox.warning(self, "Error", "Invalid coordinate values.")
+
+    def export_to_csv(self):
+        """Export tracking data to CSV format."""
+        if not self.curve_data:
+            QMessageBox.information(self, "Info", "No data to export.")
+            return
+            
+        # Get output file path
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, "Export to CSV", 
+            os.path.join(self.default_directory, "track_data.csv"),
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not file_path:
+            return
+            
+        # Call export function
+        if csv_export.export_to_csv(file_path, self.curve_data):
+            QMessageBox.information(self, "Success", "Data exported to CSV successfully.")
+            self.status_bar.showMessage(f"Exported data to {file_path}", 3000)
+        else:
+            QMessageBox.critical(self, "Error", "Failed to export data.")
 
 def main():
     app = QApplication(sys.argv)

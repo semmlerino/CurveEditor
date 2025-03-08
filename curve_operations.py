@@ -629,6 +629,117 @@ def extrapolate_forward(curve_data, num_frames, method, fit_points=5):
     add_points_to_curve(result, extrapolated)
     return result
 
+def extrapolate_backward(curve_data, num_frames, method, fit_points=5):
+    """Extrapolate curve backward by num_frames using the specified method."""
+    if not curve_data or num_frames <= 0:
+        return curve_data
+        
+    # Create a copy of the curve data
+    result = copy.deepcopy(curve_data)
+    
+    # Get the first few frames for extrapolation
+    sorted_data = sorted(result, key=lambda x: x[0])
+    first_frame = sorted_data[0][0]
+    
+    # Get points to use for extrapolation
+    points_to_use = sorted_data[:min(fit_points, len(sorted_data))]
+    
+    extrapolated = []
+    
+    # Linear extrapolation
+    if method == 0:  # Linear
+        if len(points_to_use) < 2:
+            return result
+            
+        # Use first two points to determine direction
+        frame1, x1, y1 = points_to_use[0]
+        frame2, x2, y2 = points_to_use[1]
+        
+        # Calculate velocity (change per frame)
+        frame_diff = frame2 - frame1
+        if frame_diff == 0:
+            return result
+            
+        dx = (x2 - x1) / frame_diff
+        dy = (y2 - y1) / frame_diff
+        
+        # Extrapolate backward
+        for i in range(1, num_frames + 1):
+            new_frame = first_frame - i
+            new_x = x1 - dx * i
+            new_y = y1 - dy * i
+            extrapolated.append((new_frame, new_x, new_y))
+            
+    # First velocity extrapolation (continue with first velocity)
+    elif method == 1:  # First Velocity
+        if len(points_to_use) < 2:
+            return result
+            
+        # Calculate average velocity over the first few points
+        velocities_x = []
+        velocities_y = []
+        
+        for i in range(len(points_to_use) - 1):
+            curr_frame, curr_x, curr_y = points_to_use[i]
+            next_frame, next_x, next_y = points_to_use[i+1]
+            
+            frame_diff = next_frame - curr_frame
+            if frame_diff > 0:
+                velocities_x.append((next_x - curr_x) / frame_diff)
+                velocities_y.append((next_y - curr_y) / frame_diff)
+        
+        if not velocities_x or not velocities_y:
+            return result
+            
+        # Calculate average velocity
+        avg_dx = sum(velocities_x) / len(velocities_x)
+        avg_dy = sum(velocities_y) / len(velocities_y)
+        
+        # Extrapolate backward
+        frame, x, y = points_to_use[0]
+        
+        for i in range(1, num_frames + 1):
+            new_frame = first_frame - i
+            new_x = x - avg_dx * i
+            new_y = y - avg_dy * i
+            extrapolated.append((new_frame, new_x, new_y))
+            
+    # Quadratic extrapolation (fit a quadratic curve)
+    elif method == 2:  # Quadratic
+        if len(points_to_use) < 3:
+            return result
+            
+        # Extract data for curve fitting
+        frames = [p[0] for p in points_to_use]
+        xs = [p[1] for p in points_to_use]
+        ys = [p[2] for p in points_to_use]
+        
+        # Normalize frames for better numerical stability
+        min_frame = min(frames)
+        normalized_frames = [f - min_frame for f in frames]
+        
+        # Fit quadratic polynomials for x and y
+        x_coeffs = fit_quadratic(normalized_frames, xs)
+        y_coeffs = fit_quadratic(normalized_frames, ys)
+        
+        if not x_coeffs or not y_coeffs:
+            return result
+            
+        # Extrapolate backward
+        for i in range(1, num_frames + 1):
+            new_frame = first_frame - i
+            normalized_new_frame = new_frame - min_frame
+            
+            # Evaluate polynomials
+            new_x = x_coeffs[0] + x_coeffs[1] * normalized_new_frame + x_coeffs[2] * normalized_new_frame**2
+            new_y = y_coeffs[0] + y_coeffs[1] * normalized_new_frame + y_coeffs[2] * normalized_new_frame**2
+            
+            extrapolated.append((new_frame, new_x, new_y))
+    
+    # Add extrapolated points to the curve data
+    add_points_to_curve(result, extrapolated)
+    return result
+
 def fit_quadratic(x, y):
     """Fit a quadratic polynomial to the given data points."""
     if len(x) != len(y) or len(x) < 3:
@@ -689,124 +800,290 @@ def fit_quadratic(x, y):
         
     return x
 
-def detect_problems(curve_data):
-    """Detect potential problems in the tracking data."""
-    if not curve_data or len(curve_data) < 5:
-        return []
-        
-    # Sort by frame
-    sorted_data = sorted(curve_data, key=lambda x: x[0])
+class CurveOperations:
+    """Static utility methods for curve operations in the curve editor."""
     
-    problems = []
-    
-    # 1. Check for sudden jumps in position
-    for i in range(1, len(sorted_data)):
-        prev_frame, prev_x, prev_y = sorted_data[i-1]
-        frame, x, y = sorted_data[i]
+    @staticmethod
+    def detect_problems(main_window):
+        """Detect potential problems in the tracking data.
         
-        # Calculate distance between consecutive points
-        distance = math.sqrt((x - prev_x)**2 + (y - prev_y)**2)
+        Args:
+            main_window: The main window containing the curve data
+            
+        Returns:
+            A list of detected problems with format [(frame, severity, description), ...]
+        """
+        if not main_window.curve_data:
+            return []
+            
+        # Sort by frame
+        sorted_data = sorted(main_window.curve_data, key=lambda x: x[0])
         
-        # Also check if frames are consecutive
-        frame_gap = frame - prev_frame
+        problems = []
         
-        # Normalize by frame gap (for non-consecutive frames)
-        if frame_gap > 1:
-            normalized_distance = distance / frame_gap
+        # 1. Check for sudden jumps in position
+        for i in range(1, len(sorted_data)):
+            prev_frame, prev_x, prev_y = sorted_data[i-1]
+            frame, x, y = sorted_data[i]
+            
+            # Calculate distance between consecutive points
+            distance = math.sqrt((x - prev_x)**2 + (y - prev_y)**2)
+            
+            # Also check if frames are consecutive
+            frame_gap = frame - prev_frame
+            
+            # Normalize by frame gap (for non-consecutive frames)
+            if frame_gap > 1:
+                normalized_distance = distance / frame_gap
+            else:
+                normalized_distance = distance
+                
+            # Define thresholds for jumps
+            medium_threshold = 10.0  # Adjust based on typical movement
+            high_threshold = 30.0
+            
+            if normalized_distance > high_threshold:
+                severity = min(1.0, normalized_distance / (high_threshold * 2))
+                problems.append((frame, "Sudden Jump", severity, 
+                                f"Distance of {distance:.2f} pixels from previous frame ({normalized_distance:.2f}/frame)"))
+            elif normalized_distance > medium_threshold:
+                severity = min(0.7, normalized_distance / high_threshold)
+                problems.append((frame, "Large Movement", severity,
+                                f"Distance of {distance:.2f} pixels from previous frame ({normalized_distance:.2f}/frame)"))
+        
+        # 2. Check for acceleration (changes in velocity)
+        for i in range(2, len(sorted_data)):
+            frame_2, x_2, y_2 = sorted_data[i-2]
+            frame_1, x_1, y_1 = sorted_data[i-1]
+            frame_0, x_0, y_0 = sorted_data[i]
+            
+            # Calculate velocities (distance per frame)
+            time_1 = frame_1 - frame_2
+            time_0 = frame_0 - frame_1
+            
+            if time_1 == 0 or time_0 == 0:
+                continue
+                
+            dx_1 = (x_1 - x_2) / time_1
+            dy_1 = (y_1 - y_2) / time_1
+            
+            dx_0 = (x_0 - x_1) / time_0
+            dy_0 = (y_0 - y_1) / time_0
+            
+            # Calculate change in velocity (acceleration)
+            accel_x = abs(dx_0 - dx_1)
+            accel_y = abs(dy_0 - dy_1)
+            
+            # Calculate magnitude of acceleration
+            accel_mag = math.sqrt(accel_x**2 + accel_y**2)
+            
+            # Define thresholds for acceleration
+            medium_threshold = 0.8  # Adjust based on typical acceleration
+            high_threshold = 2.0
+            
+            if accel_mag > high_threshold:
+                severity = min(0.9, accel_mag / (high_threshold * 2))
+                problems.append((frame_0, "High Acceleration", severity,
+                                f"Acceleration of {accel_mag:.2f} pixels/frame²"))
+            elif accel_mag > medium_threshold:
+                severity = min(0.6, accel_mag / high_threshold)
+                problems.append((frame_0, "Medium Acceleration", severity,
+                                f"Acceleration of {accel_mag:.2f} pixels/frame²"))
+        
+        # 3. Check for gaps in tracking
+        for i in range(1, len(sorted_data)):
+            prev_frame, _, _ = sorted_data[i-1]
+            frame, _, _ = sorted_data[i]
+            
+            frame_gap = frame - prev_frame
+            
+            if frame_gap > 10:
+                severity = min(1.0, frame_gap / 30.0)
+                problems.append((prev_frame, "Large Gap", severity,
+                                f"Gap of {frame_gap} frames after this point"))
+            elif frame_gap > 3:
+                severity = min(0.5, frame_gap / 10.0)
+                problems.append((prev_frame, "Small Gap", severity,
+                                f"Gap of {frame_gap} frames after this point"))
+        
+        # 4. Check for excessive jitter
+        if len(sorted_data) >= 5:
+            window_size = 5
+            
+            for i in range(window_size, len(sorted_data)):
+                window = sorted_data[i-window_size:i]
+                
+                # Calculate the average position
+                avg_x = sum(p[1] for p in window) / window_size
+                avg_y = sum(p[2] for p in window) / window_size
+                
+                # Calculate the variance in position
+                var_x = sum((p[1] - avg_x)**2 for p in window) / window_size
+                var_y = sum((p[2] - avg_y)**2 for p in window) / window_size
+                
+                # Calculate the total variance (jitter)
+                jitter = math.sqrt(var_x + var_y)
+                
+                # Define thresholds for jitter
+                medium_threshold = 2.0  # Adjust based on typical jitter
+                high_threshold = 5.0
+                
+                if jitter > high_threshold:
+                    frame, _, _ = sorted_data[i-1]
+                    severity = min(0.8, jitter / (high_threshold * 2))
+                    problems.append((frame, "High Jitter", severity,
+                                    f"Jitter of {jitter:.2f} pixels in a {window_size}-frame window"))
+                elif jitter > medium_threshold:
+                    frame, _, _ = sorted_data[i-1]
+                    severity = min(0.5, jitter / high_threshold)
+                    problems.append((frame, "Medium Jitter", severity,
+                                    f"Jitter of {jitter:.2f} pixels in a {window_size}-frame window"))
+        
+        # Sort problems by frame for easier navigation
+        problems.sort(key=lambda x: x[0])
+        
+        return problems
+
+    @staticmethod
+    def fill_accelerated_motion(curve_data, start_frame, end_frame, window_size, accel_weight, preserve_endpoints=True):
+        """Fill a gap using accelerated motion based on surrounding frames."""
+        # Create a copy of the curve data
+        result = copy.deepcopy(curve_data)
+        
+        # Create a frame map of existing points
+        frame_map = {frame: (idx, frame, x, y) for idx, (frame, x, y) in enumerate(result)}
+        
+        # Get points before and after the gap
+        before_points = [(idx, f, x, y) for idx, (f, x, y) in enumerate(result) if f < start_frame]
+        after_points = [(idx, f, x, y) for idx, (f, x, y) in enumerate(result) if f > end_frame]
+        
+        # We need at least window_size points on each side
+        if len(before_points) < window_size or len(after_points) < window_size:
+            # Fall back to constant velocity if not enough points
+            return fill_constant_velocity(curve_data, start_frame, end_frame, window_size, preserve_endpoints)
+            
+        # Sort points by proximity to gap
+        before_points.sort(key=lambda p: start_frame - p[1])
+        after_points.sort(key=lambda p: p[1] - end_frame)
+        
+        # Calculate velocity from before points
+        b_velocity_x = 0
+        b_velocity_y = 0
+        
+        for i in range(1, window_size):
+            frame_diff = before_points[i-1][1] - before_points[i][1]
+            if frame_diff == 0:
+                continue
+                
+            b_velocity_x += (before_points[i-1][2] - before_points[i][2]) / frame_diff
+            b_velocity_y += (before_points[i-1][3] - before_points[i][3]) / frame_diff
+            
+        b_velocity_x /= max(1, window_size - 1)
+        b_velocity_y /= max(1, window_size - 1)
+        
+        # Calculate velocity from after points
+        a_velocity_x = 0
+        a_velocity_y = 0
+        
+        for i in range(1, window_size):
+            frame_diff = after_points[i][1] - after_points[i-1][1]
+            if frame_diff == 0:
+                continue
+                
+            a_velocity_x += (after_points[i][2] - after_points[i-1][2]) / frame_diff
+            a_velocity_y += (after_points[i][3] - after_points[i-1][3]) / frame_diff
+            
+        a_velocity_x /= max(1, window_size - 1)
+        a_velocity_y /= max(1, window_size - 1)
+        
+        # Calculate acceleration (difference in velocities)
+        total_gap = end_frame - start_frame + 1
+        if total_gap > 0:
+            accel_x = (a_velocity_x - b_velocity_x) / total_gap
+            accel_y = (a_velocity_y - b_velocity_y) / total_gap
         else:
-            normalized_distance = distance
+            accel_x = 0
+            accel_y = 0
+        
+        # Apply accel_weight to control how much acceleration to use
+        accel_x *= accel_weight
+        accel_y *= accel_weight
+        
+        # Get the points at the gap boundaries
+        _, b_frame, b_x, b_y = before_points[0]
+        
+        # Generate new points
+        new_points = []
+        for frame in range(start_frame, end_frame + 1):
+            # Skip if the frame already exists and we're preserving endpoints
+            if frame in frame_map and preserve_endpoints:
+                continue
+                
+            # Calculate steps from boundary
+            steps = frame - b_frame
             
-        # Define thresholds for jumps
-        medium_threshold = 10.0  # Adjust based on typical movement
-        high_threshold = 30.0
-        
-        if normalized_distance > high_threshold:
-            severity = min(1.0, normalized_distance / (high_threshold * 2))
-            problems.append((frame, "Sudden Jump", severity, 
-                            f"Distance of {distance:.2f} pixels from previous frame ({normalized_distance:.2f}/frame)"))
-        elif normalized_distance > medium_threshold:
-            severity = min(0.7, normalized_distance / high_threshold)
-            problems.append((frame, "Large Movement", severity,
-                            f"Distance of {distance:.2f} pixels from previous frame ({normalized_distance:.2f}/frame)"))
-    
-    # 2. Check for acceleration (changes in velocity)
-    for i in range(2, len(sorted_data)):
-        frame_2, x_2, y_2 = sorted_data[i-2]
-        frame_1, x_1, y_1 = sorted_data[i-1]
-        frame_0, x_0, y_0 = sorted_data[i]
-        
-        # Calculate velocities (distance per frame)
-        time_1 = frame_1 - frame_2
-        time_0 = frame_0 - frame_1
-        
-        if time_1 == 0 or time_0 == 0:
-            continue
+            # Apply constant velocity with acceleration
+            # Using the kinematic equation: position = initial_position + initial_velocity * time + 0.5 * acceleration * time^2
+            x = b_x + b_velocity_x * steps + 0.5 * accel_x * steps * steps
+            y = b_y + b_velocity_y * steps + 0.5 * accel_y * steps * steps
             
-        distance_1 = math.sqrt((x_1 - x_2)**2 + (y_1 - y_2)**2)
-        distance_0 = math.sqrt((x_0 - x_1)**2 + (y_0 - y_1)**2)
+            new_points.append((frame, x, y))
         
-        velocity_1 = distance_1 / time_1
-        velocity_0 = distance_0 / time_0
+        # Add new points to the curve data
+        add_points_to_curve(result, new_points)
+        return result
+
+    @staticmethod
+    def fill_average(curve_data, start_frame, end_frame, window_size, preserve_endpoints=True):
+        """Fill a gap by averaging neighboring frames."""
+        # Create a copy of the curve data
+        result = copy.deepcopy(curve_data)
         
-        # Calculate acceleration
-        acceleration = abs(velocity_0 - velocity_1) / ((time_0 + time_1) / 2)
+        # Create a frame map of existing points
+        frame_map = {frame: (idx, frame, x, y) for idx, (frame, x, y) in enumerate(result)}
         
-        # Define thresholds for acceleration
-        medium_threshold = 0.5  # Adjust based on your data
-        high_threshold = 1.5
+        # Get points before and after the gap
+        before_points = [(idx, f, x, y) for idx, (f, x, y) in enumerate(result) if f < start_frame]
+        after_points = [(idx, f, x, y) for idx, (f, x, y) in enumerate(result) if f > end_frame]
         
-        if acceleration > high_threshold:
-            severity = min(1.0, acceleration / (high_threshold * 2))
-            problems.append((frame_0, "High Acceleration", severity, 
-                            f"Acceleration of {acceleration:.2f} pixels/frame²"))
-        elif acceleration > medium_threshold:
-            severity = min(0.7, acceleration / high_threshold)
-            problems.append((frame_0, "Medium Acceleration", severity,
-                            f"Acceleration of {acceleration:.2f} pixels/frame²"))
-    
-    # 3. Check for jitter (high-frequency oscillations)
-    if len(sorted_data) >= 5:
-        for i in range(2, len(sorted_data) - 2):
-            # Look at 5-point window
-            points = sorted_data[i-2:i+3]
-            frames = [f for f, _, _ in points]
-            xs = [x for _, x, _ in points]
-            ys = [y for _, _, y in points]
+        # We need at least some points on each side
+        if not before_points or not after_points:
+            # Fall back to linear if not enough points
+            return fill_linear(curve_data, start_frame, end_frame, preserve_endpoints)
             
-            # Calculate average position
-            avg_x = sum(xs) / 5
-            avg_y = sum(ys) / 5
-            
-            # Calculate variance from straight path
-            deviations = [math.sqrt((x - avg_x)**2 + (y - avg_y)**2) for x, y in zip(xs, ys)]
-            avg_deviation = sum(deviations) / 5
-            
-            # Define thresholds for jitter
-            medium_threshold = 3.0  # Adjust based on your data
-            high_threshold = 8.0
-            
-            if avg_deviation > high_threshold:
-                severity = min(1.0, avg_deviation / (high_threshold * 2))
-                problems.append((frames[2], "Strong Jitter", severity, 
-                                f"Average deviation of {avg_deviation:.2f} pixels from smooth path"))
-            elif avg_deviation > medium_threshold:
-                severity = min(0.7, avg_deviation / high_threshold)
-                problems.append((frames[2], "Moderate Jitter", severity,
-                                f"Average deviation of {avg_deviation:.2f} pixels from smooth path"))
-    
-    # 4. Frame gaps
-    for i in range(1, len(sorted_data)):
-        prev_frame = sorted_data[i-1][0]
-        frame = sorted_data[i][0]
+        # Sort points by proximity to gap
+        before_points.sort(key=lambda p: start_frame - p[1])
+        after_points.sort(key=lambda p: p[1] - end_frame)
         
-        frame_gap = frame - prev_frame
+        # Get points to use for averaging (up to window_size on each side)
+        before_window = before_points[:min(window_size, len(before_points))]
+        after_window = after_points[:min(window_size, len(after_points))]
         
-        if frame_gap > 1:
-            severity = min(1.0, frame_gap / 10.0)  # Scale severity by gap size
-            problems.append((frame, "Frame Gap", severity, 
-                            f"Gap of {frame_gap} frames from previous keyframe"))
-    
-    # Sort problems by severity
-    problems.sort(key=lambda x: x[2], reverse=True)
-    
-    return problems
+        # Calculate average positions
+        avg_before_x = sum(p[2] for p in before_window) / len(before_window)
+        avg_before_y = sum(p[3] for p in before_window) / len(before_window)
+        
+        avg_after_x = sum(p[2] for p in after_window) / len(after_window)
+        avg_after_y = sum(p[3] for p in after_window) / len(after_window)
+        
+        # Generate new points with a weighted average based on proximity to each side
+        new_points = []
+        total_frames = end_frame - start_frame + 1
+        
+        for frame in range(start_frame, end_frame + 1):
+            # Skip if the frame already exists and we're preserving endpoints
+            if frame in frame_map and preserve_endpoints:
+                continue
+                
+            # Calculate weight based on position in the gap (0 at start, 1 at end)
+            t = (frame - start_frame) / total_frames if total_frames > 0 else 0.5
+            
+            # Weighted average
+            x = avg_before_x * (1 - t) + avg_after_x * t
+            y = avg_before_y * (1 - t) + avg_after_y * t
+            
+            new_points.append((frame, x, y))
+        
+        # Add new points to the curve data
+        add_points_to_curve(result, new_points)
+        return result

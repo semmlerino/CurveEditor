@@ -2,13 +2,38 @@
 # -*- coding: utf-8 -*-
 
 import os
-from PyQt5.QtWidgets import QFileDialog, QMessageBox
+from PySide6.QtWidgets import QFileDialog, QMessageBox
 import utils
 import config
+import csv_export
 
 
 class FileOperations:
     """File operations for the 3DE4 Curve Editor."""
+
+    @staticmethod
+    def export_to_csv(main_window):
+        """Export tracking data to CSV format."""
+        if not main_window.curve_data:
+            QMessageBox.information(main_window, "Info", "No data to export.")
+            return
+            
+        # Get output file path
+        file_path, _ = QFileDialog.getSaveFileName(
+            main_window, "Export to CSV", 
+            os.path.join(main_window.default_directory, "track_data.csv"),
+            "CSV Files (*.csv);;All Files (*)"
+        )
+        
+        if not file_path:
+            return
+            
+        # Call export function
+        if csv_export.export_to_csv(file_path, main_window.curve_data):
+            QMessageBox.information(main_window, "Success", "Data exported to CSV successfully.")
+            main_window.status_bar.showMessage(f"Exported data to {file_path}", 3000)
+        else:
+            QMessageBox.critical(main_window, "Error", "Failed to export data.")
     
     @staticmethod
     def load_track_data(main_window):

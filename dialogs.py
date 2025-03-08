@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PyQt5.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-                               QCheckBox, QGroupBox, QWidget)
-from PyQt5.QtCore import Qt
+                               QCheckBox, QGroupBox, QWidget, QSlider)
+from PySide6.QtCore import Qt
 
 
 class SmoothingDialog(QDialog):
@@ -650,5 +650,247 @@ class ProblemDetectionDialog(QDialog):
             self.problems_list.setCurrentIndex(0)  # Wrap around
 
 
-# End of dialogs.py
+class ShortcutsDialog(QDialog):
+    """Dialog displaying keyboard shortcuts."""
+    
+    def __init__(self, parent=None):
+        super(ShortcutsDialog, self).__init__(parent)
+        self.setWindowTitle("Keyboard Shortcuts")
+        self.resize(500, 400)
+        
+        layout = QVBoxLayout(self)
+        
+        shortcuts_label = QLabel("""
+        <h3>Keyboard Shortcuts</h3>
+        <table>
+            <tr><td><b>Ctrl+O</b></td><td>Open file</td></tr>
+            <tr><td><b>Ctrl+S</b></td><td>Save file</td></tr>
+            <tr><td><b>Ctrl+Z</b></td><td>Undo</td></tr>
+            <tr><td><b>Ctrl+Y</b></td><td>Redo</td></tr>
+            <tr><td><b>Space</b></td><td>Play/Pause animation</td></tr>
+            <tr><td><b>Left Arrow</b></td><td>Previous frame</td></tr>
+            <tr><td><b>Right Arrow</b></td><td>Next frame</td></tr>
+            <tr><td><b>Delete</b></td><td>Delete selected points</td></tr>
+            <tr><td><b>Ctrl+A</b></td><td>Select all points</td></tr>
+            <tr><td><b>Escape</b></td><td>Clear selection</td></tr>
+            <tr><td><b>F</b></td><td>Frame view to show all points</td></tr>
+            <tr><td><b>Ctrl+E</b></td><td>Export data</td></tr>
+        </table>
+        """)
+        shortcuts_label.setTextFormat(Qt.RichText)
+        layout.addWidget(shortcuts_label)
+        
+        # Close button
+        button = QPushButton("Close")
+        button.clicked.connect(self.accept)
+        layout.addWidget(button)
 
+
+class ScaleDialog(QDialog):
+    """Dialog for scaling points."""
+    
+    def __init__(self, parent=None):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDoubleSpinBox, QCheckBox
+        from PySide6.QtCore import Qt
+        
+        super(ScaleDialog, self).__init__(parent)
+        self.setWindowTitle("Scale Points")
+        
+        layout = QVBoxLayout(self)
+        
+        # Scale factors
+        x_layout = QHBoxLayout()
+        x_layout.addWidget(QLabel("Scale X:"))
+        self.scale_x_spin = QDoubleSpinBox()
+        self.scale_x_spin.setRange(0.01, 10.0)
+        self.scale_x_spin.setSingleStep(0.1)
+        self.scale_x_spin.setValue(1.0)
+        x_layout.addWidget(self.scale_x_spin)
+        layout.addLayout(x_layout)
+        
+        y_layout = QHBoxLayout()
+        y_layout.addWidget(QLabel("Scale Y:"))
+        self.scale_y_spin = QDoubleSpinBox()
+        self.scale_y_spin.setRange(0.01, 10.0)
+        self.scale_y_spin.setSingleStep(0.1)
+        self.scale_y_spin.setValue(1.0)
+        y_layout.addWidget(self.scale_y_spin)
+        layout.addLayout(y_layout)
+        
+        # Use centroid as scaling center
+        self.use_centroid_check = QCheckBox("Scale around selection centroid")
+        self.use_centroid_check.setChecked(True)
+        layout.addWidget(self.use_centroid_check)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("Apply")
+        ok_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+    
+    @property
+    def scale_x(self):
+        return self.scale_x_spin.value()
+    
+    @property
+    def scale_y(self):
+        return self.scale_y_spin.value()
+    
+    @property
+    def use_centroid(self):
+        return self.use_centroid_check.isChecked()
+
+
+class OffsetDialog(QDialog):
+    """Dialog for offsetting points."""
+    
+    def __init__(self, parent=None):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDoubleSpinBox
+        from PySide6.QtCore import Qt
+        
+        super(OffsetDialog, self).__init__(parent)
+        self.setWindowTitle("Offset Points")
+        
+        layout = QVBoxLayout(self)
+        
+        # Offset values
+        x_layout = QHBoxLayout()
+        x_layout.addWidget(QLabel("Offset X:"))
+        self.offset_x_spin = QDoubleSpinBox()
+        self.offset_x_spin.setRange(-1000.0, 1000.0)
+        self.offset_x_spin.setSingleStep(1.0)
+        self.offset_x_spin.setValue(0.0)
+        x_layout.addWidget(self.offset_x_spin)
+        layout.addLayout(x_layout)
+        
+        y_layout = QHBoxLayout()
+        y_layout.addWidget(QLabel("Offset Y:"))
+        self.offset_y_spin = QDoubleSpinBox()
+        self.offset_y_spin.setRange(-1000.0, 1000.0)
+        self.offset_y_spin.setSingleStep(1.0)
+        self.offset_y_spin.setValue(0.0)
+        y_layout.addWidget(self.offset_y_spin)
+        layout.addLayout(y_layout)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("Apply")
+        ok_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+    
+    @property
+    def offset_x(self):
+        return self.offset_x_spin.value()
+    
+    @property
+    def offset_y(self):
+        return self.offset_y_spin.value()
+
+
+class RotationDialog(QDialog):
+    """Dialog for rotating points."""
+    
+    def __init__(self, parent=None):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDoubleSpinBox, QCheckBox
+        from PySide6.QtCore import Qt
+        
+        super(RotationDialog, self).__init__(parent)
+        self.setWindowTitle("Rotate Points")
+        
+        layout = QVBoxLayout(self)
+        
+        # Rotation angle
+        angle_layout = QHBoxLayout()
+        angle_layout.addWidget(QLabel("Angle (degrees):"))
+        self.angle_spin = QDoubleSpinBox()
+        self.angle_spin.setRange(-360.0, 360.0)
+        self.angle_spin.setSingleStep(5.0)
+        self.angle_spin.setValue(0.0)
+        angle_layout.addWidget(self.angle_spin)
+        layout.addLayout(angle_layout)
+        
+        # Use centroid as rotation center
+        self.use_centroid_check = QCheckBox("Rotate around selection centroid")
+        self.use_centroid_check.setChecked(True)
+        layout.addWidget(self.use_centroid_check)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("Apply")
+        ok_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+    
+    @property
+    def angle(self):
+        return self.angle_spin.value()
+    
+    @property
+    def use_centroid(self):
+        return self.use_centroid_check.isChecked()
+
+
+class SmoothFactorDialog(QDialog):
+    """Dialog for selecting smoothness factor."""
+    
+    def __init__(self, parent=None):
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QDoubleSpinBox, QSlider
+        from PySide6.QtCore import Qt
+        
+        super(SmoothFactorDialog, self).__init__(parent)
+        self.setWindowTitle("Smooth Points")
+        
+        layout = QVBoxLayout(self)
+        
+        # Smoothness factor
+        layout.addWidget(QLabel("Smoothness Factor:"))
+        
+        slider_layout = QHBoxLayout()
+        self.factor_slider = QSlider(Qt.Horizontal)
+        self.factor_slider.setRange(0, 100)
+        self.factor_slider.setValue(50)
+        slider_layout.addWidget(self.factor_slider)
+        
+        self.factor_spin = QDoubleSpinBox()
+        self.factor_spin.setRange(0.0, 1.0)
+        self.factor_spin.setSingleStep(0.05)
+        self.factor_spin.setValue(0.5)
+        slider_layout.addWidget(self.factor_spin)
+        layout.addLayout(slider_layout)
+        
+        # Connect slider and spin box
+        self.factor_slider.valueChanged.connect(self.update_spin_from_slider)
+        self.factor_spin.valueChanged.connect(self.update_slider_from_spin)
+        
+        # Buttons
+        button_layout = QHBoxLayout()
+        ok_button = QPushButton("Apply")
+        ok_button.clicked.connect(self.accept)
+        cancel_button = QPushButton("Cancel")
+        cancel_button.clicked.connect(self.reject)
+        button_layout.addWidget(ok_button)
+        button_layout.addWidget(cancel_button)
+        layout.addLayout(button_layout)
+    
+    def update_spin_from_slider(self, value):
+        """Update spin box value when slider changes."""
+        self.factor_spin.setValue(value / 100.0)
+    
+    def update_slider_from_spin(self, value):
+        """Update slider value when spin box changes."""
+        self.factor_slider.setValue(int(value * 100))
+    
+    @property
+    def smoothness_factor(self):
+        return self.factor_spin.value()

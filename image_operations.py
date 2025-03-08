@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import os
-from PyQt5.QtWidgets import QMessageBox, QFileDialog
-from PyQt5.QtGui import QImage
+from PySide6.QtWidgets import QMessageBox, QFileDialog
+from PySide6.QtGui import QImage
 import config
 
 

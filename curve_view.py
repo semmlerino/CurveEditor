@@ -3,9 +3,9 @@
 
 import os
 import math
-from PyQt5.QtWidgets import QWidget
-from PyQt5.QtCore import Qt, QPointF, pyqtSignal as Signal, pyqtSlot as Slot
-from PyQt5.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush
+from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QPointF, Signal, Slot
+from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush
 
 
 class CurveView(QWidget):
@@ -475,16 +475,13 @@ class CurveView(QWidget):
             self.drag_active = False
         
     def wheelEvent(self, event):
-        """Handle mouse wheel for zooming."""
-        # Calculate zoom factor change
+        """Handle mouse wheel event for zooming."""
         delta = event.angleDelta().y()
-        factor = 1.1 if delta > 0 else 0.9
+        zoom_factor_change = 1.0 + (delta / 1200.0)
+        self.zoom_factor *= zoom_factor_change
         
-        # Apply zoom
-        self.zoom_factor *= factor
+        # Limit zoom range
         self.zoom_factor = max(0.1, min(10.0, self.zoom_factor))
-        
-        # Center zoom on cursor position
         self.update()
         
     def keyPressEvent(self, event):
@@ -555,3 +552,49 @@ class CurveView(QWidget):
         elif event.key() == Qt.Key_Delete and self.selected_point_idx >= 0:
             # Allow deleting selected point (for UI only, actual deletion would be handled elsewhere)
             pass
+
+    # Compatibility methods to ensure consistent interface with EnhancedCurveView
+    
+    def set_curve_data(self, curve_data):
+        """Compatibility method for main_window.py curve_data."""
+        self.points = curve_data
+        self.update()
+        
+    def set_selected_indices(self, indices):
+        """Set selected point indices."""
+        if indices:
+            self.selected_point_idx = indices[0]  # Use the first selected point
+        else:
+            self.selected_point_idx = -1
+        self.update()
+        
+    def get_selected_indices(self):
+        """Return list of selected indices (singleton list or empty)."""
+        if self.selected_point_idx >= 0:
+            return [self.selected_point_idx]
+        return []
+        
+    def toggleGrid(self, enabled):
+        """Stub for grid toggling (not implemented in basic view)."""
+        # Basic view doesn't support grid
+        pass
+        
+    def toggleVelocityVectors(self, enabled):
+        """Stub for velocity vector toggling (not implemented in basic view)."""
+        # Basic view doesn't support velocity vectors
+        pass
+        
+    def toggleAllFrameNumbers(self, enabled):
+        """Stub for frame numbers toggling (not implemented in basic view)."""
+        # Basic view doesn't support frame numbers
+        pass
+        
+    def toggleCrosshair(self, enabled):
+        """Stub for crosshair toggling (not implemented in basic view)."""
+        # Basic view doesn't support crosshair
+        pass
+        
+    def centerOnSelectedPoint(self, point_idx):
+        """Stub for centering on point (not implemented in basic view)."""
+        # Basic view doesn't support centering on points
+        pass

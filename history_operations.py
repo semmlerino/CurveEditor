@@ -25,7 +25,7 @@ class HistoryOperations:
         main_window.history_index = len(main_window.history) - 1
         
         # Limit history size
-        if len(main_window.history) > main_window.max_history:
+        if len(main_window.history) > main_window.max_history_size:
             main_window.history = main_window.history[1:]
             main_window.history_index = len(main_window.history) - 1
         
