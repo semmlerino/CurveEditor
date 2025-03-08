@@ -87,6 +87,11 @@ The application functionality is organized into specialized modules:
    - Proper scaling and alignment with tracking data coordinates
    - Adjustable opacity for better visualization
 
+- **View Navigation**:
+   - Middle mouse button panning for easy view navigation
+   - Mouse wheel zooming centered on cursor position
+   - Reset view functionality with 'R' key
+
 - **Information Overlay**: Real-time display of zoom level, selected points, and image information
 
 ### Editing Tools

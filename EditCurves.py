@@ -156,12 +156,7 @@ class CurveView(QWidget):
                     break
             
             self.update()
-        elif event.button() == Qt.RightButton:
-            # Right click for panning
-            self.pan_start_x = event.x()
-            self.pan_start_y = event.y()
-            self.initial_offset_x = self.offset_x
-            self.initial_offset_y = self.offset_y
+        # Right-click panning removed
             
     def mouseMoveEvent(self, event):
         """Handle mouse movement for dragging points or panning."""
@@ -189,15 +184,7 @@ class CurveView(QWidget):
             self.point_moved.emit(self.selected_point_idx, new_x, new_y)
             
             self.update()
-        elif event.buttons() & Qt.RightButton:
-            # Panning the view
-            dx = event.x() - self.pan_start_x
-            dy = event.y() - self.pan_start_y
-            
-            self.offset_x = self.initial_offset_x + dx
-            self.offset_y = self.initial_offset_y + dy
-            
-            self.update()
+        # Right-click panning removed
             
     def mouseReleaseEvent(self, event):
         """Handle mouse release."""

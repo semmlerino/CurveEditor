@@ -226,28 +226,6 @@ class CurveView(QWidget):
             
             # Debugging visuals
             if self.debug_mode:
-                # Draw image borders for reference
-                painter.setPen(QPen(QColor(0, 255, 0), 2, Qt.DashLine))
-                painter.drawRect(int(img_x), int(img_y), int(scaled_width), int(scaled_height))
-                
-                # Draw origin crosshair
-                painter.setPen(QPen(QColor(255, 255, 0), 2))
-                origin_x, origin_y = transform_point(0, 0)
-                size = 20
-                painter.drawLine(int(origin_x - size), int(origin_y), int(origin_x + size), int(origin_y))
-                painter.drawLine(int(origin_x), int(origin_y - size), int(origin_x), int(origin_y + size))
-                painter.drawText(int(origin_x + 5), int(origin_y - 5), "(0,0)")
-                
-                # Draw center point
-                center_x, center_y = transform_point(self.image_width/2, self.image_height/2)
-                painter.setPen(QPen(QColor(255, 0, 255), 2))
-                painter.drawLine(int(center_x - size), int(center_y), int(center_x + size), int(center_y))
-                painter.drawLine(int(center_x), int(center_y - size), int(center_x), int(center_y + size))
-                painter.drawText(int(center_x + 5), int(center_y - 5), f"Center")
-                
-                # Draw a few fixed points for reference (at corners)
-                painter.setPen(QPen(Qt.white, 1))
-
                 # Show alignment info
                 painter.setPen(QPen(QColor(255, 100, 100), 1))
                 painter.drawText(10, 100, f"Manual Alignment: X-offset: {self.x_offset}, Y-offset: {self.y_offset}")
@@ -409,8 +387,8 @@ class CurveView(QWidget):
                     break
             
             self.update()
-        elif event.button() == Qt.RightButton or event.button() == Qt.MiddleButton:
-            # Right click or middle click for panning
+        elif event.button() == Qt.MiddleButton:
+            # Middle click for panning
             self.pan_start_x = event.x()
             self.pan_start_y = event.y()
             self.initial_offset_x = self.offset_x
@@ -481,8 +459,8 @@ class CurveView(QWidget):
             self.point_moved.emit(self.selected_point_idx, new_x, new_y)
             
             self.update()
-        elif event.buttons() & (Qt.RightButton | Qt.MiddleButton):
-            # Panning the view with right or middle mouse button
+        elif event.buttons() & Qt.MiddleButton:
+            # Panning the view with middle mouse button
             dx = event.x() - self.pan_start_x
             dy = event.y() - self.pan_start_y
             

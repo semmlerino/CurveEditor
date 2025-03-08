@@ -76,8 +76,8 @@ class MainWindow(QMainWindow):
         main_layout = QVBoxLayout(main_widget)
         
         # Create toolbar
-        toolbar_layout = self.create_toolbar()
-        main_layout.addLayout(toolbar_layout)
+        toolbar_widget = self.create_toolbar()
+        main_layout.addWidget(toolbar_widget)
         
         # Create splitter for main view and controls
         splitter = QSplitter(Qt.Vertical)
