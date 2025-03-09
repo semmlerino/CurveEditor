@@ -140,10 +140,8 @@ class CurveView(QWidget):
             
     def resetView(self):
         """Reset view to show all points."""
-        self.zoom_factor = 1.0
-        self.offset_x = 0
-        self.offset_y = 0
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.reset_view(self)
         
     def paintEvent(self, event):
         """Draw the curve and points."""
@@ -471,8 +469,8 @@ class CurveView(QWidget):
             
     def mouseReleaseEvent(self, event):
         """Handle mouse release."""
-        if event.button() == Qt.LeftButton:
-            self.drag_active = False
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.handle_mouse_release(self, event)
         
     def wheelEvent(self, event):
         """Handle mouse wheel event for zooming."""

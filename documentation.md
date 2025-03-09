@@ -44,6 +44,7 @@ The application follows a modular architecture with clear separation of concerns
    - Implements wheel event handling for zooming with proper position tracking
    - Provides advanced visual feedback for tracking quality analysis
    - **Interpolated Points** feature allows "soft deletion" of points while maintaining navigation
+   - **Refactored to delegate functionality** to specialized utility classes through dynamic imports
 
 ### Utility Classes Architecture
 
@@ -56,12 +57,27 @@ The application has been refactored to follow a utility-class-based architecture
    - Manages point selection, editing, and manipulation
    - Provides methods for view controls like reset view and zooming
    - Used directly through signal connections from UI elements
+   - **Enhanced Curve View Integration**: Provides specialized methods for the enhanced curve view:
+     - `find_point_at`: Finds a point at a given position
+     - `finalize_selection`: Handles multi-selection rectangle functionality
+     - `get_point_data`: Retrieves point data in a consistent format
+     - `is_point_interpolated`: Checks if a point has interpolated status
+     - `toggle_point_interpolation`: Toggles a point's interpolation status
+     - `update_point_position`: Updates a point's position while preserving its status
+     - `change_nudge_increment`: Manages the nudge increment for point movement
+     - `nudge_selected_points`: Applies nudging to selected points
 
 2. **VisualizationOperations** (`visualization_operations.py`)
    - Centralizes all visualization-related functionality
    - Controls grid, crosshair, vectors, and frame number display
    - Manages background image visibility and opacity
    - Provides view centering and navigation methods
+   - **Enhanced Curve View Integration**: Provides specialized methods for visualization features:
+     - `toggle_grid_internal`: Internal implementation of grid toggling
+     - `set_point_radius`: Controls the size of points in the view
+     - `set_grid_color`: Manages grid color settings
+     - `set_grid_line_width`: Controls grid line thickness
+     - `update_timeline_for_image`: Synchronizes timeline with image navigation
 
 3. **UIComponents** (`ui_components.py`)
    - Creates and organizes UI elements
@@ -189,6 +205,32 @@ The application has been refactored to follow a utility-class-based architecture
 
 - **Undo/Redo**: Support for undoing and redoing editing operations
 - **History Stack**: Maintains a history of changes for reverting
+
+## Enhanced Curve View Refactoring
+
+The Enhanced Curve View component has been significantly refactored to improve code organization and maintainability:
+
+1. **Dynamic Import Pattern**:
+   - Methods in the EnhancedCurveView class now use dynamic imports to delegate functionality to utility classes
+   - Each method imports the appropriate utility class only when needed, reducing initialization overhead
+   - Example: `from curve_view_operations import CurveViewOperations` at the method level
+   - This approach allows for better separation of concerns while maintaining the class interface
+
+2. **Method Delegation**:
+   - Core functionality is implemented in utility classes but exposed through the EnhancedCurveView interface
+   - The EnhancedCurveView class acts as a facade, providing a consistent API while delegating implementation
+   - This pattern reduces code duplication and centralizes implementation in specialized utility classes
+   - Methods like `update_point_position`, `findPointAt`, and `toggleGrid` now delegate to utility classes
+
+3. **Duplicate Method Resolution**:
+   - Some methods appear multiple times in the class due to refactoring transitions
+   - Each instance delegates to the same utility class implementation
+   - This approach maintains backward compatibility while moving toward a cleaner architecture
+
+4. **Utility Class Integration**:
+   - CurveViewOperations handles point manipulation, selection, and data management
+   - VisualizationOperations manages visual elements like grid, point radius, and timeline synchronization
+   - Each utility class receives the EnhancedCurveView instance as its first parameter to access necessary properties
 
 ## Signal-Slot Architecture
 

@@ -375,52 +375,15 @@ class UIComponents:
                 main_window.curve_view.image_changed.connect(main_window.on_image_changed)
                 print("UIComponents: Enhanced curve view signal connections established")
                 
-                # Add a direct update method to the view for direct timeline updates
-                def update_timeline_for_image(index):
-                    """Direct method to update the timeline for the current image."""
-                    try:
-                        if index < 0 or index >= len(main_window.image_filenames):
-                            print(f"update_timeline_for_image: Invalid index {index}")
-                            return
-                    
-                        # Extract frame number
-                        filename = os.path.basename(main_window.image_filenames[index])
-                        import re
-                        frame_match = re.search(r'(\d+)', filename)
-                        if not frame_match:
-                            print(f"update_timeline_for_image: Could not extract frame from {filename}")
-                            return
-                            
-                        frame_num = int(frame_match.group(1))
-                        print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
-                        
-                        # Update timeline directly
-                        if hasattr(main_window, 'timeline_slider'):
-                            main_window.timeline_slider.blockSignals(True)
-                            main_window.timeline_slider.setValue(frame_num)
-                            main_window.timeline_slider.blockSignals(False)
-                            print(f"update_timeline_for_image: Updated timeline to frame {frame_num}")
-                        
-                        # Update label
-                        if hasattr(main_window, 'range_slider_value_label'):
-                            main_window.range_slider_value_label.setText(f"Frame: {frame_num}")
-                            
-                        # Find and update selected point
-                        if hasattr(main_window, 'curve_data') and main_window.curve_data:
-                            closest_frame = min(main_window.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
-                            
-                            for i, point in enumerate(main_window.curve_data):
-                                if point[0] == closest_frame:
-                                    # Update selection
-                                    if hasattr(main_window.curve_view, 'selected_point_idx'):
-                                        main_window.curve_view.selected_point_idx = i
-                                        main_window.curve_view.update()
-                                        print(f"update_timeline_for_image: Updated selected point to {i}")
-                                    break
-                    except Exception as e:
-                        print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
+                # Add a reference to the visualization operations method for timeline updates
+                from visualization_operations import VisualizationOperations
                 
-                # Attach the method to the curve view
+                # Create a wrapper method that calls the visualization operations method
+                def update_timeline_for_image(index):
+                    """Wrapper method to update the timeline for the current image."""
+                    VisualizationOperations.update_timeline_for_image(main_window, index)
+                
+                # Attach the wrapper method to the curve view for backward compatibility
                 main_window.curve_view.update_timeline_for_image = update_timeline_for_image
                 
                 # Create enhanced controls

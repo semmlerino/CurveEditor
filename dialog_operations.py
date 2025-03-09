@@ -19,7 +19,7 @@ class DialogOperations:
             QMessageBox.information(main_window, "Info", "Not enough points to smooth curve.")
             return
             
-        frames = [frame for frame, _, _ in main_window.curve_data]
+        frames = [point[0] for point in main_window.curve_data]  # Extract only the frame number from each point
         min_frame = min(frames)
         max_frame = max(frames)
         
@@ -44,7 +44,8 @@ class DialogOperations:
             start_frame = dialog.start_frame.value()
             end_frame = dialog.end_frame.value()
             
-            for i, (frame, _, _) in enumerate(main_window.curve_data):
+            for i, point in enumerate(main_window.curve_data):
+                frame = point[0]  # Extract only the frame number
                 if start_frame <= frame <= end_frame:
                     points_to_smooth.append(i)
         elif range_type == 2:  # Current point only
@@ -85,7 +86,7 @@ class DialogOperations:
             QMessageBox.information(main_window, "Info", "Not enough points to filter curve.")
             return
             
-        frames = [frame for frame, _, _ in main_window.curve_data]
+        frames = [point[0] for point in main_window.curve_data]  # Extract only the frame number from each point
         min_frame = min(frames)
         max_frame = max(frames)
         
@@ -110,7 +111,8 @@ class DialogOperations:
             start_frame = dialog.start_frame.value()
             end_frame = dialog.end_frame.value()
             
-            for i, (frame, _, _) in enumerate(main_window.curve_data):
+            for i, point in enumerate(main_window.curve_data):
+                frame = point[0]  # Extract only the frame number
                 if start_frame <= frame <= end_frame:
                     points_to_filter.append(i)
         elif range_type == 2:  # Current point only
@@ -171,7 +173,7 @@ class DialogOperations:
             QMessageBox.information(main_window, "Info", "Not enough points to fill gaps.")
             return
             
-        frames = [frame for frame, _, _ in main_window.curve_data]
+        frames = [point[0] for point in main_window.curve_data]  # Extract only the frame number from each point
         min_frame = min(frames)
         max_frame = max(frames)
         
@@ -239,7 +241,7 @@ class DialogOperations:
             QMessageBox.information(main_window, "Info", "Not enough points to extrapolate curve.")
             return
             
-        frames = [frame for frame, _, _ in main_window.curve_data]
+        frames = [point[0] for point in main_window.curve_data]  # Extract only the frame number from each point
         min_frame = min(frames)
         max_frame = max(frames)
         

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import os
@@ -43,6 +42,7 @@ class EnhancedCurveView(QWidget):
         self.grid_line_width = 1
         self.grid_color = QColor(100, 100, 120, 150)  # Default grid color (semi-transparent gray-blue)
         self.show_velocity_vectors = False
+        self.velocity_vector_scale = 5.0  # Default scale for velocity vectors
         self.show_all_frame_numbers = False
         self.show_crosshair = True
         self.scale_to_image = True
@@ -80,6 +80,12 @@ class EnhancedCurveView(QWidget):
         self.available_increments = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
         self.current_increment_index = 2  # Default to 1.0
         
+        # For panning
+        self.pan_start_x = 0
+        self.pan_start_y = 0
+        self.initial_offset_x = 0
+        self.initial_offset_y = 0
+        
     def setPoints(self, points, image_width, image_height, preserve_view=False):
         """Set the points to display and adjust view accordingly.
         
@@ -89,63 +95,33 @@ class EnhancedCurveView(QWidget):
             image_height: Height of the image/workspace
             preserve_view: If True, maintain current view position
         """
-        # Store current view state if preserving view
-        view_state = None
-        if preserve_view:
-            view_state = {
-                'zoom_factor': self.zoom_factor,
-                'offset_x': self.offset_x,
-                'offset_y': self.offset_y,
-                'x_offset': self.x_offset,
-                'y_offset': self.y_offset
-            }
-            
-        # Update data
-        self.points = points
-        self.image_width = image_width
-        self.image_height = image_height
-        
-        # Reset view if not preserving
-        if not preserve_view:
-            self.resetView()
-        else:
-            # Restore view state
-            if view_state:
-                self.zoom_factor = view_state['zoom_factor']
-                self.offset_x = view_state['offset_x']
-                self.offset_y = view_state['offset_y']
-                self.x_offset = view_state['x_offset']
-                self.y_offset = view_state['y_offset']
-            
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.set_points(self, points, image_width, image_height, preserve_view)
         
     def setImageSequence(self, path, filenames):
         """Set the image sequence to display as background."""
-        self.image_sequence_path = path
-        self.image_filenames = filenames
-        self.current_image_idx = 0 if filenames else -1
-        self.loadCurrentImage()
-        self.update()
+        from image_operations import ImageOperations
+        ImageOperations.set_image_sequence(self, path, filenames)
         
-    def toggleGrid(self, enabled):
+    def toggleGrid(self, enabled=None):
         """Toggle grid visibility."""
-        self.show_grid = enabled
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.toggle_grid_internal(self, enabled)
         
-    def toggleVelocityVectors(self, enabled):
+    def toggleVelocityVectors(self, enabled=None):
         """Toggle velocity vector display."""
-        self.show_velocity_vectors = enabled
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.toggle_velocity_vectors_internal(self, enabled)
         
-    def toggleAllFrameNumbers(self, enabled):
+    def toggleAllFrameNumbers(self, enabled=None):
         """Toggle display of all frame numbers."""
-        self.show_all_frame_numbers = enabled
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.toggle_all_frame_numbers_internal(self, enabled)
         
-    def toggleCrosshair(self, enabled):
+    def toggleCrosshair(self, enabled=None):
         """Toggle crosshair visibility."""
-        self.show_crosshair = enabled
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.toggle_crosshair_internal(self, enabled)
     
     def centerOnSelectedPoint(self, point_idx=-1, preserve_zoom=True):
         """Center the view on the specified point index.
@@ -156,106 +132,8 @@ class EnhancedCurveView(QWidget):
             point_idx: Index of point to center on. Default -1 uses selected point.
             preserve_zoom: If True, maintain current zoom level. If False, reset view.
         """
-        # Use provided index or current selection
-        idx = point_idx if point_idx >= 0 else self.selected_point_idx
-        
-        if idx < 0 or not hasattr(self, 'main_window') or not self.main_window.curve_data:
-            return False
-            
-        try:
-            # Get the point to center on
-            if idx < len(self.main_window.curve_data):
-                # Extract point coordinates
-                _, x, y = self.main_window.curve_data[idx]
-                print(f"EnhancedCurveView: Centering on point {idx} at ({x}, {y})")
-                
-                # Set this as the selected point
-                self.selected_point_idx = idx
-                
-                # Store current zoom factor if we're preserving zoom
-                current_zoom = self.zoom_factor if preserve_zoom else 1.0
-                
-                # Reset zoom and positioning to default if not preserving zoom
-                if not preserve_zoom:
-                    self.resetView()
-                
-                # Get the point coordinates in widget space after reset
-                widget_width = self.width()
-                widget_height = self.height()
-                
-                # Calculate the transform that would be applied in paintEvent
-                display_width = self.image_width
-                display_height = self.image_height
-                if self.background_image:
-                    display_width = self.background_image.width()
-                    display_height = self.background_image.height()
-                
-                # Calculate scale to fit in the widget
-                scale_x = widget_width / display_width
-                scale_y = widget_height / display_height
-                
-                # Apply the preserved zoom if requested
-                if preserve_zoom:
-                    scale = min(scale_x, scale_y) * current_zoom
-                else:
-                    scale = min(scale_x, scale_y) * self.zoom_factor
-                
-                # Calculate centering offsets for the image
-                offset_x = (widget_width - (display_width * scale)) / 2
-                offset_y = (widget_height - (display_height * scale)) / 2
-                
-                # Transform the point using the same logic as in paintEvent
-                if self.scale_to_image:
-                    # Scale the tracking coordinates to match the image size
-                    img_x = x * (display_width / self.image_width)
-                    img_y = y * (display_height / self.image_height)
-                    
-                    # Scale to widget space
-                    tx = offset_x + img_x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (display_height - img_y) * scale
-                    else:
-                        ty = offset_y + img_y * scale
-                else:
-                    # Direct scaling with no image-based transformation
-                    tx = offset_x + x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (self.image_height - y) * scale
-                    else:
-                        ty = offset_y + y * scale
-                
-                # Calculate the offset needed to center this point
-                center_x = widget_width / 2
-                center_y = widget_height / 2
-                
-                # The offset needed is the difference between where the point is
-                # and where we want it to be (at the center)
-                delta_x = center_x - tx
-                delta_y = center_y - ty
-                
-                # Apply the offset
-                self.offset_x = delta_x
-                self.offset_y = delta_y
-                
-                print(f"EnhancedCurveView: Point transforms to ({tx}, {ty})")
-                print(f"EnhancedCurveView: Center is at ({center_x}, {center_y})")
-                print(f"EnhancedCurveView: Applied offset of ({delta_x}, {delta_y})")
-                
-                # Update the view to apply new transforms
-                self.update()
-                return True
-            else:
-                print(f"EnhancedCurveView: Point index {idx} out of range")
-                return False
-        except Exception as e:
-            print(f"EnhancedCurveView: Error centering on point: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
+        from visualization_operations import VisualizationOperations
+        return VisualizationOperations.center_on_selected_point(self, point_idx, preserve_zoom)
         
     def setCoordinatePrecision(self, precision):
         """Set decimal precision for coordinate display."""
@@ -264,141 +142,33 @@ class EnhancedCurveView(QWidget):
         
     def setCurrentImageByFrame(self, frame):
         """Set the current background image based on frame number."""
-        if not self.image_filenames:
-            return
-            
-        # Find the closest image index to the requested frame
-        closest_idx = -1
-        min_diff = float('inf')
-        
-        for i, filename in enumerate(self.image_filenames):
-            # Try to extract frame number from filename
-            try:
-                # Common formats: name.####.ext or name_####.ext
-                parts = os.path.basename(filename).split('.')
-                if len(parts) >= 2 and parts[-2].isdigit():
-                    img_frame = int(parts[-2])
-                else:
-                    # Try underscore format
-                    name_parts = parts[0].split('_')
-                    if name_parts[-1].isdigit():
-                        img_frame = int(name_parts[-1])
-                    else:
-                        # Just use sequential index if can't parse frame
-                        img_frame = i
-            except:
-                img_frame = i
-                
-            diff = abs(img_frame - frame)
-            if diff < min_diff:
-                min_diff = diff
-                closest_idx = i
-                
-        if closest_idx >= 0 and closest_idx < len(self.image_filenames):
-            self.current_image_idx = closest_idx
-            self.loadCurrentImage()
-            self.update()
+        from image_operations import ImageOperations
+        ImageOperations.set_current_image_by_frame(self, frame)
             
     def setCurrentImageByIndex(self, idx):
         """Set current image by index and update the view."""
-        if idx < 0 or idx >= len(self.image_filenames):
-            print(f"EnhancedCurveView: Invalid image index: {idx}")
-            return
-            
-        # Store current zoom factor and view offsets
-        current_zoom = self.zoom_factor
-        current_offset_x = self.offset_x
-        current_offset_y = self.offset_y
+        from image_operations import ImageOperations
+        ImageOperations.set_current_image_by_index(self, idx)
         
-        # Store current center position before changing the image
-        center_pos = None
-        if self.selected_point_idx >= 0 and hasattr(self, 'main_window') and self.main_window.curve_data:
-            # Remember center point if we have a selected point
-            try:
-                point = self.main_window.curve_data[self.selected_point_idx]
-                center_pos = (point[1], point[2])  # x, y coordinates
-                print(f"EnhancedCurveView: Storing center position at {center_pos}")
-            except (IndexError, AttributeError) as e:
-                print(f"EnhancedCurveView: Could not store center position: {str(e)}")
-        
-        # Update image index and load the image
-        self.current_image_idx = idx
-        self.loadCurrentImage()
-        
-        # Restore the zoom factor that was in effect before switching images
-        print(f"EnhancedCurveView: Preserving zoom factor of {current_zoom}")
-        self.zoom_factor = current_zoom
-        
-        # After changing the image, center on the selected point using our improved function
-        if self.selected_point_idx >= 0:
-            success = self.centerOnSelectedPoint(preserve_zoom=True)
-            if success:
-                print(f"EnhancedCurveView: Successfully centered on point {self.selected_point_idx}")
-            else:
-                print(f"EnhancedCurveView: Could not center on point {self.selected_point_idx}")
-                # If centering fails, restore previous view position
-                self.offset_x = current_offset_x
-                self.offset_y = current_offset_y
-        else:
-            # If no point is selected, at least maintain the zoom level
-            self.offset_x = current_offset_x
-            self.offset_y = current_offset_y
-        
-        self.update()
-        self.setFocus()
-        
-    def toggleBackgroundVisible(self, visible):
+    def toggleBackgroundVisible(self, visible=None):
         """Toggle visibility of background image."""
-        self.show_background = visible
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.toggle_background_visible_internal(self, visible)
         
     def setBackgroundOpacity(self, opacity):
         """Set the opacity of the background image."""
-        self.background_opacity = max(0.0, min(1.0, opacity))
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.set_background_opacity(self, opacity)
         
     def loadCurrentImage(self):
         """Load the current image in the sequence."""
-        if self.current_image_idx < 0 or not self.image_filenames:
-            self.background_image = None
-            return
-            
-        try:
-            # Get path to current image
-            image_path = os.path.join(self.image_sequence_path, self.image_filenames[self.current_image_idx])
-            print(f"EnhancedCurveView: Loading image: {image_path}")
-            
-            # Load image using PySide6.QtGui.QImage
-            image = QImage(image_path)
-            
-            # Make sure we have focus to receive keyboard events
-            self.setFocus()
-            
-            if image.isNull():
-                print(f"EnhancedCurveView: Failed to load image: {image_path}")
-                self.background_image = None
-            else:
-                print(f"EnhancedCurveView: Successfully loaded image from: {image_path}")
-                self.background_image = image
-                
-                # Update track dimensions to match image dimensions
-                if self.scale_to_image:
-                    self.image_width = image.width()
-                    self.image_height = image.height()
-                    
-                # Emit the image_changed signal
-                print(f"EnhancedCurveView.loadCurrentImage: Emitting image_changed signal for idx={self.current_image_idx}")
-                self.image_changed.emit(self.current_image_idx)
-        except Exception as e:
-            print(f"EnhancedCurveView: Error loading image: {str(e)}")
-            self.background_image = None
+        from image_operations import ImageOperations
+        ImageOperations.load_current_image(self)
             
     def resetView(self):
         """Reset view to default state (zoom and position)."""
-        self.zoom_factor = 1.0
-        self.x_offset = 0
-        self.y_offset = 0
-        self.update()
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.reset_view(self)
         
     def set_point_radius(self, radius):
         """Set the point display radius.
@@ -406,8 +176,61 @@ class EnhancedCurveView(QWidget):
         Args:
             radius: Integer representing the point radius (1-10)
         """
-        self.point_radius = max(1, min(10, radius))  # Ensure size is between 1 and 10
-        self.update()  # Redraw with new point size
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.set_point_radius(self, radius)
+        
+    def get_point_data(self, index):
+        """Get point data as a tuple (frame, x, y, status).
+        
+        Args:
+            index: Index of the point to get data for
+            
+        Returns:
+            Tuple of (frame, x, y, status) or None if index is invalid
+        """
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.get_point_data(self, index)
+        
+    def findPointAt(self, pos):
+        """Find a point at the given position.
+        
+        Args:
+            pos: QPoint with screen coordinates
+            
+        Returns:
+            Index of the found point or -1 if no point was found
+        """
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.find_point_at(self, pos.x(), pos.y())
+    
+    def findClosestPointByFrame(self, frame_num):
+        """Find the point closest to the given frame number.
+        
+        Args:
+            frame_num: The frame number to find the closest point to
+            
+        Returns:
+            Index of the closest point or -1 if no points are available
+        """
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.find_closest_point_by_frame(self, frame_num)
+        
+    def toggle_point_interpolation(self, index):
+        """Toggle the interpolation status of a point.
+        
+        Args:
+            index: Index of the point to toggle
+            
+        Returns:
+            bool: True if the toggle was successful, False otherwise
+        """
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.toggle_point_interpolation(self, index)
+        
+    def finalize_selection(self):
+        """Select all points inside the selection rectangle."""
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.finalize_selection(self)
         
     def paintEvent(self, event):
         """Draw the curve and points with enhanced visualization."""
@@ -446,30 +269,8 @@ class EnhancedCurveView(QWidget):
         # Coordinate transformation functions
         def transform_point(x, y):
             """Transform from track coordinates to widget coordinates."""
-            if self.background_image and self.scale_to_image:
-                # Scale the tracking coordinates to match the image size
-                img_x = x * (display_width / self.image_width) + self.x_offset
-                img_y = y * (display_height / self.image_height) + self.y_offset
-                
-                # Scale to widget space
-                tx = offset_x + img_x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (display_height - img_y) * scale
-                else:
-                    ty = offset_y + img_y * scale
-            else:
-                # Direct scaling with no image-based transformation
-                tx = offset_x + x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (self.image_height - y) * scale
-                else:
-                    ty = offset_y + y * scale
-                    
-            return tx, ty
+            from curve_view_operations import CurveViewOperations
+            return CurveViewOperations.transform_point(self, x, y, display_width, display_height, offset_x, offset_y, scale)
         
         def inverse_transform(tx, ty):
             """Transform from widget coordinates to track coordinates."""
@@ -531,9 +332,12 @@ class EnhancedCurveView(QWidget):
             grid_center_y = 0
             
             if self.selected_point_idx >= 0 and self.selected_point_idx < len(self.points):
-                _, center_x, center_y = self.points[self.selected_point_idx]
-                grid_center_x = center_x
-                grid_center_y = center_y
+                # Use get_point_data to safely handle points with different structures
+                point_data = self.get_point_data(self.selected_point_idx)
+                if point_data:
+                    frame, center_x, center_y, _ = point_data
+                    grid_center_x = center_x
+                    grid_center_y = center_y
                 
                 if self.debug_mode:
                     print(f"EnhancedCurveView: Centering grid on point at ({grid_center_x}, {grid_center_y})")
@@ -591,8 +395,12 @@ class EnhancedCurveView(QWidget):
                 sorted_points = sorted(self.points, key=lambda p: p[0])
                 
                 for i in range(1, len(sorted_points)):
-                    prev_frame, prev_x, prev_y = sorted_points[i-1]
-                    curr_frame, curr_x, curr_y = sorted_points[i]
+                    # Extract only frame, x, y even if there's a status
+                    prev_point = sorted_points[i-1]
+                    prev_frame, prev_x, prev_y = prev_point[:3]
+                    
+                    curr_point = sorted_points[i]
+                    curr_frame, curr_x, curr_y = curr_point[:3]
                     
                     # Calculate velocity components
                     frame_diff = curr_frame - prev_frame
@@ -747,7 +555,8 @@ class EnhancedCurveView(QWidget):
         # Show current view info
         info_text = f"Zoom: {self.zoom_factor:.2f}x | Points: {len(self.points)}"
         if self.selected_point_idx >= 0:
-            frame, x, y = self.points[self.selected_point_idx]
+            point = self.points[self.selected_point_idx]
+            frame, x, y = point[:3]  # Extract only frame, x, y even if there's a status
             coord_format = f"{{:.{self.display_precision}f}}"
             info_text += f" | Selected: Frame {frame}, X: {coord_format.format(x)}, Y: {coord_format.format(y)}"
         elif self.selected_points:
@@ -822,7 +631,7 @@ class EnhancedCurveView(QWidget):
             # Draw increment value
             painter.setPen(QPen(QColor(255, 200, 0), 1))
             painter.drawText(indicator_x + indicator_width + 10, indicator_y + indicator_height // 2 + 5, 
-                            f"Current: {self.nudge_increment:.1f}")
+                           f"Current: {self.nudge_increment:.1f}")
             
             # Draw up/down arrow instructions
             painter.setPen(QPen(QColor(200, 200, 200), 1))
@@ -831,937 +640,91 @@ class EnhancedCurveView(QWidget):
             
     def mousePressEvent(self, event):
         """Handle mouse press to select or move points."""
-        if event.button() == Qt.LeftButton:
-            # Check if Shift is pressed for multi-selection rectangle
-            if event.modifiers() & Qt.ShiftModifier:
-                self.selection_start = event.pos()
-                self.selection_rect = QRect(self.selection_start, self.selection_start)
-                self.update()
-                return
-                
-            # Calculate transform parameters
-            widget_width = self.width()
-            widget_height = self.height()
-            
-            # Use the background image dimensions if available, otherwise use track dimensions
-            display_width = self.image_width
-            display_height = self.image_height
-            
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
-            
-            # Calculate the scale factor to fit in the widget
-            scale_x = widget_width / display_width
-            scale_y = widget_height / display_height
-            
-            # Use uniform scaling to maintain aspect ratio
-            scale = min(scale_x, scale_y) * self.zoom_factor
-            
-            # Calculate centering offsets
-            offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-            offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
-
-            # Transform function
-            def transform_point(x, y):
-                """Transform from track coordinates to widget coordinates."""
-                if self.background_image and self.scale_to_image:
-                    # Scale the tracking coordinates to match the image size
-                    img_x = x * (display_width / self.image_width) + self.x_offset
-                    img_y = y * (display_height / self.image_height) + self.y_offset
-                    
-                    # Scale to widget space
-                    tx = offset_x + img_x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (display_height - img_y) * scale
-                    else:
-                        ty = offset_y + img_y * scale
-                else:
-                    # Direct scaling with no image-based transformation
-                    tx = offset_x + x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (self.image_height - y) * scale
-                    else:
-                        ty = offset_y + y * scale
-                        
-                return tx, ty
-            
-            self.drag_active = False
-            
-            # Check if Ctrl is pressed for multi-selection
-            ctrl_pressed = event.modifiers() & Qt.ControlModifier
-            
-            # Find if we clicked on a point
-            clicked_on_point = False
-            for i, (frame, x, y) in enumerate(self.points):
-                tx, ty = transform_point(x, y)
-                
-                # Check if within radius
-                dx = event.x() - tx
-                dy = event.y() - ty
-                dist = math.sqrt(dx * dx + dy * dy)
-                
-                if dist <= self.point_radius + 2:  # +2 for better selection
-                    clicked_on_point = True
-                    
-                    if ctrl_pressed:
-                        # Add/remove from multi-selection
-                        if i in self.selected_points:
-                            self.selected_points.remove(i)
-                        else:
-                            self.selected_points.add(i)
-                            self.selected_point_idx = i  # Also make it primary selection
-                    else:
-                        # If Ctrl is not pressed, clear selection before selecting this point
-                        if not ctrl_pressed:
-                            self.selected_points.clear()
-                        
-                        self.selected_point_idx = i
-                        self.selected_points.add(i)
-                        self.drag_active = True
-                        
-                    self.point_selected.emit(i)
-                    break
-            
-            # If clicked on empty space and not using Ctrl for multi-select, clear selection
-            if not clicked_on_point and not ctrl_pressed:
-                self.selected_points.clear()
-                self.selected_point_idx = -1
-                
-            self.update()
-                
-        elif event.button() == Qt.MiddleButton:
-            # Middle click for panning
-            self.pan_start_x = event.x()
-            self.pan_start_y = event.y()
-            self.initial_offset_x = self.offset_x
-            self.initial_offset_y = self.offset_y
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.handle_mouse_press(self, event)
             
     def mouseMoveEvent(self, event):
         """Handle mouse movement for dragging points or panning."""
-        # Handle selection rectangle
-        if self.selection_start is not None:
-            self.selection_rect = QRect(self.selection_start, event.pos()).normalized()
-            self.update()
-            return
-            
-        # Calculate transform parameters for point dragging
-        widget_width = self.width()
-        widget_height = self.height()
-        
-        # Use the background image dimensions if available, otherwise use track dimensions
-        display_width = self.image_width
-        display_height = self.image_height
-        
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
-        
-        # Calculate the scale factor to fit in the widget
-        scale_x = widget_width / display_width
-        scale_y = widget_height / display_height
-        
-        # Use uniform scaling to maintain aspect ratio
-        scale = min(scale_x, scale_y) * self.zoom_factor
-        
-        # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
-        
-        if self.drag_active and self.selected_point_idx >= 0:
-            # Get the point we're dragging
-            point_data = self.get_point_data(self.selected_point_idx)
-            if not point_data:
-                return
-                
-            frame, x, y, status = point_data
-            
-            # Convert from widget coordinates back to track coordinates
-            if self.background_image and self.scale_to_image:
-                # First convert to image coordinates
-                img_x_with_scale = (event.x() - offset_x) / scale
-                
-                if self.flip_y_axis:
-                    img_y_with_scale = display_height - ((event.y() - offset_y) / scale)
-                else:
-                    img_y_with_scale = (event.y() - offset_y) / scale
-                
-                # Remove manual offset
-                img_x = img_x_with_scale - self.x_offset
-                img_y = img_y_with_scale - self.y_offset
-                
-                # Convert from image coordinates to track coordinates
-                new_x = img_x / (display_width / self.image_width)
-                new_y = img_y / (display_height / self.image_height)
-            else:
-                # Direct conversion from widget to track coordinates
-                new_x = (event.x() - offset_x) / scale
-                
-                if self.flip_y_axis:
-                    new_y = self.image_height - ((event.y() - offset_y) / scale)
-                else:
-                    new_y = (event.y() - offset_y) / scale
-            
-            # Update point, preserving interpolated status
-            self.update_point_position(self.selected_point_idx, new_x, new_y)
-            
-            # Emit signal
-            self.point_moved.emit(self.selected_point_idx, new_x, new_y)
-            
-            self.update()
-        elif event.buttons() & Qt.MiddleButton:
-            # Panning the view with middle mouse button
-            dx = event.x() - self.pan_start_x
-            dy = event.y() - self.pan_start_y
-            
-            self.offset_x = self.initial_offset_x + dx
-            self.offset_y = self.initial_offset_y + dy
-            
-            self.update()
-        else:
-            # Update for crosshair on mouse move
-            self.update()
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.handle_mouse_move(self, event)
             
     def mouseReleaseEvent(self, event):
         """Handle mouse release."""
-        if event.button() == Qt.LeftButton:
-            self.drag_active = False
-            
-            # Finalize selection rectangle if active
-            if self.selection_start is not None:
-                self.finalize_selection()
-                self.selection_start = None
-                self.selection_rect = None
-                self.update()
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.handle_mouse_release(self, event)
         
     def wheelEvent(self, event):
         """Handle mouse wheel for zooming."""
         delta = event.angleDelta().y()
         factor = 1.1 if delta > 0 else 0.9
         
-        # Store the old zoom factor
-        old_zoom = self.zoom_factor
+        # Get mouse position for zoom centering
+        position = event.position()
+        mouse_x = position.x()
+        mouse_y = position.y()
         
-        # Apply zoom
-        self.zoom_factor *= factor
-        
-        # Constrain zoom level
-        self.zoom_factor = max(0.1, min(10.0, self.zoom_factor))
-        
-        # If we have a selected point, zoom on it
-        if self.selected_point_idx >= 0 and self.selected_point_idx < len(self.points):
-            # Get the coordinates of the selected point
-            _, x, y = self.points[self.selected_point_idx]
-            print(f"EnhancedCurveView: Zooming centered on point {self.selected_point_idx} at ({x}, {y})")
-            
-            # Calculate widget dimensions
-            widget_width = self.width()
-            widget_height = self.height()
-            
-            # Calculate display dimensions (image or track)
-            display_width = self.image_width
-            display_height = self.image_height
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
-            
-            # Calculate scale to fit in the widget
-            scale_x = widget_width / display_width
-            scale_y = widget_height / display_height
-            scale = min(scale_x, scale_y) * self.zoom_factor
-            
-            # Calculate centering offsets for the image
-            offset_x = (widget_width - (display_width * scale)) / 2
-            offset_y = (widget_height - (display_height * scale)) / 2
-            
-            # Transform the point using the same logic as in paintEvent
-            if self.scale_to_image:
-                # Scale the tracking coordinates to match the image size
-                img_x = x * (display_width / self.image_width)
-                img_y = y * (display_height / self.image_height)
-                
-                # Scale to widget space
-                tx = offset_x + img_x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (display_height - img_y) * scale
-                else:
-                    ty = offset_y + img_y * scale
-            else:
-                # Direct scaling with no image-based transformation
-                tx = offset_x + x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (self.image_height - y) * scale
-                else:
-                    ty = offset_y + y * scale
-            
-            # Calculate the offset needed to center this point
-            center_x = widget_width / 2
-            center_y = widget_height / 2
-            
-            # The offset needed is the difference between where the point is
-            # and where we want it to be (at the center)
-            delta_x = center_x - tx
-            delta_y = center_y - ty
-            
-            # Apply the offset
-            self.offset_x = delta_x
-            self.offset_y = delta_y
-            
-            print(f"EnhancedCurveView: Point transforms to ({tx}, {ty})")
-            print(f"EnhancedCurveView: Center is at ({center_x}, {center_y})")
-            print(f"EnhancedCurveView: Applied zoom offset of ({delta_x}, {delta_y})")
-        else:
-            # If no selected point, use standard zoom behavior (zoom at cursor)
-            # Calculate zoom center in widget coordinates
-            position = event.position()
-            center_x = position.x()
-            center_y = position.y()
-            
-            # Calculate widget dimensions
-            widget_width = self.width()
-            widget_height = self.height()
-            
-            # Calculate display dimensions (image or track)
-            display_width = self.image_width
-            display_height = self.image_height
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
-            
-            # Calculate the scale factor
-            scale_x = widget_width / display_width
-            scale_y = widget_height / display_height
-            base_scale = min(scale_x, scale_y)
-            old_scale = base_scale * old_zoom
-            new_scale = base_scale * self.zoom_factor
-            
-            # Calculate the point position relative to the image
-            rel_x = (center_x - self.offset_x) / old_scale
-            rel_y = (center_y - self.offset_y) / old_scale
-            
-            # Calculate how much the point moves due to zoom
-            new_x = rel_x * new_scale
-            new_y = rel_y * new_scale
-            
-            # Adjust the offset to keep the cursor point fixed
-            delta_x = new_x - (center_x - self.offset_x)
-            delta_y = new_y - (center_y - self.offset_y)
-            
-            # Update the offsets
-            self.offset_x -= delta_x
-            self.offset_y -= delta_y
-            
-            print(f"EnhancedCurveView: Standard zoom at cursor ({center_x}, {center_y})")
-        
-        # Update the view
-        self.update()
+        # Use centralized zoom method from visualization_operations
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.zoom_view(self, factor, mouse_x, mouse_y)
         
     def keyPressEvent(self, event):
-        """Handle key press events.
+        """Handle key press events for navigation and shortcuts."""
+        from visualization_operations import VisualizationOperations
+        from curve_view_operations import CurveViewOperations
         
-        Implements keyboard navigation and shortcuts.
-        """
-        step = self.nudge_increment
-        
-        # Larger step if Shift is pressed
-        if event.modifiers() & Qt.ShiftModifier:
-            step = self.available_increments[self.current_increment_index + 1] if self.current_increment_index < len(self.available_increments) - 1 else self.available_increments[-1]
-        
-        # Smaller step if Ctrl is pressed
-        if event.modifiers() & Qt.ControlModifier:
-            step = self.available_increments[self.current_increment_index - 1] if self.current_increment_index > 0 else self.available_increments[0]
-        
-        if event.key() == Qt.Key_R:
-            # Reset view
-            self.resetView()
-            # Also reset manual offsets
-            self.x_offset = 0
-            self.y_offset = 0
-            self.update()
-        elif event.key() == Qt.Key_Y:
-            # Toggle Y-flip for debugging
-            self.flip_y_axis = not self.flip_y_axis
-            self.update()
-        elif event.key() == Qt.Key_S:
-            # Toggle scaling to image dimensions
-            self.scale_to_image = not self.scale_to_image
-            self.update()
-        elif event.key() == Qt.Key_G:
-            # Toggle grid
-            self.show_grid = not self.show_grid
-            self.update()
-        elif event.key() == Qt.Key_V:
-            # Toggle velocity vectors
-            self.show_velocity_vectors = not self.show_velocity_vectors
-            self.update()
-        elif event.key() == Qt.Key_F:
-            # Toggle all frame numbers
-            self.show_all_frame_numbers = not self.show_all_frame_numbers
-            self.update()
-        elif event.key() == Qt.Key_C:
-            # Toggle crosshair
-            self.show_crosshair = not self.show_crosshair
-            self.update()
-        elif event.key() == Qt.Key_B:
-            # Toggle background
-            self.show_background = not self.show_background
-            self.update()
-        elif event.key() == Qt.Key_A:
-            # Select all points
-            self.selectAllPoints()
-            self.update()
-        elif event.key() == Qt.Key_Escape:
-            # Clear selection
-            self.clearSelection()
-            self.update()
-        elif event.key() == Qt.Key_Delete:
-            # Delete selected points
-            if self.selected_points or self.selected_point_idx >= 0:
-                # This is just UI feedback - actual deletion is handled in higher-level component
-                pass
-        elif event.key() == Qt.Key_I:
-            # Toggle interpolation status of selected points
-            if self.selected_points:
-                for idx in self.selected_points:
-                    self.toggle_point_interpolation(idx)
-            elif self.selected_point_idx >= 0:
-                self.toggle_point_interpolation(self.selected_point_idx)
-            self.update()
-        elif event.key() == Qt.Key_Left:
-            print("EnhancedCurveView: Left key pressed")
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust x-offset with arrow keys + modifiers
-                self.x_offset -= step
-                self.update()
-            else:
-                # Move to previous image with left arrow
-                if self.current_image_idx > 0:
-                    print(f"EnhancedCurveView: Moving to previous image, index={self.current_image_idx-1}")
-                    
-                    # Save current selection state
-                    prev_selected_idx = self.selected_point_idx
-                    
-                    # Set the image
-                    self.setCurrentImageByIndex(self.current_image_idx - 1)
-                    
-                    # Check if we lost point selection and try to select a valid point
-                    if self.selected_point_idx < 0 and self.points:
-                        # Find a point with a frame number closest to the current image
-                        frame_num = self.extractFrameNumber(self.current_image_idx)
-                        closest_idx = self.findClosestPointByFrame(frame_num)
-                        if closest_idx >= 0:
-                            self.selectPointByIndex(closest_idx)
-                            print(f"EnhancedCurveView: Selected point {closest_idx} for frame {frame_num}")
-                    
-                    # Use the direct update method if available
-                    if hasattr(self, 'update_timeline_for_image'):
-                        print(f"EnhancedCurveView: Using direct update method for index {self.current_image_idx}")
-                        self.update_timeline_for_image(self.current_image_idx)
-                    else:
-                        print("EnhancedCurveView: Direct update method not available")
-                        # Fall back to signal emission
-                        print(f"EnhancedCurveView: Emitting image_changed signal with index={self.current_image_idx}")
-                        self.image_changed.emit(self.current_image_idx)
-                        
-        elif event.key() == Qt.Key_Right:
-            print("EnhancedCurveView: Right key pressed")
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust x-offset with arrow keys + modifiers
-                self.x_offset += step
-                self.update()
-            else:
-                # Move to next image with right arrow
-                if self.current_image_idx < len(self.image_filenames) - 1:
-                    print(f"EnhancedCurveView: Moving to next image, index={self.current_image_idx+1}")
-                    
-                    # Save current selection state
-                    prev_selected_idx = self.selected_point_idx
-                    
-                    # Set the image
-                    self.setCurrentImageByIndex(self.current_image_idx + 1)
-                    
-                    # Check if we lost point selection and try to select a valid point
-                    if self.selected_point_idx < 0 and self.points:
-                        # Find a point with a frame number closest to the current image
-                        frame_num = self.extractFrameNumber(self.current_image_idx)
-                        closest_idx = self.findClosestPointByFrame(frame_num)
-                        if closest_idx >= 0:
-                            self.selectPointByIndex(closest_idx)
-                            print(f"EnhancedCurveView: Selected point {closest_idx} for frame {frame_num}")
-                    
-                    # Use the direct update method if available
-                    if hasattr(self, 'update_timeline_for_image'):
-                        print(f"EnhancedCurveView: Using direct update method for index {self.current_image_idx}")
-                        self.update_timeline_for_image(self.current_image_idx)
-                    else:
-                        print("EnhancedCurveView: Direct update method not available")
-                        # Fall back to signal emission
-                        print(f"EnhancedCurveView: Emitting image_changed signal with index={self.current_image_idx}")
-                        self.image_changed.emit(self.current_image_idx)
-                        
-        elif event.key() == Qt.Key_Up:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust y-offset with arrow keys + modifiers
-                self.y_offset -= step
-                self.update()
-            else:
-                # Increase nudge increment
-                if self.current_increment_index < len(self.available_increments) - 1:
-                    self.current_increment_index += 1
-                    self.nudge_increment = self.available_increments[self.current_increment_index]
-                    print(f"EnhancedCurveView: Increased nudge increment to {self.nudge_increment}")
-                    self.update()
-        elif event.key() == Qt.Key_Down:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust y-offset with arrow keys + modifiers
-                self.y_offset += step
-                self.update()
-            else:
-                # Decrease nudge increment
-                if self.current_increment_index > 0:
-                    self.current_increment_index -= 1
-                    self.nudge_increment = self.available_increments[self.current_increment_index]
-                    print(f"EnhancedCurveView: Decreased nudge increment to {self.nudge_increment}")
-                    self.update()
-        elif self.selected_point_idx >= 0 and self.selected_point_idx < len(self.points):
-            # Get the current point data
-            point_data = self.get_point_data(self.selected_point_idx)
-            if not point_data:
-                return
-                
-            frame, x, y, status = point_data
-            
-            # Handle nudging with numpad keys
-            if event.key() == Qt.Key_4:  # Left
-                x -= step
-                # Update the point, preserving status
-                self.update_point_position(self.selected_point_idx, x, y)
-                # Emit signal that the point was moved
-                self.point_moved.emit(self.selected_point_idx, x, y)
-                print(f"EnhancedCurveView: Nudged point left to ({x}, {y})")
-                self.update()
-            elif event.key() == Qt.Key_6:  # Right
-                x += step
-                # Update the point, preserving status
-                self.update_point_position(self.selected_point_idx, x, y)
-                # Emit signal that the point was moved
-                self.point_moved.emit(self.selected_point_idx, x, y)
-                print(f"EnhancedCurveView: Nudged point right to ({x}, {y})")
-                self.update()
-            elif event.key() == Qt.Key_8:  # Up
-                y -= step  # Note: Y is flipped in UI vs. image coordinates
-                # Update the point, preserving status
-                self.update_point_position(self.selected_point_idx, x, y)
-                # Emit signal that the point was moved
-                self.point_moved.emit(self.selected_point_idx, x, y)
-                print(f"EnhancedCurveView: Nudged point up to ({x}, {y})")
-                self.update()
-            elif event.key() == Qt.Key_2:  # Down
-                y += step  # Note: Y is flipped in UI vs. image coordinates
-                # Update the point, preserving status
-                self.update_point_position(self.selected_point_idx, x, y)
-                # Emit signal that the point was moved
-                self.point_moved.emit(self.selected_point_idx, x, y)
-                print(f"EnhancedCurveView: Nudged point down to ({x}, {y})")
-                self.update()
-                
-    def selectAllPoints(self):
-        """Select all points in the curve."""
-        if not self.points:
+        # Try visualization operations first
+        if VisualizationOperations.handle_key_press(self, event):
             return
             
-        self.selected_points = set(range(len(self.points)))
-        if self.points:
-            self.selected_point_idx = 0
+        # Then try curve view operations
+        if CurveViewOperations.handle_key_press(self, event):
+            return
             
-        self.update()
+        # If no handler processed the key, call the parent implementation
+        super().keyPressEvent(event)
+        
+    def selectAllPoints(self):
+        """Select all points in the curve."""
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.select_all_points(self)
         
     def clearSelection(self):
         """Clear all point selections."""
-        self.selected_points.clear()
-        self.selected_point_idx = -1
-        self.update()
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.clear_selection(self)
         
     def selectPointByIndex(self, index):
-        """Select a point by its index.
-        
-        Args:
-            index: The index of the point to select
-        
-        Returns:
-            bool: True if selection was successful, False otherwise
-        """
-        if not self.points or index < 0 or index >= len(self.points):
-            return False
-            
-        self.selected_point_idx = index
-        self.selected_points = {index}
-        self.point_selected.emit(index)
-        self.update()
-        return True
+        """Select a point by its index."""
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.select_point_by_index(self, index)
         
     def set_curve_data(self, curve_data):
         """Compatibility method for curve_data from main_window."""
-        self.points = curve_data
-        # Don't need to reset view here as it might disrupt user's current view
-        self.update()
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.set_curve_data(self, curve_data)
         
     def set_selected_indices(self, indices):
         """Compatibility method for setting selected indices."""
-        self.selected_points = set(indices)
-        if indices:
-            self.selected_point_idx = indices[0]  # Set first selected as current
-        else:
-            self.selected_point_idx = -1
-        self.update()
+        from curve_view_operations import CurveViewOperations
+        CurveViewOperations.set_selected_indices(self, indices)
         
-    def get_selected_indices(self):
-        """Return list of currently selected indices."""
-        return list(self.selected_points)
-        
-    def finalize_selection(self):
-        """Select all points inside the selection rectangle."""
-        if not self.selection_rect or not self.points:
-            return
-            
-        # Calculate transform parameters
-        widget_width = self.width()
-        widget_height = self.height()
-        
-        # Use the background image dimensions if available, otherwise use track dimensions
-        display_width = self.image_width
-        display_height = self.image_height
-        
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
-        
-        # Calculate the scale factor to fit in the widget
-        scale_x = widget_width / display_width
-        scale_y = widget_height / display_height
-        
-        # Use uniform scaling to maintain aspect ratio
-        scale = min(scale_x, scale_y) * self.zoom_factor
-        
-        # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
-        
-        # Transform function for point coordinates
-        def transform_point(x, y):
-            if self.background_image and self.scale_to_image:
-                # Scale the tracking coordinates to match the image size
-                img_x = x * (display_width / self.image_width) + self.x_offset
-                img_y = y * (display_height / self.image_height) + self.y_offset
-                
-                # Scale to widget space
-                tx = offset_x + img_x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (display_height - img_y) * scale
-                else:
-                    ty = offset_y + img_y * scale
-            else:
-                # Direct scaling with no image-based transformation
-                tx = offset_x + x * scale
-                
-                # Apply Y-flip if enabled
-                if self.flip_y_axis:
-                    ty = offset_y + (self.image_height - y) * scale
-                else:
-                    ty = offset_y + y * scale
-                    
-            return tx, ty
-        
-        # Find all points within the selection rectangle
-        selected = set()
-        for i, (frame, x, y) in enumerate(self.points):
-            tx, ty = transform_point(x, y)
-            
-            # Check if the point is within the selection rectangle
-            if self.selection_rect.contains(int(tx), int(ty)):
-                selected.add(i)
-                
-        # If Ctrl is pressed, toggle selection for these points
-        if QApplication.keyboardModifiers() & Qt.ControlModifier:
-            for idx in selected:
-                if idx in self.selected_points:
-                    self.selected_points.remove(idx)
-                else:
-                    self.selected_points.add(idx)
-        else:
-            # Otherwise replace current selection
-            self.selected_points = selected
-            
-        # Update primary selection if we have selected points
-        if self.selected_points:
-            self.selected_point_idx = next(iter(self.selected_points))
-            self.point_selected.emit(self.selected_point_idx)
-            
-    def setPointRadius(self, radius):
-        """Set the radius for points in the curve view.
-        
-        Args:
-            radius: Point radius in pixels
-        """
-        self.point_radius = max(1, radius)  # Ensure minimum size of 1
-        self.update()
-        
-    def setGridColor(self, color):
-        """Set the color of the grid lines.
-        
-        Args:
-            color: QColor for the grid lines
-        """
-        if isinstance(color, QColor):
-            self.grid_color = color
-            self.update()
-        else:
-            print("Error: Grid color must be a QColor instance")
-            
-    def setGridLineWidth(self, width):
-        """Set the width of grid lines.
-        
-        Args:
-            width: Width in pixels
-        """
-        self.grid_line_width = max(1, width)  # Ensure minimum width of 1
-        self.update()
-        
-    def extractFrameNumber(self, img_idx):
-        """Extract frame number from the current image index.
-        
-        Args:
-            img_idx: The image index to extract frame number from
-            
-        Returns:
-            int: The frame number, or img_idx if extraction fails
-        """
-        if img_idx < 0 or img_idx >= len(self.image_filenames):
-            return 0
-            
-        # Try to extract frame number from filename
-        try:
-            # Assume filename format includes frame number
-            filename = self.image_filenames[img_idx]
-            # Extract numeric part - this is a simple implementation
-            # that assumes frame numbers are digits in the filename
-            import re
-            matches = re.findall(r'\d+', filename)
-            if matches:
-                return int(matches[-1])  # Use the last number in the filename
-        except Exception as e:
-            print(f"EnhancedCurveView: Error extracting frame number: {str(e)}")
-            
-        # Fallback to using the image index itself
-        return img_idx
+    def change_nudge_increment(self, increase=True):
+        """Change the nudge increment for point movement."""
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.change_nudge_increment(self, increase)
     
-    def findClosestPointByFrame(self, frame_num):
-        """Find the index of the point closest to the given frame number.
-        
-        Args:
-            frame_num: Target frame number
-            
-        Returns:
-            int: Index of the closest point, or -1 if no points exist
-        """
-        if not self.points:
-            return -1
-            
-        closest_idx = -1
-        min_distance = float('inf')
-        
-        for i, point in enumerate(self.points):
-            point_frame = point[0]
-            distance = abs(point_frame - frame_num)
-            
-            if distance < min_distance:
-                min_distance = distance
-                closest_idx = i
-                
-        return closest_idx
-
-    def get_point_data(self, idx):
-        """Get point data in a consistent format, handling both standard and interpolated points.
-        
-        Args:
-            idx: The index of the point to retrieve
-            
-        Returns:
-            tuple: (frame, x, y, status) where status is 'normal' or 'interpolated'
-        """
-        if idx < 0 or idx >= len(self.points):
-            return None
-            
-        point = self.points[idx]
-        if len(point) == 3:  # Standard (frame, x, y) tuple
-            return (point[0], point[1], point[2], 'normal')
-        elif len(point) > 3:  # Extended tuple with status
-            return point
-        
-        # Fallback for unexpected format
-        return None
-        
-    def is_point_interpolated(self, idx):
-        """Check if a point has interpolated status.
-        
-        Args:
-            idx: The index of the point to check
-            
-        Returns:
-            bool: True if the point is interpolated, False otherwise
-        """
-        point_data = self.get_point_data(idx)
-        if point_data and len(point_data) > 3:
-            return point_data[3] == 'interpolated'
-        return False
-
-    def toggle_point_interpolation(self, idx):
-        """Toggle the interpolated status of a point.
-        
-        Args:
-            idx: The index of the point to toggle
-            
-        Returns:
-            bool: True if the operation was successful, False otherwise
-        """
-        if idx < 0 or idx >= len(self.points):
-            return False
-        
-        point = self.points[idx]
-        if len(point) == 3:  # Standard (frame, x, y) tuple
-            frame, x, y = point
-            # Mark as interpolated
-            self.points[idx] = (frame, x, y, 'interpolated')
-        elif len(point) > 3:
-            frame, x, y, status = point
-            # If already interpolated, restore to normal
-            if status == 'interpolated':
-                self.points[idx] = (frame, x, y)
-            else:
-                # Set status to interpolated
-                self.points[idx] = (frame, x, y, 'interpolated')
-        
-        self.update()
-        return True
+    def nudge_selected_points(self, dx=0, dy=0):
+        """Nudge selected points by the specified delta."""
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.nudge_selected_points(self, dx, dy)
     
-    def restore_interpolated_point(self, idx):
-        """Restore an interpolated point to normal status.
-        
-        Args:
-            idx: The index of the point to restore
-            
-        Returns:
-            bool: True if the operation was successful, False otherwise
-        """
-        if not self.is_point_interpolated(idx):
-            return False
-            
-        point = self.points[idx]
-        if len(point) > 3:
-            frame, x, y, _ = point
-            self.points[idx] = (frame, x, y)
-            self.update()
-            return True
-            
-        return False
-
-    def findPointAt(self, pos):
-        """Find point at the given position.
-        
-        Args:
-            pos: QPoint position to check
-            
-        Returns:
-            int: Index of the point, or -1 if no point found
-        """
-        if not self.points:
-            return -1
-            
-        # Calculate transform parameters (same as in paintEvent)
-        widget_width = self.width()
-        widget_height = self.height()
-        
-        # Use the background image dimensions if available, otherwise use track dimensions
-        display_width = self.image_width
-        display_height = self.image_height
-        
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
-        
-        # Calculate the scale factor
-        scale_x = widget_width / display_width 
-        scale_y = widget_height / display_height
-        
-        # Use uniform scaling to maintain aspect ratio
-        scale = min(scale_x, scale_y) * self.zoom_factor
-        
-        # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
-        
-        # Transformation function
-        def transform_point(x, y):
-            if self.background_image and self.scale_to_image:
-                # Scale the tracking coordinates to match the image size
-                img_x = x * (display_width / self.image_width) + self.x_offset
-                img_y = y * (display_height / self.image_height) + self.y_offset
-                
-                # Scale to widget space
-                tx = offset_x + img_x * scale
-                
-                if self.flip_y_axis:
-                    ty = offset_y + (display_height - img_y) * scale
-                else:
-                    ty = offset_y + img_y * scale
-            else:
-                # Direct scaling with no image-based transformation
-                tx = offset_x + x * scale
-                
-                if self.flip_y_axis:
-                    ty = offset_y + (self.image_height - y) * scale
-                else:
-                    ty = offset_y + y * scale
-                    
-            return tx, ty
-        
-        # Check distance to each point
-        closest_idx = -1
-        min_distance = float('inf')
-        
-        for i, point in enumerate(self.points):
-            frame, x, y = point[:3]  # Handle both regular and interpolated points
-            tx, ty = transform_point(x, y)
-            
-            # Calculate distance to mouse position
-            distance = ((pos.x() - tx) ** 2 + (pos.y() - ty) ** 2) ** 0.5
-            
-            # Use a detection radius based on point_radius
-            detection_radius = self.point_radius * 2
-            
-            if distance <= detection_radius and distance < min_distance:
-                min_distance = distance
-                closest_idx = i
-                
-        return closest_idx
-        
-    def toggleGrid(self):
-        """Toggle grid visibility."""
-        self.show_grid = not self.show_grid
-        self.update()
+    def update_point_position(self, index, x, y):
+        """Update a point's position while preserving its status."""
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.update_point_position(self, index, x, y)
         
     def contextMenuEvent(self, event):
-        """Show context menu with point options including toggling interpolation status."""
+        """Show context menu with point options."""
         menu = QMenu(self)
         
         # Get clicked point (if any)
@@ -1799,26 +762,8 @@ class EnhancedCurveView(QWidget):
         
         # Execute the menu
         menu.exec_(event.globalPos())
-
-    def update_point_position(self, index, x, y):
-        """Update a point's position while preserving its status.
-        
-        Args:
-            index: Index of the point to update
-            x: New x-coordinate
-            y: New y-coordinate
-        """
-        if 0 <= index < len(self.points):
-            point = self.points[index]
-            frame = point[0]
-            
-            # Preserve status if it exists
-            if len(point) > 3:
-                status = point[3]
-                self.points[index] = (frame, x, y, status)
-            else:
-                self.points[index] = (frame, x, y)
-            
-            return True
-        
-        return False
+    
+    def extractFrameNumber(self, img_idx):
+        """Extract frame number from the current image index."""
+        from curve_view_operations import CurveViewOperations
+        return CurveViewOperations.extract_frame_number(self, img_idx)
