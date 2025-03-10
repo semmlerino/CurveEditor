@@ -304,15 +304,9 @@ class MainWindow(QMainWindow):
                 # Delete selected points
                 CurveViewOperations.delete_selected_points(self)
                 return True
-            elif event.key() == Qt.Key_X:
-                # Toggle crosshair
-                checked = not self.toggle_crosshair_button.isChecked()
-                self.toggle_crosshair_button.setChecked(checked)
-                VisualizationOperations.toggle_crosshair(self, checked)
-                return True
             elif event.key() == Qt.Key_C:
                 # Center on selected point
-                VisualizationOperations.center_on_selected_point(self)
+                VisualizationOperations.center_on_selected_point_from_main_window(self)
                 return True
             elif event.key() == Qt.Key_G:
                 # Toggle grid
@@ -553,17 +547,21 @@ class MainWindow(QMainWindow):
         ShortcutManager.connect_shortcut(self, "delete_selected", lambda: CurveViewOperations.delete_selected_points(self))
         ShortcutManager.connect_shortcut(self, "delete_selected_alt", lambda: CurveViewOperations.delete_selected_points(self))
         
-        # View operations
-        ShortcutManager.connect_shortcut(self, "reset_view", lambda: self.curve_view.reset())
+        # View operations - FIXED
+        ShortcutManager.connect_shortcut(self, "reset_view", lambda: CurveViewOperations.reset_view(self.curve_view))
         ShortcutManager.connect_shortcut(self, "toggle_grid", lambda: VisualizationOperations.toggle_grid(self, not self.toggle_grid_button.isChecked()))
         ShortcutManager.connect_shortcut(self, "toggle_velocity", lambda: VisualizationOperations.toggle_velocity_vectors(self, not self.toggle_vectors_button.isChecked()))
         ShortcutManager.connect_shortcut(self, "toggle_frame_numbers", lambda: VisualizationOperations.toggle_all_frame_numbers(self, not self.toggle_frame_numbers_button.isChecked()))
-        ShortcutManager.connect_shortcut(self, "toggle_crosshair", lambda: VisualizationOperations.toggle_crosshair(self, not self.toggle_crosshair_button.isChecked() if hasattr(self, 'toggle_crosshair_button') else False))
-        ShortcutManager.connect_shortcut(self, "center_on_point", lambda: VisualizationOperations.center_on_selected_point(self))
+        
+        # FIXED: Use center_on_selected_point_from_main_window instead of center_on_selected_point
+        ShortcutManager.connect_shortcut(self, "center_on_point", lambda: VisualizationOperations.center_on_selected_point_from_main_window(self))
+        
         ShortcutManager.connect_shortcut(self, "toggle_background", lambda: ImageOperations.toggle_background(self))
         ShortcutManager.connect_shortcut(self, "toggle_fullscreen", lambda: VisualizationOperations.toggle_fullscreen(self))
-        ShortcutManager.connect_shortcut(self, "zoom_in", lambda: CurveViewOperations.zoom_in(self))
-        ShortcutManager.connect_shortcut(self, "zoom_out", lambda: CurveViewOperations.zoom_out(self))
+        
+        # FIXED: Use VisualizationOperations.zoom_view instead of CurveViewOperations.zoom_in/out
+        ShortcutManager.connect_shortcut(self, "zoom_in", lambda: VisualizationOperations.zoom_view(self.curve_view, 1.1))
+        ShortcutManager.connect_shortcut(self, "zoom_out", lambda: VisualizationOperations.zoom_view(self.curve_view, 0.9))
         
         # Timeline operations
         ShortcutManager.connect_shortcut(self, "next_frame", lambda: UIComponents.next_frame(self))
