@@ -179,8 +179,9 @@ class MainWindow(QMainWindow):
         self.batch_edit_ui = batch_edit.BatchEditUI(self)
         self.batch_edit_ui.setup_batch_editing_ui()
         
-        # Connect all UI signals after all UI elements are created
-        UIComponents.connect_all_signals(self)
+        # Use the SignalRegistry instead of UIComponents.connect_all_signals
+        from signal_registry import SignalRegistry
+        SignalRegistry.connect_main_signals(self)
     
     def setup_ui(self):
         """Create and arrange UI elements."""
@@ -353,98 +354,76 @@ class MainWindow(QMainWindow):
 
     def on_image_changed(self, index):
         """
-        Update the timeline and point selection when an image changes.
-        This method is called when the image is changed by keyboard navigation.
+        Handle image changes with improved reliability.
+        
+        This method is called when the image is changed through user interaction
+        or programmatically. It updates the timeline position, frame display,
+        and point selection to match the current image.
         
         Args:
-            index: Index of the new current image
+            index: Index of the new current image in image_filenames list
         """
-        print("\n" + "="*80)
-        print(f"!!! SIGNAL RECEIVED: MainWindow.on_image_changed called with index {index} !!!")
-        print("="*80 + "\n")
-        
         try:
-            # Make sure the index is valid
-            if index < 0 or index >= len(self.image_filenames):
-                print(f"MainWindow.on_image_changed: Invalid index {index}")
+            # Validate index and image filenames
+            if not hasattr(self, 'image_filenames') or not self.image_filenames:
                 return
-                
-            # Extract frame number from filename
+            if index < 0 or index >= len(self.image_filenames):
+                return
+
+            # Extract frame number using regex for reliability
+            import re
             filename = os.path.basename(self.image_filenames[index])
             frame_match = re.search(r'(\d+)', filename)
-            
             if not frame_match:
-                print(f"MainWindow.on_image_changed: Could not extract frame number from {filename}")
                 return
-                
             frame_num = int(frame_match.group(1))
-            print(f"MainWindow.on_image_changed: Extracted frame number {frame_num} from {filename}")
             
-            # Find the closest frame in curve data
-            if not self.curve_data:
-                print("MainWindow.on_image_changed: No curve data available")
-                return
-                
-            closest_frame = min(self.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
-            print(f"MainWindow.on_image_changed: Closest frame in curve data is {closest_frame}")
+            # Update timeline with signal blocking to prevent recursion
+            if hasattr(self, 'timeline_slider'):
+                self.timeline_slider.blockSignals(True)
+                self.timeline_slider.setValue(frame_num)
+                self.timeline_slider.blockSignals(False)
             
-            # Update timeline slider to current frame
-            # Block signals to prevent recursive updates
-            print(f"MainWindow.on_image_changed: Updating timeline slider to {frame_num}")
-            self.timeline_slider.blockSignals(True)
-            self.timeline_slider.setValue(frame_num)
-            self.timeline_slider.blockSignals(False)
-            
-            # Update slider label - check which name is actually used for the label
-            if hasattr(self, 'range_slider_value_label'):
-                self.range_slider_value_label.setText(f"Frame: {frame_num}")
-            elif hasattr(self, 'timeline_value_label'):
-                self.timeline_value_label.setText(f"Frame: {frame_num}")
-            elif hasattr(self, 'frame_label'):
+            # Update frame display consistently
+            if hasattr(self, 'frame_label'):
                 self.frame_label.setText(f"Frame: {frame_num}")
-            else:
-                print("MainWindow.on_image_changed: Could not find frame label widget")
-                # List all attributes to find the right label
-                for attr in dir(self):
-                    if attr.lower().find('label') >= 0:
-                        print(f"Possible label found: {attr}")
+            if hasattr(self, 'frame_edit'):
+                self.frame_edit.setText(str(frame_num))
             
-            # Find closest point in the curve data and select it
-            self.point_idx_in_frame = None
-            closest_point_idx = -1
-            min_distance = float('inf')
-            
-            for i, point in enumerate(self.curve_data):
-                if point[0] == closest_frame:
-                    # Found exact frame match, select this point
-                    closest_point_idx = i
-                    break
-                
-                distance = abs(point[0] - frame_num)
-                if distance < min_distance:
-                    min_distance = distance
-                    closest_point_idx = i
-            
-            # Update selected point
-            if closest_point_idx >= 0:
-                print(f"MainWindow.on_image_changed: Selected point index {closest_point_idx}")
-                # Directly update the curve view's selected point
-                if hasattr(self, 'curve_view'):
-                    # Set the selected point directly
-                    self.curve_view.selected_point_idx = closest_point_idx
-                    self.curve_view.update()
-                    print(f"MainWindow.on_image_changed: Updated curve view selection to {closest_point_idx}")
-                
-                # Update point info display
-                CurveViewOperations.on_point_selected(self, closest_point_idx)
-            else:
-                print("MainWindow.on_image_changed: No matching point found")
-                
+            # Find and select closest point
+            self._select_point_for_frame(frame_num)
+        
         except Exception as e:
-            print(f"MainWindow.on_image_changed: Error updating: {str(e)}")
+            print(f"Error handling image change: {str(e)}")
             import traceback
             traceback.print_exc()
 
+    def _select_point_for_frame(self, frame_num):
+        """
+        Helper to select the point closest to a frame number.
+        
+        Args:
+            frame_num: Target frame number to find the closest point for
+        """
+        if not self.curve_data:
+            return
+        
+        # Find closest point by frame number
+        closest_idx = -1
+        min_distance = float('inf')
+        
+        for i, point in enumerate(self.curve_data):
+            distance = abs(point[0] - frame_num)
+            if distance < min_distance:
+                min_distance = distance
+                closest_idx = i
+        
+        # Update selection if found
+        if closest_idx >= 0:
+            # Use curve_view operations for consistency
+            from curve_view_operations import CurveViewOperations
+            CurveViewOperations.select_point_by_index(self.curve_view, closest_idx)
+    
     def load_previous_file(self):
         """Load the previously used file and folder if they exist."""
         # Check for last folder path and update default directory

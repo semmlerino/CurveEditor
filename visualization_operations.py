@@ -8,6 +8,7 @@ Provides functionality for curve visualization features like grid, vectors, and 
 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
+import os
 
 class VisualizationOperations:
     """Static utility methods for visualization operations in the curve editor."""
@@ -284,280 +285,28 @@ class VisualizationOperations:
         curve_view.update()
         
     @staticmethod
-    def zoom_view(curve_view, factor, center_x=None, center_y=None):
-        """Zoom the view by the specified factor.
+    def zoom_view(curve_view, factor, mouse_x=None, mouse_y=None):
+        """Zoom the view while keeping the selected point centered.
         
         Args:
             curve_view: The curve view instance
-            factor: Zoom factor to apply (>1 to zoom in, <1 to zoom out)
-            center_x: X-coordinate to center zoom on (None for center of view)
-            center_y: Y-coordinate to center zoom on (None for center of view)
+            factor: Zoom factor (> 1 to zoom in, < 1 to zoom out)
+            mouse_x: Ignored, kept for API compatibility
+            mouse_y: Ignored, kept for API compatibility
         """
-        # Store old zoom for calculations
+        # Store previous zoom to check if centering is needed
         old_zoom = curve_view.zoom_factor
         
         # Apply new zoom factor with limits
         curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor * factor))
         
-        # If center coordinates are provided, adjust offset to zoom toward that point
-        if center_x is not None and center_y is not None:
-            # Calculate the offset change needed to keep the point under cursor
-            widget_width = curve_view.width()
-            widget_height = curve_view.height()
-            
-            # Adjust offsets to maintain center point
-            dx = center_x - widget_width / 2
-            dy = center_y - widget_height / 2
-            
-            # Scale the offset by the change in zoom
-            zoom_change = curve_view.zoom_factor / old_zoom
-            curve_view.offset_x = curve_view.offset_x * zoom_change + dx * (1 - zoom_change)
-            curve_view.offset_y = curve_view.offset_y * zoom_change + dy * (1 - zoom_change)
-        
-        # Update the view
-        curve_view.update()
-        
-    @staticmethod
-    def pan_view(curve_view, dx, dy):
-        """Pan the view by the specified delta.
-        
-        Args:
-            curve_view: The curve view instance
-            dx: Change in x position
-            dy: Change in y position
-        """
-        # Apply the pan offset
-        curve_view.offset_x += dx
-        curve_view.offset_y += dy
-        
-        # Update the view
-        curve_view.update()
-    
-    @staticmethod
-    def toggle_grid_internal(curve_view, enabled=None):
-        """Toggle grid visibility with optional explicit state.
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean to explicitly set state, or None to toggle
-        """
-        if enabled is None:
-            curve_view.show_grid = not curve_view.show_grid
+        # If we have a selected point, make sure it stays centered
+        if hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
+            # Use the existing method which already handles transformations correctly
+            VisualizationOperations.center_on_selected_point(curve_view, curve_view.selected_point_idx, preserve_zoom=True)
         else:
-            curve_view.show_grid = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_velocity_vectors_internal(curve_view, enabled):
-        """Toggle velocity vector display (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if vectors should be shown
-        """
-        curve_view.show_velocity_vectors = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_all_frame_numbers_internal(curve_view, enabled):
-        """Toggle display of all frame numbers (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if frame numbers should be shown
-        """
-        curve_view.show_all_frame_numbers = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_crosshair_internal(curve_view, enabled):
-        """Toggle crosshair visibility (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if crosshair should be shown
-        """
-        curve_view.show_crosshair = enabled
-        curve_view.update()
-    
-    @staticmethod
-    def set_point_radius(curve_view, radius):
-        """Set the radius for points in the curve view.
-        
-        Args:
-            curve_view: The curve view instance
-            radius: Point radius in pixels
-        """
-        curve_view.point_radius = max(1, radius)  # Ensure minimum size of 1
-        curve_view.update()
-        
-    @staticmethod
-    def set_grid_color(curve_view, color):
-        """Set the color of the grid lines.
-        
-        Args:
-            curve_view: The curve view instance
-            color: QColor for the grid lines
-        """
-        from PySide6.QtGui import QColor
-        
-        if isinstance(color, QColor):
-            curve_view.grid_color = color
+            # If no point is selected, just update the view
             curve_view.update()
-        else:
-            print("Error: Grid color must be a QColor instance")
-            
-    @staticmethod
-    def set_grid_line_width(curve_view, width):
-        """Set the width of grid lines.
-        
-        Args:
-            curve_view: The curve view instance
-            width: Width in pixels
-        """
-        curve_view.grid_line_width = max(1, width)  # Ensure minimum width of 1
-        curve_view.update()
-        
-    @staticmethod
-    def update_timeline_for_image(main_window, index):
-        """Update the timeline for the current image.
-        
-        This method extracts the frame number from an image filename and updates
-        the timeline slider and related UI elements to match the current image.
-        It also selects the point in the curve data that corresponds to the frame.
-        
-        Args:
-            main_window: The main application window
-            index: Index of the current image in the image_filenames list
-        """
-        try:
-            if not hasattr(main_window, 'image_filenames') or not main_window.image_filenames:
-                print("update_timeline_for_image: No image filenames available")
-                return
-                
-            if index < 0 or index >= len(main_window.image_filenames):
-                print(f"update_timeline_for_image: Invalid index {index}")
-                return
-        
-            # Extract frame number
-            filename = os.path.basename(main_window.image_filenames[index])
-            import re
-            frame_match = re.search(r'(\d+)', filename)
-            if not frame_match:
-                print(f"update_timeline_for_image: Could not extract frame from {filename}")
-                return
-                
-            frame_num = int(frame_match.group(1))
-            print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
-            
-            # Update timeline directly
-            if hasattr(main_window, 'timeline_slider'):
-                main_window.timeline_slider.blockSignals(True)
-                main_window.timeline_slider.setValue(frame_num)
-                main_window.timeline_slider.blockSignals(False)
-                print(f"update_timeline_for_image: Updated timeline to frame {frame_num}")
-            
-            # Update label
-            if hasattr(main_window, 'range_slider_value_label'):
-                main_window.range_slider_value_label.setText(f"Frame: {frame_num}")
-                
-            # Find and update selected point
-            if hasattr(main_window, 'curve_data') and main_window.curve_data:
-                closest_frame = min(main_window.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
-                
-                for i, point in enumerate(main_window.curve_data):
-                    if point[0] == closest_frame:
-                        # Update selection
-                        if hasattr(main_window.curve_view, 'selected_point_idx'):
-                            main_window.curve_view.selected_point_idx = i
-                            main_window.curve_view.update()
-                            print(f"update_timeline_for_image: Updated selected point to {i}")
-                        break
-        except Exception as e:
-            print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
-
-    @staticmethod
-    def handle_key_press(curve_view, event):
-        """Handle visualization-related key press events.
-        
-        Args:
-            curve_view: The curve view instance
-            event: The key event
-            
-        Returns:
-            bool: True if the event was handled, False otherwise
-        """
-        from PySide6.QtCore import Qt
-        
-        handled = True
-        
-        if event.key() == Qt.Key_G:
-            # Toggle grid
-            curve_view.show_grid = not curve_view.show_grid
-            curve_view.update()
-        elif event.key() == Qt.Key_V:
-            # Toggle velocity vectors
-            curve_view.show_velocity_vectors = not curve_view.show_velocity_vectors
-            curve_view.update()
-        elif event.key() == Qt.Key_F:
-            # Toggle all frame numbers
-            curve_view.show_all_frame_numbers = not curve_view.show_all_frame_numbers
-            curve_view.update()
-        elif event.key() == Qt.Key_C:
-            # Toggle crosshair
-            curve_view.show_crosshair = not curve_view.show_crosshair
-            curve_view.update()
-        elif event.key() == Qt.Key_B:
-            # Toggle background
-            curve_view.show_background = not curve_view.show_background
-            curve_view.update()
-        elif event.key() == Qt.Key_Y:
-            # Toggle Y-flip for debugging
-            curve_view.flip_y_axis = not curve_view.flip_y_axis
-            curve_view.update()
-        elif event.key() == Qt.Key_S:
-            # Toggle scaling to image dimensions
-            curve_view.scale_to_image = not curve_view.scale_to_image
-            curve_view.update()
-        else:
-            handled = False
-            
-        return handled
-        
-    @staticmethod
-    def zoom_view(curve_view, factor, mouse_x=None, mouse_y=None):
-        """Zoom the view by the specified factor, optionally centered on mouse position.
-        
-        Args:
-            curve_view: The curve view instance
-            factor: Zoom factor (> 1 to zoom in, < 1 to zoom out)
-            mouse_x: Optional x-coordinate to center zoom on
-            mouse_y: Optional y-coordinate to center zoom on
-        """
-        # Store old zoom for calculating relative change
-        old_zoom = curve_view.zoom_factor
-        
-        # Apply zoom factor
-        curve_view.zoom_factor *= factor
-        
-        # Constrain zoom to reasonable limits
-        curve_view.zoom_factor = max(0.1, min(curve_view.zoom_factor, 10.0))
-        
-        # If mouse position is provided, adjust offset to zoom toward that position
-        if mouse_x is not None and mouse_y is not None:
-            # Calculate how much the zoom changed
-            zoom_change = curve_view.zoom_factor / old_zoom
-            
-            # Calculate the vector from mouse to center
-            dx = mouse_x - (curve_view.width() / 2 + curve_view.offset_x)
-            dy = mouse_y - (curve_view.height() / 2 + curve_view.offset_y)
-            
-            # Adjust offset to maintain mouse position
-            curve_view.offset_x += dx * (1 - 1 / zoom_change)
-            curve_view.offset_y += dy * (1 - 1 / zoom_change)
-        
-        # Update the view
-        curve_view.update()
         
     @staticmethod
     def pan_view(curve_view, dx, dy):
@@ -736,8 +485,8 @@ class VisualizationOperations:
                 'zoom_factor': curve_view.zoom_factor,
                 'offset_x': curve_view.offset_x,
                 'offset_y': curve_view.offset_y,
-                'x_offset': curve_view.x_offset,
-                'y_offset': curve_view.y_offset
+                'x_offset': curve_view.x_offset if hasattr(curve_view, 'x_offset') else 0,
+                'y_offset': curve_view.y_offset if hasattr(curve_view, 'y_offset') else 0
             }
             
         # Update data
@@ -754,8 +503,10 @@ class VisualizationOperations:
                 curve_view.zoom_factor = view_state['zoom_factor']
                 curve_view.offset_x = view_state['offset_x']
                 curve_view.offset_y = view_state['offset_y']
-                curve_view.x_offset = view_state['x_offset']
-                curve_view.y_offset = view_state['y_offset']
+                if hasattr(curve_view, 'x_offset'):
+                    curve_view.x_offset = view_state['x_offset']
+                if hasattr(curve_view, 'y_offset'):
+                    curve_view.y_offset = view_state['y_offset']
             
         curve_view.update()
     
@@ -766,8 +517,13 @@ class VisualizationOperations:
         Args:
             curve_view: The curve view instance
             event: The key press event
+            
+        Returns:
+            bool: True if the event was handled, False otherwise
         """
         # Handle visualization toggle keys
+        handled = True
+        
         if event.key() == Qt.Key_G:
             curve_view.show_grid = not curve_view.show_grid
             curve_view.update()
@@ -794,3 +550,7 @@ class VisualizationOperations:
             curve_view.x_offset = 0
             curve_view.y_offset = 0
             curve_view.update()
+        else:
+            handled = False
+            
+        return handled
