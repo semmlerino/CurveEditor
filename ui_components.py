@@ -21,13 +21,18 @@ This architecture ensures that:
 - Components are properly checked before signals are connected
 """
 
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-                              QPushButton, QSlider, QLineEdit, 
-                              QGroupBox, QSplitter, QToolBar, QFrame, 
-                              QGridLayout, QTabWidget, QSpacerItem, 
-                              QSizePolicy, QComboBox, QStatusBar, QSpinBox)
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QSlider, QLineEdit,
+    QGroupBox, QSplitter, QToolBar, QFrame,
+    QGridLayout, QTabWidget, QSpacerItem,
+    QSizePolicy, QComboBox, QStatusBar, QSpinBox
+)
 from PySide6.QtCore import Signal, Qt, QSize, QTimer, QEvent
-from PySide6.QtGui import QIcon, QFont, QAction, QKeySequence
+from PySide6.QtGui import (
+    QIcon, QFont, QAction, QKeySequence,
+    QPainter, QPainterPath, QColor, QShortcut
+)
 
 from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
@@ -37,6 +42,39 @@ from curve_operations import CurveOperations
 from enhanced_curve_view import EnhancedCurveView
 import os
 import re
+
+
+class TimelineFrameMarker(QWidget):
+    """Custom widget to show the current frame position marker in the timeline."""
+    
+    def __init__(self, parent=None):
+        super(TimelineFrameMarker, self).__init__(parent)
+        self.position = 0
+        self.setFixedHeight(10)
+        self.setMinimumWidth(100)
+        
+    def setPosition(self, position):
+        """Set the relative position of the marker (0.0 to 1.0)."""
+        self.position = max(0.0, min(1.0, position))
+        self.update()
+        
+    def paintEvent(self, event):
+        """Draw the frame marker."""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        
+        # Calculate marker position
+        width = self.width()
+        x_pos = int(width * self.position)
+        
+        # Draw the triangle marker
+        path = QPainterPath()
+        path.moveTo(x_pos, 0)
+        path.lineTo(x_pos - 5, 10)
+        path.lineTo(x_pos + 5, 10)
+        path.closeSubpath()
+        
+        painter.fillPath(path, QColor(255, 0, 0))
 
 
 class UIComponents:
@@ -319,6 +357,19 @@ class UIComponents:
         timeline_controls.addWidget(main_window.play_button)
         timeline_controls.addWidget(main_window.next_frame_button)
         
+        # Add frame jump buttons
+        main_window.first_frame_button = QPushButton("<<")
+        main_window.first_frame_button.clicked.connect(lambda: UIComponents.go_to_first_frame(main_window))
+        main_window.first_frame_button.setToolTip("Go to First Frame (Home)")
+        main_window.first_frame_button.setEnabled(False)
+        
+        main_window.last_frame_button = QPushButton(">>")
+        main_window.last_frame_button.clicked.connect(lambda: UIComponents.go_to_last_frame(main_window))
+        main_window.last_frame_button.setToolTip("Go to Last Frame (End)")
+        main_window.last_frame_button.setEnabled(False)
+        
+        timeline_controls.addWidget(main_window.first_frame_button)
+        
         # Frame controls
         main_window.frame_label = QLabel("Frame: N/A")
         main_window.frame_edit = QLineEdit()
@@ -331,16 +382,75 @@ class UIComponents:
         timeline_controls.addWidget(main_window.frame_label)
         timeline_controls.addWidget(main_window.frame_edit)
         timeline_controls.addWidget(main_window.go_button)
+        timeline_controls.addWidget(main_window.last_frame_button)
         timeline_controls.addStretch()
         
         timeline_layout.addLayout(timeline_controls)
         
-        # Timeline slider
+        # Enhanced Timeline slider with individual frame ticks
         main_window.timeline_slider = QSlider(Qt.Horizontal)
         main_window.timeline_slider.setMinimum(0)
         main_window.timeline_slider.setMaximum(100)  # Will be updated when data is loaded
+        
+        # Configure slider to show individual frames
+        main_window.timeline_slider.setTickPosition(QSlider.TicksBelow)
+        main_window.timeline_slider.setTickInterval(1)  # Show tick for each frame
+        main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
+        main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
+        
+        # Add frame tracking tooltip
+        main_window.timeline_slider.setToolTip("Frame: 0")
+        
+        # Connect signals
         main_window.timeline_slider.valueChanged.connect(lambda value: UIComponents.on_timeline_changed(main_window, value))
-        timeline_layout.addWidget(main_window.timeline_slider)
+        
+        # Create frame marker for better visual indication
+        main_window.frame_marker = TimelineFrameMarker()
+        
+        # Create a layout for the slider with the marker
+        slider_layout = QVBoxLayout()
+        slider_layout.addWidget(main_window.frame_marker)
+        slider_layout.addWidget(main_window.timeline_slider)
+        slider_layout.setSpacing(0)
+        
+        timeline_layout.addLayout(slider_layout)
+        
+        # Add mouse event handler for frame scrubbing
+        def on_timeline_press(event):
+            """Handle mouse press on timeline for direct frame selection."""
+            if event.button() == Qt.LeftButton:
+                # Calculate the frame based on click position
+                slider = main_window.timeline_slider
+                width = slider.width()
+                pos = event.pos().x()
+                
+                # Get the frame range
+                min_frame = slider.minimum()
+                max_frame = slider.maximum()
+                frame_range = max_frame - min_frame
+                
+                # Calculate the frame based on position
+                if width > 0 and frame_range > 0:
+                    frame = min_frame + int((pos / width) * frame_range + 0.5)
+                    frame = max(min_frame, min(max_frame, frame))
+                    
+                    # Update the slider
+                    slider.setValue(frame)
+                    
+                    # Update status message
+                    main_window.statusBar().showMessage(f"Jumped to frame {frame}", 2000)
+        
+        # Store original event handler
+        original_press_event = main_window.timeline_slider.mousePressEvent
+        
+        # Override mouse press event
+        def custom_press_event(event):
+            on_timeline_press(event)
+            # Call original handler if needed
+            if original_press_event:
+                original_press_event(event)
+                
+        main_window.timeline_slider.mousePressEvent = custom_press_event
         
         view_layout.addWidget(timeline_widget)
         
@@ -445,105 +555,8 @@ class UIComponents:
         return controls_widget
 
     @staticmethod
-    def setup_enhanced_curve_view(main_window):
-        """Create and setup the EnhancedCurveView.
-        
-        Replaces the standard curve view with the enhanced version if it exists
-        and creates the necessary UI controls for the enhanced visualization features.
-        This method follows proper error handling practices to ensure the application
-        can continue running even if the enhanced view cannot be loaded.
-        
-        The method performs these steps:
-        1. Create an instance of EnhancedCurveView
-        2. Replace the standard curve view in the container
-        3. Set up the enhanced controls through setup_enhanced_controls
-        4. Return success/failure status
-        
-        Args:
-            main_window: The main application window instance
-            
-        Returns:
-            bool: True if the enhanced view was successfully set up, False otherwise
-        """
-        try:
-            # Create the enhanced curve view
-            enhanced_view = EnhancedCurveView(main_window)
-            
-            # Replace standard view with enhanced view
-            if hasattr(main_window, 'curve_view_container') and hasattr(main_window, 'curve_view'):
-                main_window.curve_view_container.layout().removeWidget(main_window.curve_view)
-                main_window.curve_view.deleteLater()
-                
-                # Set the new enhanced view
-                main_window.curve_view = enhanced_view
-                main_window.curve_view_container.layout().addWidget(main_window.curve_view)
-                
-                # Explicitly connect signals here to ensure proper connections
-                main_window.curve_view.point_selected.connect(lambda idx: CurveViewOperations.on_point_selected(main_window, idx))
-                main_window.curve_view.point_moved.connect(lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y))
-                main_window.curve_view.image_changed.connect(main_window.on_image_changed)
-                print("UIComponents: Enhanced curve view signal connections established")
-                
-                # Add a direct update method to the view for direct timeline updates
-                def update_timeline_for_image(index):
-                    """Direct method to update the timeline for the current image."""
-                    try:
-                        if index < 0 or index >= len(main_window.image_filenames):
-                            print(f"update_timeline_for_image: Invalid index {index}")
-                            return
-                    
-                        # Extract frame number
-                        filename = os.path.basename(main_window.image_filenames[index])
-                        frame_match = re.search(r'(\d+)', filename)
-                        if not frame_match:
-                            print(f"update_timeline_for_image: Could not extract frame from {filename}")
-                            return
-                            
-                        frame_num = int(frame_match.group(1))
-                        print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
-                        
-                        # Update timeline directly
-                        if hasattr(main_window, 'timeline_slider'):
-                            main_window.timeline_slider.blockSignals(True)
-                            main_window.timeline_slider.setValue(frame_num)
-                            main_window.timeline_slider.blockSignals(False)
-                            print(f"update_timeline_for_image: Updated timeline to frame {frame_num}")
-                        
-                        # Update label
-                        if hasattr(main_window, 'range_slider_value_label'):
-                            main_window.range_slider_value_label.setText(f"Frame: {frame_num}")
-                            
-                        # Find and update selected point
-                        if hasattr(main_window, 'curve_data') and main_window.curve_data:
-                            closest_frame = min(main_window.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
-                            
-                            for i, point in enumerate(main_window.curve_data):
-                                if point[0] == closest_frame:
-                                    # Update selection
-                                    if hasattr(main_window.curve_view, 'selected_point_idx'):
-                                        main_window.curve_view.selected_point_idx = i
-                                        main_window.curve_view.update()
-                                        print(f"update_timeline_for_image: Updated selected point to {i}")
-                                    break
-                    except Exception as e:
-                        print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
-                
-                # Attach the method to the curve view
-                main_window.curve_view.update_timeline_for_image = update_timeline_for_image
-                
-                # Create enhanced controls
-                UIComponents.setup_enhanced_controls(main_window)
-                
-                return True
-            else:
-                return False
-        except Exception as e:
-            print(f"Error setting up enhanced curve view: {str(e)}")
-            return False
-
-    @staticmethod
     def setup_timeline(main_window):
-        """Setup timeline slider based on frame range."""
+        """Setup timeline slider based on frame range with individual frame markers."""
         if not main_window.curve_data:
             return
             
@@ -556,10 +569,25 @@ class UIComponents:
         main_window.timeline_slider.setMinimum(min_frame)
         main_window.timeline_slider.setMaximum(max_frame)
         
-        # Enable controls
+        # Configure slider for individual frames
+        main_window.timeline_slider.setTickPosition(QSlider.TicksBelow)
+        main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
+        main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
+        
+        # Determine a reasonable tick interval based on frame count
+        frame_count = max_frame - min_frame + 1
+        if frame_count > 100:
+            tick_interval = max(1, frame_count // 100)  # Prevent too many ticks on large frame ranges
+            main_window.timeline_slider.setTickInterval(tick_interval)
+        else:
+            main_window.timeline_slider.setTickInterval(1)  # Show tick for each frame
+        
+        # Enable all timeline controls
         main_window.next_frame_button.setEnabled(True)
         main_window.prev_frame_button.setEnabled(True)
         main_window.play_button.setEnabled(True)
+        main_window.first_frame_button.setEnabled(True)
+        main_window.last_frame_button.setEnabled(True)
         
         # Set to first frame
         if main_window.current_frame < min_frame or main_window.current_frame > max_frame:
@@ -570,17 +598,37 @@ class UIComponents:
         main_window.frame_label.setText(f"Frame: {main_window.current_frame}")
         main_window.frame_edit.setText(str(main_window.current_frame))
         
-        print("UIComponents: Timeline setup complete with slider connected to valueChanged signal")
+        # Update frame marker position
+        if hasattr(main_window, 'frame_marker'):
+            main_window.frame_marker.setPosition(0)  # Start at beginning
+        
+        print(f"UIComponents: Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
 
     @staticmethod
     def on_timeline_changed(main_window, value):
-        """Handle timeline slider value changed."""
+        """Handle timeline slider value changed with enhanced feedback."""
         main_window.current_frame = value
         
         # Update frame edit and label
         main_window.frame_edit.setText(str(value))
         main_window.frame_label.setText(f"Frame: {value}")
         
+        # Update tooltip to show current frame
+        main_window.timeline_slider.setToolTip(f"Frame: {value}")
+        
+        # Update the frame marker position
+        if hasattr(main_window, 'frame_marker'):
+            # Calculate position based on slider value
+            slider_min = main_window.timeline_slider.minimum()
+            slider_max = main_window.timeline_slider.maximum()
+            
+            # Only update if we have a valid range
+            if slider_max > slider_min:
+                frame_range = slider_max - slider_min
+                position_ratio = (value - slider_min) / frame_range
+                main_window.frame_marker.setPosition(position_ratio)
+                main_window.frame_marker.update()
+    
         # Load the corresponding image if we have an image sequence
         if main_window.image_filenames:
             # Update the image by frame
@@ -674,6 +722,22 @@ class UIComponents:
         
         if current_frame > min_frame:
             main_window.timeline_slider.setValue(current_frame - 1)
+
+    @staticmethod
+    def advance_frames(main_window, count):
+        """Advance timeline by specified number of frames (positive or negative)."""
+        if not main_window.curve_data:
+            return
+            
+        current_frame = main_window.timeline_slider.value()
+        min_frame = main_window.timeline_slider.minimum()
+        max_frame = main_window.timeline_slider.maximum()
+        
+        new_frame = current_frame + count
+        new_frame = max(min_frame, min(max_frame, new_frame))
+        
+        main_window.timeline_slider.setValue(new_frame)
+        main_window.statusBar().showMessage(f"Advanced {count} frames to frame {new_frame}", 2000)
             
     @staticmethod
     def go_to_frame(main_window, frame):
@@ -711,7 +775,22 @@ class UIComponents:
         main_window.statusBar().showMessage(f"Moved to last frame ({max_frame})", 2000)
 
     @staticmethod
-    def setup_enhanced_controls(main_window):
+    def update_frame_marker(main_window):
+        """Update the position of the frame marker based on current frame."""
+        if hasattr(main_window, 'frame_marker') and hasattr(main_window, 'timeline_slider'):
+            slider = main_window.timeline_slider
+            min_frame = slider.minimum()
+            max_frame = slider.maximum()
+            current_frame = slider.value()
+            
+            # Calculate relative position in the slider
+            if max_frame > min_frame:
+                position = (current_frame - min_frame) / (max_frame - min_frame)
+                main_window.frame_marker.setPosition(position)
+                main_window.frame_marker.update()
+
+    @staticmethod
+    def setup_enhanced_curve_view(main_window):
         """Set up enhanced visualization controls.
         
         Creates UI buttons for visualization features available in the EnhancedCurveView:
@@ -729,6 +808,48 @@ class UIComponents:
         Args:
             main_window: The main application window instance
         """
+        try:
+            # Create the enhanced curve view
+            enhanced_view = EnhancedCurveView(main_window)
+            
+            # Replace standard view with enhanced view
+            if hasattr(main_window, 'curve_view_container') and hasattr(main_window, 'curve_view'):
+                main_window.curve_view_container.layout().removeWidget(main_window.curve_view)
+                main_window.curve_view.deleteLater()
+                
+                # Set the new enhanced view
+                main_window.curve_view = enhanced_view
+                main_window.curve_view_container.layout().addWidget(main_window.curve_view)
+                
+                # Explicitly connect signals here to ensure proper connections
+                main_window.curve_view.point_selected.connect(lambda idx: CurveViewOperations.on_point_selected(main_window, idx))
+                main_window.curve_view.point_moved.connect(lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y))
+                main_window.curve_view.image_changed.connect(main_window.on_image_changed)
+                
+                # Add a reference to the visualization operations method for timeline updates
+                from visualization_operations import VisualizationOperations
+                
+                # Create a wrapper method that calls the visualization operations method
+                def update_timeline_for_image(index):
+                    """Wrapper method to update the timeline for the current image."""
+                    VisualizationOperations.update_timeline_for_image(main_window, index)
+                
+                # Attach the wrapper method to the curve view for backward compatibility
+                main_window.curve_view.update_timeline_for_image = update_timeline_for_image
+                
+                # Create enhanced controls
+                UIComponents.setup_enhanced_controls(main_window)
+                
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"Error setting up enhanced curve view: {str(e)}")
+            return False
+
+    @staticmethod
+    def setup_enhanced_controls(main_window):
+        """Set up enhanced visualization controls."""
         main_window.enhanced_controls_group = QGroupBox("Enhanced Visualization")
         enhanced_layout = QHBoxLayout(main_window.enhanced_controls_group)
         

@@ -197,6 +197,17 @@ class SignalRegistry:
                     lambda: UIComponents.prev_frame(main_window)
                 )
                 
+            # Add connections for first/last frame buttons
+            if hasattr(main_window, 'first_frame_button'):
+                main_window.first_frame_button.clicked.connect(
+                    lambda: UIComponents.go_to_first_frame(main_window)
+                )
+                
+            if hasattr(main_window, 'last_frame_button'):
+                main_window.last_frame_button.clicked.connect(
+                    lambda: UIComponents.go_to_last_frame(main_window)
+                )
+                
             if hasattr(main_window, 'play_button'):
                 main_window.play_button.clicked.connect(
                     lambda: UIComponents.toggle_playback(main_window)

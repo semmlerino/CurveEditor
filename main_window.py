@@ -32,13 +32,17 @@ import copy
 import re
 
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QFileDialog, QMessageBox, QSlider, QLineEdit, 
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
+    QPushButton, QFileDialog, QMessageBox, QSlider, QLineEdit,
     QGroupBox, QSplitter, QDialog, QComboBox, QToolBar, QMenu,
-    QGridLayout, QApplication
+    QGridLayout, QApplication, QStatusBar
 )
-from PySide6.QtCore import Qt, QTimer, QSettings, QSize, QPoint, Signal, QEvent
-from PySide6.QtGui import QFont, QKeySequence, QAction
+from PySide6.QtCore import (
+    Qt, QTimer, QSettings, QSize, QPoint, Signal, QEvent
+)
+from PySide6.QtGui import (
+    QFont, QKeySequence, QAction, QShortcut
+)
 
 from curve_view import CurveView
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
@@ -200,7 +204,7 @@ class MainWindow(QMainWindow):
         # Create splitter for main view and controls
         splitter = QSplitter(Qt.Vertical)
         
-        # Create curve view and timeline
+        # Create curve view and timeline with individual frames
         view_container = UIComponents.create_view_and_timeline(self)
         splitter.addWidget(view_container)
         
@@ -214,6 +218,10 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(splitter)
         
         self.setCentralWidget(main_widget)
+        
+        # Set up status bar
+        self.setStatusBar(QStatusBar())
+        self.statusBar().showMessage("Ready")
         
     def create_toolbar(self):
         """Create the toolbar with action buttons.
@@ -277,6 +285,33 @@ class MainWindow(QMainWindow):
         self.x_edit.setEnabled(enabled)
         self.y_edit.setEnabled(enabled)
         self.update_point_button.setEnabled(enabled)
+
+    def keyPressEvent(self, event):
+        """Enhanced key handling for frame-by-frame timeline navigation."""
+        # Call the base event filter first for standard shortcuts
+        result = super(MainWindow, self).keyPressEvent(event)
+        
+        # Add extra frame navigation shortcuts
+        if event.key() == Qt.Key_Period:  # Period key for next frame
+            UIComponents.next_frame(self)
+            return True
+        elif event.key() == Qt.Key_Comma:  # Comma key for previous frame
+            UIComponents.prev_frame(self)
+            return True
+        elif event.key() == Qt.Key_Home:  # Home key for first frame
+            UIComponents.go_to_first_frame(self)
+            return True
+        elif event.key() == Qt.Key_End:  # End key for last frame
+            UIComponents.go_to_last_frame(self)
+            return True
+        elif event.key() == Qt.Key_Shift and (event.key() == Qt.Key_Period):  # Shift+Period for 10 frames forward
+            UIComponents.advance_frames(self, 10)
+            return True
+        elif event.key() == Qt.Key_Shift and (event.key() == Qt.Key_Comma):  # Shift+Comma for 10 frames backward
+            UIComponents.advance_frames(self, -10)
+            return True
+        
+        return result
 
     def eventFilter(self, obj, event):
         """Global event filter for keyboard navigation.
@@ -392,6 +427,10 @@ class MainWindow(QMainWindow):
             
             # Find and select closest point
             self._select_point_for_frame(frame_num)
+            
+            # Update frame marker position if available
+            if hasattr(self, 'frame_marker'):
+                UIComponents.update_frame_marker(self)
         
         except Exception as e:
             print(f"Error handling image change: {str(e)}")
@@ -548,6 +587,16 @@ class MainWindow(QMainWindow):
         ShortcutManager.connect_shortcut(self, "play_pause", lambda: UIComponents.toggle_playback(self))
         ShortcutManager.connect_shortcut(self, "first_frame", lambda: UIComponents.go_to_first_frame(self))
         ShortcutManager.connect_shortcut(self, "last_frame", lambda: UIComponents.go_to_last_frame(self))
+        
+        # Enhanced frame navigation shortcuts
+        frame_advance_shortcuts = {
+            "forward_10": {"key": "Shift+.", "func": lambda: UIComponents.advance_frames(self, 10)},
+            "backward_10": {"key": "Shift+,", "func": lambda: UIComponents.advance_frames(self, -10)},
+        }
+        
+        for shortcut_id, data in frame_advance_shortcuts.items():
+            shortcut = QShortcut(QKeySequence(data["key"]), self)
+            shortcut.activated.connect(data["func"])
         
         # Navigation
         ShortcutManager.connect_shortcut(self, "next_image", lambda: ImageOperations.next_image(self))

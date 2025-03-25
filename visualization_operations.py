@@ -291,8 +291,8 @@ class VisualizationOperations:
         Args:
             curve_view: The curve view instance
             factor: Zoom factor (> 1 to zoom in, < 1 to zoom out)
-            mouse_x: Ignored, kept for API compatibility
-            mouse_y: Ignored, kept for API compatibility
+            mouse_x: X-coordinate to zoom around, if None uses center
+            mouse_y: Y-coordinate to zoom around, if None uses center
         """
         # Store previous zoom to check if centering is needed
         old_zoom = curve_view.zoom_factor
@@ -300,13 +300,30 @@ class VisualizationOperations:
         # Apply new zoom factor with limits
         curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor * factor))
         
-        # If we have a selected point, make sure it stays centered
-        if hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
+        # If mouse coordinates are provided, zoom around that point
+        if mouse_x is not None and mouse_y is not None:
+            widget_width = curve_view.width()
+            widget_height = curve_view.height()
+            
+            # Calculate how much the coordinates will change due to zoom
+            zoom_ratio = factor - 1.0
+            
+            # Calculate distance from mouse to center
+            center_x = widget_width / 2
+            center_y = widget_height / 2
+            dx = mouse_x - center_x
+            dy = mouse_y - center_y
+            
+            # Adjust offset to keep mouse position fixed
+            curve_view.offset_x -= dx * zoom_ratio
+            curve_view.offset_y -= dy * zoom_ratio
+        # If no mouse coordinates, but we have a selected point, center on it
+        elif hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
             # Use the existing method which already handles transformations correctly
             VisualizationOperations.center_on_selected_point(curve_view, curve_view.selected_point_idx, preserve_zoom=True)
-        else:
-            # If no point is selected, just update the view
-            curve_view.update()
+        
+        # Update the view
+        curve_view.update()
         
     @staticmethod
     def pan_view(curve_view, dx, dy):
@@ -448,10 +465,9 @@ class VisualizationOperations:
                 main_window.timeline_slider.blockSignals(False)
                 print(f"update_timeline_for_image: Updated timeline to frame {frame_num}")
             
-            # Update label
-            if hasattr(main_window, 'range_slider_value_label'):
-                main_window.range_slider_value_label.setText(f"Frame: {frame_num}")
-                
+            # Update frame marker position if it exists
+            VisualizationOperations.update_frame_marker_position(main_window, frame_num)
+            
             # Find and update selected point
             if hasattr(main_window, 'curve_data') and main_window.curve_data:
                 closest_frame = min(main_window.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
@@ -466,6 +482,30 @@ class VisualizationOperations:
                         break
         except Exception as e:
             print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
+
+    @staticmethod
+    def update_frame_marker_position(main_window, frame):
+        """Update the position of the frame marker based on current frame.
+        
+        Args:
+            main_window: The main window instance
+            frame: The current frame number
+        """
+        # Update the marker position if it exists
+        if hasattr(main_window, 'frame_marker_label'):
+            # Calculate position based on frame
+            if hasattr(main_window, 'timeline_slider'):
+                slider = main_window.timeline_slider
+                min_frame = slider.minimum()
+                max_frame = slider.maximum()
+                
+                # Only update if we have a valid range
+                if max_frame > min_frame:
+                    frame_range = max_frame - min_frame
+                    # Ensure the frame is within valid range
+                    current_frame = max(min_frame, min(max_frame, frame))
+                    # Update the tooltip to show the current frame
+                    main_window.frame_marker_label.setToolTip(f"Frame: {current_frame}")
 
     @staticmethod
     def set_points(curve_view, points, image_width, image_height, preserve_view=False):
@@ -533,7 +573,7 @@ class VisualizationOperations:
         elif event.key() == Qt.Key_F:
             curve_view.show_all_frame_numbers = not curve_view.show_all_frame_numbers
             curve_view.update()
-        elif event.key() == Qt.Key_C:
+        elif event.key() == Qt.Key_X:
             curve_view.show_crosshair = not curve_view.show_crosshair
             curve_view.update()
         elif event.key() == Qt.Key_B:
@@ -550,7 +590,71 @@ class VisualizationOperations:
             curve_view.x_offset = 0
             curve_view.y_offset = 0
             curve_view.update()
+        # Handle new frame navigation key presses
+        elif event.key() == Qt.Key_Period:  # Next frame
+            if hasattr(curve_view, 'main_window'):
+                from ui_components import UIComponents
+                UIComponents.next_frame(curve_view.main_window)
+            else:
+                handled = False
+        elif event.key() == Qt.Key_Comma:  # Previous frame
+            if hasattr(curve_view, 'main_window'):
+                from ui_components import UIComponents
+                UIComponents.prev_frame(curve_view.main_window)
+            else:
+                handled = False
+        elif event.key() == Qt.Key_Home:  # First frame
+            if hasattr(curve_view, 'main_window'):
+                from ui_components import UIComponents
+                UIComponents.go_to_first_frame(curve_view.main_window)
+            else:
+                handled = False
+        elif event.key() == Qt.Key_End:  # Last frame
+            if hasattr(curve_view, 'main_window'):
+                from ui_components import UIComponents
+                UIComponents.go_to_last_frame(curve_view.main_window)
+            else:
+                handled = False
         else:
             handled = False
             
         return handled
+
+    @staticmethod
+    def jump_to_frame_by_click(main_window, position):
+        """Jump to a specific frame based on click position on timeline.
+        
+        Args:
+            main_window: The main application window
+            position: Click position (QPoint)
+            
+        Returns:
+            bool: True if successfully jumped to frame, False otherwise
+        """
+        if not hasattr(main_window, 'timeline_slider'):
+            return False
+            
+        slider = main_window.timeline_slider
+        min_frame = slider.minimum()
+        max_frame = slider.maximum()
+        
+        # Calculate the frame based on position
+        slider_width = slider.width()
+        if slider_width <= 0:
+            return False
+            
+        # Calculate the frame corresponding to the click position
+        relative_pos = max(0, min(position.x(), slider_width)) / slider_width
+        frame = int(min_frame + (max_frame - min_frame) * relative_pos)
+        
+        # Set the slider value
+        slider.setValue(frame)
+        
+        # Update the frame marker position
+        VisualizationOperations.update_frame_marker_position(main_window, frame)
+        
+        # Update status bar
+        if hasattr(main_window, 'statusBar'):
+            main_window.statusBar().showMessage(f"Jumped to frame {frame}", 2000)
+            
+        return True

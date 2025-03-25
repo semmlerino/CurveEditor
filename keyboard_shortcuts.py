@@ -5,7 +5,7 @@ from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                              QPushButton, QTableWidget, QTableWidgetItem,
                              QHeaderView)
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QFont, QShortcut
+from PySide6.QtGui import QKeySequence, QFont, QShortcut  # QShortcut is in QtGui, not QtWidgets
 
 class ShortcutManager:
     """Manages keyboard shortcuts for the application."""
@@ -37,14 +37,18 @@ class ShortcutManager:
         "zoom_in": {"key": "+", "description": "Zoom in"},
         "zoom_out": {"key": "-", "description": "Zoom out"},
         
-        # Navigation
+        # Frame Navigation
         "next_frame": {"key": ".", "description": "Go to next frame"},
         "prev_frame": {"key": ",", "description": "Go to previous frame"},
+        "first_frame": {"key": "Home", "description": "Go to first frame"},
+        "last_frame": {"key": "End", "description": "Go to last frame"},
+        "frame_forward_10": {"key": "Shift+.", "description": "Forward 10 frames"},
+        "frame_back_10": {"key": "Shift+,", "description": "Back 10 frames"},
+        
+        # Image Navigation
         "next_image": {"key": "Right", "description": "Go to next image"},
         "prev_image": {"key": "Left", "description": "Go to previous image"},
         "play_pause": {"key": "Space", "description": "Play/pause timeline"},
-        "first_frame": {"key": "Home", "description": "Go to first frame"},
-        "last_frame": {"key": "End", "description": "Go to last frame"},
         
         # Tools
         "smooth_selected": {"key": "Ctrl+Shift+S", "description": "Smooth selected points"},
@@ -168,8 +172,9 @@ class ShortcutsDialog(QDialog):
             "Edit": ["undo", "redo", "select_all", "deselect_all", "delete_selected", "delete_selected_alt"],
             "View": ["reset_view", "toggle_grid", "toggle_velocity", "toggle_frame_numbers", 
                     "toggle_crosshair", "center_on_point", "toggle_background", "toggle_fullscreen", "zoom_in", "zoom_out"],
-            "Navigation": ["next_frame", "prev_frame", "next_image", "prev_image", 
-                          "play_pause", "first_frame", "last_frame"],
+            "Frame Navigation": ["prev_frame", "next_frame", "first_frame", "last_frame", 
+                               "frame_back_10", "frame_forward_10", "play_pause"],
+            "Image Navigation": ["prev_image", "next_image"],
             "Tools": ["smooth_selected", "filter_selected", "detect_problems"]
         }
         
