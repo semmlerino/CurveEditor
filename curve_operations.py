@@ -196,46 +196,7 @@ def savitzky_golay_fit(x_indices, values, target_idx):
     target_x = x_indices[target_idx] if 0 <= target_idx < n else 0
     return a + b*target_x + c*target_x*target_x
 
-def filter_median(curve_data, indices, window_size):
-    """Apply median filter to the specified points."""
-    if not indices or window_size < 3:
-        return curve_data
-        
-    # Create a copy of the curve data for reading and writing
-    result = copy.deepcopy(curve_data)
-    original_data = copy.deepcopy(curve_data)
-    
-    # Calculate half window size
-    half_window = window_size // 2
-    
-    # Apply filter
-    for idx in indices:
-        # Calculate window indices
-        start_idx = max(0, idx - half_window)
-        end_idx = min(len(original_data) - 1, idx + half_window)
-        
-        # Skip if window is too small
-        if end_idx - start_idx < 2:
-            continue
-            
-        # Get frame
-        frame = original_data[idx][0]
-        
-        # Collect x and y values in the window
-        x_values = [original_data[i][1] for i in range(start_idx, end_idx + 1)]
-        y_values = [original_data[i][2] for i in range(start_idx, end_idx + 1)]
-        
-        # Sort and get median
-        x_values.sort()
-        y_values.sort()
-        
-        median_x = x_values[len(x_values) // 2]
-        median_y = y_values[len(y_values) // 2]
-        
-        # Update point
-        result[idx] = (frame, median_x, median_y)
-        
-    return result
+# (Moved filter_median into CurveOperations as a static method)
 
 def filter_average(curve_data, indices, window_size):
     """Apply simple moving average filter to the specified points."""
@@ -765,6 +726,8 @@ def fit_quadratic(x, y):
     ]
     
     b = [sum_y, sum_xy, sum_x2y]
+    A = [[float(value) for value in row] for row in A]
+    b = [float(value) for value in b]
     
     # Solve using a simple Gaussian elimination
     for i in range(3):
@@ -791,7 +754,7 @@ def fit_quadratic(x, y):
             b[j] -= factor * b[i]
             
     # Back substitution
-    x = [0, 0, 0]
+    x = [0.0, 0.0, 0.0]
     for i in range(2, -1, -1):
         x[i] = b[i]
         for j in range(i + 1, 3):
@@ -820,6 +783,11 @@ class CurveOperations:
         sorted_data = sorted(main_window.curve_data, key=lambda x: x[0])
         
         problems = []
+    @staticmethod
+    def smooth_moving_average(curve_data, indices, window_size):
+        """Apply moving average smoothing to the specified points via CurveOperations interface."""
+        return smooth_moving_average(curve_data, indices, window_size)
+
         
         # 1. Check for sudden jumps in position
         for i in range(1, len(sorted_data)):
@@ -943,6 +911,48 @@ class CurveOperations:
         problems.sort(key=lambda x: x[0])
         
         return problems
+
+    @staticmethod
+    def filter_median(curve_data, indices, window_size):
+        """Apply median filter to the specified points."""
+        if not indices or window_size < 3:
+            return curve_data
+
+        # Create a copy of the curve data for reading and writing
+        result = copy.deepcopy(curve_data)
+        original_data = copy.deepcopy(curve_data)
+
+        # Calculate half window size
+        half_window = window_size // 2
+
+        # Apply filter
+        for idx in indices:
+            # Calculate window indices
+            start_idx = max(0, idx - half_window)
+            end_idx = min(len(original_data) - 1, idx + half_window)
+
+            # Skip if window is too small
+            if end_idx - start_idx < 2:
+                continue
+
+            # Get frame
+            frame = original_data[idx][0]
+
+            # Collect x and y values in the window
+            x_values = [original_data[i][1] for i in range(start_idx, end_idx + 1)]
+            y_values = [original_data[i][2] for i in range(start_idx, end_idx + 1)]
+
+            # Sort and get median
+            x_values.sort()
+            y_values.sort()
+
+            median_x = x_values[len(x_values) // 2]
+            median_y = y_values[len(y_values) // 2]
+
+            # Update point
+            result[idx] = (frame, median_x, median_y)
+
+        return result
 
     @staticmethod
     def fill_accelerated_motion(curve_data, start_frame, end_frame, window_size, accel_weight, preserve_endpoints=True):
@@ -1098,5 +1108,3 @@ class CurveOperations:
         """Redo the last undone operation. (Placeholder)"""
         # TODO: Implement redo functionality
         print("Redo operation triggered (not implemented).")
-
-        return result

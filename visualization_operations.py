@@ -220,6 +220,74 @@ class VisualizationOperations:
             return False
             
     @staticmethod
+    def fit_selection(curve_view):
+        """Fit the view to the bounding box of all selected points."""
+        selected_points = getattr(curve_view, "selected_points", None)
+        points = getattr(curve_view, "points", None)
+        if (
+            selected_points is not None
+            and points is not None
+            and len(selected_points) > 1
+        ):
+            xs = []
+            ys = []
+            for idx in selected_points:
+                if 0 <= idx < len(points):
+                    pt = points[idx]
+                    x = pt[1]
+                    y = pt[2]
+                    xs.append(x)
+                    ys.append(y)
+            if xs and ys:
+                min_x, max_x = min(xs), max(xs)
+                min_y, max_y = min(ys), max(ys)
+                bbox_width = max_x - min_x
+                bbox_height = max_y - min_y
+                # Add margin (25%)
+                margin_x = bbox_width * 0.25 if bbox_width > 0 else 10.0
+                margin_y = bbox_height * 0.25 if bbox_height > 0 else 10.0
+                min_x -= margin_x
+                max_x += margin_x
+                min_y -= margin_y
+                max_y += margin_y
+                bbox_width = max_x - min_x
+                bbox_height = max_y - min_y
+                widget_width = curve_view.width()
+                widget_height = curve_view.height()
+                display_width = getattr(curve_view, "image_width", widget_width)
+                display_height = getattr(curve_view, "image_height", widget_height)
+                scale_x = widget_width / bbox_width if bbox_width > 0 else 1.0
+                scale_y = widget_height / bbox_height if bbox_height > 0 else 1.0
+                scale = min(scale_x, scale_y)
+                scale = max(0.1, min(50.0, scale))
+                center_x = (min_x + max_x) / 2
+                center_y = (min_y + max_y) / 2
+                curve_view.zoom_factor = scale
+                widget_cx = widget_width / 2
+                widget_cy = widget_height / 2
+                if getattr(curve_view, "background_image", None) and getattr(curve_view, "scale_to_image", False):
+                    img_x = center_x + getattr(curve_view, "x_offset", 0)
+                    img_y = center_y + getattr(curve_view, "y_offset", 0)
+                    tx = 0 + img_x * scale
+                    if getattr(curve_view, "flip_y_axis", False):
+                        ty = 0 + (display_height - img_y) * scale
+                    else:
+                        ty = 0 + img_y * scale
+                else:
+                    tx = 0 + center_x * scale
+                    if getattr(curve_view, "flip_y_axis", False):
+                        ty = 0 + (display_height - center_y) * scale
+                    else:
+                        ty = 0 + center_y * scale
+                curve_view.offset_x = widget_cx - tx
+                curve_view.offset_y = widget_cy - ty
+                # Set a flag to indicate the last action was a fit
+                curve_view.last_action_was_fit = True
+                curve_view.update()
+                return True
+        return False
+
+    @staticmethod
     def center_on_selected_point_from_main_window(main_window):
         """Center the view on the currently selected point from the main window context.
         
@@ -274,7 +342,7 @@ class VisualizationOperations:
         
     @staticmethod
     def zoom_view(curve_view, factor, mouse_x=None, mouse_y=None):
-        """Zoom the view while keeping the selected point centered.
+        """Zoom the view while keeping the selected point(s) centered.
         
         Args:
             curve_view: The curve view instance
@@ -284,7 +352,93 @@ class VisualizationOperations:
         """
         # Store previous zoom to check if centering is needed
         old_zoom = curve_view.zoom_factor
-        
+
+        # --- Fit to selected points if multiple are selected ---
+        selected_points = getattr(curve_view, "selected_points", None)
+        points = getattr(curve_view, "points", None)
+        if (
+            selected_points is not None
+            and points is not None
+            and len(selected_points) > 1
+        ):
+            # Compute bounding box of selected points
+            xs = []
+            ys = []
+            for idx in selected_points:
+                if 0 <= idx < len(points):
+                    pt = points[idx]
+                    # pt may be (frame, x, y) or (frame, x, y, status)
+                    x = pt[1]
+                    y = pt[2]
+                    xs.append(x)
+                    ys.append(y)
+            if xs and ys:
+                min_x, max_x = min(xs), max(xs)
+                min_y, max_y = min(ys), max(ys)
+                bbox_width = max_x - min_x
+                bbox_height = max_y - min_y
+
+                # Add margin (25%) to avoid over-zooming
+                margin_x = bbox_width * 0.25 if bbox_width > 0 else 10.0
+                margin_y = bbox_height * 0.25 if bbox_height > 0 else 10.0
+                min_x -= margin_x
+                max_x += margin_x
+                min_y -= margin_y
+                max_y += margin_y
+                bbox_width = max_x - min_x
+                bbox_height = max_y - min_y
+
+                # Widget and image dimensions
+                widget_width = curve_view.width()
+                widget_height = curve_view.height()
+                display_width = getattr(curve_view, "image_width", widget_width)
+                display_height = getattr(curve_view, "image_height", widget_height)
+
+                # Compute scale to fit bbox in widget
+                scale_x = widget_width / bbox_width if bbox_width > 0 else 1.0
+                scale_y = widget_height / bbox_height if bbox_height > 0 else 1.0
+                scale = min(scale_x, scale_y) * factor
+                # Clamp scale to allowed zoom range
+                scale = max(0.1, min(50.0, scale))
+
+                # Center of bbox in track coordinates
+                center_x = (min_x + max_x) / 2
+                center_y = (min_y + max_y) / 2
+
+                # Set zoom factor
+                curve_view.zoom_factor = scale
+
+                # Calculate offset so that bbox center is at widget center
+                # Widget center in widget coordinates
+                widget_cx = widget_width / 2
+                widget_cy = widget_height / 2
+
+                # Transform bbox center to widget coordinates (simulate)
+                # Use the same logic as in transform_point
+                if getattr(curve_view, "background_image", None) and getattr(curve_view, "scale_to_image", False):
+                    img_x = center_x + getattr(curve_view, "x_offset", 0)
+                    img_y = center_y + getattr(curve_view, "y_offset", 0)
+                    tx = 0 + img_x * scale
+                    if getattr(curve_view, "flip_y_axis", False):
+                        ty = 0 + (display_height - img_y) * scale
+                    else:
+                        ty = 0 + img_y * scale
+                else:
+                    tx = 0 + center_x * scale
+                    if getattr(curve_view, "flip_y_axis", False):
+                        ty = 0 + (display_height - center_y) * scale
+                    else:
+                        ty = 0 + center_y * scale
+
+                # Calculate offset to center bbox in widget
+                curve_view.offset_x = widget_cx - tx
+                curve_view.offset_y = widget_cy - ty
+
+                # Update the view and return
+                curve_view.update()
+                return
+
+        # --- Default zoom behavior ---
         # Apply new zoom factor with limits
         curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor * factor))
         
@@ -549,9 +703,11 @@ class VisualizationOperations:
         Returns:
             bool: True if the event was handled, False otherwise
         """
+        from PySide6.QtCore import Qt
+
         # Handle visualization toggle keys
         handled = True
-        
+
         if event.key() == Qt.Key_G:
             curve_view.show_grid = not curve_view.show_grid
             curve_view.update()
@@ -578,6 +734,14 @@ class VisualizationOperations:
             curve_view.x_offset = 0
             curve_view.y_offset = 0
             curve_view.update()
+        elif event.key() == Qt.Key_C:
+            # Fit selection if multiple points, else center on selected point
+            selected_points = getattr(curve_view, "selected_points", None)
+            if selected_points is not None and len(selected_points) > 1:
+                VisualizationOperations.fit_selection(curve_view)
+            else:
+                VisualizationOperations.center_on_selected_point(curve_view)
+            return True
         # Handle new frame navigation key presses
         elif event.key() == Qt.Key_Period:  # Next frame
             if hasattr(curve_view, 'main_window'):

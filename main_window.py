@@ -496,14 +496,21 @@ class MainWindow(QMainWindow):
                 # Update view
                 self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height)
                 
-                # Enable controls
-                self.save_button.setEnabled(True)
-                self.add_point_button.setEnabled(True)
-                self.smooth_button.setEnabled(True)
-                self.fill_gaps_button.setEnabled(True)
-                self.filter_button.setEnabled(True)
-                self.detect_problems_button.setEnabled(True)
-                self.extrapolate_button.setEnabled(True)
+                # Enable controls (guarded for robustness)
+                if hasattr(self, "save_button"):
+                    self.save_button.setEnabled(True)
+                if hasattr(self, "add_point_button"):
+                    self.add_point_button.setEnabled(True)
+                if hasattr(self, "smooth_button"):
+                    self.smooth_button.setEnabled(True)
+                if hasattr(self, "fill_gaps_button"):
+                    self.fill_gaps_button.setEnabled(True)
+                if hasattr(self, "filter_button"):
+                    self.filter_button.setEnabled(True)
+                if hasattr(self, "detect_problems_button"):
+                    self.detect_problems_button.setEnabled(True)
+                if hasattr(self, "extrapolate_button"):
+                    self.extrapolate_button.setEnabled(True)
                 
                 # Update info
                 self.info_label.setText(f"Loaded: {self.point_name} ({len(self.curve_data)} frames)")

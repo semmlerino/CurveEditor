@@ -625,18 +625,23 @@ class EnhancedCurveView(QWidget):
         
     def wheelEvent(self, event):
         """Handle mouse wheel for zooming."""
+        # Prevent jumpy zoom immediately after fit_selection
+        if hasattr(self, "last_action_was_fit") and getattr(self, "last_action_was_fit", False):
+            self.last_action_was_fit = False
+            return
+
         delta = event.angleDelta().y()
         factor = 1.1 if delta > 0 else 0.9
-        
+
         # Get mouse position for zoom centering
         position = event.position()
         mouse_x = position.x()
         mouse_y = position.y()
-        
+
         # Use centralized zoom method from visualization_operations
         from visualization_operations import VisualizationOperations
         VisualizationOperations.zoom_view(self, factor, mouse_x, mouse_y)
-        
+
     def keyPressEvent(self, event):
         """Handle key press events for navigation and shortcuts."""
         from visualization_operations import VisualizationOperations
