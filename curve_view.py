@@ -487,14 +487,35 @@ class CurveView(QWidget):
         CurveViewOperations.handle_mouse_release(self, event)
         
     def wheelEvent(self, event):
-        """Handle mouse wheel event for zooming."""
+        """Handle mouse wheel for zooming."""
+        # Prevent jumpy zoom immediately after fit_selection
+        if hasattr(self, "last_action_was_fit") and getattr(self, "last_action_was_fit", False):
+            self.last_action_was_fit = False
+            return
+
         delta = event.angleDelta().y()
-        zoom_factor_change = 1.0 + (delta / 1200.0)
-        self.zoom_factor *= zoom_factor_change
+        factor = 1.1 if delta > 0 else 0.9
+
+        # Get mouse position for zoom centering
+        position = event.position()
+        mouse_x = position.x()
+        mouse_y = position.y()
+
+        # BUGFIX: Temporarily clear multiple selection to avoid
+        # special case handling in zoom_view that recalculates bbox
+        temp_selected = None
+        if hasattr(self, "selected_points") and len(self.selected_points) > 1:
+            temp_selected = self.selected_points.copy()  # Save a copy
+            self.selected_points = set([self.selected_point_idx]) if self.selected_point_idx >= 0 else set()
+
+        # Use centralized zoom method from visualization_operations
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.zoom_view(self, factor, mouse_x, mouse_y)
         
-        # Limit zoom range
-        self.zoom_factor = max(0.1, min(10.0, self.zoom_factor))
-        self.update()
+        # Restore selected points
+        if temp_selected is not None:
+            self.selected_points = temp_selected
+            self.update()  # Ensure selection is correctly displayed
         
     def keyPressEvent(self, event):
         """Handle key events."""
