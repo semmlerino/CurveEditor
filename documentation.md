@@ -36,7 +36,7 @@ The application follows a modular architecture with clear separation of concerns
    - Manages user interactions like point selection, dragging, and zooming
    - Implements precise coordinate transformation between image space and widget space
    - Supports image sequence backgrounds
-   - Provides visual feedback with crosshairs and information overlays
+   - Provides visual feedback with information overlays
 
 4. **Enhanced Curve View** (`enhanced_curve_view.py`)
    - Extended version of the standard curve view with additional visualization options
@@ -69,7 +69,7 @@ The application has been refactored to follow a utility-class-based architecture
 
 2. **VisualizationOperations** (`visualization_operations.py`)
    - Centralizes all visualization-related functionality
-   - Controls grid, crosshair, vectors, and frame number display
+   - Controls grid, vectors, and frame number display
    - Manages background image visibility and opacity
    - Provides view centering and navigation methods
    - **Enhanced Curve View Integration**: Provides specialized methods for visualization features:

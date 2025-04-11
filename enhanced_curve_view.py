@@ -44,7 +44,6 @@ class EnhancedCurveView(QWidget):
         self.show_velocity_vectors = False
         self.velocity_vector_scale = 5.0  # Default scale for velocity vectors
         self.show_all_frame_numbers = False
-        self.show_crosshair = True
         self.scale_to_image = True
         self.flip_y_axis = True
         self.show_background = True
@@ -118,10 +117,6 @@ class EnhancedCurveView(QWidget):
         from visualization_operations import VisualizationOperations
         VisualizationOperations.toggle_all_frame_numbers_internal(self, enabled)
         
-    def toggleCrosshair(self, enabled=None):
-        """Toggle crosshair visibility."""
-        from visualization_operations import VisualizationOperations
-        VisualizationOperations.toggle_crosshair_internal(self, enabled)
     
     def centerOnSelectedPoint(self, point_idx=-1, preserve_zoom=True):
         """Center the view on the specified point index.
@@ -515,31 +510,6 @@ class EnhancedCurveView(QWidget):
                         coord_text = f"X: {coord_format.format(x)}, Y: {coord_format.format(y)}"
                         painter.drawText(int(tx) + 10, int(ty) + 15, coord_text)
         
-        # Draw crosshair at mouse position if enabled
-        if self.show_crosshair and self.underMouse():
-            mouse_pos = self.mapFromGlobal(self.cursor().pos())
-            
-            # Get coordinates in track space
-            track_x, track_y = inverse_transform(mouse_pos.x(), mouse_pos.y())
-            
-            # Draw crosshair lines
-            painter.setPen(QPen(QColor(255, 200, 0, 120), 1, Qt.DashLine))
-            painter.drawLine(0, mouse_pos.y(), widget_width, mouse_pos.y())
-            painter.drawLine(mouse_pos.x(), 0, mouse_pos.x(), widget_height)
-            
-            # Draw coordinate info
-            painter.setPen(QPen(QColor(255, 200, 0)))
-            coord_format = f"{{:.{self.display_precision}f}}"
-            coord_text = f"X: {coord_format.format(track_x)}, Y: {coord_format.format(track_y)}"
-            
-            # Create background rect for text
-            font_metrics = painter.fontMetrics()
-            text_rect = font_metrics.boundingRect(coord_text)
-            text_rect.moveCenter(QPointF(mouse_pos.x(), mouse_pos.y() - 20).toPoint())
-            text_rect.adjust(-5, -2, 5, 2)
-            
-            painter.fillRect(text_rect, QColor(0, 0, 0, 180))
-            painter.drawText(text_rect, Qt.AlignCenter, coord_text)
             
         # Draw selection rectangle if active
         if self.selection_rect:

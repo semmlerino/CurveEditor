@@ -868,10 +868,6 @@ class UIComponents:
         main_window.toggle_frame_numbers_button.setChecked(False)
         main_window.toggle_frame_numbers_button.setToolTip("Toggle all frame numbers (F)")
         
-        main_window.toggle_crosshair_button = QPushButton("Crosshair")
-        main_window.toggle_crosshair_button.setCheckable(True)
-        main_window.toggle_crosshair_button.setChecked(True)
-        main_window.toggle_crosshair_button.setToolTip("Toggle crosshair display (X)")
         
         main_window.center_on_point_button = QPushButton("Center")
         main_window.center_on_point_button.setToolTip("Center view on selected point (C)")
@@ -889,7 +885,6 @@ class UIComponents:
         enhanced_layout.addWidget(main_window.toggle_grid_button)
         enhanced_layout.addWidget(main_window.toggle_vectors_button)
         enhanced_layout.addWidget(main_window.toggle_frame_numbers_button)
-        enhanced_layout.addWidget(main_window.toggle_crosshair_button)
         enhanced_layout.addWidget(main_window.center_on_point_button)
         enhanced_layout.addLayout(point_size_layout)
         
@@ -899,70 +894,17 @@ class UIComponents:
             
     @staticmethod
     def connect_all_signals(main_window):
-        """Connect all signals to their respective slots."""
+        """
+        DEPRECATED: This method is no longer used and should not be called.
         
-        print("\n" + "="*80)
-        print("CONNECTING ALL SIGNALS:")
-        
-        # Check if image_operations exists before connecting signals
-        if hasattr(main_window, 'image_operations'):
-            print("Connecting image_operations signals...")
-            # Connect controls to actions
-            main_window.action_open.triggered.connect(lambda: ImageOperations.load_images(main_window))
-            main_window.action_open_directory.triggered.connect(lambda: ImageOperations.open_directory(main_window))
-            main_window.action_save.triggered.connect(lambda: CurveOperations.save_curve_data(main_window))
-            main_window.action_exit.triggered.connect(main_window.close)
-        else:
-            print("WARNING: image_operations not found, some signals not connected")
-            
-        # Connect slider signals - timeline slider already connected in setup_timeline
-        if hasattr(main_window, 'point_size_spin'):
-            print("Connecting point_size_spin signal...")
-            main_window.point_size_spin.valueChanged.connect(
-                lambda value: CurveViewOperations.set_point_size(main_window, value)
-            )
-            
-        # Connect enhanced curve view signals if they exist
-        if hasattr(main_window, 'curve_view'):
-            try:
-                # Properly identify the class to ensure we're checking the right type
-                from enhanced_curve_view import EnhancedCurveView
-                
-                if isinstance(main_window.curve_view, EnhancedCurveView):
-                    print("Connecting EnhancedCurveView signals...")
-                    print("Signals available in curve_view:", [
-                        signal for signal in dir(main_window.curve_view) 
-                        if isinstance(getattr(main_window.curve_view, signal), Signal)
-                    ])
-                    
-                    # Connect enhanced curve view signals
-                    if hasattr(main_window.curve_view, 'point_selected'):
-                        main_window.curve_view.point_selected.connect(
-                            lambda idx: CurveViewOperations.on_point_selected(main_window, idx)
-                        )
-                        print("Connected: curve_view.point_selected -> CurveViewOperations.on_point_selected")
-                        
-                    if hasattr(main_window.curve_view, 'point_moved'):
-                        main_window.curve_view.point_moved.connect(
-                            lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y)
-                        )
-                        print("Connected: curve_view.point_moved -> CurveViewOperations.on_point_moved")
-                        
-                    if hasattr(main_window.curve_view, 'image_changed'):
-                        main_window.curve_view.image_changed.connect(main_window.on_image_changed)
-                        print("Connected: curve_view.image_changed -> main_window.on_image_changed")
-                        
-                        # Test the signal connection with a direct emit
-                        if hasattr(main_window.curve_view, 'current_image_idx') and main_window.curve_view.current_image_idx >= 0:
-                            print(f"Testing image_changed signal with index {main_window.curve_view.current_image_idx}")
-                            main_window.curve_view.image_changed.emit(main_window.curve_view.current_image_idx)
-                else:
-                    print("curve_view is not an instance of EnhancedCurveView, it's:", type(main_window.curve_view))
-            except Exception as e:
-                print(f"Error connecting enhanced curve view signals: {str(e)}")
-                import traceback
-                traceback.print_exc()
-        else:
-            print("WARNING: curve_view not found, curve view signals not connected")
-            
-        print("="*80 + "\n")
+        All signal connections are now handled by SignalRegistry.connect_all_signals().
+        This method is kept for backward compatibility but prints a warning and does nothing.
+        """
+        import warnings
+        warnings.warn(
+            "UIComponents.connect_all_signals() is deprecated. Use SignalRegistry.connect_all_signals() instead.", 
+            DeprecationWarning, 
+            stacklevel=2
+        )
+        print("\nWARNING: UIComponents.connect_all_signals() is deprecated.")
+        print("Use SignalRegistry.connect_all_signals() instead.\n")

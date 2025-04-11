@@ -946,23 +946,23 @@ class CurveViewOperations:
             if curve_view.selected_points or curve_view.selected_point_idx >= 0:
                 CurveViewOperations.delete_selected_points(curve_view)
         elif event.key() in (Qt.Key_Left, Qt.Key_4):
-            # Adjust x-offset with arrow keys + modifiers
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier) and hasattr(curve_view, 'x_offset'):
-                curve_view.x_offset -= step
-                curve_view.update()
-            elif curve_view.selected_point_idx >= 0:
-                # Nudge selected point left
-                CurveViewOperations.nudge_selected_points(curve_view, dx=-1, dy=0)
+            # Frame navigation: previous frame if possible
+            if hasattr(curve_view, "current_image_idx") and hasattr(curve_view, "image_filenames"):
+                if curve_view.current_image_idx > 0 and event.modifiers() == Qt.NoModifier:
+                    curve_view.setCurrentImageByIndex(curve_view.current_image_idx - 1)
+                    handled = True
+                else:
+                    handled = False
             else:
                 handled = False
         elif event.key() in (Qt.Key_Right, Qt.Key_6):
-            # Adjust x-offset with arrow keys + modifiers
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier) and hasattr(curve_view, 'x_offset'):
-                curve_view.x_offset += step
-                curve_view.update()
-            elif curve_view.selected_point_idx >= 0:
-                # Nudge selected point right
-                CurveViewOperations.nudge_selected_points(curve_view, dx=1, dy=0)
+            # Frame navigation: next frame if possible
+            if hasattr(curve_view, "current_image_idx") and hasattr(curve_view, "image_filenames"):
+                if curve_view.current_image_idx < len(curve_view.image_filenames) - 1 and event.modifiers() == Qt.NoModifier:
+                    curve_view.setCurrentImageByIndex(curve_view.current_image_idx + 1)
+                    handled = True
+                else:
+                    handled = False
             else:
                 handled = False
         elif event.key() in (Qt.Key_Up, Qt.Key_8):

@@ -50,18 +50,6 @@ class VisualizationOperations:
             main_window.toggle_frame_numbers_button.setChecked(checked)
     
     @staticmethod
-    def toggle_crosshair(main_window, checked):
-        """Toggle crosshair visibility.
-        
-        Args:
-            main_window: The main application window
-            checked: Boolean indicating if crosshair should be shown
-        """
-        if hasattr(main_window.curve_view, 'toggleCrosshair'):
-            main_window.curve_view.toggleCrosshair(checked)
-            if hasattr(main_window, 'toggle_crosshair_button'):
-                main_window.toggle_crosshair_button.setChecked(checked)
-                
     @staticmethod
     def toggle_background_visible(main_window, visible):
         """Toggle visibility of background image.

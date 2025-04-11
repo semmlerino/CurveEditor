@@ -312,6 +312,7 @@ class CurveView(QWidget):
             
     def mousePressEvent(self, event):
         """Handle mouse press to select or move points."""
+        self.setFocus()
         if not self.points:
             return
             
@@ -514,29 +515,7 @@ class CurveView(QWidget):
             self.debug_mode = not self.debug_mode
             self.update()
         
-        # Handle arrow keys for fine-tuning alignment
-        elif event.key() == Qt.Key_Left:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust x-offset with arrow keys + modifiers
-                self.x_offset -= step
-                self.update()
-            else:
-                # Move to previous image with left arrow
-                if self.current_image_idx > 0:
-                    self.setCurrentImageByIndex(self.current_image_idx - 1)
-                    # Emit signal to update UI
-                    self.image_changed.emit(self.current_image_idx)
-        elif event.key() == Qt.Key_Right:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust x-offset with arrow keys + modifiers
-                self.x_offset += step
-                self.update()
-            else:
-                # Move to next image with right arrow
-                if self.current_image_idx < len(self.image_filenames) - 1:
-                    self.setCurrentImageByIndex(self.current_image_idx + 1)
-                    # Emit signal to update UI
-                    self.image_changed.emit(self.current_image_idx)
+        # Handle arrow keys for navigation only
         elif event.key() == Qt.Key_Up:
             if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
                 # Adjust y-offset with arrow keys + modifiers

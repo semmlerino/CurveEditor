@@ -10,7 +10,7 @@ main application window, and manages the application lifecycle.
 
 Key architecture principles:
 1. Separation of UI components into the UIComponents class
-2. Centralized signal connections managed through UIComponents.connect_all_signals
+2. Centralized signal connections managed through SignalRegistry.connect_all_signals
 3. Operation-specific logic in dedicated utility classes:
    - CurveViewOperations - For curve view manipulation
    - VisualizationOperations - For visualization features
@@ -156,11 +156,6 @@ class MainWindow(QMainWindow):
         # Install event filter for key navigation
         self.installEventFilter(self)
         
-        # Set up keyboard shortcuts
-        self.shortcuts = {}
-        ShortcutManager.setup_shortcuts(self)
-        self.connect_shortcuts()
-        
         # First create view and timeline with standard curve view
         # This ensures we have a valid curve_view_container
         
@@ -176,16 +171,20 @@ class MainWindow(QMainWindow):
             print(f"Error loading enhanced curve view: {str(e)}")
             print("Using standard curve view")
             
-        # Load previously used file if it exists
-        self.load_previous_file()
-        
         # Initialize batch editing UI
         self.batch_edit_ui = batch_edit.BatchEditUI(self)
         self.batch_edit_ui.setup_batch_editing_ui()
         
-        # Use the SignalRegistry instead of UIComponents.connect_all_signals
+        # Load previously used file if it exists
+        self.load_previous_file()
+        
+        # Setup keyboard shortcuts BEFORE connecting signals
+        self.shortcuts = {}
+        ShortcutManager.setup_shortcuts(self)
+        
+        # Use the single centralized signal connection registry
         from signal_registry import SignalRegistry
-        SignalRegistry.connect_main_signals(self)
+        SignalRegistry.connect_all_signals(self)
     
     def setup_ui(self):
         """Create and arrange UI elements."""
@@ -249,7 +248,7 @@ class MainWindow(QMainWindow):
         # Create the view container using UIComponents
         view_container = UIComponents.create_view_and_timeline(self)
         
-        # All signals are now connected in the UIComponents class
+        # All signals are now connected in the SignalRegistry class
         # No need for duplicate connections here
         
         return view_container
@@ -327,14 +326,33 @@ class MainWindow(QMainWindow):
         many visual operations to the VisualizationOperations utility class.
         """
         from PySide6.QtCore import QEvent
+        from ui_components import UIComponents
+        
         if event.type() == QEvent.KeyPress:
+            # Check if we have image sequence loaded
+            has_images = bool(self.image_filenames)
+            
             if event.key() == Qt.Key_Left:
-                # Previous image
-                ImageOperations.previous_image(self)
+                print("[LOG] Left arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
+                # If no images OR shift is pressed, navigate frames
+                if not has_images or event.modifiers() & Qt.ShiftModifier:
+                    print("[LOG] Calling UIComponents.prev_frame")
+                    UIComponents.prev_frame(self)
+                else:
+                    # Previous image
+                    print("[LOG] Calling ImageOperations.previous_image")
+                    ImageOperations.previous_image(self)
                 return True
             elif event.key() == Qt.Key_Right:
-                # Next image
-                ImageOperations.next_image(self)
+                print("[LOG] Right arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
+                # If no images OR shift is pressed, navigate frames
+                if not has_images or event.modifiers() & Qt.ShiftModifier:
+                    print("[LOG] Calling UIComponents.next_frame")
+                    UIComponents.next_frame(self)
+                else:
+                    # Next image
+                    print("[LOG] Calling ImageOperations.next_image")
+                    ImageOperations.next_image(self)
                 return True
             elif event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
                 # Delete selected points
@@ -549,66 +567,23 @@ class MainWindow(QMainWindow):
         """Handle point moved in the view."""
         CurveViewOperations.on_point_moved(self, idx, x, y)
 
+    # DEPRECATED: All shortcut connections are now handled by SignalRegistry
     def connect_shortcuts(self):
-        """Connect keyboard shortcuts to actions."""
-        # File operations
-        ShortcutManager.connect_shortcut(self, "open_file", self.load_track_data)
-        ShortcutManager.connect_shortcut(self, "save_file", self.save_track_data)
-        ShortcutManager.connect_shortcut(self, "export_csv", lambda: FileOperations.export_to_csv(self))
-        ShortcutManager.connect_shortcut(self, "export_excel", lambda: FileOperations.export_to_excel(self))
+        """
+        DEPRECATED: This method is no longer used and should not be called.
         
-        # Edit operations
-        ShortcutManager.connect_shortcut(self, "undo", self.undo_action)
-        ShortcutManager.connect_shortcut(self, "redo", self.redo_action)
-        ShortcutManager.connect_shortcut(self, "select_all", lambda: CurveViewOperations.select_all_points(self.curve_view))
-        ShortcutManager.connect_shortcut(self, "deselect_all", lambda: CurveViewOperations.deselect_all_points(self.curve_view))
-        ShortcutManager.connect_shortcut(self, "delete_selected", lambda: CurveViewOperations.delete_selected_points(self))
-        ShortcutManager.connect_shortcut(self, "delete_selected_alt", lambda: CurveViewOperations.delete_selected_points(self))
-        
-        # View operations - FIXED
-        ShortcutManager.connect_shortcut(self, "reset_view", lambda: CurveViewOperations.reset_view(self.curve_view))
-        ShortcutManager.connect_shortcut(self, "toggle_grid", lambda: VisualizationOperations.toggle_grid(self, not self.toggle_grid_button.isChecked()))
-        ShortcutManager.connect_shortcut(self, "toggle_velocity", lambda: VisualizationOperations.toggle_velocity_vectors(self, not self.toggle_vectors_button.isChecked()))
-        ShortcutManager.connect_shortcut(self, "toggle_frame_numbers", lambda: VisualizationOperations.toggle_all_frame_numbers(self, not self.toggle_frame_numbers_button.isChecked()))
-        
-        # FIXED: Use center_on_selected_point_from_main_window instead of center_on_selected_point
-        ShortcutManager.connect_shortcut(self, "center_on_point", lambda: VisualizationOperations.center_on_selected_point_from_main_window(self))
-        
-        ShortcutManager.connect_shortcut(self, "toggle_background", lambda: ImageOperations.toggle_background(self))
-        ShortcutManager.connect_shortcut(self, "toggle_fullscreen", lambda: VisualizationOperations.toggle_fullscreen(self))
-        
-        # FIXED: Use VisualizationOperations.zoom_view instead of CurveViewOperations.zoom_in/out
-        ShortcutManager.connect_shortcut(self, "zoom_in", lambda: VisualizationOperations.zoom_view(self.curve_view, 1.1))
-        ShortcutManager.connect_shortcut(self, "zoom_out", lambda: VisualizationOperations.zoom_view(self.curve_view, 0.9))
-        
-        # Timeline operations
-        ShortcutManager.connect_shortcut(self, "next_frame", lambda: UIComponents.next_frame(self))
-        ShortcutManager.connect_shortcut(self, "prev_frame", lambda: UIComponents.prev_frame(self))
-        ShortcutManager.connect_shortcut(self, "play_pause", lambda: UIComponents.toggle_playback(self))
-        ShortcutManager.connect_shortcut(self, "first_frame", lambda: UIComponents.go_to_first_frame(self))
-        ShortcutManager.connect_shortcut(self, "last_frame", lambda: UIComponents.go_to_last_frame(self))
-        
-        # Enhanced frame navigation shortcuts
-        frame_advance_shortcuts = {
-            "forward_10": {"key": "Shift+.", "func": lambda: UIComponents.advance_frames(self, 10)},
-            "backward_10": {"key": "Shift+,", "func": lambda: UIComponents.advance_frames(self, -10)},
-        }
-        
-        for shortcut_id, data in frame_advance_shortcuts.items():
-            shortcut = QShortcut(QKeySequence(data["key"]), self)
-            shortcut.activated.connect(data["func"])
-        
-        # Navigation
-        ShortcutManager.connect_shortcut(self, "next_image", lambda: ImageOperations.next_image(self))
-        ShortcutManager.connect_shortcut(self, "prev_image", lambda: ImageOperations.previous_image(self))
-        
-        # Tools
-        ShortcutManager.connect_shortcut(self, "smooth_selected", lambda: DialogOperations.show_smooth_dialog(self))
-        ShortcutManager.connect_shortcut(self, "filter_selected", lambda: DialogOperations.show_filter_dialog(self))
-        ShortcutManager.connect_shortcut(self, "fill_gaps", lambda: DialogOperations.show_fill_gaps_dialog(self))
-        ShortcutManager.connect_shortcut(self, "extrapolate", lambda: DialogOperations.show_extrapolate_dialog(self))
-        ShortcutManager.connect_shortcut(self, "detect_problems", lambda: DialogOperations.show_problem_detection_dialog(self, CurveOperations.detect_problems(self)))
-        ShortcutManager.connect_shortcut(self, "show_shortcuts", lambda: DialogOperations.show_shortcuts_dialog(self))
+        All signal connections are now handled by SignalRegistry.connect_all_signals().
+        This method is kept for backward compatibility but prints a warning and does nothing.
+        """
+        import warnings
+        warnings.warn(
+            "MainWindow.connect_shortcuts() is deprecated. "
+            "Shortcuts are now managed through SignalRegistry.", 
+            DeprecationWarning, 
+            stacklevel=2
+        )
+        print("\nWARNING: MainWindow.connect_shortcuts() is deprecated.")
+        print("Shortcuts are now managed through SignalRegistry.\n")
 
     def show_shortcuts_dialog(self):
         """Show dialog with keyboard shortcuts."""
