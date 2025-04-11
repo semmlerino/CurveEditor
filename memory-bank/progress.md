@@ -21,6 +21,7 @@ This file tracks the project's progress using a task list format.
 * Expand support for additional file formats and tracking data types.
 * Enhance UI/UX for better workflow and usability.
 
+[2025-04-11 15:55:55] - Modified rectangle selection to use Alt+Drag instead of Shift+Drag.
 ## Next Steps
 
 * Gather user feedback for additional feature requests.

@@ -554,7 +554,7 @@ class EnhancedCurveView(QWidget):
             # Display keyboard shortcuts
             shortcuts = "Shortcuts: [R] Reset View, [Y] Toggle Y-Flip, [S] Toggle Scale-to-Image"
             shortcuts += " | [G] Toggle Grid, [V] Toggle Vectors, [F] Toggle All Frame Numbers"
-            shortcuts += " | Shift+Drag: Select multiple points"
+            shortcuts += " | Alt+Drag: Select multiple points"
             painter.drawText(10, 80, shortcuts)
             
             # Display nudge increment value with visual indicator

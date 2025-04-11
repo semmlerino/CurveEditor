@@ -9,7 +9,7 @@ for the Curve Editor application. It initializes the UI components, creates the
 main application window, and manages the application lifecycle.
 
 Key architecture principles:
-1. Separation of UI components into the UIComponents class
+1. Separation of UI components into the UIComponents Sclass
 2. Centralized signal connections managed through SignalRegistry.connect_all_signals
 3. Operation-specific logic in dedicated utility classes:
    - CurveViewOperations - For curve view manipulation
@@ -334,25 +334,15 @@ class MainWindow(QMainWindow):
             
             if event.key() == Qt.Key_Left:
                 print("[LOG] Left arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
-                # If no images OR shift is pressed, navigate frames
-                if not has_images or event.modifiers() & Qt.ShiftModifier:
-                    print("[LOG] Calling UIComponents.prev_frame")
-                    UIComponents.prev_frame(self)
-                else:
-                    # Previous image
-                    print("[LOG] Calling ImageOperations.previous_image")
-                    ImageOperations.previous_image(self)
+                # Always navigate to previous frame/image with left arrow
+                print("[LOG] Calling UIComponents.prev_frame (unified navigation)")
+                UIComponents.prev_frame(self)
                 return True
             elif event.key() == Qt.Key_Right:
                 print("[LOG] Right arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
-                # If no images OR shift is pressed, navigate frames
-                if not has_images or event.modifiers() & Qt.ShiftModifier:
-                    print("[LOG] Calling UIComponents.next_frame")
-                    UIComponents.next_frame(self)
-                else:
-                    # Next image
-                    print("[LOG] Calling ImageOperations.next_image")
-                    ImageOperations.next_image(self)
+                # Always navigate to next frame/image with right arrow
+                print("[LOG] Calling UIComponents.next_frame (unified navigation)")
+                UIComponents.next_frame(self)
                 return True
             elif event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
                 # Delete selected points

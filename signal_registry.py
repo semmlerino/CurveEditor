@@ -17,6 +17,7 @@ Key improvements in this refactored version:
 """
 
 import traceback
+from curve_operations import CurveOperations
 from PySide6.QtCore import Qt, Signal, QObject
 from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
@@ -600,10 +601,12 @@ class SignalRegistry:
                                          lambda: CurveViewOperations.select_all_points(main_window.curve_view))
         ShortcutManager.connect_shortcut(main_window, "deselect_all", 
                                          lambda: CurveViewOperations.clear_selection(main_window.curve_view))
-        ShortcutManager.connect_shortcut(main_window, "delete_selected", 
+        # Only register the main Delete shortcut to avoid ambiguity
+        ShortcutManager.connect_shortcut(main_window, "delete_selected",
                                          lambda: CurveViewOperations.delete_selected_points(main_window))
-        ShortcutManager.connect_shortcut(main_window, "delete_selected_alt", 
-                                         lambda: CurveViewOperations.delete_selected_points(main_window))
+        # If you want Backspace as an alternative, ensure it does not conflict with QAction
+        # ShortcutManager.connect_shortcut(main_window, "delete_selected_alt",
+        #                                  lambda: CurveViewOperations.delete_selected_points(main_window))
         
         # View operations
         ShortcutManager.connect_shortcut(main_window, "reset_view", 

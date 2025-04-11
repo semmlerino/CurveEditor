@@ -1,3 +1,4 @@
+import os
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -484,13 +485,58 @@ class CurveViewOperations:
         # Mark points as interpolated or delete them
         for idx in selected_indices:
             if 0 <= idx < len(curve_data):
-                # Instead of deleting, mark the point as interpolated
                 # Get the current point data
                 point = curve_data[idx]
-                if len(point) == 3:  # If it's a standard (frame, x, y) tuple
+                if len(point) == 3:
                     frame, x, y = point
-                    # Replace with an extended tuple that includes 'interpolated' status
-                    curve_data[idx] = (frame, x, y, 'interpolated')
+                else:
+                    frame, x, y = point[:3]
+
+                # Find previous and next non-interpolated points
+                prev_idx = idx - 1
+                next_idx = idx + 1
+                prev_point = None
+                next_point = None
+
+                # Search backwards for previous non-interpolated point
+                while prev_idx >= 0:
+                    prev = curve_data[prev_idx]
+                    if len(prev) == 3 or (len(prev) > 3 and prev[3] != 'interpolated'):
+                        prev_point = prev
+                        break
+                    prev_idx -= 1
+
+                # Search forwards for next non-interpolated point
+                while next_idx < len(curve_data):
+                    nxt = curve_data[next_idx]
+                    if len(nxt) == 3 or (len(nxt) > 3 and nxt[3] != 'interpolated'):
+                        next_point = nxt
+                        break
+                    next_idx += 1
+
+                # Interpolate x, y
+                if prev_point and next_point:
+                    _, x0, y0 = prev_point[:3]
+                    _, x1, y1 = next_point[:3]
+                    # Linear interpolation based on frame position
+                    frame0 = prev_point[0]
+                    frame1 = next_point[0]
+                    if frame1 != frame0:
+                        t = (frame - frame0) / (frame1 - frame0)
+                        interp_x = x0 + t * (x1 - x0)
+                        interp_y = y0 + t * (y1 - y0)
+                    else:
+                        interp_x = (x0 + x1) / 2
+                        interp_y = (y0 + y1) / 2
+                elif prev_point:
+                    _, interp_x, interp_y = prev_point[:3]
+                elif next_point:
+                    _, interp_x, interp_y = next_point[:3]
+                else:
+                    interp_x, interp_y = x, y  # No neighbours, leave as is
+
+                # Replace with interpolated value and status
+                curve_data[idx] = (frame, interp_x, interp_y, 'interpolated')
                 # We don't delete points anymore, just mark them as interpolated
                 # del curve_data[idx]
         
@@ -544,7 +590,7 @@ class CurveViewOperations:
     @staticmethod
     def set_point_size(target, size):
         """Set the point display size.
-        
+
         Args:
             target: Either main_window or curve_view
             size: Integer representing the point radius (1-10)
@@ -552,10 +598,15 @@ class CurveViewOperations:
         curve_view = CurveViewOperations._get_curve_view(target)
         curve_view.point_radius = max(1, min(10, size))  # Ensure size is between 1 and 10
         curve_view.update()
-        
+
         # Update status if target is main window
         if hasattr(target, 'statusBar'):
             target.statusBar().showMessage(f"Point size set to {size}", 2000)
+
+    @staticmethod
+    def set_point_radius(target, radius):
+        """Alias for set_point_size for compatibility."""
+        CurveViewOperations.set_point_size(target, radius)
     
     @staticmethod
     def get_point_data(curve_view, idx):
@@ -762,8 +813,7 @@ class CurveViewOperations:
         # Update primary selection if we have selected points
         if curve_view.selected_points:
             curve_view.selected_point_idx = next(iter(curve_view.selected_points))
-            if hasattr(curve_view, 'point_selected'):
-                curve_view.point_selected.emit(curve_view.selected_point_idx)
+            # Do not emit point_selected here; it would clear multi-selection in on_point_selected
     
     @staticmethod
     def update_point_position(curve_view, index, x, y):
@@ -945,24 +995,17 @@ class CurveViewOperations:
             # Delete selected points (mark as interpolated)
             if curve_view.selected_points or curve_view.selected_point_idx >= 0:
                 CurveViewOperations.delete_selected_points(curve_view)
+                event.accept() # Prevent event propagation
         elif event.key() in (Qt.Key_Left, Qt.Key_4):
-            # Frame navigation: previous frame if possible
-            if hasattr(curve_view, "current_image_idx") and hasattr(curve_view, "image_filenames"):
-                if curve_view.current_image_idx > 0 and event.modifiers() == Qt.NoModifier:
-                    curve_view.setCurrentImageByIndex(curve_view.current_image_idx - 1)
-                    handled = True
-                else:
-                    handled = False
-            else:
-                handled = False
+            # Let MainWindow handle left arrow navigation globally
+            return False
         elif event.key() in (Qt.Key_Right, Qt.Key_6):
-            # Frame navigation: next frame if possible
-            if hasattr(curve_view, "current_image_idx") and hasattr(curve_view, "image_filenames"):
-                if curve_view.current_image_idx < len(curve_view.image_filenames) - 1 and event.modifiers() == Qt.NoModifier:
-                    curve_view.setCurrentImageByIndex(curve_view.current_image_idx + 1)
-                    handled = True
-                else:
-                    handled = False
+            # Let MainWindow handle right arrow navigation globally
+            return False
+        elif event.key() == Qt.Key_PageDown:
+            if curve_view.current_image_idx < len(curve_view.image_filenames) - 1 and event.modifiers() == Qt.NoModifier:
+                curve_view.setCurrentImageByIndex(curve_view.current_image_idx + 1)
+                handled = True
             else:
                 handled = False
         elif event.key() in (Qt.Key_Up, Qt.Key_8):
@@ -1001,8 +1044,8 @@ class CurveViewOperations:
             event: The mouse event
         """
         if event.button() == Qt.LeftButton:
-            # Check if Shift is pressed for multi-selection rectangle
-            if event.modifiers() & Qt.ShiftModifier:
+            # Check if Alt is pressed for multi-selection rectangle
+            if event.modifiers() & Qt.AltModifier:
                 curve_view.selection_start = event.pos()
                 curve_view.selection_rect = QRect(curve_view.selection_start, curve_view.selection_start)
                 curve_view.update()
@@ -1089,6 +1132,36 @@ class CurveViewOperations:
         # Handle selection rectangle
         if hasattr(curve_view, 'selection_start') and curve_view.selection_start is not None:
             curve_view.selection_rect = QRect(curve_view.selection_start, event.pos()).normalized()
+            # Live update: highlight points inside the rectangle as you drag
+            widget_width = curve_view.width()
+            widget_height = curve_view.height()
+            display_width = curve_view.image_width
+            display_height = curve_view.image_height
+            if curve_view.background_image:
+                display_width = curve_view.background_image.width()
+                display_height = curve_view.background_image.height()
+            scale_x = widget_width / display_width
+            scale_y = widget_height / display_height
+            scale = min(scale_x, scale_y) * curve_view.zoom_factor
+            offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
+            offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+            selected = set()
+            for i, point in enumerate(curve_view.points):
+                frame, x, y = point[:3]
+                tx, ty = CurveViewOperations.transform_point(
+                    curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
+                )
+                if curve_view.selection_rect.contains(int(tx), int(ty)):
+                    selected.add(i)
+            curve_view.selected_points = selected
+            # Optionally, set selected_point_idx to one of them for consistent highlighting
+            if selected:
+                curve_view.selected_point_idx = next(iter(selected))
+            else:
+                curve_view.selected_point_idx = -1
+            # Debug log for validation
+            if getattr(curve_view, "debug_mode", False):
+                print(f"[DEBUG] Live selection: {len(selected)} points highlighted")
             curve_view.update()
             return
             

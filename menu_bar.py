@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import typing
+from typing import Optional
 from PySide6.QtWidgets import QMenuBar
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QAction
 from keyboard_shortcuts import ShortcutManager
 from file_operations import FileOperations
@@ -10,11 +13,16 @@ from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
 from dialog_operations import DialogOperations
 from curve_operations import CurveOperations
+# Removed: from main_window import MainWindow (causes circular import)
+
+
+if typing.TYPE_CHECKING:
+    from main_window import MainWindow
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional['MainWindow'] = None): # Use Optional type hint
         super().__init__(parent)
         self.main_window = parent
         self.setup_menus()
@@ -65,7 +73,7 @@ class MenuBar(QMenuBar):
         # Exit
         exit_action = QAction('E&xit', self)
         exit_action.setShortcut(QKeySequence('Alt+F4'))
-        exit_action.triggered.connect(self.main_window.close)
+        exit_action.triggered.connect(lambda: self.main_window.close() if self.main_window else None)
         file_menu.addAction(exit_action)
     
     def create_edit_menu(self):
@@ -91,20 +99,22 @@ class MenuBar(QMenuBar):
         select_all_action = QAction('Select &All', self)
         # Remove explicit shortcut assignment to avoid conflict
         # select_all_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('select_all')))
-        select_all_action.triggered.connect(lambda: CurveViewOperations.select_all_points(self.main_window.curve_view))
+        select_all_action.triggered.connect(lambda: CurveViewOperations.select_all_points(self.main_window.curve_view) if self.main_window else None)
         edit_menu.addAction(select_all_action)
         
         deselect_all_action = QAction('&Deselect All', self)
         # Remove explicit shortcut assignment to avoid conflict
         # deselect_all_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('deselect_all')))
-        deselect_all_action.triggered.connect(lambda: CurveViewOperations.deselect_all_points(self.main_window.curve_view))
+        deselect_all_action.triggered.connect(lambda: CurveViewOperations.clear_selection(self.main_window.curve_view) if self.main_window else None) # Use correct method name
         edit_menu.addAction(deselect_all_action)
         
         edit_menu.addSeparator()
         
         # Delete
         delete_action = QAction('&Delete Selected', self)
-        delete_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('delete_selected')))
+        # Explicitly set the shortcut to "Delete" to avoid ambiguity with "Del"
+        # delete_action.setShortcut(QKeySequence("Delete")) # Removed shortcut to resolve ambiguity
+        # delete_action.setShortcutContext(Qt.ApplicationShortcut) # Removed shortcut context
         delete_action.triggered.connect(lambda: CurveViewOperations.delete_selected_points(self.main_window))
         edit_menu.addAction(delete_action)
     

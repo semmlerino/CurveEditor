@@ -9,6 +9,7 @@ def main():
     """Main entry point for the application."""
     app = QApplication(sys.argv)
     window = MainWindow()
+    app.installEventFilter(window)
     window.show()
     sys.exit(app.exec())
 

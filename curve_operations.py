@@ -1086,4 +1086,17 @@ class CurveOperations:
         
         # Add new points to the curve data
         add_points_to_curve(result, new_points)
+
+    @staticmethod
+    def undo(main_window):
+        """Undo the last operation. (Placeholder)"""
+        # TODO: Implement undo functionality
+        print("Undo operation triggered (not implemented).")
+
+    @staticmethod
+    def redo(main_window):
+        """Redo the last undone operation. (Placeholder)"""
+        # TODO: Implement redo functionality
+        print("Redo operation triggered (not implemented).")
+
         return result

@@ -252,19 +252,32 @@ class CurveView(QWidget):
             painter.drawPath(path)
             
             # Draw points
-            for i, (frame, x, y) in enumerate(self.points):
+            for i, pt in enumerate(self.points):
+                # Support both (frame, x, y) and (frame, x, y, status)
+                if len(pt) == 4 and pt[3] == 'interpolated':
+                    frame, x, y, _ = pt
+                    is_interpolated = True
+                else:
+                    frame, x, y = pt[:3]
+                    is_interpolated = False
+
                 tx, ty = transform_point(x, y)
-                
+
                 # Highlight selected point
                 if i == self.selected_point_idx:
                     painter.setPen(QPen(QColor(255, 80, 80), 2))
                     painter.setBrush(QColor(255, 80, 80, 150))
                     point_radius = self.point_radius + 2
+                elif is_interpolated:
+                    # Lighter, more transparent colour for interpolated points
+                    painter.setPen(QPen(QColor(180, 220, 255), 1))
+                    painter.setBrush(QColor(200, 230, 255, 120))
+                    point_radius = self.point_radius
                 else:
                     painter.setPen(QPen(QColor(200, 200, 200), 1))
                     painter.setBrush(QColor(220, 220, 220, 200))
                     point_radius = self.point_radius
-                    
+
                 painter.drawEllipse(QPointF(tx, ty), point_radius, point_radius)
                 
                 # Draw frame number

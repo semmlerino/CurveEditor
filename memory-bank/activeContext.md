@@ -18,6 +18,7 @@ This file tracks the project's current status, including recent changes, current
 * Enhanced the curve view with grid, velocity vectors, and frame number visualization.
 * Centralized signal-slot architecture for UI event handling.
 * Improved batch editing, smoothing, filtering, and gap filling tools.
+* [2025-04-11 15:55:55] - Rectangle selection now uses Alt+Drag instead of Shift+Drag for multi-point selection.
 
 ## Open Questions/Issues
 
