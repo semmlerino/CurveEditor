@@ -1,3 +1,4 @@
+[2025-04-12 00:00:58] - Centralized all CurveView hotkey logic through ShortcutManager. CurveView now registers its shortcuts via ShortcutManager, and direct key handling for R, Y, S, D has been removed from keyPressEvent.
 # Active Context
 
 This file tracks the project's current status, including recent changes, current goals, and open questions.

@@ -48,6 +48,12 @@ class ShortcutManager:
         # Image Navigation
         "next_image": {"key": "Right", "description": "Go to next image"},
         "prev_image": {"key": "Left", "description": "Go to previous image"},
+
+        # Curve View specific
+        "toggle_y_flip": {"key": "Y", "description": "Toggle Y-flip"},
+        "toggle_scale_to_image": {"key": "S", "description": "Toggle scale-to-image"},
+        "toggle_debug_mode": {"key": "D", "description": "Toggle debug mode"},
+        # Arrow key navigation is handled separately, but can be added if needed
         "play_pause": {"key": "Space", "description": "Play/pause timeline"},
         
         # Tools

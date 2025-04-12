@@ -6,6 +6,8 @@ import math
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QPointF, Signal, Slot
 from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush
+from centering_zoom_operations import ZoomOperations
+from keyboard_shortcuts import ShortcutManager
 
 
 class CurveView(QWidget):
@@ -37,6 +39,34 @@ class CurveView(QWidget):
         self.current_image_idx = -1
         self.show_background = True
         self.background_opacity = 0.7  # 0.0 to 1.0
+
+        # Register shortcuts via ShortcutManager
+        self._register_shortcuts()
+
+    def _register_shortcuts(self):
+        # Register CurveView-specific shortcuts
+        ShortcutManager.connect_shortcut(self, "reset_view", self.reset_view_slot)
+        ShortcutManager.connect_shortcut(self, "toggle_y_flip", self.toggle_y_flip)
+        ShortcutManager.connect_shortcut(self, "toggle_scale_to_image", self.toggle_scale_to_image)
+        ShortcutManager.connect_shortcut(self, "toggle_debug_mode", self.toggle_debug_mode)
+
+    def reset_view_slot(self):
+        self.resetView()
+        self.x_offset = 0
+        self.y_offset = 0
+        self.update()
+
+    def toggle_y_flip(self):
+        self.flip_y_axis = not getattr(self, "flip_y_axis", False)
+        self.update()
+
+    def toggle_scale_to_image(self):
+        self.scale_to_image = not getattr(self, "scale_to_image", False)
+        self.update()
+
+    def toggle_debug_mode(self):
+        self.debug_mode = not getattr(self, "debug_mode", False)
+        self.update()
         
         # Debug options
         self.debug_mode = True  # Enable debug visuals
@@ -140,8 +170,8 @@ class CurveView(QWidget):
             
     def resetView(self):
         """Reset view to show all points."""
-        from visualization_operations import VisualizationOperations
-        VisualizationOperations.reset_view(self)
+        from centering_zoom_operations import ZoomOperations
+        ZoomOperations.reset_view(self)
         
     def paintEvent(self, event):
         """Draw the curve and points."""
@@ -174,8 +204,9 @@ class CurveView(QWidget):
         scale = min(scale_x, scale_y) * self.zoom_factor
         
         # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
+        # offset_y is set below
+        # offset_y is now set by calculate_centering_offsets above
 
         # CRITICAL FIX - Simple direct transformation that doesn't try to normalize
         def transform_point(x, y):
@@ -353,8 +384,9 @@ class CurveView(QWidget):
             scale = min(scale_x, scale_y) * self.zoom_factor
             
             # Calculate centering offsets
-            offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-            offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
+        # offset_y is set below
+            # offset_y is now set by calculate_centering_offsets above
 
             # Use same transform function as in paintEvent
             def transform_point(x, y):
@@ -435,8 +467,9 @@ class CurveView(QWidget):
             scale = min(scale_x, scale_y) * self.zoom_factor
             
             # Calculate centering offsets
-            offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-            offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
+        # offset_y is set below
+            # offset_y is now set by calculate_centering_offsets above
             
             # Convert from widget coordinates back to track coordinates
             if self.background_image and self.scale_to_image:
@@ -509,8 +542,8 @@ class CurveView(QWidget):
             self.selected_points = set([self.selected_point_idx]) if self.selected_point_idx >= 0 else set()
 
         # Use centralized zoom method from visualization_operations
-        from visualization_operations import VisualizationOperations
-        VisualizationOperations.zoom_view(self, factor, mouse_x, mouse_y)
+        from centering_zoom_operations import ZoomOperations
+        ZoomOperations.zoom_view(self, factor, mouse_x, mouse_y)
         
         # Restore selected points
         if temp_selected is not None:
@@ -518,39 +551,19 @@ class CurveView(QWidget):
             self.update()  # Ensure selection is correctly displayed
         
     def keyPressEvent(self, event):
-        """Handle key events."""
+        """Handle key events for navigation (arrow keys, etc)."""
         step = 1
-        
+
         # Larger step if Shift is pressed
         if event.modifiers() & Qt.ShiftModifier:
             step = 10
-        
+
         # Smaller step if Ctrl is pressed
         if event.modifiers() & Qt.ControlModifier:
             step = 0.1
-        
-        if event.key() == Qt.Key_R:
-            # Reset view
-            self.resetView()
-            # Also reset manual offsets
-            self.x_offset = 0
-            self.y_offset = 0
-            self.update()
-        elif event.key() == Qt.Key_Y:
-            # Toggle Y-flip for debugging
-            self.flip_y_axis = not self.flip_y_axis
-            self.update()
-        elif event.key() == Qt.Key_S:
-            # Toggle scaling to image dimensions
-            self.scale_to_image = not self.scale_to_image
-            self.update()
-        elif event.key() == Qt.Key_D:
-            # Toggle debug mode
-            self.debug_mode = not self.debug_mode
-            self.update()
-        
+
         # Handle arrow keys for navigation only
-        elif event.key() == Qt.Key_Up:
+        if event.key() == Qt.Key_Up:
             if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
                 # Adjust y-offset with arrow keys + modifiers
                 self.y_offset -= step

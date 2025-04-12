@@ -1,5 +1,23 @@
 class ZoomOperations:
     @staticmethod
+    def calculate_centering_offsets(widget_width, widget_height, display_width, display_height, offset_x=0, offset_y=0):
+        """Calculate centering offsets for a view.
+        Args:
+            widget_width: Width of the widget
+            widget_height: Height of the widget
+            display_width: Width of the content/image
+            display_height: Height of the content/image
+            offset_x: Additional X offset (default 0)
+            offset_y: Additional Y offset (default 0)
+        Returns:
+            (offset_x, offset_y): Centering offsets to apply
+        """
+        cx = (widget_width - (display_width)) / 2 + offset_x
+        cy = (widget_height - (display_height)) / 2 + offset_y
+        return cx, cy
+
+
+    @staticmethod
     def center_on_selected_point(curve_view, point_idx=-1, preserve_zoom=True):
         """Center the view on the specified point index.
 
@@ -51,8 +69,7 @@ class ZoomOperations:
                     scale = min(scale_x, scale_y) * curve_view.zoom_factor
                     
                 # Calculate offsets
-                offset_x = (widget_width - (display_width * scale)) / 2
-                offset_y = (widget_height - (display_height * scale)) / 2
+                offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale)
                 
                 # Calculate transformed point position
                 if getattr(curve_view, "scale_to_image", False):

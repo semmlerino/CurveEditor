@@ -156,47 +156,35 @@ def batch_rotate_points(curve_data, indices, angle_degrees, center_x=None, cente
     return result
 
 def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
-    """Adjust the smoothness of a selection of points.
-    
-    Higher smoothness factor means smoother curve (less adherence to original points).
-    Lower smoothness factor means closer to original points.
-    
-    Args:
-        curve_data: List of (frame, x, y) tuples
-        indices: List of indices to adjust
-        smoothness_factor: 0.0 to 1.0, higher means smoother
-        
-    Returns:
-        Modified copy of curve_data
-    """
+    """Adjust the smoothness of a selection of points using the unified smoothing/filtering dispatcher."""
     import curve_operations as ops
-    
+
     # Validate smoothness factor
     smoothness_factor = max(0.0, min(1.0, smoothness_factor))
-    
-    # Create a copy of the curve data
-    result = copy.deepcopy(curve_data)
-    
+
     # No effect if smoothness factor is 0
     if smoothness_factor == 0:
-        return result
-        
-    # Apply gaussian smoothing with strength based on smoothness factor
+        return copy.deepcopy(curve_data)
+
+    # Compute parameters for gaussian smoothing
     window_base = 3
     window_max = 15
     sigma_base = 0.5
     sigma_max = 3.0
-    
-    # Calculate window size and sigma based on smoothness factor
+
     window_size = window_base + int((window_max - window_base) * smoothness_factor)
-    # Make sure window size is odd
     if window_size % 2 == 0:
         window_size += 1
-        
     sigma = sigma_base + (sigma_max - sigma_base) * smoothness_factor
-    
-    # Apply smoothing
-    return ops.smooth_gaussian(result, indices, window_size, sigma)
+
+    # Use the unified dispatcher
+    return ops.apply_smoothing_filtering(
+        copy.deepcopy(curve_data),
+        indices,
+        method="gaussian",
+        window_size=window_size,
+        sigma=sigma
+    )
 
 def batch_normalize_velocity(curve_data, indices, target_velocity=None):
     """Normalize the velocity of selected points to be more consistent.

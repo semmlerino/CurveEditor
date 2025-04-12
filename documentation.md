@@ -71,7 +71,7 @@ The application has been refactored to follow a utility-class-based architecture
    - Centralizes all visualization-related functionality
    - Controls grid, vectors, and frame number display
    - Manages background image visibility and opacity
-   - Provides view centering and navigation methods
+   - Provides unified view centering and navigation methods via `ZoomOperations`
    - **Enhanced Curve View Integration**: Provides specialized methods for visualization features:
      - `toggle_grid_internal`: Internal implementation of grid toggling
      - `set_point_radius`: Controls the size of points in the view
@@ -343,7 +343,7 @@ The application supports loading and displaying image sequences as backgrounds f
    - Visual indicator for current nudge increment value
 5. **Coordinate Alignment**:
    - Precise alignment between image space and tracking data space
-   - Automatic centering of images relative to tracking area
+   - Automatic centering of images and views using unified logic in `ZoomOperations`
 
 ## Coordinate Transformation System
 

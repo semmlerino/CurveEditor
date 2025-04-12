@@ -4,6 +4,46 @@
 import math
 import copy
 
+def apply_smoothing_filtering(curve_data, indices, method, **params):
+    """
+    Unified dispatcher for smoothing and filtering operations.
+    Args:
+        curve_data: List of (frame, x, y) tuples
+        indices: List of indices to operate on
+        method: String identifier for the method (e.g., 'moving_average', 'gaussian', 'savitzky_golay', 'median', 'butterworth', 'average')
+        params: Additional parameters for the method
+    Returns:
+        Modified curve_data with smoothing/filtering applied to the specified indices.
+    """
+    method = method.lower()
+    if method in ("moving_average", "average"):
+        window_size = params.get("window_size", 5)
+        return smooth_moving_average(curve_data, indices, window_size)
+    elif method == "gaussian":
+        window_size = params.get("window_size", 5)
+        sigma = params.get("sigma", 1.0)
+        return smooth_gaussian(curve_data, indices, window_size, sigma)
+    elif method == "savitzky_golay":
+        window_size = params.get("window_size", 5)
+        return smooth_savitzky_golay(curve_data, indices, window_size)
+    elif method == "median":
+        window_size = params.get("window_size", 5)
+        return CurveOperations.filter_median(curve_data, indices, window_size)
+    elif method == "butterworth":
+        cutoff = params.get("cutoff", 0.2)
+        order = params.get("order", 2)
+        return filter_butterworth(curve_data, indices, cutoff, order)
+    elif method == "filter_average":
+        window_size = params.get("window_size", 5)
+        return filter_average(curve_data, indices, window_size)
+    elif method == "filter_gaussian":
+        window_size = params.get("window_size", 5)
+        sigma = params.get("sigma", 1.0)
+        return filter_gaussian(curve_data, indices, window_size, sigma)
+    else:
+        raise ValueError(f"Unknown smoothing/filtering method: {method}")
+
+
 def smooth_moving_average(curve_data, indices, window_size):
     """Apply moving average smoothing to the specified points."""
     if not indices or window_size < 3:

@@ -1,3 +1,5 @@
+[2025-04-12 00:00:39] - Centralized all CurveView hotkey logic (R, Y, S, D) through ShortcutManager for maintainability and user-friendliness. Direct key handling for these actions was removed from keyPressEvent. Only navigation keys remain handled directly.
+[2025-04-11 23:17:20] - Decided to consolidate all user-facing view-centering and zooming logic (including all offset calculations and UI triggers) into a single unified file (zoom_operations.py), updating all buttons, wrappers, and removing duplication across the codebase. Grid-specific and geometric centering (e.g., batch editing) will remain in their respective modules.
 [2025-04-11 15:48:18] - Removed 'Delete' shortcut entirely from 'Delete Selected' QAction in menu_bar.py. Rationale: Changing shortcut context did not resolve the ambiguity warning. Removing the shortcut from the menu action prevents conflict with keyPressEvent handlers that also use Qt.Key_Delete. Impact: The 'Ambiguous shortcut overload: Del' warning should be resolved. Delete functionality remains via key press in relevant views and via menu click.
 [2025-04-11 15:55:55] - Changed rectangle selection modifier from Shift to Alt. Rationale: Aligns with user request and avoids conflict with other multi-select behaviors. Impact: Users now use Alt+Drag to select multiple points with a rectangle.
 
@@ -40,4 +42,5 @@ This file records architectural and implementation decisions using a list format
 * Integrated enhanced curve view features and batch editing tools.
 * Updated configuration and session persistence to use JSON.
 * Improved documentation and code comments for maintainability.
+[2025-04-12 00:23:17] - Consolidated all centering and zooming logic to ZoomOperations in centering_zoom_operations.py. Removed redundant wrappers and updated all UI, widget, and signal/shortcut wiring to use the canonical implementation. This reduces duplication and centralizes view logic.
 [2025-04-11 14:54:32] - Added left/right arrow key navigation for previous/next frame in EnhancedCurveView. Rationale: Improves usability and efficiency for users navigating frame sequences. Impact: Users can now quickly move between frames using keyboard shortcuts, streamlining the workflow.

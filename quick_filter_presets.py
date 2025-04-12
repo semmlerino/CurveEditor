@@ -14,55 +14,37 @@ def apply_filter_preset(curve_data, indices, preset_name):
     Returns:
         Modified copy of curve_data
     """
-    # Apply the appropriate filter based on preset name
+    # Apply the appropriate filter based on preset name using the unified dispatcher
     if preset_name == "Light Smooth":
-        # Gentle Gaussian smoothing good for slight jitter
-        window_size = 5
-        sigma = 1.0
-        result = ops.smooth_gaussian(curve_data, indices, window_size, sigma)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="gaussian", window_size=5, sigma=1.0)
         
     elif preset_name == "Medium Smooth":
-        # Moderate Gaussian smoothing
-        window_size = 7
-        sigma = 1.5
-        result = ops.smooth_gaussian(curve_data, indices, window_size, sigma)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="gaussian", window_size=7, sigma=1.5)
         
     elif preset_name == "Heavy Smooth":
-        # Stronger Gaussian smoothing for problematic tracks
-        window_size = 9
-        sigma = 2.0
-        result = ops.smooth_gaussian(curve_data, indices, window_size, sigma)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="gaussian", window_size=9, sigma=2.0)
         
     elif preset_name == "Reduce Noise":
-        # Median filter to remove outliers
-        window_size = 5
-        result = ops.filter_median(curve_data, indices, window_size)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="median", window_size=5)
         
     elif preset_name == "Fix Outliers":
-        # Apply median filter with a small window to fix individual outliers
-        window_size = 3
-        result = ops.filter_median(curve_data, indices, window_size)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="median", window_size=3)
         
     elif preset_name == "Remove Jitter":
         # Two-step process: median filter followed by gaussian smooth
-        window_size = 3
-        result = ops.filter_median(curve_data, indices, window_size)
-        result = ops.smooth_gaussian(result, indices, 5, 1.0)
+        temp_result = ops.apply_smoothing_filtering(curve_data, indices, method="median", window_size=3)
+        result = ops.apply_smoothing_filtering(temp_result, indices, method="gaussian", window_size=5, sigma=1.0)
         
     elif preset_name == "Preserve Corners":
-        # Savitzky-Golay filter that preserves shape better than Gaussian
-        window_size = 7
-        result = ops.smooth_savitzky_golay(curve_data, indices, window_size)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="savitzky_golay", window_size=7)
         
     elif preset_name == "Low-Pass":
-        # Butterworth low-pass filter
-        cutoff = 0.2
-        order = 2
-        result = ops.filter_butterworth(curve_data, indices, cutoff, order)
+        result = ops.apply_smoothing_filtering(curve_data, indices, method="butterworth", cutoff=0.2, order=2)
         
     else:
-        # Unknown preset, return original data
-        result = curve_data
+        # Unknown preset, return original data (or raise error?)
+        import copy
+        result = copy.deepcopy(curve_data) # Ensure a copy is returned even if no operation applied
         
     return result
 

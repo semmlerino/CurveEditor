@@ -5,6 +5,7 @@ import math
 from PySide6.QtWidgets import QWidget, QApplication, QGridLayout, QMenu
 from PySide6.QtCore import Qt, QPointF, Signal, Slot, QRect
 from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush, QAction
+from centering_zoom_operations import ZoomOperations
 import re
 
 
@@ -120,15 +121,15 @@ class EnhancedCurveView(QWidget):
     
     def centerOnSelectedPoint(self, point_idx=-1, preserve_zoom=True):
         """Center the view on the specified point index.
-        
+
         If no index is provided, uses the currently selected point.
-        
+
         Args:
             point_idx: Index of point to center on. Default -1 uses selected point.
             preserve_zoom: If True, maintain current zoom level. If False, reset view.
         """
-        from visualization_operations import VisualizationOperations
-        return VisualizationOperations.center_on_selected_point(self, point_idx, preserve_zoom)
+        from centering_zoom_operations import ZoomOperations
+        return ZoomOperations.center_on_selected_point(self, point_idx, preserve_zoom)
         
     def setCoordinatePrecision(self, precision):
         """Set decimal precision for coordinate display."""
@@ -162,8 +163,8 @@ class EnhancedCurveView(QWidget):
             
     def resetView(self):
         """Reset view to default state (zoom and position)."""
-        from visualization_operations import VisualizationOperations
-        VisualizationOperations.reset_view(self)
+        from centering_zoom_operations import ZoomOperations
+        ZoomOperations.reset_view(self)
         
     def set_point_radius(self, radius):
         """Set the point display radius.
@@ -258,8 +259,9 @@ class EnhancedCurveView(QWidget):
         scale = min(scale_x, scale_y) * self.zoom_factor
         
         # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + self.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + self.offset_y
+        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
+        # offset_y is set below
+        # offset_y is now set by calculate_centering_offsets above
         
         # Coordinate transformation functions
         def transform_point(x, y):
@@ -639,8 +641,8 @@ class EnhancedCurveView(QWidget):
         mouse_y = position.y()
 
         # Use centralized zoom method from visualization_operations
-        from visualization_operations import VisualizationOperations
-        VisualizationOperations.zoom_view(self, factor, mouse_x, mouse_y)
+        from centering_zoom_operations import ZoomOperations
+        ZoomOperations.zoom_view(self, factor, mouse_x, mouse_y)
 
     def keyPressEvent(self, event):
         """Handle key press events for navigation and shortcuts."""

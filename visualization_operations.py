@@ -9,7 +9,7 @@ Provides functionality for curve visualization features like grid, vectors, and 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
 import os
-from zoom_operations import ZoomOperations
+from centering_zoom_operations import ZoomOperations
 
 class VisualizationOperations:
     """Static utility methods for visualization operations in the curve editor."""
@@ -103,17 +103,6 @@ class VisualizationOperations:
             elif hasattr(main_window, 'statusBar'):
                 main_window.statusBar().showMessage("Entered fullscreen mode (press F11 to exit)", 3000)
     
-    @staticmethod
-    def center_on_selected_point(curve_view, point_idx=-1, preserve_zoom=True):
-        """Wrapper for ZoomOperations.center_on_selected_point."""
-        from zoom_operations import ZoomOperations
-        return ZoomOperations.center_on_selected_point(curve_view, point_idx, preserve_zoom)
-            
-    @staticmethod
-    def fit_selection(curve_view):
-        """Wrapper for ZoomOperations.fit_selection."""
-        from zoom_operations import ZoomOperations
-        return ZoomOperations.fit_selection(curve_view)
 
     @staticmethod
     def center_on_selected_point_from_main_window(main_window):
@@ -145,24 +134,6 @@ class VisualizationOperations:
         # If we get here, no point is selected
         main_window.statusBar().showMessage("No point selected to center on", 2000)
         
-    @staticmethod
-    def reset_view(curve_view):
-        """Wrapper for ZoomOperations.reset_view."""
-        from zoom_operations import ZoomOperations
-        return ZoomOperations.reset_view(curve_view)
-        
-    @staticmethod
-    def zoom_view(curve_view, factor, mouse_x=None, mouse_y=None):
-        """Zoom the view while keeping the mouse position fixed.
-        
-        Args:
-            curve_view: The curve view instance
-            factor: Zoom factor (> 1 to zoom in, < 1 to zoom out)
-            mouse_x: X-coordinate to zoom around, if None uses center
-            mouse_y: Y-coordinate to zoom around, if None uses center
-        """
-        from zoom_operations import ZoomOperations
-        return ZoomOperations.zoom_view(curve_view, factor, mouse_x, mouse_y)
         
     @staticmethod
     def pan_view(curve_view, dx, dy):
@@ -375,7 +346,8 @@ class VisualizationOperations:
         
         # Reset view if not preserving
         if not preserve_view:
-            VisualizationOperations.reset_view(curve_view)
+            from centering_zoom_operations import ZoomOperations
+            ZoomOperations.reset_view(curve_view)
         else:
             # Restore view state
             if view_state:
@@ -435,9 +407,11 @@ class VisualizationOperations:
             # Fit selection if multiple points, else center on selected point
             selected_points = getattr(curve_view, "selected_points", None)
             if selected_points is not None and len(selected_points) > 1:
-                VisualizationOperations.fit_selection(curve_view)
+                from centering_zoom_operations import ZoomOperations
+                ZoomOperations.fit_selection(curve_view)
             else:
-                VisualizationOperations.center_on_selected_point(curve_view)
+                from centering_zoom_operations import ZoomOperations
+                ZoomOperations.center_on_selected_point(curve_view)
             return True
         # Handle new frame navigation key presses
         elif event.key() == Qt.Key_Period:  # Next frame

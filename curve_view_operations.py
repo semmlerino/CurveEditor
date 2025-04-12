@@ -13,6 +13,7 @@ and added helper methods for common operations.
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt, QRect
 import math
+from centering_zoom_operations import ZoomOperations
 from error_handling import safe_operation
 
 
@@ -120,27 +121,13 @@ class CurveViewOperations:
     @staticmethod
     def reset_view(target):
         """Reset the curve view to default zoom and position.
-        
+
         Args:
             target: The main window or curve view to reset
         """
+        from centering_zoom_operations import ZoomOperations
         curve_view = CurveViewOperations._get_curve_view(target)
-        
-        # Reset zoom factor
-        curve_view.zoom_factor = 1.0
-        
-        # Reset offsets
-        curve_view.offset_x = 0
-        curve_view.offset_y = 0
-        
-        # Reset manual offsets if they exist
-        if hasattr(curve_view, 'x_offset'):
-            curve_view.x_offset = 0
-        if hasattr(curve_view, 'y_offset'):
-            curve_view.y_offset = 0
-        
-        curve_view.update()
-        
+        ZoomOperations.reset_view(curve_view)
         # Update status bar if target is main window
         if hasattr(target, 'statusBar'):
             target.statusBar().showMessage("View reset to default", 2000)
@@ -666,8 +653,9 @@ class CurveViewOperations:
         scale = min(scale_x, scale_y) * curve_view.zoom_factor
         
         # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, curve_view.offset_x, curve_view.offset_y)
+        # offset_y is set below
+        # offset_y is now set by calculate_centering_offsets above
         
         # Check distance to each point
         closest_idx = -1
@@ -782,8 +770,9 @@ class CurveViewOperations:
         scale = min(scale_x, scale_y) * curve_view.zoom_factor
         
         # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, curve_view.offset_x, curve_view.offset_y)
+        # offset_y is set below
+        # offset_y is now set by calculate_centering_offsets above
         
         # Find all points within the selection rectangle
         selected = set()
@@ -1071,8 +1060,9 @@ class CurveViewOperations:
             scale = min(scale_x, scale_y) * curve_view.zoom_factor
             
             # Calculate centering offsets
-            offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
-            offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, curve_view.offset_x, curve_view.offset_y)
+        # offset_y is set below
+            # offset_y is now set by calculate_centering_offsets above
 
             curve_view.drag_active = False
             
@@ -1143,8 +1133,9 @@ class CurveViewOperations:
             scale_x = widget_width / display_width
             scale_y = widget_height / display_height
             scale = min(scale_x, scale_y) * curve_view.zoom_factor
-            offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
-            offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, curve_view.offset_x, curve_view.offset_y)
+        # offset_y is set below
+            # offset_y is now set by calculate_centering_offsets above
             selected = set()
             for i, point in enumerate(curve_view.points):
                 frame, x, y = point[:3]
@@ -1185,8 +1176,9 @@ class CurveViewOperations:
         scale = min(scale_x, scale_y) * curve_view.zoom_factor
         
         # Calculate centering offsets
-        offset_x = (widget_width - (display_width * scale)) / 2 + curve_view.offset_x
-        offset_y = (widget_height - (display_height * scale)) / 2 + curve_view.offset_y
+        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, curve_view.offset_x, curve_view.offset_y)
+        # offset_y is set below
+        # offset_y is now set by calculate_centering_offsets above
         
         if curve_view.drag_active and curve_view.selected_point_idx >= 0:
             # Get the point we're dragging
