@@ -13,6 +13,8 @@ This file tracks the project's progress using a task list format.
 * Centralized signal-slot architecture for UI event handling.
 * Added batch editing, smoothing, filtering, and gap filling tools.
 2025-04-11 14:44:49 - UMB: Memory Bank update completed, documentation and codebase context synchronized.
+* [2025-04-14 14:41:00] - Completed hotkey reassignment: Frame nav (Arrows), Nudge (Numpad).
+* [2025-04-14 15:08:39] - Fixed multi-point mouse wheel zoom bug by removing special handling in ZoomOperations.zoom_view.
 
 ## Current Tasks
 

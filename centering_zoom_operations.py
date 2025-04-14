@@ -223,25 +223,6 @@ class ZoomOperations:
         selected_points = getattr(curve_view, "selected_points", None)
         points = getattr(curve_view, "points", None)
         
-        # Handle multi-selection zooming
-        if (
-            not skip_multi_selection and
-            selected_points is not None and
-            points is not None and
-            len(selected_points) > 1
-        ):
-            # For multi-selection, just fit the selection without additional zooming
-            # This prevents overzooming by not applying the zoom factor on top of fit_selection
-            ZoomOperations.fit_selection(curve_view)
-            
-            # Option for gradual zooming with multi-selection (disabled by default)
-            # Uncomment to enable subtle zooming effects with multi-selection
-            # reduced_factor = 1.0 + (factor - 1.0) * 0.3  # Reduce zoom strength by 70%
-            # curve_view.zoom_factor *= reduced_factor
-            # curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor))
-            
-            curve_view.update()
-            return
         
         # Regular zoom handling for single point or no selection
         curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor * factor))

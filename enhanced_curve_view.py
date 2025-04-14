@@ -644,22 +644,6 @@ class EnhancedCurveView(QWidget):
         from centering_zoom_operations import ZoomOperations
         ZoomOperations.zoom_view(self, factor, mouse_x, mouse_y)
 
-    def keyPressEvent(self, event):
-        """Handle key press events for navigation and shortcuts."""
-        from visualization_operations import VisualizationOperations
-        from curve_view_operations import CurveViewOperations
-        
-        # Try visualization operations first
-        if VisualizationOperations.handle_key_press(self, event):
-            return
-            
-        # Then try curve view operations
-        if CurveViewOperations.handle_key_press(self, event):
-            return
-            
-        # If no handler processed the key, call the parent implementation
-        super().keyPressEvent(event)
-        
     def selectAllPoints(self):
         """Select all points in the curve."""
         from curve_view_operations import CurveViewOperations

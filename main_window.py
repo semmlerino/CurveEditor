@@ -285,93 +285,7 @@ class MainWindow(QMainWindow):
         self.y_edit.setEnabled(enabled)
         self.update_point_button.setEnabled(enabled)
 
-    def keyPressEvent(self, event):
-        """Enhanced key handling for frame-by-frame timeline navigation."""
-        # Call the base event filter first for standard shortcuts
-        result = super(MainWindow, self).keyPressEvent(event)
-        
-        # Add extra frame navigation shortcuts
-        if event.key() == Qt.Key_Period:  # Period key for next frame
-            UIComponents.next_frame(self)
-            return True
-        elif event.key() == Qt.Key_Comma:  # Comma key for previous frame
-            UIComponents.prev_frame(self)
-            return True
-        elif event.key() == Qt.Key_Home:  # Home key for first frame
-            UIComponents.go_to_first_frame(self)
-            return True
-        elif event.key() == Qt.Key_End:  # End key for last frame
-            UIComponents.go_to_last_frame(self)
-            return True
-        elif event.key() == Qt.Key_Shift and (event.key() == Qt.Key_Period):  # Shift+Period for 10 frames forward
-            UIComponents.advance_frames(self, 10)
-            return True
-        elif event.key() == Qt.Key_Shift and (event.key() == Qt.Key_Comma):  # Shift+Comma for 10 frames backward
-            UIComponents.advance_frames(self, -10)
-            return True
-        
-        return result
 
-    def eventFilter(self, obj, event):
-        """Global event filter for keyboard navigation.
-        
-        Args:
-            obj: The object that generated the event
-            event: The event that was generated
-            
-        Returns:
-            bool: True if the event was handled, False otherwise
-            
-        Handles keyboard navigation (shortcuts not in menus) and delegates
-        many visual operations to the VisualizationOperations utility class.
-        """
-        from PySide6.QtCore import QEvent
-        from ui_components import UIComponents
-        
-        if event.type() == QEvent.KeyPress:
-            # Check if we have image sequence loaded
-            has_images = bool(self.image_filenames)
-            
-            if event.key() == Qt.Key_Left:
-                print("[LOG] Left arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
-                # Always navigate to previous frame/image with left arrow
-                print("[LOG] Calling UIComponents.prev_frame (unified navigation)")
-                UIComponents.prev_frame(self)
-                return True
-            elif event.key() == Qt.Key_Right:
-                print("[LOG] Right arrow detected. has_images:", has_images, "modifiers:", event.modifiers())
-                # Always navigate to next frame/image with right arrow
-                print("[LOG] Calling UIComponents.next_frame (unified navigation)")
-                UIComponents.next_frame(self)
-                return True
-            elif event.key() == Qt.Key_Delete or event.key() == Qt.Key_Backspace:
-                # Delete selected points
-                CurveViewOperations.delete_selected_points(self)
-                return True
-            elif event.key() == Qt.Key_C:
-                # Center on selected point
-                VisualizationOperations.center_on_selected_point_from_main_window(self)
-                return True
-            elif event.key() == Qt.Key_G:
-                # Toggle grid
-                checked = not self.toggle_grid_button.isChecked()
-                self.toggle_grid_button.setChecked(checked)
-                VisualizationOperations.toggle_grid(self, checked)
-                return True
-            elif event.key() == Qt.Key_V:
-                # Toggle velocity vectors
-                checked = not self.toggle_vectors_button.isChecked()
-                self.toggle_vectors_button.setChecked(checked)
-                VisualizationOperations.toggle_velocity_vectors(self, checked)
-                return True
-            elif event.key() == Qt.Key_F:
-                # Toggle frame numbers
-                checked = not self.toggle_frame_numbers_button.isChecked()
-                self.toggle_frame_numbers_button.setChecked(checked)
-                VisualizationOperations.toggle_all_frame_numbers(self, checked)
-                return True
-                
-        return super(MainWindow, self).eventFilter(obj, event)
     
     # File Operations
     def load_track_data(self):
@@ -564,23 +478,6 @@ class MainWindow(QMainWindow):
         """Handle point moved in the view."""
         CurveViewOperations.on_point_moved(self, idx, x, y)
 
-    # DEPRECATED: All shortcut connections are now handled by SignalRegistry
-    def connect_shortcuts(self):
-        """
-        DEPRECATED: This method is no longer used and should not be called.
-        
-        All signal connections are now handled by SignalRegistry.connect_all_signals().
-        This method is kept for backward compatibility but prints a warning and does nothing.
-        """
-        import warnings
-        warnings.warn(
-            "MainWindow.connect_shortcuts() is deprecated. "
-            "Shortcuts are now managed through SignalRegistry.", 
-            DeprecationWarning, 
-            stacklevel=2
-        )
-        print("\nWARNING: MainWindow.connect_shortcuts() is deprecated.")
-        print("Shortcuts are now managed through SignalRegistry.\n")
 
     def show_shortcuts_dialog(self):
         """Show dialog with keyboard shortcuts."""

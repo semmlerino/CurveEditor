@@ -72,7 +72,7 @@ class MenuBar(QMenuBar):
         
         # Exit
         exit_action = QAction('E&xit', self)
-        exit_action.setShortcut(QKeySequence('Alt+F4'))
+        # exit_action.setShortcut(QKeySequence('Alt+F4')) # Handled by OS/Window Manager
         exit_action.triggered.connect(lambda: self.main_window.close() if self.main_window else None)
         file_menu.addAction(exit_action)
     
@@ -124,7 +124,7 @@ class MenuBar(QMenuBar):
         
         # Reset view
         reset_action = QAction('&Reset View', self)
-        reset_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('reset_view')))
+        # reset_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('reset_view'))) # Handled by ShortcutManager
         reset_action.triggered.connect(lambda: CurveViewOperations.reset_view(self.main_window))
         view_menu.addAction(reset_action)
         
@@ -203,7 +203,7 @@ class MenuBar(QMenuBar):
         
         # Analysis
         detect_problems_action = QAction('&Detect Problems', self)
-        detect_problems_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('detect_problems')))
+        # detect_problems_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('detect_problems'))) # Handled by ShortcutManager
         detect_problems_action.triggered.connect(lambda: DialogOperations.show_problem_detection_dialog(self.main_window, CurveOperations.detect_problems(self.main_window)))
         tools_menu.addAction(detect_problems_action)
     

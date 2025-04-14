@@ -121,7 +121,7 @@ The application has been refactored to follow a utility-class-based architecture
 
 1. **Keyboard Shortcuts** (`keyboard_shortcuts.py`)
    - Manages keyboard shortcut setup and handling
-   - Implements event handling for key presses using PySide6's event system
+   - Centralizes all shortcut definitions and connections
 
 2. **Batch Edit** (`batch_edit.py`)
    - Provides functionality for batch operations on multiple points
@@ -401,7 +401,7 @@ The application provides comprehensive keyboard and mouse interaction:
 
 3. **Shortcut System**:
    - Global keyboard shortcuts managed through the ShortcutManager
-   - Custom event filter for special key handling
-   - Context-specific shortcuts for different operations
+   - All shortcuts (global, view-specific, dialog-specific) are registered and connected via ShortcutManager
+   - Direct key handling via `keyPressEvent` or `eventFilter` has been removed
 
 This documentation will be updated as the application evolves and new features are added.

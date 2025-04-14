@@ -23,7 +23,6 @@ class ShortcutManager:
         "select_all": {"key": "Ctrl+A", "description": "Select all points"},
         "deselect_all": {"key": "Ctrl+Shift+A", "description": "Deselect all points"},
         "delete_selected": {"key": "Delete", "description": "Delete selected points"},
-        "delete_selected_alt": {"key": "Backspace", "description": "Delete selected points (alternative)"},
         
         # View operations
         "reset_view": {"key": "R", "description": "Reset view"},
@@ -38,22 +37,24 @@ class ShortcutManager:
         "zoom_out": {"key": "-", "description": "Zoom out"},
         
         # Frame Navigation
-        "next_frame": {"key": ".", "description": "Go to next frame"},
-        "prev_frame": {"key": ",", "description": "Go to previous frame"},
+        "next_frame": {"key": "Right", "description": "Go to next frame"},
+        "prev_frame": {"key": "Left", "description": "Go to previous frame"},
         "first_frame": {"key": "Home", "description": "Go to first frame"},
         "last_frame": {"key": "End", "description": "Go to last frame"},
         "frame_forward_10": {"key": "Shift+.", "description": "Forward 10 frames"},
         "frame_back_10": {"key": "Shift+,", "description": "Back 10 frames"},
         
-        # Image Navigation
-        "next_image": {"key": "Right", "description": "Go to next image"},
-        "prev_image": {"key": "Left", "description": "Go to previous image"},
+        # Nudging
+        "nudge_up": {"key": "Num+2", "description": "Nudge selected point(s) up"},
+        "nudge_down": {"key": "Num+8", "description": "Nudge selected point(s) down"},
+        "nudge_left": {"key": "Num+4", "description": "Nudge selected point(s) left"},
+        "nudge_right": {"key": "Num+6", "description": "Nudge selected point(s) right"},
 
         # Curve View specific
         "toggle_y_flip": {"key": "Y", "description": "Toggle Y-flip"},
         "toggle_scale_to_image": {"key": "S", "description": "Toggle scale-to-image"},
         "toggle_debug_mode": {"key": "D", "description": "Toggle debug mode"},
-        # Arrow key navigation is handled separately, but can be added if needed
+        "clear_selection": {"key": "Escape", "description": "Clear current selection"},
         "play_pause": {"key": "Space", "description": "Play/pause timeline"},
         
         # Tools
@@ -175,12 +176,13 @@ class ShortcutsDialog(QDialog):
         # Group shortcuts by category
         categories = {
             "File": ["open_file", "save_file", "export_csv"],
-            "Edit": ["undo", "redo", "select_all", "deselect_all", "delete_selected", "delete_selected_alt"],
-            "View": ["reset_view", "toggle_grid", "toggle_velocity", "toggle_frame_numbers", 
-                    "toggle_crosshair", "center_on_point", "toggle_background", "toggle_fullscreen", "zoom_in", "zoom_out"],
-            "Frame Navigation": ["prev_frame", "next_frame", "first_frame", "last_frame", 
+            "Edit": ["undo", "redo", "select_all", "deselect_all", "delete_selected", "clear_selection"],
+            "View": ["reset_view", "toggle_grid", "toggle_velocity", "toggle_frame_numbers",
+                     "toggle_crosshair", "center_on_point", "toggle_background", "toggle_fullscreen", "zoom_in", "zoom_out",
+                     "toggle_y_flip", "toggle_scale_to_image", "toggle_debug_mode"], # Added Curve View specific toggles here
+            "Frame Navigation": ["prev_frame", "next_frame", "first_frame", "last_frame",
                                "frame_back_10", "frame_forward_10", "play_pause"],
-            "Image Navigation": ["prev_image", "next_image"],
+            "Nudging": ["nudge_up", "nudge_down", "nudge_left", "nudge_right"],
             "Tools": ["smooth_selected", "filter_selected", "detect_problems"]
         }
         

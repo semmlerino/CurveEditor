@@ -26,6 +26,8 @@ from dialog_operations import DialogOperations
 from file_operations import FileOperations
 from history_operations import HistoryOperations
 from keyboard_shortcuts import ShortcutManager
+from centering_zoom_operations import ZoomOperations
+
 
 
 class SignalRegistry:
@@ -605,8 +607,18 @@ class SignalRegistry:
         ShortcutManager.connect_shortcut(main_window, "delete_selected",
                                          lambda: CurveViewOperations.delete_selected_points(main_window))
         # If you want Backspace as an alternative, ensure it does not conflict with QAction
-        # ShortcutManager.connect_shortcut(main_window, "delete_selected_alt",
-        #                                  lambda: CurveViewOperations.delete_selected_points(main_window))
+        ShortcutManager.connect_shortcut(main_window, "clear_selection",
+                                         lambda: CurveViewOperations.clear_selection(main_window.curve_view))
+        # Nudging operations
+        ShortcutManager.connect_shortcut(main_window, "nudge_up",
+                                         lambda: CurveViewOperations.nudge_selected_points(main_window.curve_view, dy=-1))
+        ShortcutManager.connect_shortcut(main_window, "nudge_down",
+                                         lambda: CurveViewOperations.nudge_selected_points(main_window.curve_view, dy=1))
+        ShortcutManager.connect_shortcut(main_window, "nudge_left",
+                                         lambda: CurveViewOperations.nudge_selected_points(main_window.curve_view, dx=-1))
+        ShortcutManager.connect_shortcut(main_window, "nudge_right",
+                                         lambda: CurveViewOperations.nudge_selected_points(main_window.curve_view, dx=1))
+
         
         # View operations
         ShortcutManager.connect_shortcut(main_window, "reset_view", 
@@ -629,6 +641,23 @@ class SignalRegistry:
                                              not main_window.toggle_frame_numbers_button.isChecked()
                                              if hasattr(main_window, 'toggle_frame_numbers_button') else None
                                          ))
+        ShortcutManager.connect_shortcut(main_window, "toggle_crosshair",
+                                         lambda: VisualizationOperations.toggle_crosshair_internal(main_window.curve_view, not getattr(main_window.curve_view, 'show_crosshair', False)))
+        ShortcutManager.connect_shortcut(main_window, "toggle_background",
+                                         lambda: ImageOperations.toggle_background(main_window))
+        ShortcutManager.connect_shortcut(main_window, "toggle_fullscreen",
+                                         lambda: main_window.toggle_fullscreen() if hasattr(main_window, 'toggle_fullscreen') else None)
+        ShortcutManager.connect_shortcut(main_window, "zoom_in",
+                                         lambda: ZoomOperations.zoom_view(main_window.curve_view, 1.2)) # Zoom in by 20%
+        ShortcutManager.connect_shortcut(main_window, "zoom_out",
+                                         lambda: ZoomOperations.zoom_view(main_window.curve_view, 1 / 1.2)) # Zoom out by 20%
+        ShortcutManager.connect_shortcut(main_window, "toggle_y_flip",
+                                         lambda: setattr(main_window.curve_view, 'flip_y_axis', not getattr(main_window.curve_view, 'flip_y_axis', False)) or main_window.curve_view.update())
+        ShortcutManager.connect_shortcut(main_window, "toggle_scale_to_image",
+                                         lambda: setattr(main_window.curve_view, 'scale_to_image', not getattr(main_window.curve_view, 'scale_to_image', False)) or main_window.curve_view.update())
+        ShortcutManager.connect_shortcut(main_window, "toggle_debug_mode",
+                                         lambda: setattr(main_window.curve_view, 'debug_mode', not getattr(main_window.curve_view, 'debug_mode', False)) or main_window.curve_view.update())
+
         
         # Center on selected point
         ShortcutManager.connect_shortcut(main_window, "center_on_point", 
@@ -646,5 +675,17 @@ class SignalRegistry:
                                          lambda: UIComponents.go_to_first_frame(main_window))
         ShortcutManager.connect_shortcut(main_window, "last_frame", 
                                          lambda: UIComponents.go_to_last_frame(main_window))
+        ShortcutManager.connect_shortcut(main_window, "frame_forward_10",
+                                         lambda: UIComponents.advance_frames(main_window, 10))
+        ShortcutManager.connect_shortcut(main_window, "frame_back_10",
+                                         lambda: UIComponents.advance_frames(main_window, -10))
+
         
         print("  ✓ Connected keyboard shortcuts")
+        # Tools
+        ShortcutManager.connect_shortcut(main_window, "smooth_selected",
+                                         lambda: DialogOperations.show_smooth_dialog(main_window))
+        ShortcutManager.connect_shortcut(main_window, "filter_selected",
+                                         lambda: DialogOperations.show_filter_dialog(main_window))
+        ShortcutManager.connect_shortcut(main_window, "detect_problems",
+                                         lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window)))
