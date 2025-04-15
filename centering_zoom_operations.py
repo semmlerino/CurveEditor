@@ -68,35 +68,50 @@ class ZoomOperations:
                 else:
                     scale = min(scale_x, scale_y) * curve_view.zoom_factor
                     
-                # Calculate offsets
-                offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale)
-                
-                # Calculate transformed point position
+                # 1. Calculate the base offset to center the entire content area
+                base_offset_x, base_offset_y = ZoomOperations.calculate_centering_offsets(
+                    widget_width, widget_height, display_width * scale, display_height * scale
+                )
+
+                # 2. Get manual pan offsets
+                manual_offset_x = getattr(curve_view, "x_offset", 0)
+                manual_offset_y = getattr(curve_view, "y_offset", 0)
+
+                # 3. Calculate the final scaled screen coordinates *including* manual offsets if necessary, mirroring transform_point
                 if getattr(curve_view, "scale_to_image", False):
-                    img_x = x * (display_width / curve_view.image_width)
-                    img_y = y * (display_height / curve_view.image_height)
-                    tx = offset_x + img_x * scale
+                    img_x = x * (display_width / curve_view.image_width) + manual_offset_x
+                    img_y = y * (display_height / curve_view.image_height) + manual_offset_y
+                    flip_height = display_height
                     
+                    scaled_content_x = img_x * scale
                     if getattr(curve_view, "flip_y_axis", False):
-                        ty = offset_y + (display_height - img_y) * scale
+                         scaled_content_y = (flip_height - img_y) * scale
                     else:
-                        ty = offset_y + img_y * scale
+                         scaled_content_y = img_y * scale
                 else:
-                    tx = offset_x + x * scale
-                    
+                    # No manual offset applied before scaling in this case
+                    scaled_content_x = x * scale
+                    flip_height = curve_view.image_height
                     if getattr(curve_view, "flip_y_axis", False):
-                        ty = offset_y + (curve_view.image_height - y) * scale
+                        scaled_content_y = (flip_height - y) * scale
                     else:
-                        ty = offset_y + y * scale
-                
-                # Center point in view
+                        scaled_content_y = y * scale
+
+                # 4. Calculate the target screen center
                 center_x = widget_width / 2
                 center_y = widget_height / 2
-                delta_x = center_x - tx
-                delta_y = center_y - ty
+
+                # 5. Calculate the required main offset to place the scaled point at the center
+                # We need: offset_x + scaled_content_x = center_x
+                required_offset_x = center_x - scaled_content_x
+                required_offset_y = center_y - scaled_content_y
+
+                # Set the calculated main offsets
+                curve_view.offset_x = required_offset_x
+                curve_view.offset_y = required_offset_y
                 
-                curve_view.offset_x = delta_x
-                curve_view.offset_y = delta_y
+                # Do NOT reset manual offsets; they are part of the view state managed by panning.
+
                 curve_view.update()
                 return True
             else:

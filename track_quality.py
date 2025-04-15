@@ -4,7 +4,7 @@
 import math
 from PySide6.QtWidgets import QMessageBox
 from dialog_operations import DialogOperations
-from curve_operations import CurveOperations
+# from curve_operations import CurveOperations # Removed - detect_problems moved here
 
 class TrackQualityAnalyzer:
     """Analyzes tracking data to determine quality metrics and potential issues."""
@@ -218,6 +218,165 @@ class TrackQualityAnalyzer:
         
         return suggestions
 
+    @staticmethod
+    def detect_problems(curve_data):
+        """Detect potential problems in the tracking data.
+        
+        Args:
+            curve_data: List of (frame, x, y) tuples.
+            
+        Returns:
+            A list of detected problems with format [(frame, type, severity, description), ...]
+            Severity is a float between 0.0 and 1.0 (higher is worse).
+        """
+        if not curve_data or len(curve_data) < 2: # Need at least 2 points for most checks
+            return []
+            
+        # Sort by frame
+        sorted_data = sorted(curve_data, key=lambda x: x[0])
+        
+        problems = []
+        
+        # 1. Check for sudden jumps in position
+        for i in range(1, len(sorted_data)):
+            prev_frame, prev_x, prev_y = sorted_data[i-1]
+            frame, x, y = sorted_data[i]
+            
+            # Calculate distance between consecutive points
+            distance = math.sqrt((x - prev_x)**2 + (y - prev_y)**2)
+            
+            # Also check if frames are consecutive
+            frame_gap = frame - prev_frame
+            
+            # Normalize by frame gap (for non-consecutive frames)
+            if frame_gap > 0: # Avoid division by zero
+                normalized_distance = distance / frame_gap
+            else:
+                normalized_distance = distance # Treat as consecutive if frame_gap is 0 or negative (unlikely but safe)
+                
+            # Define thresholds for jumps
+            medium_threshold = 10.0  # Adjust based on typical movement
+            high_threshold = 30.0
+            
+            if normalized_distance > high_threshold:
+                severity = min(1.0, normalized_distance / (high_threshold * 2)) # Cap severity at 1.0
+                problems.append((frame, "Sudden Jump", severity, 
+                                f"Distance of {distance:.2f} pixels from frame {prev_frame} ({normalized_distance:.2f}/frame)"))
+            elif normalized_distance > medium_threshold:
+                severity = min(0.7, normalized_distance / high_threshold) # Cap severity
+                problems.append((frame, "Large Movement", severity,
+                                f"Distance of {distance:.2f} pixels from frame {prev_frame} ({normalized_distance:.2f}/frame)"))
+        
+        # 2. Check for acceleration (changes in velocity)
+        if len(sorted_data) >= 3: # Need at least 3 points for acceleration
+            for i in range(2, len(sorted_data)):
+                frame_2, x_2, y_2 = sorted_data[i-2]
+                frame_1, x_1, y_1 = sorted_data[i-1]
+                frame_0, x_0, y_0 = sorted_data[i]
+                
+                # Calculate velocities (distance per frame)
+                time_1 = frame_1 - frame_2
+                time_0 = frame_0 - frame_1
+                
+                # Avoid division by zero if frames are identical
+                if time_1 == 0 or time_0 == 0:
+                    continue
+                    
+                dx_1 = (x_1 - x_2) / time_1
+                dy_1 = (y_1 - y_2) / time_1
+                
+                dx_0 = (x_0 - x_1) / time_0
+                dy_0 = (y_0 - y_1) / time_0
+                
+                # Calculate change in velocity (acceleration)
+                accel_x = abs(dx_0 - dx_1)
+                accel_y = abs(dy_0 - dy_1)
+                
+                # Calculate magnitude of acceleration
+                accel_mag = math.sqrt(accel_x**2 + accel_y**2)
+                
+                # Define thresholds for acceleration
+                medium_threshold = 0.8  # Adjust based on typical acceleration
+                high_threshold = 2.0
+                
+                if accel_mag > high_threshold:
+                    severity = min(0.9, accel_mag / (high_threshold * 2)) # Cap severity
+                    problems.append((frame_0, "High Acceleration", severity,
+                                    f"Acceleration of {accel_mag:.2f} pixels/frame²"))
+                elif accel_mag > medium_threshold:
+                    severity = min(0.6, accel_mag / high_threshold) # Cap severity
+                    problems.append((frame_0, "Medium Acceleration", severity,
+                                    f"Acceleration of {accel_mag:.2f} pixels/frame²"))
+        
+        # 3. Check for gaps in tracking
+        for i in range(1, len(sorted_data)):
+            prev_frame = sorted_data[i-1][0]
+            frame = sorted_data[i][0]
+            
+            frame_gap = frame - prev_frame
+            
+            if frame_gap > 10: # Large gap threshold
+                severity = min(1.0, frame_gap / 30.0) # Cap severity
+                problems.append((prev_frame, "Large Gap", severity,
+                                f"Gap of {frame_gap} frames after this point"))
+            elif frame_gap > 1: # Small gap threshold (changed from 3 to 1 to catch any gap)
+                severity = min(0.5, frame_gap / 10.0) # Cap severity
+                problems.append((prev_frame, "Small Gap", severity,
+                                f"Gap of {frame_gap} frames after this point"))
+        
+        # 4. Check for excessive jitter (local variance)
+        if len(sorted_data) >= 5:
+            window_size = 5
+            half_window = window_size // 2
+            
+            for i in range(half_window, len(sorted_data) - half_window):
+                # Define window around point i
+                start_idx = i - half_window
+                end_idx = i + half_window
+                window = sorted_data[start_idx : end_idx + 1]
+                
+                # Calculate the average position in the window
+                avg_x = sum(p[1] for p in window) / window_size
+                avg_y = sum(p[2] for p in window) / window_size
+                
+                # Calculate the variance (mean squared difference from average)
+                var_x = sum((p[1] - avg_x)**2 for p in window) / window_size
+                var_y = sum((p[2] - avg_y)**2 for p in window) / window_size
+                
+                # Calculate the total variance magnitude (jitter)
+                jitter = math.sqrt(var_x + var_y)
+                
+                # Define thresholds for jitter
+                medium_threshold = 2.0  # Adjust based on typical jitter
+                high_threshold = 5.0
+                
+                current_frame = sorted_data[i][0]
+                if jitter > high_threshold:
+                    severity = min(0.8, jitter / (high_threshold * 2)) # Cap severity
+                    problems.append((current_frame, "High Jitter", severity,
+                                    f"Jitter of {jitter:.2f} pixels in a {window_size}-frame window"))
+                elif jitter > medium_threshold:
+                    severity = min(0.5, jitter / high_threshold) # Cap severity
+                    problems.append((current_frame, "Medium Jitter", severity,
+                                    f"Jitter of {jitter:.2f} pixels in a {window_size}-frame window"))
+        
+        # Sort problems by frame for easier navigation
+        problems.sort(key=lambda x: x[0])
+        
+        # Remove duplicate problems (same frame, same type) - keep highest severity
+        unique_problems = {}
+        for frame, p_type, severity, desc in problems:
+            key = (frame, p_type)
+            if key not in unique_problems or severity > unique_problems[key][1]:
+                 unique_problems[key] = (p_type, severity, desc)
+
+        # Convert back to list format
+        final_problems = [(frame, p_type, severity, desc) for (frame, p_type), (p_type_val, severity, desc) in unique_problems.items()]
+        final_problems.sort(key=lambda x: x[0]) # Sort again after potential reordering
+
+        return final_problems
+
+
 class TrackQualityUI:
     """Handles UI interactions for track quality analysis.
     
@@ -287,7 +446,8 @@ class TrackQualityUI:
                     QMessageBox.Yes | QMessageBox.No)
                     
                 if reply == QMessageBox.Yes:
-                    problems = CurveOperations.detect_problems(self.parent)
+                    # Call the static method within this class now
+                    problems = TrackQualityAnalyzer.detect_problems(self.parent.curve_data)
                     DialogOperations.show_problem_detection_dialog(self.parent, problems)
                     
             # Show suggestions in a tooltip on the analyze button

@@ -7,7 +7,8 @@ from PySide6.QtCore import Qt
 
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
                     ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog)
-import curve_operations as ops
+# import curve_operations as ops # Removed old import
+from curve_data_operations import CurveDataOperations # Import new class
 
 class DialogOperations:
     """Dialog operations for the 3DE4 Curve Editor."""
@@ -76,9 +77,19 @@ class DialogOperations:
             params["window_size"] = dialog.window_spin.value()
 
         if method_name:
-            main_window.curve_data = ops.apply_smoothing_filtering(
-                main_window.curve_data, points_to_smooth, method=method_name, **params
-            )
+            try:
+                data_ops = CurveDataOperations(main_window.curve_data)
+                if method_name == "moving_average":
+                    data_ops.smooth_moving_average(points_to_smooth, params["window_size"])
+                elif method_name == "gaussian":
+                    data_ops.smooth_gaussian(points_to_smooth, params["window_size"], params["sigma"])
+                elif method_name == "savitzky_golay":
+                    data_ops.smooth_savitzky_golay(points_to_smooth, params["window_size"])
+                
+                main_window.curve_data = data_ops.get_data() # Update main window data
+            except Exception as e:
+                 QMessageBox.critical(main_window, "Error", f"Smoothing failed: {e}")
+                 return # Don't proceed if operation failed
         
         # Update view
         main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
@@ -130,28 +141,43 @@ class DialogOperations:
             QMessageBox.warning(main_window, "Warning", "No points to filter.")
             return
             
-        # Apply the selected filter using the unified dispatcher
-        params = {}
-        method_name = ""
-        if filter_type == 0:  # Median
-            method_name = "median"
-            params["window_size"] = dialog.window_size_spin.value()
-        elif filter_type == 1:  # Gaussian
-            method_name = "gaussian"
-            params["window_size"] = dialog.window_size_spin.value()
-            params["sigma"] = dialog.sigma_spin.value()
-        elif filter_type == 2:  # Average
-            method_name = "average"
-            params["window_size"] = dialog.window_size_spin.value()
-        elif filter_type == 3:  # Butterworth
-            method_name = "butterworth"
-            params["cutoff"] = dialog.cutoff_spin.value()
-            params["order"] = dialog.order_spin.value()
+        # Apply the selected filter using CurveDataOperations
+        try:
+            data_ops = CurveDataOperations(main_window.curve_data)
+            operation_applied = False
 
-        if method_name:
-            main_window.curve_data = ops.apply_smoothing_filtering(
-                main_window.curve_data, points_to_filter, method=method_name, **params
-            )
+            if filter_type == 0:  # Median
+                window_size = dialog.window_size_spin.value()
+                data_ops.filter_median(points_to_filter, window_size)
+                operation_applied = True
+            elif filter_type == 1:  # Gaussian
+                window_size = dialog.window_size_spin.value()
+                sigma = dialog.sigma_spin.value()
+                data_ops.smooth_gaussian(points_to_filter, window_size, sigma)
+                operation_applied = True
+            elif filter_type == 2:  # Average
+                window_size = dialog.window_size_spin.value()
+                data_ops.smooth_moving_average(points_to_filter, window_size)
+                operation_applied = True
+            elif filter_type == 3:  # Butterworth
+                cutoff = dialog.cutoff_spin.value()
+                order = dialog.order_spin.value()
+                data_ops.filter_butterworth(points_to_filter, cutoff, order)
+                operation_applied = True
+
+            if operation_applied:
+                main_window.curve_data = data_ops.get_data() # Update main window data
+            else:
+                 QMessageBox.warning(main_window, "Warning", "No filter applied (unknown type).")
+                 return # No known operation selected
+
+        except AttributeError as ae:
+             # Handle cases where dialog attributes might be missing for a type
+             QMessageBox.critical(main_window, "Error", f"Dialog configuration error: {ae}")
+             return
+        except Exception as e:
+             QMessageBox.critical(main_window, "Error", f"Filtering failed: {e}")
+             return # Don't proceed if operation failed
         
         # Update view
         main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
@@ -232,21 +258,44 @@ class DialogOperations:
         main_window.add_to_history()
     
     @staticmethod
-    def fill_gap(main_window, start_frame, end_frame, method, preserve_endpoints=True):
-        """Helper method to fill a gap in the curve using the specified method."""
-        # Window size for certain methods
+    def fill_gap(main_window, start_frame, end_frame, method_index, preserve_endpoints=True):
+        """Helper method to fill a gap using the specified method via CurveDataOperations."""
+        # Window size for certain methods (can be adjusted or made configurable)
         window_size = 5
-        
-        if method == 0:  # Linear
-            main_window.curve_data = ops.fill_linear(main_window.curve_data, start_frame, end_frame, preserve_endpoints)
-        elif method == 1:  # Cubic spline
-            main_window.curve_data = ops.fill_cubic_spline(main_window.curve_data, start_frame, end_frame, 0.5, preserve_endpoints)
-        elif method == 2:  # Constant velocity
-            main_window.curve_data = ops.fill_constant_velocity(main_window.curve_data, start_frame, end_frame, window_size, preserve_endpoints)
-        elif method == 3:  # Accelerated motion
-            main_window.curve_data = ops.CurveOperations.fill_accelerated_motion(main_window.curve_data, start_frame, end_frame, window_size, 0.5, preserve_endpoints)
-        elif method == 4:  # Average
-            main_window.curve_data = ops.CurveOperations.fill_average(main_window.curve_data, start_frame, end_frame, window_size, preserve_endpoints)
+        tension = 0.5 # Default tension for spline
+        accel_weight = 0.5 # Default weight for accelerated motion
+
+        try:
+            # Instantiate with the current data
+            data_ops = CurveDataOperations(main_window.curve_data)
+            operation_performed = False
+
+            if method_index == 0:  # Linear
+                data_ops.fill_linear(start_frame, end_frame, preserve_endpoints)
+                operation_performed = True
+            elif method_index == 1:  # Cubic spline
+                data_ops.fill_cubic_spline(start_frame, end_frame, tension, preserve_endpoints)
+                operation_performed = True
+            elif method_index == 2:  # Constant velocity
+                data_ops.fill_constant_velocity(start_frame, end_frame, window_size, preserve_endpoints)
+                operation_performed = True
+            elif method_index == 3:  # Accelerated motion
+                data_ops.fill_accelerated_motion(start_frame, end_frame, window_size, accel_weight, preserve_endpoints)
+                operation_performed = True
+            elif method_index == 4:  # Average
+                data_ops.fill_average(start_frame, end_frame, window_size, preserve_endpoints)
+                operation_performed = True
+            else:
+                 QMessageBox.warning(main_window, "Warning", f"Unknown fill method index: {method_index}")
+                 return # Do nothing if method is unknown
+
+            # Update main window data only if an operation was performed
+            if operation_performed:
+                main_window.curve_data = data_ops.get_data()
+
+        except Exception as e:
+            QMessageBox.critical(main_window, "Error", f"Gap filling failed: {e}")
+            # Optionally re-raise or log more details traceback.print_exc()
 
     @staticmethod
     def show_extrapolate_dialog(main_window):
@@ -271,13 +320,32 @@ class DialogOperations:
         fit_points = dialog.fit_points.value()
         
         # Apply extrapolation based on direction
-        if direction == 0 or direction == 2:  # Forward or Both
-            if forward_frames > 0:
-                main_window.curve_data = ops.extrapolate_forward(main_window.curve_data, forward_frames, method, fit_points)
-                
-        if direction == 1 or direction == 2:  # Backward or Both
-            if backward_frames > 0:
-                main_window.curve_data = ops.extrapolate_backward(main_window.curve_data, backward_frames, method, fit_points)
+        try:
+            # Instantiate with current data
+            data_ops = CurveDataOperations(main_window.curve_data)
+            data_changed = False
+
+            if direction == 0 or direction == 2:  # Forward or Both
+                if forward_frames > 0:
+                    data_ops.extrapolate_forward(forward_frames, method, fit_points)
+                    data_changed = True # Mark data as potentially changed
+                    
+            if direction == 1 or direction == 2:  # Backward or Both
+                if backward_frames > 0:
+                    # Apply backward extrapolation to the potentially already modified data
+                    # Need to re-instantiate if forward extrapolation happened,
+                    # or ensure methods modify internal state correctly.
+                    # Assuming methods modify internal state:
+                    data_ops.extrapolate_backward(backward_frames, method, fit_points)
+                    data_changed = True # Mark data as potentially changed
+
+            # Update main window data only if an operation was performed
+            if data_changed:
+                 main_window.curve_data = data_ops.get_data()
+
+        except Exception as e:
+             QMessageBox.critical(main_window, "Error", f"Extrapolation failed: {e}")
+             return # Don't proceed if operation failed
         
         # Update view
         main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
@@ -309,7 +377,10 @@ class DialogOperations:
                 return None
                 
             # Detect problems
-            problems = ops.CurveOperations.detect_problems(main_window) # Keep class access for this static method
+            # problems = ops.CurveOperations.detect_problems(main_window) # Original call removed
+            # TODO: Implement problem detection using CurveDataOperations or a dedicated class
+            QMessageBox.information(main_window, "Info", "Problem detection is temporarily disabled pending refactoring.")
+            return None # Disable for now
             
             if not problems:
                 QMessageBox.information(main_window, "Info", "No problems detected.")

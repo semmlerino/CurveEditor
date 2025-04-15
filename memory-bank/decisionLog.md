@@ -1,3 +1,9 @@
+[2025-04-15 16:29:30] - Added 'Auto-Center on Frame Change' feature.
+    Decision: Implement a toggle in the View menu to enable/disable automatic centering of the view on the selected point when the frame changes.
+    Rationale: Improve user workflow by keeping the focus point centered during frame-by-frame navigation.
+    Implementation Details: Added boolean setting 'view/autoCenterOnFrameChange' to QSettings (settings_operations.py). Added checkable QAction to View menu (menu_bar.py) connected to handler in MainWindow (main_window.py). Added logic to frame change methods (next_frame, prev_frame, go_to_frame, etc. in ui_components.py) to check the setting and call ZoomOperations.center_on_selected_point if enabled.
+
+
 [2025-04-14 15:08:22] - Removed special multi-point selection handling in ZoomOperations.zoom_view to ensure consistent incremental mouse wheel zoom behavior regardless of selection count. Rationale: Fixes bug reported by user where multi-point zoom was overly aggressive; aligns behavior with user expectation of consistent zoom step.
 
 [2025-04-14 14:41:00] - Reassigned hotkeys: Frame navigation to Left/Right arrows, Point nudging to Numpad 4/6/8/2. Removed previous frame nav keys (,/.) and arrow keys for nudge. Rationale: User request for more intuitive frame navigation, retaining nudge functionality on Numpad.

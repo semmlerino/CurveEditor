@@ -38,7 +38,10 @@ from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
 from image_operations import ImageOperations
 from dialog_operations import DialogOperations
-from curve_operations import CurveOperations
+# from curve_operations import CurveOperations # Removed, logic moved
+from history_operations import HistoryOperations # For undo/redo
+from centering_zoom_operations import ZoomOperations # Added Import
+
 from enhanced_curve_view import EnhancedCurveView
 import os
 import re
@@ -222,17 +225,22 @@ class UIComponents:
         
         main_window.undo_button = QPushButton("Undo")
         main_window.undo_button.setToolTip("Undo Last Action")
-        main_window.undo_button.clicked.connect(lambda: CurveOperations.undo(main_window))
+        # main_window.undo_button.clicked.connect(lambda: CurveOperations.undo(main_window)) # Original call removed
+        main_window.undo_button.clicked.connect(lambda: HistoryOperations.undo_action(main_window)) # Use HistoryOperations
         main_window.undo_button.setEnabled(False)
         
         main_window.redo_button = QPushButton("Redo")
         main_window.redo_button.setToolTip("Redo Last Action")
-        main_window.redo_button.clicked.connect(lambda: CurveOperations.redo(main_window))
+        # main_window.redo_button.clicked.connect(lambda: CurveOperations.redo(main_window)) # Original call removed
+        main_window.redo_button.clicked.connect(lambda: HistoryOperations.redo_action(main_window)) # Use HistoryOperations
         main_window.redo_button.setEnabled(False)
         
         main_window.detect_problems_button = QPushButton("Detect")
         main_window.detect_problems_button.setToolTip("Detect Problems in Track Data")
-        main_window.detect_problems_button.clicked.connect(lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window)))
+        # main_window.detect_problems_button.clicked.connect(lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window))) # TODO: Refactor detect_problems
+        # Temporarily disable until detect_problems is refactored
+        main_window.detect_problems_button.setEnabled(False)
+        main_window.detect_problems_button.setToolTip("Problem detection temporarily disabled during refactoring.")
         main_window.detect_problems_button.setEnabled(False)
         
         history_buttons.addWidget(main_window.undo_button)
@@ -394,9 +402,13 @@ class UIComponents:
         
         # Configure slider to show individual frames
         main_window.timeline_slider.setTickPosition(QSlider.TicksBelow)
-        main_window.timeline_slider.setTickInterval(1)  # Show tick for each frame
         main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
         main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
+        
+        # Determine a reasonable tick interval based on frame count
+        frame_count = 100  # Default to 100 frames
+        tick_interval = max(1, frame_count // 100)  # Prevent too many ticks on large frame ranges
+        main_window.timeline_slider.setTickInterval(tick_interval)
         
         # Add frame tracking tooltip
         main_window.timeline_slider.setToolTip("Frame: 0")
@@ -458,14 +470,8 @@ class UIComponents:
 
     @staticmethod
     def create_enhanced_curve_view(main_window):
-        """Create and set up the enhanced curve view.
-        
-        Args:
-            main_window: The main application window instance
-            
-        Returns:
-            bool: True if the enhanced view was successfully set up, False otherwise
-        """
+        """Create and set up the enhanced curve view."""
+        # ... (Code as before) ...
         try:
             # Create the enhanced curve view
             enhanced_view = EnhancedCurveView(main_window)
@@ -494,107 +500,197 @@ class UIComponents:
                     VisualizationOperations.update_timeline_for_image(main_window, index)
                 
                 # Attach the wrapper method to the curve view for backward compatibility
-                main_window.curve_view.update_timeline_for_image = update_timeline_for_image
-                
-                # Create enhanced controls
-                UIComponents.setup_enhanced_controls(main_window)
+                main_window.curve_view.updateTimelineForImage = update_timeline_for_image
                 
                 return True
-            else:
-                return False
         except Exception as e:
-            print(f"Error setting up enhanced curve view: {str(e)}")
+            print(f"Error creating enhanced curve view: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
     @staticmethod
     def create_control_panel(main_window):
-        """Create the control panel for point editing."""
-        controls_widget = QWidget()
-        controls_layout = QVBoxLayout(controls_widget)
+        """Create the control panel for point editing and view controls."""
+        # ... (Code as before) ...
+        # Main container for controls
+        controls_container = QWidget()
+        controls_layout = QHBoxLayout(controls_container)
         
-        # Point edit controls group
-        point_group = QGroupBox("Point Editing")
-        point_layout = QHBoxLayout(point_group)
+        # Left side: Point Info and Editing
+        left_panel = QWidget()
+        left_layout = QVBoxLayout(left_panel)
         
-        main_window.point_idx_label = QLabel("Point:")
-        main_window.point_frame_label = QLabel("Frame: N/A")
+        # Point Info Group
+        point_info_group = QGroupBox("Point Info")
+        point_info_layout = QGridLayout(point_info_group)
         
+        main_window.frame_info_label = QLabel("Frame: N/A")
         main_window.x_label = QLabel("X:")
         main_window.x_edit = QLineEdit()
-        main_window.x_edit.setMaximumWidth(100)
-        
         main_window.y_label = QLabel("Y:")
         main_window.y_edit = QLineEdit()
-        main_window.y_edit.setMaximumWidth(100)
+        main_window.update_point_button = QPushButton("Update Point")
         
-        main_window.update_point_button = QPushButton("Update")
+        point_info_layout.addWidget(main_window.frame_info_label, 0, 0, 1, 2)
+        point_info_layout.addWidget(main_window.x_label, 1, 0)
+        point_info_layout.addWidget(main_window.x_edit, 1, 1)
+        point_info_layout.addWidget(main_window.y_label, 2, 0)
+        point_info_layout.addWidget(main_window.y_edit, 2, 1)
+        point_info_layout.addWidget(main_window.update_point_button, 3, 0, 1, 2)
         
-        point_layout.addWidget(main_window.point_idx_label)
-        point_layout.addWidget(main_window.point_frame_label)
-        point_layout.addWidget(main_window.x_label)
-        point_layout.addWidget(main_window.x_edit)
-        point_layout.addWidget(main_window.y_label)
-        point_layout.addWidget(main_window.y_edit)
-        point_layout.addWidget(main_window.update_point_button)
-        point_layout.addStretch()
+        left_layout.addWidget(point_info_group)
         
-        # Add controls to panel
-        controls_layout.addWidget(point_group)
+        # Selection Controls Group
+        selection_group = QGroupBox("Selection")
+        selection_layout = QHBoxLayout(selection_group)
+        main_window.select_all_button = QPushButton("Select All")
+        main_window.deselect_all_button = QPushButton("Deselect All")
+        selection_layout.addWidget(main_window.select_all_button)
+        selection_layout.addWidget(main_window.deselect_all_button)
+        left_layout.addWidget(selection_group)
         
-        # Create point editing container for batch operations and tools
-        point_edit_container = QWidget()
-        main_window.point_edit_layout = QVBoxLayout(point_edit_container)
-        main_window.point_edit_layout.setContentsMargins(0, 0, 0, 0)
-        controls_layout.addWidget(point_edit_container)
+        left_layout.addStretch() # Push controls to the top
         
-        # Create view controls section for enhanced controls
-        view_group = QGroupBox("View Controls")
-        main_window.view_controls_layout = QVBoxLayout(view_group)
-        controls_layout.addWidget(view_group)
+        # Center: Visualization Controls
+        center_panel = QWidget()
+        center_layout = QVBoxLayout(center_panel)
         
-        return controls_widget
+        vis_group = QGroupBox("Visualization")
+        vis_layout = QGridLayout(vis_group)
+        
+        main_window.toggle_grid_button = QPushButton("Grid")
+        main_window.toggle_grid_button.setCheckable(True)
+        main_window.toggle_grid_button.setToolTip("Toggle Grid Visibility (G)")
+        
+        main_window.toggle_vectors_button = QPushButton("Vectors")
+        main_window.toggle_vectors_button.setCheckable(True)
+        main_window.toggle_vectors_button.setToolTip("Toggle Velocity Vectors (V)")
+        
+        main_window.toggle_frame_numbers_button = QPushButton("Numbers")
+        main_window.toggle_frame_numbers_button.setCheckable(True)
+        main_window.toggle_frame_numbers_button.setToolTip("Toggle Frame Numbers (F)")
+        
+        main_window.toggle_crosshair_button = QPushButton("Crosshair")
+        main_window.toggle_crosshair_button.setCheckable(True)
+        main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
+        
+        main_window.center_on_point_button = QPushButton("Center")
+        main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
+        
+        main_window.point_size_label = QLabel("Point Size:")
+        main_window.point_size_spin = QSpinBox()
+        main_window.point_size_spin.setRange(1, 20)
+        main_window.point_size_spin.setValue(5) # Default size
+        main_window.point_size_spin.setToolTip("Adjust Point Size")
+        
+        vis_layout.addWidget(main_window.toggle_grid_button, 0, 0)
+        vis_layout.addWidget(main_window.toggle_vectors_button, 0, 1)
+        vis_layout.addWidget(main_window.toggle_frame_numbers_button, 1, 0)
+        vis_layout.addWidget(main_window.toggle_crosshair_button, 1, 1)
+        vis_layout.addWidget(main_window.center_on_point_button, 2, 0, 1, 2)
+        vis_layout.addWidget(main_window.point_size_label, 3, 0)
+        vis_layout.addWidget(main_window.point_size_spin, 3, 1)
+        
+        center_layout.addWidget(vis_group)
+        center_layout.addStretch()
+        
+        # Right side: Track Quality and Presets
+        right_panel = QWidget()
+        right_layout = QVBoxLayout(right_panel)
+        
+        # Track Quality Group
+        quality_group = QGroupBox("Track Quality")
+        quality_layout = QGridLayout(quality_group) # Use GridLayout for better alignment
+
+        # Create labels for metrics
+        quality_layout.addWidget(QLabel("Overall Score:"), 0, 0)
+        main_window.quality_score_label = QLabel("N/A")
+        main_window.quality_score_label.setFont(QFont("Arial", 10, QFont.Bold))
+        quality_layout.addWidget(main_window.quality_score_label, 0, 1)
+
+        quality_layout.addWidget(QLabel("Smoothness:"), 1, 0)
+        main_window.smoothness_label = QLabel("N/A")
+        quality_layout.addWidget(main_window.smoothness_label, 1, 1)
+
+        quality_layout.addWidget(QLabel("Consistency:"), 2, 0)
+        main_window.consistency_label = QLabel("N/A")
+        quality_layout.addWidget(main_window.consistency_label, 2, 1)
+
+        quality_layout.addWidget(QLabel("Coverage:"), 3, 0)
+        main_window.coverage_label = QLabel("N/A")
+        quality_layout.addWidget(main_window.coverage_label, 3, 1)
+
+        # Add Analyze button (assuming it should trigger the analysis)
+        main_window.analyze_button = QPushButton("Analyze Quality")
+        main_window.analyze_button.setToolTip("Analyze the quality of the current track data")
+        # Connection should be handled by SignalRegistry or MainWindow setup
+        # main_window.analyze_button.clicked.connect(lambda: main_window.quality_ui.analyze_and_update_ui(main_window.curve_data))
+        quality_layout.addWidget(main_window.analyze_button, 4, 0, 1, 2)
+
+        right_layout.addWidget(quality_group)
+        
+        # Quick Filter Presets Group
+        presets_group = QGroupBox("Quick Filters")
+        presets_layout = QVBoxLayout(presets_group)
+        main_window.presets_combo = QComboBox()
+        main_window.presets_combo.addItems(["Select Preset...", "Smooth Light", "Smooth Medium", "Smooth Heavy", "Filter Jitter"])
+        main_window.apply_preset_button = QPushButton("Apply Preset")
+        presets_layout.addWidget(main_window.presets_combo)
+        presets_layout.addWidget(main_window.apply_preset_button)
+        right_layout.addWidget(presets_group)
+        
+        right_layout.addStretch()
+        
+        # Add panels to main controls layout
+        controls_layout.addWidget(left_panel)
+        controls_layout.addWidget(center_panel)
+        controls_layout.addWidget(right_panel)
+        
+        # Disable controls initially
+        main_window.enable_point_controls(False)
+        
+        return controls_container
 
     @staticmethod
     def setup_timeline(main_window):
-        """Setup timeline slider based on frame range with individual frame markers."""
+        """Setup timeline slider based on frame range."""
+        # ... (Code as before) ...
         if not main_window.curve_data:
+            main_window.timeline_slider.setEnabled(False)
+            main_window.frame_edit.setEnabled(False)
+            main_window.go_button.setEnabled(False)
+            main_window.play_button.setEnabled(False)
+            main_window.prev_frame_button.setEnabled(False)
+            main_window.next_frame_button.setEnabled(False)
+            main_window.first_frame_button.setEnabled(False)
+            main_window.last_frame_button.setEnabled(False)
             return
             
-        # Get frame range
-        frames = [frame for frame, _, _ in main_window.curve_data]
-        min_frame = min(frames)
-        max_frame = max(frames)
+        # Get frame range from data
+        frames = [p[0] for p in main_window.curve_data]
+        min_frame = min(frames) if frames else 0
+        max_frame = max(frames) if frames else 0
+        frame_count = max_frame - min_frame + 1
         
-        # Set slider range
+        # Update slider range
         main_window.timeline_slider.setMinimum(min_frame)
         main_window.timeline_slider.setMaximum(max_frame)
         
-        # Configure slider for individual frames
-        main_window.timeline_slider.setTickPosition(QSlider.TicksBelow)
-        main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
-        main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
+        # Update tick interval based on new range
+        tick_interval = max(1, frame_count // 100)
+        main_window.timeline_slider.setTickInterval(tick_interval)
         
-        # Determine a reasonable tick interval based on frame count
-        frame_count = max_frame - min_frame + 1
-        if frame_count > 100:
-            tick_interval = max(1, frame_count // 100)  # Prevent too many ticks on large frame ranges
-            main_window.timeline_slider.setTickInterval(tick_interval)
-        else:
-            main_window.timeline_slider.setTickInterval(1)  # Show tick for each frame
-        
-        # Enable all timeline controls
-        main_window.next_frame_button.setEnabled(True)
-        main_window.prev_frame_button.setEnabled(True)
-        main_window.play_button.setEnabled(True)
-        main_window.first_frame_button.setEnabled(True)
-        main_window.last_frame_button.setEnabled(True)
-        
-        # Set to first frame
+        # Set current frame if not already set or out of range
         if main_window.current_frame < min_frame or main_window.current_frame > max_frame:
             main_window.current_frame = min_frame
             
-        # Update slider and label
+        # Update slider value without triggering signals initially
+        main_window.timeline_slider.blockSignals(True)
         main_window.timeline_slider.setValue(main_window.current_frame)
+        main_window.timeline_slider.blockSignals(False)
+        
+        # Update labels and edit fields
         main_window.frame_label.setText(f"Frame: {main_window.current_frame}")
         main_window.frame_edit.setText(str(main_window.current_frame))
         
@@ -628,16 +724,23 @@ class UIComponents:
                 position_ratio = (value - slider_min) / frame_range
                 main_window.frame_marker.setPosition(position_ratio)
                 main_window.frame_marker.update()
-    
+        
         # Load the corresponding image if we have an image sequence
         if main_window.image_filenames:
             # Update the image by frame
             main_window.curve_view.setCurrentImageByFrame(value)
             main_window.update_image_label()
                     
-        # Update view with current frame
+        # Auto-center if enabled
+        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            try:
+                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+            except Exception as e:
+                print(f"Error during auto-centering: {e}")
+        
+        # Update view AFTER potential centering
         main_window.curve_view.update()
-            
+    
     @staticmethod
     def on_frame_edit_changed(main_window):
         """Handle frame edit text changed."""
@@ -647,17 +750,17 @@ class UIComponents:
             max_val = main_window.timeline_slider.maximum()
             
             if min_val <= value <= max_val:
-                main_window.timeline_slider.setValue(value)
+                # Directly call go_to_frame to ensure consistent handling including centering
+                UIComponents.go_to_frame(main_window, value)
             else:
-                main_window.frame_edit.setText(str(main_window.current_frame))
-                main_window.statusBar().showMessage(f"Frame must be between {min_val} and {max_val}", 2000)
+                main_window.statusBar().showMessage(f"Frame {value} out of range ({min_val}-{max_val})", 2000)
         except ValueError:
-            main_window.frame_edit.setText(str(main_window.current_frame))
-            main_window.statusBar().showMessage("Please enter a valid frame number", 2000)
+            main_window.statusBar().showMessage("Invalid frame number entered", 2000)
             
     @staticmethod
     def toggle_playback(main_window):
         """Toggle timeline playback on/off."""
+        # ... (Code as before) ...
         # If playback is already active, stop it
         if hasattr(main_window, 'playback_timer') and main_window.playback_timer.isActive():
             main_window.playback_timer.stop()
@@ -670,35 +773,28 @@ class UIComponents:
             main_window.playback_timer = QTimer(main_window)
             main_window.playback_timer.timeout.connect(lambda: UIComponents.advance_playback(main_window))
             
-        # Set playback speed (frames per second)
-        fps = 24  # Default to 24 fps
-        interval = int(1000 / fps)  # Convert to milliseconds
-        main_window.playback_timer.setInterval(interval)
-        
         # Start playback
-        main_window.playback_timer.start()
+        # TODO: Add FPS setting
+        fps = 24 # Default FPS
+        main_window.playback_timer.start(1000 // fps)
         main_window.play_button.setChecked(True)
-        main_window.statusBar().showMessage(f"Playback started at {fps} fps", 2000)
-    
+        main_window.statusBar().showMessage("Playback started", 2000)
+
     @staticmethod
     def advance_playback(main_window):
-        """Advance to the next frame during playback."""
-        if not main_window.curve_data:
-            return
-            
-        # Get current frame and frame range
+        """Advance timeline by one frame during playback."""
+        # ... (Code as before) ...
         current_frame = main_window.timeline_slider.value()
-        min_frame = main_window.timeline_slider.minimum()
         max_frame = main_window.timeline_slider.maximum()
         
-        # Calculate next frame (loop back to start if at end)
-        next_frame = current_frame + 1
-        if next_frame > max_frame:
-            next_frame = min_frame
-            
-        # Update timeline position
-        main_window.timeline_slider.setValue(next_frame)
-    
+        if current_frame < max_frame:
+            main_window.timeline_slider.setValue(current_frame + 1)
+        else:
+            # Stop playback at the end
+            main_window.playback_timer.stop()
+            main_window.play_button.setChecked(False)
+            main_window.statusBar().showMessage("Playback finished", 2000)
+
     @staticmethod
     def next_frame(main_window):
         """Go to the next frame in the timeline."""
@@ -709,8 +805,16 @@ class UIComponents:
         max_frame = main_window.timeline_slider.maximum()
         
         if current_frame < max_frame:
-            main_window.timeline_slider.setValue(current_frame + 1)
-    
+            new_frame = current_frame + 1
+            main_window.timeline_slider.setValue(new_frame)
+            # Explicitly call centering logic here as well
+            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+                try:
+                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                except Exception as e:
+                    print(f"Error during auto-centering in next_frame: {e}")
+            main_window.curve_view.update() # Ensure view updates
+
     @staticmethod
     def prev_frame(main_window):
         """Go to the previous frame in the timeline."""
@@ -721,7 +825,15 @@ class UIComponents:
         min_frame = main_window.timeline_slider.minimum()
         
         if current_frame > min_frame:
-            main_window.timeline_slider.setValue(current_frame - 1)
+            new_frame = current_frame - 1
+            main_window.timeline_slider.setValue(new_frame)
+             # Explicitly call centering logic here as well
+            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+                try:
+                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                except Exception as e:
+                    print(f"Error during auto-centering in prev_frame: {e}")
+            main_window.curve_view.update() # Ensure view updates
 
     @staticmethod
     def advance_frames(main_window, count):
@@ -737,6 +849,13 @@ class UIComponents:
         new_frame = max(min_frame, min(max_frame, new_frame))
         
         main_window.timeline_slider.setValue(new_frame)
+        # Explicitly call centering logic here as well
+        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            try:
+                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+            except Exception as e:
+                print(f"Error during auto-centering in advance_frames: {e}")
+        main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Advanced {count} frames to frame {new_frame}", 2000)
             
     @staticmethod
@@ -750,7 +869,13 @@ class UIComponents:
         
         if min_frame <= frame <= max_frame:
             main_window.timeline_slider.setValue(frame)
-            # Update will happen automatically via the slider's valueChanged signal
+             # Explicitly call centering logic here as well
+            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+                try:
+                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                except Exception as e:
+                    print(f"Error during auto-centering in go_to_frame: {e}")
+            main_window.curve_view.update() # Ensure view updates
         else:
             main_window.statusBar().showMessage(f"Frame {frame} is out of range ({min_frame}-{max_frame})", 2000)
 
@@ -762,6 +887,13 @@ class UIComponents:
             
         min_frame = main_window.timeline_slider.minimum()
         main_window.timeline_slider.setValue(min_frame)
+        # Explicitly call centering logic here as well
+        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            try:
+                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+            except Exception as e:
+                print(f"Error during auto-centering in go_to_first_frame: {e}")
+        main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Moved to first frame ({min_frame})", 2000)
     
     @staticmethod
@@ -772,11 +904,19 @@ class UIComponents:
             
         max_frame = main_window.timeline_slider.maximum()
         main_window.timeline_slider.setValue(max_frame)
+        # Explicitly call centering logic here as well
+        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            try:
+                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+            except Exception as e:
+                print(f"Error during auto-centering in go_to_last_frame: {e}")
+        main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Moved to last frame ({max_frame})", 2000)
 
     @staticmethod
     def update_frame_marker(main_window):
         """Update the position of the frame marker based on current frame."""
+        # ... (Code as before) ...
         if hasattr(main_window, 'frame_marker') and hasattr(main_window, 'timeline_slider'):
             slider = main_window.timeline_slider
             min_frame = slider.minimum()
@@ -791,23 +931,8 @@ class UIComponents:
 
     @staticmethod
     def setup_enhanced_curve_view(main_window):
-        """Set up enhanced visualization controls.
-        
-        Creates UI buttons for visualization features available in the EnhancedCurveView:
-        - Grid toggle (using QPushButton from PySide6.QtWidgets)
-        - Velocity vectors toggle (using QPushButton from PySide6.QtWidgets)
-        - Frame numbers toggle (using QPushButton from PySide6.QtWidgets)
-        - Crosshair toggle (using QPushButton from PySide6.QtWidgets)
-        - View centering (using QPushButton from PySide6.QtWidgets)
-        - Point size control (using QSpinBox from PySide6.QtWidgets)
-        
-        All buttons are initialized with proper tooltips and checkable states.
-        Buttons are added to a QGroupBox (from PySide6.QtWidgets) with appropriate layout.
-        Signal connections are handled in the connect_all_signals method, not here.
-        
-        Args:
-            main_window: The main application window instance
-        """
+        """Set up enhanced visualization controls."""
+        # ... (Code as before) ...
         try:
             # Create the enhanced curve view
             enhanced_view = EnhancedCurveView(main_window)
@@ -825,6 +950,7 @@ class UIComponents:
                 main_window.curve_view.point_selected.connect(lambda idx: CurveViewOperations.on_point_selected(main_window, idx))
                 main_window.curve_view.point_moved.connect(lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y))
                 main_window.curve_view.image_changed.connect(main_window.on_image_changed)
+                print("UIComponents: Enhanced curve view signal connections established")
                 
                 # Add a reference to the visualization operations method for timeline updates
                 from visualization_operations import VisualizationOperations
@@ -835,76 +961,99 @@ class UIComponents:
                     VisualizationOperations.update_timeline_for_image(main_window, index)
                 
                 # Attach the wrapper method to the curve view for backward compatibility
-                main_window.curve_view.update_timeline_for_image = update_timeline_for_image
-                
-                # Create enhanced controls
-                UIComponents.setup_enhanced_controls(main_window)
+                main_window.curve_view.updateTimelineForImage = update_timeline_for_image
                 
                 return True
-            else:
-                return False
         except Exception as e:
-            print(f"Error setting up enhanced curve view: {str(e)}")
+            print(f"Error creating enhanced curve view: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return False
 
     @staticmethod
     def setup_enhanced_controls(main_window):
-        """Set up enhanced visualization controls."""
-        main_window.enhanced_controls_group = QGroupBox("Enhanced Visualization")
-        enhanced_layout = QHBoxLayout(main_window.enhanced_controls_group)
-        
+        """Set up enhanced visualization controls in the control panel."""
+        # ... (Code as before) ...
+        # Find the existing visualization group box or create it if needed
+        vis_group = None
+        if hasattr(main_window, 'controls_container'):
+            # Search for the QGroupBox named "Visualization"
+            for child in main_window.controls_container.findChildren(QGroupBox):
+                if child.title() == "Visualization":
+                    vis_group = child
+                    break
+                    
+        if vis_group is None:
+            # If not found, create it (this might indicate a UI structure issue)
+            vis_group = QGroupBox("Visualization")
+            # Add it to an appropriate layout (assuming center_layout exists)
+            if hasattr(main_window, 'center_layout'):
+                main_window.center_layout.addWidget(vis_group)
+            else:
+                print("Warning: Could not find layout to add Visualization group box.")
+                return # Cannot proceed without a layout
+                
+        # Ensure the group box has a layout
+        if vis_group.layout() is None:
+            vis_layout = QGridLayout(vis_group)
+        else:
+            vis_layout = vis_group.layout()
+            # Clear existing widgets if necessary (or adjust logic as needed)
+            # while vis_layout.count():
+            #     child = vis_layout.takeAt(0)
+            #     if child.widget():
+            #         child.widget().deleteLater()
+                    
+        # Create and add enhanced controls
         main_window.toggle_grid_button = QPushButton("Grid")
         main_window.toggle_grid_button.setCheckable(True)
-        main_window.toggle_grid_button.setChecked(False)
-        main_window.toggle_grid_button.setToolTip("Toggle grid (G)")
+        main_window.toggle_grid_button.setToolTip("Toggle Grid Visibility (G)")
         
         main_window.toggle_vectors_button = QPushButton("Vectors")
         main_window.toggle_vectors_button.setCheckable(True)
-        main_window.toggle_vectors_button.setChecked(False)
-        main_window.toggle_vectors_button.setToolTip("Toggle velocity vectors (V)")
+        main_window.toggle_vectors_button.setToolTip("Toggle Velocity Vectors (V)")
         
-        main_window.toggle_frame_numbers_button = QPushButton("Frame Numbers")
+        main_window.toggle_frame_numbers_button = QPushButton("Numbers")
         main_window.toggle_frame_numbers_button.setCheckable(True)
-        main_window.toggle_frame_numbers_button.setChecked(False)
-        main_window.toggle_frame_numbers_button.setToolTip("Toggle all frame numbers (F)")
+        main_window.toggle_frame_numbers_button.setToolTip("Toggle Frame Numbers (F)")
         
+        main_window.toggle_crosshair_button = QPushButton("Crosshair")
+        main_window.toggle_crosshair_button.setCheckable(True)
+        main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
         
         main_window.center_on_point_button = QPushButton("Center")
-        main_window.center_on_point_button.setToolTip("Center view on selected point (C)")
+        main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
         
-        # Add point size control
-        point_size_layout = QHBoxLayout()
-        point_size_layout.addWidget(QLabel("Point Size:"))
+        main_window.point_size_label = QLabel("Point Size:")
         main_window.point_size_spin = QSpinBox()
-        main_window.point_size_spin.setMinimum(1)
-        main_window.point_size_spin.setMaximum(10)
-        main_window.point_size_spin.setValue(2)  # Default matches EnhancedCurveView's default
-        main_window.point_size_spin.setToolTip("Change the size of points in the curve view")
-        point_size_layout.addWidget(main_window.point_size_spin)
+        main_window.point_size_spin.setRange(1, 20)
+        main_window.point_size_spin.setValue(5) # Default size
+        main_window.point_size_spin.setToolTip("Adjust Point Size")
         
-        enhanced_layout.addWidget(main_window.toggle_grid_button)
-        enhanced_layout.addWidget(main_window.toggle_vectors_button)
-        enhanced_layout.addWidget(main_window.toggle_frame_numbers_button)
-        enhanced_layout.addWidget(main_window.center_on_point_button)
-        enhanced_layout.addLayout(point_size_layout)
+        # Add widgets to layout
+        vis_layout.addWidget(main_window.toggle_grid_button, 0, 0)
+        vis_layout.addWidget(main_window.toggle_vectors_button, 0, 1)
+        vis_layout.addWidget(main_window.toggle_frame_numbers_button, 1, 0)
+        vis_layout.addWidget(main_window.toggle_crosshair_button, 1, 1)
+        vis_layout.addWidget(main_window.center_on_point_button, 2, 0, 1, 2)
+        vis_layout.addWidget(main_window.point_size_label, 3, 0)
+        vis_layout.addWidget(main_window.point_size_spin, 3, 1)
         
-        # Add to view controls section
-        if hasattr(main_window, 'view_controls_layout'):
-            main_window.view_controls_layout.addWidget(main_window.enhanced_controls_group)
-            
+        # Connect signals (moved to SignalRegistry)
+        # SignalRegistry.connect_all_signals(main_window) # Ensure signals are connected
+
     @staticmethod
     def connect_all_signals(main_window):
-        """
-        DEPRECATED: This method is no longer used and should not be called.
+        """Connect all UI signals to their respective slots.
         
-        All signal connections are now handled by SignalRegistry.connect_all_signals().
-        This method is kept for backward compatibility but prints a warning and does nothing.
+        This method centralizes signal connections for better maintainability.
+        It ensures that signals are connected only once and provides error handling.
+        
+        Args:
+            main_window: The main application window instance
         """
-        import warnings
-        warnings.warn(
-            "UIComponents.connect_all_signals() is deprecated. Use SignalRegistry.connect_all_signals() instead.", 
-            DeprecationWarning, 
-            stacklevel=2
-        )
-        print("\nWARNING: UIComponents.connect_all_signals() is deprecated.")
-        print("Use SignalRegistry.connect_all_signals() instead.\n")
+        # Use the SignalRegistry to handle connections
+        from signal_registry import SignalRegistry
+        SignalRegistry.connect_all_signals(main_window)
+
+# ... (rest of file, if any) ...

@@ -36,6 +36,10 @@ class SettingsOperations:
             if history_size > 0:
                 main_window.max_history_size = history_size
                 
+            
+            # Auto-center toggle state
+            main_window.auto_center_enabled = settings.value("view/autoCenterOnFrameChange", False, type=bool)
+
         except Exception as e:
             print(f"Error loading settings: {e}")
             # Use defaults if settings can't be loaded
@@ -56,6 +60,10 @@ class SettingsOperations:
             # History size
             settings.setValue("historySize", main_window.max_history_size)
             
+            
+            # Auto-center toggle state
+            settings.setValue("view/autoCenterOnFrameChange", getattr(main_window, 'auto_center_enabled', False))
+
         except Exception as e:
             print(f"Error saving settings: {e}")
             

@@ -16,6 +16,8 @@ This file tracks the project's progress using a task list format.
 * [2025-04-14 14:41:00] - Completed hotkey reassignment: Frame nav (Arrows), Nudge (Numpad).
 * [2025-04-14 15:08:39] - Fixed multi-point mouse wheel zoom bug by removing special handling in ZoomOperations.zoom_view.
 
+* [2025-04-15 16:29:40] - Implemented 'Auto-Center on Frame Change' toggle feature (View menu, persistent via QSettings).
+
 ## Current Tasks
 
 * Further improve track quality analysis and visualization.

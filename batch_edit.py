@@ -155,36 +155,42 @@ def batch_rotate_points(curve_data, indices, angle_degrees, center_x=None, cente
             
     return result
 
-def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
-    """Adjust the smoothness of a selection of points using the unified smoothing/filtering dispatcher."""
-    import curve_operations as ops
+from curve_data_operations import CurveDataOperations # Import the new class
 
+def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
+    """Adjust the smoothness of a selection of points using the new CurveDataOperations class."""
     # Validate smoothness factor
     smoothness_factor = max(0.0, min(1.0, smoothness_factor))
 
     # No effect if smoothness factor is 0
     if smoothness_factor == 0:
-        return copy.deepcopy(curve_data)
+        return copy.deepcopy(curve_data) # Return a copy as per original behavior
 
     # Compute parameters for gaussian smoothing
     window_base = 3
-    window_max = 15
-    sigma_base = 0.5
-    sigma_max = 3.0
+    window_max = 15 # Max window size for smoothing
+    sigma_base = 0.5 # Min sigma
+    sigma_max = 3.0 # Max sigma
 
+    # Interpolate window size and sigma based on the smoothness factor
     window_size = window_base + int((window_max - window_base) * smoothness_factor)
+    # Ensure window size is odd
     if window_size % 2 == 0:
         window_size += 1
     sigma = sigma_base + (sigma_max - sigma_base) * smoothness_factor
 
-    # Use the unified dispatcher
-    return ops.apply_smoothing_filtering(
-        copy.deepcopy(curve_data),
-        indices,
-        method="gaussian",
-        window_size=window_size,
-        sigma=sigma
-    )
+    # Use the new CurveDataOperations class
+    try:
+        # Instantiate with the original data
+        data_ops = CurveDataOperations(curve_data)
+        # Apply the smoothing operation (modifies internal state)
+        data_ops.smooth_gaussian(indices, window_size=window_size, sigma=sigma)
+        # Return the modified data
+        return data_ops.get_data()
+    except Exception as e:
+        print(f"Error during batch smoothness adjustment: {e}")
+        # Return original data copy in case of error to maintain consistency
+        return copy.deepcopy(curve_data)
 
 def batch_normalize_velocity(curve_data, indices, target_velocity=None):
     """Normalize the velocity of selected points to be more consistent.

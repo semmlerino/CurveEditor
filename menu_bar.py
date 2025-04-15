@@ -12,7 +12,8 @@ from image_operations import ImageOperations
 from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
 from dialog_operations import DialogOperations
-from curve_operations import CurveOperations
+# from curve_operations import CurveOperations # Removed, logic moved
+from history_operations import HistoryOperations # Assuming undo/redo will use this
 # Removed: from main_window import MainWindow (causes circular import)
 
 
@@ -84,13 +85,15 @@ class MenuBar(QMenuBar):
         undo_action = QAction('&Undo', self)
         # Remove explicit shortcut assignment to avoid conflict
         # undo_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('undo')))
-        undo_action.triggered.connect(lambda: CurveOperations.undo(self.main_window))
+        # undo_action.triggered.connect(lambda: CurveOperations.undo(self.main_window)) # Original call removed
+        undo_action.triggered.connect(lambda: HistoryOperations.undo_action(self.main_window)) # Corrected method name
         edit_menu.addAction(undo_action)
         
         redo_action = QAction('&Redo', self)
         # Remove explicit shortcut assignment to avoid conflict
         # redo_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('redo')))
-        redo_action.triggered.connect(lambda: CurveOperations.redo(self.main_window))
+        # redo_action.triggered.connect(lambda: CurveOperations.redo(self.main_window)) # Original call removed
+        redo_action.triggered.connect(lambda: HistoryOperations.redo_action(self.main_window)) # Corrected method name
         edit_menu.addAction(redo_action)
         
         edit_menu.addSeparator()
@@ -160,6 +163,14 @@ class MenuBar(QMenuBar):
         background_action.triggered.connect(lambda checked: ImageOperations.toggle_background(self.main_window))
         view_menu.addAction(background_action)
         
+        # Auto-center on frame change
+        self.auto_center_action = QAction('Auto-Center on Frame Change', self)
+        self.auto_center_action.setCheckable(True)
+        # Connect to a method in MainWindow (to be created)
+        self.auto_center_action.triggered.connect(lambda checked: self.main_window.toggle_auto_center(checked) if self.main_window else None)
+        view_menu.addAction(self.auto_center_action)
+
+        
         view_menu.addSeparator()
         
         # Background image
@@ -204,7 +215,10 @@ class MenuBar(QMenuBar):
         # Analysis
         detect_problems_action = QAction('&Detect Problems', self)
         # detect_problems_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('detect_problems'))) # Handled by ShortcutManager
-        detect_problems_action.triggered.connect(lambda: DialogOperations.show_problem_detection_dialog(self.main_window, CurveOperations.detect_problems(self.main_window)))
+        # detect_problems_action.triggered.connect(lambda: DialogOperations.show_problem_detection_dialog(self.main_window, CurveOperations.detect_problems(self.main_window))) # TODO: Move detect_problems logic
+        # Temporarily disable until detect_problems is refactored
+        detect_problems_action.setEnabled(False)
+        detect_problems_action.setToolTip("Problem detection temporarily disabled during refactoring.")
         tools_menu.addAction(detect_problems_action)
     
     def create_help_menu(self):

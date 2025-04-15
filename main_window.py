@@ -16,7 +16,7 @@ Key architecture principles:
    - VisualizationOperations - For visualization features
    - ImageOperations - For image sequence handling
    - DialogOperations - For dialog management
-   - CurveOperations - For curve data manipulation
+   - CurveDataOperations - For curve data manipulation (New consolidated class)
 
 This architecture ensures:
 - Clear separation of concerns
@@ -47,7 +47,7 @@ from PySide6.QtGui import (
 from curve_view import CurveView
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
                      ExtrapolateDialog, ProblemDetectionDialog)
-from curve_operations import CurveOperations
+# from curve_operations import CurveOperations # Removed, logic moved to CurveDataOperations
 from file_operations import FileOperations
 from image_operations import ImageOperations
 import utils
@@ -85,7 +85,7 @@ class MainWindow(QMainWindow):
     - SettingsOperations: Application settings management
     - UIComponents: Common UI operations
     - HistoryOperations: Undo/redo functionality
-    - CurveOperations: Mathematical operations on curves
+    - CurveDataOperations: Mathematical operations on curves (New consolidated class)
     
     This architecture reduces code duplication and improves maintainability
     by centralizing specific functionality in dedicated utility classes.
@@ -103,6 +103,7 @@ class MainWindow(QMainWindow):
         current_frame (int): Current frame number in the timeline
         history (list): Undo/redo history stack
         history_index (int): Current position in the history stack
+        centering_enabled (bool): Whether automatic centering on selected point is enabled
     """
     
     def __init__(self):
@@ -142,6 +143,10 @@ class MainWindow(QMainWindow):
         self.history_index = -1
         self.max_history_size = 50
         
+        # Centering state for view centering toggle
+        # Auto-center state (will be loaded from settings)
+        self.auto_center_enabled = False
+        
         # Initialize the supporting modules
         # Note: FileOperations, ImageOperations, and UIComponents use static methods
         # and don't need to be instantiated
@@ -149,9 +154,11 @@ class MainWindow(QMainWindow):
         # Track quality analyzer
         self.quality_ui = TrackQualityUI(self)
         
-        # Init UI
-        self.setup_ui()
+        # Load settings first to get initial state
         SettingsOperations.load_settings(self)  # Use the utility class
+
+        # Init UI (which uses loaded settings)
+        self.setup_ui()
         
         # Install event filter for key navigation
         self.installEventFilter(self)
@@ -185,6 +192,10 @@ class MainWindow(QMainWindow):
         # Use the single centralized signal connection registry
         from signal_registry import SignalRegistry
         SignalRegistry.connect_all_signals(self)
+
+        # Set initial state for auto-center toggle menu item AFTER UI setup and settings load
+        if hasattr(self.menu_bar, 'auto_center_action'):
+            self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
     
     def setup_ui(self):
         """Create and arrange UI elements."""
@@ -221,6 +232,11 @@ class MainWindow(QMainWindow):
         # Set up status bar
         self.setStatusBar(QStatusBar())
         self.statusBar().showMessage("Ready")
+        
+        # Set initial state for auto-center toggle menu item after settings load
+        if hasattr(self.menu_bar, 'auto_center_action'):
+            self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
+
         
     def create_toolbar(self):
         """Create the toolbar with action buttons.
@@ -496,6 +512,14 @@ class MainWindow(QMainWindow):
         """Update the state of undo/redo buttons."""
         HistoryOperations.update_history_buttons(self)
 
+
+    def toggle_auto_center(self, checked):
+        """Handle the toggling of the auto-center menu action."""
+        self.auto_center_enabled = checked
+        # Optionally, provide user feedback
+        status = "enabled" if checked else "disabled"
+        self.statusBar().showMessage(f"Auto-centering on frame change {status}", 2000)
+
     def undo_action(self):
         """Undo the last action."""
         HistoryOperations.undo_action(self)
@@ -536,6 +560,19 @@ class MainWindow(QMainWindow):
 
     def show_extrapolate_dialog(self):
         DialogOperations.show_extrapolate_dialog(self)
+
+    def set_centering_enabled(self, enabled):
+        """Set whether automatic centering on selected point is enabled."""
+        self.centering_enabled = enabled
+
+    def on_frame_changed(self, frame_num):
+        """Called when the frame changes (timeline, playback, etc)."""
+        # Usual frame update logic (call existing code)
+        self._select_point_for_frame(frame_num)
+        if getattr(self, 'centering_enabled', False):
+            # Center view on selected point
+            if hasattr(self.curve_view, 'centerOnSelectedPoint'):
+                self.curve_view.centerOnSelectedPoint(-1)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

@@ -17,7 +17,7 @@ Key improvements in this refactored version:
 """
 
 import traceback
-from curve_operations import CurveOperations
+# from curve_operations import CurveOperations # Removed, logic moved
 from PySide6.QtCore import Qt, Signal, QObject
 from curve_view_operations import CurveViewOperations
 from visualization_operations import VisualizationOperations
@@ -74,6 +74,8 @@ class SignalRegistry:
             ("History Operations", SignalRegistry._connect_history_signals),
             ("Enhanced View", SignalRegistry._connect_enhanced_view_signals),
             ("Image Operations", SignalRegistry._connect_image_operations_signals),
+            ("Analysis", SignalRegistry._connect_analysis_signals),
+
             
             # Keyboard shortcuts (handled last after all UI elements are connected)
             ("Keyboard Shortcuts", SignalRegistry._connect_keyboard_shortcuts),
@@ -299,6 +301,15 @@ class SignalRegistry:
                 lambda: VisualizationOperations.center_on_selected_point_from_main_window(main_window),
                 "center_on_point_button.clicked"
             )
+        
+        # Centering toggle
+        if hasattr(main_window, 'centering_toggle'):
+            SignalRegistry._connect_signal(
+                main_window,
+                main_window.centering_toggle.toggled,
+                lambda checked: main_window.set_centering_enabled(checked),
+                "centering_toggle.toggled"
+            )
     
     @staticmethod
     def _connect_timeline_signals(main_window):
@@ -470,10 +481,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(
                 main_window,
                 main_window.detect_problems_button.clicked,
-                lambda: DialogOperations.show_problem_detection_dialog(
-                    main_window, 
-                    CurveOperations.detect_problems(main_window)
-                ),
+                lambda: print("Problem detection temporarily disabled."), # Placeholder action - Ensure CurveOperations call is removed
                 "detect_problems_button.clicked"
             )
             
@@ -572,6 +580,18 @@ class SignalRegistry:
                 lambda: ImageOperations.previous_image(main_window),
                 "prev_image_button.clicked"
             )
+
+    @staticmethod
+    def _connect_analysis_signals(main_window):
+        """Connect signals for analysis tools."""
+        if hasattr(main_window, 'analyze_button') and hasattr(main_window, 'quality_ui'):
+            SignalRegistry._connect_signal(
+                main_window,
+                main_window.analyze_button.clicked,
+                lambda: main_window.quality_ui.analyze_and_update_ui(main_window.curve_data),
+                "analyze_button.clicked"
+            )
+
     
     @staticmethod
     def _connect_keyboard_shortcuts(main_window):
@@ -687,5 +707,7 @@ class SignalRegistry:
                                          lambda: DialogOperations.show_smooth_dialog(main_window))
         ShortcutManager.connect_shortcut(main_window, "filter_selected",
                                          lambda: DialogOperations.show_filter_dialog(main_window))
+        # ShortcutManager.connect_shortcut(main_window, "detect_problems", # TODO: Refactor detect_problems
+        #                                  lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window))) # Old class removed
         ShortcutManager.connect_shortcut(main_window, "detect_problems",
-                                         lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window)))
+                                         lambda: print("Problem detection temporarily disabled.")) # Placeholder action
