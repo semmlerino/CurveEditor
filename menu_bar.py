@@ -7,13 +7,13 @@ from PySide6.QtWidgets import QMenuBar
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QAction
 from keyboard_shortcuts import ShortcutManager
-from file_operations import FileOperations
-from image_operations import ImageOperations
-from curve_view_operations import CurveViewOperations
-from visualization_operations import VisualizationOperations
-from dialog_operations import DialogOperations
+from services.file_service import FileService as FileOperations
+from services.image_service import ImageService as ImageOperations
+from services.curve_service import CurveService as CurveViewOperations
+from services.visualization_service import VisualizationService as VisualizationOperations
+from services.dialog_service import DialogService as DialogOperations
+from services.history_service import HistoryService as HistoryOperations # Assuming undo/redo will use this
 # from curve_operations import CurveOperations # Removed, logic moved
-from history_operations import HistoryOperations # Assuming undo/redo will use this
 # Removed: from main_window import MainWindow (causes circular import)
 
 

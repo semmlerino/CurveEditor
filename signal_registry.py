@@ -19,14 +19,19 @@ Key improvements in this refactored version:
 import traceback
 # from curve_operations import CurveOperations # Removed, logic moved
 from PySide6.QtCore import Qt, Signal, QObject
-from curve_view_operations import CurveViewOperations
-from visualization_operations import VisualizationOperations
-from image_operations import ImageOperations
-from dialog_operations import DialogOperations
-from file_operations import FileOperations
-from history_operations import HistoryOperations
+from services.curve_service import CurveService as CurveViewOperations
+from services.visualization_service import VisualizationService as VisualizationOperations
+from services.image_service import ImageService as ImageOperations
+from services.dialog_service import DialogService as DialogOperations
+from services.file_service import FileService as FileOperations
+from services.history_service import HistoryService as HistoryOperations
+from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from keyboard_shortcuts import ShortcutManager
-from centering_zoom_operations import ZoomOperations
+# from services.image_service import ImageService as ImageOperations
+# from services.dialog_service import DialogService as DialogOperations
+# from services.file_service import FileService as FileOperations
+# from services.history_service import HistoryService as HistoryOperations
+# from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 
 
 
@@ -86,9 +91,9 @@ class SignalRegistry:
             try:
                 print(f"\nConnecting {group_name} signals...")
                 connection_func(main_window)
-                print(f"✓ Successfully connected {group_name} signals")
+                print(f"[OK] Successfully connected {group_name} signals")
             except Exception as e:
-                print(f"✗ Error connecting {group_name} signals: {str(e)}")
+                print(f"[ERROR] Error connecting {group_name} signals: {str(e)}")
                 traceback.print_exc()
         
         print("\n" + "="*80)
@@ -109,11 +114,11 @@ class SignalRegistry:
             bool: True if connection was successful, False otherwise
         """
         if signal is None:
-            print(f"  ✗ Signal '{signal_name}' is None, cannot connect")
+            print(f"  [ERROR] Signal '{signal_name}' is None, cannot connect")
             return False
             
         if not hasattr(signal, 'connect'):
-            print(f"  ✗ Object '{signal_name}' is not a signal (no connect method)")
+            print(f"  [ERROR] Object '{signal_name}' is not a signal (no connect method)")
             return False
             
         # Create a unique identifier for this connection
@@ -121,7 +126,7 @@ class SignalRegistry:
         
         # Check if this connection already exists
         if connection_id in main_window._connected_signals:
-            print(f"  ⚠ Signal '{signal_name}' already connected to this slot, skipping")
+            print(f"  [WARN] Signal '{signal_name}' already connected to this slot, skipping")
             return True
             
         try:
@@ -132,10 +137,10 @@ class SignalRegistry:
             main_window._connected_signals.add(connection_id)
             
             # Log success
-            print(f"  ✓ Connected: {signal_name or 'signal'}")
+            print(f"  [OK] Connected: {signal_name or 'signal'}")
             return True
         except Exception as e:
-            print(f"  ✗ Error connecting {signal_name or 'signal'}: {str(e)}")
+            print(f"  [ERROR] Error connecting {signal_name or 'signal'}: {str(e)}")
             return False
     
     @staticmethod
@@ -146,7 +151,7 @@ class SignalRegistry:
             main_window: The main application window
         """
         if not hasattr(main_window, 'curve_view'):
-            print("  ⚠ No curve_view found, skipping curve view signals")
+            print("  [WARN] No curve_view found, skipping curve view signals")
             return
             
         cv = main_window.curve_view
@@ -526,7 +531,7 @@ class SignalRegistry:
         """
         # Only proceed if we have an enhanced curve view
         if not hasattr(main_window, 'curve_view') or not hasattr(main_window.curve_view, 'toggleGrid'):
-            print("  ⚠ Enhanced curve view not detected, skipping enhanced view signals")
+            print("  [WARN] Enhanced curve view not detected, skipping enhanced view signals")
             return
             
         # These are typically handled in the curve_view_signals, but we'll add specific ones here
@@ -602,7 +607,7 @@ class SignalRegistry:
         """
         # Check if shortcuts have already been set up
         if not hasattr(main_window, 'shortcuts') or not main_window.shortcuts:
-            print("  ⚠ No shortcuts dictionary found, initializing...")
+            print("  [WARN] No shortcuts dictionary found, initializing...")
             # Initialize shortcuts if needed
             ShortcutManager.setup_shortcuts(main_window)
         
@@ -701,7 +706,7 @@ class SignalRegistry:
                                          lambda: UIComponents.advance_frames(main_window, -10))
 
         
-        print("  ✓ Connected keyboard shortcuts")
+        print("  [OK] Connected keyboard shortcuts")
         # Tools
         ShortcutManager.connect_shortcut(main_window, "smooth_selected",
                                          lambda: DialogOperations.show_smooth_dialog(main_window))

@@ -48,18 +48,18 @@ from curve_view import CurveView
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
                      ExtrapolateDialog, ProblemDetectionDialog)
 # from curve_operations import CurveOperations # Removed, logic moved to CurveDataOperations
-from file_operations import FileOperations
-from image_operations import ImageOperations
+from services.file_service import FileService as FileOperations
+from services.image_service import ImageService as ImageOperations
 import utils
 import config
-from visualization_operations import VisualizationOperations
-from dialog_operations import DialogOperations
-from settings_operations import SettingsOperations
-from curve_view_operations import CurveViewOperations
+from services.visualization_service import VisualizationService as VisualizationOperations
+from services.dialog_service import DialogService as DialogOperations
+from services.settings_service import SettingsService as SettingsOperations
+from services.curve_service import CurveService as CurveViewOperations
 from enhanced_curve_view import EnhancedCurveView
 from keyboard_shortcuts import ShortcutManager
 from ui_components import UIComponents
-from history_operations import HistoryOperations
+from services.history_service import HistoryService as HistoryOperations
 from track_quality import TrackQualityAnalyzer, TrackQualityUI
 import csv_export
 import batch_edit
@@ -398,7 +398,7 @@ class MainWindow(QMainWindow):
         # Update selection if found
         if closest_idx >= 0:
             # Use curve_view operations for consistency
-            from curve_view_operations import CurveViewOperations
+            from services.curve_service import CurveService as CurveViewOperations
             CurveViewOperations.select_point_by_index(self.curve_view, closest_idx)
     
     def load_previous_file(self):

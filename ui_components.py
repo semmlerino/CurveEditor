@@ -34,13 +34,13 @@ from PySide6.QtGui import (
     QPainter, QPainterPath, QColor, QShortcut
 )
 
-from curve_view_operations import CurveViewOperations
-from visualization_operations import VisualizationOperations
-from image_operations import ImageOperations
-from dialog_operations import DialogOperations
+from services.curve_service import CurveService as CurveViewOperations
+from services.visualization_service import VisualizationService as VisualizationOperations
+from services.image_service import ImageService as ImageOperations
+from services.dialog_service import DialogService as DialogOperations
 # from curve_operations import CurveOperations # Removed, logic moved
-from history_operations import HistoryOperations # For undo/redo
-from centering_zoom_operations import ZoomOperations # Added Import
+from services.history_service import HistoryService as HistoryOperations # For undo/redo
+from services.centering_zoom_service import CenteringZoomService as ZoomOperations # Updated Import
 
 from enhanced_curve_view import EnhancedCurveView
 import os
