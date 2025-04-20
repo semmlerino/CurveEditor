@@ -83,6 +83,8 @@ class ShortcutManager:
                 
             # Create the shortcut
             shortcut = QShortcut(QKeySequence(key), window)
+            # Ensure the shortcut works regardless of focused widget
+            shortcut.setContext(Qt.ApplicationShortcut)
             window.shortcuts[shortcut_id] = shortcut
     
     @staticmethod

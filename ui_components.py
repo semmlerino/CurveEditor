@@ -511,36 +511,52 @@ class UIComponents:
 
     @staticmethod
     def create_control_panel(main_window):
-        """Create the control panel for point editing and view controls."""
-        # ... (Code as before) ...
-        # Main container for controls
+        """
+        Create the control panel for point editing and view controls.
+
+        The control panel consists of three main sections:
+
+        1. Left Panel - Point Info and Editing:
+           - Displays current frame information.
+           - Allows user input for X and Y coordinates of a point.
+           - Includes buttons for updating point data and managing selection.
+
+        2. Center Panel - Visualization Controls:
+           - Provides toggles for grid, vectors, frame numbers, and crosshair visibility.
+           - Includes a button to center the view on the selected point.
+           - Offers a spin box to adjust point size.
+
+        3. Right Panel - Track Quality and Presets:
+           - Displays quality metrics such as overall score, smoothness, consistency, and coverage.
+           - Features an analyze button to evaluate track quality.
+           - Includes quick filter presets for data processing.
+
+        All controls are initially disabled and are connected to main window operations for functionality.
+        """
         controls_container = QWidget()
         controls_layout = QHBoxLayout(controls_container)
-        
+
         # Left side: Point Info and Editing
         left_panel = QWidget()
         left_layout = QVBoxLayout(left_panel)
-        
+
         # Point Info Group
         point_info_group = QGroupBox("Point Info")
         point_info_layout = QGridLayout(point_info_group)
-        
+
         main_window.frame_info_label = QLabel("Frame: N/A")
-        main_window.x_label = QLabel("X:")
-        main_window.x_edit = QLineEdit()
-        main_window.y_label = QLabel("Y:")
-        main_window.y_edit = QLineEdit()
+        main_window.type_label = QLabel("Type:")
+        main_window.type_edit = QLineEdit()
+        main_window.type_edit.setReadOnly(True)
         main_window.update_point_button = QPushButton("Update Point")
-        
+
         point_info_layout.addWidget(main_window.frame_info_label, 0, 0, 1, 2)
-        point_info_layout.addWidget(main_window.x_label, 1, 0)
-        point_info_layout.addWidget(main_window.x_edit, 1, 1)
-        point_info_layout.addWidget(main_window.y_label, 2, 0)
-        point_info_layout.addWidget(main_window.y_edit, 2, 1)
-        point_info_layout.addWidget(main_window.update_point_button, 3, 0, 1, 2)
-        
+        point_info_layout.addWidget(main_window.type_label, 1, 0)
+        point_info_layout.addWidget(main_window.type_edit, 1, 1)
+        point_info_layout.addWidget(main_window.update_point_button, 2, 0, 1, 2)
+
         left_layout.addWidget(point_info_group)
-        
+
         # Selection Controls Group
         selection_group = QGroupBox("Selection")
         selection_layout = QHBoxLayout(selection_group)
@@ -549,41 +565,45 @@ class UIComponents:
         selection_layout.addWidget(main_window.select_all_button)
         selection_layout.addWidget(main_window.deselect_all_button)
         left_layout.addWidget(selection_group)
-        
+
         left_layout.addStretch() # Push controls to the top
-        
+
         # Center: Visualization Controls
         center_panel = QWidget()
         center_layout = QVBoxLayout(center_panel)
-        
+
         vis_group = QGroupBox("Visualization")
         vis_layout = QGridLayout(vis_group)
-        
+
         main_window.toggle_grid_button = QPushButton("Grid")
         main_window.toggle_grid_button.setCheckable(True)
         main_window.toggle_grid_button.setToolTip("Toggle Grid Visibility (G)")
-        
+
         main_window.toggle_vectors_button = QPushButton("Vectors")
         main_window.toggle_vectors_button.setCheckable(True)
         main_window.toggle_vectors_button.setToolTip("Toggle Velocity Vectors (V)")
-        
+
         main_window.toggle_frame_numbers_button = QPushButton("Numbers")
         main_window.toggle_frame_numbers_button.setCheckable(True)
         main_window.toggle_frame_numbers_button.setToolTip("Toggle Frame Numbers (F)")
-        
+
         main_window.toggle_crosshair_button = QPushButton("Crosshair")
         main_window.toggle_crosshair_button.setCheckable(True)
         main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
-        
+
         main_window.center_on_point_button = QPushButton("Center")
+        main_window.center_on_point_button.setCheckable(True)
+        main_window.center_on_point_button.toggled.connect(main_window.toggle_auto_center)
+        main_window.center_on_point_button.toggled.connect(lambda checked: ZoomOperations.auto_center_view(main_window) if checked else None)
+        main_window.center_on_point_button.setStyleSheet("QPushButton:checked { background-color: lightblue; }")
         main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
-        
+
         main_window.point_size_label = QLabel("Point Size:")
         main_window.point_size_spin = QSpinBox()
         main_window.point_size_spin.setRange(1, 20)
         main_window.point_size_spin.setValue(5) # Default size
         main_window.point_size_spin.setToolTip("Adjust Point Size")
-        
+
         vis_layout.addWidget(main_window.toggle_grid_button, 0, 0)
         vis_layout.addWidget(main_window.toggle_vectors_button, 0, 1)
         vis_layout.addWidget(main_window.toggle_frame_numbers_button, 1, 0)
@@ -591,19 +611,18 @@ class UIComponents:
         vis_layout.addWidget(main_window.center_on_point_button, 2, 0, 1, 2)
         vis_layout.addWidget(main_window.point_size_label, 3, 0)
         vis_layout.addWidget(main_window.point_size_spin, 3, 1)
-        
+
         center_layout.addWidget(vis_group)
         center_layout.addStretch()
-        
+
         # Right side: Track Quality and Presets
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
-        
+
         # Track Quality Group
         quality_group = QGroupBox("Track Quality")
-        quality_layout = QGridLayout(quality_group) # Use GridLayout for better alignment
+        quality_layout = QGridLayout(quality_group)
 
-        # Create labels for metrics
         quality_layout.addWidget(QLabel("Overall Score:"), 0, 0)
         main_window.quality_score_label = QLabel("N/A")
         main_window.quality_score_label.setFont(QFont("Arial", 10, QFont.Bold))
@@ -621,15 +640,12 @@ class UIComponents:
         main_window.coverage_label = QLabel("N/A")
         quality_layout.addWidget(main_window.coverage_label, 3, 1)
 
-        # Add Analyze button (assuming it should trigger the analysis)
         main_window.analyze_button = QPushButton("Analyze Quality")
         main_window.analyze_button.setToolTip("Analyze the quality of the current track data")
-        # Connection should be handled by SignalRegistry or MainWindow setup
-        # main_window.analyze_button.clicked.connect(lambda: main_window.quality_ui.analyze_and_update_ui(main_window.curve_data))
         quality_layout.addWidget(main_window.analyze_button, 4, 0, 1, 2)
 
         right_layout.addWidget(quality_group)
-        
+
         # Quick Filter Presets Group
         presets_group = QGroupBox("Quick Filters")
         presets_layout = QVBoxLayout(presets_group)
@@ -639,17 +655,15 @@ class UIComponents:
         presets_layout.addWidget(main_window.presets_combo)
         presets_layout.addWidget(main_window.apply_preset_button)
         right_layout.addWidget(presets_group)
-        
+
         right_layout.addStretch()
-        
-        # Add panels to main controls layout
+
         controls_layout.addWidget(left_panel)
         controls_layout.addWidget(center_panel)
         controls_layout.addWidget(right_panel)
-        
-        # Disable controls initially
+
         main_window.enable_point_controls(False)
-        
+
         return controls_container
 
     @staticmethod
@@ -732,15 +746,27 @@ class UIComponents:
             main_window.update_image_label()
                     
         # Auto-center if enabled
-        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+        if getattr(main_window, 'auto_center_enabled', False):
             try:
-                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                ZoomOperations.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering: {e}")
         
+        # Update point type(s) for selected points on current frame
+        if hasattr(main_window, 'type_edit') and hasattr(main_window.curve_view, 'get_selected_indices'):
+            selected = main_window.curve_view.get_selected_indices()
+            statuses = []
+            for idx in selected:
+                if main_window.curve_data and idx < len(main_window.curve_data) and main_window.curve_data[idx][0] == value:
+                    point = main_window.curve_data[idx]
+                    status = point[3] if len(point) > 3 else 'normal'
+                    statuses.append(status)
+            statuses = sorted(set(statuses))
+            main_window.type_edit.setText(', '.join(statuses) if statuses else '')
+        
         # Update view AFTER potential centering
-        main_window.curve_view.update()
-    
+        main_window.curve_view.update() # Ensure view updates
+
     @staticmethod
     def on_frame_edit_changed(main_window):
         """Handle frame edit text changed."""
@@ -1022,6 +1048,10 @@ class UIComponents:
         main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
         
         main_window.center_on_point_button = QPushButton("Center")
+        main_window.center_on_point_button.setCheckable(True)
+        main_window.center_on_point_button.toggled.connect(main_window.toggle_auto_center)
+        main_window.center_on_point_button.toggled.connect(lambda checked: ZoomOperations.auto_center_view(main_window) if checked else None)
+        main_window.center_on_point_button.setStyleSheet("QPushButton:checked { background-color: lightblue; }")
         main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
         
         main_window.point_size_label = QLabel("Point Size:")
@@ -1055,5 +1085,3 @@ class UIComponents:
         # Use the SignalRegistry to handle connections
         from signal_registry import SignalRegistry
         SignalRegistry.connect_all_signals(main_window)
-
-# ... (rest of file, if any) ...

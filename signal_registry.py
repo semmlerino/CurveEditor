@@ -312,7 +312,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(
                 main_window,
                 main_window.centering_toggle.toggled,
-                lambda checked: main_window.set_centering_enabled(checked),
+                lambda checked: CenteringZoomService.auto_center_view(main_window) if checked else None,
                 "centering_toggle.toggled"
             )
     
@@ -685,8 +685,13 @@ class SignalRegistry:
 
         
         # Center on selected point
-        ShortcutManager.connect_shortcut(main_window, "center_on_point", 
-                                         lambda: VisualizationOperations.center_on_selected_point_from_main_window(main_window))
+        ShortcutManager.connect_shortcut(
+            main_window,
+            "center_on_point",
+            lambda: main_window.toggle_auto_center(
+                not getattr(main_window, 'auto_center_enabled', False)
+            )
+        )
         
         # Timeline operations
         from ui_components import UIComponents

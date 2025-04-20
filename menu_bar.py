@@ -166,8 +166,7 @@ class MenuBar(QMenuBar):
         # Auto-center on frame change
         self.auto_center_action = QAction('Auto-Center on Frame Change', self)
         self.auto_center_action.setCheckable(True)
-        # Connect to a method in MainWindow (to be created)
-        self.auto_center_action.triggered.connect(lambda checked: self.main_window.toggle_auto_center(checked) if self.main_window else None)
+        self.auto_center_action.toggled.connect(lambda checked: self.main_window.toggle_auto_center(checked) if self.main_window else None)
         view_menu.addAction(self.auto_center_action)
 
         

@@ -6,6 +6,8 @@ from PySide6.QtWidgets import QWidget, QApplication, QGridLayout, QMenu
 from PySide6.QtCore import Qt, QPointF, Signal, Slot, QRect
 from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush, QAction
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
+from services.input_service import InputService
+from services.image_service import ImageService
 import re
 
 
@@ -100,8 +102,7 @@ class EnhancedCurveView(QWidget):
         
     def setImageSequence(self, path, filenames):
         """Set the image sequence to display as background."""
-        from image_operations import ImageOperations
-        ImageOperations.set_image_sequence(self, path, filenames)
+        ImageService.set_image_sequence(self, path, filenames)
         
     def toggleGrid(self, enabled=None):
         """Toggle grid visibility."""
@@ -137,13 +138,11 @@ class EnhancedCurveView(QWidget):
         
     def setCurrentImageByFrame(self, frame):
         """Set the current background image based on frame number."""
-        from image_operations import ImageOperations
-        ImageOperations.set_current_image_by_frame(self, frame)
+        ImageService.set_current_image_by_frame(self, frame)
             
     def setCurrentImageByIndex(self, idx):
         """Set current image by index and update the view."""
-        from image_operations import ImageOperations
-        ImageOperations.set_current_image_by_index(self, idx)
+        ImageService.set_current_image_by_index(self, idx)
         
     def toggleBackgroundVisible(self, visible=None):
         """Toggle visibility of background image."""
@@ -157,8 +156,7 @@ class EnhancedCurveView(QWidget):
         
     def loadCurrentImage(self):
         """Load the current image in the sequence."""
-        from image_operations import ImageOperations
-        ImageOperations.load_current_image(self)
+        ImageService.load_current_image(self)
             
     def resetView(self):
         """Reset view to default state (zoom and position)."""
@@ -474,7 +472,7 @@ class EnhancedCurveView(QWidget):
                 tx, ty = transform_point(x, y)
                 
                 # Determine if point is selected (either primary selection or in multi-selection)
-                is_selected = (i == self.selected_point_idx) or (i in self.selected_points)
+                is_selected = i in self.selected_points
                 
                 # Check if point has interpolated status (4th tuple element)
                 is_interpolated = False
@@ -484,7 +482,7 @@ class EnhancedCurveView(QWidget):
                 if is_selected:
                     painter.setPen(QPen(self.selected_point_border, 2))
                     painter.setBrush(self.selected_point_color)
-                    point_radius = self.point_radius + 2
+                    point_radius = self.point_radius + 2 if i == self.selected_point_idx else self.point_radius
                 elif is_interpolated:
                     painter.setPen(QPen(self.interpolated_point_border, 1))
                     painter.setBrush(self.interpolated_point_color)
@@ -610,36 +608,19 @@ class EnhancedCurveView(QWidget):
             
     def mousePressEvent(self, event):
         """Handle mouse press to select or move points."""
-        from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.handle_mouse_press(self, event)
+        InputService.handle_mouse_press(self, event)
             
     def mouseMoveEvent(self, event):
         """Handle mouse movement for dragging points or panning."""
-        from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.handle_mouse_move(self, event)
+        InputService.handle_mouse_move(self, event)
             
     def mouseReleaseEvent(self, event):
         """Handle mouse release."""
-        from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.handle_mouse_release(self, event)
+        InputService.handle_mouse_release(self, event)
         
     def wheelEvent(self, event):
-        """Handle mouse wheel for zooming."""
-        # Prevent jumpy zoom immediately after fit_selection
-        if hasattr(self, "last_action_was_fit") and getattr(self, "last_action_was_fit", False):
-            self.last_action_was_fit = False
-            return
-
-        delta = event.angleDelta().y()
-        factor = 1.1 if delta > 0 else 0.9
-
-        # Get mouse position for zoom centering
-        position = event.position()
-        mouse_x = position.x()
-        mouse_y = position.y()
-
-        # Use centralized zoom method from visualization_operations
-        ZoomOperations.zoom_view(self, factor, mouse_x, mouse_y)
+        """Handle mouse wheel for zooming via central service."""
+        ZoomOperations.handle_wheel_event(self, event)
 
     def selectAllPoints(self):
         """Select all points in the curve."""
@@ -662,10 +643,18 @@ class EnhancedCurveView(QWidget):
         CurveViewOperations.set_curve_data(self, curve_data)
         
     def set_selected_indices(self, indices):
-        """Compatibility method for setting selected indices."""
-        from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.set_selected_indices(self, indices)
+        """Set selected point indices."""
+        self.selected_points = set(indices)
+        if indices:
+            self.selected_point_idx = indices[0]
+        else:
+            self.selected_point_idx = -1
+        self.update()
         
+    def get_selected_indices(self):
+        """Return list of selected indices."""
+        return list(self.selected_points)
+    
     def change_nudge_increment(self, increase=True):
         """Change the nudge increment for point movement."""
         from services.curve_service import CurveService as CurveViewOperations
@@ -683,43 +672,7 @@ class EnhancedCurveView(QWidget):
         
     def contextMenuEvent(self, event):
         """Show context menu with point options."""
-        menu = QMenu(self)
-        
-        # Get clicked point (if any)
-        mouse_pos = event.pos()
-        selected_point_index = self.findPointAt(mouse_pos)
-        
-        if selected_point_index >= 0:
-            # If a point was clicked, add point-specific actions
-            point_info = self.get_point_data(selected_point_index)
-            if point_info:
-                frame, x, y, status = point_info
-                
-                # Add point information header
-                menu.addSection(f"Point {selected_point_index}: Frame {frame}, ({x:.2f}, {y:.2f})")
-                
-                # Add select point action
-                if selected_point_index != self.selected_point_idx:
-                    select_action = QAction("Select this point", self)
-                    select_action.triggered.connect(lambda: self.selectPointByIndex(selected_point_index))
-                    menu.addAction(select_action)
-                
-                # Add interpolation toggle based on current status
-                is_interpolated = status == 'interpolated'
-                toggle_text = "Restore to normal point" if is_interpolated else "Mark as interpolated"
-                toggle_action = QAction(toggle_text, self)
-                toggle_action.triggered.connect(lambda: self.toggle_point_interpolation(selected_point_index))
-                menu.addAction(toggle_action)
-                
-                menu.addSeparator()
-                
-        # Add view options
-        grid_action = QAction("Hide Grid" if self.show_grid else "Show Grid", self)
-        grid_action.triggered.connect(self.toggleGrid)
-        menu.addAction(grid_action)
-        
-        # Execute the menu
-        menu.exec_(event.globalPos())
+        InputService.handle_context_menu(self, event)
     
     def extractFrameNumber(self, img_idx):
         """Extract frame number from the current image index."""

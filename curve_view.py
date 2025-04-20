@@ -6,8 +6,9 @@ import math
 from PySide6.QtWidgets import QWidget
 from PySide6.QtCore import Qt, QPointF, Signal, Slot
 from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush
-from centering_zoom_operations import ZoomOperations
+from services.input_service import InputService
 from keyboard_shortcuts import ShortcutManager
+from services.image_service import ImageService
 
 
 class CurveView(QWidget):
@@ -22,6 +23,7 @@ class CurveView(QWidget):
         self.setMinimumSize(800, 600)
         self.points = []
         self.selected_point_idx = -1
+        self.selected_points = set()
         self.drag_active = False
         self.zoom_factor = 1.0
         self.offset_x = 0
@@ -34,9 +36,6 @@ class CurveView(QWidget):
         
         # Image sequence support
         self.background_image = None
-        self.image_sequence_path = ""
-        self.image_filenames = []
-        self.current_image_idx = -1
         self.show_background = True
         self.background_opacity = 0.7  # 0.0 to 1.0
 
@@ -85,56 +84,16 @@ class CurveView(QWidget):
         
     def setImageSequence(self, path, filenames):
         """Set the image sequence to display as background."""
-        self.image_sequence_path = path
-        self.image_filenames = filenames
-        self.current_image_idx = 0 if filenames else -1
-        self.loadCurrentImage()
+        ImageService.set_image_sequence(self, path, filenames)
         self.update()
         
     def setCurrentImageByFrame(self, frame):
         """Set the current background image based on frame number."""
-        if not self.image_filenames:
-            return
-            
-        # Find the closest image index to the requested frame
-        closest_idx = -1
-        min_diff = float('inf')
+        ImageService.set_current_image_by_frame(self, frame)
         
-        for i, filename in enumerate(self.image_filenames):
-            # Try to extract frame number from filename
-            try:
-                # Common formats: name.####.ext or name_####.ext
-                parts = os.path.basename(filename).split('.')
-                if len(parts) >= 2 and parts[-2].isdigit():
-                    img_frame = int(parts[-2])
-                else:
-                    # Try underscore format
-                    name_parts = parts[0].split('_')
-                    if name_parts[-1].isdigit():
-                        img_frame = int(name_parts[-1])
-                    else:
-                        # Just use sequential index if can't parse frame
-                        img_frame = i
-            except:
-                img_frame = i
-                
-            diff = abs(img_frame - frame)
-            if diff < min_diff:
-                min_diff = diff
-                closest_idx = i
-                
-        if closest_idx >= 0 and closest_idx < len(self.image_filenames):
-            self.current_image_idx = closest_idx
-            self.loadCurrentImage()
-            self.update()
-            
-    def setCurrentImageByIndex(self, index):
-        """Set the current background image by sequence index."""
-        if not self.image_filenames or index < 0 or index >= len(self.image_filenames):
-            return
-            
-        self.current_image_idx = index
-        self.loadCurrentImage()
+    def setCurrentImageByIndex(self, idx):
+        """Set current image by index and update the view."""
+        ImageService.set_current_image_by_index(self, idx)
         self.update()
         
     def toggleBackgroundVisible(self, visible):
@@ -149,25 +108,8 @@ class CurveView(QWidget):
         
     def loadCurrentImage(self):
         """Load the current image in the sequence."""
-        if self.current_image_idx < 0 or not self.image_filenames:
-            self.background_image = None
-            return
-            
-        try:
-            filename = os.path.join(self.image_sequence_path, self.image_filenames[self.current_image_idx])
-            image = QImage(filename)
-            if not image.isNull():
-                self.background_image = image
-                # Update track dimensions to match image dimensions
-                if self.scale_to_image:
-                    self.image_width = image.width()
-                    self.image_height = image.height()
-            else:
-                self.background_image = None
-        except Exception as e:
-            print(f"Error loading image: {str(e)}")
-            self.background_image = None
-            
+        ImageService.load_current_image(self)
+        
     def resetView(self):
         """Reset view to show all points."""
         from centering_zoom_operations import ZoomOperations
@@ -248,9 +190,8 @@ class CurveView(QWidget):
             img_y = offset_y
             
             # Draw the image
-            pixmap = QPixmap.fromImage(self.background_image)
             painter.setOpacity(self.background_opacity)
-            painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), pixmap)
+            painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), self.background_image)
             painter.setOpacity(1.0)
             
             # Debugging visuals
@@ -294,11 +235,12 @@ class CurveView(QWidget):
 
                 tx, ty = transform_point(x, y)
 
-                # Highlight selected point
-                if i == self.selected_point_idx:
+                # Highlight selected points
+                if i in self.selected_points:
                     painter.setPen(QPen(QColor(255, 80, 80), 2))
                     painter.setBrush(QColor(255, 80, 80, 150))
-                    point_radius = self.point_radius + 2
+                    # primary index gets larger radius
+                    point_radius = self.point_radius + 2 if i == self.selected_point_idx else self.point_radius
                 elif is_interpolated:
                     # Lighter, more transparent colour for interpolated points
                     painter.setPen(QPen(QColor(180, 220, 255), 1))
@@ -326,17 +268,25 @@ class CurveView(QWidget):
         
         # Show current view info
         info_text = f"Zoom: {self.zoom_factor:.2f}x | Points: {len(self.points)}"
-        if self.selected_point_idx >= 0:
-            frame, x, y = self.points[self.selected_point_idx]
-            info_text += f" | Selected: Frame {frame}, X: {x:.2f}, Y: {y:.2f}"
-            
+        if hasattr(self, 'selected_points') and self.selected_points:
+            # Gather types of all selected points
+            selected_types = set()
+            for i in self.selected_points:
+                if 0 <= i < len(self.points):
+                    pt = self.points[i]
+                    if len(pt) >= 4:
+                        selected_types.add(str(pt[3]))
+                    else:
+                        selected_types.add('normal')
+            types_str = ', '.join(sorted(selected_types))
+            info_text += f" | Type(s): {types_str}"
         painter.drawText(10, 20, info_text)
         
         # Show image info if available
         if self.background_image:
-            img_info = f"Image: {self.current_image_idx + 1}/{len(self.image_filenames)}"
-            if self.image_filenames and self.current_image_idx >= 0:
-                img_info += f" - {os.path.basename(self.image_filenames[self.current_image_idx])}"
+            img_info = f"Image: {ImageService.get_current_image_index(self) + 1}/{ImageService.get_image_count(self)}"
+            if ImageService.get_image_filenames(self) and ImageService.get_current_image_index(self) >= 0:
+                img_info += f" - {os.path.basename(ImageService.get_image_filenames(self)[ImageService.get_current_image_index(self)])}"
             painter.drawText(10, 40, img_info)
             
         # Debug info
@@ -357,225 +307,23 @@ class CurveView(QWidget):
     def mousePressEvent(self, event):
         """Handle mouse press to select or move points."""
         self.setFocus()
-        if not self.points:
-            return
-            
-        if event.button() == Qt.LeftButton:
-            self.drag_active = False
-            self.selected_point_idx = -1
-            
-            # Calculate transform parameters using the same logic as in paintEvent
-            widget_width = self.width()
-            widget_height = self.height()
-            
-            # Use the background image dimensions if available, otherwise use track dimensions
-            display_width = self.image_width
-            display_height = self.image_height
-            
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
-            
-            # Calculate the scale factor to fit in the widget
-            scale_x = widget_width / display_width
-            scale_y = widget_height / display_height
-            
-            # Use uniform scaling to maintain aspect ratio
-            scale = min(scale_x, scale_y) * self.zoom_factor
-            
-            # Calculate centering offsets
-            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
-        # offset_y is set below
-            # offset_y is now set by calculate_centering_offsets above
-
-            # Use same transform function as in paintEvent
-            def transform_point(x, y):
-                if self.background_image and self.scale_to_image:
-                    # Scale the tracking coordinates to match the image size
-                    img_x = x * (display_width / self.image_width) + self.x_offset
-                    img_y = y * (display_height / self.image_height) + self.y_offset
-                    
-                    # Scale to widget space
-                    tx = offset_x + img_x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (display_height - img_y) * scale
-                    else:
-                        ty = offset_y + img_y * scale
-                else:
-                    # Direct scaling with no image-based transformation
-                    tx = offset_x + x * scale
-                    
-                    # Apply Y-flip if enabled
-                    if self.flip_y_axis:
-                        ty = offset_y + (self.image_height - y) * scale
-                    else:
-                        ty = offset_y + y * scale
-                        
-                return tx, ty
-            
-            # Find if we clicked on a point
-            for i, (frame, x, y) in enumerate(self.points):
-                tx, ty = transform_point(x, y)
-                
-                # Check if within radius
-                dx = event.x() - tx
-                dy = event.y() - ty
-                dist = math.sqrt(dx * dx + dy * dy)
-                
-                if dist <= self.point_radius + 2:  # +2 for better selection
-                    self.selected_point_idx = i
-                    self.drag_active = True
-                    self.point_selected.emit(i)
-                    break
-            
-            self.update()
-        elif event.button() == Qt.MiddleButton:
-            # Middle click for panning
-            self.pan_start_x = event.x()
-            self.pan_start_y = event.y()
-            self.initial_offset_x = self.offset_x
-            self.initial_offset_y = self.offset_y
-            
+        InputService.handle_mouse_press(self, event)
+        
     def mouseMoveEvent(self, event):
         """Handle mouse movement for dragging points or panning."""
-        if not self.points:
-            return
-            
-        if self.drag_active and self.selected_point_idx >= 0:
-            # Get the point we're dragging
-            frame, x, y = self.points[self.selected_point_idx]
-            
-            # Calculate transform parameters using the same logic as in paintEvent
-            widget_width = self.width()
-            widget_height = self.height()
-            
-            # Use the background image dimensions if available, otherwise use track dimensions
-            display_width = self.image_width
-            display_height = self.image_height
-            
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
-            
-            # Calculate the scale factor to fit in the widget
-            scale_x = widget_width / display_width
-            scale_y = widget_height / display_height
-            
-            # Use uniform scaling to maintain aspect ratio
-            scale = min(scale_x, scale_y) * self.zoom_factor
-            
-            # Calculate centering offsets
-            offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
-        # offset_y is set below
-            # offset_y is now set by calculate_centering_offsets above
-            
-            # Convert from widget coordinates back to track coordinates
-            if self.background_image and self.scale_to_image:
-                # First convert to image coordinates
-                img_x_with_scale = (event.x() - offset_x) / scale
-                
-                if self.flip_y_axis:
-                    img_y_with_scale = display_height - ((event.y() - offset_y) / scale)
-                else:
-                    img_y_with_scale = (event.y() - offset_y) / scale
-                
-                # Remove manual offset
-                img_x = img_x_with_scale - self.x_offset
-                img_y = img_y_with_scale - self.y_offset
-                
-                # Convert from image coordinates to track coordinates
-                new_x = img_x / (display_width / self.image_width)
-                new_y = img_y / (display_height / self.image_height)
-            else:
-                # Direct conversion from widget to track coordinates
-                new_x = (event.x() - offset_x) / scale
-                
-                if self.flip_y_axis:
-                    new_y = self.image_height - ((event.y() - offset_y) / scale)
-                else:
-                    new_y = (event.y() - offset_y) / scale
-            
-            # Update point
-            self.points[self.selected_point_idx] = (frame, new_x, new_y)
-            
-            # Emit signal
-            self.point_moved.emit(self.selected_point_idx, new_x, new_y)
-            
-            self.update()
-        elif event.buttons() & Qt.MiddleButton:
-            # Panning the view with middle mouse button
-            dx = event.x() - self.pan_start_x
-            dy = event.y() - self.pan_start_y
-            
-            self.offset_x = self.initial_offset_x + dx
-            self.offset_y = self.initial_offset_y + dy
-            
-            self.update()
-            
+        InputService.handle_mouse_move(self, event)
+        
     def mouseReleaseEvent(self, event):
         """Handle mouse release."""
-        from curve_view_operations import CurveViewOperations
-        CurveViewOperations.handle_mouse_release(self, event)
+        InputService.handle_mouse_release(self, event)
         
     def wheelEvent(self, event):
-        """Handle mouse wheel for zooming."""
-        # Prevent jumpy zoom immediately after fit_selection
-        if hasattr(self, "last_action_was_fit") and getattr(self, "last_action_was_fit", False):
-            self.last_action_was_fit = False
-            return
-
-        delta = event.angleDelta().y()
-        factor = 1.1 if delta > 0 else 0.9
-
-        # Get mouse position for zoom centering
-        position = event.position()
-        mouse_x = position.x()
-        mouse_y = position.y()
-
-        # BUGFIX: Temporarily clear multiple selection to avoid
-        # special case handling in zoom_view that recalculates bbox
-        temp_selected = None
-        if hasattr(self, "selected_points") and len(self.selected_points) > 1:
-            temp_selected = self.selected_points.copy()  # Save a copy
-            self.selected_points = set([self.selected_point_idx]) if self.selected_point_idx >= 0 else set()
-
-        # Use centralized zoom method from visualization_operations
-        from centering_zoom_operations import ZoomOperations
-        ZoomOperations.zoom_view(self, factor, mouse_x, mouse_y)
-        
-        # Restore selected points
-        if temp_selected is not None:
-            self.selected_points = temp_selected
-            self.update()  # Ensure selection is correctly displayed
+        """Handle mouse wheel for zooming via central service."""
+        InputService.handle_wheel_event(self, event)
         
     def keyPressEvent(self, event):
         """Handle key events for navigation (arrow keys, etc)."""
-        step = 1
-
-        # Larger step if Shift is pressed
-        if event.modifiers() & Qt.ShiftModifier:
-            step = 10
-
-        # Smaller step if Ctrl is pressed
-        if event.modifiers() & Qt.ControlModifier:
-            step = 0.1
-
-        # Handle arrow keys for navigation only
-        if event.key() == Qt.Key_Up:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust y-offset with arrow keys + modifiers
-                self.y_offset -= step
-                self.update()
-        elif event.key() == Qt.Key_Down:
-            if event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
-                # Adjust y-offset with arrow keys + modifiers
-                self.y_offset += step
-                self.update()
-        elif event.key() == Qt.Key_Delete and self.selected_point_idx >= 0:
-            # Allow deleting selected point (for UI only, actual deletion would be handled elsewhere)
-            pass
+        InputService.handle_key_event(self, event)
 
     # Compatibility methods to ensure consistent interface with EnhancedCurveView
     
@@ -586,17 +334,16 @@ class CurveView(QWidget):
         
     def set_selected_indices(self, indices):
         """Set selected point indices."""
+        self.selected_points = set(indices)
         if indices:
-            self.selected_point_idx = indices[0]  # Use the first selected point
+            self.selected_point_idx = indices[0]
         else:
             self.selected_point_idx = -1
         self.update()
-        
+
     def get_selected_indices(self):
         """Return list of selected indices (singleton list or empty)."""
-        if self.selected_point_idx >= 0:
-            return [self.selected_point_idx]
-        return []
+        return list(self.selected_points)
         
     def toggleGrid(self, enabled):
         """Stub for grid toggling (not implemented in basic view)."""

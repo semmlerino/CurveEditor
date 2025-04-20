@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt, QRect
 import math
 from centering_zoom_operations import ZoomOperations
 from error_handling import safe_operation
-
+from curve_data_utils import compute_interpolated_curve_data
 
 class CurveViewOperations:
     """Curve view operations for the 3DE4 Curve Editor."""
@@ -170,7 +170,7 @@ class CurveViewOperations:
     
     @staticmethod
     def update_point_info(main_window, idx, x, y):
-        """Update the point information panel with selected point data.
+        """Update the point information panel with selected point types for all selected points on the active frame.
         
         Args:
             main_window: The main window containing point info controls
@@ -178,57 +178,68 @@ class CurveViewOperations:
             x: X-coordinate of the point
             y: Y-coordinate of the point
         """
-        # Update point info display
-        if idx >= 0 and idx < len(main_window.curve_data):
+        # If there are selected points, collect their types for the current frame
+        selected_types = set()
+        frame = None
+        if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'get_selected_indices'):
+            selected_indices = main_window.curve_view.get_selected_indices()
+            if selected_indices:
+                # Use the frame of the first selected point as the active frame
+                first_idx = selected_indices[0]
+                if first_idx >= 0 and first_idx < len(main_window.curve_data):
+                    frame = main_window.curve_data[first_idx][0]
+                    # Collect types for all selected points on this frame
+                    for idx_ in selected_indices:
+                        if idx_ >= 0 and idx_ < len(main_window.curve_data):
+                            pt = main_window.curve_data[idx_]
+                            if pt[0] == frame:
+                                status = pt[3] if len(pt) > 3 else 'normal'
+                                selected_types.add(status)
+        # Fallback if no selection API or no selected points
+        if not selected_types and idx >= 0 and idx < len(main_window.curve_data):
             frame = main_window.curve_data[idx][0]
-            
-            # Handle old-style controls
-            if hasattr(main_window, 'point_idx_label'):
+            status = main_window.curve_data[idx][3] if len(main_window.curve_data[idx]) > 3 else 'normal'
+            selected_types.add(status)
+        # Update type display
+        if hasattr(main_window, 'type_edit'):
+            main_window.type_edit.setText(', '.join(sorted(selected_types)) if selected_types else '')
+        # Handle old-style controls
+        if hasattr(main_window, 'point_idx_label'):
+            if idx >= 0:
                 main_window.point_idx_label.setText(f"Point: {idx}")
-            if hasattr(main_window, 'point_frame_label'):
+            else:
+                main_window.point_idx_label.setText("")
+        if hasattr(main_window, 'point_frame_label'):
+            if frame is not None:
                 main_window.point_frame_label.setText(f"Frame: {frame}")
-            if hasattr(main_window, 'x_edit'):
-                main_window.x_edit.setText(f"{x:.3f}")
-            if hasattr(main_window, 'y_edit'):
-                main_window.y_edit.setText(f"{y:.3f}")
-            
-            # Handle newer style controls
-            if hasattr(main_window, 'point_id_edit'):
+            else:
+                main_window.point_frame_label.setText("")
+        # Handle newer style controls
+        if hasattr(main_window, 'point_id_edit'):
+            if idx >= 0:
                 main_window.point_id_edit.setText(str(idx))
-            if hasattr(main_window, 'point_x_edit'):
-                main_window.point_x_edit.setText(f"{x:.6f}")
-            if hasattr(main_window, 'point_y_edit'):
-                main_window.point_y_edit.setText(f"{y:.6f}")
-            
-            # Enable edit controls
-            if hasattr(main_window, 'enable_point_controls'):
-                main_window.enable_point_controls(True)
-            
-            # Update status bar
-            if hasattr(main_window, 'statusBar'):
-                main_window.statusBar().showMessage(f"Selected point {idx} at frame {frame}: ({x:.2f}, {y:.2f})", 3000)
-        else:
-            # Clear and disable edit fields if no valid point selected
-            if hasattr(main_window, 'point_idx_label'):
-                main_window.point_idx_label.setText("Point:")
-            if hasattr(main_window, 'point_frame_label'):
-                main_window.point_frame_label.setText("Frame: N/A")
-            if hasattr(main_window, 'x_edit'):
-                main_window.x_edit.clear()
-            if hasattr(main_window, 'y_edit'):
-                main_window.y_edit.clear()
-                
-            # Handle newer style controls
-            if hasattr(main_window, 'point_id_edit'):
+            else:
                 main_window.point_id_edit.setText("")
-            if hasattr(main_window, 'point_x_edit'):
+        if hasattr(main_window, 'point_x_edit'):
+            if idx >= 0:
+                main_window.point_x_edit.setText(f"{x:.6f}")
+            else:
                 main_window.point_x_edit.setText("")
-            if hasattr(main_window, 'point_y_edit'):
+        if hasattr(main_window, 'point_y_edit'):
+            if idx >= 0:
+                main_window.point_y_edit.setText(f"{y:.6f}")
+            else:
                 main_window.point_y_edit.setText("")
-            
-            # Disable edit controls
-            if hasattr(main_window, 'enable_point_controls'):
-                main_window.enable_point_controls(False)
+        # Enable or disable edit controls
+        if hasattr(main_window, 'enable_point_controls'):
+            main_window.enable_point_controls(True if selected_types else False)
+        # Update status bar to show point types
+        if hasattr(main_window, 'statusBar'):
+            if selected_types and frame is not None:
+                main_window.statusBar().showMessage(f"Selected point(s) at frame {frame}: {', '.join(sorted(selected_types))}", 3000)
+            else:
+                main_window.statusBar().clearMessage()
+
     
     @staticmethod
     @safe_operation("Update Point")
@@ -434,145 +445,85 @@ class CurveViewOperations:
         Returns:
             int: Number of points deleted or marked as interpolated
         """
-        # Get the curve view and relevant data
         main_window = target if hasattr(target, 'curve_data') else None
         curve_view = CurveViewOperations._get_curve_view(target)
-        
-        # Get selected points
-        if not hasattr(curve_view, 'selected_points') or not curve_view.selected_points:
+        selected_indices = sorted(getattr(curve_view, 'selected_points', []), reverse=True)
+        if not selected_indices:
             return 0
-            
-        # Save the view state before any changes
-        view_state = {
+        if show_confirmation and main_window:
+            if not CurveViewOperations._confirm_delete(main_window, len(selected_indices)):
+                return 0
+        original_primary = curve_view.selected_point_idx
+        view_state = CurveViewOperations._capture_view_state(curve_view)
+        curve_data = main_window.curve_data if main_window else curve_view.points
+        new_data = compute_interpolated_curve_data(curve_data, selected_indices)
+        if main_window:
+            main_window.curve_data = new_data
+        curve_view.points = new_data
+        CurveViewOperations._restore_view_state_and_selection(
+            curve_view, view_state, selected_indices, original_primary
+        )
+        # Synchronize main_window.selected_indices for multi-select persistence
+        if main_window and hasattr(main_window, 'selected_indices'):
+            main_window.selected_indices = selected_indices
+        curve_view.update()
+        if main_window and hasattr(main_window, 'add_to_history'):
+            main_window.add_to_history()
+        if main_window and hasattr(main_window, 'statusBar'):
+            main_window.statusBar().showMessage(
+                f"Marked {len(selected_indices)} points as interpolated", 3000
+            )
+        return len(selected_indices)
+    
+    @staticmethod
+    def _confirm_delete(main_window, count):
+        """Show confirmation dialog for deleting N points."""
+        response = QMessageBox.question(
+            main_window,
+            "Confirm Delete",
+            f"Delete {count} selected point{'s' if count > 1 else ''}?",
+            QMessageBox.Yes | QMessageBox.No
+        )
+        return response == QMessageBox.Yes
+
+    @staticmethod
+    def _capture_view_state(curve_view):
+        """Capture zoom and offset state."""
+        return {
             'zoom_factor': curve_view.zoom_factor,
             'offset_x': curve_view.offset_x,
             'offset_y': curve_view.offset_y,
-            'x_offset': curve_view.x_offset if hasattr(curve_view, 'x_offset') else 0,
-            'y_offset': curve_view.y_offset if hasattr(curve_view, 'y_offset') else 0
+            'x_offset': getattr(curve_view, 'x_offset', 0),
+            'y_offset': getattr(curve_view, 'y_offset', 0),
         }
-            
-        selected_indices = sorted(curve_view.selected_points, reverse=True)
-        
-        # Confirm deletion if requested
-        if show_confirmation and main_window:
-            num_points = len(selected_indices)
-            response = QMessageBox.question(
-                main_window, 
-                "Confirm Delete", 
-                f"Delete {num_points} selected point{'s' if num_points > 1 else ''}?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            
-            if response != QMessageBox.Yes:
-                return 0
-        
-        # Get the curve data to modify
-        curve_data = main_window.curve_data if main_window else curve_view.points
-        
-        # Mark points as interpolated or delete them
-        for idx in selected_indices:
-            if 0 <= idx < len(curve_data):
-                # Get the current point data
-                point = curve_data[idx]
-                if len(point) == 3:
-                    frame, x, y = point
-                else:
-                    frame, x, y = point[:3]
 
-                # Find previous and next non-interpolated points
-                prev_idx = idx - 1
-                next_idx = idx + 1
-                prev_point = None
-                next_point = None
-
-                # Search backwards for previous non-interpolated point
-                while prev_idx >= 0:
-                    prev = curve_data[prev_idx]
-                    if len(prev) == 3 or (len(prev) > 3 and prev[3] != 'interpolated'):
-                        prev_point = prev
-                        break
-                    prev_idx -= 1
-
-                # Search forwards for next non-interpolated point
-                while next_idx < len(curve_data):
-                    nxt = curve_data[next_idx]
-                    if len(nxt) == 3 or (len(nxt) > 3 and nxt[3] != 'interpolated'):
-                        next_point = nxt
-                        break
-                    next_idx += 1
-
-                # Interpolate x, y
-                if prev_point and next_point:
-                    _, x0, y0 = prev_point[:3]
-                    _, x1, y1 = next_point[:3]
-                    # Linear interpolation based on frame position
-                    frame0 = prev_point[0]
-                    frame1 = next_point[0]
-                    if frame1 != frame0:
-                        t = (frame - frame0) / (frame1 - frame0)
-                        interp_x = x0 + t * (x1 - x0)
-                        interp_y = y0 + t * (y1 - y0)
-                    else:
-                        interp_x = (x0 + x1) / 2
-                        interp_y = (y0 + y1) / 2
-                elif prev_point:
-                    _, interp_x, interp_y = prev_point[:3]
-                elif next_point:
-                    _, interp_x, interp_y = next_point[:3]
-                else:
-                    interp_x, interp_y = x, y  # No neighbours, leave as is
-
-                # Replace with interpolated value and status
-                curve_data[idx] = (frame, interp_x, interp_y, 'interpolated')
-                # We don't delete points anymore, just mark them as interpolated
-                # del curve_data[idx]
-        
-        # Clear selection
-        curve_view.selected_points.clear()
-        curve_view.selected_point_idx = -1
-        
-        # Update the view while preserving the view state
-        if hasattr(curve_view, 'setPoints') and main_window:
-            # Update points but don't reset the view
-            curve_view.points = curve_data
-            
-            # Manually restore all view state variables
-            curve_view.zoom_factor = view_state['zoom_factor']
-            curve_view.offset_x = view_state['offset_x']
-            curve_view.offset_y = view_state['offset_y']
-            if hasattr(curve_view, 'x_offset'):
-                curve_view.x_offset = view_state['x_offset']
-            if hasattr(curve_view, 'y_offset'):
-                curve_view.y_offset = view_state['y_offset']
-            
-            # Select a new point if any points remain, focusing on the one after the deleted point
-            if curve_data:
-                # Use the first index that was deleted as an approximate position
-                if selected_indices:
-                    new_idx = min(selected_indices[0], len(curve_data) - 1)
-                    if hasattr(curve_view, 'selectPointByIndex'):
-                        curve_view.selectPointByIndex(new_idx)
-                    else:
-                        # Fallback if the method doesn't exist
-                        curve_view.selected_point_idx = new_idx
-                        curve_view.selected_points = {new_idx}
-                        if hasattr(curve_view, 'point_selected'):
-                            curve_view.point_selected.emit(new_idx)
-            
-            # Force update without resetting view
-            curve_view.update()
+    @staticmethod
+    def _restore_view_state_and_selection(curve_view, state, selected_indices, original_primary):
+        """Restore view state and selection indices."""
+        curve_view.zoom_factor = state['zoom_factor']
+        curve_view.offset_x = state['offset_x']
+        curve_view.offset_y = state['offset_y']
+        if hasattr(curve_view, 'x_offset'):
+            curve_view.x_offset = state['x_offset']
+        if hasattr(curve_view, 'y_offset'):
+            curve_view.y_offset = state['y_offset']
+        # Restore selection, using view API if available
+        if hasattr(curve_view, 'set_selected_indices'):
+            # ensure primary selected index comes first
+            order = [original_primary] + [i for i in selected_indices if i != original_primary]
+            curve_view.set_selected_indices(order)
         else:
+            curve_view.selected_points = set(selected_indices)
+            if original_primary in selected_indices:
+                curve_view.selected_point_idx = original_primary
+            elif selected_indices:
+                curve_view.selected_point_idx = selected_indices[0]
+            else:
+                curve_view.selected_point_idx = -1
             curve_view.update()
-        
-        # Add to history if main window available
-        if main_window and hasattr(main_window, 'add_to_history'):
-            main_window.add_to_history()
-            
-        # Update status
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage(f"Marked {len(selected_indices)} points as interpolated", 3000)
-            
-        return len(selected_indices)
+        # Emit selection signal only for single-selection to avoid overriding multi-select
+        if hasattr(curve_view, 'point_selected') and len(selected_indices) == 1:
+            curve_view.point_selected.emit(curve_view.selected_point_idx)
     
     @staticmethod
     def set_point_size(target, size):
@@ -936,8 +887,6 @@ class CurveViewOperations:
             
         # Fallback to using the image index itself
         return img_idx
-    
-    @staticmethod
     
     @staticmethod
     def handle_mouse_press(curve_view, event):

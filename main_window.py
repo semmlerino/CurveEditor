@@ -202,6 +202,8 @@ class MainWindow(QMainWindow):
         # Create menu bar
         self.menu_bar = MenuBar(self)
         self.setMenuBar(self.menu_bar)
+        # Expose QAction for auto-center on main_window for shortcut handling
+        self.auto_center_action = self.menu_bar.auto_center_action
         
         # Main widget and layout
         main_widget = QWidget()
@@ -297,9 +299,10 @@ class MainWindow(QMainWindow):
         Enables or disables the point editing controls based on whether
         there is tracking data loaded and available for editing.
         """
-        self.x_edit.setEnabled(enabled)
-        self.y_edit.setEnabled(enabled)
+        # Only update button and type display (no coordinate fields)
         self.update_point_button.setEnabled(enabled)
+        if hasattr(self, 'type_edit'):
+            self.type_edit.setEnabled(enabled)
 
 
     
@@ -369,6 +372,11 @@ class MainWindow(QMainWindow):
             # Update frame marker position if available
             if hasattr(self, 'frame_marker'):
                 UIComponents.update_frame_marker(self)
+            
+            # Auto-center if enabled
+            if getattr(self, 'auto_center_enabled', False) and hasattr(self.curve_view, 'centerOnSelectedPoint'):
+                self.curve_view.centerOnSelectedPoint(-1)
+                self.curve_view.update()
         
         except Exception as e:
             print(f"Error handling image change: {str(e)}")
@@ -514,11 +522,14 @@ class MainWindow(QMainWindow):
 
 
     def toggle_auto_center(self, checked):
-        """Handle the toggling of the auto-center menu action."""
+        """Enable or disable automatic centering on frame change."""
         self.auto_center_enabled = checked
-        # Optionally, provide user feedback
-        status = "enabled" if checked else "disabled"
-        self.statusBar().showMessage(f"Auto-centering on frame change {status}", 2000)
+        # Sync toolbar button and menu action states
+        if hasattr(self, 'center_on_point_button'):
+            self.center_on_point_button.setChecked(checked)
+        if hasattr(self, 'auto_center_action'):
+            self.auto_center_action.setChecked(checked)
+        self.statusBar().showMessage(f"Auto-Center {'Enabled' if checked else 'Disabled'}", 2000)
 
     def undo_action(self):
         """Undo the last action."""
@@ -569,7 +580,7 @@ class MainWindow(QMainWindow):
         """Called when the frame changes (timeline, playback, etc)."""
         # Usual frame update logic (call existing code)
         self._select_point_for_frame(frame_num)
-        if getattr(self, 'centering_enabled', False):
+        if getattr(self, 'auto_center_enabled', False):
             # Center view on selected point
             if hasattr(self.curve_view, 'centerOnSelectedPoint'):
                 self.curve_view.centerOnSelectedPoint(-1)

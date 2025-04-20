@@ -102,9 +102,8 @@ class ZoomOperations:
                 center_y = widget_height / 2
 
                 # 5. Calculate the required main offset to place the scaled point at the center
-                # We need: offset_x + scaled_content_x = center_x
-                required_offset_x = center_x - scaled_content_x
-                required_offset_y = center_y - scaled_content_y
+                required_offset_x = center_x - (base_offset_x + scaled_content_x)
+                required_offset_y = center_y - (base_offset_y + scaled_content_y)
 
                 # Set the calculated main offsets
                 curve_view.offset_x = required_offset_x
@@ -210,6 +209,37 @@ class ZoomOperations:
         return False
 
     @staticmethod
+    def handle_wheel_event(curve_view, event):
+        """Handle mouse wheel events for zooming."""
+        # Prevent jumpy zoom immediately after fit_selection
+        if hasattr(curve_view, 'last_action_was_fit') and getattr(curve_view, 'last_action_was_fit', False):
+            curve_view.last_action_was_fit = False
+            return
+        # Determine zoom factor from wheel delta
+        delta = event.angleDelta().y()
+        factor = 1.1 if delta > 0 else 0.9
+        # Get mouse position for zoom centering
+        position = event.position() if hasattr(event, 'position') else event.pos()
+        mouse_x = position.x()
+        mouse_y = position.y()
+        # Temporarily clear multi-selection to avoid special case handling
+        temp_selected = None
+        if hasattr(curve_view, 'selected_points') and len(curve_view.selected_points) > 1:
+            temp_selected = curve_view.selected_points.copy()
+            curve_view.selected_points = {curve_view.selected_point_idx} if getattr(curve_view, 'selected_point_idx', -1) >= 0 else set()
+        # Perform zoom via centralized method, respecting auto-center setting
+        if hasattr(curve_view, 'main_window') and getattr(curve_view.main_window, 'auto_center_enabled', False):
+            # Auto-centering on: zoom relative to selected point
+            ZoomOperations.zoom_view(curve_view, factor)
+        else:
+            # Default: zoom relative to mouse position
+            ZoomOperations.zoom_view(curve_view, factor, mouse_x, mouse_y)
+        # Restore multi-selection state if needed
+        if temp_selected is not None:
+            curve_view.selected_points = temp_selected
+            curve_view.update()
+
+    @staticmethod
     def reset_view(curve_view):
         """Reset view to default state (zoom and position)."""
         curve_view.zoom_factor = 1.0
@@ -253,8 +283,9 @@ class ZoomOperations:
             dy = mouse_y - center_y
             curve_view.offset_x -= dx * zoom_ratio
             curve_view.offset_y -= dy * zoom_ratio
-        # If no mouse position but we have a selected point, center on it
-        elif hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
+        # If no mouse position and auto-center is enabled, recenter on selected point
+        elif getattr(curve_view, 'main_window', None) and getattr(curve_view.main_window, 'auto_center_enabled', False) \
+             and hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
             ZoomOperations.center_on_selected_point(curve_view, curve_view.selected_point_idx, preserve_zoom=True)
             
         # Reset the fit flag if it exists

@@ -15,61 +15,36 @@ class VisualizationOperations:
     """Static utility methods for visualization operations in the curve editor."""
     
     @staticmethod
-    def toggle_grid(main_window, checked):
-        """Toggle grid visibility.
-        
-        Args:
-            main_window: The main application window
-            checked: Boolean indicating if grid should be shown
-        """
-        if hasattr(main_window.curve_view, 'toggleGrid'):
-            main_window.curve_view.toggleGrid(checked)
-            main_window.toggle_grid_button.setChecked(checked)
-    
-    @staticmethod
-    def toggle_velocity_vectors(main_window, checked):
-        """Toggle velocity vector display.
-        
-        Args:
-            main_window: The main application window
-            checked: Boolean indicating if vectors should be shown
-        """
-        if hasattr(main_window.curve_view, 'toggleVelocityVectors'):
-            main_window.curve_view.toggleVelocityVectors(checked)
-            main_window.toggle_vectors_button.setChecked(checked)
-    
-    @staticmethod
-    def toggle_all_frame_numbers(main_window, checked):
-        """Toggle display of all frame numbers.
-        
-        Args:
-            main_window: The main application window
-            checked: Boolean indicating if frame numbers should be shown
-        """
-        if hasattr(main_window.curve_view, 'toggleAllFrameNumbers'):
-            main_window.curve_view.toggleAllFrameNumbers(checked)
-            main_window.toggle_frame_numbers_button.setChecked(checked)
-    
-    @staticmethod
-    def toggle_background_visible(main_window, visible):
-        """Toggle visibility of background image.
-        
-        Args:
-            main_window: The main application window
-            visible: Boolean indicating if background should be shown
-        """
-        if hasattr(main_window.curve_view, 'toggleBackgroundVisible'):
-            main_window.curve_view.toggleBackgroundVisible(visible)
-            
-    @staticmethod
-    def toggle_background_visible_internal(curve_view, visible):
-        """Toggle visibility of background image (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            visible: Boolean indicating if background should be shown
-        """
+    def toggle_background_visible(curve_view, visible):
+        """Toggle visibility of background image."""
         curve_view.show_background = visible
+        curve_view.update()
+        
+    @staticmethod
+    def toggle_grid(curve_view, enabled=None):
+        """Toggle grid visibility."""
+        if enabled is None:
+            curve_view.show_grid = not curve_view.show_grid
+        else:
+            curve_view.show_grid = enabled
+        curve_view.update()
+        
+    @staticmethod
+    def toggle_velocity_vectors(curve_view, enabled):
+        """Toggle velocity vector display."""
+        curve_view.show_velocity_vectors = enabled
+        curve_view.update()
+        
+    @staticmethod
+    def toggle_all_frame_numbers(curve_view, enabled):
+        """Toggle display of all frame numbers."""
+        curve_view.show_all_frame_numbers = enabled
+        curve_view.update()
+        
+    @staticmethod
+    def toggle_crosshair(curve_view, enabled):
+        """Toggle crosshair visibility."""
+        curve_view.show_crosshair = enabled
         curve_view.update()
         
     @staticmethod
@@ -84,58 +59,6 @@ class VisualizationOperations:
         curve_view.update()
     
     @staticmethod
-    def toggle_fullscreen(main_window):
-        """Toggle fullscreen mode for the main window.
-        
-        Args:
-            main_window: The main application window
-        """
-        if main_window.isFullScreen():
-            main_window.showNormal()
-            if hasattr(main_window, 'status_bar'):
-                main_window.status_bar.showMessage("Exited fullscreen mode", 2000)
-            elif hasattr(main_window, 'statusBar'):
-                main_window.statusBar().showMessage("Exited fullscreen mode", 2000)
-        else:
-            main_window.showFullScreen()
-            if hasattr(main_window, 'status_bar'):
-                main_window.status_bar.showMessage("Entered fullscreen mode (press F11 to exit)", 3000)
-            elif hasattr(main_window, 'statusBar'):
-                main_window.statusBar().showMessage("Entered fullscreen mode (press F11 to exit)", 3000)
-    
-
-    @staticmethod
-    def center_on_selected_point_from_main_window(main_window):
-        """Center the view on the currently selected point from the main window context.
-        
-        Args:
-            main_window: The main application window
-        """
-        if not hasattr(main_window.curve_view, 'centerOnSelectedPoint'):
-            main_window.statusBar().showMessage("Center on point not supported in basic view mode", 2000)
-            return
-        
-        # Check first if we have selected points in the curve view
-        if hasattr(main_window.curve_view, 'selected_points') and main_window.curve_view.selected_points:
-            # Use the first selected point from the curve view's selection
-            point_idx = list(main_window.curve_view.selected_points)[0]
-            main_window.curve_view.centerOnSelectedPoint(point_idx)
-            main_window.statusBar().showMessage(f"Centered view on point {point_idx}", 2000)
-            return
-            
-        # Fallback to main_window.selected_indices
-        if hasattr(main_window, 'selected_indices') and main_window.selected_indices:
-            # Use the first selected point if multiple are selected
-            point_idx = main_window.selected_indices[0]
-            main_window.curve_view.centerOnSelectedPoint(point_idx)
-            main_window.statusBar().showMessage(f"Centered view on point {point_idx}", 2000)
-            return
-            
-        # If we get here, no point is selected
-        main_window.statusBar().showMessage("No point selected to center on", 2000)
-        
-        
-    @staticmethod
     def pan_view(curve_view, dx, dy):
         """Pan the view by the specified delta.
         
@@ -149,53 +72,6 @@ class VisualizationOperations:
         curve_view.offset_y += dy
         
         # Update the view
-        curve_view.update()
-    
-    @staticmethod
-    def toggle_grid_internal(curve_view, enabled=None):
-        """Toggle grid visibility with optional explicit state.
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean to explicitly set state, or None to toggle
-        """
-        if enabled is None:
-            curve_view.show_grid = not curve_view.show_grid
-        else:
-            curve_view.show_grid = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_velocity_vectors_internal(curve_view, enabled):
-        """Toggle velocity vector display (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if vectors should be shown
-        """
-        curve_view.show_velocity_vectors = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_all_frame_numbers_internal(curve_view, enabled):
-        """Toggle display of all frame numbers (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if frame numbers should be shown
-        """
-        curve_view.show_all_frame_numbers = enabled
-        curve_view.update()
-        
-    @staticmethod
-    def toggle_crosshair_internal(curve_view, enabled):
-        """Toggle crosshair visibility (internal implementation).
-        
-        Args:
-            curve_view: The curve view instance
-            enabled: Boolean indicating if crosshair should be shown
-        """
-        curve_view.show_crosshair = enabled
         curve_view.update()
     
     @staticmethod
@@ -237,7 +113,7 @@ class VisualizationOperations:
         curve_view.update()
         
     @staticmethod
-    def update_timeline_for_image(main_window, index):
+    def update_timeline_for_image(index, curve_view, image_filenames):
         """Update the timeline for the current image.
         
         This method extracts the frame number from an image filename and updates
@@ -245,20 +121,21 @@ class VisualizationOperations:
         It also selects the point in the curve data that corresponds to the frame.
         
         Args:
-            main_window: The main application window
             index: Index of the current image in the image_filenames list
+            curve_view: The curve view instance
+            image_filenames: List of image filenames
         """
         try:
-            if not hasattr(main_window, 'image_filenames') or not main_window.image_filenames:
+            if not image_filenames:
                 print("update_timeline_for_image: No image filenames available")
                 return
                 
-            if index < 0 or index >= len(main_window.image_filenames):
+            if index < 0 or index >= len(image_filenames):
                 print(f"update_timeline_for_image: Invalid index {index}")
                 return
         
             # Extract frame number
-            filename = os.path.basename(main_window.image_filenames[index])
+            filename = os.path.basename(image_filenames[index])
             import re
             frame_match = re.search(r'(\d+)', filename)
             if not frame_match:
@@ -268,44 +145,37 @@ class VisualizationOperations:
             frame_num = int(frame_match.group(1))
             print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
             
-            # Update timeline directly
-            if hasattr(main_window, 'timeline_slider'):
-                main_window.timeline_slider.blockSignals(True)
-                main_window.timeline_slider.setValue(frame_num)
-                main_window.timeline_slider.blockSignals(False)
-                print(f"update_timeline_for_image: Updated timeline to frame {frame_num}")
-            
             # Update frame marker position if it exists
-            VisualizationOperations.update_frame_marker_position(main_window, frame_num)
+            VisualizationOperations.update_frame_marker_position(curve_view, frame_num)
             
             # Find and update selected point
-            if hasattr(main_window, 'curve_data') and main_window.curve_data:
-                closest_frame = min(main_window.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
+            if hasattr(curve_view, 'curve_data') and curve_view.curve_data:
+                closest_frame = min(curve_view.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
                 
-                for i, point in enumerate(main_window.curve_data):
+                for i, point in enumerate(curve_view.curve_data):
                     if point[0] == closest_frame:
                         # Update selection
-                        if hasattr(main_window.curve_view, 'selected_point_idx'):
-                            main_window.curve_view.selected_point_idx = i
-                            main_window.curve_view.update()
+                        if hasattr(curve_view, 'selected_point_idx'):
+                            curve_view.selected_point_idx = i
+                            curve_view.update()
                             print(f"update_timeline_for_image: Updated selected point to {i}")
                         break
         except Exception as e:
             print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
 
     @staticmethod
-    def update_frame_marker_position(main_window, frame):
+    def update_frame_marker_position(curve_view, frame):
         """Update the position of the frame marker based on current frame.
         
         Args:
-            main_window: The main window instance
+            curve_view: The curve view instance
             frame: The current frame number
         """
         # Update the marker position if it exists
-        if hasattr(main_window, 'frame_marker_label'):
+        if hasattr(curve_view, 'frame_marker_label'):
             # Calculate position based on frame
-            if hasattr(main_window, 'timeline_slider'):
-                slider = main_window.timeline_slider
+            if hasattr(curve_view, 'timeline_slider'):
+                slider = curve_view.timeline_slider
                 min_frame = slider.minimum()
                 max_frame = slider.maximum()
                 
@@ -315,7 +185,7 @@ class VisualizationOperations:
                     # Ensure the frame is within valid range
                     current_frame = max(min_frame, min(max_frame, frame))
                     # Update the tooltip to show the current frame
-                    main_window.frame_marker_label.setToolTip(f"Frame: {current_frame}")
+                    curve_view.frame_marker_label.setToolTip(f"Frame: {current_frame}")
 
     @staticmethod
     def set_points(curve_view, points, image_width, image_height, preserve_view=False):
@@ -362,9 +232,13 @@ class VisualizationOperations:
         curve_view.update()
     
     @staticmethod
+    def jump_to_frame_by_click(curve_view, position):
+        """
+        Jump to a frame by clicking on the timeline (if implemented).
 
-    @staticmethod
-    def jump_to_frame_by_click(main_window, position):
-        """Jump to a frame by clicking on the timeline (if implemented)."""
+        Args:
+            curve_view: The curve view instance
+            position: The position of the click in the timeline
+        """
         # Placeholder for future implementation
         pass
