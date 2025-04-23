@@ -1,93 +1,119 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from PySide6.QtWidgets import QMessageBox, QDialog
-from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
+from PySide6.QtWidgets import QMessageBox, QDialog, QWidget # Added QWidget
+from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
                     ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog)
 from curve_data_operations import CurveDataOperations # Import new class
-from typing import Any, Optional, List, Tuple
+from typing import Any, Optional, List, Tuple # Added Optional, Tuple
+
+# Define a type alias for curve data for clarity
+CurveDataType = List[Tuple[int, float, float]]
 
 class DialogOperations:
     """Dialog operations for the 3DE4 Curve Editor."""
-    
+
     @staticmethod
-    def show_smooth_dialog(main_window: Any) -> None:
-        """Show dialog for curve smoothing."""
-        if not main_window.curve_data or len(main_window.curve_data) < 3:
-            QMessageBox.information(main_window, "Info", "Not enough points to smooth curve.")
-            return
-            
-        frames = [point[0] for point in main_window.curve_data]  # Extract only the frame number from each point
-        min_frame = min(frames)
-        max_frame = max(frames)
-        
+    def show_smooth_dialog(
+        parent_widget: QWidget,
+        curve_data: CurveDataType,
+        selected_indices: List[int],
+        selected_point_idx: int # Use index instead of list of points
+    ) -> Optional[CurveDataType]:
+        """
+        Show dialog for curve smoothing.
+        Accepts curve data and selection info, returns modified data or None.
+        """
+        if not curve_data or len(curve_data) < 3:
+            QMessageBox.information(parent_widget, "Info", "Not enough points to smooth curve.")
+            return None
+
+        frames = [point[0] for point in curve_data]
+        min_frame = min(frames) if frames else 0
+        max_frame = max(frames) if frames else 0
+
         current_frame = min_frame
-        if main_window.curve_view.selected_point_idx >= 0:
-            current_frame = main_window.curve_data[main_window.curve_view.selected_point_idx][0]
-        
-        dialog: SmoothingDialog = SmoothingDialog(main_window, min_frame, max_frame, current_frame)
-        # Default to "Selected Range" if multiple points are selected
-        if main_window.curve_view.selected_points and len(main_window.curve_view.selected_points) > 1:
-            dialog.range_combo.setCurrentIndex(1)
-            selected_frames = sorted([main_window.curve_data[i][0] for i in main_window.curve_view.selected_points])
-            dialog.start_frame.setValue(selected_frames[0])
-            dialog.end_frame.setValue(selected_frames[-1])
+        # Use selected_point_idx directly
+        if 0 <= selected_point_idx < len(curve_data):
+             current_frame = curve_data[selected_point_idx][0]
+
+        dialog: SmoothingDialog = SmoothingDialog(parent_widget, min_frame, max_frame, current_frame)
+
+        # Default dialog range based on selection
+        if len(selected_indices) > 1:
+            dialog.range_combo.setCurrentIndex(3) # Default to "Selected Points"
+        elif selected_point_idx >= 0:
+             dialog.range_combo.setCurrentIndex(2) # Default to "Current Point Only"
+        else:
+             dialog.range_combo.setCurrentIndex(0) # Default to "Entire Curve"
+
+        # Pre-fill frame range if "Selected Range" was previously chosen or defaulted
+        # (This logic might need adjustment depending on desired UX)
+        # if dialog.range_combo.currentIndex() == 1 and selected_indices:
+        #     selected_frames = sorted([curve_data[i][0] for i in selected_indices])
+        #     dialog.start_frame.setValue(selected_frames[0])
+        #     dialog.end_frame.setValue(selected_frames[-1])
+
         if dialog.exec() != QDialog.DialogCode.Accepted:
-            return
-            
+            return None
+
         # Get smoothing parameters
         method = dialog.method_combo.currentIndex()
         range_type = dialog.range_combo.currentIndex()
-        
-        # Determine points to smooth
+
+        # Determine points to smooth based on dialog selection
         points_to_smooth: List[int] = []
-        
+
         if range_type == 0:  # Entire curve
-            points_to_smooth = list(range(len(main_window.curve_data)))
-        elif range_type == 1:  # Selected range
+            points_to_smooth = list(range(len(curve_data)))
+        elif range_type == 1:  # Selected range (by frame)
             start_frame = dialog.start_frame.value()
             end_frame = dialog.end_frame.value()
-            
-            for i, point in enumerate(main_window.curve_data):
-                frame = point[0]  # Extract only the frame number
-                if start_frame <= frame <= end_frame:
-                    points_to_smooth.append(i)
-        elif range_type == 2:  # Current point only
-            if main_window.curve_view.selected_point_idx >= 0:
-                # Include a window around the current point
+            points_to_smooth = [i for i, point in enumerate(curve_data) if start_frame <= point[0] <= end_frame]
+        elif range_type == 2:  # Current point only (window around selected_point_idx)
+            if selected_point_idx >= 0:
                 window = dialog.window_spin.value() // 2
-                center = main_window.curve_view.selected_point_idx
-                
-                for i in range(max(0, center - window), min(len(main_window.curve_data), center + window + 1)):
-                    points_to_smooth.append(i)
-        
-        if not points_to_smooth:
-            QMessageBox.warning(main_window, "Warning", "No points to smooth.")
-            return
-            
-        # Apply the selected smoothing method using the unified dispatcher
-        try:
-            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
-            if method == 0:  # Moving Average
-                data_ops.smooth_moving_average(points_to_smooth, dialog.window_spin.value())
-            elif method == 1:  # Gaussian
-                data_ops.smooth_gaussian(points_to_smooth, dialog.window_spin.value(), dialog.sigma_spin.value())
-            elif method == 2:  # Savitzky-Golay
-                data_ops.smooth_savitzky_golay(points_to_smooth, dialog.window_spin.value())
-            else:
-                QMessageBox.warning(main_window, "Warning", "Unknown smoothing method.")
-                return
+                center = selected_point_idx
+                start = max(0, center - window)
+                end = min(len(curve_data), center + window + 1)
+                points_to_smooth = list(range(start, end))
+        elif range_type == 3: # Selected Points (use provided selected_indices)
+            points_to_smooth = selected_indices # Use the passed-in list directly
 
-            main_window.curve_data = data_ops.get_data()  # Update main window data
+        if not points_to_smooth:
+            QMessageBox.warning(parent_widget, "Warning", "No points selected for smoothing.")
+            return None
+
+        # Apply the selected smoothing method
+        try:
+            # CurveDataOperations constructor makes its own copy. Pass the original data.
+            data_ops: CurveDataOperations = CurveDataOperations(curve_data)
+
+            window_size = dialog.window_spin.value()
+            sigma = dialog.sigma_spin.value() # Only used for Gaussian
+
+            if method == 0:  # Moving Average
+                data_ops.smooth_moving_average(points_to_smooth, window_size)
+            elif method == 1:  # Gaussian
+                data_ops.smooth_gaussian(points_to_smooth, window_size, sigma)
+            elif method == 2:  # Savitzky-Golay
+                # Ensure window size is valid for Savitzky-Golay (odd, >= 5)
+                if window_size < 5 or window_size % 2 == 0:
+                     QMessageBox.warning(parent_widget, "Warning", "Savitzky-Golay requires an odd window size of at least 5.")
+                     return None
+                data_ops.smooth_savitzky_golay(points_to_smooth, window_size)
+            else:
+                QMessageBox.warning(parent_widget, "Warning", "Unknown smoothing method.")
+                return None
+
+            # Return the modified data as list of tuples
+            return [tuple(p) for p in data_ops.get_data()]
+
         except Exception as e:
-            QMessageBox.critical(main_window, "Error", f"Smoothing failed: {e}")
-            return  # Don't proceed if operation failed
-        
-        # Update view
-        main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height, preserve_view=True)
-        
-        # Add to history
-        main_window.add_to_history()
+            QMessageBox.critical(parent_widget, "Error", f"Smoothing failed: {e}")
+            return None
+
+        # History and View updates are now handled by the caller
 
     @staticmethod
     def show_filter_dialog(main_window: Any) -> None:

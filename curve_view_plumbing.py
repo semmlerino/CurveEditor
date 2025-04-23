@@ -8,6 +8,7 @@ Contains decorators and helper functions for state capture, data mutation, and c
 import functools
 import inspect
 from PySide6.QtWidgets import QMessageBox
+from services.curve_utils import normalize_point, set_point_status, update_point_coords
 
 
 def _get_curve_view(target):
@@ -127,7 +128,7 @@ def finalize_data_change(curve_view, main_window, view_state, selected_indices, 
         idx0 = original_primary if original_primary in selected_indices else selected_indices[0]
         fd = main_window.curve_data[idx0]
         # Update info panel
-        from curve_view_operations import CurveViewOperations
+        from services.curve_service import CurveService as CurveViewOperations # Moved import here
         CurveViewOperations.update_point_info(main_window, idx0, fd[1], fd[2])
     if main_window and hasattr(main_window, 'add_to_history'):
         main_window.add_to_history()
@@ -146,28 +147,5 @@ def confirm_delete(main_window, count):
     return response == QMessageBox.Yes
 
 
-def normalize_point(point):
-    """Ensure point tuple is (frame, x, y, status)."""
-    if len(point) == 3:
-        frame, x, y = point
-        return frame, x, y, 'normal'
-    elif len(point) >= 4:
-        return point[0], point[1], point[2], point[3]
-    else:
-        raise ValueError(f"Invalid point format: {point}")
-
-
-def set_point_status(point, status):
-    """Return a new point tuple with the given status."""
-    frame, x, y, _ = normalize_point(point)
-    if status == 'normal':
-        return frame, x, y
-    return frame, x, y, status
-
-
-def update_point_coords(point, x, y):
-    """Return a new point tuple with updated coordinates preserving status."""
-    frame, _, _, status = normalize_point(point)
-    if status == 'normal':
-        return frame, x, y
-    return frame, x, y, status
+# Functions normalize_point, set_point_status, and update_point_coords
+# have been moved to services/curve_utils.py

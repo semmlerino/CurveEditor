@@ -7,13 +7,20 @@ Dynamically attaches all static methods from the legacy DialogOperations class.
 """
 
 from dialog_operations import DialogOperations as LegacyDialogOps
-from typing import Any
+from typing import Any, Optional # Added Optional
 
 class DialogService:
     """Facade for dialog operations (phase 1)."""
     @staticmethod
-    def show_smooth_dialog(main_window: Any) -> None:
-        """Stub for show_smooth_dialog to satisfy UI typing."""
+    def show_smooth_dialog(
+        parent_widget: Any, # Use Any temporarily due to potential PySide6 import issues
+        curve_data: Any,    # Use Any temporarily
+        selected_indices: Any, # Use Any temporarily
+        selected_point_idx: int
+    ) -> Optional[Any]: # Use Any temporarily
+        """Facade stub matching the refactored signature in dialog_operations.py"""
+        # The actual implementation is dynamically attached below.
+        # This stub primarily helps with static analysis and type hinting.
         pass
 
     @staticmethod
@@ -29,6 +36,11 @@ class DialogService:
     @staticmethod
     def show_extrapolate_dialog(main_window: Any) -> None:
         """Stub for show_extrapolate_dialog to satisfy UI typing."""
+        pass
+
+    @staticmethod
+    def show_shortcuts_dialog(main_window: Any) -> None:
+        """Stub for show_shortcuts_dialog to satisfy static analysis."""
         pass
 
 # Attach legacy static methods (excluding private)

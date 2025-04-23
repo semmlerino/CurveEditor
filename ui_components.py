@@ -190,7 +190,7 @@ class UIComponents:
         
         main_window.smooth_button = QPushButton("Smooth")
         main_window.smooth_button.setToolTip("Smooth Selected Curve")
-        main_window.smooth_button.clicked.connect(lambda: DialogOperations.show_smooth_dialog(main_window))
+        main_window.smooth_button.clicked.connect(main_window.show_smooth_dialog) # Connect to MainWindow method
         main_window.smooth_button.setEnabled(True)
         
         main_window.fill_gaps_button = QPushButton("Fill Gaps")
@@ -693,7 +693,7 @@ class UIComponents:
                 
                 # Typed slots for enhanced view signals
                 def on_point_selected_slot(idx: int) -> None:
-                    CurveViewOperations.on_point_selected(main_window, idx)
+                    CurveViewOperations.on_point_selected(main_window.curve_view, main_window, idx)
                 def on_point_moved_slot(idx: int, x: float, y: float) -> None:
                     CurveViewOperations.on_point_moved(main_window, idx, x, y)
                 def on_image_changed_slot(index: int) -> None:

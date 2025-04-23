@@ -30,6 +30,16 @@ class VisualizationService:
         """Stub for static analysis."""
         pass
 
+    @staticmethod
+    def center_on_selected_point_from_main_window(main_window: Any) -> None:
+        """Stub for static analysis."""
+        pass
+
+    @staticmethod
+    def toggle_crosshair_internal(curve_view: Any, enabled: bool) -> None:
+        """Stub for static analysis."""
+        pass
+
 # Dynamically attach all static methods from the legacy module
 for name, fn in LegacyVisOps.__dict__.items():
     if callable(fn):

@@ -189,7 +189,7 @@ class MenuBar(QMenuBar):
         smooth_action = QAction('&Smooth Selected...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # smooth_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('smooth_selected')))
-        smooth_action.triggered.connect(lambda: DialogOperations.show_smooth_dialog(self.main_window))
+        smooth_action.triggered.connect(self.main_window.show_smooth_dialog) # Connect to MainWindow method
         tools_menu.addAction(smooth_action)
         
         filter_action = QAction('&Filter Selected...', self)

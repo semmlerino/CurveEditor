@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+ # type: ignore [reportMissingImports]
 from PySide6.QtCore import Qt
+ # type: ignore [reportMissingImports]
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
                                QCheckBox, QGroupBox, QWidget, QSlider)
@@ -56,7 +58,7 @@ class SmoothingDialog(QDialog):
         range_layout = QHBoxLayout()
         range_layout.addWidget(QLabel("Apply to:"))
         self.range_combo = QComboBox()
-        self.range_combo.addItems(["Entire Curve", "Selected Range", "Current Point Only"])
+        self.range_combo.addItems(["Entire Curve", "Selected Range", "Current Point Only", "Selected Points"])
         range_layout.addWidget(self.range_combo)
         layout.addLayout(range_layout)
         
@@ -105,7 +107,9 @@ class SmoothingDialog(QDialog):
         
     def on_range_changed(self, index: int) -> None:
         """Handle range selection change."""
-        self.range_group.setEnabled(index == 1)  # Enable frame range only for "Selected Range"
+        # Enable frame range only for "Selected Range" (index 1)
+        # Disable for "Entire Curve" (0), "Current Point Only" (2), and "Selected Points" (3)
+        self.range_group.setEnabled(index == 1)
         
     def on_method_changed(self, index: int) -> None:
         """Handle method selection change."""
@@ -182,10 +186,10 @@ class FilterDialog(QDialog):
         self.on_range_changed(0)
         
         # Generic accessor for window size - adds compatibility with existing code
-        self.window_size_spin = self.median_size
-        self.sigma_spin = None
-        self.cutoff_spin = None
-        self.order_spin = None
+        self.window_size_spin: Optional[QSpinBox] = self.median_size
+        self.sigma_spin: Optional[QDoubleSpinBox] = None
+        self.cutoff_spin: Optional[QDoubleSpinBox] = None
+        self.order_spin: Optional[QSpinBox] = None
         
     def create_param_widgets(self):
         """Create all parameter widgets for different filters."""
@@ -254,7 +258,6 @@ class FilterDialog(QDialog):
         butterworth_layout2.addWidget(self.butterworth_order)
         self.butterworth_widgets.append((butterworth_layout2, "butterworth_layout2"))
         
-    from typing import Optional, Any
     def on_filter_changed(self, index: int) -> None:
         """Update parameter widgets based on selected filter."""
         # Clear existing parameter widgets
@@ -382,7 +385,7 @@ class FillGapsDialog(QDialog):
         # Initialize parameter widgets
         self.create_param_widgets()
         self.on_method_changed(0)
-        self.on_auto_detect_changed(self.auto_detect.checkState())
+        self.on_auto_detect_changed(self.auto_detect.checkState().value)
         
     def create_param_widgets(self):
         """Create parameter widgets for different fill methods."""
@@ -477,7 +480,7 @@ class FillGapsDialog(QDialog):
             for layout, _ in self.average_widgets:
                 self.param_layout.addLayout(layout)
                 
-    def on_auto_detect_changed(self, state: int) -> None:
+    def on_auto_detect_changed(self, state: Qt.CheckState) -> None:
         """Enable/disable manual frame range selection based on auto-detect setting."""
         enabled = state != Qt.Checked
         self.start_frame.setEnabled(enabled)
@@ -593,7 +596,7 @@ class ProblemDetectionDialog(QDialog):
         super(ProblemDetectionDialog, self).__init__(parent)
         self.setWindowTitle("Problem Detection")
         self.resize(500, 400)
-        self.selected_problem = None
+        self.selected_problem: Optional[dict[str, Any]] = None
         
         if problems is None:
             problems = []

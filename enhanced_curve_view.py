@@ -18,6 +18,7 @@ import os
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.input_service import InputService
 from services.image_service import ImageService
+from services.curve_service import CurveService as CurveViewOperations
 
 
 class EnhancedCurveView(QWidget):
@@ -36,6 +37,8 @@ class EnhancedCurveView(QWidget):
         self.selected_point_idx = -1
         self.selected_points = set()  # Track selected points for multi-select
         self.drag_active = False
+        self.pan_active = False
+        self.last_pan_pos = None
         self.zoom_factor = 1.0
         self.offset_x = 0
         self.offset_y = 0
@@ -186,7 +189,6 @@ class EnhancedCurveView(QWidget):
         Args:
             radius: Integer representing the point radius (1-10)
         """
-        from services.curve_service import CurveService as CurveViewOperations
         CurveViewOperations.set_point_radius(self, radius)
         
     def get_point_data(self, index):
@@ -200,7 +202,6 @@ class EnhancedCurveView(QWidget):
         """
         # Delegate to service facade if available, else fallback to raw list
         try:
-            from services.curve_service import CurveService as CurveViewOperations
             handler = getattr(CurveViewOperations, 'get_point_data', None)
             if callable(handler):
                 return handler(self, index)
@@ -222,7 +223,6 @@ class EnhancedCurveView(QWidget):
         Returns:
             Index of the found point or -1 if no point was found
         """
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.find_point_at(self, pos.x(), pos.y())
     
     def findClosestPointByFrame(self, frame_num):
@@ -234,7 +234,6 @@ class EnhancedCurveView(QWidget):
         Returns:
             Index of the closest point or -1 if no points are available
         """
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.find_closest_point_by_frame(self, frame_num)
         
     def toggle_point_interpolation(self, index):
@@ -246,12 +245,10 @@ class EnhancedCurveView(QWidget):
         Returns:
             bool: True if the toggle was successful, False otherwise
         """
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.toggle_point_interpolation(self, index)
         
     def finalize_selection(self):
         """Select all points inside the selection rectangle."""
-        from services.curve_service import CurveService as CurveViewOperations
         CurveViewOperations.finalize_selection(self, self.main_window)
         
     def paintEvent(self, event):
@@ -292,7 +289,6 @@ class EnhancedCurveView(QWidget):
         # Coordinate transformation functions
         def transform_point(x, y):
             """Transform from track coordinates to widget coordinates."""
-            from services.curve_service import CurveService as CurveViewOperations
             return CurveViewOperations.transform_point(self, x, y, display_width, display_height, offset_x, offset_y, scale)
         
         def inverse_transform(tx, ty):
@@ -330,10 +326,14 @@ class EnhancedCurveView(QWidget):
             scaled_width = display_width * scale
             scaled_height = display_height * scale
             
-            # Position image
-            img_x = offset_x
-            img_y = offset_y
+            # Position image (apply centering offset and scaling first)
+            img_x_scaled = offset_x
+            img_y_scaled = offset_y
             
+            # Apply manual pan offset (unscaled widget coordinates)
+            img_x = img_x_scaled + self.x_offset
+            img_y = img_y_scaled + self.y_offset
+
             # Draw the image
             pixmap = QPixmap.fromImage(self.background_image)
             painter.setOpacity(self.background_opacity)
@@ -661,17 +661,14 @@ class EnhancedCurveView(QWidget):
         
     def selectAllPoints(self):
         """Select all points in the curve."""
-        from services.curve_service import CurveService as CurveViewOperations
         CurveViewOperations.select_all_points(self)
         
     def clearSelection(self):
         """Clear all point selections."""
-        from services.curve_service import CurveService as CurveViewOperations
         CurveViewOperations.clear_selection(self, self.main_window)
         
     def selectPointByIndex(self, index):
         """Select a point by its index."""
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.select_point_by_index(self, index)
         
     def set_curve_data(self, curve_data):
@@ -694,17 +691,14 @@ class EnhancedCurveView(QWidget):
     
     def change_nudge_increment(self, increase=True):
         """Change the nudge increment for point movement."""
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.change_nudge_increment(self, increase)
     
     def nudge_selected_points(self, dx=0, dy=0):
         """Nudge selected points by the specified delta."""
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.nudge_selected_points(self, dx, dy)
     
     def update_point_position(self, index, x, y):
         """Update a point's position while preserving its status."""
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.update_point_position(self, self.main_window, index, x, y)
         
     def contextMenuEvent(self, event):
@@ -713,7 +707,6 @@ class EnhancedCurveView(QWidget):
     
     def extractFrameNumber(self, img_idx):
         """Extract frame number from the current image index."""
-        from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.extract_frame_number(self, img_idx)
     
     def initShortcuts(self):

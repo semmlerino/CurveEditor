@@ -7,6 +7,11 @@ Signal Registry for 3DE4 Curve Editor.
 This module provides a centralized registry for managing signal connections
 throughout the application. It ensures consistent connection patterns and
 error handling for all UI signals.
+from typing import TYPE_CHECKING
+
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
 
 Key improvements in this refactored version:
 1. Centralized all signal connections in a single class
@@ -46,51 +51,52 @@ class MainWindowProtocol(Protocol):
     connected_signals: Set[Any]
     curve_view: Any
     update_point_button: Any
-    point_size_spin: Any
-    x_edit: Any
-    y_edit: Any
+    point_size_spin: Any  # Added
+    x_edit: Any  # Added
+    y_edit: Any  # Added
     load_button: Any
     save_button: Any
     add_point_button: Any
-    export_csv_button: Any
-    reset_view_button: Any
-    toggle_grid_button: Any
-    toggle_vectors_button: Any
-    toggle_frame_numbers_button: Any
+    export_csv_button: Any  # Added
+    reset_view_button: Any  # Added
+    toggle_grid_button: Any  # Added
+    toggle_vectors_button: Any  # Added
+    toggle_frame_numbers_button: Any  # Added
     center_on_point_button: Any
-    centering_toggle: Any
+    centering_toggle: Any  # Added
     timeline_slider: Any
     frame_edit: Any
     go_button: Any
-    next_frame_button: Any
-    prev_frame_button: Any
-    first_frame_button: Any
-    last_frame_button: Any
-    play_button: Any
-    scale_button: Any
-    batch_edit_ui: Any
-    offset_button: Any
-    rotate_button: Any
-    smooth_batch_button: Any
-    select_all_button: Any
+    next_frame_button: Any  # Added
+    prev_frame_button: Any  # Added
+    first_frame_button: Any  # Added
+    last_frame_button: Any  # Added
+    play_button: Any  # Added
+    scale_button: Any  # Added (Batch Edit)
+    batch_edit_ui: Any  # Added (Batch Edit - Currently commented out in main_window)
+    offset_button: Any  # Added (Batch Edit)
+    rotate_button: Any  # Added (Batch Edit)
+    smooth_batch_button: Any  # Added (Batch Edit)
+    select_all_button: Any  # Added (Batch Edit)
     smooth_button: Any
     filter_button: Any
     fill_gaps_button: Any
     extrapolate_button: Any
     detect_problems_button: Any
     shortcuts_button: Any
-    undo_button: Any
-    redo_button: Any
+    undo_button: Any  # Added
+    redo_button: Any  # Added
     toggle_bg_button: Any
-    opacity_slider: Any
-    load_images_button: Any
-    next_image_button: Any
-    prev_image_button: Any
-    analyze_button: Any
+    opacity_slider: Any  # Added
+    load_images_button: Any  # Added
+    next_image_button: Any  # Added
+    prev_image_button: Any  # Added
+    analyze_button: Any  # Added
     quality_ui: Any
     curve_data: Any
     shortcuts: Any
     def set_centering_enabled(self, enabled: bool) -> None: ...
+    def toggle_fullscreen(self) -> None: ... # Added
     # Add other attributes as needed for linting
 
 class SignalRegistry:
@@ -105,7 +111,7 @@ class SignalRegistry:
     """
     
     @classmethod
-    def connect_all_signals(cls, main_window: MainWindowProtocol) -> None:
+    def connect_all_signals(cls, main_window: 'MainWindow') -> None:
         """Connect all signals throughout the application.
         
         Args:
@@ -225,7 +231,7 @@ class SignalRegistry:
 
         connections: list[tuple[Any, Callable[[int], None] | Callable[[int, float, float], None], str]] = [
             (getattr(cv, 'point_selected', None),
-             lambda idx: CurveViewOperations.on_point_selected(main_window, int(idx)),
+             lambda idx: CurveViewOperations.on_point_selected(cv, main_window, int(idx)),
              "curve_view.point_selected"),
              
             (getattr(cv, 'point_moved', None),
@@ -464,45 +470,47 @@ class SignalRegistry:
         # Batch edit buttons are typically connected in batch_edit.py
         # But we'll add some common ones here if they exist
         
-        if hasattr(main_window, 'scale_button'):
-            SignalRegistry._connect_signal(
-                main_window,
-                main_window.scale_button.clicked,
-                lambda: main_window.batch_edit_ui.batch_scale() if hasattr(main_window, 'batch_edit_ui') else None,
-                "scale_button.clicked"
-            )
+        # NOTE: Batch edit UI initialization is commented out in main_window.py __init__
+        # Commenting out these connections until batch_edit_ui is re-enabled.
+        # if hasattr(main_window, 'scale_button'):
+        #     SignalRegistry._connect_signal(
+        #         main_window,
+        #         main_window.scale_button.clicked,
+        #         lambda: main_window.batch_edit_ui.batch_scale() if hasattr(main_window, 'batch_edit_ui') else None,
+        #         "scale_button.clicked"
+        #     )
             
-        if hasattr(main_window, 'offset_button'):
-            SignalRegistry._connect_signal(
-                main_window,
-                main_window.offset_button.clicked,
-                lambda: main_window.batch_edit_ui.batch_offset() if hasattr(main_window, 'batch_edit_ui') else None,
-                "offset_button.clicked"
-            )
+        # if hasattr(main_window, 'offset_button'):
+        #     SignalRegistry._connect_signal(
+        #         main_window,
+        #         main_window.offset_button.clicked,
+        #         lambda: main_window.batch_edit_ui.batch_offset() if hasattr(main_window, 'batch_edit_ui') else None,
+        #         "offset_button.clicked"
+        #     )
             
-        if hasattr(main_window, 'rotate_button'):
-            SignalRegistry._connect_signal(
-                main_window,
-                main_window.rotate_button.clicked,
-                lambda: main_window.batch_edit_ui.batch_rotate() if hasattr(main_window, 'batch_edit_ui') else None,
-                "rotate_button.clicked"
-            )
+        # if hasattr(main_window, 'rotate_button'):
+        #     SignalRegistry._connect_signal(
+        #         main_window,
+        #         main_window.rotate_button.clicked,
+        #         lambda: main_window.batch_edit_ui.batch_rotate() if hasattr(main_window, 'batch_edit_ui') else None,
+        #         "rotate_button.clicked"
+        #     )
             
-        if hasattr(main_window, 'smooth_batch_button'):
-            SignalRegistry._connect_signal(
-                main_window,
-                main_window.smooth_batch_button.clicked,
-                lambda: main_window.batch_edit_ui.batch_smooth() if hasattr(main_window, 'batch_edit_ui') else None,
-                "smooth_batch_button.clicked"
-            )
+        # if hasattr(main_window, 'smooth_batch_button'):
+        #     SignalRegistry._connect_signal(
+        #         main_window,
+        #         main_window.smooth_batch_button.clicked,
+        #         lambda: main_window.batch_edit_ui.batch_smooth() if hasattr(main_window, 'batch_edit_ui') else None,
+        #         "smooth_batch_button.clicked"
+        #     )
             
-        if hasattr(main_window, 'select_all_button'):
-            SignalRegistry._connect_signal(
-                main_window,
-                main_window.select_all_button.clicked,
-                lambda: CurveViewOperations.select_all_points(main_window.curve_view, main_window),
-                "select_all_button.clicked"
-            )
+        # if hasattr(main_window, 'select_all_button'):
+        #     SignalRegistry._connect_signal(
+        #         main_window,
+        #         main_window.select_all_button.clicked,
+        #         lambda: CurveViewOperations.select_all_points(main_window.curve_view, main_window),
+        #         "select_all_button.clicked"
+        #     )
     
     @staticmethod
     def _connect_dialog_signals(main_window: MainWindowProtocol) -> None:
@@ -516,7 +524,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(
                 main_window,
                 main_window.smooth_button.clicked,
-                lambda: DialogOperations.show_smooth_dialog(main_window),
+                main_window.show_smooth_dialog, # Connect to MainWindow method
                 "smooth_button.clicked"
             )
                 
@@ -610,8 +618,8 @@ class SignalRegistry:
         if hasattr(main_window, 'toggle_bg_button'):
             SignalRegistry._connect_signal(
                 main_window,
-                main_window.toggle_bg_button.clicked,
-                lambda: ImageOperations.toggle_background(main_window),
+                main_window.toggle_bg_button.clicked, # Assuming this button's state reflects the desired toggle
+                lambda: ImageOperations.toggle_background(main_window, main_window.toggle_bg_button.isChecked()),
                 "toggle_bg_button.clicked"
             )
                 
@@ -731,9 +739,9 @@ class SignalRegistry:
         ShortcutManager.connect_shortcut(main_window, "toggle_crosshair",
                                          lambda: VisualizationOperations.toggle_crosshair_internal(main_window.curve_view, not getattr(main_window.curve_view, 'show_crosshair', False)))
         ShortcutManager.connect_shortcut(main_window, "toggle_background",
-                                         lambda: ImageOperations.toggle_background(main_window))
-        ShortcutManager.connect_shortcut(main_window, "toggle_fullscreen",
-                                         lambda: main_window.toggle_fullscreen() if hasattr(main_window, 'toggle_fullscreen') else None)
+                                         lambda: ImageOperations.toggle_background(main_window, not getattr(main_window.curve_view, 'show_background', True))) # Toggle based on curve_view state
+        # ShortcutManager.connect_shortcut(main_window, "toggle_fullscreen",
+        #                                  lambda: main_window.toggle_fullscreen() if hasattr(main_window, 'toggle_fullscreen') else None) # Method missing in MainWindow
         ShortcutManager.connect_shortcut(main_window, "zoom_in",
                                          lambda: ZoomOperations.zoom_view(main_window.curve_view, 1.2)) # Zoom in by 20%
         ShortcutManager.connect_shortcut(main_window, "zoom_out",
@@ -745,13 +753,11 @@ class SignalRegistry:
                                          lambda: setattr(main_window.curve_view, 'scale_to_image', not getattr(main_window.curve_view, 'scale_to_image', False)) or main_window.curve_view.update(),  # type: ignore[func-returns-value]
                                          )
         
-        # Center on selected point
+        # Toggle auto-center on selected point
         ShortcutManager.connect_shortcut(
             main_window,
-            "center_on_point",
-            lambda: main_window.set_centering_enabled(
-                not getattr(main_window, 'auto_center_enabled', False)
-            )
+            "center_on_point", # 'C' key
+            lambda: main_window.set_centering_enabled(not getattr(main_window, 'auto_center_enabled', False))
         )
         
         # Timeline operations
@@ -775,7 +781,7 @@ class SignalRegistry:
         print("  [OK] Connected keyboard shortcuts")
         # Tools
         ShortcutManager.connect_shortcut(main_window, "smooth_selected",
-                                         lambda: DialogOperations.show_smooth_dialog(main_window))
+                                         main_window.show_smooth_dialog) # Connect to MainWindow method
         ShortcutManager.connect_shortcut(main_window, "filter_selected",
                                          lambda: DialogOperations.show_filter_dialog(main_window))
         # ShortcutManager.connect_shortcut(main_window, "detect_problems", # TODO: Refactor detect_problems

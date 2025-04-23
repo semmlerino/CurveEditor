@@ -3,6 +3,7 @@
 
 import math
 from PySide6.QtWidgets import QMessageBox
+from typing import Dict, Tuple, List, Any
 from dialog_operations import DialogOperations
 # from curve_operations import CurveOperations # Removed - detect_problems moved here
 
@@ -364,7 +365,7 @@ class TrackQualityAnalyzer:
         problems.sort(key=lambda x: x[0])
         
         # Remove duplicate problems (same frame, same type) - keep highest severity
-        unique_problems = {}
+        unique_problems: dict[tuple[int, str], tuple[str, float, str]] = {}
         for frame, p_type, severity, desc in problems:
             key = (frame, p_type)
             if key not in unique_problems or severity > unique_problems[key][1]:

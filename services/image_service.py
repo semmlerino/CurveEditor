@@ -32,6 +32,11 @@ class ImageService:
         """Stub for next_image to satisfy UI typing."""
         pass
 
+    @staticmethod
+    def opacity_changed(main_window: Any, value: int) -> None:
+        """Stub for opacity_changed to satisfy static analysis."""
+        pass
+
 # Attach legacy static methods
 for name, fn in LegacyImageOps.__dict__.items():
     if callable(fn) and not name.startswith("_"):

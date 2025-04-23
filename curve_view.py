@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import sys
 import os
 from PySide6.QtWidgets import QWidget
 from typing import Any, Optional
@@ -54,6 +55,9 @@ class CurveView(QWidget):
         self.setMouseTracking(True)
         self.point_radius: int = 5
         
+        self.last_drag_pos: Optional[QPointF] = None
+        self.pan_active: bool = False
+        self.last_pan_pos: Optional[QPointF] = None
         # Image sequence support
         self.background_image: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QImage]
         self.show_background: bool = True
@@ -95,16 +99,29 @@ class CurveView(QWidget):
         self.x_offset = 0  # Manual X offset for fine-tuning alignment
         self.y_offset = 0  # Manual Y offset for fine-tuning alignment
         
-    def set_points(self, points: list[tuple[int, float, float]], image_width: int, image_height: int) -> None:
-        """Set the points to display and adjust view accordingly."""
+    def setPoints(self, points: list[tuple[int, float, float]], image_width: int, image_height: int, preserve_view: bool = False) -> None:
+        print(f"[DEBUG CurveView.setPoints] Start - preserve_view={preserve_view}")
+        print(f"[DEBUG CurveView.setPoints] State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        """Set the points to display and optionally preserve the current view state."""
         self.points = points
-        self.image_width = image_width
-        self.image_height = image_height
-        self.resetView()
-        self.update()
+        # Update dimensions only if they are validly provided (greater than 0)
+        if image_width > 0:
+            self.image_width = image_width
+        if image_height > 0:
+            self.image_height = image_height
+            sys.stdout.flush() # Correct indentation
+
+        if not preserve_view:
+            self.resetView() # Reset pan/zoom only if not preserving
+            sys.stdout.flush() # Correct indentation
         
+        self.update() # Trigger repaint with new data and current/reset view state
+        
+        sys.stdout.flush()
+        print(f"[DEBUG CurveView.setPoints] State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
     def set_image_sequence(self, path: str, filenames: list[str]) -> None:
         """Set the image sequence to display as background."""
+        sys.stdout.flush()
         ImageService.set_image_sequence(  # type: ignore[attr-defined]
 self, path, filenames)
         self.update()
@@ -131,15 +148,24 @@ self, idx)
         
     def load_current_image(self) -> None:
         """Load the current image in the sequence."""
+        print(f"[DEBUG CurveView.resetView] Start - State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        print(f"[DEBUG CurveView.resetView] Start - State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         ImageService.load_current_image(  # type: ignore[attr-defined]
 self)
+        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         
     def resetView(self) -> None:
+        print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         """Reset view to show all points."""
         from centering_zoom_operations import ZoomOperations
+        print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         ZoomOperations.reset_view(self)
         
+        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
     def paintEvent(self, event: QPaintEvent) -> None:
+        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        sys.stdout.flush()
         """Draw the curve and points."""
         if not self.points and not self.background_image:
             return
@@ -176,16 +202,27 @@ self)
 
         # CRITICAL FIX - Simple direct transformation that doesn't try to normalize
         def transform_point(x: float, y: float) -> tuple[float, float]:
-            # Apply zoom and offset transformations
-            img_x: float = x * self.zoom_factor + self.offset_x + self.x_offset
-            img_y: float = y * self.zoom_factor + self.offset_y + self.y_offset
-            tx: float = 0.0
-            ty: float = 0.0
+            # Corrected transformation order: flip -> scale -> main offset -> manual offset
+            
+            # 1. Apply Y-flip if necessary (relative to image height)
+            transformed_y = y
             if getattr(self, "flip_y_axis", False):
-                img_y = self.height() - img_y
-            tx = img_x
-            ty = img_y
-            return tx, ty
+                img_height = getattr(self, "image_height", self.height()) # Use image_height, fallback to widget height
+                transformed_y = img_height - y
+
+            # 2. Scale coordinates
+            scaled_x = x * self.zoom_factor
+            scaled_y = transformed_y * self.zoom_factor
+
+            # 3. Apply main centering/panning offset (calculated during zoom/pan)
+            offsetted_x = scaled_x + self.offset_x
+            offsetted_y = scaled_y + self.offset_y
+
+            # 4. Apply manual alignment offset (user adjustments)
+            final_x = offsetted_x + self.x_offset
+            final_y = offsetted_y + self.y_offset
+
+            return final_x, final_y
 
         # Draw background image if available
         if self.show_background and self.background_image:

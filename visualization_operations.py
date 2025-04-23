@@ -7,9 +7,11 @@ Visualization operations for 3DE4 Curve Editor.
 Provides functionality for curve visualization features like grid, vectors, and crosshair display.
 """
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
 from PySide6.QtGui import QColor
-from curve_view import CurveView  # Import CurveView for type annotations
+
+if TYPE_CHECKING:
+    from curve_view import CurveView  # Import CurveView for type annotations
 
 import os
 

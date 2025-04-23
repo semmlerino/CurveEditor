@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal
 
-from curve_view_operations import CurveViewOperations
+from services.curve_service import CurveService as CurveViewOperations
 from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialog
 
 def batch_scale_points(curve_data, indices, scale_x, scale_y, center_x=None, center_y=None):

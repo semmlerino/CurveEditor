@@ -43,7 +43,7 @@ class SettingsOperations:
                 
             
             # Auto-center toggle state
-            main_window.auto_center_enabled = settings.value("view/autoCenterOnFrameChange", False, type=bool)
+            main_window.auto_center_enabled = bool(settings.value("view/autoCenterOnFrameChange", False, type=bool))
 
         except Exception as e:
             print(f"Error loading settings: {e}")
