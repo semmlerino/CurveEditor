@@ -6,50 +6,57 @@ InputService: centralized handling for mouse, wheel, key, and context menu event
 """
 from PySide6.QtWidgets import QMenu
 from PySide6.QtGui import QAction
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt  # type: ignore[attr-defined]
 from services.curve_service import CurveService as CurveViewOperations
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.visualization_service import VisualizationService as VizOps
+from typing import Any
 
 
 class InputService:
     """Facade for input event handling across curve views."""
 
     @staticmethod
-    def handle_mouse_press(view, event):
+    def handle_mouse_press(view: Any, event: Any) -> None:
         CurveViewOperations.handle_mouse_press(view, event)
 
     @staticmethod
-    def handle_mouse_move(view, event):
-        CurveViewOperations.handle_mouse_move(view, event)
+    def handle_mouse_move(view: Any, event: Any) -> Any:
+        # Delegate to service facade; fallback to legacy operations if missing
+        handler = getattr(CurveViewOperations, 'handle_mouse_move', None)
+        if callable(handler):
+            return handler(view, event)
+        # Fallback to direct legacy implementation
+        from curve_view_operations import CurveViewOperations as LegacyOps
+        return LegacyOps.handle_mouse_move(view, event)
 
     @staticmethod
-    def handle_mouse_release(view, event):
+    def handle_mouse_release(view: Any, event: Any) -> None:
         CurveViewOperations.handle_mouse_release(view, event)
 
     @staticmethod
-    def handle_wheel_event(view, event):
+    def handle_wheel_event(view: Any, event: Any) -> None:
         ZoomOperations.handle_wheel_event(view, event)
 
     @staticmethod
-    def handle_key_event(view, event):
-        step = 1
-        if event.modifiers() & Qt.ShiftModifier:
-            step = 10
-        if event.modifiers() & Qt.ControlModifier:
+    def handle_key_event(view: Any, event: Any) -> None:
+        step: float = 1.0
+        if event.modifiers() & Qt.ShiftModifier:  # type: ignore[attr-defined]
+            step = 10.0
+        if event.modifiers() & Qt.ControlModifier:  # type: ignore[attr-defined]
             step = 0.1
         key = event.key()
-        if key == Qt.Key_Up and event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+        if key == Qt.Key_Up and event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):  # type: ignore[attr-defined]
             view.y_offset -= step
             view.update()
-        elif key == Qt.Key_Down and event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):
+        elif key == Qt.Key_Down and event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):  # type: ignore[attr-defined]
             view.y_offset += step
             view.update()
-        elif key == Qt.Key_Delete and getattr(view, 'selected_point_idx', -1) >= 0:
-            CurveViewOperations.delete_selected_points(view)
+        elif key == Qt.Key_Delete and getattr(view, 'selected_point_idx', -1) >= 0:  # type: ignore[attr-defined]
+            CurveViewOperations.delete_selected_points(view, view.main_window)
 
     @staticmethod
-    def handle_context_menu(view, event):
+    def handle_context_menu(view: Any, event: Any) -> None:
         menu = QMenu(view)
         # Point-specific actions
         idx = view.findPointAt(event.pos())

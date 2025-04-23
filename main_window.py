@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false, reportUnknownArgumentType=false, reportUnknownParameterType=false
 # -*- coding: utf-8 -*-
 
 """
@@ -13,7 +14,6 @@ Key architecture principles:
 2. Centralized signal connections managed through SignalRegistry.connect_all_signals
 3. Operation-specific logic in dedicated utility classes:
    - CurveViewOperations - For curve view manipulation
-   - VisualizationOperations - For visualization features
    - ImageOperations - For image sequence handling
    - DialogOperations - For dialog management
    - CurveDataOperations - For curve data manipulation (New consolidated class)
@@ -25,49 +25,34 @@ This architecture ensures:
 - Better error handling and defensive programming
 """
 
-import os
 import sys
-import math
-import copy
+import os
 import re
-
-from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QFileDialog, QMessageBox, QSlider, QLineEdit,
-    QGroupBox, QSplitter, QDialog, QComboBox, QToolBar, QMenu,
-    QGridLayout, QApplication, QStatusBar
-)
-from PySide6.QtCore import (
-    Qt, QTimer, QSettings, QSize, QPoint, Signal, QEvent
-)
-from PySide6.QtGui import (
-    QFont, QKeySequence, QAction, QShortcut
-)
-
-from curve_view import CurveView
-from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
-                     ExtrapolateDialog, ProblemDetectionDialog)
-# from curve_operations import CurveOperations # Removed, logic moved to CurveDataOperations
-from services.file_service import FileService as FileOperations
-from services.image_service import ImageService as ImageOperations
-import utils
 import config
-from services.visualization_service import VisualizationService as VisualizationOperations
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QLabel, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton
+from PySide6.QtCore import Qt
+from curve_view import CurveView
+from services.file_service import FileService as FileOperations
+
+from utils import load_3de_track, estimate_image_dimensions, get_image_files
+
+from services.curve_service import CurveService
+from services.history_service import HistoryService
+from services.dialog_service import DialogService
+from services.image_service import ImageService as ImageOperations
 from services.dialog_service import DialogService as DialogOperations
-from services.settings_service import SettingsService as SettingsOperations
 from services.curve_service import CurveService as CurveViewOperations
-from enhanced_curve_view import EnhancedCurveView
 from keyboard_shortcuts import ShortcutManager
 from ui_components import UIComponents
-from services.history_service import HistoryService as HistoryOperations
-from track_quality import TrackQualityAnalyzer, TrackQualityUI
-import csv_export
-import batch_edit
-import quick_filter_presets as presets
 
-# Import the separated modules
+from track_quality import TrackQualityUI
 from menu_bar import MenuBar
+import typing
+from typing import Any
+from curve_data_operations import CurveDataOperations
 
+if False:
+    pass
 
 class MainWindow(QMainWindow):
     """Main application window for 3DE4 Curve Editor.
@@ -78,9 +63,8 @@ class MainWindow(QMainWindow):
     to specialized utility classes:
     
     - CurveViewOperations: Operations related to the curve view (point selection, editing)
-    - VisualizationOperations: Operations for visualization (toggles, visual settings)
+    - ImageOperations: Operations for image sequence handling
     - FileOperations: File handling (loading, saving tracks)
-    - ImageOperations: Image sequence handling
     - DialogOperations: Management of various dialogs
     - SettingsOperations: Application settings management
     - UIComponents: Common UI operations
@@ -105,7 +89,32 @@ class MainWindow(QMainWindow):
         history_index (int): Current position in the history stack
         centering_enabled (bool): Whether automatic centering on selected point is enabled
     """
+    # Explicit attribute annotations for dynamic UI components
+    update_point_button: Any
+    type_edit: Any
+    timeline_slider: Any
+    frame_label: Any
+    frame_edit: Any
+    curve_view: Any
+    save_button: Any
+    add_point_button: Any
+    smooth_button: Any
+    fill_gaps_button: Any
+    filter_button: Any
+    detect_problems_button: Any
+    extrapolate_button: Any
+    go_button: Any
+    toggle_bg_button: Any
+    center_on_point_button: Any
+    auto_center_action: Any
     
+    # Inline smoothing controls declared for proper typing
+    smoothing_method_combo: QComboBox
+    smoothing_window_spin: QSpinBox
+    smoothing_sigma_spin: QDoubleSpinBox
+    smoothing_range_combo: QComboBox
+    smoothing_apply_button: QPushButton
+
     def __init__(self):
         """Initialize the main window."""
         super(MainWindow, self).__init__()
@@ -155,7 +164,7 @@ class MainWindow(QMainWindow):
         self.quality_ui = TrackQualityUI(self)
         
         # Load settings first to get initial state
-        SettingsOperations.load_settings(self)  # Use the utility class
+        # SettingsOperations.load_settings(self)  # Use the utility class
 
         # Init UI (which uses loaded settings)
         self.setup_ui()
@@ -168,8 +177,8 @@ class MainWindow(QMainWindow):
         
         # Then try to integrate enhanced curve view if possible
         try:
-            # Use the UIComponents centralized method for setting up enhanced curve view
-            success = UIComponents.setup_enhanced_curve_view(self)
+            # Use the UIComponents centralized method for creating enhanced curve view
+            success = UIComponents.create_enhanced_curve_view(self)
             if success:
                 print("Enhanced curve view loaded successfully")
             else:
@@ -179,8 +188,8 @@ class MainWindow(QMainWindow):
             print("Using standard curve view")
             
         # Initialize batch editing UI
-        self.batch_edit_ui = batch_edit.BatchEditUI(self)
-        self.batch_edit_ui.setup_batch_editing_ui()
+        # self.batch_edit_ui = batch_edit.BatchEditUI(self)
+        # self.batch_edit_ui.setup_batch_editing_ui()
         
         # Load previously used file if it exists
         self.load_previous_file()
@@ -197,6 +206,12 @@ class MainWindow(QMainWindow):
         if hasattr(self.menu_bar, 'auto_center_action'):
             self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
     
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering of the view."""
+        self.auto_center_enabled = enabled
+        if hasattr(self, 'auto_center_action'):
+            self.auto_center_action.setChecked(enabled)
+
     def setup_ui(self):
         """Create and arrange UI elements."""
         # Create menu bar
@@ -214,7 +229,7 @@ class MainWindow(QMainWindow):
         main_layout.addWidget(toolbar_widget)
         
         # Create splitter for main view and controls
-        splitter = QSplitter(Qt.Vertical)
+        splitter = QSplitter(Qt.Orientation.Vertical)
         
         # Create curve view and timeline with individual frames
         view_container = UIComponents.create_view_and_timeline(self)
@@ -240,7 +255,7 @@ class MainWindow(QMainWindow):
             self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
 
         
-    def create_toolbar(self):
+    def create_toolbar(self) -> QWidget:
         """Create the toolbar with action buttons.
         
         Sets up the main toolbar with buttons for common operations:
@@ -253,7 +268,7 @@ class MainWindow(QMainWindow):
         """
         return UIComponents.create_toolbar(self)
         
-    def create_view_and_timeline(self):
+    def create_view_and_timeline(self) -> QWidget:
         """Create the curve view widget and timeline controls.
         
         Sets up:
@@ -271,7 +286,7 @@ class MainWindow(QMainWindow):
         
         return view_container
 
-    def create_control_panel(self):
+    def create_control_panel(self) -> QWidget:
         """Create the control panel for point editing.
         
         Sets up the right-side panel with:
@@ -290,7 +305,7 @@ class MainWindow(QMainWindow):
         
         return controls_widget
 
-    def enable_point_controls(self, enabled):
+    def enable_point_controls(self, enabled: bool) -> None:
         """Enable or disable point editing controls.
         
         Args:
@@ -328,7 +343,7 @@ class MainWindow(QMainWindow):
         """Update the image label with current image info."""
         ImageOperations.update_image_label(self)
 
-    def on_image_changed(self, index):
+    def on_image_changed(self, index: int) -> None:
         """
         Handle image changes with improved reliability.
         
@@ -347,7 +362,6 @@ class MainWindow(QMainWindow):
                 return
 
             # Extract frame number using regex for reliability
-            import re
             filename = os.path.basename(self.image_filenames[index])
             frame_match = re.search(r'(\d+)', filename)
             if not frame_match:
@@ -383,7 +397,7 @@ class MainWindow(QMainWindow):
             import traceback
             traceback.print_exc()
 
-    def _select_point_for_frame(self, frame_num):
+    def _select_point_for_frame(self, frame_num: int) -> None:
         """
         Helper to select the point closest to a frame number.
         
@@ -405,9 +419,10 @@ class MainWindow(QMainWindow):
         
         # Update selection if found
         if closest_idx >= 0:
-            # Use curve_view operations for consistency
-            from services.curve_service import CurveService as CurveViewOperations
-            CurveViewOperations.select_point_by_index(self.curve_view, closest_idx)
+            # Use legacy curve_view_operations for consistency
+            from curve_view_operations import CurveViewOperations
+            # Pass main_window (self) to align with method signature
+            CurveViewOperations.select_point_by_index(self.curve_view, self, closest_idx)
     
     def load_previous_file(self):
         """Load the previously used file and folder if they exist."""
@@ -420,7 +435,7 @@ class MainWindow(QMainWindow):
         file_path = config.get_last_file_path()
         if file_path and os.path.exists(file_path):
             # Load track data from file
-            point_name, point_color, num_frames, curve_data = utils.load_3de_track(file_path)
+            point_name, point_color, _num_frames, curve_data = load_3de_track(file_path)
             
             if curve_data:
                 # Set the data
@@ -429,7 +444,7 @@ class MainWindow(QMainWindow):
                 self.curve_data = curve_data
                 
                 # Determine image dimensions from the data
-                self.image_width, self.image_height = utils.estimate_image_dimensions(curve_data)
+                self.image_width, self.image_height = estimate_image_dimensions(curve_data)
                 
                 # Update view
                 self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height)
@@ -451,6 +466,7 @@ class MainWindow(QMainWindow):
                     self.extrapolate_button.setEnabled(True)
                 
                 # Update info
+                self.info_label: QLabel
                 self.info_label.setText(f"Loaded: {self.point_name} ({len(self.curve_data)} frames)")
                 
                 # Setup timeline
@@ -473,7 +489,7 @@ class MainWindow(QMainWindow):
         sequence_path = config.get_last_image_sequence_path()
         if sequence_path and os.path.exists(sequence_path):
             # Find all image files in the directory
-            image_files = utils.get_image_files(sequence_path)
+            image_files = get_image_files(sequence_path)
             
             if image_files:
                 # Set the image sequence
@@ -486,7 +502,6 @@ class MainWindow(QMainWindow):
                 # Update the UI
                 self.update_image_label()
                 self.toggle_bg_button.setEnabled(True)
-                self.opacity_slider.setEnabled(True)
 
     # Timeline Operations
     def setup_timeline(self):
@@ -494,11 +509,11 @@ class MainWindow(QMainWindow):
         UIComponents.setup_timeline(self)
 
     # Point Editing Operations
-    def on_point_selected(self, idx):
+    def on_point_selected(self, idx: int) -> None:
         """Handle point selection in the view."""
         CurveViewOperations.on_point_selected(self, idx)
 
-    def on_point_moved(self, idx, x, y):
+    def on_point_moved(self, idx: int, x: float, y: float) -> None:
         """Handle point moved in the view."""
         CurveViewOperations.on_point_moved(self, idx, x, y)
 
@@ -507,41 +522,34 @@ class MainWindow(QMainWindow):
         """Show dialog with keyboard shortcuts."""
         DialogOperations.show_shortcuts_dialog(self)
 
-    def update_point_info(self, idx, x, y):
+    def update_point_info(self, idx: int, x: float, y: float) -> None:
         """Update the point information panel."""
-        CurveViewOperations.update_point_info(self, idx, x, y)
+        CurveService.update_point_info(self, idx, x, y)  # type: ignore[attr-defined]
 
     # History Operations
     def add_to_history(self):
         """Add current state to history."""
-        HistoryOperations.add_to_history(self)
+        import history_operations
+        history_operations.HistoryOperations.add_to_history(self)
             
     def update_history_buttons(self):
         """Update the state of undo/redo buttons."""
-        HistoryOperations.update_history_buttons(self)
-
-
-    def toggle_auto_center(self, checked):
-        """Enable or disable automatic centering on frame change."""
-        self.auto_center_enabled = checked
-        # Sync toolbar button and menu action states
-        if hasattr(self, 'center_on_point_button'):
-            self.center_on_point_button.setChecked(checked)
-        if hasattr(self, 'auto_center_action'):
-            self.auto_center_action.setChecked(checked)
-        self.statusBar().showMessage(f"Auto-Center {'Enabled' if checked else 'Disabled'}", 2000)
+        import history_operations
+        history_operations.HistoryOperations.update_history_buttons(self)
 
     def undo_action(self):
         """Undo the last action."""
-        HistoryOperations.undo_action(self)
+        import history_operations
+        history_operations.HistoryOperations.undo_action(self)
 
     def redo_action(self):
         """Redo the previously undone action."""
-        HistoryOperations.redo_action(self)
+        import history_operations
+        history_operations.HistoryOperations.redo_action(self)
 
-    def restore_state(self, state):
+    def restore_state(self, state: Any) -> None:
         """Restore application state from history."""
-        HistoryOperations.restore_state(self, state)
+        HistoryService.restore_state(self, state)  # type: ignore[attr-defined]
 
     # Quality Check Operations
     def check_tracking_quality(self):
@@ -556,6 +564,52 @@ class MainWindow(QMainWindow):
         # Run analysis
         self.quality_ui.analyze_and_update_ui(self.curve_data)
 
+    def apply_ui_smoothing(self) -> None:
+        """Apply smoothing based on inline UI controls."""
+        if not self.curve_data or len(self.curve_data) < 3:
+            QMessageBox.information(self, "Info", "Not enough points to smooth curve.")
+            return
+        method = self.smoothing_method_combo.currentIndex()
+        range_type = self.smoothing_range_combo.currentIndex()
+        window = self.smoothing_window_spin.value()
+        sigma = self.smoothing_sigma_spin.value()
+        points_to_smooth = []
+        if range_type == 0:
+            points_to_smooth = list(range(len(self.curve_data)))
+        elif range_type == 1:
+            selected = getattr(self.curve_view, 'selected_points', [])
+            if selected:
+                frames = sorted([self.curve_data[i][0] for i in selected])
+                for i, pt in enumerate(self.curve_data):
+                    if frames[0] <= pt[0] <= frames[-1]:
+                        points_to_smooth.append(i)
+        elif range_type == 2:
+            idx = getattr(self.curve_view, 'selected_point_idx', -1)
+            if idx >= 0:
+                half = window // 2
+                for i in range(max(0, idx-half), min(len(self.curve_data), idx+half+1)):
+                    points_to_smooth.append(i)
+        if not points_to_smooth:
+            QMessageBox.warning(self, "Warning", "No points to smooth.")
+            return
+        try:
+            ops = CurveDataOperations(self.curve_data)
+            if method == 0:
+                ops.smooth_moving_average(points_to_smooth, window)
+            elif method == 1:
+                ops.smooth_gaussian(points_to_smooth, window, sigma)
+            elif method == 2:
+                ops.smooth_savitzky_golay(points_to_smooth, window)
+            else:
+                QMessageBox.warning(self, "Warning", "Unknown smoothing method.")
+                return
+            self.curve_data = ops.get_data()
+        except Exception as e:
+            QMessageBox.critical(self, "Error", f"Smoothing failed: {e}")
+            return
+        self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height, preserve_view=True)
+        self.add_to_history()
+
     # Dialog Operations
     def show_smooth_dialog(self):
         DialogOperations.show_smooth_dialog(self)
@@ -566,17 +620,13 @@ class MainWindow(QMainWindow):
     def show_fill_gaps_dialog(self):
         DialogOperations.show_fill_gaps_dialog(self)
 
-    def fill_gap(self, start_frame, end_frame, method, preserve_endpoints=True):
-        DialogOperations.fill_gap(self, start_frame, end_frame, method, preserve_endpoints)
+    def fill_gap(self, start_frame: int, end_frame: int, method: str, preserve_endpoints: bool = True) -> None:
+        DialogService.fill_gap(self, start_frame, end_frame, method, preserve_endpoints)  # type: ignore[attr-defined]
 
     def show_extrapolate_dialog(self):
         DialogOperations.show_extrapolate_dialog(self)
 
-    def set_centering_enabled(self, enabled):
-        """Set whether automatic centering on selected point is enabled."""
-        self.centering_enabled = enabled
-
-    def on_frame_changed(self, frame_num):
+    def on_frame_changed(self, frame_num: int) -> None:
         """Called when the frame changes (timeline, playback, etc)."""
         # Usual frame update logic (call existing code)
         self._select_point_for_frame(frame_num)

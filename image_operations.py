@@ -223,7 +223,6 @@ class ImageOperations:
         # Update the UI
         main_window.update_image_label()
         main_window.toggle_bg_button.setEnabled(True)
-        main_window.opacity_slider.setEnabled(True)
         
         # Show a success message
         QMessageBox.information(

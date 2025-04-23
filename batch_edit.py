@@ -317,7 +317,7 @@ class BatchEditUI:
         self.parent.smooth_button.setToolTip("Smooth selected points")
         
         self.parent.select_all_button = QPushButton("Select All")
-        self.parent.select_all_button.clicked.connect(lambda: CurveViewOperations.select_all_points(self.parent.curve_view))
+        self.parent.select_all_button.clicked.connect(lambda: CurveViewOperations.select_all_points(self.parent.curve_view, self.parent))
         self.parent.select_all_button.setToolTip("Select all points (Ctrl+A)")
         
         batch_layout.addWidget(self.parent.scale_button)

@@ -1,12 +1,13 @@
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
+
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
 import typing
-from typing import Optional
+from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QMenuBar
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeySequence, QAction
-from keyboard_shortcuts import ShortcutManager
+from PySide6.QtGui import QAction
+# from keyboard_shortcuts import ShortcutManager
 from services.file_service import FileService as FileOperations
 from services.image_service import ImageService as ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
@@ -16,14 +17,14 @@ from services.history_service import HistoryService as HistoryOperations # Assum
 # from curve_operations import CurveOperations # Removed, logic moved
 # Removed: from main_window import MainWindow (causes circular import)
 
-
 if typing.TYPE_CHECKING:
     from main_window import MainWindow
+    # Service facades imported above; no redeclaration needed here
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""
     
-    def __init__(self, parent: Optional['MainWindow'] = None): # Use Optional type hint
+    def __init__(self, parent: 'MainWindow'): # MainWindow always provided
         super().__init__(parent)
         self.main_window = parent
         self.setup_menus()
@@ -102,13 +103,13 @@ class MenuBar(QMenuBar):
         select_all_action = QAction('Select &All', self)
         # Remove explicit shortcut assignment to avoid conflict
         # select_all_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('select_all')))
-        select_all_action.triggered.connect(lambda: CurveViewOperations.select_all_points(self.main_window.curve_view) if self.main_window else None)
+        select_all_action.triggered.connect(lambda: CurveViewOperations.select_all_points(self.main_window.curve_view, self.main_window))
         edit_menu.addAction(select_all_action)
         
         deselect_all_action = QAction('&Deselect All', self)
         # Remove explicit shortcut assignment to avoid conflict
         # deselect_all_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('deselect_all')))
-        deselect_all_action.triggered.connect(lambda: CurveViewOperations.clear_selection(self.main_window.curve_view) if self.main_window else None) # Use correct method name
+        deselect_all_action.triggered.connect(lambda: CurveViewOperations.clear_selection(self.main_window.curve_view, self.main_window)) # Use correct method name
         edit_menu.addAction(deselect_all_action)
         
         edit_menu.addSeparator()
@@ -118,7 +119,7 @@ class MenuBar(QMenuBar):
         # Explicitly set the shortcut to "Delete" to avoid ambiguity with "Del"
         # delete_action.setShortcut(QKeySequence("Delete")) # Removed shortcut to resolve ambiguity
         # delete_action.setShortcutContext(Qt.ApplicationShortcut) # Removed shortcut context
-        delete_action.triggered.connect(lambda: CurveViewOperations.delete_selected_points(self.main_window))
+        delete_action.triggered.connect(lambda: CurveViewOperations.delete_selected_points(self.main_window.curve_view, self.main_window))
         edit_menu.addAction(delete_action)
     
     def create_view_menu(self):
@@ -138,21 +139,21 @@ class MenuBar(QMenuBar):
         # Remove the explicit shortcut assignment to avoid conflict with ShortcutManager
         # grid_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('toggle_grid')))
         grid_action.setCheckable(True)
-        grid_action.triggered.connect(lambda checked: VisualizationOperations.toggle_grid(self.main_window, checked))
+        grid_action.toggled.connect(self._handle_grid_toggled)
         view_menu.addAction(grid_action)
         
         velocity_action = QAction('Show &Velocity Vectors', self)
         # Remove explicit shortcut assignment to avoid conflict
         # velocity_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('toggle_velocity')))
         velocity_action.setCheckable(True)
-        velocity_action.triggered.connect(lambda checked: VisualizationOperations.toggle_velocity_vectors(self.main_window, checked))
+        velocity_action.toggled.connect(self._handle_velocity_toggled)
         view_menu.addAction(velocity_action)
         
         frame_numbers_action = QAction('Show Frame &Numbers', self)
         # Remove explicit shortcut assignment to avoid conflict
         # frame_numbers_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('toggle_frame_numbers')))
         frame_numbers_action.setCheckable(True)
-        frame_numbers_action.triggered.connect(lambda checked: VisualizationOperations.toggle_all_frame_numbers(self.main_window, checked))
+        frame_numbers_action.toggled.connect(self._handle_frame_numbers_toggled)
         view_menu.addAction(frame_numbers_action)
         
         # Background
@@ -160,13 +161,13 @@ class MenuBar(QMenuBar):
         # Remove explicit shortcut assignment to avoid conflict
         # background_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('toggle_background')))
         background_action.setCheckable(True)
-        background_action.triggered.connect(lambda checked: ImageOperations.toggle_background(self.main_window))
+        background_action.toggled.connect(self._handle_background_toggled)
         view_menu.addAction(background_action)
         
         # Auto-center on frame change
         self.auto_center_action = QAction('Auto-Center on Frame Change', self)
         self.auto_center_action.setCheckable(True)
-        self.auto_center_action.toggled.connect(lambda checked: self.main_window.toggle_auto_center(checked) if self.main_window else None)
+        self.auto_center_action.toggled.connect(self._handle_auto_center_toggled)
         view_menu.addAction(self.auto_center_action)
 
         
@@ -228,3 +229,28 @@ class MenuBar(QMenuBar):
         shortcuts_action = QAction('&Keyboard Shortcuts', self)
         shortcuts_action.triggered.connect(lambda: DialogOperations.show_shortcuts_dialog(self.main_window))
         help_menu.addAction(shortcuts_action)
+
+    def _handle_auto_center_toggled(self, enabled: bool) -> None:
+        """Handle auto-center toggled signal."""
+        if self.main_window:
+            self.main_window.set_centering_enabled(enabled)
+
+    def _handle_grid_toggled(self, enabled: bool) -> None:
+        """Handle grid toggled signal."""
+        if self.main_window:
+            VisualizationOperations.toggle_grid(self.main_window, enabled)
+
+    def _handle_velocity_toggled(self, enabled: bool) -> None:
+        """Handle velocity toggled signal."""
+        if self.main_window:
+            VisualizationOperations.toggle_velocity_vectors(self.main_window, enabled)
+
+    def _handle_frame_numbers_toggled(self, enabled: bool) -> None:
+        """Handle frame numbers toggled signal."""
+        if self.main_window:
+            VisualizationOperations.toggle_all_frame_numbers(self.main_window, enabled)
+
+    def _handle_background_toggled(self, enabled: bool) -> None:
+        """Handle background toggled signal."""
+        if self.main_window:
+            ImageOperations.toggle_background(self.main_window, enabled)

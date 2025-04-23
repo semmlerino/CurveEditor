@@ -65,8 +65,18 @@ class HistoryOperations:
         main_window.point_name = state['point_name']
         main_window.point_color = state['point_color']
         
-        # Update view
-        main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
+        # Update view without resetting zoom/pan
+        if hasattr(main_window.curve_view, 'set_curve_data'):
+            main_window.curve_view.set_curve_data(main_window.curve_data)
+        elif hasattr(main_window.curve_view, 'setPoints'):
+            main_window.curve_view.setPoints(
+                main_window.curve_data,
+                main_window.image_width,
+                main_window.image_height,
+                preserve_view=True
+            )
+        else:
+            main_window.curve_view.update()
         
         # Update info
         main_window.info_label.setText(f"Loaded: {main_window.point_name} ({len(main_window.curve_data)} frames)")

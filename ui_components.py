@@ -24,47 +24,41 @@ This architecture ensures that:
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
     QPushButton, QSlider, QLineEdit,
-    QGroupBox, QSplitter, QToolBar, QFrame,
-    QGridLayout, QTabWidget, QSpacerItem,
-    QSizePolicy, QComboBox, QStatusBar, QSpinBox
+    QGroupBox, QToolBar, QFrame,
+    QGridLayout, QComboBox, QSpinBox, QDoubleSpinBox
 )
-from PySide6.QtCore import Signal, Qt, QSize, QTimer, QEvent
-from PySide6.QtGui import (
-    QIcon, QFont, QAction, QKeySequence,
-    QPainter, QPainterPath, QColor, QShortcut
-)
+from PySide6.QtCore import Qt, QSize, QTimer
+from PySide6.QtGui import QFont, QPainter, QPainterPath, QColor, QPaintEvent, QMouseEvent
+from typing import Optional, Any, cast
 
 from services.curve_service import CurveService as CurveViewOperations
-from services.visualization_service import VisualizationService as VisualizationOperations
 from services.image_service import ImageService as ImageOperations
 from services.dialog_service import DialogService as DialogOperations
 # from curve_operations import CurveOperations # Removed, logic moved
 from services.history_service import HistoryService as HistoryOperations # For undo/redo
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations # Updated Import
+from services.centering_zoom_service import CenteringZoomService  # Use service facade for auto centering
 
-from enhanced_curve_view import EnhancedCurveView
-import os
-import re
+from enhanced_curve_view import EnhancedCurveView  # type: ignore[attr-defined]
 
 
 class TimelineFrameMarker(QWidget):
     """Custom widget to show the current frame position marker in the timeline."""
     
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super(TimelineFrameMarker, self).__init__(parent)
-        self.position = 0
+        self.position: float = 0.0
         self.setFixedHeight(10)
         self.setMinimumWidth(100)
         
-    def setPosition(self, position):
+    def setPosition(self, position: float) -> None:
         """Set the relative position of the marker (0.0 to 1.0)."""
         self.position = max(0.0, min(1.0, position))
         self.update()
         
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Draw the frame marker."""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
+        painter = QPainter(self)  # type: ignore[arg-type]
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         
         # Calculate marker position
         width = self.width()
@@ -99,7 +93,7 @@ class UIComponents:
     """
     
     @staticmethod
-    def create_toolbar(main_window):
+    def create_toolbar(main_window: Any) -> QWidget:
         """Create a more organized toolbar with action buttons grouped by function."""
         
         toolbar = QToolBar()
@@ -113,8 +107,12 @@ class UIComponents:
         file_layout.setSpacing(2)
         
         file_label = QLabel("File")
-        file_label.setAlignment(Qt.AlignCenter)
-        file_label.setFont(QFont("Arial", 8, QFont.Bold))
+        file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # bold font for label
+        file_font = QFont("Arial")  # type: ignore[arg-type]
+        file_font.setPointSize(8)
+        file_font.setBold(True)
+        file_label.setFont(file_font)
         file_layout.addWidget(file_label)
         
         file_buttons = QHBoxLayout()
@@ -145,8 +143,12 @@ class UIComponents:
         view_layout.setSpacing(2)
         
         view_label = QLabel("View")
-        view_label.setAlignment(Qt.AlignCenter)
-        view_label.setFont(QFont("Arial", 8, QFont.Bold))
+        view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # bold font for label
+        view_font = QFont("Arial")  # type: ignore[arg-type]
+        view_font.setPointSize(8)
+        view_font.setBold(True)
+        view_label.setFont(view_font)
         view_layout.addWidget(view_label)
         
         view_buttons = QHBoxLayout()
@@ -161,7 +163,7 @@ class UIComponents:
         
         main_window.toggle_bg_button = QPushButton("Toggle BG")
         main_window.toggle_bg_button.setToolTip("Toggle Background Visibility")
-        main_window.toggle_bg_button.clicked.connect(lambda: ImageOperations.toggle_background(main_window))
+        main_window.toggle_bg_button.clicked.connect(lambda checked: ImageOperations.toggle_background(main_window, checked))
         main_window.toggle_bg_button.setEnabled(False)
         
         view_buttons.addWidget(main_window.reset_view_button)
@@ -176,8 +178,11 @@ class UIComponents:
         curve_layout.setSpacing(2)
         
         curve_label = QLabel("Curve Tools")
-        curve_label.setAlignment(Qt.AlignCenter)
-        curve_label.setFont(QFont("Arial", 8, QFont.Bold))
+        curve_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        # bold font for label
+        curve_font = QFont("Arial", 8)
+        curve_font.setBold(True)
+        curve_label.setFont(curve_font)
         curve_layout.addWidget(curve_label)
         
         curve_buttons = QGridLayout()
@@ -217,9 +222,12 @@ class UIComponents:
         history_layout.setSpacing(2)
         
         history_label = QLabel("History & Analysis")
-        history_label.setAlignment(Qt.AlignCenter)
-        history_label.setFont(QFont("Arial", 8, QFont.Bold))
-        history_layout.addWidget(history_label)
+        history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        history_font = QFont("Arial")  # type: ignore[arg-type]
+        history_font.setPointSize(8)
+        history_font.setWeight(QFont.Weight.Bold)
+        history_label.setFont(history_font)
+        history_layout.addWidget(history_label)  # type: ignore[arg-type]
         
         history_buttons = QHBoxLayout()
         
@@ -251,8 +259,8 @@ class UIComponents:
         # Add vertical separator lines between groups
         def create_vertical_line():
             line = QFrame()
-            line.setFrameShape(QFrame.VLine)
-            line.setFrameShadow(QFrame.Sunken)
+            line.setFrameShape(QFrame.Shape.VLine)
+            line.setFrameShadow(QFrame.Shadow.Sunken)
             return line
         
         # Create the main toolbar layout
@@ -281,7 +289,7 @@ class UIComponents:
         return toolbar_widget
         
     @staticmethod
-    def create_view_and_timeline(main_window):
+    def create_view_and_timeline(main_window: Any) -> QWidget:
         """Create the curve view widget and timeline controls."""
         # Container for view and timeline
         view_container = QWidget()
@@ -321,23 +329,27 @@ class UIComponents:
         
         main_window.image_label = QLabel("No images loaded")
         
-        # Opacity slider
-        main_window.opacity_slider = QSlider(Qt.Horizontal)
-        main_window.opacity_slider.setMinimum(0)
-        main_window.opacity_slider.setMaximum(100)
-        main_window.opacity_slider.setValue(70)  # Default 70% opacity
-        main_window.opacity_slider.setEnabled(False)
-        main_window.opacity_slider.valueChanged.connect(lambda value: ImageOperations.opacity_changed(main_window, value))
+        # Point size slider
+        main_window.point_size_slider = QSlider(Qt.Orientation.Horizontal)
+        main_window.point_size_slider.setMinimum(1)
+        main_window.point_size_slider.setMaximum(20)
+        main_window.point_size_slider.setValue(main_window.curve_view.point_radius)
+        main_window.point_size_slider.setEnabled(True)
         
-        opacity_layout = QHBoxLayout()
-        opacity_layout.addWidget(QLabel("Opacity:"))
-        opacity_layout.addWidget(main_window.opacity_slider)
-        
+        # Typed slot for point size slider
+        def on_point_size_changed(value: int) -> None:
+            main_window.curve_view.set_point_radius(value)
+        main_window.point_size_slider.valueChanged.connect(on_point_size_changed)
+
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(QLabel("Point Size:"))
+        size_layout.addWidget(main_window.point_size_slider)
+
         image_controls.addWidget(main_window.prev_image_button)
         image_controls.addWidget(main_window.image_label)
         image_controls.addWidget(main_window.next_image_button)
         image_controls.addStretch()
-        image_controls.addLayout(opacity_layout)
+        image_controls.addLayout(size_layout)
         
         timeline_layout.addLayout(image_controls)
         
@@ -396,12 +408,12 @@ class UIComponents:
         timeline_layout.addLayout(timeline_controls)
         
         # Enhanced Timeline slider with individual frame ticks
-        main_window.timeline_slider = QSlider(Qt.Horizontal)
+        main_window.timeline_slider = QSlider(Qt.Orientation.Horizontal)
         main_window.timeline_slider.setMinimum(0)
         main_window.timeline_slider.setMaximum(100)  # Will be updated when data is loaded
         
         # Configure slider to show individual frames
-        main_window.timeline_slider.setTickPosition(QSlider.TicksBelow)
+        main_window.timeline_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
         main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
         main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
         
@@ -413,8 +425,10 @@ class UIComponents:
         # Add frame tracking tooltip
         main_window.timeline_slider.setToolTip("Frame: 0")
         
-        # Connect signals
-        main_window.timeline_slider.valueChanged.connect(lambda value: UIComponents.on_timeline_changed(main_window, value))
+        # Typed slot for timeline slider
+        def on_slider_value_changed(value: int) -> None:
+            UIComponents.on_timeline_changed(main_window, value)
+        main_window.timeline_slider.valueChanged.connect(on_slider_value_changed)
         
         # Create frame marker for better visual indication
         main_window.frame_marker = TimelineFrameMarker()
@@ -428,13 +442,13 @@ class UIComponents:
         timeline_layout.addLayout(slider_layout)
         
         # Add mouse event handler for frame scrubbing
-        def on_timeline_press(event):
+        def on_timeline_press(ev: QMouseEvent) -> None:
             """Handle mouse press on timeline for direct frame selection."""
-            if event.button() == Qt.LeftButton:
+            if ev.button() == Qt.MouseButton.LeftButton:
                 # Calculate the frame based on click position
                 slider = main_window.timeline_slider
                 width = slider.width()
-                pos = event.pos().x()
+                pos = ev.pos().x()
                 
                 # Get the frame range
                 min_frame = slider.minimum()
@@ -456,61 +470,19 @@ class UIComponents:
         original_press_event = main_window.timeline_slider.mousePressEvent
         
         # Override mouse press event
-        def custom_press_event(event):
-            on_timeline_press(event)
+        def custom_press_event(ev: QMouseEvent) -> None:
+            on_timeline_press(ev)
             # Call original handler if needed
-            if original_press_event:
-                original_press_event(event)
+            original_press_event(ev)
                 
-        main_window.timeline_slider.mousePressEvent = custom_press_event
+        setattr(main_window.timeline_slider, "mousePressEvent", custom_press_event)  # type: ignore
         
         view_layout.addWidget(timeline_widget)
         
         return view_container
 
     @staticmethod
-    def create_enhanced_curve_view(main_window):
-        """Create and set up the enhanced curve view."""
-        # ... (Code as before) ...
-        try:
-            # Create the enhanced curve view
-            enhanced_view = EnhancedCurveView(main_window)
-            
-            # Replace standard view with enhanced view
-            if hasattr(main_window, 'curve_view_container') and hasattr(main_window, 'curve_view'):
-                main_window.curve_view_container.layout().removeWidget(main_window.curve_view)
-                main_window.curve_view.deleteLater()
-                
-                # Set the new enhanced view
-                main_window.curve_view = enhanced_view
-                main_window.curve_view_container.layout().addWidget(main_window.curve_view)
-                
-                # Explicitly connect signals here to ensure proper connections
-                main_window.curve_view.point_selected.connect(lambda idx: CurveViewOperations.on_point_selected(main_window, idx))
-                main_window.curve_view.point_moved.connect(lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y))
-                main_window.curve_view.image_changed.connect(main_window.on_image_changed)
-                print("UIComponents: Enhanced curve view signal connections established")
-                
-                # Add a reference to the visualization operations method for timeline updates
-                from visualization_operations import VisualizationOperations
-                
-                # Create a wrapper method that calls the visualization operations method
-                def update_timeline_for_image(index):
-                    """Wrapper method to update the timeline for the current image."""
-                    VisualizationOperations.update_timeline_for_image(main_window, index)
-                
-                # Attach the wrapper method to the curve view for backward compatibility
-                main_window.curve_view.updateTimelineForImage = update_timeline_for_image
-                
-                return True
-        except Exception as e:
-            print(f"Error creating enhanced curve view: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-    @staticmethod
-    def create_control_panel(main_window):
+    def create_control_panel(main_window: Any) -> QWidget:
         """
         Create the control panel for point editing and view controls.
 
@@ -591,10 +563,14 @@ class UIComponents:
         main_window.toggle_crosshair_button.setCheckable(True)
         main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
 
+        # Typed slot for center toggled in control panel
+        def on_control_center_toggled(checked: bool) -> None:
+            main_window.set_centering_enabled(checked)
+            if checked:
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
         main_window.center_on_point_button = QPushButton("Center")
         main_window.center_on_point_button.setCheckable(True)
-        main_window.center_on_point_button.toggled.connect(main_window.toggle_auto_center)
-        main_window.center_on_point_button.toggled.connect(lambda checked: ZoomOperations.auto_center_view(main_window) if checked else None)
+        main_window.center_on_point_button.toggled.connect(on_control_center_toggled)
         main_window.center_on_point_button.setStyleSheet("QPushButton:checked { background-color: lightblue; }")
         main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
 
@@ -619,14 +595,44 @@ class UIComponents:
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
+        # Add inline smoothing controls
+        smoothing_group = QGroupBox("Smoothing")
+        smoothing_layout = QGridLayout(smoothing_group)
+        smoothing_layout.addWidget(QLabel("Method:"), 0, 0)
+        main_window.smoothing_method_combo = QComboBox()
+        main_window.smoothing_method_combo.addItems(["Moving Average", "Gaussian", "Savitzky-Golay"])
+        smoothing_layout.addWidget(main_window.smoothing_method_combo, 0, 1)
+        smoothing_layout.addWidget(QLabel("Window:"), 1, 0)
+        main_window.smoothing_window_spin = QSpinBox()
+        main_window.smoothing_window_spin.setRange(1, 51)
+        main_window.smoothing_window_spin.setValue(5)
+        smoothing_layout.addWidget(main_window.smoothing_window_spin, 1, 1)
+        smoothing_layout.addWidget(QLabel("Sigma:"), 2, 0)
+        main_window.smoothing_sigma_spin = QDoubleSpinBox()
+        main_window.smoothing_sigma_spin.setRange(0.1, 10.0)
+        main_window.smoothing_sigma_spin.setSingleStep(0.1)
+        main_window.smoothing_sigma_spin.setValue(1.0)
+        smoothing_layout.addWidget(main_window.smoothing_sigma_spin, 2, 1)
+        smoothing_layout.addWidget(QLabel("Range:"), 3, 0)
+        main_window.smoothing_range_combo = QComboBox()
+        main_window.smoothing_range_combo.addItems(["Entire Curve", "Selected Range", "Current Window"])
+        smoothing_layout.addWidget(main_window.smoothing_range_combo, 3, 1)
+        main_window.smoothing_apply_button = QPushButton("Apply Smoothing")
+        main_window.smoothing_apply_button.setToolTip("Apply smoothing to curve")
+        smoothing_layout.addWidget(main_window.smoothing_apply_button, 4, 0, 1, 2)
+        right_layout.addWidget(smoothing_group)
+
         # Track Quality Group
         quality_group = QGroupBox("Track Quality")
         quality_layout = QGridLayout(quality_group)
 
         quality_layout.addWidget(QLabel("Overall Score:"), 0, 0)
         main_window.quality_score_label = QLabel("N/A")
-        main_window.quality_score_label.setFont(QFont("Arial", 10, QFont.Bold))
-        quality_layout.addWidget(main_window.quality_score_label, 0, 1)
+        quality_font = QFont("Arial")  # type: ignore[arg-type]
+        quality_font.setPointSize(10)
+        quality_font.setWeight(QFont.Weight.Bold)
+        main_window.quality_score_label.setFont(quality_font)
+        quality_layout.addWidget(main_window.quality_score_label, 0, 1)  # type: ignore[arg-type]
 
         quality_layout.addWidget(QLabel("Smoothness:"), 1, 0)
         main_window.smoothness_label = QLabel("N/A")
@@ -664,10 +670,58 @@ class UIComponents:
 
         main_window.enable_point_controls(False)
 
+        # Connect smoothing signal
+        main_window.smoothing_apply_button.clicked.connect(main_window.apply_ui_smoothing)
+
         return controls_container
 
     @staticmethod
-    def setup_timeline(main_window):
+    def create_enhanced_curve_view(main_window: Any) -> bool:
+        """Create and set up the enhanced curve view."""
+        try:
+            # Create the enhanced curve view
+            enhanced_view = EnhancedCurveView(main_window)
+            
+            # Replace standard view with enhanced view
+            if hasattr(main_window, 'curve_view_container') and hasattr(main_window, 'curve_view'):
+                main_window.curve_view_container.layout().removeWidget(main_window.curve_view)
+                main_window.curve_view.deleteLater()
+                
+                # Set the new enhanced view
+                main_window.curve_view = enhanced_view
+                main_window.curve_view_container.layout().addWidget(main_window.curve_view)
+                
+                # Typed slots for enhanced view signals
+                def on_point_selected_slot(idx: int) -> None:
+                    CurveViewOperations.on_point_selected(main_window, idx)
+                def on_point_moved_slot(idx: int, x: float, y: float) -> None:
+                    CurveViewOperations.on_point_moved(main_window, idx, x, y)
+                def on_image_changed_slot(index: int) -> None:
+                    main_window.on_image_changed(index)
+                main_window.curve_view.point_selected.connect(on_point_selected_slot)
+                main_window.curve_view.point_moved.connect(on_point_moved_slot)
+                main_window.curve_view.image_changed.connect(on_image_changed_slot)
+                
+                # Add a reference to the visualization operations method for timeline updates
+                from visualization_operations import VisualizationOperations
+                
+                # Create a wrapper method that calls the visualization operations method
+                def update_timeline_for_image(index: int) -> None:
+                    """Wrapper method to update the timeline for the current image."""
+                    VisualizationOperations.update_timeline_for_image(
+                        index, main_window.curve_view, main_window.image_filenames
+                    )
+                
+                # Attach the wrapper method to the curve view for backward compatibility
+                main_window.curve_view.updateTimelineForImage = update_timeline_for_image  # type: ignore[attr-defined]
+                
+                return True
+        except Exception:
+            return False
+        return False
+
+    @staticmethod
+    def setup_timeline(main_window: Any) -> None:
         """Setup timeline slider based on frame range."""
         # ... (Code as before) ...
         if not main_window.curve_data:
@@ -715,7 +769,7 @@ class UIComponents:
         print(f"UIComponents: Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
 
     @staticmethod
-    def on_timeline_changed(main_window, value):
+    def on_timeline_changed(main_window: Any, value: int) -> None:
         """Handle timeline slider value changed with enhanced feedback."""
         main_window.current_frame = value
         
@@ -748,14 +802,23 @@ class UIComponents:
         # Auto-center if enabled
         if getattr(main_window, 'auto_center_enabled', False):
             try:
-                ZoomOperations.auto_center_view(main_window, preserve_zoom=True)
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering: {e}")
+        
+        # Select the closest point for highlighting
+        if hasattr(main_window, 'curve_data') and main_window.curve_data:
+            closest_frame = min(main_window.curve_data, key=lambda p: abs(p[0] - main_window.current_frame))[0]
+            for i, pt in enumerate(main_window.curve_data):
+                if pt[0] == closest_frame:
+                    main_window.curve_view.selected_point_idx = i
+                    main_window.curve_view.selected_points = {i}
+                    break
         
         # Update point type(s) for selected points on current frame
         if hasattr(main_window, 'type_edit') and hasattr(main_window.curve_view, 'get_selected_indices'):
             selected = main_window.curve_view.get_selected_indices()
-            statuses = []
+            statuses: list[str] = []
             for idx in selected:
                 if main_window.curve_data and idx < len(main_window.curve_data) and main_window.curve_data[idx][0] == value:
                     point = main_window.curve_data[idx]
@@ -768,7 +831,7 @@ class UIComponents:
         main_window.curve_view.update() # Ensure view updates
 
     @staticmethod
-    def on_frame_edit_changed(main_window):
+    def on_frame_edit_changed(main_window: Any) -> None:
         """Handle frame edit text changed."""
         try:
             value = int(main_window.frame_edit.text())
@@ -784,7 +847,7 @@ class UIComponents:
             main_window.statusBar().showMessage("Invalid frame number entered", 2000)
             
     @staticmethod
-    def toggle_playback(main_window):
+    def toggle_playback(main_window: Any) -> None:
         """Toggle timeline playback on/off."""
         # ... (Code as before) ...
         # If playback is already active, stop it
@@ -807,7 +870,7 @@ class UIComponents:
         main_window.statusBar().showMessage("Playback started", 2000)
 
     @staticmethod
-    def advance_playback(main_window):
+    def advance_playback(main_window: Any) -> None:
         """Advance timeline by one frame during playback."""
         # ... (Code as before) ...
         current_frame = main_window.timeline_slider.value()
@@ -822,7 +885,7 @@ class UIComponents:
             main_window.statusBar().showMessage("Playback finished", 2000)
 
     @staticmethod
-    def next_frame(main_window):
+    def next_frame(main_window: Any) -> None:
         """Go to the next frame in the timeline."""
         if not main_window.curve_data:
             return
@@ -834,15 +897,15 @@ class UIComponents:
             new_frame = current_frame + 1
             main_window.timeline_slider.setValue(new_frame)
             # Explicitly call centering logic here as well
-            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            if getattr(main_window, 'auto_center_enabled', False):
                 try:
-                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                    CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
                 except Exception as e:
                     print(f"Error during auto-centering in next_frame: {e}")
             main_window.curve_view.update() # Ensure view updates
 
     @staticmethod
-    def prev_frame(main_window):
+    def prev_frame(main_window: Any) -> None:
         """Go to the previous frame in the timeline."""
         if not main_window.curve_data:
             return
@@ -854,15 +917,15 @@ class UIComponents:
             new_frame = current_frame - 1
             main_window.timeline_slider.setValue(new_frame)
              # Explicitly call centering logic here as well
-            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            if getattr(main_window, 'auto_center_enabled', False):
                 try:
-                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                    CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
                 except Exception as e:
                     print(f"Error during auto-centering in prev_frame: {e}")
             main_window.curve_view.update() # Ensure view updates
 
     @staticmethod
-    def advance_frames(main_window, count):
+    def advance_frames(main_window: Any, count: int) -> None:
         """Advance timeline by specified number of frames (positive or negative)."""
         if not main_window.curve_data:
             return
@@ -876,16 +939,16 @@ class UIComponents:
         
         main_window.timeline_slider.setValue(new_frame)
         # Explicitly call centering logic here as well
-        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+        if getattr(main_window, 'auto_center_enabled', False):
             try:
-                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering in advance_frames: {e}")
         main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Advanced {count} frames to frame {new_frame}", 2000)
             
     @staticmethod
-    def go_to_frame(main_window, frame):
+    def go_to_frame(main_window: Any, frame: int) -> None:
         """Go to a specific frame."""
         if not main_window.curve_data:
             return
@@ -896,9 +959,9 @@ class UIComponents:
         if min_frame <= frame <= max_frame:
             main_window.timeline_slider.setValue(frame)
              # Explicitly call centering logic here as well
-            if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+            if getattr(main_window, 'auto_center_enabled', False):
                 try:
-                    ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                    CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
                 except Exception as e:
                     print(f"Error during auto-centering in go_to_frame: {e}")
             main_window.curve_view.update() # Ensure view updates
@@ -906,7 +969,7 @@ class UIComponents:
             main_window.statusBar().showMessage(f"Frame {frame} is out of range ({min_frame}-{max_frame})", 2000)
 
     @staticmethod
-    def go_to_first_frame(main_window):
+    def go_to_first_frame(main_window: Any) -> None:
         """Go to the first frame in the timeline."""
         if not main_window.curve_data:
             return
@@ -914,16 +977,16 @@ class UIComponents:
         min_frame = main_window.timeline_slider.minimum()
         main_window.timeline_slider.setValue(min_frame)
         # Explicitly call centering logic here as well
-        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+        if getattr(main_window, 'auto_center_enabled', False):
             try:
-                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering in go_to_first_frame: {e}")
         main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Moved to first frame ({min_frame})", 2000)
     
     @staticmethod
-    def go_to_last_frame(main_window):
+    def go_to_last_frame(main_window: Any) -> None:
         """Go to the last frame in the timeline."""
         if not main_window.curve_data:
             return
@@ -931,16 +994,16 @@ class UIComponents:
         max_frame = main_window.timeline_slider.maximum()
         main_window.timeline_slider.setValue(max_frame)
         # Explicitly call centering logic here as well
-        if getattr(main_window, 'auto_center_enabled', False) and hasattr(main_window, 'curve_view'):
+        if getattr(main_window, 'auto_center_enabled', False):
             try:
-                ZoomOperations.center_on_selected_point(main_window.curve_view, preserve_zoom=True)
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering in go_to_last_frame: {e}")
         main_window.curve_view.update() # Ensure view updates
         main_window.statusBar().showMessage(f"Moved to last frame ({max_frame})", 2000)
 
     @staticmethod
-    def update_frame_marker(main_window):
+    def update_frame_marker(main_window: Any) -> None:
         """Update the position of the frame marker based on current frame."""
         # ... (Code as before) ...
         if hasattr(main_window, 'frame_marker') and hasattr(main_window, 'timeline_slider'):
@@ -956,50 +1019,8 @@ class UIComponents:
                 main_window.frame_marker.update()
 
     @staticmethod
-    def setup_enhanced_curve_view(main_window):
-        """Set up enhanced visualization controls."""
-        # ... (Code as before) ...
-        try:
-            # Create the enhanced curve view
-            enhanced_view = EnhancedCurveView(main_window)
-            
-            # Replace standard view with enhanced view
-            if hasattr(main_window, 'curve_view_container') and hasattr(main_window, 'curve_view'):
-                main_window.curve_view_container.layout().removeWidget(main_window.curve_view)
-                main_window.curve_view.deleteLater()
-                
-                # Set the new enhanced view
-                main_window.curve_view = enhanced_view
-                main_window.curve_view_container.layout().addWidget(main_window.curve_view)
-                
-                # Explicitly connect signals here to ensure proper connections
-                main_window.curve_view.point_selected.connect(lambda idx: CurveViewOperations.on_point_selected(main_window, idx))
-                main_window.curve_view.point_moved.connect(lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, idx, x, y))
-                main_window.curve_view.image_changed.connect(main_window.on_image_changed)
-                print("UIComponents: Enhanced curve view signal connections established")
-                
-                # Add a reference to the visualization operations method for timeline updates
-                from visualization_operations import VisualizationOperations
-                
-                # Create a wrapper method that calls the visualization operations method
-                def update_timeline_for_image(index):
-                    """Wrapper method to update the timeline for the current image."""
-                    VisualizationOperations.update_timeline_for_image(main_window, index)
-                
-                # Attach the wrapper method to the curve view for backward compatibility
-                main_window.curve_view.updateTimelineForImage = update_timeline_for_image
-                
-                return True
-        except Exception as e:
-            print(f"Error creating enhanced curve view: {str(e)}")
-            import traceback
-            traceback.print_exc()
-            return False
-
-    @staticmethod
-    def setup_enhanced_controls(main_window):
+    def setup_enhanced_controls(main_window: Any) -> None:
         """Set up enhanced visualization controls in the control panel."""
-        # ... (Code as before) ...
         # Find the existing visualization group box or create it if needed
         vis_group = None
         if hasattr(main_window, 'controls_container'):
@@ -1023,7 +1044,7 @@ class UIComponents:
         if vis_group.layout() is None:
             vis_layout = QGridLayout(vis_group)
         else:
-            vis_layout = vis_group.layout()
+            vis_layout = cast(QGridLayout, vis_group.layout())
             # Clear existing widgets if necessary (or adjust logic as needed)
             # while vis_layout.count():
             #     child = vis_layout.takeAt(0)
@@ -1049,8 +1070,12 @@ class UIComponents:
         
         main_window.center_on_point_button = QPushButton("Center")
         main_window.center_on_point_button.setCheckable(True)
-        main_window.center_on_point_button.toggled.connect(main_window.toggle_auto_center)
-        main_window.center_on_point_button.toggled.connect(lambda checked: ZoomOperations.auto_center_view(main_window) if checked else None)
+        # Typed slot for center toggled in setup_enhanced_controls
+        def on_control_center_toggled(checked: bool) -> None:
+            main_window.set_centering_enabled(checked)
+            if checked:
+                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
+        main_window.center_on_point_button.toggled.connect(on_control_center_toggled)
         main_window.center_on_point_button.setStyleSheet("QPushButton:checked { background-color: lightblue; }")
         main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
         
@@ -1073,7 +1098,7 @@ class UIComponents:
         # SignalRegistry.connect_all_signals(main_window) # Ensure signals are connected
 
     @staticmethod
-    def connect_all_signals(main_window):
+    def connect_all_signals(main_window: Any) -> None:
         """Connect all UI signals to their respective slots.
         
         This method centralizes signal connections for better maintainability.
@@ -1084,4 +1109,4 @@ class UIComponents:
         """
         # Use the SignalRegistry to handle connections
         from signal_registry import SignalRegistry
-        SignalRegistry.connect_all_signals(main_window)
+        SignalRegistry.connect_all_signals(main_window)  # type: ignore[attr-defined]

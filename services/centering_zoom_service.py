@@ -7,11 +7,12 @@ Dynamically attaches all static methods from ZoomOperations.
 """
 
 from centering_zoom_operations import ZoomOperations as LegacyZoomOps
+from typing import Any, Tuple
 
 class CenteringZoomService:
     """Facade for centering & zoom operations."""
     @staticmethod
-    def center_on_selected_point(point, content_size, content_position, zoom, base_offset):
+    def center_on_selected_point(point: Tuple[float, float], content_size: Tuple[float, float], content_position: Tuple[float, float], zoom: float, base_offset: Tuple[float, float]) -> None:
         # 1. Calculate the scaled content size
         scaled_content_size = (content_size[0] * zoom, content_size[1] * zoom)
         
@@ -34,7 +35,7 @@ class CenteringZoomService:
         # ... rest of the method remains the same ...
 
     @staticmethod
-    def auto_center_view(main_window, preserve_zoom=True):
+    def auto_center_view(main_window: Any, preserve_zoom: bool = True) -> bool:
         """Detect selected point and center the view using ZoomOperations."""
         curve_view = getattr(main_window, 'curve_view', None)
         if not curve_view:
@@ -59,7 +60,12 @@ class CenteringZoomService:
             main_window.statusBar().showMessage("Centering failed", 2000)
         return success
 
+    @staticmethod
+    def handle_wheel_event(curve_view: Any, event: Any) -> None:
+        """Delegate wheel event handling to legacy ZoomOperations."""
+        LegacyZoomOps.handle_wheel_event(curve_view, event)
+
 # Attach legacy static methods
 for name, fn in LegacyZoomOps.__dict__.items():
-    if callable(fn) and not name.startswith("_"):
+    if callable(fn) and not name.startswith("_") and not hasattr(CenteringZoomService, name):
         setattr(CenteringZoomService, name, staticmethod(fn))

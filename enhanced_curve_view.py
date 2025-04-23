@@ -1,14 +1,23 @@
 # -*- coding: utf-8 -*-
+# type: ignore
 
+from PySide6.QtWidgets import (
+    QWidget, QDialog, QVBoxLayout, QHBoxLayout,
+    QLabel, QKeySequenceEdit, QPushButton
+)
+try:
+    from PySide6.QtWidgets import QShortcut
+except ImportError:
+    from PySide6.QtGui import QShortcut
+from PySide6.QtCore import Qt, Signal, QSettings, QPointF
+from PySide6.QtGui import (
+    QPainter, QPen, QColor, QPainterPath,
+    QFont, QPixmap, QKeySequence
+)
 import os
-import math
-from PySide6.QtWidgets import QWidget, QApplication, QGridLayout, QMenu
-from PySide6.QtCore import Qt, QPointF, Signal, Slot, QRect
-from PySide6.QtGui import QPainter, QPen, QColor, QPainterPath, QFont, QImage, QPixmap, QBrush, QAction
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.input_service import InputService
 from services.image_service import ImageService
-import re
 
 
 class EnhancedCurveView(QWidget):
@@ -58,6 +67,9 @@ class EnhancedCurveView(QWidget):
         self.selected_point_border = QColor(255, 80, 80)
         self.interpolated_point_color = QColor(100, 180, 255, 150)
         self.interpolated_point_border = QColor(80, 160, 240)
+        # Keyframe status colors: darker for key points (improved contrast)
+        self.keyframe_point_color = QColor(80, 80, 80, 200)
+        self.keyframe_point_border = QColor(50, 50, 50)
         
         # Image background properties
         self.background_opacity = 0.5  # Background image opacity
@@ -88,6 +100,11 @@ class EnhancedCurveView(QWidget):
         self.initial_offset_x = 0
         self.initial_offset_y = 0
         
+        # Shortcut settings
+        self.settings = QSettings("Semmlerino", "CurveEditor")
+        self.default_shortcuts = {"toggleGrid": QKeySequence("Ctrl+Shift+G"), "openShortcutSettings": QKeySequence("Ctrl+Shift+S")}
+        self.initShortcuts()
+        
     def setPoints(self, points, image_width, image_height, preserve_view=False):
         """Set the points to display and adjust view accordingly.
         
@@ -107,17 +124,17 @@ class EnhancedCurveView(QWidget):
     def toggleGrid(self, enabled=None):
         """Toggle grid visibility."""
         from visualization_operations import VisualizationOperations
-        VisualizationOperations.toggle_grid_internal(self, enabled)
+        VisualizationOperations.toggle_grid(self, enabled)
         
     def toggleVelocityVectors(self, enabled=None):
         """Toggle velocity vector display."""
         from visualization_operations import VisualizationOperations
-        VisualizationOperations.toggle_velocity_vectors_internal(self, enabled)
+        VisualizationOperations.toggle_velocity_vectors(self, enabled)
         
     def toggleAllFrameNumbers(self, enabled=None):
         """Toggle display of all frame numbers."""
         from visualization_operations import VisualizationOperations
-        VisualizationOperations.toggle_all_frame_numbers_internal(self, enabled)
+        VisualizationOperations.toggle_all_frame_numbers(self, enabled)
         
     
     def centerOnSelectedPoint(self, point_idx=-1, preserve_zoom=True):
@@ -129,7 +146,8 @@ class EnhancedCurveView(QWidget):
             point_idx: Index of point to center on. Default -1 uses selected point.
             preserve_zoom: If True, maintain current zoom level. If False, reset view.
         """
-        ZoomOperations.center_on_selected_point(self, point_idx, preserve_zoom)
+        # use auto_center_view to avoid missing args and honor preserve_zoom
+        ZoomOperations.auto_center_view(self.main_window, preserve_zoom)
         
     def setCoordinatePrecision(self, precision):
         """Set decimal precision for coordinate display."""
@@ -147,7 +165,7 @@ class EnhancedCurveView(QWidget):
     def toggleBackgroundVisible(self, visible=None):
         """Toggle visibility of background image."""
         from visualization_operations import VisualizationOperations
-        VisualizationOperations.toggle_background_visible_internal(self, visible)
+        VisualizationOperations.toggle_background_visible(self, visible)
         
     def setBackgroundOpacity(self, opacity):
         """Set the opacity of the background image."""
@@ -180,8 +198,20 @@ class EnhancedCurveView(QWidget):
         Returns:
             Tuple of (frame, x, y, status) or None if index is invalid
         """
-        from services.curve_service import CurveService as CurveViewOperations
-        return CurveViewOperations.get_point_data(self, index)
+        # Delegate to service facade if available, else fallback to raw list
+        try:
+            from services.curve_service import CurveService as CurveViewOperations
+            handler = getattr(CurveViewOperations, 'get_point_data', None)
+            if callable(handler):
+                return handler(self, index)
+        except ImportError:
+            pass
+        # Fallback: normalize a raw point tuple
+        from curve_view_plumbing import normalize_point
+        pts = getattr(self, 'points', None)
+        if pts is None or index is None or index < 0 or index >= len(pts):
+            return None
+        return normalize_point(pts[index])
         
     def findPointAt(self, pos):
         """Find a point at the given position.
@@ -222,7 +252,7 @@ class EnhancedCurveView(QWidget):
     def finalize_selection(self):
         """Select all points inside the selection rectangle."""
         from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.finalize_selection(self)
+        CurveViewOperations.finalize_selection(self, self.main_window)
         
     def paintEvent(self, event):
         """Draw the curve and points with enhanced visualization."""
@@ -332,9 +362,6 @@ class EnhancedCurveView(QWidget):
                     grid_center_x = center_x
                     grid_center_y = center_y
                 
-                if self.debug_mode:
-                    print(f"EnhancedCurveView: Centering grid on point at ({grid_center_x}, {grid_center_y})")
-            
             # Calculate grid line positions centered on the selected point
             # Draw horizontal grid lines
             # Start from the center and go in both directions
@@ -410,7 +437,7 @@ class EnhancedCurveView(QWidget):
                         end_x, end_y = transform_point(curr_x + scaled_vx, curr_y + scaled_vy)
                         
                         # Set pen based on velocity magnitude
-                        vel_magnitude = math.sqrt(vx*vx + vy*vy)
+                        vel_magnitude = (vx*vx + vy*vy)**0.5
                         
                         # Color based on magnitude (slow=green, medium=yellow, fast=red)
                         if vel_magnitude < 2:
@@ -426,14 +453,14 @@ class EnhancedCurveView(QWidget):
                         # Draw arrow head
                         if vel_magnitude > 0.5:  # Only draw arrowhead if velocity is significant
                             # Calculate arrow angle
-                            angle = math.atan2(end_y - ty, end_x - tx)
+                            angle = (end_y - ty) / (end_x - tx)
                             arrow_size = 6
                             
                             # Calculate arrow points
-                            arrow_p1_x = end_x - arrow_size * math.cos(angle - math.pi/6)
-                            arrow_p1_y = end_y - arrow_size * math.sin(angle - math.pi/6)
-                            arrow_p2_x = end_x - arrow_size * math.cos(angle + math.pi/6)
-                            arrow_p2_y = end_y - arrow_size * math.sin(angle + math.pi/6)
+                            arrow_p1_x = end_x - arrow_size * (1 / (1 + angle**2)**0.5)
+                            arrow_p1_y = end_y - arrow_size * angle / (1 + angle**2)**0.5
+                            arrow_p2_x = end_x - arrow_size * (angle / (1 + angle**2)**0.5)
+                            arrow_p2_y = end_y + arrow_size * (1 / (1 + angle**2)**0.5)
                             
                             # Draw arrow
                             points = [QPointF(end_x, end_y), QPointF(arrow_p1_x, arrow_p1_y), 
@@ -473,16 +500,24 @@ class EnhancedCurveView(QWidget):
                 
                 # Determine if point is selected (either primary selection or in multi-selection)
                 is_selected = i in self.selected_points
-                
-                # Check if point has interpolated status (4th tuple element)
+
+                # Determine keyframe (first/last always) or interpolated status
+                is_keyframe = (i == 0 or i == len(self.points) - 1)
                 is_interpolated = False
-                if len(point) > 3 and point[3] == 'interpolated':
-                    is_interpolated = True
-                
+                if not is_keyframe and len(point) > 3:
+                    if point[3] == 'keyframe':
+                        is_keyframe = True
+                    elif point[3] == 'interpolated':
+                        is_interpolated = True
+
                 if is_selected:
                     painter.setPen(QPen(self.selected_point_border, 2))
                     painter.setBrush(self.selected_point_color)
                     point_radius = self.point_radius + 2 if i == self.selected_point_idx else self.point_radius
+                elif is_keyframe:
+                    painter.setPen(QPen(QColor(255, 255, 255, 200), 1))  # thin bright outline
+                    painter.setBrush(self.keyframe_point_color)
+                    point_radius = self.point_radius + 3  # slightly larger for visibility
                 elif is_interpolated:
                     painter.setPen(QPen(self.interpolated_point_border, 1))
                     painter.setBrush(self.interpolated_point_color)
@@ -494,19 +529,16 @@ class EnhancedCurveView(QWidget):
                     
                 painter.drawEllipse(QPointF(tx, ty), point_radius, point_radius)
                 
-                # Draw frame number - either for all frames or selected frames
-                if self.show_all_frame_numbers or is_selected or frame % 10 == 0:
-                    painter.setPen(QPen(QColor(200, 200, 100), 1))
-                    font = painter.font()
-                    font.setPointSize(8)
-                    painter.setFont(font)
+                # Draw frame number/type label for each point
+                painter.setPen(QPen(QColor(200, 200, 100), 1))
+                font = painter.font()
+                font.setPointSize(8)
+                painter.setFont(font)
+                if is_selected:
+                    point_type = point[3] if len(point) > 3 else 'normal'
+                    painter.drawText(int(tx) + 10, int(ty) - 10, f"{frame}, {point_type}")
+                elif self.show_all_frame_numbers or frame % 10 == 0:
                     painter.drawText(int(tx) + 10, int(ty) - 10, str(frame))
-                    
-                    # Show coordinates for selected points with higher precision
-                    if is_selected:
-                        coord_format = f"{{:.{self.display_precision}f}}"
-                        coord_text = f"X: {coord_format.format(x)}, Y: {coord_format.format(y)}"
-                        painter.drawText(int(tx) + 10, int(ty) + 15, coord_text)
         
             
         # Draw selection rectangle if active
@@ -607,21 +639,26 @@ class EnhancedCurveView(QWidget):
                            "Use ↑/↓ keys to change nudge increment")
             
     def mousePressEvent(self, event):
-        """Handle mouse press to select or move points."""
+        """Delegate mouse press to InputService."""
+        self.setFocus()
         InputService.handle_mouse_press(self, event)
-            
-    def mouseMoveEvent(self, event):
-        """Handle mouse movement for dragging points or panning."""
-        InputService.handle_mouse_move(self, event)
-            
-    def mouseReleaseEvent(self, event):
-        """Handle mouse release."""
-        InputService.handle_mouse_release(self, event)
-        
-    def wheelEvent(self, event):
-        """Handle mouse wheel for zooming via central service."""
-        ZoomOperations.handle_wheel_event(self, event)
 
+    def mouseMoveEvent(self, event):
+        """Delegate mouse move to InputService."""
+        InputService.handle_mouse_move(self, event)
+
+    def mouseReleaseEvent(self, event):
+        """Delegate mouse release to InputService."""
+        InputService.handle_mouse_release(self, event)
+
+    def wheelEvent(self, event):
+        """Delegate wheel event to InputService."""
+        InputService.handle_wheel_event(self, event)
+
+    def keyPressEvent(self, event):
+        """Delegate key press to InputService."""
+        InputService.handle_key_event(self, event)
+        
     def selectAllPoints(self):
         """Select all points in the curve."""
         from services.curve_service import CurveService as CurveViewOperations
@@ -630,7 +667,7 @@ class EnhancedCurveView(QWidget):
     def clearSelection(self):
         """Clear all point selections."""
         from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.clear_selection(self)
+        CurveViewOperations.clear_selection(self, self.main_window)
         
     def selectPointByIndex(self, index):
         """Select a point by its index."""
@@ -639,8 +676,8 @@ class EnhancedCurveView(QWidget):
         
     def set_curve_data(self, curve_data):
         """Compatibility method for curve_data from main_window."""
-        from services.curve_service import CurveService as CurveViewOperations
-        CurveViewOperations.set_curve_data(self, curve_data)
+        # Update internal points and refresh view, preserving zoom/pan
+        self.setPoints(curve_data, self.image_width, self.image_height, preserve_view=True)
         
     def set_selected_indices(self, indices):
         """Set selected point indices."""
@@ -668,7 +705,7 @@ class EnhancedCurveView(QWidget):
     def update_point_position(self, index, x, y):
         """Update a point's position while preserving its status."""
         from services.curve_service import CurveService as CurveViewOperations
-        return CurveViewOperations.update_point_position(self, index, x, y)
+        return CurveViewOperations.update_point_position(self, self.main_window, index, x, y)
         
     def contextMenuEvent(self, event):
         """Show context menu with point options."""
@@ -678,3 +715,70 @@ class EnhancedCurveView(QWidget):
         """Extract frame number from the current image index."""
         from services.curve_service import CurveService as CurveViewOperations
         return CurveViewOperations.extract_frame_number(self, img_idx)
+    
+    def initShortcuts(self):
+        """Initialize configurable keyboard shortcuts."""
+        self.shortcuts = {}
+        actions = {"toggleGrid": self.toggleGrid, "openShortcutSettings": self.showShortcutSettings}
+        for action_key, method in actions.items():
+            default_seq = self.default_shortcuts[action_key]
+            seq_str = self.settings.value(f"shortcuts/{action_key}", default_seq.toString())
+            seq = QKeySequence(seq_str)
+            sc = QShortcut(seq, self)
+            sc.setContext(Qt.ApplicationShortcut)
+            sc.activated.connect(method)
+            self.shortcuts[action_key] = sc
+    
+    def reloadShortcuts(self):
+        """Reload shortcuts from settings after edits."""
+        for sc in self.shortcuts.values():
+            try:
+                sc.activated.disconnect()
+            except TypeError:
+                pass
+            sc.deleteLater()
+        self.initShortcuts()
+    
+    def showShortcutSettings(self):
+        """Open the settings dialog for editing shortcuts."""
+        dlg = ShortcutSettingsDialog(self)
+        if dlg.exec() == QDialog.Accepted:
+            self.reloadShortcuts()
+
+
+class ShortcutSettingsDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Shortcut Settings")
+        self.layout = QVBoxLayout(self)
+        self.settings = QSettings("Semmlerino", "CurveEditor")
+        self.fields = {}
+        # Define editable shortcuts
+        actions = [("Toggle Grid", "toggleGrid"), ("Open Shortcut Settings", "openShortcutSettings")]
+        for label_text, action_key in actions:
+            h_layout = QHBoxLayout()
+            label = QLabel(label_text)
+            edit = QKeySequenceEdit()
+            seq_str = self.settings.value(f"shortcuts/{action_key}", "")
+            default_seq = QKeySequence("Ctrl+Shift+G") if action_key == "toggleGrid" else QKeySequence("Ctrl+Shift+S")
+            seq = QKeySequence(seq_str) if seq_str else default_seq
+            edit.setKeySequence(seq)
+            h_layout.addWidget(label)
+            h_layout.addWidget(edit)
+            self.layout.addLayout(h_layout)
+            self.fields[action_key] = edit
+        # Save/Cancel buttons
+        btn_layout = QHBoxLayout()
+        save_btn = QPushButton("Save")
+        cancel_btn = QPushButton("Cancel")
+        save_btn.clicked.connect(self.accept)
+        cancel_btn.clicked.connect(self.reject)
+        btn_layout.addWidget(save_btn)
+        btn_layout.addWidget(cancel_btn)
+        self.layout.addLayout(btn_layout)
+
+    def accept(self):
+        for action_key, edit in self.fields.items():
+            seq = edit.keySequence().toString()
+            self.settings.setValue(f"shortcuts/{action_key}", seq)
+        super().accept()

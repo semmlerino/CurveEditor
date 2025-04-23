@@ -1,20 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import copy
 from PySide6.QtWidgets import QMessageBox, QDialog
-from PySide6.QtCore import Qt
-
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog, 
                     ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog)
-# import curve_operations as ops # Removed old import
 from curve_data_operations import CurveDataOperations # Import new class
+from typing import Any, Optional, List, Tuple
 
 class DialogOperations:
     """Dialog operations for the 3DE4 Curve Editor."""
     
     @staticmethod
-    def show_smooth_dialog(main_window):
+    def show_smooth_dialog(main_window: Any) -> None:
         """Show dialog for curve smoothing."""
         if not main_window.curve_data or len(main_window.curve_data) < 3:
             QMessageBox.information(main_window, "Info", "Not enough points to smooth curve.")
@@ -28,8 +25,14 @@ class DialogOperations:
         if main_window.curve_view.selected_point_idx >= 0:
             current_frame = main_window.curve_data[main_window.curve_view.selected_point_idx][0]
         
-        dialog = SmoothingDialog(main_window, min_frame, max_frame, current_frame)
-        if dialog.exec_() != QDialog.Accepted:
+        dialog: SmoothingDialog = SmoothingDialog(main_window, min_frame, max_frame, current_frame)
+        # Default to "Selected Range" if multiple points are selected
+        if main_window.curve_view.selected_points and len(main_window.curve_view.selected_points) > 1:
+            dialog.range_combo.setCurrentIndex(1)
+            selected_frames = sorted([main_window.curve_data[i][0] for i in main_window.curve_view.selected_points])
+            dialog.start_frame.setValue(selected_frames[0])
+            dialog.end_frame.setValue(selected_frames[-1])
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
             
         # Get smoothing parameters
@@ -37,7 +40,7 @@ class DialogOperations:
         range_type = dialog.range_combo.currentIndex()
         
         # Determine points to smooth
-        points_to_smooth = []
+        points_to_smooth: List[int] = []
         
         if range_type == 0:  # Entire curve
             points_to_smooth = list(range(len(main_window.curve_data)))
@@ -63,42 +66,31 @@ class DialogOperations:
             return
             
         # Apply the selected smoothing method using the unified dispatcher
-        params = {}
-        method_name = ""
-        if method == 0:  # Moving Average
-            method_name = "moving_average"
-            params["window_size"] = dialog.window_spin.value()
-        elif method == 1:  # Gaussian
-            method_name = "gaussian"
-            params["window_size"] = dialog.window_spin.value()
-            params["sigma"] = dialog.sigma_spin.value()
-        elif method == 2:  # Savitzky-Golay
-            method_name = "savitzky_golay"
-            params["window_size"] = dialog.window_spin.value()
+        try:
+            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
+            if method == 0:  # Moving Average
+                data_ops.smooth_moving_average(points_to_smooth, dialog.window_spin.value())
+            elif method == 1:  # Gaussian
+                data_ops.smooth_gaussian(points_to_smooth, dialog.window_spin.value(), dialog.sigma_spin.value())
+            elif method == 2:  # Savitzky-Golay
+                data_ops.smooth_savitzky_golay(points_to_smooth, dialog.window_spin.value())
+            else:
+                QMessageBox.warning(main_window, "Warning", "Unknown smoothing method.")
+                return
 
-        if method_name:
-            try:
-                data_ops = CurveDataOperations(main_window.curve_data)
-                if method_name == "moving_average":
-                    data_ops.smooth_moving_average(points_to_smooth, params["window_size"])
-                elif method_name == "gaussian":
-                    data_ops.smooth_gaussian(points_to_smooth, params["window_size"], params["sigma"])
-                elif method_name == "savitzky_golay":
-                    data_ops.smooth_savitzky_golay(points_to_smooth, params["window_size"])
-                
-                main_window.curve_data = data_ops.get_data() # Update main window data
-            except Exception as e:
-                 QMessageBox.critical(main_window, "Error", f"Smoothing failed: {e}")
-                 return # Don't proceed if operation failed
+            main_window.curve_data = data_ops.get_data()  # Update main window data
+        except Exception as e:
+            QMessageBox.critical(main_window, "Error", f"Smoothing failed: {e}")
+            return  # Don't proceed if operation failed
         
         # Update view
-        main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
+        main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height, preserve_view=True)
         
         # Add to history
         main_window.add_to_history()
 
     @staticmethod
-    def show_filter_dialog(main_window):
+    def show_filter_dialog(main_window: Any) -> None:
         """Show dialog for applying filters to the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 3:
             QMessageBox.information(main_window, "Info", "Not enough points to filter curve.")
@@ -112,8 +104,8 @@ class DialogOperations:
         if main_window.curve_view.selected_point_idx >= 0:
             current_frame = main_window.curve_data[main_window.curve_view.selected_point_idx][0]
         
-        dialog = FilterDialog(main_window, min_frame, max_frame, current_frame)
-        if dialog.exec_() != QDialog.Accepted:
+        dialog: FilterDialog = FilterDialog(main_window, min_frame, max_frame, current_frame)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
             
         # Get filter parameters
@@ -121,7 +113,7 @@ class DialogOperations:
         range_type = dialog.range_combo.currentIndex()
         
         # Determine points to filter
-        points_to_filter = []
+        points_to_filter: List[int] = []
         
         if range_type == 0:  # Entire curve
             points_to_filter = list(range(len(main_window.curve_data)))
@@ -143,26 +135,20 @@ class DialogOperations:
             
         # Apply the selected filter using CurveDataOperations
         try:
-            data_ops = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
             operation_applied = False
 
             if filter_type == 0:  # Median
-                window_size = dialog.window_size_spin.value()
-                data_ops.filter_median(points_to_filter, window_size)
+                data_ops.filter_median(points_to_filter, dialog.median_size.value())
                 operation_applied = True
             elif filter_type == 1:  # Gaussian
-                window_size = dialog.window_size_spin.value()
-                sigma = dialog.sigma_spin.value()
-                data_ops.smooth_gaussian(points_to_filter, window_size, sigma)
+                data_ops.smooth_gaussian(points_to_filter, dialog.gaussian_size.value(), dialog.gaussian_sigma.value())
                 operation_applied = True
             elif filter_type == 2:  # Average
-                window_size = dialog.window_size_spin.value()
-                data_ops.smooth_moving_average(points_to_filter, window_size)
+                data_ops.smooth_moving_average(points_to_filter, dialog.average_size.value())
                 operation_applied = True
             elif filter_type == 3:  # Butterworth
-                cutoff = dialog.cutoff_spin.value()
-                order = dialog.order_spin.value()
-                data_ops.filter_butterworth(points_to_filter, cutoff, order)
+                data_ops.filter_butterworth(points_to_filter, dialog.butterworth_cutoff.value(), dialog.butterworth_order.value())
                 operation_applied = True
 
             if operation_applied:
@@ -186,7 +172,7 @@ class DialogOperations:
         main_window.add_to_history()
 
     @staticmethod
-    def detect_gaps(main_window):
+    def detect_gaps(main_window: Any) -> List[Tuple[int, int]]:
         """Detect gaps in the tracking data."""
         if not main_window.curve_data or len(main_window.curve_data) < 2:
             return []
@@ -195,7 +181,7 @@ class DialogOperations:
         sorted_data = sorted(main_window.curve_data, key=lambda x: x[0])
         
         # Find gaps
-        gaps = []
+        gaps: List[Tuple[int, int]] = []
         for i in range(1, len(sorted_data)):
             prev_frame = sorted_data[i-1][0]
             curr_frame = sorted_data[i][0]
@@ -207,7 +193,7 @@ class DialogOperations:
         return gaps
 
     @staticmethod
-    def show_fill_gaps_dialog(main_window):
+    def show_fill_gaps_dialog(main_window: Any) -> None:
         """Show dialog for filling gaps in the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 2:
             QMessageBox.information(main_window, "Info", "Not enough points to fill gaps.")
@@ -218,7 +204,7 @@ class DialogOperations:
         max_frame = max(frames)
         
         dialog = FillGapsDialog(main_window, min_frame, max_frame)
-        if dialog.exec_() != QDialog.Accepted:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
             
         # Get fill parameters
@@ -258,7 +244,7 @@ class DialogOperations:
         main_window.add_to_history()
     
     @staticmethod
-    def fill_gap(main_window, start_frame, end_frame, method_index, preserve_endpoints=True):
+    def fill_gap(main_window: Any, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
         """Helper method to fill a gap using the specified method via CurveDataOperations."""
         # Window size for certain methods (can be adjusted or made configurable)
         window_size = 5
@@ -267,7 +253,7 @@ class DialogOperations:
 
         try:
             # Instantiate with the current data
-            data_ops = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
             operation_performed = False
 
             if method_index == 0:  # Linear
@@ -298,7 +284,7 @@ class DialogOperations:
             # Optionally re-raise or log more details traceback.print_exc()
 
     @staticmethod
-    def show_extrapolate_dialog(main_window):
+    def show_extrapolate_dialog(main_window: Any) -> None:
         """Show dialog for extrapolating the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 3:
             QMessageBox.information(main_window, "Info", "Not enough points to extrapolate curve.")
@@ -309,7 +295,7 @@ class DialogOperations:
         max_frame = max(frames)
         
         dialog = ExtrapolateDialog(main_window, min_frame, max_frame)
-        if dialog.exec_() != QDialog.Accepted:
+        if dialog.exec() != QDialog.DialogCode.Accepted:
             return
             
         # Get extrapolation parameters
@@ -322,7 +308,7 @@ class DialogOperations:
         # Apply extrapolation based on direction
         try:
             # Instantiate with current data
-            data_ops = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
             data_changed = False
 
             if direction == 0 or direction == 2:  # Forward or Both
@@ -363,13 +349,13 @@ class DialogOperations:
         main_window.statusBar().showMessage(f"Extrapolated {total_frames} frames", 3000)
 
     @staticmethod
-    def show_shortcuts_dialog(main_window):
+    def show_shortcuts_dialog(main_window: Any) -> None:
         """Show dialog with keyboard shortcuts."""
         dialog = ShortcutsDialog(main_window)
-        dialog.exec_()
+        dialog.exec()
         
     @staticmethod
-    def show_problem_detection_dialog(main_window, problems=None):
+    def show_problem_detection_dialog(main_window: Any, problems: Optional[List[Any]] = None) -> Optional[ProblemDetectionDialog]:
         """Show dialog for detecting problems in the tracking data."""
         if problems is None:
             if not main_window.curve_data or len(main_window.curve_data) < 10:

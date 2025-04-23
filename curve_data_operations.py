@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pyright: reportUnusedVariable=false
 
 """
 Canonical module for all core curve data operations.
@@ -9,6 +10,7 @@ extrapolation, and potentially other data manipulations to ensure
 consistency and maintainability.
 """
 
+from typing import List, Tuple, Optional, Sequence
 import math
 import copy
 # Potential future imports: numpy, scipy if added
@@ -16,7 +18,7 @@ import copy
 class CurveDataOperations:
     """Provides methods for manipulating curve data."""
 
-    def __init__(self, curve_data):
+    def __init__(self, curve_data: Sequence[Tuple[int, float, float]]):
         """
         Initialize with the curve data to operate on.
 
@@ -26,15 +28,15 @@ class CurveDataOperations:
         """
         # Store a working copy to avoid modifying the original list directly
         # unless an in-place modification method is explicitly called.
-        self._curve_data = copy.deepcopy(curve_data)
-        self._original_data = curve_data # Keep a reference if needed for comparison
+        self._curve_data: List[Tuple[int, float, float]] = list(curve_data)
+        self._original_data: Sequence[Tuple[int, float, float]] = curve_data # Keep a reference if needed for comparison
 
-    def get_data(self):
+    def get_data(self) -> List[Tuple[int, float, float]]:
         """Returns the current state of the curve data being operated on."""
         return copy.deepcopy(self._curve_data) # Return a copy
 
     # --- Smoothing Methods ---
-    def smooth_moving_average(self, indices, window_size):
+    def smooth_moving_average(self, indices: List[int], window_size: int) -> None:
         """Apply moving average smoothing to the specified points."""
         if not indices or window_size < 3:
             return # No change if invalid input
@@ -55,9 +57,9 @@ class CurveDataOperations:
             if end_idx - start_idx < 2: # Need at least 3 points in window
                 continue
 
-            frame = original_data[idx][0]
-            sum_x = 0
-            sum_y = 0
+            _, x, y = original_data[idx]
+            sum_x: float = 0.0
+            sum_y: float = 0.0
             count = 0
 
             for i in range(start_idx, end_idx + 1):
@@ -69,10 +71,10 @@ class CurveDataOperations:
             if count > 0:
                 avg_x = sum_x / count
                 avg_y = sum_y / count
-                result_data[idx] = (frame, avg_x, avg_y)
+                result_data[idx] = (_, avg_x, avg_y)
         # self._curve_data is modified in place
 
-    def smooth_gaussian(self, indices, window_size, sigma):
+    def smooth_gaussian(self, indices: List[int], window_size: int, sigma: float) -> None:
         """Apply Gaussian smoothing to the specified points."""
         if not indices or window_size < 3 or sigma <= 0:
             return # No change if invalid input
@@ -83,8 +85,8 @@ class CurveDataOperations:
         half_window = window_size // 2
 
         # Create Gaussian weights
-        weights = []
-        weight_sum = 0
+        weights: List[float] = []
+        weight_sum: float = 0.0
         for i in range(-half_window, half_window + 1):
             weight = math.exp(-(i**2) / (2 * sigma**2))
             weights.append(weight)
@@ -105,10 +107,10 @@ class CurveDataOperations:
             if end_idx - start_idx < 2:
                 continue
 
-            frame = original_data[idx][0]
-            weighted_x = 0
-            weighted_y = 0
-            actual_weight_sum = 0
+            _, x, y = original_data[idx]
+            weighted_x: float = 0.0
+            weighted_y: float = 0.0
+            actual_weight_sum: float = 0.0
 
             for i, w_idx in enumerate(range(start_idx, end_idx + 1)):
                 weight_idx = i + (start_idx - (idx - half_window))
@@ -122,10 +124,10 @@ class CurveDataOperations:
             if actual_weight_sum > 1e-10:
                 weighted_x /= actual_weight_sum
                 weighted_y /= actual_weight_sum
-                result_data[idx] = (frame, weighted_x, weighted_y)
+                result_data[idx] = (_, weighted_x, weighted_y)
         # self._curve_data is modified in place
 
-    def smooth_savitzky_golay(self, indices, window_size):
+    def smooth_savitzky_golay(self, indices: List[int], window_size: int) -> None:
         """Apply Savitzky-Golay smoothing to the specified points."""
         if not indices or window_size < 5 or window_size % 2 == 0: # Need odd window >= 5
             return # No change if invalid input
@@ -146,11 +148,11 @@ class CurveDataOperations:
             if end_idx - start_idx + 1 < window_size:
                 continue
 
-            frame = original_data[idx][0]
+            _, x, y = original_data[idx]
 
             # Get points in window
-            x_points = []
-            y_points = []
+            x_points: List[float] = []
+            y_points: List[float] = []
             window_indices = list(range(start_idx, end_idx + 1)) # Indices within original_data
             relative_indices = list(range(len(window_indices))) # 0-based indices for fitting
 
@@ -167,11 +169,11 @@ class CurveDataOperations:
             y_new = self._savitzky_golay_fit(relative_indices, y_points, rel_pos)
 
             if x_new is not None and y_new is not None:
-                result_data[idx] = (frame, x_new, y_new)
+                result_data[idx] = (_, x_new, y_new)
         # self._curve_data is modified in place
 
     # --- Filtering Methods ---
-    def filter_median(self, indices, window_size):
+    def filter_median(self, indices: List[int], window_size: int) -> None:
         """Apply median filter to the specified points."""
         if not indices or window_size < 3 or window_size % 2 == 0: # Need odd window >= 3
              return # No change if invalid input
@@ -193,7 +195,7 @@ class CurveDataOperations:
             if actual_window_size < 3:
                 continue
 
-            frame = original_data[idx][0]
+            _, x, y = original_data[idx]
 
             # Collect x and y values in the window
             x_values = [original_data[i][1] for i in range(start_idx, end_idx + 1)]
@@ -207,10 +209,10 @@ class CurveDataOperations:
             median_y = y_values[len(y_values) // 2]
 
             # Update point
-            result_data[idx] = (frame, median_x, median_y)
+            result_data[idx] = (_, median_x, median_y)
         # self._curve_data is modified in place
 
-    def filter_butterworth(self, indices, cutoff, order):
+    def filter_butterworth(self, indices: List[int], cutoff: float, order: int) -> None:
         """Apply Butterworth low-pass filter to the specified points."""
         if not indices or len(indices) < 3 or not (0 < cutoff < 1) or order < 1:
              return # No change if invalid input
@@ -229,17 +231,17 @@ class CurveDataOperations:
         max_idx = max(indices)
 
         # Extract x and y sequences for the relevant range
-        frames_in_range = []
-        x_values_in_range = []
-        y_values_in_range = []
+        frames_in_range: List[int] = []
+        x_values_in_range: List[float] = []
+        y_values_in_range: List[float] = []
 
         # Iterate through the valid range based on min/max of provided indices
         for i in range(min_idx, max_idx + 1):
              # We already checked indices are valid, so direct access should be safe
              # but double-check length just in case curve_data was modified externally
              if i < len(original_data):
-                 frame, x, y = original_data[i]
-                 frames_in_range.append(frame)
+                 _, x, y = original_data[i]
+                 frames_in_range.append(_)
                  x_values_in_range.append(x)
                  y_values_in_range.append(y)
              else:
@@ -259,8 +261,8 @@ class CurveDataOperations:
              if original_idx in indices_set:
                  # Ensure we have corresponding filtered data and original_idx is valid
                  if i < len(filtered_x) and i < len(filtered_y) and original_idx < len(result_data):
-                     frame = frames_in_range[i]
-                     result_data[original_idx] = (frame, filtered_x[i], filtered_y[i])
+                     _, x, y = original_data[original_idx]
+                     result_data[original_idx] = (_, filtered_x[i], filtered_y[i])
                  else:
                       print(f"Warning: Mismatch or invalid index during Butterworth update at index {original_idx}.")
                       # Decide how to handle: skip, error, etc. Skipping for now.
@@ -268,7 +270,7 @@ class CurveDataOperations:
         # self._curve_data is modified in place for the specified indices
 
     # --- Gap Filling Methods ---
-    def fill_linear(self, start_frame, end_frame, preserve_endpoints=True):
+    def fill_linear(self, start_frame: int, end_frame: int, preserve_endpoints: bool = True) -> None:
         """Fill a gap using linear interpolation."""
         # Use internal data copy
         current_data = self._curve_data
@@ -288,7 +290,7 @@ class CurveDataOperations:
         _, b_frame, b_x, b_y = before_points[0]
         _, a_frame, a_x, a_y = after_points[0]
 
-        new_points = []
+        new_points: List[Tuple[int, float, float]] = []
         frame_diff = a_frame - b_frame
         if frame_diff <= 0:
              print("Warning: Invalid frame boundaries for linear fill.")
@@ -306,7 +308,7 @@ class CurveDataOperations:
         self._add_points_and_sort(new_points)
         # self._curve_data is modified in place by _add_points_and_sort
 
-    def fill_cubic_spline(self, start_frame, end_frame, tension, preserve_endpoints=True):
+    def fill_cubic_spline(self, start_frame: int, end_frame: int, tension: float, preserve_endpoints: bool = True) -> None:
         """Fill a gap using cubic spline interpolation (Catmull-Rom like)."""
         current_data = self._curve_data
         if not current_data: return
@@ -338,7 +340,7 @@ class CurveDataOperations:
              print("Warning: Invalid frame boundaries for cubic spline segment.")
              return
 
-        new_points = []
+        new_points: List[Tuple[int, float, float]] = []
         for frame in range(start_frame, end_frame + 1):
             if frame in frame_map and preserve_endpoints:
                 continue
@@ -364,7 +366,7 @@ class CurveDataOperations:
 
         self._add_points_and_sort(new_points)
 
-    def fill_constant_velocity(self, start_frame, end_frame, window_size, preserve_endpoints=True):
+    def fill_constant_velocity(self, start_frame: int, end_frame: int, window_size: int, preserve_endpoints: bool = True) -> None:
         """Fill a gap assuming constant velocity based on surrounding frames."""
         current_data = self._curve_data
         if not current_data: return
@@ -383,25 +385,29 @@ class CurveDataOperations:
         after_points.sort(key=lambda p: p[1])
 
         # Calculate average velocity from before points
-        b_velocities_x = []
-        b_velocities_y = []
+        b_velocities_x: List[float] = []
+        b_velocities_y: List[float] = []
         for i in range(window_size - 1):
-            frame_diff = before_points[i][1] - before_points[i+1][1]
+            _, f, x, y = before_points[i]
+            _, f_next, x_next, y_next = before_points[i+1]
+            frame_diff = f - f_next
             if frame_diff > 0:
-                b_velocities_x.append((before_points[i][2] - before_points[i+1][2]) / frame_diff)
-                b_velocities_y.append((before_points[i][3] - before_points[i+1][3]) / frame_diff)
+                b_velocities_x.append((x - x_next) / frame_diff)
+                b_velocities_y.append((y - y_next) / frame_diff)
         b_velocity_x = sum(b_velocities_x) / len(b_velocities_x) if b_velocities_x else 0
         b_velocity_y = sum(b_velocities_y) / len(b_velocities_y) if b_velocities_y else 0
 
 
         # Calculate average velocity from after points
-        a_velocities_x = []
-        a_velocities_y = []
+        a_velocities_x: List[float] = []
+        a_velocities_y: List[float] = []
         for i in range(window_size - 1):
-            frame_diff = after_points[i+1][1] - after_points[i][1]
+            _, f, x, y = after_points[i]
+            _, f_next, x_next, y_next = after_points[i+1]
+            frame_diff = f_next - f
             if frame_diff > 0:
-                a_velocities_x.append((after_points[i+1][2] - after_points[i][2]) / frame_diff)
-                a_velocities_y.append((after_points[i+1][3] - after_points[i][3]) / frame_diff)
+                a_velocities_x.append((x_next - x) / frame_diff)
+                a_velocities_y.append((y_next - y) / frame_diff)
         a_velocity_x = sum(a_velocities_x) / len(a_velocities_x) if a_velocities_x else 0
         a_velocity_y = sum(a_velocities_y) / len(a_velocities_y) if a_velocities_y else 0
 
@@ -412,7 +418,7 @@ class CurveDataOperations:
         # Get the point just before the gap
         _, b_frame, b_x, b_y = before_points[0]
 
-        new_points = []
+        new_points: List[Tuple[int, float, float]] = []
         for frame in range(start_frame, end_frame + 1):
             if frame in frame_map and preserve_endpoints:
                 continue
@@ -424,7 +430,7 @@ class CurveDataOperations:
 
         self._add_points_and_sort(new_points)
 
-    def fill_accelerated_motion(self, start_frame, end_frame, window_size, accel_weight, preserve_endpoints=True):
+    def fill_accelerated_motion(self, start_frame: int, end_frame: int, window_size: int, accel_weight: float, preserve_endpoints: bool = True) -> None:
         """Fill a gap using accelerated motion based on surrounding frames."""
         current_data = self._curve_data
         if not current_data: return
@@ -444,24 +450,28 @@ class CurveDataOperations:
         after_points.sort(key=lambda p: p[1])
 
         # Calculate average velocity from before points (same as constant velocity)
-        b_velocities_x = []
-        b_velocities_y = []
+        b_velocities_x: List[float] = []
+        b_velocities_y: List[float] = []
         for i in range(window_size - 1):
-            frame_diff = before_points[i][1] - before_points[i+1][1]
+            _, f, x, y = before_points[i]
+            _, f_next, x_next, y_next = before_points[i+1]
+            frame_diff = f - f_next
             if frame_diff > 0:
-                b_velocities_x.append((before_points[i][2] - before_points[i+1][2]) / frame_diff)
-                b_velocities_y.append((before_points[i][3] - before_points[i+1][3]) / frame_diff)
+                b_velocities_x.append((x - x_next) / frame_diff)
+                b_velocities_y.append((y - y_next) / frame_diff)
         b_velocity_x = sum(b_velocities_x) / len(b_velocities_x) if b_velocities_x else 0
         b_velocity_y = sum(b_velocities_y) / len(b_velocities_y) if b_velocities_y else 0
 
         # Calculate average velocity from after points (same as constant velocity)
-        a_velocities_x = []
-        a_velocities_y = []
+        a_velocities_x: List[float] = []
+        a_velocities_y: List[float] = []
         for i in range(window_size - 1):
-            frame_diff = after_points[i+1][1] - after_points[i][1]
+            _, f, x, y = after_points[i]
+            _, f_next, x_next, y_next = after_points[i+1]
+            frame_diff = f_next - f
             if frame_diff > 0:
-                a_velocities_x.append((after_points[i+1][2] - after_points[i][2]) / frame_diff)
-                a_velocities_y.append((after_points[i+1][3] - after_points[i][3]) / frame_diff)
+                a_velocities_x.append((x_next - x) / frame_diff)
+                a_velocities_y.append((y_next - y) / frame_diff)
         a_velocity_x = sum(a_velocities_x) / len(a_velocities_x) if a_velocities_x else 0
         a_velocity_y = sum(a_velocities_y) / len(a_velocities_y) if a_velocities_y else 0
 
@@ -471,7 +481,7 @@ class CurveDataOperations:
         a_frame_edge = after_points[0][1]
         duration = a_frame_edge - b_frame_edge # Duration over which velocity changes
         if duration <= 0:
-             accel_x, accel_y = 0, 0 # Avoid division by zero, assume no acceleration
+             accel_x, accel_y = 0.0, 0.0 # Avoid division by zero, assume no acceleration
         else:
              accel_x = (a_velocity_x - b_velocity_x) / duration
              accel_y = (a_velocity_y - b_velocity_y) / duration
@@ -483,7 +493,7 @@ class CurveDataOperations:
         # Get the point just before the gap
         _, b_frame, b_x, b_y = before_points[0]
 
-        new_points = []
+        new_points: List[Tuple[int, float, float]] = []
         for frame in range(start_frame, end_frame + 1):
             if frame in frame_map and preserve_endpoints:
                 continue
@@ -496,7 +506,7 @@ class CurveDataOperations:
 
         self._add_points_and_sort(new_points)
 
-    def fill_average(self, start_frame, end_frame, window_size, preserve_endpoints=True):
+    def fill_average(self, start_frame: int, end_frame: int, window_size: int, preserve_endpoints: bool = True) -> None:
         """Fill a gap by averaging neighboring frames."""
         current_data = self._curve_data
         if not current_data: return
@@ -523,7 +533,7 @@ class CurveDataOperations:
         avg_after_x = sum(p[2] for p in after_window) / len(after_window)
         avg_after_y = sum(p[3] for p in after_window) / len(after_window)
 
-        new_points = []
+        new_points: List[Tuple[int, float, float]] = []
         # Use frames closest to the gap for weighting calculation
         b_frame_edge = before_points[0][1]
         a_frame_edge = after_points[0][1]
@@ -546,7 +556,7 @@ class CurveDataOperations:
         self._add_points_and_sort(new_points)
 
     # --- Extrapolation Methods ---
-    def extrapolate_forward(self, num_frames, method, fit_points=5):
+    def extrapolate_forward(self, num_frames: int, method: int, fit_points: int = 5) -> None:
         """Extrapolate curve forward by num_frames using the specified method."""
         current_data = self._curve_data
         if not current_data or num_frames <= 0:
@@ -560,13 +570,13 @@ class CurveDataOperations:
         last_frame = sorted_data[-1][0]
         points_to_use = sorted_data[-min(fit_points, len(sorted_data)):]
 
-        extrapolated = []
+        extrapolated: List[Tuple[int, float, float]] = []
 
         if method == 0:  # Linear
             if len(points_to_use) < 2: return
-            frame1, x1, y1 = points_to_use[-2]
-            frame2, x2, y2 = points_to_use[-1]
-            frame_diff = frame2 - frame1
+            _, x1, y1 = points_to_use[-2]
+            _, x2, y2 = points_to_use[-1]
+            frame_diff = _ - _
             if frame_diff <= 0: return # Avoid division by zero or invalid direction
 
             dx = (x2 - x1) / frame_diff
@@ -580,21 +590,21 @@ class CurveDataOperations:
 
         elif method == 1:  # Last Velocity
             if len(points_to_use) < 2: return
-            velocities_x = []
-            velocities_y = []
+            velocities_x: List[float] = []
+            velocities_y: List[float] = []
             for i in range(1, len(points_to_use)):
-                prev_frame, prev_x, prev_y = points_to_use[i-1]
-                curr_frame, curr_x, curr_y = points_to_use[i]
-                frame_diff = curr_frame - prev_frame
+                _, x1, y1 = points_to_use[i-1]
+                _, x2, y2 = points_to_use[i]
+                frame_diff = _ - _
                 if frame_diff > 0:
-                    velocities_x.append((curr_x - prev_x) / frame_diff)
-                    velocities_y.append((curr_y - prev_y) / frame_diff)
+                    velocities_x.append((x2 - x1) / frame_diff)
+                    velocities_y.append((y2 - y1) / frame_diff)
 
             if not velocities_x: return # Cannot calculate velocity
             avg_dx = sum(velocities_x) / len(velocities_x)
             avg_dy = sum(velocities_y) / len(velocities_y)
 
-            frame, x, y = points_to_use[-1]
+            _, x, y = points_to_use[-1]
             for i in range(1, num_frames + 1):
                 new_frame = last_frame + i
                 new_x = x + avg_dx * i
@@ -631,7 +641,7 @@ class CurveDataOperations:
         self._add_points_and_sort(extrapolated)
         # self._curve_data is modified in place
 
-    def extrapolate_backward(self, num_frames, method, fit_points=5):
+    def extrapolate_backward(self, num_frames: int, method: int, fit_points: int = 5) -> None:
         """Extrapolate curve backward by num_frames using the specified method."""
         current_data = self._curve_data
         if not current_data or num_frames <= 0:
@@ -644,13 +654,13 @@ class CurveDataOperations:
         first_frame = sorted_data[0][0]
         points_to_use = sorted_data[:min(fit_points, len(sorted_data))]
 
-        extrapolated = []
+        extrapolated: List[Tuple[int, float, float]] = []
 
         if method == 0:  # Linear
             if len(points_to_use) < 2: return
-            frame1, x1, y1 = points_to_use[0]
-            frame2, x2, y2 = points_to_use[1]
-            frame_diff = frame2 - frame1
+            _, x1, y1 = points_to_use[0]
+            _, x2, y2 = points_to_use[1]
+            frame_diff = _ - _
             if frame_diff <= 0: return
 
             dx = (x2 - x1) / frame_diff
@@ -664,21 +674,21 @@ class CurveDataOperations:
 
         elif method == 1:  # First Velocity
             if len(points_to_use) < 2: return
-            velocities_x = []
-            velocities_y = []
+            velocities_x: List[float] = []
+            velocities_y: List[float] = []
             for i in range(len(points_to_use) - 1):
-                curr_frame, curr_x, curr_y = points_to_use[i]
-                next_frame, next_x, next_y = points_to_use[i+1]
-                frame_diff = next_frame - curr_frame
+                _, x1, y1 = points_to_use[i]
+                _, x2, y2 = points_to_use[i+1]
+                frame_diff = _ - _
                 if frame_diff > 0:
-                    velocities_x.append((next_x - curr_x) / frame_diff)
-                    velocities_y.append((next_y - curr_y) / frame_diff)
+                    velocities_x.append((x2 - x1) / frame_diff)
+                    velocities_y.append((y2 - y1) / frame_diff)
 
             if not velocities_x: return
             avg_dx = sum(velocities_x) / len(velocities_x)
             avg_dy = sum(velocities_y) / len(velocities_y)
 
-            frame, x, y = points_to_use[0]
+            _, x, y = points_to_use[0]
             for i in range(1, num_frames + 1):
                 new_frame = first_frame - i
                 new_x = x - avg_dx * i
@@ -714,28 +724,28 @@ class CurveDataOperations:
         # self._curve_data is modified in place
 
     # --- Batch Transformation Methods (Consider moving from batch_edit.py) ---
-    def scale_points(self, indices, scale_x, scale_y, center_x=None, center_y=None):
+    def scale_points(self, indices: List[int], scale_x: float, scale_y: float, center_x: Optional[float] = None, center_y: Optional[float] = None) -> None:
         """Scale multiple points."""
         # TODO: Consider moving logic from batch_edit.py
         pass
 
-    def offset_points(self, indices, offset_x, offset_y):
+    def offset_points(self, indices: List[int], offset_x: float, offset_y: float) -> None:
         """Offset multiple points."""
         # TODO: Consider moving logic from batch_edit.py
         pass
 
-    def rotate_points(self, indices, angle_degrees, center_x=None, center_y=None):
+    def rotate_points(self, indices: List[int], angle_degrees: float, center_x: Optional[float] = None, center_y: Optional[float] = None) -> None:
         """Rotate multiple points."""
         # TODO: Consider moving logic from batch_edit.py
         pass
 
     # --- Helper/Utility Methods ---
-    def _add_points_and_sort(self, new_points):
+    def _add_points_and_sort(self, new_points: List[Tuple[int, float, float]]) -> None:
         """Internal helper to add points and maintain sorted order."""
         # Create frame map for easy reference of existing points in self._curve_data
         # Ensure we handle potential duplicate frames in the initial data if any exist
         # Taking the last occurrence in case of duplicates during enumeration
-        points_map = {frame: (frame, x, y) for idx, (frame, x, y) in enumerate(self._curve_data)}
+        points_map = {frame: (frame, x, y) for _, (frame, x, y) in enumerate(self._curve_data)}
 
         # Add or update points from new_points, overwriting existing frames
         for frame, x, y in new_points:
@@ -748,7 +758,7 @@ class CurveDataOperations:
         self._curve_data.clear()
         self._curve_data.extend(sorted_data)
 
-    def _savitzky_golay_fit(self, x_indices, values, target_idx):
+    def _savitzky_golay_fit(self, x_indices: List[int], values: List[float], target_idx: int) -> Optional[float]:
         """Fit a quadratic polynomial to the data and evaluate at target index."""
         n = len(values)
         if n < 3:
@@ -766,6 +776,9 @@ class CurveDataOperations:
 
         # Set up matrix for quadratic fit: y = a + bx + cx^2
         # Using formula for determinant of 3x3 matrix for Vandermonde-like system
+        # omega_c = tan(pi * cutoff) # Bilinear transform adjustment (approx)
+        # alpha = (1 - sin(omega_c)) / cos(omega_c) # Simplified 1st order relation
+        # Let's try a simpler heuristic based on exponential decay:
         determinant = n*sum_x2*sum_x4 + sum_x*sum_x3*sum_x2 + sum_x2*sum_x*sum_x3 - \
                      sum_x2*sum_x2*sum_x2 - sum_x*sum_x*sum_x4 - n*sum_x3*sum_x3
 
@@ -784,7 +797,7 @@ class CurveDataOperations:
 
         return a + b*target_x + c*target_x*target_x
 
-    def _butterworth_filter(self, data, cutoff, order):
+    def _butterworth_filter(self, data: List[float], cutoff: float, order: int) -> List[float]:
         """Apply Butterworth low-pass filter to a 1D sequence (simplified)."""
         if not data or len(data) < 2:
             return data # Return original if not enough data
@@ -838,7 +851,7 @@ class CurveDataOperations:
 
         return output
 
-    def _fit_quadratic(self, x, y):
+    def _fit_quadratic(self, x: Sequence[float], y: Sequence[float]) -> Optional[List[float]]:
         """Fit a quadratic polynomial (ax^2 + bx + c) to the given data points."""
         # This is the implementation moved from curve_operations.fit_quadratic
         if len(x) != len(y) or len(x) < 3:
@@ -912,8 +925,8 @@ class CurveDataOperations:
 
 # Example Usage (for testing/demonstration)
 if __name__ == '__main__':
-    sample_data = [(i, i * 2, i * i) for i in range(10)]
-    sample_data.extend([(i, i * 2, i * i) for i in range(15, 25)]) # Add a gap
+    sample_data = [(i, float(i * 2), float(i * i)) for i in range(10)]
+    sample_data.extend([(i, float(i * 2), float(i * i)) for i in range(15, 25)]) # Add a gap
 
     ops = CurveDataOperations(sample_data)
 

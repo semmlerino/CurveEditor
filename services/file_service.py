@@ -7,10 +7,18 @@ Dynamically attaches all static methods from the legacy FileOperations class.
 """
 
 from file_operations import FileOperations as LegacyFileOps
+from typing import Any
 
 class FileService:
     """Facade for file operations (phase 1)."""
-    pass
+    @staticmethod
+    def load_track_data(main_window: Any) -> None: ...
+    @staticmethod
+    def add_track_data(main_window: Any) -> None: ...
+    @staticmethod
+    def save_track_data(main_window: Any) -> None: ...
+    @staticmethod
+    def export_to_csv(main_window: Any) -> None: ...
 
 # Attach legacy static methods (excluding private)
 for name, fn in LegacyFileOps.__dict__.items():

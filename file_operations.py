@@ -6,13 +6,15 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 import utils
 import config
 import csv_export
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from main_window import MainWindow
 
 class FileOperations:
     """File operations for the 3DE4 Curve Editor."""
 
     @staticmethod
-    def export_to_csv(main_window):
+    def export_to_csv(main_window: "MainWindow") -> None:
         """Export tracking data to CSV format."""
         if not main_window.curve_data:
             QMessageBox.information(main_window, "Info", "No data to export.")
@@ -36,7 +38,7 @@ class FileOperations:
             QMessageBox.critical(main_window, "Error", "Failed to export data.")
     
     @staticmethod
-    def load_track_data(main_window):
+    def load_track_data(main_window: "MainWindow") -> None:
         """Load 2D track data from a file."""
         file_path, _ = QFileDialog.getOpenFileName(
             main_window, "Load 2D Track Data", main_window.default_directory, "Text Files (*.txt);;All Files (*)"
@@ -93,7 +95,7 @@ class FileOperations:
             QMessageBox.critical(main_window, "Error", "Failed to load track data.")
 
     @staticmethod
-    def add_track_data(main_window):
+    def add_track_data(main_window: "MainWindow") -> None:
         """Add an additional 2D track to the current data."""
         if not main_window.curve_data:
             return
@@ -165,7 +167,7 @@ class FileOperations:
             QMessageBox.critical(main_window, "Error", "Failed to load additional track data.")
 
     @staticmethod
-    def save_track_data(main_window):
+    def save_track_data(main_window: "MainWindow") -> None:
         """Save modified 2D track data to a file."""
         if not main_window.curve_data:
             return
@@ -188,7 +190,7 @@ class FileOperations:
             QMessageBox.critical(main_window, "Error", "Failed to save track data.")
 
     @staticmethod
-    def load_image_sequence(main_window):
+    def load_image_sequence(main_window: "MainWindow") -> None:
         """Load an image sequence to use as background."""
         directory = QFileDialog.getExistingDirectory(
             main_window, "Select Image Sequence Directory", main_window.default_directory
@@ -219,5 +221,5 @@ class FileOperations:
         
         # Update label
         main_window.update_image_label()
-        # Debug merged data
-        print(f"Merged {len(merged_data)} frames from {len(main_window.curve_data)} original and {len(additional_data)} additional tracks")
+        # Debug merged data removed (merged_data/additional_data undefined)
+#        print(f"Merged {len(merged_data)} frames from {len(main_window.curve_data)} original and {len(additional_data)} additional tracks")
