@@ -616,20 +616,25 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Smoothing failed: {e}")
             return
+        self.curve_view.scale_to_image = False
         self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height, preserve_view=True)
         self.add_to_history()
 
-    # Dialog Operations
-    def show_smooth_dialog(self):
-        """Handles the process of showing the smooth dialog and applying results."""
+    # Smoothing Operations
+    def apply_smooth_operation(self):
+        """Entry point for smoothing operations, coordinates UI updates."""
         if not self.curve_data:
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
 
         # Gather necessary data
         current_data = self.curve_data
-        # TODO: Confirm 'selected_indices' is the correct attribute/property
-        selected_indices = getattr(self.curve_view, 'selected_indices', [])
+        # Get selected indices from curve view
+        selected_indices: list[int] = []
+        if hasattr(self.curve_view, 'get_selected_indices'):
+            selected_indices = self.curve_view.get_selected_indices()
+        elif hasattr(self.curve_view, 'selected_points'):
+            selected_indices = list(self.curve_view.selected_points)
         selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
 
         # Call the refactored dialog operation, passing data
@@ -644,58 +649,28 @@ class MainWindow(QMainWindow):
         if modified_data is not None:
             print(f"[DEBUG MainWindow] Smoothing successful. Data modified.")
             sys.stdout.flush()
-            # Save current view state
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] State BEFORE save: Zoom={getattr(self.curve_view, 'zoom_factor', 'N/A')}, OffX={getattr(self.curve_view, 'offset_x', 'N/A')}, OffY={getattr(self.curve_view, 'offset_y', 'N/A')}, ManX={getattr(self.curve_view, 'x_offset', 'N/A')}, ManY={getattr(self.curve_view, 'y_offset', 'N/A')}")
-            sys.stdout.flush()
-            # Save current view state
-            old_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
-            old_offset_x = getattr(self.curve_view, 'offset_x', 0)
-            old_offset_y = getattr(self.curve_view, 'offset_y', 0)
-            old_x_offset = getattr(self.curve_view, 'x_offset', 0)
-            old_y_offset = getattr(self.curve_view, 'y_offset', 0) # Assign before using
-            print(f"[DEBUG MainWindow] State SAVED: Zoom={old_zoom}, OffX={old_offset_x}, OffY={old_offset_y}, ManX={old_x_offset}, ManY={old_y_offset}")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
-
+            # Update the curve data
             self.curve_data = modified_data
 
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] Calling setPoints...")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
-            # Set points (this calls resetView internally because preserve_view defaults to False)
-            self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height)
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] State AFTER setPoints (before restore): Zoom={getattr(self.curve_view, 'zoom_factor', 'N/A')}, OffX={getattr(self.curve_view, 'offset_x', 'N/A')}, OffY={getattr(self.curve_view, 'offset_y', 'N/A')}, ManX={getattr(self.curve_view, 'x_offset', 'N/A')}, ManY={getattr(self.curve_view, 'y_offset', 'N/A')}")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
+            # Disable auto-scaling to preserve current view
+            self.curve_view.scale_to_image = False
 
-            # Restore previous view state immediately after setPoints resets it
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] Restoring state...")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
-            self.curve_view.zoom_factor = old_zoom
-            self.curve_view.offset_x = old_offset_x
-            self.curve_view.offset_y = old_offset_y
-            self.curve_view.x_offset = old_x_offset
-            self.curve_view.y_offset = old_y_offset
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] State AFTER restore: Zoom={getattr(self.curve_view, 'zoom_factor', 'N/A')}, OffX={getattr(self.curve_view, 'offset_x', 'N/A')}, OffY={getattr(self.curve_view, 'offset_y', 'N/A')}, ManX={getattr(self.curve_view, 'x_offset', 'N/A')}, ManY={getattr(self.curve_view, 'y_offset', 'N/A')}")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
+            # Set points WITH preserve_view=True to maintain view position
+            self.curve_view.setPoints(
+                self.curve_data,
+                self.image_width,
+                self.image_height,
+                preserve_view=True
+            )
 
+            # Add to history
             self.add_to_history()
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] Calling final update()...")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
-            self.curve_view.update() # Ensure repaint with restored state
-            # --- Start Debugging Block ---
-            print(f"[DEBUG MainWindow] Final update() called.")
-            sys.stdout.flush()
-            # --- End Debugging Block ---
+        
+            # Final update to ensure proper rendering
+            self.curve_view.update()
+        
+            # Update status
+            self.statusBar().showMessage("Smoothing applied successfully", 3000)
     def show_filter_dialog(self):
         DialogOperations.show_filter_dialog(self)
 
