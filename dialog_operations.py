@@ -388,12 +388,14 @@ class DialogOperations:
                 QMessageBox.information(main_window, "Info", "Not enough points to analyze.")
                 return None
                 
-            # Detect problems
-            # problems = ops.CurveOperations.detect_problems(main_window) # Original call removed
-            # TODO: Implement problem detection using CurveDataOperations or a dedicated class
-            QMessageBox.information(main_window, "Info", "Problem detection is temporarily disabled pending refactoring.")
-            return None # Disable for now
-            
+            # Detect problems using AnalysisService
+            from services.analysis_service import AnalysisService
+            try:
+                problems = AnalysisService.detect_problems(main_window.curve_data)
+            except Exception as e:
+                QMessageBox.critical(main_window, "Error", f"Problem detection failed: {e}")
+                return None
+                
             if not problems:
                 QMessageBox.information(main_window, "Info", "No problems detected.")
                 return None

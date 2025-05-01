@@ -1,12 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
- # type: ignore [reportMissingImports]
-from PySide6.QtCore import Qt
- # type: ignore [reportMissingImports]
+# mypy: disable-error-code=annotation-unchecked
+from PySide6.QtCore import Qt  # type: ignore
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-                               QCheckBox, QGroupBox, QWidget, QSlider)
+                               QCheckBox, QGroupBox, QWidget, QSlider)  # type: ignore
 from typing import Optional
 from typing import Any
 

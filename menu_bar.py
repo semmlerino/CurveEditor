@@ -3,7 +3,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import typing
 from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QMenuBar
 from PySide6.QtGui import QAction
@@ -17,7 +16,7 @@ from services.history_service import HistoryService as HistoryOperations # Assum
 # from curve_operations import CurveOperations # Removed, logic moved
 # Removed: from main_window import MainWindow (causes circular import)
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from main_window import MainWindow
     # Service facades imported above; no redeclaration needed here
 
@@ -189,7 +188,7 @@ class MenuBar(QMenuBar):
         smooth_action = QAction('&Smooth Selected...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # smooth_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('smooth_selected')))
-        smooth_action.triggered.connect(self.main_window.show_smooth_dialog) # Connect to MainWindow method
+        smooth_action.triggered.connect(self.main_window.apply_smooth_operation)  # renamed method
         tools_menu.addAction(smooth_action)
         
         filter_action = QAction('&Filter Selected...', self)

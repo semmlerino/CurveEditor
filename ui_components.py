@@ -190,7 +190,7 @@ class UIComponents:
         
         main_window.smooth_button = QPushButton("Smooth")
         main_window.smooth_button.setToolTip("Smooth Selected Curve")
-        main_window.smooth_button.clicked.connect(main_window.show_smooth_dialog) # Connect to MainWindow method
+        main_window.smooth_button.clicked.connect(main_window.apply_smooth_operation)  # renamed method
         main_window.smooth_button.setEnabled(True)
         
         main_window.fill_gaps_button = QPushButton("Fill Gaps")

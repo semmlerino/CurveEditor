@@ -5,7 +5,7 @@ import math
 from PySide6.QtWidgets import QMessageBox
 from typing import Dict, Tuple, List, Any
 from dialog_operations import DialogOperations
-# from curve_operations import CurveOperations # Removed - detect_problems moved here
+from services.analysis_service import AnalysisService
 
 class TrackQualityAnalyzer:
     """Analyzes tracking data to determine quality metrics and potential issues."""
@@ -407,8 +407,8 @@ class TrackQualityUI:
             QMessageBox.warning(self.parent, "No Data", "No tracking data loaded.")
             return None
             
-        # Run the quality analysis
-        analysis = self.analyzer.analyze_track(curve_data)
+        # Run the quality analysis using the AnalysisService
+        analysis = AnalysisService.analyze_track_quality(curve_data)
         
         # Update the UI with the results if we have access to the UI components
         if hasattr(self.parent, 'quality_score_label'):
@@ -431,8 +431,8 @@ class TrackQualityUI:
             if hasattr(self.parent, 'coverage_label'):
                 self.parent.coverage_label.setText(f"{analysis['coverage']:.1f}%")
             
-            # Get quality description
-            quality_desc = self.analyzer.get_quality_description(quality_score)
+            # Get quality description from AnalysisService
+            quality_desc = AnalysisService.get_quality_description(quality_score)
             
             # Update status bar with description
             self.parent.statusBar().showMessage(f"Track Quality: {quality_desc}")
@@ -447,13 +447,13 @@ class TrackQualityUI:
                     QMessageBox.Yes | QMessageBox.No)
                     
                 if reply == QMessageBox.Yes:
-                    # Call the static method within this class now
-                    problems = TrackQualityAnalyzer.detect_problems(self.parent.curve_data)
+                    # Use the AnalysisService to detect problems
+                    problems = AnalysisService.detect_problems(self.parent.curve_data)
                     DialogOperations.show_problem_detection_dialog(self.parent, problems)
                     
             # Show suggestions in a tooltip on the analyze button
             if hasattr(self.parent, 'analyze_button'):
-                suggestions = self.analyzer.suggest_improvements(analysis)
+                suggestions = AnalysisService.suggest_improvements(analysis)
                 if suggestions:
                     suggestion_text = "\n".join([f"• {s}" for s in suggestions])
                     self.parent.analyze_button.setToolTip(f"Suggestions:\n{suggestion_text}")

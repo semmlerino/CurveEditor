@@ -200,29 +200,31 @@ self)
         # offset_y is set below
         # offset_y is now set by calculate_centering_offsets above
 
-        # CRITICAL FIX - Simple direct transformation that doesn't try to normalize
+        # Transform data points to widget coordinates, respecting scale, centering, pan, and manual offsets
         def transform_point(x: float, y: float) -> tuple[float, float]:
-            # Corrected transformation order: flip -> scale -> main offset -> manual offset
-            
-            # 1. Apply Y-flip if necessary (relative to image height)
-            transformed_y = y
+            # 1. Flip Y if needed
+            ty = y
             if getattr(self, "flip_y_axis", False):
-                img_height = getattr(self, "image_height", self.height()) # Use image_height, fallback to widget height
-                transformed_y = img_height - y
+                img_h = getattr(self, "image_height", self.height())
+                ty = img_h - y
 
-            # 2. Scale coordinates
-            scaled_x = x * self.zoom_factor
-            scaled_y = transformed_y * self.zoom_factor
+            # 2. Scale by overall scale
+            sx = x * scale
+            sy = ty * scale
 
-            # 3. Apply main centering/panning offset (calculated during zoom/pan)
-            offsetted_x = scaled_x + self.offset_x
-            offsetted_y = scaled_y + self.offset_y
+            # 3. Center content in widget
+            cx = sx + offset_x
+            cy = sy + offset_y
 
-            # 4. Apply manual alignment offset (user adjustments)
-            final_x = offsetted_x + self.x_offset
-            final_y = offsetted_y + self.y_offset
+            # 4. Apply pan offsets
+            px = getattr(self, "offset_x", 0)
+            py = getattr(self, "offset_y", 0)
 
-            return final_x, final_y
+            # 5. Apply manual alignment offsets
+            fx = cx + px + getattr(self, "x_offset", 0)
+            fy = cy + py + getattr(self, "y_offset", 0)
+
+            return fx, fy
 
         # Draw background image if available
         if self.show_background and self.background_image:

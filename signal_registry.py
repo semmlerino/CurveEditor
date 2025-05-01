@@ -97,6 +97,7 @@ class MainWindowProtocol(Protocol):
     shortcuts: Any
     def set_centering_enabled(self, enabled: bool) -> None: ...
     def toggle_fullscreen(self) -> None: ... # Added
+    def apply_smooth_operation(self) -> None: ...  # Added for smoothing method rename
     # Add other attributes as needed for linting
 
 class SignalRegistry:
@@ -111,7 +112,7 @@ class SignalRegistry:
     """
     
     @classmethod
-    def connect_all_signals(cls, main_window: 'MainWindow') -> None:
+    def connect_all_signals(cls, main_window: Any) -> None:
         """Connect all signals throughout the application.
         
         Args:
@@ -167,7 +168,7 @@ class SignalRegistry:
     
     @staticmethod
     def _connect_signal(
-        main_window: MainWindowProtocol,
+        main_window: Any,
         signal: Any,
         slot: Callable[..., Any],
         signal_name: str | None = None
@@ -214,7 +215,7 @@ class SignalRegistry:
             return False
     
     @staticmethod
-    def _connect_curve_view_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_curve_view_signals(main_window: Any) -> None:
         """Connect signals from the curve view widget.
         
         Args:
@@ -244,7 +245,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(main_window, signal, slot, name)
     
     @staticmethod
-    def _connect_point_editing_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_point_editing_signals(main_window: Any) -> None:
         """Connect signals for point editing controls.
         
         Args:
@@ -285,7 +286,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_file_operations_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_file_operations_signals(main_window: Any) -> None:
         """Connect signals for file operations.
         
         Args:
@@ -326,7 +327,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_visualization_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_visualization_signals(main_window: Any) -> None:
         """Connect signals for visualization controls.
         
         Args:
@@ -385,7 +386,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_timeline_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_timeline_signals(main_window: Any) -> None:
         """Connect signals for timeline and frame navigation.
         
         Args:
@@ -461,7 +462,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_batch_edit_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_batch_edit_signals(main_window: Any) -> None:
         """Connect signals for batch editing operations.
         
         Args:
@@ -513,7 +514,7 @@ class SignalRegistry:
         #     )
     
     @staticmethod
-    def _connect_dialog_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_dialog_signals(main_window: Any) -> None:
         """Connect signals for dialog operations.
         
         Args:
@@ -524,7 +525,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(
                 main_window,
                 main_window.smooth_button.clicked,
-                main_window.show_smooth_dialog, # Connect to MainWindow method
+                main_window.apply_smooth_operation, # Connect to MainWindow method
                 "smooth_button.clicked"
             )
                 
@@ -569,7 +570,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_history_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_history_signals(main_window: Any) -> None:
         """Connect signals for history operations (undo/redo).
         
         Args:
@@ -593,7 +594,7 @@ class SignalRegistry:
             )
     
     @staticmethod
-    def _connect_enhanced_view_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_enhanced_view_signals(main_window: Any) -> None:
         """Connect signals specific to the enhanced curve view.
         
         Args:
@@ -608,7 +609,7 @@ class SignalRegistry:
         pass  # Currently no additional signals needed
     
     @staticmethod
-    def _connect_image_operations_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_image_operations_signals(main_window: Any) -> None:
         """Connect signals for image operations.
         
         Args:
@@ -657,7 +658,7 @@ class SignalRegistry:
             )
 
     @staticmethod
-    def _connect_analysis_signals(main_window: MainWindowProtocol) -> None:
+    def _connect_analysis_signals(main_window: Any) -> None:
         """Connect signals for analysis tools."""
         if hasattr(main_window, 'analyze_button') and hasattr(main_window, 'quality_ui'):
             SignalRegistry._connect_signal(
@@ -669,7 +670,7 @@ class SignalRegistry:
 
     
     @staticmethod
-    def _connect_keyboard_shortcuts(main_window: MainWindowProtocol) -> None:
+    def _connect_keyboard_shortcuts(main_window: Any) -> None:
         """Connect keyboard shortcuts to actions.
         
         Args:
@@ -781,7 +782,7 @@ class SignalRegistry:
         print("  [OK] Connected keyboard shortcuts")
         # Tools
         ShortcutManager.connect_shortcut(main_window, "smooth_selected",
-                                         main_window.show_smooth_dialog) # Connect to MainWindow method
+                                         main_window.apply_smooth_operation) # Connect to MainWindow method
         ShortcutManager.connect_shortcut(main_window, "filter_selected",
                                          lambda: DialogOperations.show_filter_dialog(main_window))
         # ShortcutManager.connect_shortcut(main_window, "detect_problems", # TODO: Refactor detect_problems

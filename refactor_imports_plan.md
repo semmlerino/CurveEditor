@@ -1,4 +1,4 @@
-# Refactoring Plan: Standardize CurveService Imports
+# Refactoring Plan: Standardize CurveService Imports (COMPLETED)
 
 **Goal:** Complete the refactoring of curve operations by standardizing imports related to `services.curve_service.CurveService` and updating legacy imports from `curve_view_operations.py`.
 
@@ -6,26 +6,41 @@
 
 **Rationale:** Improve code consistency and readability following the refactoring of curve operations into services.
 
-**Implementation Details:**
+**Status:** ✅ COMPLETED
 
-1.  **Standardize Alias:** Ensure all imports use `from services.curve_service import CurveService as CurveViewOperations`.
-2.  **Clean Up Imports & Calls:**
-    *   **`main_window.py`:**
-        *   Remove direct import: `from services.curve_service import CurveService`.
-        *   Ensure alias import exists: `from services.curve_service import CurveService as CurveViewOperations`.
-        *   Update call `CurveService.update_point_info(...)` to `CurveViewOperations.update_point_info(...)`.
-        *   Remove local import: `from curve_view_operations import CurveViewOperations`. Ensure call `CurveViewOperations.select_point_by_index(...)` uses the top-level alias import.
-    *   **`enhanced_curve_view.py`:**
-        *   Move all local imports `from services.curve_service import CurveService as CurveViewOperations` to a single top-level import.
-    *   **`services/input_service.py`:**
-        *   Replace `from curve_view_operations import CurveViewOperations as LegacyOps` with `from services.curve_service import CurveService as CurveViewOperations`.
-        *   Update call `LegacyOps.handle_mouse_move(...)` to `CurveViewOperations.handle_mouse_move(...)`.
-    *   **`curve_view_plumbing.py`:**
-        *   Remove local import `from curve_view_operations import CurveViewOperations`.
-        *   Add top-level import `from services.curve_service import CurveService as CurveViewOperations`. Ensure call `CurveViewOperations.update_point_info(...)` uses this import.
-    *   **`batch_edit.py`:**
-        *   Replace `from curve_view_operations import CurveViewOperations` with `from services.curve_service import CurveService as CurveViewOperations`. Ensure call `CurveViewOperations.select_all_points(...)` uses this import.
-3.  **Future Consideration:** After implementation and testing, the file `curve_view_operations.py` should be obsolete and can likely be deleted.
+## Current Status
+
+### Completed:
+
+- ✅ **`main_window.py`**: Now using the correct import approach with proper alias.
+- ✅ **`enhanced_curve_view.py`**: Has a single top-level import as recommended.
+- ✅ **`services/input_service.py`**: Now using the corrected import and calls.
+- ✅ **`batch_edit.py`**: Using the correct standardized import pattern.
+- ✅ **`curve_view_plumbing.py`**: Now using the correct top-level import with proper alias.
+- ✅ **`curve_view_operations.py`**: Legacy file has been renamed to `.deprecated` after confirming all functionality has been migrated.
+- ✅ Various function calls throughout the codebase now use the standardized service imports.
+
+## Implementation Details (Completed):
+
+1. **✅ Refactoring of `curve_view_plumbing.py`:**
+   * Changed the import to a top-level import at the beginning of the file.
+   * Added a comment to clarify the standard import pattern.
+   * Ensured consistent use of this import throughout the file.
+
+2. **✅ Verified and migrated all functionality:**
+   * Checked for unique functions in `curve_view_operations.py` and confirmed all have been migrated to `services/curve_service.py`.
+   * Confirmed no modules are still importing from `curve_view_operations.py`.
+
+3. **✅ Handled `curve_view_operations.py`:**
+   * After verifying all functionality has been migrated, the file has been renamed to `.deprecated`.
+   * No outdated references were found in other files.
+
+4. **✅ Updated legacy backup file:**
+   * Renamed `curve_view_operations.legacy` to `curve_view_operations.deprecated` to clearly mark it as no longer used.
+
+5. **✅ Validation:**
+   * Created a validation script (`refactoring_validation.py`) to verify imports are working correctly.
+   * Updated documentation in `README.md` and added `docs/refactoring_notes.md` to explain the architecture changes.
 
 **Dependency Overview (Simplified Mermaid Diagram):**
 
@@ -68,3 +83,4 @@ graph TD
     services/curve_service.py --> services/curve_data_operations.py  # Implicit delegation
 
     %% Other existing dependencies not shown for clarity
+```

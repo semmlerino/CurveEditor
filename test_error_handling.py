@@ -22,11 +22,11 @@ class MockMainWindow:
         self.history_added = True
 
 @safe_operation("Test Operation", record_history=True)
-def test_operation_with_history(main_window):
+def operation_with_history(main_window):
     return True
 
 @safe_operation("Test Operation", record_history=False)
-def test_operation_without_history(main_window):
+def operation_without_history(main_window):
     return True
 
 def main():
@@ -34,14 +34,14 @@ def main():
     main_window = MockMainWindow()
 
     # Test with record_history=True
-    test_operation_with_history(main_window)
+    operation_with_history(main_window)
     print(f"History added (should be True): {main_window.history_added}")
 
     # Reset history flag
     main_window.history_added = False
 
     # Test with record_history=False
-    test_operation_without_history(main_window)
+    operation_without_history(main_window)
     print(f"History added (should be False): {main_window.history_added}")
 
     print("Tests completed successfully!")

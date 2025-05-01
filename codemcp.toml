@@ -1,0 +1,4 @@
+[commands]
+format = ["black .", "isort ."]
+test = ["pytest"]
+lint = ["ruff ."]
