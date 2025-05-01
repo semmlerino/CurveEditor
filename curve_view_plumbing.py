@@ -8,6 +8,7 @@ Contains decorators and helper functions for state capture, data mutation, and c
 import functools
 import inspect
 from PySide6.QtWidgets import QMessageBox
+from services.curve_service import CurveService as CurveViewOperations
 from services.curve_utils import normalize_point, set_point_status, update_point_coords
 
 
@@ -127,8 +128,7 @@ def finalize_data_change(curve_view, main_window, view_state, selected_indices, 
     if main_window and selected_indices:
         idx0 = original_primary if original_primary in selected_indices else selected_indices[0]
         fd = main_window.curve_data[idx0]
-        # Update info panel
-        from services.curve_service import CurveService as CurveViewOperations # Moved import here
+        # Update info panel using the imported CurveViewOperations
         CurveViewOperations.update_point_info(main_window, idx0, fd[1], fd[2])
     if main_window and hasattr(main_window, 'add_to_history'):
         main_window.add_to_history()
