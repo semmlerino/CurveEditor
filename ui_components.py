@@ -163,7 +163,7 @@ class UIComponents:
         
         main_window.toggle_bg_button = QPushButton("Toggle BG")
         main_window.toggle_bg_button.setToolTip("Toggle Background Visibility")
-        main_window.toggle_bg_button.clicked.connect(lambda checked: ImageOperations.toggle_background(main_window, checked))
+        main_window.toggle_bg_button.clicked.connect(lambda: ImageOperations.toggle_background(main_window))
         main_window.toggle_bg_button.setEnabled(False)
         
         view_buttons.addWidget(main_window.reset_view_button)

@@ -1,81 +1,47 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-from PySide6.QtCore import QSettings
+"""
+DEPRECATED: This module has been migrated to services/settings_service.py
+Please update your imports to use:
+    from services.settings_service import SettingsService as SettingsOperations
+
+This file is kept only for backward compatibility and will be removed in a future version.
+"""
+
+import warnings
+from typing import Any, TYPE_CHECKING
 from PySide6.QtGui import QCloseEvent
-from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from main_window import MainWindow
 
+# Issue deprecation warning
+warnings.warn(
+    "The settings_operations module is deprecated. "
+    "Please use 'from services.settings_service import SettingsService as SettingsOperations' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
 
+# Import the service version
+from services.settings_service import SettingsService
+
+# Re-export SettingsService as SettingsOperations for backward compatibility
 class SettingsOperations:
-    """Settings operations for the 3DE4 Curve Editor."""
-    
-    APP_NAME = "3DE4"
-    APP_ORGANIZATION = "CurveEditor"
-    
-    @staticmethod
-    def load_settings(main_window: 'MainWindow') -> None:
-        """Load application settings."""
-        try:
-            settings = QSettings(SettingsOperations.APP_NAME, SettingsOperations.APP_ORGANIZATION)
-            
-            # Window geometry and state
-            geometry = settings.value("geometry", b"", type=bytes)
-            if isinstance(geometry, (bytes, bytearray, memoryview)) and geometry:
-                main_window.restoreGeometry(geometry)
-                
-            window_state = settings.value("windowState", b"", type=bytes)
-            if isinstance(window_state, (bytes, bytearray, memoryview)) and window_state:
-                main_window.restoreState(window_state)
-                
-            # Last used directory
-            last_dir = settings.value("lastDirectory", "", type=str)
-            if isinstance(last_dir, str) and os.path.isdir(last_dir):
-                main_window.default_directory = last_dir
-                
-            # History size
-            history_size = settings.value("historySize", 50, type=int)
-            if isinstance(history_size, int) and history_size > 0:
-                main_window.max_history_size = history_size
-                
-            
-            # Auto-center toggle state
-            main_window.auto_center_enabled = bool(settings.value("view/autoCenterOnFrameChange", False, type=bool))
+    """
+    DEPRECATED: Settings operations for the 3DE4 Curve Editor.
+    All methods are forwarded to SettingsService for backward compatibility.
+    """
+    # Constants
+    APP_NAME = SettingsService.APP_NAME
+    APP_ORGANIZATION = SettingsService.APP_ORGANIZATION
 
-        except Exception as e:
-            print(f"Error loading settings: {e}")
-            # Use defaults if settings can't be loaded
-            
-    @staticmethod
-    def save_settings(main_window: 'MainWindow') -> None:
-        """Save application settings on exit."""
-        try:
-            settings = QSettings(SettingsOperations.APP_NAME, SettingsOperations.APP_ORGANIZATION)
-            
-            # Window geometry and state
-            settings.setValue("geometry", main_window.saveGeometry())
-            settings.setValue("windowState", main_window.saveState())
-            
-            # Last used directory
-            settings.setValue("lastDirectory", main_window.default_directory)
-            
-            # History size
-            settings.setValue("historySize", main_window.max_history_size)
-            
-            
-            # Auto-center toggle state
-            settings.setValue("view/autoCenterOnFrameChange", getattr(main_window, 'auto_center_enabled', False))
+    # Forward all static method calls to the service implementation
+    def __new__(cls, *args, **kwargs):
+        return SettingsService(*args, **kwargs)
 
-        except Exception as e:
-            print(f"Error saving settings: {e}")
-            
-    @staticmethod
-    def handle_close_event(main_window: 'MainWindow', event: QCloseEvent) -> None:
-        """Handle window close event."""
-        # Save settings before closing
-        SettingsOperations.save_settings(main_window)
-        # Accept the close event
-        event.accept()
+    # Dynamically forward all static methods
+    for name, fn in SettingsService.__dict__.items():
+        if callable(fn) and not name.startswith('__'):
+            locals()[name] = staticmethod(getattr(SettingsService, name))

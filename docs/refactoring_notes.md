@@ -23,19 +23,18 @@ The following service classes have been implemented:
 
 ### 2. Migration Progress
 
-The refactoring is in a **transition state**:
+The refactoring is in a **completed state**:
 
 - ✅ `curve_view_operations.py` has been fully migrated to `services/curve_service.py` and renamed to `curve_view_operations.deprecated`
 - ✅ `dialog_operations.py` has been fully migrated to `services/dialog_service.py` and replaced with a redirect stub
-- ⚠️ Many other operations files still exist alongside their service counterparts:
-  - `file_operations.py` → `services/file_service.py`
-  - `image_operations.py` → `services/image_service.py`
-  - `history_operations.py` → `services/history_service.py`
-  - `centering_zoom_operations.py` → `services/centering_zoom_service.py`
-  - `settings_operations.py` → `services/settings_service.py`
-  - `visualization_operations.py` → `services/visualization_service.py`
+- ✅ `file_operations.py` has been fully migrated to `services/file_service.py` and renamed to `file_operations.py.deprecated`
+- ✅ `image_operations.py` has been fully migrated to `services/image_service.py` and renamed to `image_operations.py.deprecated`
+- ✅ `history_operations.py` has been fully migrated to `services/history_service.py` and replaced with a redirect stub
+- ✅ `visualization_operations.py` has been fully migrated to `services/visualization_service.py` with a backward compatibility stub
+- ✅ `centering_zoom_operations.py` has been fully migrated to `services/centering_zoom_service.py` with a backward compatibility stub
+- ✅ `settings_operations.py` has been fully migrated to `services/settings_service.py` with a backward compatibility stub
 
-These operations files are still being used directly in some places while their service counterparts act as facades passing through to the original operations.
+All operations files now forward to their corresponding service implementations with proper deprecation warnings.
 
 ### 3. Import Patterns
 
@@ -59,6 +58,9 @@ from history_operations import HistoryOperations
 ### 4. Legacy Files Status
 
 - ✅ `curve_view_operations.py` has been fully migrated and renamed to `.deprecated`
+- ✅ `file_operations.py` has been fully migrated and renamed to `.deprecated`
+- ✅ `image_operations.py` has been fully migrated and renamed to `.deprecated`
+- ✅ `history_operations.py` has been fully migrated and a stub forwards calls to the service
 - ⚠️ Other operations files are in a transitional state:
   - They still exist in the project root
   - Their corresponding service classes often act as thin facades

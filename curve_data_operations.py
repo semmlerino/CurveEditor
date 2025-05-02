@@ -3,12 +3,30 @@
 # pyright: reportUnusedVariable=false
 
 """
-Canonical module for all core curve data operations.
+DEPRECATED: This module has been migrated to services/analysis_service.py
+Please update your imports to use:
+    from services.analysis_service import AnalysisService
 
-This module consolidates logic for smoothing, filtering, filling gaps,
-extrapolation, and potentially other data manipulations to ensure
-consistency and maintainability.
+For direct manipulation of curve data using the legacy API:
+    processor = AnalysisService.create_processor(curve_data)
+
+For service-based approach:
+    smoothed_data = AnalysisService.smooth_curve(curve_data, indices, method='gaussian')
+
+This file is kept only for backward compatibility and will be removed in a future version.
 """
+
+import warnings
+
+# Issue deprecation warning
+warnings.warn(
+    "The curve_data_operations module is deprecated. "
+    "Please use 'from services.analysis_service import AnalysisService' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# This maintains backward compatibility while moving towards a service-based architecture
 
 from typing import List, Tuple, Optional, Sequence
 import math

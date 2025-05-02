@@ -3,7 +3,7 @@
 
 """
 DEPRECATED: This module has been migrated to services/history_service.py.
-This stub file forwards all calls to HistoryService for backward compatibility.
+This file is kept for backward compatibility but should not be used in new code.
 """
 
 import warnings

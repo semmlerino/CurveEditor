@@ -10,13 +10,17 @@ for the Curve Editor application. It initializes the UI components, creates the
 main application window, and manages the application lifecycle.
 
 Key architecture principles:
-1. Separation of UI components into the UIComponents Sclass
+1. Separation of UI components into the UIComponents class
 2. Centralized signal connections managed through SignalRegistry.connect_all_signals
-3. Operation-specific logic in dedicated utility classes:
-   - CurveViewOperations - For curve view manipulation
-   - ImageOperations - For image sequence handling
-   - DialogOperations - For dialog management
-   - CurveDataOperations - For curve data manipulation (New consolidated class)
+3. Operation-specific logic in dedicated service classes:
+   - CurveService - For curve view manipulation
+   - ImageService - For image sequence handling
+   - DialogService - For dialog management
+   - SettingsService - For application settings management
+   - FileService - For file operations
+   - HistoryService - For undo/redo functionality
+   - CenteringZoomService - For view centering and zoom operations
+   - CurveDataOperations - For curve data manipulation (Legacy class)
 
 This architecture ensures:
 - Clear separation of concerns
@@ -35,12 +39,12 @@ from curve_view import CurveView
 from services.file_service import FileService as FileOperations
 
 from utils import load_3de_track, estimate_image_dimensions, get_image_files
-
+from services.centering_zoom_service import CenteringZoomService
 from services.history_service import HistoryService
 from services.dialog_service import DialogService
-from image_operations import ImageOperations
+from services.image_service import ImageService as ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
-from centering_zoom_operations import ZoomOperations
+from services.settings_service import SettingsService
 
 from keyboard_shortcuts import ShortcutManager
 from ui_components import UIComponents
@@ -62,13 +66,13 @@ class MainWindow(QMainWindow):
     utility-class based architecture where most functionality is delegated
     to specialized utility classes:
 
-    - CurveViewOperations: Operations related to the curve view (point selection, editing)
-    - ImageOperations: Operations for image sequence handling
-    - FileOperations: File handling (loading, saving tracks)
-    - DialogOperations: Management of various dialogs
-    - SettingsOperations: Application settings management
+    - CurveService: Operations related to the curve view (point selection, editing)
+    - ImageService: Operations for image sequence handling
+    - FileService: File handling (loading, saving tracks)
+    - DialogService: Management of various dialogs
+    - SettingsService: Application settings management
     - UIComponents: Common UI operations
-    - HistoryOperations: Undo/redo functionality
+    - HistoryService: Undo/redo functionality
     - CurveDataOperations: Mathematical operations on curves (New consolidated class)
 
     This architecture reduces code duplication and improves maintainability
@@ -164,7 +168,7 @@ class MainWindow(QMainWindow):
         self.quality_ui = TrackQualityUI(self)
 
         # Load settings first to get initial state
-        # SettingsOperations.load_settings(self)  # Use the utility class
+        SettingsService.load_settings(self)  # Use the service implementation
 
         # Init UI (which uses loaded settings)
         self.setup_ui()
@@ -216,7 +220,7 @@ class MainWindow(QMainWindow):
         if enabled:
             # Use the correctly imported ZoomOperations
             if hasattr(self, 'curve_view') and hasattr(self.curve_view, 'selected_point_idx') and self.curve_view.selected_point_idx >= 0:
-                ZoomOperations.center_on_selected_point(self.curve_view) # Pass curve_view instance
+                CenteringZoomService.auto_center_view(self, preserve_zoom=True)  # Use the facade method for main_window
             else:
                 # Optionally keep a log message if needed, but removing debug prints for now
                 # print("[DEBUG] Auto-center enabled, but no point selected or curve view not ready.")
@@ -239,19 +243,19 @@ class MainWindow(QMainWindow):
 
         # Create new layout to reorganize the UI components
         # This will place the splitter exactly between the image view and bottom UI elements
-    
+
         # Get the curve view and timeline components separately
         curve_view_container, timeline_widget = UIComponents.create_view_and_timeline_separated(self)
-    
+
         # Create control panel
         controls_widget = UIComponents.create_control_panel(self)
-    
+
         # Create splitter for curve view and bottom UI (timeline + controls)
         splitter = QSplitter(Qt.Orientation.Vertical)
-    
+
         # Make the splitter handle wider and more visible
         splitter.setHandleWidth(4)
-    
+
         # Set the splitter stylesheet to make the handle more visible
         splitter.setStyleSheet("""
             QSplitter::handle {
@@ -263,34 +267,34 @@ class MainWindow(QMainWindow):
                 background-color: #a0a0a0;
             }
         """)
-    
+
         # Add curve view to top of splitter
         # Set minimum size for top view to prevent it from collapsing completely
         curve_view_container.setMinimumHeight(200)
         splitter.addWidget(curve_view_container)
-    
+
         # Create a container for bottom UI (timeline + controls)
         bottom_container = QWidget()
         bottom_layout = QVBoxLayout(bottom_container)
         bottom_layout.setContentsMargins(0, 0, 0, 0)
         bottom_layout.setSpacing(0)
-    
+
         # Add timeline to bottom container
         bottom_layout.addWidget(timeline_widget)
-    
+
         # Add controls to bottom container
         # Set minimum size for bottom panel to prevent it from collapsing completely
         # but small enough to allow significant resizing
         controls_widget.setMinimumHeight(120)
         bottom_layout.addWidget(controls_widget)
-    
+
         # Add the bottom container to the splitter
         bottom_container.setMinimumHeight(200)
         splitter.addWidget(bottom_container)
-    
+
         # Set relative sizes with more space for the top view by default
         splitter.setSizes([700, 300])
-    
+
         # Store reference to splitter for later access if needed
         self.main_splitter = splitter
 
@@ -580,23 +584,19 @@ class MainWindow(QMainWindow):
     # History Operations
     def add_to_history(self):
         """Add current state to history."""
-        import history_operations
-        history_operations.HistoryOperations.add_to_history(self)
+        HistoryService.add_to_history(self)
 
     def update_history_buttons(self):
         """Update the state of undo/redo buttons."""
-        import history_operations
-        history_operations.HistoryOperations.update_history_buttons(self)
+        HistoryService.update_history_buttons(self)
 
     def undo_action(self):
         """Undo the last action."""
-        import history_operations
-        history_operations.HistoryOperations.undo_action(self)
+        HistoryService.undo_action(self)
 
     def redo_action(self):
         """Redo the previously undone action."""
-        import history_operations
-        history_operations.HistoryOperations.redo_action(self)
+        HistoryService.redo_action(self)
 
     def restore_state(self, state: Any) -> None:
         """Restore application state from history."""
@@ -734,6 +734,15 @@ class MainWindow(QMainWindow):
             # Center view on selected point
             if hasattr(self.curve_view, 'centerOnSelectedPoint'):
                 self.curve_view.centerOnSelectedPoint(-1)
+
+    def closeEvent(self, event) -> None:
+        """Handle window close event, saving settings before exit.
+
+        Args:
+            event: The close event from Qt
+        """
+        # Use the SettingsService to handle the close event
+        SettingsService.handle_close_event(self, event)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

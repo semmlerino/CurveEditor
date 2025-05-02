@@ -1,0 +1,24 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+DEPRECATED: This module has been migrated to services/file_service.py
+Please update your imports to use:
+    from services.file_service import FileService as FileOperations
+
+This file is kept only for backward compatibility and will be removed in a future version.
+"""
+
+import warnings
+from services.file_service import FileService
+
+# Issue deprecation warning
+warnings.warn(
+    "The file_operations module is deprecated. "
+    "Please use 'from services.file_service import FileService as FileOperations' instead.",
+    DeprecationWarning,
+    stacklevel=2
+)
+
+# Re-export FileService as FileOperations for backward compatibility
+FileOperations = FileService

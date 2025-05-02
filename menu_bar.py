@@ -252,4 +252,4 @@ class MenuBar(QMenuBar):
     def _handle_background_toggled(self, enabled: bool) -> None:
         """Handle background toggled signal."""
         if self.main_window:
-            ImageOperations.toggle_background(self.main_window, enabled)
+            ImageOperations.toggle_background(self.main_window)

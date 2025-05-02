@@ -2,45 +2,272 @@
 # -*- coding: utf-8 -*-
 
 """
-VisualizationService: facade for legacy VisualizationOperations (phase 1).
-All static methods are dynamically attached from the legacy VisualizationOperations.
+VisualizationService: Handles visualization operations for the CurveEditor.
+Provides methods for toggling display features and manipulating the view.
 """
 
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 import os
-from centering_zoom_operations import ZoomOperations
-from typing import Any
+import re
+from services.centering_zoom_service import CenteringZoomService
+from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
 
-# Import legacy class
-from visualization_operations import VisualizationOperations as LegacyVisOps
+if TYPE_CHECKING:
+    from curve_view import CurveView
 
 class VisualizationService:
-    """Facade for visualization operations (phase 1)."""
+    """Service for visualization operations in the curve editor."""
+
     @staticmethod
-    def toggle_grid(curve_view: Any, enabled: bool) -> None:
-        """Stub for static analysis."""
-        pass
+    def toggle_background_visible(curve_view: 'CurveView', visible: bool) -> None:
+        """Toggle visibility of background image."""
+        curve_view.show_background = visible
+        curve_view.update()
+
     @staticmethod
-    def toggle_velocity_vectors(curve_view: Any, enabled: bool) -> None:
-        """Stub for static analysis."""
-        pass
+    def toggle_grid(curve_view: 'CurveView', enabled: Optional[bool] = None) -> None:
+        """Toggle grid visibility."""
+        if enabled is None:
+            curve_view.show_grid = not getattr(curve_view, 'show_grid', False)
+        else:
+            curve_view.show_grid = enabled
+        curve_view.update()
+
     @staticmethod
-    def toggle_all_frame_numbers(curve_view: Any, enabled: bool) -> None:
-        """Stub for static analysis."""
+    def toggle_velocity_vectors(curve_view: 'CurveView', enabled: bool) -> None:
+        """Toggle velocity vector display."""
+        curve_view.show_velocity_vectors = enabled
+        curve_view.update()
+
+    @staticmethod
+    def toggle_all_frame_numbers(curve_view: 'CurveView', enabled: bool) -> None:
+        """Toggle display of all frame numbers."""
+        curve_view.show_all_frame_numbers = enabled
+        curve_view.update()
+
+    @staticmethod
+    def toggle_crosshair(curve_view: 'CurveView', enabled: bool) -> None:
+        """Toggle crosshair visibility."""
+        curve_view.show_crosshair = enabled
+        curve_view.update()
+
+    @staticmethod
+    def set_background_opacity(curve_view: 'CurveView', opacity: float) -> None:
+        """Set the opacity of the background image.
+
+        Args:
+            curve_view: The curve view instance
+            opacity: Opacity value between 0.0 and 1.0
+        """
+        curve_view.background_opacity = max(0.0, min(1.0, opacity))
+        curve_view.update()
+
+    @staticmethod
+    def pan_view(curve_view: 'CurveView', dx: float, dy: float) -> None:
+        """Pan the view by the specified delta.
+
+        Args:
+            curve_view: The curve view instance
+            dx: Change in x position
+            dy: Change in y position
+        """
+        # Apply the pan offset
+        curve_view.offset_x = int(getattr(curve_view, 'offset_x', 0) + dx)
+        curve_view.offset_y = int(getattr(curve_view, 'offset_y', 0) + dy)
+
+        # Update the view
+        curve_view.update()
+
+    @staticmethod
+    def set_point_radius(curve_view: 'CurveView', radius: int) -> None:
+        """Set the radius for points in the curve view.
+
+        Args:
+            curve_view: The curve view instance
+            radius: Point radius in pixels
+        """
+        curve_view.point_radius = max(1, radius)  # Ensure minimum size of 1
+        curve_view.update()
+
+    @staticmethod
+    def set_grid_color(curve_view: 'CurveView', color: QColor) -> None:
+        """Set the color of the grid lines.
+
+        Args:
+            curve_view: The curve view instance
+            color: QColor for the grid lines
+        """
+        curve_view.grid_color = color
+        curve_view.update()
+
+    @staticmethod
+    def set_grid_line_width(curve_view: 'CurveView', width: int) -> None:
+        """Set the width of grid lines.
+
+        Args:
+            curve_view: The curve view instance
+            width: Width in pixels
+        """
+        curve_view.grid_line_width = max(1, width)
+        curve_view.update()
+
+    @staticmethod
+    def update_timeline_for_image(index: int, curve_view: 'CurveView', image_filenames: List[str]) -> None:
+        """Update the timeline for the current image.
+
+        This method extracts the frame number from an image filename and updates
+        the timeline slider and related UI elements to match the current image.
+        It also selects the point in the curve data that corresponds to the frame.
+
+        Args:
+            index: Index of the current image in the image_filenames list
+            curve_view: The curve view instance
+            image_filenames: List of image filenames
+        """
+        try:
+            if not image_filenames:
+                print("update_timeline_for_image: No image filenames available")
+                return
+
+            if index < 0 or index >= len(image_filenames):
+                print(f"update_timeline_for_image: Invalid index {index}")
+                return
+
+            # Extract frame number
+            filename = os.path.basename(image_filenames[index])
+            frame_match = re.search(r'(\d+)', filename)
+            if not frame_match:
+                print(f"update_timeline_for_image: Could not extract frame from {filename}")
+                return
+
+            frame_num = int(frame_match.group(1))
+            print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
+
+            # Update frame marker position if it exists
+            VisualizationService.update_frame_marker_position(curve_view, frame_num)
+
+            # Find and update selected point
+            if hasattr(curve_view, 'curve_data') and curve_view.curve_data:
+                closest_frame = min(curve_view.curve_data, key=lambda point: abs(point[0] - frame_num))[0]
+
+                for i, point in enumerate(curve_view.curve_data):
+                    if point[0] == closest_frame:
+                        # Update selection
+                        if hasattr(curve_view, 'selected_point_idx'):
+                            curve_view.selected_point_idx = i
+                            curve_view.selected_points = {i}
+                            curve_view.update()
+                            print(f"update_timeline_for_image: Updated selected point to {i}")
+                        break
+        except Exception as e:
+            print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
+
+    @staticmethod
+    def update_frame_marker_position(curve_view: 'CurveView', frame: int) -> None:
+        """Update the position of the frame marker based on current frame.
+
+        Args:
+            curve_view: The curve view instance
+            frame: The current frame number
+        """
+        # Update the marker position if it exists
+        if hasattr(curve_view, 'frame_marker_label') and curve_view.frame_marker_label is not None:
+            # Calculate position based on frame
+            if hasattr(curve_view, 'timeline_slider') and curve_view.timeline_slider is not None:
+                slider = curve_view.timeline_slider
+                min_frame = slider.minimum()
+                max_frame = slider.maximum()
+
+                # Only update if we have a valid range
+                if max_frame > min_frame:
+                    _frame_range = max_frame - min_frame  # Not used, so prefixed with _ to avoid lint error
+                    # Ensure the frame is within valid range
+                    current_frame = max(min_frame, min(max_frame, frame))
+                    # Update the tooltip to show the current frame
+                    curve_view.frame_marker_label.setToolTip(f"Frame: {current_frame}")
+
+    @staticmethod
+    def set_points(
+        curve_view: 'CurveView',
+        points: List[Union[Tuple[int, float, float], Tuple[int, float, float, Any]]],
+        image_width: int,
+        image_height: int,
+        preserve_view: bool = False
+    ) -> None:
+        """Set the points to display and adjust view accordingly.
+
+        Args:
+            curve_view: The curve view instance
+            points: List of points in format [(frame, x, y), ...] or [(frame, x, y, status), ...]
+            image_width: Width of the image/workspace
+            image_height: Height of the image/workspace
+            preserve_view: If True, maintain current view position
+        """
+        # Store current view state if preserving view
+        view_state = None
+        if preserve_view:
+            view_state = {
+                'zoom_factor': curve_view.zoom_factor,
+                'offset_x': getattr(curve_view, 'offset_x', 0),
+                'offset_y': getattr(curve_view, 'offset_y', 0),
+                'x_offset': getattr(curve_view, 'x_offset', 0),
+                'y_offset': getattr(curve_view, 'y_offset', 0)
+            }
+
+        # Update data
+        curve_view.points = points
+        curve_view.image_width = image_width
+        curve_view.image_height = image_height
+
+        # Reset view if not preserving
+        if not preserve_view:
+            CenteringZoomService.reset_view(curve_view)
+        else:
+            # Restore view state
+            if view_state:
+                curve_view.zoom_factor = view_state['zoom_factor']
+                curve_view.offset_x = int(view_state['offset_x'])
+                curve_view.offset_y = int(view_state['offset_y'])
+                if hasattr(curve_view, 'x_offset'):
+                    curve_view.x_offset = int(view_state['x_offset'])
+                if hasattr(curve_view, 'y_offset'):
+                    curve_view.y_offset = int(view_state['y_offset'])
+
+        curve_view.update()
+
+    @staticmethod
+    def jump_to_frame_by_click(curve_view: 'CurveView', position: int) -> None:
+        """
+        Jump to a frame by clicking on the timeline (if implemented).
+
+        Args:
+            curve_view: The curve view instance
+            position: The position of the click in the timeline
+        """
+        # Placeholder for future implementation
         pass
 
     @staticmethod
     def center_on_selected_point_from_main_window(main_window: Any) -> None:
-        """Stub for static analysis."""
-        pass
+        """Center the view on the selected point from the main window.
+
+        Args:
+            main_window: The main window instance
+        """
+        curve_view = getattr(main_window, 'curve_view', None)
+        if curve_view:
+            CenteringZoomService.center_on_selected_point(curve_view)
+        else:
+            print("Cannot center: no curve view available.")
 
     @staticmethod
-    def toggle_crosshair_internal(curve_view: Any, enabled: bool) -> None:
-        """Stub for static analysis."""
-        pass
+    def toggle_crosshair_internal(curve_view: 'CurveView', enabled: bool) -> None:
+        """Internal implementation of toggle_crosshair.
 
-# Dynamically attach all static methods from the legacy module
-for name, fn in LegacyVisOps.__dict__.items():
-    if callable(fn):
-        setattr(VisualizationService, name, staticmethod(fn))
+        Args:
+            curve_view: The curve view instance
+            enabled: Whether to enable or disable the crosshair
+        """
+        VisualizationService.toggle_crosshair(curve_view, enabled)

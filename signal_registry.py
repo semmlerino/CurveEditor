@@ -620,7 +620,7 @@ class SignalRegistry:
             SignalRegistry._connect_signal(
                 main_window,
                 main_window.toggle_bg_button.clicked, # Assuming this button's state reflects the desired toggle
-                lambda: ImageOperations.toggle_background(main_window, main_window.toggle_bg_button.isChecked()),
+                lambda: ImageOperations.toggle_background(main_window),
                 "toggle_bg_button.clicked"
             )
 
@@ -740,7 +740,7 @@ class SignalRegistry:
         ShortcutManager.connect_shortcut(main_window, "toggle_crosshair",
                                          lambda: VisualizationOperations.toggle_crosshair_internal(main_window.curve_view, not getattr(main_window.curve_view, 'show_crosshair', False)))
         ShortcutManager.connect_shortcut(main_window, "toggle_background",
-                                         lambda: ImageOperations.toggle_background(main_window, not getattr(main_window.curve_view, 'show_background', True))) # Toggle based on curve_view state
+                                         lambda: ImageOperations.toggle_background(main_window)) # Toggle based on curve_view state
         # ShortcutManager.connect_shortcut(main_window, "toggle_fullscreen",
         #                                  lambda: main_window.toggle_fullscreen() if hasattr(main_window, 'toggle_fullscreen') else None) # Method missing in MainWindow
         ShortcutManager.connect_shortcut(main_window, "zoom_in",
