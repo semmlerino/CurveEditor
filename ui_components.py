@@ -289,6 +289,218 @@ class UIComponents:
         return toolbar_widget
         
     @staticmethod
+    def create_view_and_timeline_separated(main_window: Any) -> tuple[QWidget, QWidget]:
+        """Create and return the curve view and timeline controls as separate widgets.
+        
+        This method creates the curve view and timeline components separately,
+        allowing the UI to place them with a splitter exactly at their boundary.
+        
+        Returns:
+            tuple[QWidget, QWidget]: A tuple containing (curve_view_container, timeline_widget)
+        """
+        # Create curve view container
+        curve_view_container = QWidget()
+        curve_view_layout = QVBoxLayout(curve_view_container)
+        curve_view_layout.setContentsMargins(0, 0, 0, 0)
+        main_window.curve_view_container = curve_view_container
+        
+        # Create curve view
+        if hasattr(main_window, 'curve_view_class') and issubclass(main_window.curve_view_class, EnhancedCurveView):
+            main_window.curve_view = main_window.curve_view_class()
+            main_window.original_curve_view = main_window.curve_view  # Store reference to original view
+        else:
+            main_window.curve_view = EnhancedCurveView()
+            main_window.original_curve_view = main_window.curve_view  # Store reference to original view
+        
+        curve_view_layout.addWidget(main_window.curve_view)
+        
+        # Create timeline widget separately
+        timeline_widget = UIComponents._create_timeline_widget(main_window)
+        
+        return curve_view_container, timeline_widget
+        
+    @staticmethod
+    def _create_timeline_widget(main_window: Any) -> QWidget:
+        """Create the timeline widget as a separate component.
+        
+        This is a helper method for create_view_and_timeline_separated.
+        """
+        # Timeline widget
+        timeline_widget = QWidget()
+        timeline_layout = QVBoxLayout(timeline_widget)
+        timeline_layout.setContentsMargins(0, 0, 0, 0)
+        
+        # Image sequence controls
+        image_controls = QHBoxLayout()
+        main_window.prev_image_button = QPushButton("Previous")
+        main_window.prev_image_button.clicked.connect(lambda: ImageOperations.previous_image(main_window))
+        main_window.prev_image_button.setEnabled(False)
+        
+        main_window.next_image_button = QPushButton("Next")
+        main_window.next_image_button.clicked.connect(lambda: ImageOperations.next_image(main_window))
+        main_window.next_image_button.setEnabled(False)
+        
+        main_window.image_label = QLabel("No images loaded")
+        
+        # Point size slider
+        main_window.point_size_slider = QSlider(Qt.Orientation.Horizontal)
+        main_window.point_size_slider.setMinimum(1)
+        main_window.point_size_slider.setMaximum(20)
+        main_window.point_size_slider.setValue(main_window.curve_view.point_radius)
+        main_window.point_size_slider.setEnabled(True)
+        
+        # Typed slot for point size slider
+        def on_point_size_changed(value: int) -> None:
+            main_window.curve_view.set_point_radius(value)
+        main_window.point_size_slider.valueChanged.connect(on_point_size_changed)
+
+        size_layout = QHBoxLayout()
+        size_layout.addWidget(QLabel("Point Size:"))
+        size_layout.addWidget(main_window.point_size_slider)
+
+        image_controls.addWidget(main_window.prev_image_button)
+        image_controls.addWidget(main_window.image_label)
+        image_controls.addWidget(main_window.next_image_button)
+        image_controls.addStretch()
+        image_controls.addLayout(size_layout)
+        
+        timeline_layout.addLayout(image_controls)
+        
+        return UIComponents._finish_timeline_widget(main_window, timeline_layout, timeline_widget)
+    
+    @staticmethod
+    def _finish_timeline_widget(main_window: Any, timeline_layout: QVBoxLayout, timeline_widget: QWidget) -> QWidget:
+        """Finish setting up the timeline widget with controls and slider.
+        
+        This is a helper method for _create_timeline_widget.
+        """
+        # Timeline controls
+        timeline_controls = QHBoxLayout()
+        
+        # Add playback controls
+        main_window.play_button = QPushButton("Play")
+        main_window.play_button.setCheckable(True)
+        main_window.play_button.clicked.connect(lambda: UIComponents.toggle_playback(main_window))
+        main_window.play_button.setToolTip("Play/Pause (Space)")
+        main_window.play_button.setEnabled(False)
+        
+        main_window.prev_frame_button = QPushButton("<")
+        main_window.prev_frame_button.clicked.connect(lambda: UIComponents.prev_frame(main_window))
+        main_window.prev_frame_button.setToolTip("Previous Frame (,)")
+        main_window.prev_frame_button.setEnabled(False)
+        
+        main_window.next_frame_button = QPushButton(">")
+        main_window.next_frame_button.clicked.connect(lambda: UIComponents.next_frame(main_window))
+        main_window.next_frame_button.setToolTip("Next Frame (.)")
+        main_window.next_frame_button.setEnabled(False)
+        
+        timeline_controls.addWidget(main_window.prev_frame_button)
+        timeline_controls.addWidget(main_window.play_button)
+        timeline_controls.addWidget(main_window.next_frame_button)
+        
+        # Add frame jump buttons
+        main_window.first_frame_button = QPushButton("<<")
+        main_window.first_frame_button.clicked.connect(lambda: UIComponents.go_to_first_frame(main_window))
+        main_window.first_frame_button.setToolTip("Go to First Frame (Home)")
+        main_window.first_frame_button.setEnabled(False)
+        
+        main_window.last_frame_button = QPushButton(">>")
+        main_window.last_frame_button.clicked.connect(lambda: UIComponents.go_to_last_frame(main_window))
+        main_window.last_frame_button.setToolTip("Go to Last Frame (End)")
+        main_window.last_frame_button.setEnabled(False)
+        
+        timeline_controls.addWidget(main_window.first_frame_button)
+        
+        # Frame controls
+        main_window.frame_label = QLabel("Frame: N/A")
+        main_window.frame_edit = QLineEdit()
+        main_window.frame_edit.setMaximumWidth(60)
+        main_window.frame_edit.returnPressed.connect(lambda: UIComponents.on_frame_edit_changed(main_window))
+        main_window.go_button = QPushButton("Go")
+        main_window.go_button.clicked.connect(lambda: UIComponents.on_frame_edit_changed(main_window))
+        main_window.go_button.setMaximumWidth(50)
+        
+        timeline_controls.addWidget(main_window.frame_label)
+        timeline_controls.addWidget(main_window.frame_edit)
+        timeline_controls.addWidget(main_window.go_button)
+        timeline_controls.addWidget(main_window.last_frame_button)
+        timeline_controls.addStretch()
+        
+        timeline_layout.addLayout(timeline_controls)
+        
+        # Enhanced Timeline slider with individual frame ticks
+        main_window.timeline_slider = QSlider(Qt.Orientation.Horizontal)
+        main_window.timeline_slider.setMinimum(0)
+        main_window.timeline_slider.setMaximum(100)  # Will be updated when data is loaded
+        
+        # Configure slider to show individual frames
+        main_window.timeline_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
+        main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
+        main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
+        
+        # Determine a reasonable tick interval based on frame count
+        frame_count = 100  # Default to 100 frames
+        tick_interval = max(1, frame_count // 100)  # Prevent too many ticks on large frame ranges
+        main_window.timeline_slider.setTickInterval(tick_interval)
+        
+        # Add frame tracking tooltip
+        main_window.timeline_slider.setToolTip("Frame: 0")
+        
+        # Typed slot for timeline slider
+        def on_slider_value_changed(value: int) -> None:
+            UIComponents.on_timeline_changed(main_window, value)
+        main_window.timeline_slider.valueChanged.connect(on_slider_value_changed)
+        
+        # Create frame marker for better visual indication
+        main_window.frame_marker = TimelineFrameMarker()
+        
+        # Create a layout for the slider with the marker
+        slider_layout = QVBoxLayout()
+        slider_layout.addWidget(main_window.frame_marker)
+        slider_layout.addWidget(main_window.timeline_slider)
+        slider_layout.setSpacing(0)
+        
+        timeline_layout.addLayout(slider_layout)
+        
+        # Add mouse event handler for frame scrubbing
+        def on_timeline_press(ev: QMouseEvent) -> None:
+            """Handle mouse press on timeline for direct frame selection."""
+            if ev.button() == Qt.MouseButton.LeftButton:
+                # Calculate the frame based on click position
+                slider = main_window.timeline_slider
+                width = slider.width()
+                pos = ev.pos().x()
+                
+                # Get the frame range
+                min_frame = slider.minimum()
+                max_frame = slider.maximum()
+                frame_range = max_frame - min_frame
+                
+                # Calculate the frame based on position
+                if width > 0 and frame_range > 0:
+                    frame = min_frame + int((pos / width) * frame_range + 0.5)
+                    frame = max(min_frame, min(max_frame, frame))
+                    
+                    # Update the slider
+                    slider.setValue(frame)
+                    
+                    # Update status message
+                    main_window.statusBar().showMessage(f"Jumped to frame {frame}", 2000)
+        
+        # Store original event handler
+        original_press_event = main_window.timeline_slider.mousePressEvent
+        
+        # Override mouse press event
+        def custom_press_event(ev: QMouseEvent) -> None:
+            on_timeline_press(ev)
+            # Call original handler if needed
+            original_press_event(ev)
+                
+        setattr(main_window.timeline_slider, "mousePressEvent", custom_press_event)  # type: ignore
+        
+        return timeline_widget
+    
+    @staticmethod
     def create_view_and_timeline(main_window: Any) -> QWidget:
         """Create the curve view widget and timeline controls."""
         # Container for view and timeline

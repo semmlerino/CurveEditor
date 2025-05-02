@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # mypy: disable-error-code=annotation-unchecked
-from PySide6.QtCore import Qt  # type: ignore
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
                                QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-                               QCheckBox, QGroupBox, QWidget, QSlider)  # type: ignore
-from typing import Optional
-from typing import Any
+                               QCheckBox, QGroupBox, QWidget, QSlider)
+from typing import Optional, Any, List, Tuple
 
 
 class SmoothingDialog(QDialog):
@@ -189,7 +188,7 @@ class FilterDialog(QDialog):
         self.cutoff_spin: Optional[QDoubleSpinBox] = None
         self.order_spin: Optional[QSpinBox] = None
         
-    def create_param_widgets(self):
+    def create_param_widgets(self) -> None:
         """Create all parameter widgets for different filters."""
         # Median filter parameters
         self.median_widgets: list[tuple[QHBoxLayout, str]] = []
@@ -385,7 +384,7 @@ class FillGapsDialog(QDialog):
         self.on_method_changed(0)
         self.on_auto_detect_changed(self.auto_detect.checkState().value)
         
-    def create_param_widgets(self):
+    def create_param_widgets(self) -> None:
         """Create parameter widgets for different fill methods."""
         # Linear interpolation parameters
         self.linear_widgets: list[tuple[QHBoxLayout, str]] = []
@@ -480,9 +479,8 @@ class FillGapsDialog(QDialog):
                 
     def on_auto_detect_changed(self, state: Qt.CheckState) -> None:
         """Enable/disable manual frame range selection based on auto-detect setting."""
-        enabled = state != Qt.Checked
-        self.start_frame.setEnabled(enabled)
-        self.end_frame.setEnabled(enabled)
+        self.start_frame.setEnabled(bool(Qt.CheckState(state) != Qt.Checked))  # type: ignore  # See: https://doc.qt.io/qtforpython-6/PySide6/QtCore/Qt.html
+        self.end_frame.setEnabled(bool(Qt.CheckState(state) != Qt.Checked))  # type: ignore  # See: https://doc.qt.io/qtforpython-6/PySide6/QtCore/Qt.html
 
 
 class ExtrapolateDialog(QDialog):
@@ -590,11 +588,11 @@ class ExtrapolateDialog(QDialog):
 class ProblemDetectionDialog(QDialog):
     """Dialog for detecting and navigating to problematic areas in the curve."""
     
-    def __init__(self, parent: Optional[QWidget] = None, problems: Optional[list[dict[str, Any]]] = None):
+    def __init__(self, parent: Optional[QWidget] = None, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None) -> None:
         super(ProblemDetectionDialog, self).__init__(parent)
         self.setWindowTitle("Problem Detection")
         self.resize(500, 400)
-        self.selected_problem: Optional[dict[str, Any]] = None
+        self.selected_problem: Optional[Tuple[int, Any, Any, Any]] = None
         
         if problems is None:
             problems = []
@@ -668,14 +666,14 @@ class ProblemDetectionDialog(QDialog):
         self.info_severity.setText(f"Severity: {severity_text} ({sev:.2f})")
         self.info_description.setText(f"Description: {description}")
         
-    def jump_to_problem(self):
+    def jump_to_problem(self) -> None:
         """Signal to jump to the selected problem."""
         index = self.problems_list.currentIndex()
         if 0 <= index < len(self.problems):
             self.selected_problem = self.problems[index]
             self.accept()
             
-    def next_problem(self):
+    def next_problem(self) -> None:
         """Move to the next problem in the list."""
         index = self.problems_list.currentIndex()
         if index < self.problems_list.count() - 1:
@@ -711,7 +709,7 @@ class ShortcutsDialog(QDialog):
             <tr><td><b>Ctrl+E</b></td><td>Export data</td></tr>
         </table>
         """)
-        shortcuts_label.setTextFormat(Qt.RichText)
+        shortcuts_label.setTextFormat(Qt.TextFormat(Qt.TextFormat.RichText))
         layout.addWidget(shortcuts_label)
         
         # Close button
@@ -884,11 +882,11 @@ class OffsetDialog(QDialog):
         layout.addLayout(button_layout)
     
     @property
-    def offset_x(self):
+    def offset_x(self) -> float:
         return self.offset_x_spin.value()
     
     @property
-    def offset_y(self):
+    def offset_y(self) -> float:
         return self.offset_y_spin.value()
 
 
@@ -976,7 +974,7 @@ class SmoothFactorDialog(QDialog):
         layout.addWidget(QLabel("Smoothness Factor:"))
 
         slider_layout = QHBoxLayout()
-        self.factor_slider = QSlider(Qt.Horizontal)
+        self.factor_slider = QSlider(Qt.Orientation(Qt.Orientation.Horizontal))
         self.factor_slider.setRange(0, 100)
         self.factor_slider.setValue(50)
         slider_layout.addWidget(self.factor_slider)
@@ -1009,7 +1007,7 @@ class SmoothFactorDialog(QDialog):
         layout.addWidget(QLabel("Smoothness Factor:"))
         
         slider_layout = QHBoxLayout()
-        self.factor_slider = QSlider(Qt.Horizontal)
+        self.factor_slider = QSlider(Qt.Orientation(Qt.Orientation.Horizontal))
         self.factor_slider.setRange(0, 100)
         self.factor_slider.setValue(50)
         slider_layout.addWidget(self.factor_slider)
@@ -1044,5 +1042,5 @@ class SmoothFactorDialog(QDialog):
         self.factor_slider.setValue(int(value * 100))
     
     @property
-    def smoothness_factor(self):
+    def smoothness_factor(self) -> float:
         return self.factor_spin.value()

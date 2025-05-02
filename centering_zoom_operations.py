@@ -12,8 +12,13 @@ class ZoomOperations:
         Returns:
             (offset_x, offset_y): Centering offsets to apply
         """
-        cx = (widget_width - (display_width)) / 2 + offset_x
-        cy = (widget_height - (display_height)) / 2 + offset_y
+        # Make sure we're dealing with non-zero dimensions to avoid division errors
+        if widget_width <= 0 or widget_height <= 0 or display_width <= 0 or display_height <= 0:
+            return offset_x, offset_y
+            
+        # Center the content within the widget, respecting aspect ratio
+        cx = (widget_width - display_width) / 2 + offset_x
+        cy = (widget_height - display_height) / 2 + offset_y
         return cx, cy
 
 
@@ -40,84 +45,110 @@ class ZoomOperations:
             
         try:
             if idx < len(curve_view.main_window.curve_data):
+                # Get the point coordinates
                 point = curve_view.main_window.curve_data[idx]
-                _, x, y = point[:3]
+                _, x, y = point[:3]  # Extract frame, x, y from the point
                 curve_view.selected_point_idx = idx
                 
-                # Set zoom level
+                # Set zoom level - either preserve current or reset
                 current_zoom = curve_view.zoom_factor if preserve_zoom else 1.0
                 if not preserve_zoom:
                     ZoomOperations.reset_view(curve_view)
                     
-                # Calculate view dimensions
+                # Current view and content dimensions
                 widget_width = curve_view.width()
                 widget_height = curve_view.height()
-                display_width = getattr(curve_view, "image_width", widget_width)
-                display_height = getattr(curve_view, "image_height", widget_height)
                 
+                # Get original content size
+                img_width = getattr(curve_view, "image_width", widget_width)
+                img_height = getattr(curve_view, "image_height", widget_height)
+                
+                # If there's a background image, use its dimensions
                 if getattr(curve_view, "background_image", None):
                     display_width = curve_view.background_image.width()
                     display_height = curve_view.background_image.height()
-                    
-                # Calculate scaling
+                else:
+                    display_width = img_width
+                    display_height = img_height
+                
+                # Apply proper zoom level
                 scale_x = widget_width / display_width
                 scale_y = widget_height / display_height
+                scale = min(scale_x, scale_y) * current_zoom
+                curve_view.zoom_factor = current_zoom  # Ensure zoom factor is consistent
                 
-                if preserve_zoom:
-                    scale = min(scale_x, scale_y) * current_zoom
-                else:
-                    scale = min(scale_x, scale_y) * curve_view.zoom_factor
-                    
-                # 1. Calculate the base offset to center the entire content area
-                base_offset_x, base_offset_y = ZoomOperations.calculate_centering_offsets(
-                    widget_width, widget_height, display_width * scale, display_height * scale
-                )
-
-                # 2. Get manual pan offsets
-                manual_offset_x = getattr(curve_view, "x_offset", 0)
-                manual_offset_y = getattr(curve_view, "y_offset", 0)
-
-                # 3. Calculate the final scaled screen coordinates *including* manual offsets if necessary, mirroring transform_point
+                # Calculate the screen transformation for the selected point
+                # This is the crucial part for proper centering
+                
+                # 1. Reset manual offset - we'll recalculate it
+                x_offset_old = getattr(curve_view, "x_offset", 0)
+                y_offset_old = getattr(curve_view, "y_offset", 0)
+                
+                # 2. Correctly transform point coordinates to screen space
                 if getattr(curve_view, "scale_to_image", False):
-                    img_x = x * (display_width / curve_view.image_width) + manual_offset_x
-                    img_y = y * (display_height / curve_view.image_height) + manual_offset_y
-                    flip_height = display_height
+                    # Scale to image space first
+                    img_scale_x = display_width / img_width
+                    img_scale_y = display_height / img_height
                     
-                    scaled_content_x = img_x * scale
+                    point_x = x * img_scale_x
+                    point_y = y * img_scale_y
+                    
+                    # Check Y-axis flip
                     if getattr(curve_view, "flip_y_axis", False):
-                         scaled_content_y = (flip_height - img_y) * scale
-                    else:
-                         scaled_content_y = img_y * scale
+                        point_y = display_height - point_y
                 else:
-                    # No manual offset applied before scaling in this case
-                    scaled_content_x = x * scale
-                    flip_height = curve_view.image_height
+                    # Direct coordinate use
+                    point_x = x
+                    point_y = y
+                    
+                    # Check Y-axis flip
                     if getattr(curve_view, "flip_y_axis", False):
-                        scaled_content_y = (flip_height - y) * scale
-                    else:
-                        scaled_content_y = y * scale
-
-                # 4. Calculate the target screen center
-                center_x = widget_width / 2
-                center_y = widget_height / 2
-
-                # 5. Calculate the required main offset to place the scaled point at the center
-                required_offset_x = center_x - (base_offset_x + scaled_content_x)
-                required_offset_y = center_y - (base_offset_y + scaled_content_y)
-
-                # Set the calculated main offsets
-                curve_view.offset_x = required_offset_x
-                curve_view.offset_y = required_offset_y
+                        point_y = img_height - point_y
                 
-                # Do NOT reset manual offsets; they are part of the view state managed by panning.
-
+                # 3. Scale point to widget space
+                scaled_x = point_x * scale
+                scaled_y = point_y * scale
+                
+                # 4. Calculate base content centering (centers entire content in view)
+                total_width = display_width * scale
+                total_height = display_height * scale
+                base_x = (widget_width - total_width) / 2 
+                base_y = (widget_height - total_height) / 2
+                
+                # 5. Calculate offset needed to center selected point
+                # Target is the center of the widget
+                target_x = widget_width / 2
+                target_y = widget_height / 2
+                
+                # Calculate how much we need to shift the view to center the point
+                dx = target_x - (base_x + scaled_x)
+                dy = target_y - (base_y + scaled_y)
+                
+                # 6. Apply the calculated offset directly
+                # This ensures precise centering in all window states
+                curve_view.offset_x = dx
+                curve_view.offset_y = dy
+                
+                # 7. Clear any unneeded manual offsets since we've recalculated perfectly
+                curve_view.x_offset = 0
+                curve_view.y_offset = 0
+                
+                # Debug information
+                if getattr(curve_view, "debug_mode", False):
+                    print(f"Centering on point ({x}, {y}) with zoom {scale:.2f}")
+                    print(f"Widget size: {widget_width}x{widget_height}")
+                    print(f"Content size: {display_width}x{display_height} → {total_width:.1f}x{total_height:.1f}")
+                    print(f"Base offset: ({base_x:.1f}, {base_y:.1f})")
+                    print(f"Applied offset: ({curve_view.offset_x:.1f}, {curve_view.offset_y:.1f})")
+                
+                # Force a redraw with the new configuration
                 curve_view.update()
                 return True
             else:
                 return False
-        except Exception:
-            import traceback
-            traceback.print_exc()
+        except Exception as e:
+            import sys
+            print(f"Error in center_on_selected_point: {e}", file=sys.stderr)
             return False
 
     @staticmethod
@@ -268,28 +299,35 @@ class ZoomOperations:
         selected_points = getattr(curve_view, "selected_points", None)
         points = getattr(curve_view, "points", None)
         
-        
-        # Regular zoom handling for single point or no selection
+        # Apply new zoom factor with limits
         curve_view.zoom_factor = max(0.1, min(50.0, curve_view.zoom_factor * factor))
+        
+        # Store current widget dimensions for proper scaling calculations
+        widget_width = curve_view.width()
+        widget_height = curve_view.height()
         
         # Handle mouse-centered zooming
         if mouse_x is not None and mouse_y is not None:
-            widget_width = curve_view.width()
-            widget_height = curve_view.height()
+            # Calculate zoom adjustments relative to mouse position
             zoom_ratio = factor - 1.0
             center_x = widget_width / 2
             center_y = widget_height / 2
             dx = mouse_x - center_x
             dy = mouse_y - center_y
+            
+            # Apply offset adjustments based on zoom center
             curve_view.offset_x -= dx * zoom_ratio
             curve_view.offset_y -= dy * zoom_ratio
         # If no mouse position and auto-center is enabled, recenter on selected point
         elif getattr(curve_view, 'main_window', None) and getattr(curve_view.main_window, 'auto_center_enabled', False) \
              and hasattr(curve_view, 'selected_point_idx') and curve_view.selected_point_idx >= 0:
+            # Re-center on the selected point after zooming
+            # This is critical for maintaining centering during resize/fullscreen
             ZoomOperations.center_on_selected_point(curve_view, curve_view.selected_point_idx, preserve_zoom=True)
             
         # Reset the fit flag if it exists
         if hasattr(curve_view, "last_action_was_fit"):
             curve_view.last_action_was_fit = False
         
+        # Force a redraw with the new configuration
         curve_view.update()

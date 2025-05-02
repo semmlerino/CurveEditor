@@ -10,8 +10,11 @@ user experience and proper error reporting throughout the application.
 
 import traceback
 from PySide6.QtWidgets import QMessageBox
+from typing import Any, Callable, Optional, TypeVar
 
-def safe_operation(operation_name=None, record_history=True):
+T = TypeVar("T")
+
+def safe_operation(operation_name: Optional[str] = None, record_history: bool = True) -> Callable[[Callable[..., T]], Callable[..., Optional[T]]]:
     """Decorator for safely executing operations with standardized error handling.
 
     Args:
@@ -30,8 +33,8 @@ def safe_operation(operation_name=None, record_history=True):
         def finalize_selection(main_window):
             # Implementation
     """
-    def decorator(func):
-        def wrapper(main_window, *args, **kwargs):
+    def decorator(func: Callable[..., T]) -> Callable[..., Optional[T]]:
+        def wrapper(main_window: Any, *args: Any, **kwargs: Any) -> Optional[T]:
             op_name = operation_name or func.__name__.replace('_', ' ').title()
             try:
                 result = func(main_window, *args, **kwargs)
@@ -59,7 +62,7 @@ def safe_operation(operation_name=None, record_history=True):
         return wrapper
     return decorator
 
-def show_error(parent, title, message, detailed_message=None):
+def show_error(parent: Optional[Any], title: str, message: str, detailed_message: Optional[str] = None) -> None:
     """Display a standardized error message to the user.
 
     Args:
@@ -69,14 +72,17 @@ def show_error(parent, title, message, detailed_message=None):
         detailed_message: Optional detailed message or traceback
     """
     error_box = QMessageBox(parent)
-    error_box.setIcon(QMessageBox.Critical)
+    icon = getattr(QMessageBox, "Critical", None)
+    error_box.setIcon(icon)  # type: ignore
     error_box.setWindowTitle(title)
     error_box.setText(message)
 
     if detailed_message:
         error_box.setDetailedText(detailed_message)
 
-    error_box.setStandardButtons(QMessageBox.Ok)
+    buttons = getattr(QMessageBox, "Ok", None)
+    error_box.setStandardButtons(buttons)  # type: ignore
+
     error_box.exec_()
 
     # Also log the error

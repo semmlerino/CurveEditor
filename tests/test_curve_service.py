@@ -14,7 +14,7 @@ def test_placeholder():
 
 # Example Mock CurveView object for testing transform_point
 class MockCurveView:
-    def __init__(self, image_width=1920, image_height=1080, zoom=1.0, x_offset=0, y_offset=0, flip_y=True, scale_to_image=False, bg_image=None):
+    def __init__(self, image_width=1920, image_height=1080, zoom=1.0, x_offset=0, y_offset=0, flip_y=True, scale_to_image=False, bg_image=None, widget_width=1920, widget_height=1080):
         self.image_width = image_width
         self.image_height = image_height
         self.zoom_factor = zoom
@@ -23,6 +23,16 @@ class MockCurveView:
         self.flip_y_axis = flip_y
         self.scale_to_image = scale_to_image
         self.background_image = bg_image # Mock background image presence
+        self.widget_width = widget_width  # Store widget dimensions
+        self.widget_height = widget_height
+        
+    def width(self):
+        """Return the widget width."""
+        return self.widget_width
+        
+    def height(self):
+        """Return the widget height."""
+        return self.widget_height
 
 # Test cases for transform_point (add more comprehensive tests)
 @pytest.mark.parametrize("x, y, display_w, display_h, offset_x, offset_y, scale, manual_x, manual_y, flip_y, scale_img, bg_img_present, expected_tx, expected_ty", [

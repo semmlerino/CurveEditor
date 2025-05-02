@@ -347,36 +347,69 @@ class CurveService:
     @staticmethod
     def transform_point(curve_view: Any, x: float, y: float, display_width: float, display_height: float, 
                         offset_x: float, offset_y: float, scale: float) -> Tuple[float, float]:
-        """Transform from track coordinates to widget coordinates."""
+        """Transform from track coordinates to widget coordinates.
+        
+        This function transforms from tracking data coordinates to widget display coordinates,
+        taking into account scaling, offsets, and any coordinate system transformations.
+        
+        Args:
+            curve_view: The curve view instance
+            x: X coordinate in tracking data coordinates
+            y: Y coordinate in tracking data coordinates
+            display_width: Width of the display content area
+            display_height: Height of the display content area
+            offset_x: Content centering X offset
+            offset_y: Content centering Y offset
+            scale: Scale factor to apply
+            
+        Returns:
+            Tuple[float, float]: The transformed (x, y) coordinates in widget space
+        """
+        widget_width = curve_view.width()
+        widget_height = curve_view.height()
+        
+        # Get any manual offsets applied through panning
+        manual_x_offset = getattr(curve_view, 'x_offset', 0)
+        manual_y_offset = getattr(curve_view, 'y_offset', 0)
+        
+        # Use the image content centered base position
+        # This ensures content stays properly centered in the widget
+        base_x = offset_x + manual_x_offset
+        base_y = offset_y + manual_y_offset
+        
         if hasattr(curve_view, 'background_image') and curve_view.background_image and getattr(curve_view, 'scale_to_image', False):
-            # Scale tracking coordinates to match image size
-            img_x = x * (display_width / getattr(curve_view, 'image_width', 1920))
-            img_y = y * (display_height / getattr(curve_view, 'image_height', 1080))
+            # When scaling to image, we need to first convert from curve coordinates to image coordinates
+            img_width = getattr(curve_view, 'image_width', 1920)
+            img_height = getattr(curve_view, 'image_height', 1080)
             
-            # Scale to widget space and apply centering offset
-            tx = offset_x + img_x * scale
+            # Convert tracking coordinates to image space
+            img_scale_x = display_width / max(img_width, 1)
+            img_scale_y = display_height / max(img_height, 1)
+            
+            # Apply image-to-tracking coordinate transformation
+            # This maps curve points to positions on the background image
+            img_x = x * img_scale_x
+            img_y = y * img_scale_y
             
             # Apply Y-flip if enabled
             if getattr(curve_view, 'flip_y_axis', False):
-                ty = offset_y + (display_height - img_y) * scale
-            else:
-                ty = offset_y + img_y * scale
-
-            # Apply manual pan offset (unscaled widget coordinates)
-            tx += getattr(curve_view, 'x_offset', 0)
-            ty += getattr(curve_view, 'y_offset', 0)
+                img_y = display_height - img_y
+                
+            # Now scale to widget space and apply centering offset
+            tx = base_x + img_x * scale
+            ty = base_y + img_y * scale
+            
         else:
-            # Direct scaling with no image-based transformation, but include manual offsets
-            manual_x_offset = getattr(curve_view, 'x_offset', 0)
-            manual_y_offset = getattr(curve_view, 'y_offset', 0)
-            
-            tx = offset_x + (x * scale) + manual_x_offset
-            
-            # Apply Y-flip if enabled
+            # Direct scaling from tracking coordinates to widget space
+            # No image-based transformation, but we still need to handle Y-flip
             if getattr(curve_view, 'flip_y_axis', False):
-                ty = offset_y + (getattr(curve_view, 'image_height', 1080) - y) * scale + manual_y_offset
+                # For Y-flip, we need the original data height
+                img_height = getattr(curve_view, 'image_height', 1080)
+                tx = base_x + (x * scale)
+                ty = base_y + (img_height - y) * scale
             else:
-                ty = offset_y + (y * scale) + manual_y_offset
+                tx = base_x + (x * scale)
+                ty = base_y + (y * scale)
                 
         return tx, ty
 

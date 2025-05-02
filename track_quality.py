@@ -448,7 +448,7 @@ class TrackQualityUI:
                 if reply == QMessageBox.Yes:
                     # Use the TrackQualityAnalyzer to detect problems
                     problems = TrackQualityAnalyzer.detect_problems(self.parent.curve_data)
-                    DialogOperations.show_problem_detection_dialog(self.parent, problems)
+                    DialogService.show_problem_detection_dialog(self.parent, problems)
 
             # Show suggestions in a tooltip on the analyze button
             if hasattr(self.parent, 'analyze_button'):

@@ -38,7 +38,7 @@ from utils import load_3de_track, estimate_image_dimensions, get_image_files
 
 from services.history_service import HistoryService
 from services.dialog_service import DialogService
-from services.image_service import ImageService as ImageOperations
+from image_operations import ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
 from centering_zoom_operations import ZoomOperations
 
@@ -196,7 +196,7 @@ class MainWindow(QMainWindow):
 
         # Setup keyboard shortcuts BEFORE connecting signals
         self.shortcuts = {}
-        ShortcutManager.setup_shortcuts(self)
+        ShortcutManager.setup_shortcuts(self)  # type: ignore
 
         # Use the single centralized signal connection registry
         from signal_registry import SignalRegistry
@@ -237,19 +237,62 @@ class MainWindow(QMainWindow):
         toolbar_widget = UIComponents.create_toolbar(self)
         main_layout.addWidget(toolbar_widget)
 
-        # Create splitter for main view and controls
-        splitter = QSplitter(Qt.Orientation.Vertical)
-
-        # Create curve view and timeline with individual frames
-        view_container = UIComponents.create_view_and_timeline(self)
-        splitter.addWidget(view_container)
-
+        # Create new layout to reorganize the UI components
+        # This will place the splitter exactly between the image view and bottom UI elements
+    
+        # Get the curve view and timeline components separately
+        curve_view_container, timeline_widget = UIComponents.create_view_and_timeline_separated(self)
+    
         # Create control panel
         controls_widget = UIComponents.create_control_panel(self)
-        splitter.addWidget(controls_widget)
-
-        # Set relative sizes
-        splitter.setSizes([600, 200])
+    
+        # Create splitter for curve view and bottom UI (timeline + controls)
+        splitter = QSplitter(Qt.Orientation.Vertical)
+    
+        # Make the splitter handle wider and more visible
+        splitter.setHandleWidth(4)
+    
+        # Set the splitter stylesheet to make the handle more visible
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #c0c0c0;
+                border: 1px solid #808080;
+                border-radius: 1px;
+            }
+            QSplitter::handle:hover {
+                background-color: #a0a0a0;
+            }
+        """)
+    
+        # Add curve view to top of splitter
+        # Set minimum size for top view to prevent it from collapsing completely
+        curve_view_container.setMinimumHeight(200)
+        splitter.addWidget(curve_view_container)
+    
+        # Create a container for bottom UI (timeline + controls)
+        bottom_container = QWidget()
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(0)
+    
+        # Add timeline to bottom container
+        bottom_layout.addWidget(timeline_widget)
+    
+        # Add controls to bottom container
+        # Set minimum size for bottom panel to prevent it from collapsing completely
+        # but small enough to allow significant resizing
+        controls_widget.setMinimumHeight(120)
+        bottom_layout.addWidget(controls_widget)
+    
+        # Add the bottom container to the splitter
+        bottom_container.setMinimumHeight(200)
+        splitter.addWidget(bottom_container)
+    
+        # Set relative sizes with more space for the top view by default
+        splitter.setSizes([700, 300])
+    
+        # Store reference to splitter for later access if needed
+        self.main_splitter = splitter
 
         main_layout.addWidget(splitter)
 
@@ -528,7 +571,7 @@ class MainWindow(QMainWindow):
 
     def show_shortcuts_dialog(self):
         """Show dialog with keyboard shortcuts."""
-        DialogOperations.show_shortcuts_dialog(self)
+        DialogService.show_shortcuts_dialog(self)
 
     def update_point_info(self, idx: int, x: float, y: float) -> None:
         """Update the point information panel."""
@@ -637,7 +680,7 @@ class MainWindow(QMainWindow):
         selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
 
         # Call the refactored dialog operation, passing data
-        modified_data = DialogOperations.show_smooth_dialog(
+        modified_data = DialogService.show_smooth_dialog(
             parent_widget=self,
             curve_data=current_data,
             selected_indices=selected_indices,
@@ -671,16 +714,17 @@ class MainWindow(QMainWindow):
             # Update status
             self.statusBar().showMessage("Smoothing applied successfully", 3000)
     def show_filter_dialog(self):
-        DialogOperations.show_filter_dialog(self)
+        DialogService.show_filter_dialog(self)
 
     def show_fill_gaps_dialog(self):
-        DialogOperations.show_fill_gaps_dialog(self)
+        DialogService.show_fill_gaps_dialog(self)
 
-    def fill_gap(self, start_frame: int, end_frame: int, method: str, preserve_endpoints: bool = True) -> None:
-        DialogService.fill_gap(self, start_frame, end_frame, method, preserve_endpoints)  # type: ignore[attr-defined]
+    def fill_gap(self, start_frame: int, end_frame: int, method: int, preserve_endpoints: bool = True) -> None:
+        """Delegate gap filling to DialogService using the selected method index."""
+        DialogService.fill_gap(self, start_frame, end_frame, method, preserve_endpoints)
 
     def show_extrapolate_dialog(self):
-        DialogOperations.show_extrapolate_dialog(self)
+        DialogService.show_extrapolate_dialog(self)
 
     def on_frame_changed(self, frame_num: int) -> None:
         """Called when the frame changes (timeline, playback, etc)."""
