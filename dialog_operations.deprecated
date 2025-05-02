@@ -1,0 +1,123 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+"""
+DEPRECATED: This file has been deprecated in favor of services/dialog_service.py
+
+This file is kept for reference but should not be used in new code.
+All functionality has been migrated to the DialogService class.
+"""
+
+from PySide6.QtWidgets import QMessageBox, QDialog, QWidget
+from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
+                    ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog,
+                    OffsetDialog)
+from curve_data_operations import CurveDataOperations
+from typing import Any, Optional, List, Tuple
+
+# Define a type alias for curve data for clarity
+CurveDataType = List[Tuple[int, float, float]]
+
+class DialogOperations:
+    """Dialog operations for the 3DE4 Curve Editor.
+
+    DEPRECATED: Use DialogService from services.dialog_service instead.
+    """
+
+    @staticmethod
+    def show_smooth_dialog(
+        parent_widget: QWidget,
+        curve_data: CurveDataType,
+        selected_indices: List[int],
+        selected_point_idx: int
+    ) -> Optional[CurveDataType]:
+        """
+        Show dialog for curve smoothing.
+        Accepts curve data and selection info, returns modified data or None.
+
+        DEPRECATED: Use DialogService.show_smooth_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        return DialogService.show_smooth_dialog(
+            parent_widget, curve_data, selected_indices, selected_point_idx
+        )
+
+    @staticmethod
+    def show_filter_dialog(main_window: Any) -> None:
+        """
+        Show dialog for applying filters to the curve.
+
+        DEPRECATED: Use DialogService.show_filter_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        DialogService.show_filter_dialog(main_window)
+
+    @staticmethod
+    def detect_gaps(main_window: Any) -> List[Tuple[int, int]]:
+        """
+        Detect gaps in the tracking data.
+
+        DEPRECATED: Use DialogService.detect_gaps instead.
+        """
+        from services.dialog_service import DialogService
+        return DialogService.detect_gaps(main_window)
+
+    @staticmethod
+    def show_fill_gaps_dialog(main_window: Any) -> None:
+        """
+        Show dialog for filling gaps in the curve.
+
+        DEPRECATED: Use DialogService.show_fill_gaps_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        DialogService.show_fill_gaps_dialog(main_window)
+
+    @staticmethod
+    def fill_gap(main_window: Any, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
+        """
+        Helper method to fill a gap using the specified method via CurveDataOperations.
+
+        DEPRECATED: Use DialogService.fill_gap instead.
+        """
+        from services.dialog_service import DialogService
+        DialogService.fill_gap(main_window, start_frame, end_frame, method_index, preserve_endpoints)
+
+    @staticmethod
+    def show_extrapolate_dialog(main_window: Any) -> None:
+        """
+        Show dialog for extrapolating the curve.
+
+        DEPRECATED: Use DialogService.show_extrapolate_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        DialogService.show_extrapolate_dialog(main_window)
+
+    @staticmethod
+    def show_shortcuts_dialog(main_window: Any) -> None:
+        """
+        Show dialog with keyboard shortcuts.
+
+        DEPRECATED: Use DialogService.show_shortcuts_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        DialogService.show_shortcuts_dialog(main_window)
+
+    @staticmethod
+    def show_offset_dialog(main_window: Any) -> Any:
+        """
+        Show dialog for offsetting all curve points.
+
+        DEPRECATED: Use DialogService.show_offset_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        return DialogService.show_offset_dialog(main_window)
+
+    @staticmethod
+    def show_problem_detection_dialog(main_window: Any, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None) -> Optional[ProblemDetectionDialog]:
+        """
+        Show dialog for detecting problems in the tracking data.
+
+        DEPRECATED: Use DialogService.show_problem_detection_dialog instead.
+        """
+        from services.dialog_service import DialogService
+        return DialogService.show_problem_detection_dialog(main_window, problems)

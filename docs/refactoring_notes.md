@@ -4,22 +4,44 @@
 
 The CurveEditor has been refactored to use a service-based architecture that standardizes how operations are accessed throughout the application. This document outlines the key changes and explains the new import patterns.
 
-## Key Changes
+## Current State of Refactoring
 
-### 1. Creation of Service Classes
+### 1. Service Classes Implementation
 
-Operations that were previously scattered across utility modules have been consolidated into service classes:
+The following service classes have been implemented:
 
-- `CurveService`: Handles all curve view operations (previously in `curve_view_operations.py`)
+- `CurveService`: Handles curve view operations (migrated from `curve_view_operations.py`)
 - `FileService`: Manages file operations
 - `ImageService`: Handles image-related operations
 - `DialogService`: Manages dialog operations
 - `HistoryService`: Handles undo/redo functionality
+- `InputService`: Manages input handling for mouse and keyboard events
+- `AnalysisService`: Handles track analysis operations
+- `CenteringZoomService`: Manages view centering and zoom operations
+- `SettingsService`: Handles application settings
+- `VisualizationService`: Manages visualization options
 
-### 2. Standardized Import Pattern
+### 2. Migration Progress
 
-To maintain consistency, services are imported using a standard pattern:
+The refactoring is in a **transition state**:
 
+- ✅ `curve_view_operations.py` has been fully migrated to `services/curve_service.py` and renamed to `curve_view_operations.deprecated`
+- ✅ `dialog_operations.py` has been fully migrated to `services/dialog_service.py` and replaced with a redirect stub
+- ⚠️ Many other operations files still exist alongside their service counterparts:
+  - `file_operations.py` → `services/file_service.py`
+  - `image_operations.py` → `services/image_service.py`
+  - `history_operations.py` → `services/history_service.py`
+  - `centering_zoom_operations.py` → `services/centering_zoom_service.py`
+  - `settings_operations.py` → `services/settings_service.py`
+  - `visualization_operations.py` → `services/visualization_service.py`
+
+These operations files are still being used directly in some places while their service counterparts act as facades passing through to the original operations.
+
+### 3. Import Patterns
+
+Two import patterns are currently in use:
+
+#### Direct use of service classes:
 ```python
 from services.curve_service import CurveService as CurveViewOperations
 from services.file_service import FileService as FileOperations
@@ -28,34 +50,76 @@ from services.dialog_service import DialogService as DialogOperations
 from services.history_service import HistoryService
 ```
 
-This pattern ensures that:
-- New code uses the service-based architecture
-- Legacy code references (like `CurveViewOperations`) still work correctly
-- Modules interact with services using a consistent interface
+#### Legacy import pattern (still present in some files):
+```python
+import file_operations
+from history_operations import HistoryOperations
+```
 
-### 3. Removal of Legacy Files
+### 4. Legacy Files Status
 
-The following legacy files have been removed after their functionality was migrated to services:
+- ✅ `curve_view_operations.py` has been fully migrated and renamed to `.deprecated`
+- ⚠️ Other operations files are in a transitional state:
+  - They still exist in the project root
+  - Their corresponding service classes often act as thin facades
+  - Some code still imports directly from the operations files
 
-- `curve_view_operations.py` → Replaced by `services/curve_service.py`
-
-### 4. Updated Architecture
+## Updated Architecture
 
 ```mermaid
 flowchart TD
-    UI(MainWindow / UI Components) --> |imports| Services
-    Services --> |performs| Operations
-    Operations --> |updates| Models
-    Models --> |notifies| UI
-    
+    UI[UI Components] --> |primarily imports| Services
+    UI --> |sometimes imports| Operations[Legacy Operations]
+    Services --> |many delegate to| Operations
+    Services --> |some implement directly| Actions[Direct Operations]
+    Operations --> |update| Models
+    Actions --> |update| Models
+    Models --> |notify| UI
+
     subgraph Services
         CS[CurveService]
         FS[FileService]
         IS[ImageService]
         DS[DialogService]
         HS[HistoryService]
+        INS[InputService]
+        AS[AnalysisService]
+        CZS[CenteringZoomService]
+        SS[SettingsService]
+        VS[VisualizationService]
+    end
+
+    subgraph Operations
+        CO[CurveOperations]
+        FO[FileOperations]
+        ImO[ImageOperations]
+        DO[DialogOperations]
+        HO[HistoryOperations]
+        CZO[CenteringZoomOperations]
+        SO[SettingsOperations]
+        VO[VisualizationOperations]
     end
 ```
+
+## Next Steps for Complete Refactoring
+
+To fully migrate to the service-based architecture, the following steps are recommended:
+
+1. **Complete migration of operations to services:**
+   - Move all functionality from legacy operations files to their corresponding service classes
+   - Ensure service classes implement operations directly rather than delegating
+
+2. **Standardize imports across the codebase:**
+   - Update all imports to consistently use the service classes
+   - Remove references to legacy operations files
+
+3. **Remove legacy operations files:**
+   - After verifying all functionality has been migrated, rename legacy files to `.deprecated`
+   - Eventually remove deprecated files when confident all functionality is properly migrated
+
+4. **Update documentation:**
+   - Maintain this document with current progress status
+   - Update architecture diagrams to reflect the current state
 
 ## Benefits of Refactoring
 
@@ -70,6 +134,6 @@ flowchart TD
 When working with the codebase:
 
 1. Always import services using the standardized pattern
-2. Add new functionality to the appropriate service class
-3. Use the service through the imported alias in UI components
+2. Add new functionality directly to the appropriate service class, not legacy operations
+3. When modifying existing code, prefer using services over legacy operations
 4. Update tests to reflect the new service-based architecture
