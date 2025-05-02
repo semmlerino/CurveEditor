@@ -189,9 +189,11 @@ class EnhancedCurveView(QWidget):
         Args:
             radius: Integer representing the point radius (1-10)
         """
-        CurveViewOperations.set_point_size(self, self.main_window, radius)
+        # Use VisualizationOperations directly to avoid recursive service call
+        from visualization_operations import VisualizationOperations
+        VisualizationOperations.set_point_radius(self, int(radius))
         # Update local point_radius property
-        self.point_radius = radius
+        self.point_radius = int(radius)
 
     def get_point_data(self, index):
         """Get point data as a tuple (frame, x, y, status).
