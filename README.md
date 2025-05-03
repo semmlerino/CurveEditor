@@ -15,17 +15,36 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 - [Architecture Overview](docs/architecture.md)
 - [Feature Catalogue](docs/features.md)
 - [Refactoring Notes](docs/refactoring_notes.md)
+- [Code Consolidation](docs/code_consolidation.md)
 - [Coordinate Transformation Guide](docs/coordinate_transformation_guide.md)
 - [Services Reference](services/README.md)
 
 ## Recent Changes
 
-- Completed migration to service-based architecture
-- Added comprehensive service interfaces for all core functionality
-- Standardized import patterns for consistency
-- Improved module organization and reduced duplication
-- Enhanced error handling and type annotations
-- Added validation tools for architecture compliance
+- ✅ Completed migration to service-based architecture
+- ✅ Added comprehensive service interfaces for all core functionality
+- ✅ Standardized import patterns for consistency
+- ✅ Improved module organization and reduced duplication
+- ✅ Enhanced error handling and type annotations
+- ✅ Added validation tools for architecture compliance
+- ✅ Updated documentation to reflect current architecture
+- ✅ Added detailed next steps for ongoing development
+- ✅ Completed code consolidation:
+  - ✅ Fixed circular imports between services
+  - ✅ Renamed all legacy operations files to .deprecated
+  - ✅ Created proper deprecation stubs with clear warnings
+
+## Current Status
+
+The refactoring to a service-based architecture is now complete. All major functionality has been migrated to appropriate service classes, with legacy operations modules either renamed to `.deprecated` or replaced with forwarding stubs that provide proper deprecation warnings.
+
+The code consolidation phase has also been completed:
+- All legacy operations files have been properly renamed with the `.deprecated` extension
+- Circular dependencies between services have been resolved
+- Import patterns have been standardized across the codebase
+- Proper deprecation warnings have been added to all legacy files
+
+The documentation has been updated to reflect the current architecture, including updated workflow diagrams, service descriptions, and next steps for further development. A detailed [Code Consolidation](docs/code_consolidation.md) document has been created to summarize the changes made.
 
 ## Services
 

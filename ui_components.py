@@ -918,6 +918,7 @@ class UIComponents:
                 from visualization_operations import VisualizationOperations
                 
                 # Create a wrapper method that calls the visualization operations method
+                
                 def update_timeline_for_image(index: int) -> None:
                     """Wrapper method to update the timeline for the current image."""
                     VisualizationOperations.update_timeline_for_image(
@@ -925,6 +926,7 @@ class UIComponents:
                     )
                 
                 # Attach the wrapper method to the curve view for backward compatibility
+                # Assign the wrapper method to the curve view for backward compatibility
                 main_window.curve_view.updateTimelineForImage = update_timeline_for_image  # type: ignore[attr-defined]
                 
                 return True

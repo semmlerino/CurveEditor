@@ -6,13 +6,13 @@ CenteringZoomService: Manages view centering and zoom operations.
 Provides methods for zooming, centering, and handling view transformations.
 """
 
-import sys
-from typing import Any, Tuple, Optional, List, Union, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, Any
+
+import sys  # For sys.stderr in exception handling
 
 if TYPE_CHECKING:
     from curve_view import CurveView
     from PySide6.QtGui import QWheelEvent
-    from main_window import MainWindow
 
 class CenteringZoomService:
     """Service for managing centering and zoom operations."""
@@ -63,17 +63,21 @@ class CenteringZoomService:
             bool: True if centering was successful, False otherwise
         """
         # Get the target point index
-        idx = point_idx if point_idx >= 0 else getattr(curve_view, "selected_point_idx", -1)
+        idx: int = point_idx if point_idx >= 0 else getattr(curve_view, "selected_point_idx", -1)
 
-        # Validate curve data availability
+        # The following attributes are accessed dynamically on curve_view. For type checking:
+        # curve_view: CurveView
+        # curve_view.main_window: MainWindow
+        # curve_view.main_window.curve_data: list[tuple[int, float, float]] or similar
         if idx < 0 or not hasattr(curve_view, 'main_window') or not getattr(curve_view.main_window, "curve_data", None):
             return False
 
         try:
             if idx < len(curve_view.main_window.curve_data):
                 # Get the point coordinates
-                point = curve_view.main_window.curve_data[idx]
-                _, x, y = point[:3]  # Extract frame, x, y from the point
+                curve_data: list[Any] = curve_view.main_window.curve_data  # type: ignore[attr-defined]
+                point: Any = curve_data[idx]
+                _, x, y = point[:3]  # type: ignore
                 curve_view.selected_point_idx = idx
 
                 # Set zoom level - either preserve current or reset
@@ -86,10 +90,12 @@ class CenteringZoomService:
                 widget_height = curve_view.height()
 
                 # Get original content size
-                img_width = getattr(curve_view, "image_width", widget_width)
-                img_height = getattr(curve_view, "image_height", widget_height)
+                img_width: int = getattr(curve_view, "image_width", widget_width)
+                img_height: int = getattr(curve_view, "image_height", widget_height)
 
                 # If there's a background image, use its dimensions
+                display_width: int
+                display_height: int
                 if getattr(curve_view, "background_image", None):
                     display_width = curve_view.background_image.width()
                     display_height = curve_view.background_image.height()
@@ -98,23 +104,25 @@ class CenteringZoomService:
                     display_height = img_height
 
                 # Apply proper zoom level
-                scale_x = widget_width / display_width
-                scale_y = widget_height / display_height
-                scale = min(scale_x, scale_y) * current_zoom
+                scale_x: float = widget_width / display_width
+                scale_y: float = widget_height / display_height
+                scale: float = min(scale_x, scale_y) * current_zoom
                 curve_view.zoom_factor = current_zoom  # Ensure zoom factor is consistent
 
                 # Calculate the screen transformation for the selected point
                 # This is the crucial part for proper centering
 
                 # 1. Reset manual offset - we'll recalculate it
-                x_offset_old = getattr(curve_view, "x_offset", 0)
-                y_offset_old = getattr(curve_view, "y_offset", 0)
+                # x_offset_old = getattr(curve_view, "x_offset", 0)
+                # y_offset_old = getattr(curve_view, "y_offset", 0)  # Unused, remove for linting
 
                 # 2. Correctly transform point coordinates to screen space
+                point_x: float
+                point_y: float
                 if getattr(curve_view, "scale_to_image", False):
                     # Scale to image space first
-                    img_scale_x = display_width / img_width
-                    img_scale_y = display_height / img_height
+                    img_scale_x: float = display_width / img_width
+                    img_scale_y: float = display_height / img_height
 
                     point_x = x * img_scale_x
                     point_y = y * img_scale_y
@@ -132,32 +140,33 @@ class CenteringZoomService:
                         point_y = img_height - point_y
 
                 # 3. Scale point to widget space
-                scaled_x = point_x * scale
-                scaled_y = point_y * scale
+                scaled_x: float = point_x * scale
+                scaled_y: float = point_y * scale
 
                 # 4. Calculate base content centering (centers entire content in view)
-                total_width = display_width * scale
-                total_height = display_height * scale
-                base_x = (widget_width - total_width) / 2
-                base_y = (widget_height - total_height) / 2
+                total_width: float = display_width * scale
+                total_height: float = display_height * scale
+                base_x: float = (widget_width - total_width) / 2
+                base_y: float = (widget_height - total_height) / 2
 
                 # 5. Calculate offset needed to center selected point
                 # Target is the center of the widget
-                target_x = widget_width / 2
-                target_y = widget_height / 2
+                target_x: float = widget_width / 2
+                target_y: float = widget_height / 2
 
                 # Calculate how much we need to shift the view to center the point
-                dx = target_x - (base_x + scaled_x)
-                dy = target_y - (base_y + scaled_y)
+                dx: float = target_x - (base_x + scaled_x)
+                dy: float = target_y - (base_y + scaled_y)
 
                 # 6. Apply the calculated offset directly
                 # This ensures precise centering in all window states
-                curve_view.offset_x = dx
-                curve_view.offset_y = dy
+                # CurveView expects int for offset_x/y, so cast as needed
+                curve_view.offset_x = int(dx)  # type: ignore[attr-defined]
+                curve_view.offset_y = int(dy)  # type: ignore[attr-defined]
 
                 # 7. Clear any unneeded manual offsets since we've recalculated perfectly
-                curve_view.x_offset = 0
-                curve_view.y_offset = 0
+                curve_view.x_offset = 0  # type: ignore[attr-defined]  # type: ignore[attr-defined]
+                curve_view.y_offset = 0  # type: ignore[attr-defined]  # type: ignore[attr-defined]
 
                 # Debug information
                 if getattr(curve_view, "debug_mode", False):
@@ -165,7 +174,7 @@ class CenteringZoomService:
                     print(f"Widget size: {widget_width}x{widget_height}")
                     print(f"Content size: {display_width}x{display_height} → {total_width:.1f}x{total_height:.1f}")
                     print(f"Base offset: ({base_x:.1f}, {base_y:.1f})")
-                    print(f"Applied offset: ({curve_view.offset_x:.1f}, {curve_view.offset_y:.1f})")
+                    print(f"Applied offset: ({curve_view.offset_x}, {curve_view.offset_y})")
 
                 # Force a redraw with the new configuration
                 curve_view.update()
@@ -255,11 +264,11 @@ class CenteringZoomService:
                         ty = 0 + center_y * scale
 
                 # Set final offset
-                curve_view.offset_x = widget_cx - tx
-                curve_view.offset_y = widget_cy - ty
+                curve_view.offset_x = int(widget_cx - tx)  # type: ignore[attr-defined]
+                curve_view.offset_y = int(widget_cy - ty)  # type: ignore[attr-defined]
 
                 # Mark as a fit operation
-                curve_view.last_action_was_fit = True
+                curve_view.last_action_was_fit = True  # type: ignore[attr-defined]
                 curve_view.update()
                 return True
         return False
@@ -269,7 +278,7 @@ class CenteringZoomService:
         """Handle mouse wheel events for zooming."""
         # Prevent jumpy zoom immediately after fit_selection
         if hasattr(curve_view, 'last_action_was_fit') and getattr(curve_view, 'last_action_was_fit', False):
-            curve_view.last_action_was_fit = False
+            curve_view.last_action_was_fit = False  # type: ignore[attr-defined]
             return
 
         # Determine zoom factor from wheel delta
@@ -357,14 +366,14 @@ class CenteringZoomService:
 
         # Reset the fit flag if it exists
         if hasattr(curve_view, "last_action_was_fit"):
-            curve_view.last_action_was_fit = False
+            curve_view.last_action_was_fit = False  # type: ignore[attr-defined]
 
         # Force a redraw with the new configuration
         curve_view.update()
 
     @staticmethod
-    def auto_center_view(main_window: 'MainWindow', preserve_zoom: bool = True) -> bool:
-        """Detect selected point and center the view using CenteringZoomService.
+    def auto_center_view(main_window: Any, preserve_zoom: bool = True) -> bool:
+        """Detect selected point and center the view using ZoomOperations.
 
         This method handles centering in all window states (normal, maximized, fullscreen).
         It accounts for widget resizing to ensure proper centering in all scenarios.
@@ -383,34 +392,20 @@ class CenteringZoomService:
 
         # Detect selection index from multiple possible sources
         selected_points = getattr(curve_view, 'selected_points', None)
+        idx: int
         if selected_points:
             # Use first selected point from set if available
-            idx = list(selected_points)[0]
+            idx = int(list(selected_points)[0])
         elif getattr(main_window, 'selected_indices', None):
             # Fallback to main window's selection indices
             indices = main_window.selected_indices
-            idx = indices[0] if indices else -1
+            idx = int(indices[0]) if indices else -1
         else:
             # No selection found
             idx = -1
 
-        # If no valid selection, show message and exit
-        if idx < 0:
-            main_window.statusBar().showMessage("No point selected to center on", 2000)
-            return False
-
-        # Get current view state to ensure we respect it during centering
-        view_state = {
-            'widget_width': curve_view.width(),
-            'widget_height': curve_view.height(),
-            'zoom_factor': getattr(curve_view, 'zoom_factor', 1.0),
-            'scale_to_image': getattr(curve_view, 'scale_to_image', False),
-            'flip_y_axis': getattr(curve_view, 'flip_y_axis', False)
-        }
-
-        # Apply centering calculation which accounts for current widget dimensions
-        # This ensures proper centering regardless of window size/state
-        success = CenteringZoomService.center_on_selected_point(curve_view, idx, preserve_zoom)
+        # Always attempt to center via CenteringZoomService; let it handle invalid idx
+        success: bool = CenteringZoomService.center_on_selected_point(curve_view, idx, preserve_zoom)
 
         # Show status message based on result
         if success:

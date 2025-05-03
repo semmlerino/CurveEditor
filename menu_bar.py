@@ -237,17 +237,17 @@ class MenuBar(QMenuBar):
     def _handle_grid_toggled(self, enabled: bool) -> None:
         """Handle grid toggled signal."""
         if self.main_window:
-            VisualizationOperations.toggle_grid(self.main_window, enabled)
+            VisualizationOperations.toggle_grid(self.main_window.curve_view, enabled)
 
     def _handle_velocity_toggled(self, enabled: bool) -> None:
         """Handle velocity toggled signal."""
         if self.main_window:
-            VisualizationOperations.toggle_velocity_vectors(self.main_window, enabled)
+            VisualizationOperations.toggle_velocity_vectors(self.main_window.curve_view, enabled)
 
     def _handle_frame_numbers_toggled(self, enabled: bool) -> None:
         """Handle frame numbers toggled signal."""
         if self.main_window:
-            VisualizationOperations.toggle_all_frame_numbers(self.main_window, enabled)
+            VisualizationOperations.toggle_all_frame_numbers(self.main_window.curve_view, enabled)
 
     def _handle_background_toggled(self, enabled: bool) -> None:
         """Handle background toggled signal."""

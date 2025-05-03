@@ -10,7 +10,7 @@ from PySide6.QtWidgets import QMessageBox, QDialog, QWidget
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
                     ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog,
                     OffsetDialog)
-from curve_data_operations import CurveDataOperations
+from services.analysis_service import AnalysisService as CurveDataOperations
 from typing import Any, Optional, List, Tuple
 
 # Define a type alias for curve data for clarity

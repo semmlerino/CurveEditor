@@ -14,9 +14,9 @@ import warnings
 from typing import Any, TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from PySide6.QtCore import QPointF
     from curve_view import CurveView
-
-import os
+    from enhanced_curve_view import EnhancedCurveView
 
 # Issue deprecation warning
 warnings.warn(
@@ -26,13 +26,13 @@ warnings.warn(
     stacklevel=2
 )
 
-# Directly import the service version
+# Import the service version
 from services.visualization_service import VisualizationService
 
 # Re-export VisualizationService as VisualizationOperations for backward compatibility
 class VisualizationOperations:
     """
-    DEPRECATED: Static utility methods for visualization operations in the curve editor.
+    DEPRECATED: Visualization operations for the CurveEditor.
     All methods are forwarded to VisualizationService for backward compatibility.
     """
     # Forward all static method calls to the service implementation

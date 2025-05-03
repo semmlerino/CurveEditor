@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
-from centering_zoom_operations import ZoomOperations
+
 
 # Mock classes for testing
 class MockCurveView:
@@ -85,7 +85,65 @@ class MockBackgroundImage:
         return self.height_val
 
 
-class MockMainWindow:
+from signal_registry import MainWindowProtocol
+
+class MockMainWindow(MainWindowProtocol):
+    auto_center_enabled: bool = False
+    connected_signals: set[str] = set()
+
+    update_point_button: Any = None
+    point_size_spin: Any = None
+    x_edit: Any = None
+    y_edit: Any = None
+    load_button: Any = None
+    save_button: Any = None
+    add_point_button: Any = None
+    export_csv_button: Any = None
+    reset_view_button: Any = None
+    toggle_grid_button: Any = None
+    toggle_vectors_button: Any = None
+    toggle_frame_numbers_button: Any = None
+    center_on_point_button: Any = None
+    centering_toggle: Any = None
+    timeline_slider: Any = None
+    frame_edit: Any = None
+    go_button: Any = None
+    next_frame_button: Any = None
+    prev_frame_button: Any = None
+    first_frame_button: Any = None
+    last_frame_button: Any = None
+    play_button: Any = None
+    scale_button: Any = None
+    batch_edit_ui: Any = None
+    offset_button: Any = None
+    rotate_button: Any = None
+    smooth_batch_button: Any = None
+    select_all_button: Any = None
+    smooth_button: Any = None
+    filter_button: Any = None
+    fill_gaps_button: Any = None
+    extrapolate_button: Any = None
+    detect_problems_button: Any = None
+    shortcuts_button: Any = None
+    undo_button: Any = None
+    redo_button: Any = None
+    toggle_bg_button: Any = None
+    opacity_slider: Any = None
+    load_images_button: Any = None
+    next_image_button: Any = None
+    prev_image_button: Any = None
+    analyze_button: Any = None
+    quality_ui: Any = None
+
+    shortcuts: Any = None
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        self.auto_center_enabled = enabled
+    def toggle_fullscreen(self) -> None:
+        pass
+    def apply_smooth_operation(self) -> None:
+        pass
+
     """Mock main window for testing."""
     
     curve_view: Optional[MockCurveView]
@@ -203,12 +261,12 @@ def test_center_on_selected_point_handles_resize():
     mock_view.main_window = mock_window
     
     # Mock the center_on_selected_point method directly instead of trying to mock a function it calls internally
-    with patch.object(ZoomOperations, 'center_on_selected_point') as mock_center:
+    with patch.object(CenteringZoomService, 'center_on_selected_point') as mock_center:
         # Configure the mock to return True on call
         mock_center.return_value = True
         
         # Initial centering call
-        result1 = CenteringZoomService.auto_center_view(mock_window)
+        result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result1 is True
         assert mock_center.call_count == 1
         
@@ -225,7 +283,7 @@ def test_center_on_selected_point_handles_resize():
         mock_center.reset_mock()
         
         # Re-center after resize
-        result2 = CenteringZoomService.auto_center_view(mock_window)
+        result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result2 is True
         
         # Verify the function was called after resize
@@ -254,7 +312,7 @@ def test_center_on_selected_point_handles_fullscreen():
     mock_view.main_window = mock_window
     
     # Initial centering
-    result1 = CenteringZoomService.auto_center_view(mock_window)
+    result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
     assert result1 is True
     
     # Reset update flag
@@ -265,7 +323,7 @@ def test_center_on_selected_point_handles_fullscreen():
     mock_view.height_val = 1080
     
     # Re-center after going fullscreen
-    result2 = CenteringZoomService.auto_center_view(mock_window)
+    result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
     assert result2 is True
     assert mock_view.update_called is True
     
@@ -281,8 +339,8 @@ def test_auto_center_view_with_selection():
     mock_view.main_window = mock_window
     
     # Mock center_on_selected_point to verify it's called with right params
-    with patch.object(ZoomOperations, 'center_on_selected_point', return_value=True) as mock_center:
-        result = CenteringZoomService.auto_center_view(mock_window)
+    with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=True) as mock_center:
+        result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         
         # Verify it was called with right parameters
         mock_center.assert_called_once()
@@ -306,8 +364,8 @@ def test_auto_center_view_no_selection():
     mock_view.main_window = mock_window
     
     # Mock center_on_selected_point to return False when no point is selected
-    with patch.object(ZoomOperations, 'center_on_selected_point', return_value=False) as mock_center_func:
-        result = CenteringZoomService.auto_center_view(mock_window)
+    with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=False) as mock_center_func:
+        result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         # Verify the mock was called
         assert mock_center_func.called
         
@@ -333,14 +391,14 @@ def test_view_state_handling():
     mock_view.main_window = mock_window
     
     # Mock key functions to see what arguments are passed
-    with patch.object(ZoomOperations, 'center_on_selected_point') as mock_center:
+    with patch.object(CenteringZoomService, 'center_on_selected_point') as mock_center:
         # Configure the mock to pass through the preserve_zoom parameter with proper typing
         def preserve_zoom_effect(view: MockCurveView, idx: int, preserve_zoom: bool) -> bool:
             return preserve_zoom
         mock_center.side_effect = preserve_zoom_effect
         
         # Test with preserve_zoom=True (default)
-        result1 = CenteringZoomService.auto_center_view(mock_window)
+        result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result1 is True  # Should return the preserve_zoom value
         
         # Test with preserve_zoom=False

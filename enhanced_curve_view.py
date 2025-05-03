@@ -117,7 +117,7 @@ class EnhancedCurveView(QWidget):
             image_height: Height of the image/workspace
             preserve_view: If True, maintain current view position
         """
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.set_points(self, points, image_width, image_height, preserve_view)
 
     def setImageSequence(self, path, filenames):
@@ -126,17 +126,17 @@ class EnhancedCurveView(QWidget):
 
     def toggleGrid(self, enabled=None):
         """Toggle grid visibility."""
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.toggle_grid(self, enabled)
 
     def toggleVelocityVectors(self, enabled=None):
         """Toggle velocity vector display."""
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.toggle_velocity_vectors(self, enabled)
 
     def toggleAllFrameNumbers(self, enabled=None):
         """Toggle display of all frame numbers."""
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.toggle_all_frame_numbers(self, enabled)
 
 
@@ -167,12 +167,12 @@ class EnhancedCurveView(QWidget):
 
     def toggleBackgroundVisible(self, visible=None):
         """Toggle visibility of background image."""
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.toggle_background_visible(self, visible)
 
     def setBackgroundOpacity(self, opacity):
         """Set the opacity of the background image."""
-        from visualization_operations import VisualizationOperations
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.set_background_opacity(self, opacity)
 
     def loadCurrentImage(self):
@@ -189,8 +189,8 @@ class EnhancedCurveView(QWidget):
         Args:
             radius: Integer representing the point radius (1-10)
         """
-        # Use VisualizationOperations directly to avoid recursive service call
-        from visualization_operations import VisualizationOperations
+        # Use VisualizationService directly to avoid recursive service call
+        from services.visualization_service import VisualizationService as VisualizationOperations
         VisualizationOperations.set_point_radius(self, int(radius))
         # Update local point_radius property
         self.point_radius = int(radius)

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false, reportUnknownArgumentType=false, reportUnknownParameterType=false
 # -*- coding: utf-8 -*-
+from PySide6.QtGui import QCloseEvent
 
 """
 Main Window for 3DE4 Curve Editor.
@@ -39,7 +40,7 @@ from curve_view import CurveView
 from services.file_service import FileService as FileOperations
 
 from utils import load_3de_track, estimate_image_dimensions, get_image_files
-from services.centering_zoom_service import CenteringZoomService
+
 from services.history_service import HistoryService
 from services.dialog_service import DialogService
 from services.image_service import ImageService as ImageOperations
@@ -53,7 +54,8 @@ from track_quality import TrackQualityUI
 from menu_bar import MenuBar
 # import typing  # Removed unused import
 from typing import Any
-from curve_data_operations import CurveDataOperations
+from services.analysis_service import AnalysisService as CurveDataOperations
+from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 
 if False:
     pass
@@ -216,15 +218,12 @@ class MainWindow(QMainWindow):
         if hasattr(self, 'auto_center_action'):
             self.auto_center_action.setChecked(enabled)
 
-        # Immediately center the view if auto-centering is now enabled
+        # Immediately center on selected point if available
         if enabled:
-            # Use the correctly imported ZoomOperations
             if hasattr(self, 'curve_view') and hasattr(self.curve_view, 'selected_point_idx') and self.curve_view.selected_point_idx >= 0:
-                CenteringZoomService.auto_center_view(self, preserve_zoom=True)  # Use the facade method for main_window
-            else:
-                # Optionally keep a log message if needed, but removing debug prints for now
-                # print("[DEBUG] Auto-center enabled, but no point selected or curve view not ready.")
-                pass # Conditions not met, do nothing
+                ZoomOperations.center_on_selected_point(self.curve_view)
+            # else: no selection or view not ready, do nothing
+
     def setup_ui(self):
         """Create and arrange UI elements."""
         # Create menu bar
@@ -735,7 +734,7 @@ class MainWindow(QMainWindow):
             if hasattr(self.curve_view, 'centerOnSelectedPoint'):
                 self.curve_view.centerOnSelectedPoint(-1)
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event, saving settings before exit.
 
         Args:

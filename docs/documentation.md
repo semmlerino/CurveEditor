@@ -46,13 +46,13 @@ The application follows a modular architecture with clear separation of concerns
    - **Interpolated Points** feature allows "soft deletion" of points while maintaining navigation
    - **Refactored to delegate functionality** to specialized utility classes through dynamic imports
 
-### Utility Classes Architecture
+### Service-Based Architecture
 
-The application has been refactored to follow a utility-class-based architecture where functionality is centralized in specialized classes rather than duplicated in the MainWindow class. This improves code maintainability and organization.
+The application has been refactored to follow a service-based architecture where functionality is centralized in specialized service classes rather than duplicated in the MainWindow class. This improves code maintainability, testability, and organization.
 
-#### Key Utility Classes
+#### Key Services
 
-1. **CurveViewOperations** (`curve_view_operations.py`)
+1. **CurveService** (`services/curve_service.py`)
    - Handles all operations related to the curve view widget
    - Manages point selection, editing, and manipulation
    - Provides methods for view controls like reset view and zooming
@@ -64,16 +64,16 @@ The application has been refactored to follow a utility-class-based architecture
      - `is_point_interpolated`: Checks if a point has interpolated status
      - `toggle_point_interpolation`: Toggles a point's interpolation status
      - `update_point_position`: Updates a point's position while preserving its status
-     - `change_nudge_increment`: Manages the nudge increment for point movement
+     - `transform_point`: Transforms coordinates between different coordinate systems
      - `nudge_selected_points`: Applies nudging to selected points
 
-2. **VisualizationOperations** (`visualization_operations.py`)
+2. **VisualizationService** (`services/visualization_service.py`)
    - Centralizes all visualization-related functionality
    - Controls grid, vectors, and frame number display
    - Manages background image visibility and opacity
-   - Provides unified view centering and navigation methods via `ZoomOperations`
+   - Provides unified view centering and navigation methods via `CenteringZoomService`
    - **Enhanced Curve View Integration**: Provides specialized methods for visualization features:
-     - `toggle_grid_internal`: Internal implementation of grid toggling
+     - `toggle_grid`: Toggles grid visibility
      - `set_point_radius`: Controls the size of points in the view
      - `set_grid_color`: Manages grid color settings
      - `set_grid_line_width`: Controls grid line thickness
@@ -86,36 +86,46 @@ The application has been refactored to follow a utility-class-based architecture
    - Synchronizes timeline with point selection and image display
    - Provides structured containers for different UI sections (point editing, view controls)
 
-4. **FileOperations** (`file_operations.py`)
+4. **FileService** (`services/file_service.py`)
    - Handles loading and saving track data
    - Manages file dialogs and data parsing
+   - Provides standardized interfaces for file operations
 
-5. **ImageOperations** (`image_operations.py`)
+5. **ImageService** (`services/image_service.py`)
    - Manages loading and display of image sequences
    - Controls image navigation and background visibility
+   - Provides image processing and caching utilities
 
-6. **HistoryOperations** (`history_operations.py`)
+6. **HistoryService** (`services/history_service.py`)
    - Implements undo/redo functionality
    - Manages state history for tracking changes
+   - Provides methods for recording and replaying operations
 
-7. **CurveOperations** (`curve_operations.py`)
-   - Implements curve editing algorithms
+7. **AnalysisService** (`services/analysis_service.py`)
+   - Implements curve analysis and editing algorithms
    - Provides smoothing, filtering, gap filling, and extrapolation
    - Implements problem detection for tracking quality analysis
+   - Centralizes batch operations on curve data
 
-8. **DialogOperations** (`dialog_operations.py`)
+8. **DialogService** (`services/dialog_service.py`)
    - Centralizes dialog creation and management
    - Handles parameter collection and validation
    - Ensures consistent dialog behavior throughout the application
 
-9. **TrackQualityUI** (`track_quality.py`)
-   - Manages the UI for track quality analysis
-   - Provides methods for analyzing and displaying quality metrics
-   - Connected directly to UI elements in the track quality panel
+9. **CenteringZoomService** (`services/centering_zoom_service.py`)
+   - Manages view centering and zoom operations
+   - Provides standardized view navigation methods
+   - Handles coordinate transformation for zooming and panning
 
-10. **SettingsOperations** (`settings_operations.py`)
+10. **SettingsService** (`services/settings_service.py`)
     - Manages application settings and preferences
     - Handles loading and saving of user configurations
+    - Provides centralized access to application settings
+
+11. **InputService** (`services/input_service.py`)
+    - Manages keyboard and mouse input handling
+    - Provides consistent keyboard shortcut management
+    - Centralizes input processing logic
 
 ### Additional Modules
 
@@ -196,7 +206,7 @@ The application has been refactored to follow a utility-class-based architecture
 - **Frame Navigation**: Timeline slider for navigating through frames
 - **Frame Synchronization**: Synchronization between timeline, points, and background images
 - **Timeline Integration**: Timeline functionality fully integrated into the UI Components system for better cohesion
-- **Timeline Methods**: 
+- **Timeline Methods**:
   - `setup_timeline`: Configures the timeline slider based on frame range in the curve data
   - `on_timeline_changed`: Handles timeline slider value changes, updates frame display, and selects corresponding points
   - `on_frame_edit_changed`: Processes manual frame number input and updates the timeline position
@@ -206,31 +216,36 @@ The application has been refactored to follow a utility-class-based architecture
 - **Undo/Redo**: Support for undoing and redoing editing operations
 - **History Stack**: Maintains a history of changes for reverting
 
-## Enhanced Curve View Refactoring
+## Service-Based Refactoring
 
-The Enhanced Curve View component has been significantly refactored to improve code organization and maintainability:
+The application has been significantly refactored to use a service-based architecture for improved code organization and maintainability:
 
-1. **Dynamic Import Pattern**:
-   - Methods in the EnhancedCurveView class now use dynamic imports to delegate functionality to utility classes
-   - Each method imports the appropriate utility class only when needed, reducing initialization overhead
-   - Example: `from curve_view_operations import CurveViewOperations` at the method level
-   - This approach allows for better separation of concerns while maintaining the class interface
+1. **Standardized Import Pattern**:
+   - Core application components now import services using a consistent pattern
+   - Example: `from services.curve_service import CurveService`
+   - For backward compatibility, legacy imports are supported with alias syntax:
+     - `from services.curve_service import CurveService as CurveViewOperations`
+   - This approach ensures a smooth transition while maintaining a clear architecture
 
-2. **Method Delegation**:
-   - Core functionality is implemented in utility classes but exposed through the EnhancedCurveView interface
-   - The EnhancedCurveView class acts as a facade, providing a consistent API while delegating implementation
-   - This pattern reduces code duplication and centralizes implementation in specialized utility classes
-   - Methods like `update_point_position`, `findPointAt`, and `toggleGrid` now delegate to utility classes
+2. **Service Delegation**:
+   - Core functionality is implemented in service classes with static methods
+   - UI components act as facades, providing a consistent API while delegating implementation to services
+   - This pattern reduces code duplication and centralizes implementation in specialized service classes
+   - Methods like `update_point_position`, `find_point_at`, and `toggle_grid` now delegate to appropriate services
 
-3. **Duplicate Method Resolution**:
-   - Some methods appear multiple times in the class due to refactoring transitions
-   - Each instance delegates to the same utility class implementation
+3. **Legacy Code Handling**:
+   - Legacy operations files have been refactored in three ways:
+     - Renamed to `.deprecated` to clearly mark end-of-life
+     - Replaced with forward stubs that redirect to service implementations with deprecation warnings
+     - Fully migrated to new service classes
    - This approach maintains backward compatibility while moving toward a cleaner architecture
 
-4. **Utility Class Integration**:
-   - CurveViewOperations handles point manipulation, selection, and data management
-   - VisualizationOperations manages visual elements like grid, point radius, and timeline synchronization
-   - Each utility class receives the EnhancedCurveView instance as its first parameter to access necessary properties
+4. **Service Class Integration**:
+   - `CurveService` handles point manipulation, selection, and data management
+   - `VisualizationService` manages visual elements like grid, point radius, and timeline synchronization
+   - `CenteringZoomService` manages view centering and zoom operations
+   - Each service class typically receives relevant UI components as parameters to access necessary properties
+   - Services are designed to be stateless, with state maintained in the UI components
 
 ## Signal-Slot Architecture
 
@@ -242,16 +257,17 @@ The application implements a centralized signal-slot architecture for better cod
    - Groups signal connections by functional area (curve view, editing controls, visualization, etc.)
    - Implements defensive programming with attribute checks to prevent errors from missing UI components
    - Follows consistent connection patterns throughout the application
-   
-2. **Direct Utility Class Connections**:
-   - UI signals are connected directly to methods in utility classes
-   - Example: `button.clicked.connect(lambda checked: VisualizationOperations.toggle_grid(self, checked))`
+
+2. **Direct Service Class Connections**:
+   - UI signals are connected directly to methods in service classes
+   - Example: `button.clicked.connect(lambda checked: VisualizationService.toggle_grid(self, checked))`
    - This approach eliminates redundant wrapper methods in the MainWindow class
+   - Services provide stateless functions that operate on the UI components
 
 3. **Lambda Functions**:
    - Used for passing additional parameters to handler methods
-   - Allows direct connection to static utility methods while providing context
-   - Example: `spinbox.valueChanged.connect(lambda value: CurveViewOperations.update_point_from_edit(self))`
+   - Allows direct connection to static service methods while providing context
+   - Example: `spinbox.valueChanged.connect(lambda value: CurveService.update_point_from_edit(self))`
 
 4. **Initialization Sequence**:
    - Signal connections are performed after all UI components are fully initialized
@@ -403,5 +419,39 @@ The application provides comprehensive keyboard and mouse interaction:
    - Global keyboard shortcuts managed through the ShortcutManager
    - All shortcuts (global, view-specific, dialog-specific) are registered and connected via ShortcutManager
    - Direct key handling via `keyPressEvent` or `eventFilter` has been removed
+
+## Next Steps After Refactoring
+
+The service-based architecture refactoring is now complete. The following steps are recommended to further improve the application:
+
+1. **Testing Improvements**:
+   - Expand test coverage for all services
+   - Add comprehensive unit tests for each service class
+   - Implement integration tests to ensure services work together correctly
+   - Create automated test suite for regression testing
+
+2. **Code Cleanup**:
+   - Remove deprecated files when no longer needed
+   - Standardize all import patterns across the codebase
+   - Remove any lingering references to the old utility classes
+   - Verify no circular dependencies exist between services
+
+3. **Documentation Enhancements**:
+   - Create detailed API documentation for each service
+   - Update all docstrings to reflect service methods
+   - Add examples of common service usage patterns
+   - Provide migration guides for developers familiar with the old architecture
+
+4. **Architecture Validation**:
+   - Run validation tools to verify architecture compliance
+   - Check for any remaining import inconsistencies
+   - Ensure proper type hints and static analysis support
+   - Validate performance impact of the new architecture
+
+5. **Feature Enhancements**:
+   - Implement new features leveraging the improved architecture
+   - Refine existing functionality using service-based approach
+   - Consider adding new services for specialized functionality
+   - Improve error handling and user feedback
 
 This documentation will be updated as the application evolves and new features are added.

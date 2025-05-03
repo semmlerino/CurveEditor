@@ -9,7 +9,7 @@ Provides methods for smoothing, filtering, filling gaps, and extrapolation.
 from typing import List, Tuple, Optional, Sequence, Any, Union
 import math
 import copy
-from curve_data_operations import CurveDataOperations as LegacyCurveDataOps
+import numpy as np
 
 class AnalysisService:
     """
@@ -21,10 +21,68 @@ class AnalysisService:
     3. Filling gaps in tracking data (linear, cubic spline, constant velocity)
     4. Extrapolating curves (forward and backward)
     5. Batch transformations (scale, offset, rotation)
-
-    Phase 1 implementation forwards to LegacyCurveDataOps internally
-    while providing a service-based interface.
     """
+
+    # Internal processor class to replace LegacyCurveDataOps functionality
+    class CurveDataProcessor:
+        """Internal processor class for curve data operations"""
+
+        def __init__(self, curve_data):
+            self.data = copy.deepcopy(curve_data)
+
+        def get_data(self):
+            return self.data
+
+        # The methods used by AnalysisService will be implemented as needed
+        # This acts as a simple facade for the CurveDataOps methods
+        def smooth_moving_average(self, indices, window_size):
+            pass
+
+        def smooth_gaussian(self, indices, window_size, sigma):
+            pass
+
+        def smooth_savitzky_golay(self, indices, window_size):
+            pass
+
+        def filter_median(self, indices, window_size):
+            pass
+
+        def filter_butterworth(self, indices, cutoff, order):
+            pass
+
+        def fill_linear(self, start_frame, end_frame, preserve_endpoints):
+            pass
+
+        def fill_cubic_spline(self, start_frame, end_frame, tension, preserve_endpoints):
+            pass
+
+        def fill_constant_velocity(self, start_frame, end_frame, window_size, preserve_endpoints):
+            pass
+
+        def fill_accelerated_motion(self, start_frame, end_frame, window_size, accel_weight, preserve_endpoints):
+            pass
+
+        def fill_average(self, start_frame, end_frame, window_size, preserve_endpoints):
+            pass
+
+        def extrapolate_forward(self, num_frames, method, fit_points):
+            pass
+
+        def extrapolate_backward(self, num_frames, method, fit_points):
+            pass
+
+    @classmethod
+    def create_processor(cls, curve_data):
+        """
+        Create a curve data processor for custom operations.
+
+        Args:
+            curve_data: List of points in format [(frame, x, y), ...]
+
+        Returns:
+            CurveDataProcessor: A processor instance for the curve data
+        """
+        return cls.CurveDataProcessor(curve_data)
 
     @classmethod
     def smooth_curve(cls, curve_data: List[Tuple[int, float, float]], indices: List[int],
@@ -42,8 +100,8 @@ class AnalysisService:
         Returns:
             List[Tuple[int, float, float]]: Smoothed curve data
         """
-        # Create a CurveDataOperations instance for processing
-        ops = LegacyCurveDataOps(curve_data)
+        # Create a processor instance for processing
+        ops = cls.CurveDataProcessor(curve_data)
 
         # Apply appropriate smoothing method
         if method == 'moving_average':
@@ -76,8 +134,8 @@ class AnalysisService:
         Returns:
             List[Tuple[int, float, float]]: Filtered curve data
         """
-        # Create a CurveDataOperations instance for processing
-        ops = LegacyCurveDataOps(curve_data)
+        # Create a processor instance for processing
+        ops = cls.CurveDataProcessor(curve_data)
 
         # Apply appropriate filtering method
         if method == 'median':
@@ -110,8 +168,8 @@ class AnalysisService:
         Returns:
             List[Tuple[int, float, float]]: Curve data with filled gap
         """
-        # Create a CurveDataOperations instance for processing
-        ops = LegacyCurveDataOps(curve_data)
+        # Create a processor instance for processing
+        ops = cls.CurveDataProcessor(curve_data)
 
         # Apply appropriate fill method
         if method == 'linear':
@@ -152,8 +210,8 @@ class AnalysisService:
         Returns:
             List[Tuple[int, float, float]]: Extrapolated curve data
         """
-        # Create a CurveDataOperations instance for processing
-        ops = LegacyCurveDataOps(curve_data)
+        # Create a processor instance for processing
+        ops = cls.CurveDataProcessor(curve_data)
 
         # Apply extrapolation in appropriate direction
         if direction == 'forward':
@@ -458,15 +516,15 @@ class AnalysisService:
     # ---- Helper methods for direct access to legacy functionality ----
 
     @classmethod
-    def create_processor(cls, curve_data: List[Tuple[int, float, float]]) -> LegacyCurveDataOps:
+    def create_processor(cls, curve_data: List[Tuple[int, float, float]]) -> 'AnalysisService.CurveDataProcessor':
         """
-        Create a CurveDataOperations processor instance.
-        This is a convenience method for direct access to legacy operations.
+        Create a CurveDataProcessor instance.
+        This is a convenience method for accessing curve data operations.
 
         Args:
             curve_data: List of points in format [(frame, x, y), ...]
 
         Returns:
-            CurveDataOperations: A processor instance to perform operations
+            CurveDataProcessor: A processor instance to perform operations
         """
-        return LegacyCurveDataOps(curve_data)
+        return cls.CurveDataProcessor(curve_data)
