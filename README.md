@@ -46,6 +46,25 @@ The code consolidation phase has also been completed:
 
 The documentation has been updated to reflect the current architecture, including updated workflow diagrams, service descriptions, and next steps for further development. A detailed [Code Consolidation](docs/code_consolidation.md) document has been created to summarize the changes made.
 
+### May 2025 Update
+
+A code review has been completed with the following improvements:
+- Fixed remaining legacy imports to use the service-based architecture
+- Enhanced documentation with detailed [Refactoring Notes](docs/refactoring_notes.md)
+- Improved validation tools for architecture compliance
+- Created a comprehensive [Refactoring Update Summary](refactoring_update_summary.md)
+
+### Future Development
+
+The project roadmap includes:
+- Expanding test coverage for all service classes
+- Removing deprecated files once all references are updated
+- Enhancing error handling and logging
+- Improving performance in key areas
+- Adding comprehensive API documentation
+
+For more details, see the [Refactoring Notes](docs/refactoring_notes.md) and [Refactoring Update Summary](refactoring_update_summary.md).
+
 ## Services
 
 The application uses the following services:

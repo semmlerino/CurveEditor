@@ -157,7 +157,8 @@ self)
     def resetView(self) -> None:
         print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         """Reset view to show all points."""
-        from centering_zoom_operations import ZoomOperations
+        # Use the CenteringZoomService instead of the deprecated operations module
+        from services.centering_zoom_service import CenteringZoomService as ZoomOperations
         print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         ZoomOperations.reset_view(self)
 
