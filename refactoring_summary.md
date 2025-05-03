@@ -32,6 +32,14 @@
    - Updated legacy modules to forward to service implementations
    - Ensured backward compatibility during transition
 
+7. ✅ **Consolidated curve data operations**:
+   - Expanded `AnalysisService` with batch transformation methods
+   - Added support for velocity normalization
+   - Updated `batch_edit.py` to use the `AnalysisService` API
+   - Refactored `quick_filter_presets.py` to use the `AnalysisService` API
+   - Updated documentation to reflect the new architecture
+   - Marked `CONSOLIDATE_SMOOTHING_FILTERING.md` plan as completed
+
 ## Architecture Changes
 
 The refactoring moves from a utility-class based architecture to a service-based architecture:
