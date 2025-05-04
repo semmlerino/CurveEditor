@@ -5,7 +5,7 @@ import os
 from PySide6.QtWidgets import QWidget, QRubberBand
 from typing import Any, Optional, Tuple
 from PySide6.QtCore import Qt, Signal
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations
+from services.centering_zoom_service import CenteringZoomService
 from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPaintEvent
 from PySide6.QtCore import QPointF
 from services.input_service import InputService, CurveViewProtocol  # For type checking only
@@ -43,7 +43,7 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
     point_moved = Signal(int, float, float)  # Signal emitted when a point is moved
     point_selected = Signal(int)  # Signal emitted when a point is selected
     image_changed = Signal(int)  # Signal emitted when image changes via keyboard
-    
+
     # Protocol required properties
     rubber_band: Optional[QRubberBand] = None
     rubber_band_origin: QPointF = QPointF()
@@ -157,7 +157,7 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
         logger.debug(f"Toggling background visibility: {visible}")
         self.show_background = visible
         self.update()
-        
+
     def toggleBackgroundVisible(self, visible: bool) -> None:
         """Protocol-required alias for toggle_background_visible."""
         self.toggle_background_visible(visible)
@@ -184,7 +184,7 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
                      self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
 
         # Use the already imported CenteringZoomService at the top of the file
-        ZoomOperations.reset_view(self)
+        CenteringZoomService.reset_view(self)
 
         logger.debug("View reset complete - State after: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
                      self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
@@ -222,7 +222,7 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
         scale = min(scale_x, scale_y) * self.zoom_factor
 
         # Calculate centering offsets
-        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
+        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
         # offset_y is set below
         # offset_y is now set by calculate_centering_offsets above
 
@@ -429,7 +429,7 @@ self)])}"
         else:
             self.selected_point_idx = -1
         self.update()
-        
+
     def selectPointByIndex(self, idx: int) -> None:
         """Protocol-required method to select a point by index."""
         self.set_selected_indices([idx])
@@ -463,18 +463,18 @@ self)])}"
         """Stub for centering on point (not implemented in basic view)."""
         # Basic view doesn't support centering on points
         pass
-        
+
     # Implementation that satisfies both Protocol and QWidget requirements
     # Note: using type: ignore to suppress parameter name mismatch
     def setCursor(self, cursor: Qt.CursorShape) -> None:  # type: ignore[override]
         """Set the cursor to the specified shape."""
         # Call parent implementation without annotating parameter name
         QWidget.setCursor(self, cursor)
-        
+
     def unsetCursor(self) -> None:
         """Unset the cursor as required by CurveViewProtocol."""
         super().unsetCursor()
-        
+
     # Additional methods required by CurveViewProtocol
     def findPointAt(self, pos: QPointF) -> int:
         """Find point at the given position."""
@@ -482,7 +482,7 @@ self)])}"
         result = CurveService.find_point_at(self, pos.x(), pos.y())
         # Ensure we always return an int as required by the protocol
         return result if result is not None else -1
-        
+
     def get_point_data(self, idx: int) -> Tuple[int, float, float, Optional[str]]:
         """Get point data for the given index."""
         if 0 <= idx < len(self.points):
@@ -492,7 +492,7 @@ self)])}"
                 return (point[0], point[1], point[2], 'interpolated')
             return (point[0], point[1], point[2], None)
         return (-1, 0.0, 0.0, None)
-        
+
     def toggle_point_interpolation(self, idx: int) -> None:
         """Toggle interpolation status of a point."""
         if 0 <= idx < len(self.points):

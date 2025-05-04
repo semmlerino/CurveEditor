@@ -1,19 +1,27 @@
 # services/curve_service.py
 
-from typing import Any, List, Tuple, Optional, Union
+from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
 from error_handling import safe_operation
 from PySide6.QtCore import QRect
 
-from services.curve_utils import normalize_point, set_point_status
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-from services.visualization_service import VisualizationService as VisualizationOperations
+from services.curve_utils import normalize_point, set_point_status, transform_point_to_widget
+from services.centering_zoom_service import CenteringZoomService
+from services.visualization_service import VisualizationService
+from services.logging_service import LoggingService
+
+if TYPE_CHECKING:
+    from services.input_service import CurveViewProtocol
+    from main_window import MainWindow
+
+# Configure logger for this module
+logger = LoggingService.get_logger("curve_service")
 
 class CurveService:
     """Service facade for curve view and point manipulation operations."""
 
     @staticmethod
     @safe_operation("Select All Points")
-    def select_all_points(curve_view: Any, main_window: Any) -> int:
+    def select_all_points(curve_view: "CurveViewProtocol", main_window: "MainWindow") -> int:
         """Select all points in the curve."""
         if not hasattr(curve_view, 'points') or not curve_view.points:
             return 0
@@ -29,7 +37,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Clear Selection")
-    def clear_selection(curve_view: Any, main_window: Any) -> None:
+    def clear_selection(curve_view: "CurveViewProtocol", main_window: "MainWindow") -> None:
         """Clear all point selections."""
         curve_view.selected_points = set()
         curve_view.selected_point_idx = -1
@@ -57,7 +65,7 @@ class CurveService:
         scale_x = curve_view.width() / display_width
         scale_y = curve_view.height() / display_height
         scale = min(scale_x, scale_y) * getattr(curve_view, 'zoom_factor', 1.0)
-        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(
+        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
             curve_view.width(), curve_view.height(),
             display_width * scale, display_height * scale,
             getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
@@ -248,8 +256,8 @@ class CurveService:
     @safe_operation("Set Point Size")
     def set_point_size(curve_view: Any, main_window: Any, size: float) -> None:
         """Set the visual size of points in the curve view."""
-        # Use VisualizationOperations to set point radius and avoid recursive calls
-        VisualizationOperations.set_point_radius(curve_view, int(size))
+        # Use VisualizationService to set point radius and avoid recursive calls
+        VisualizationService.set_point_radius(curve_view, int(size))
         if hasattr(main_window, 'statusBar'):
             main_window.statusBar().showMessage(f"Point size set to {size}", 2000)
 
@@ -318,7 +326,7 @@ class CurveService:
         scale = min(scale_x, scale_y) * curve_view.zoom_factor
 
         # Calculate centering offsets
-        offset_x, offset_y = ZoomOperations.calculate_centering_offsets(
+        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
             widget_width, widget_height,
             display_width * scale, display_height * scale,
             getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
@@ -347,7 +355,7 @@ class CurveService:
         return closest_idx
 
     @staticmethod
-    def transform_point(curve_view: Any, x: float, y: float, display_width: float, display_height: float,
+    def transform_point(curve_view: "CurveViewProtocol", x: float, y: float, display_width: float, display_height: float,
                         offset_x: float, offset_y: float, scale: float) -> Tuple[float, float]:
         """Transform from track coordinates to widget coordinates.
 
@@ -367,51 +375,10 @@ class CurveService:
         Returns:
             Tuple[float, float]: The transformed (x, y) coordinates in widget space
         """
-
-        # Get any manual offsets applied through panning
-        manual_x_offset = getattr(curve_view, 'x_offset', 0)
-        manual_y_offset = getattr(curve_view, 'y_offset', 0)
-
-        # Use the image content centered base position
-        # This ensures content stays properly centered in the widget
-        base_x = offset_x + manual_x_offset
-        base_y = offset_y + manual_y_offset
-
-        if hasattr(curve_view, 'background_image') and curve_view.background_image and getattr(curve_view, 'scale_to_image', False):
-            # When scaling to image, we need to first convert from curve coordinates to image coordinates
-            img_width = getattr(curve_view, 'image_width', 1920)
-            img_height = getattr(curve_view, 'image_height', 1080)
-
-            # Convert tracking coordinates to image space
-            img_scale_x = display_width / max(img_width, 1)
-            img_scale_y = display_height / max(img_height, 1)
-
-            # Apply image-to-tracking coordinate transformation
-            # This maps curve points to positions on the background image
-            img_x = x * img_scale_x
-            img_y = y * img_scale_y
-
-            # Apply Y-flip if enabled
-            if getattr(curve_view, 'flip_y_axis', False):
-                img_y = display_height - img_y
-
-            # Now scale to widget space and apply centering offset
-            tx = base_x + img_x * scale
-            ty = base_y + img_y * scale
-
-        else:
-            # Direct scaling from tracking coordinates to widget space
-            # No image-based transformation, but we still need to handle Y-flip
-            if getattr(curve_view, 'flip_y_axis', False):
-                # For Y-flip, we need the original data height
-                img_height = getattr(curve_view, 'image_height', 1080)
-                tx = base_x + (x * scale)
-                ty = base_y + (img_height - y) * scale
-            else:
-                tx = base_x + (x * scale)
-                ty = base_y + (y * scale)
-
-        return tx, ty
+        # Use the consolidated transformation utility function
+        return transform_point_to_widget(
+            curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
+        )
 
     @staticmethod
     @safe_operation("On Point Selected")
@@ -455,15 +422,8 @@ class CurveService:
     @safe_operation("Reset View")
     def reset_view(curve_view: Any) -> None:
         """Reset the curve view to default zoom and position."""
-        # Reset zoom factor
-        curve_view.zoom_factor = 1.0
-
-        # Reset all offset attributes
-        for attr in ['x_offset', 'y_offset', 'offset_x', 'offset_y']:
-            if hasattr(curve_view, attr):
-                setattr(curve_view, attr, 0)
-
-        curve_view.update()
+        # Use CenteringZoomService to reset the view
+        CenteringZoomService.reset_view(curve_view)
 
         # Update status bar if available via main window
         main_window = getattr(curve_view, 'main_window', None)
@@ -602,7 +562,7 @@ class CurveService:
         sx, sy = w / dw, h / dh
         scale = min(sx, sy) * getattr(curve_view, 'zoom_factor', 1.0)
 
-        ox, oy = ZoomOperations.calculate_centering_offsets(
+        ox, oy = CenteringZoomService.calculate_centering_offsets(
             w, h, dw * scale, dh * scale,
             getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
         )

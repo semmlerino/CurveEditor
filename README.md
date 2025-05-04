@@ -14,8 +14,9 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 
 ### Architecture
 - [Architecture Overview](docs/architecture.md)
-- [Refactoring Guide](docs/refactoring_guide.md) (NEW - consolidated reference)
+- [Refactoring Guide](docs/refactoring_guide.md)
 - [Services Reference](services/README.md)
+- [Refactoring Status](refactoring_status.md) (NEW - consolidated status report)
 
 ### Development Plans
 - [Implementation Progress](docs/implementation_progress.md)
@@ -36,96 +37,34 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 - ✅ Standardized import patterns for consistency
 - ✅ Improved module organization and reduced duplication
 - ✅ Enhanced error handling and type annotations
-- ✅ Added validation tools for architecture compliance
-- ✅ Updated documentation to reflect current architecture
-- ✅ Added detailed next steps for ongoing development
-- ✅ Completed code consolidation:
-  - ✅ Fixed circular imports between services
-  - ✅ Renamed all legacy operations files to .deprecated
-  - ✅ Created proper deprecation stubs with clear warnings
+- ✅ Removed all deprecated files from codebase
+- ✅ Added proper logging throughout service implementations
+- ✅ Consolidated duplicate code in coordinate transformation logic
 
 ## Current Status
 
-The refactoring to a service-based architecture is now complete. All major functionality has been migrated to appropriate service classes, with legacy operations modules either renamed to `.deprecated` or replaced with forwarding stubs that provide proper deprecation warnings.
+The refactoring to a service-based architecture is now complete. All major functionality has been migrated to appropriate service classes, all deprecated files have been removed, and debug prints have been replaced with proper logging across all service implementations.
 
-The code consolidation phase has also been completed:
-- All legacy operations files have been properly renamed with the `.deprecated` extension
-- Circular dependencies between services have been resolved
-- Import patterns have been standardized across the codebase
-- Proper deprecation warnings have been added to all legacy files
+For detailed metrics and next steps, see the [Refactoring Status](refactoring_status.md) document.
 
-The documentation has been updated to reflect the current architecture, including updated workflow diagrams, service descriptions, and next steps for further development. A detailed [Code Consolidation](docs/code_consolidation.md) document has been created to summarize the changes made.
+### Major Updates (May 2025)
 
-### May 2025 Updates
+- **Initial Refactoring**:
+  - Fixed legacy imports to use service-based architecture
+  - Created documentation and validation tools
+  - Added debug cleanup and logging system
 
-#### Initial Review (Early May 2025)
-A code review has been completed with the following improvements:
-- Fixed remaining legacy imports to use the service-based architecture
-- Enhanced documentation with detailed [Refactoring Notes](docs/refactoring_notes.md)
-- Improved validation tools for architecture compliance
-- Created a comprehensive [Refactoring Update Summary](refactoring_update_summary.md)
+- **Latest Improvements (May 5, 2025)**:
+  - Completed debug cleanup across all service implementations
+  - Removed all deprecated files from codebase
+  - Modernized service import patterns
+  - Consolidated duplicate code for coordinate transformations
 
-#### Latest Updates (May 4, 2025)
-Additional improvements have been implemented:
-- Fixed redundant import in `curve_view.py` resetView() method
-- Updated documentation in [Refactoring Notes](docs/refactoring_notes.md) with clearer next steps
-- Created [Debug Cleanup Plan](docs/debug_cleanup_plan.md) for handling debug statements
-- Created [Service Testing Plan](docs/service_testing_plan.md) for verifying architecture
-- Enhanced architecture documentation with more detailed timelines and priorities
-
-#### Implementation Progress (May 4, 2025 - Continued)
-The implementation of improvement plans has begun:
-- Created `LoggingService` to provide centralized logging system
-- Replaced debug prints in `curve_view.py` with proper logging
-- Created comprehensive test suite for `CurveService` and `AnalysisService`
-- Implemented test runner with coverage reporting capabilities
-- Added [Implementation Progress](docs/implementation_progress.md) tracker
-
-#### Latest Implementation (May 4, 2025 - Night)
-Additional implementation progress:
-- Added debug cleanup for `main_window.py` and `enhanced_curve_view.py`
-- Created comprehensive test suites for `CurveService`, `AnalysisService`, `CenteringZoomService`, `InputService`, and `VisualizationService`
-- Implemented logging configuration system with JSON support
-- Updated main application to use configurable logging with per-module log levels
-- Created comprehensive logging guide documentation with configuration instructions
-- Added testing guide with detailed instructions for running and creating tests
-- Updated services documentation to include implementation status
-- Cleaned up project by removing obsolete components
-- Added initial UI component tests in `test_main_window.py`
-- Converted debug prints in `visualization_service.py` to proper logging
-- Fixed `test_visualization_service.py` tests to validate logging calls instead of print statements
-
-#### Current Status (Updated May 4, 2025 - Night)
-- Debug print cleanup: ~70% complete (focused on core components)
-- Test coverage: ~55% overall (core services at 75-85%)
-- Services implementation: 6 complete, 5 in progress
-- Documentation: All major systems documented with comprehensive guides
+See [Refactoring Status](refactoring_status.md) for current metrics and detailed plans.
 
 ### Future Development
 
-The project roadmap has been organized into short, medium, and long-term goals:
-
-#### Short-term (0-1 month)
-- Complete VisualizationService tests (highest priority)
-- Finish debug cleanup in service implementations
-- Complete test implementation for remaining services
-- Add integration tests between services (especially CurveService and HistoryService)
-- Enhance validation tools to verify architecture compliance
-
-#### Medium-term (1-3 months)
-- Remove `.deprecated` files once all functionality is verified
-- Enhance error handling and recovery mechanisms
-- Optimize performance in key areas identified during testing
-- Update user-facing documentation to reflect architectural changes
-- Implement log rotation and environment variable support for logging
-
-#### Long-term (3+ months)
-- Define explicit interfaces for all services
-- Create comprehensive API documentation
-- Implement dependency injection for better testability
-- Evolve to a plugin-based architecture for extensibility
-
-For full details on the development roadmap, see the [Refactoring Notes](docs/refactoring_notes.md), [Debug Cleanup Plan](docs/debug_cleanup_plan.md), and [Service Testing Plan](docs/service_testing_plan.md).
+The project roadmap is organized into short, medium, and long-term goals. For details, see the [Refactoring Status](refactoring_status.md) document.
 
 ## Services
 

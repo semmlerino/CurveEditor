@@ -10,6 +10,10 @@ import os
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent
 from typing import Any, Optional, TYPE_CHECKING, cast
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("settings_service")
 
 if TYPE_CHECKING:
     from main_window import MainWindow
@@ -64,7 +68,7 @@ class SettingsService:
             ))
 
         except Exception as e:
-            print(f"Error loading settings: {e}")
+            logger.error(f"Error loading settings: {e}")
             # Use defaults if settings can't be loaded
 
     @staticmethod
@@ -95,7 +99,7 @@ class SettingsService:
             )
 
         except Exception as e:
-            print(f"Error saving settings: {e}")
+            logger.error(f"Error saving settings: {e}")
 
     @staticmethod
     def handle_close_event(main_window: 'MainWindow', event: QCloseEvent) -> None:

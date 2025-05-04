@@ -11,6 +11,10 @@ from PySide6.QtWidgets import QMessageBox, QFileDialog
 from PySide6.QtGui import QImage
 import config
 from typing import List, Tuple, Optional, Any
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("image_service")
 
 
 class ImageService:
@@ -73,7 +77,7 @@ class ImageService:
         try:
             # Get path to current image
             image_path = os.path.join(curve_view.image_sequence_path, curve_view.image_filenames[curve_view.current_image_idx])
-            print(f"ImageService: Loading image: {image_path}")
+            logger.debug(f"Loading image: {image_path}")
 
             # Load image using PySide6.QtGui.QImage
             image = QImage(image_path)
@@ -82,10 +86,10 @@ class ImageService:
             curve_view.setFocus()
 
             if image.isNull():
-                print(f"ImageService: Failed to load image: {image_path}")
+                logger.error(f"Failed to load image: {image_path}")
                 curve_view.background_image = None
             else:
-                print(f"ImageService: Successfully loaded image from: {image_path}")
+                logger.debug(f"Successfully loaded image from: {image_path}")
                 curve_view.background_image = image
 
                 # Update track dimensions to match image dimensions
@@ -94,10 +98,10 @@ class ImageService:
                     curve_view.image_height = image.height()
 
                 # Emit the image_changed signal
-                print(f"ImageService: Emitting image_changed signal for idx={curve_view.current_image_idx}")
+                logger.debug(f"Emitting image_changed signal for idx={curve_view.current_image_idx}")
                 curve_view.image_changed.emit(curve_view.current_image_idx)
         except Exception as e:
-            print(f"ImageService: Error loading image: {str(e)}")
+            logger.error(f"Error loading image: {str(e)}")
             curve_view.background_image = None
 
     @staticmethod
@@ -109,7 +113,7 @@ class ImageService:
             idx: Index of the image to display
         """
         if idx < 0 or idx >= len(curve_view.image_filenames):
-            print(f"ImageService: Invalid image index: {idx}")
+            logger.warning(f"Invalid image index: {idx}")
             return
 
         # Store current zoom factor and view offsets
@@ -124,25 +128,25 @@ class ImageService:
             try:
                 point = curve_view.main_window.curve_data[curve_view.selected_point_idx]
                 center_pos = (point[1], point[2])  # x, y coordinates
-                print(f"ImageService: Storing center position at {center_pos}")
+                logger.debug(f"Storing center position at {center_pos}")
             except (IndexError, AttributeError) as e:
-                print(f"ImageService: Could not store center position: {str(e)}")
+                logger.error(f"Could not store center position: {str(e)}")
 
         # Update image index and load the image
         curve_view.current_image_idx = idx
         ImageService.load_current_image(curve_view)
 
         # Restore the zoom factor that was in effect before switching images
-        print(f"ImageService: Preserving zoom factor of {current_zoom}")
+        logger.debug(f"Preserving zoom factor of {current_zoom}")
         curve_view.zoom_factor = current_zoom
 
         # After changing the image, center on the selected point using our improved function
         if curve_view.selected_point_idx >= 0:
             success = curve_view.centerOnSelectedPoint(preserve_zoom=True)
             if success:
-                print(f"ImageService: Successfully centered on point {curve_view.selected_point_idx}")
+                logger.debug(f"Successfully centered on point {curve_view.selected_point_idx}")
             else:
-                print(f"ImageService: Could not center on point {curve_view.selected_point_idx}")
+                logger.debug(f"Could not center on point {curve_view.selected_point_idx}")
                 # If centering fails, restore previous view position
                 curve_view.offset_x = current_offset_x
                 curve_view.offset_y = current_offset_y

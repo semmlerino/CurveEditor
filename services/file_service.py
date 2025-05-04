@@ -12,6 +12,11 @@ import utils
 import config
 import csv_export
 from typing import TYPE_CHECKING, Any
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("file_service")
+
 if TYPE_CHECKING:
     from main_window import MainWindow
 
@@ -140,17 +145,17 @@ class FileService:
 
             for frame, x, y in additional_data:
                 # Normalize to original image space
-                print(f"Original coordinates - Frame {frame}: X={x}, Y={y}")
-                print(f"Original image dimensions: {orig_width}x{orig_height}")
+                logger.debug(f"Original coordinates - Frame {frame}: X={x}, Y={y}")
+                logger.debug(f"Original image dimensions: {orig_width}x{orig_height}")
 
                 norm_x = x / orig_width
                 norm_y = y / orig_height
-                print(f"Normalized coordinates: X={norm_x:.4f}, Y={norm_y:.4f}")
+                logger.debug(f"Normalized coordinates: X={norm_x:.4f}, Y={norm_y:.4f}")
 
                 # Convert to current image space
                 scaled_x = norm_x * current_width
                 scaled_y = norm_y * current_height
-                print(f"Scaled coordinates: X={scaled_x:.1f}, Y={scaled_y:.1f} (Current dimensions: {current_width}x{current_height})")
+                logger.debug(f"Scaled coordinates: X={scaled_x:.1f}, Y={scaled_y:.1f} (Current dimensions: {current_width}x{current_height})")
 
                 merged_data[frame] = (scaled_x, scaled_y)
 
