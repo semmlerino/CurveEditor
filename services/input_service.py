@@ -4,138 +4,186 @@
 """
 InputService: centralized handling for mouse, wheel, key, and context menu events.
 """
-from PySide6.QtWidgets import QMenu, QRubberBand
-# from PySide6.QtWidgets import QMenu # Remove duplicate
-from PySide6.QtGui import QAction, QMouseEvent
-from PySide6.QtCore import Qt, QPointF, QSize, QRect # type: ignore[attr-defined] # QRect belongs here
-from services.curve_service import CurveService as CurveViewOperations
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-from services.visualization_service import VisualizationService as VizOps
-from typing import Any, Optional
+from typing import Protocol, Optional, Tuple, cast, Any
+from PySide6.QtWidgets import QMenu, QRubberBand, QWidget
+from PySide6.QtGui import QAction, QMouseEvent, QWheelEvent, QKeyEvent
+from PySide6.QtCore import Qt, QPointF, QSize, QRect, QObject
+from services.curve_service import CurveService
+from services.centering_zoom_service import CenteringZoomService
+from services.visualization_service import VisualizationService
+
+
+class CurveViewProtocol(Protocol):
+    """Protocol defining the interface expected by InputService for curve views."""
+    # Required properties
+    selected_point_idx: int
+    rubber_band: Optional[QRubberBand]
+    rubber_band_origin: QPointF
+    rubber_band_active: bool
+    drag_active: bool
+    last_drag_pos: Optional[QPointF]
+    pan_active: bool
+    last_pan_pos: Optional[QPointF]
+    zoom_factor: float
+    x_offset: float
+    y_offset: float
+    main_window: Any  # Using Any for main_window to avoid circular imports
+    # Visual properties
+    show_grid: bool
+    show_velocity_vectors: bool
+    show_all_frame_numbers: bool
+    show_background: bool
+    
+    # Required signals
+    point_moved: Any  # Using Any for Signal to avoid circular imports
+    
+    # Required methods
+    def findPointAt(self, pos: QPointF) -> int: ...
+    def selectPointByIndex(self, idx: int) -> None: ...
+    def get_point_data(self, idx: int) -> Tuple[int, float, float, Optional[str]]: ...
+    def toggle_point_interpolation(self, idx: int) -> None: ...
+    def toggleBackgroundVisible(self, visible: bool) -> None: ...
+    def update(self) -> None: ...
+    def setCursor(self, cursor: Qt.CursorShape) -> None: ...
+    def unsetCursor(self) -> None: ...
 
 
 class InputService:
     """Facade for input event handling across curve views."""
 
     @staticmethod
-    def handle_mouse_press(view: Any, event: QMouseEvent) -> None:
+    def handle_mouse_press(view: CurveViewProtocol, event: QMouseEvent) -> None:  # type: ignore[misc]
         """Handle mouse press events for selection, dragging, panning, and rectangle selection."""
-        if event.button() == Qt.LeftButton:
-            if event.modifiers() & Qt.AltModifier: # Check for Alt key
+        if event.button() == Qt.LeftButton:  # type: ignore[attr-defined]
+            if event.modifiers() & Qt.AltModifier:  # type: ignore[attr-defined]
                 # Start rectangle selection
-                if not hasattr(view, 'rubber_band') or view.rubber_band is None:
-                     # Initialize rubber band attributes if they don't exist (should be in view.__init__)
-                     view.rubber_band = QRubberBand(QRubberBand.Rectangle, view)
-                     view.rubber_band_origin = QPointF()
-                     view.rubber_band_active = False
-
-                view.rubber_band_origin = event.position() # Use QPointF
-                # Ensure rubber_band exists before calling setGeometry
-                if view.rubber_band:
-                    view.rubber_band.setGeometry(QRect(view.rubber_band_origin.toPoint(), QSize())) # Use toPoint() for QRect
-                    view.rubber_band.show()
-                view.rubber_band_active = True
+                # Initialize rubber band attributes if they don't exist
+                if not hasattr(view, 'rubber_band') or getattr(view, 'rubber_band', None) is None:
+                    setattr(view, 'rubber_band', QRubberBand(QRubberBand.Rectangle, cast(QWidget, view)))  # type: ignore[attr-defined]
+                if not hasattr(view, 'rubber_band_origin'):
+                    setattr(view, 'rubber_band_origin', QPointF())
+                if not hasattr(view, 'rubber_band_active'):
+                    setattr(view, 'rubber_band_active', False)
+                    
+                # Set the origin point for the rubber band
+                setattr(view, 'rubber_band_origin', event.position())
+                rubber_band = getattr(view, 'rubber_band')
+                if rubber_band:
+                    rubber_band.setGeometry(QRect(getattr(view, 'rubber_band_origin').toPoint(), QSize()))
+                    rubber_band.show()
+                setattr(view, 'rubber_band_active', True)
                 # Prevent single point selection/drag when starting rubber band
                 view.drag_active = False
                 view.last_drag_pos = None
             else:
                 # Original LeftButton logic (single point select/drag)
-                idx = CurveViewOperations.find_point_at(view, event.pos().x(), event.pos().y())
-                if idx >= 0:
-                    CurveViewOperations.select_point_by_index(view, view.main_window, idx)
+                idx = CurveService.find_point_at(view, event.pos().x(), event.pos().y())
+                if idx is not None and idx >= 0:
+                    CurveService.select_point_by_index(view, view.main_window, idx)
                     view.drag_active = True
                     view.last_drag_pos = event.position()
                 else:
-                    CurveViewOperations.clear_selection(view, view.main_window)
+                    CurveService.clear_selection(view, view.main_window)
                     view.drag_active = False
                     view.last_drag_pos = None
-        elif event.button() == Qt.MiddleButton:
+        elif event.button() == Qt.MiddleButton:  # type: ignore[attr-defined]
             # Start panning (original logic)
             view.pan_active = True
             view.last_pan_pos = event.position()
-            view.setCursor(Qt.ClosedHandCursor)
+            view.setCursor(Qt.ClosedHandCursor)  # type: ignore[attr-defined]
 
     @staticmethod
-    def handle_mouse_move(view: Any, event: QMouseEvent) -> None:
+    def handle_mouse_move(view: CurveViewProtocol, event: QMouseEvent) -> None:  # type: ignore[misc]
         """Handle mouse move events for dragging points, panning, or updating rectangle selection."""
         current_pos = event.position()
 
-        if getattr(view, 'rubber_band_active', False) and getattr(view, 'rubber_band', None):
+        # Handle rubber band selection - both direct attribute access (for tests) and getattr (for runtime)
+        rubber_band_active = getattr(view, 'rubber_band_active', False) if hasattr(view, 'rubber_band_active') else view.rubber_band_active
+        rubber_band = getattr(view, 'rubber_band', None) if hasattr(view, 'rubber_band') else view.rubber_band
+        if rubber_band_active and rubber_band:
             # Calculate selection rectangle
-            selection_rect = QRect(view.rubber_band_origin.toPoint(), current_pos.toPoint()).normalized()
+            # Get rubber_band_origin - handle both direct access and getattr
+            rubber_band_origin = getattr(view, 'rubber_band_origin') if hasattr(view, 'rubber_band_origin') else view.rubber_band_origin
+            selection_rect = QRect(rubber_band_origin.toPoint(), current_pos.toPoint()).normalized()
             # Update rubber band geometry
-            view.rubber_band.setGeometry(selection_rect)
+            rubber_band.setGeometry(selection_rect)
             # Perform selection in real-time
-            if hasattr(view, 'main_window') and hasattr(CurveViewOperations, 'select_points_in_rect'):
-                CurveViewOperations.select_points_in_rect(view, view.main_window, selection_rect)
-        elif view.drag_active and view.last_drag_pos and getattr(view, 'selected_point_idx', -1) >= 0:
+            CurveService.select_points_in_rect(view, view.main_window, selection_rect)
+        elif view.drag_active and view.last_drag_pos and view.selected_point_idx >= 0:
             # Original drag logic
+            assert view.last_drag_pos is not None, "last_drag_pos should not be None during drag"
             delta = current_pos - view.last_drag_pos
             view.last_drag_pos = current_pos
-            scale = getattr(view, 'zoom_factor', 1.0)
+            scale = view.zoom_factor
             if scale == 0: scale = 1.0
             dx = delta.x() / scale
             dy = delta.y() / scale
-            if getattr(view, 'flip_y_axis', False):
-                dy = -dy
-            point_data = CurveViewOperations.get_point_data(view, view.selected_point_idx)
+            # Get current position and calculate new position with delta
+            point_data = view.get_point_data(view.selected_point_idx)
             if point_data:
                 _, current_x, current_y, _ = point_data
                 new_x = current_x + dx
                 new_y = current_y + dy
-                CurveViewOperations.update_point_position(view, view.main_window, view.selected_point_idx, new_x, new_y)
+                # Update point position using service
+                CurveService.update_point_position(view, view.main_window, view.selected_point_idx, new_x, new_y)
 
         elif view.pan_active and view.last_pan_pos:
             # Original pan logic
+            assert view.last_pan_pos is not None, "last_pan_pos should not be None during pan"
             delta = current_pos - view.last_pan_pos
             view.last_pan_pos = current_pos
-            if hasattr(view, 'x_offset') and hasattr(view, 'y_offset'):
-                view.x_offset += delta.x()
-                view.y_offset += delta.y()
-                view.update()
-            else:
-                print("Warning: View object missing x_offset or y_offset for panning.")
+            # Let the service handle panning with appropriate cast
+            CenteringZoomService.pan_view(cast(Any, view), delta.x(), delta.y())  # type: ignore[arg-type]
 
     @staticmethod
-    def handle_mouse_release(view: Any, event: QMouseEvent) -> None:
+    def handle_mouse_release(view: CurveViewProtocol, event: QMouseEvent) -> None:  # type: ignore[misc]
         """Handle mouse release events to finalize dragging, panning, or rectangle selection."""
-        if getattr(view, 'rubber_band_active', False) and event.button() == Qt.LeftButton and getattr(view, 'rubber_band', None):
-            # Finalize rectangle selection
-            view.rubber_band.hide()
-            view.rubber_band_active = False
-            # Potentially add to history if needed
-            if hasattr(view, 'main_window') and hasattr(view.main_window, 'add_to_history'):
-                 view.main_window.add_to_history() # Add description
-            # Clean up rubber band reference after use
-            view.rubber_band = None
+        # Check for rubber band selection - support both direct access and getattr
+        rubber_band_active = getattr(view, 'rubber_band_active', False) if hasattr(view, 'rubber_band_active') else view.rubber_band_active
+        if rubber_band_active:
+            # Selection rectangle has been completed
+            rubber_band = getattr(view, 'rubber_band', None) if hasattr(view, 'rubber_band') else view.rubber_band
+            if rubber_band:
+                rubber_band.hide()
+                
+            # Support both direct attribute setting and setattr based on what the view supports
+            if hasattr(view, 'rubber_band_active'):
+                setattr(view, 'rubber_band_active', False)
+                setattr(view, 'rubber_band', None)
+            else:
+                view.rubber_band_active = False
+                view.rubber_band = None
+            
+            # Add to history after completing a rubber band selection
+            view.main_window.add_to_history()
+                
+            # Note: We're not doing selection here since it's already done in move event
 
-
-        elif view.drag_active and event.button() == Qt.LeftButton:
-            # Original drag release logic
-            if getattr(view, 'selected_point_idx', -1) >= 0:
-                 point_data = CurveViewOperations.get_point_data(view, view.selected_point_idx)
-                 if point_data:
-                     _, x, y, _ = point_data
-                     if hasattr(view, 'point_moved'):
-                         view.point_moved.emit(view.selected_point_idx, x, y)
-                     if hasattr(view, 'main_window') and hasattr(view.main_window, 'add_to_history'):
-                         view.main_window.add_to_history("Point Drag") # Add description
+        elif view.drag_active and view.selected_point_idx >= 0:
+            # Add to history when dragging completes and emit point_moved signal
+            point_data = view.get_point_data(view.selected_point_idx)
+            if point_data:
+                _, x, y, _ = point_data
+                view.point_moved.emit(view.selected_point_idx, x, y)
+                view.main_window.add_to_history()
 
             view.drag_active = False
             view.last_drag_pos = None
 
-        elif view.pan_active and event.button() == Qt.MiddleButton:
+        elif view.pan_active and event.button() == Qt.MiddleButton:  # type: ignore[attr-defined]
             # Original pan release logic
             view.pan_active = False
             view.last_pan_pos = None
             view.unsetCursor()
 
     @staticmethod
-    def handle_wheel_event(view: Any, event: Any) -> None:
-        ZoomOperations.handle_wheel_event(view, event)
+    def handle_wheel_event(view: CurveViewProtocol, event: QWheelEvent) -> None:  # type: ignore[misc]
+        """Handle mouse wheel events for zooming."""
+        CenteringZoomService.handle_wheel_event(cast(Any, view), event)  # type: ignore[arg-type]
 
     @staticmethod
-    def handle_key_event(view: Any, event: Any) -> None:
+    def handle_key_event(view: CurveViewProtocol, event: QKeyEvent) -> None:  # type: ignore[misc]
+        """Handle keyboard events for moving view or deleting points."""
         step: float = 1.0
         if event.modifiers() & Qt.ShiftModifier:  # type: ignore[attr-defined]
             step = 10.0
@@ -148,40 +196,41 @@ class InputService:
         elif key == Qt.Key_Down and event.modifiers() & (Qt.ShiftModifier | Qt.ControlModifier):  # type: ignore[attr-defined]
             view.y_offset += step
             view.update()
-        elif key == Qt.Key_Delete and getattr(view, 'selected_point_idx', -1) >= 0:  # type: ignore[attr-defined]
-            CurveViewOperations.delete_selected_points(view, view.main_window)
+        elif key == Qt.Key_Delete and view.selected_point_idx >= 0:  # type: ignore[attr-defined]
+            CurveService.delete_selected_points(view, view.main_window)
 
     @staticmethod
-    def handle_context_menu(view: Any, event: Any) -> None:
-        menu = QMenu(view)
+    def handle_context_menu(view: CurveViewProtocol, event: QMouseEvent) -> None:  # type: ignore[misc]
+        """Handle context menu events to show options for points and visualization."""
+        menu = QMenu(cast(QWidget, view))
         # Point-specific actions
-        idx = view.findPointAt(event.pos())
-        if idx >= 0 and hasattr(view, 'get_point_data'):
+        idx = view.findPointAt(event.position())
+        if idx >= 0:
             info = view.get_point_data(idx)
             if info:
                 frame, x, y = info[:3]
                 menu.addSection(f"Point {idx}: Frame {frame}, ({x:.2f}, {y:.2f})")
-                if idx != getattr(view, 'selected_point_idx', -1):
-                    select_act = QAction("Select this point", view)
+                if idx != view.selected_point_idx:
+                    select_act = QAction("Select this point", cast(QObject, view))
                     select_act.triggered.connect(lambda: view.selectPointByIndex(idx))
                     menu.addAction(select_act)
                 is_interp = len(info) > 3 and info[3] == 'interpolated'
                 toggle_text = "Restore to normal point" if is_interp else "Mark as interpolated"
-                togg_act = QAction(toggle_text, view)
+                togg_act = QAction(toggle_text, cast(QObject, view))
                 togg_act.triggered.connect(lambda: view.toggle_point_interpolation(idx))
                 menu.addAction(togg_act)
                 menu.addSeparator()
         # Visualization toggles
-        grid_act = QAction('Show Grid' if not getattr(view, 'show_grid', False) else 'Hide Grid', view)
-        grid_act.triggered.connect(lambda: VizOps.toggle_grid(view.main_window, not getattr(view, 'show_grid', False)))
+        grid_act = QAction('Show Grid' if not view.show_grid else 'Hide Grid', cast(QObject, view))
+        grid_act.triggered.connect(lambda: VisualizationService.toggle_grid(view.main_window, not view.show_grid))
         menu.addAction(grid_act)
-        vel_act = QAction('Show Velocity Vectors' if not getattr(view, 'show_velocity_vectors', False) else 'Hide Velocity Vectors', view)
-        vel_act.triggered.connect(lambda: VizOps.toggle_velocity_vectors(view.main_window, not getattr(view, 'show_velocity_vectors', False)))
+        vel_act = QAction('Show Velocity Vectors' if not view.show_velocity_vectors else 'Hide Velocity Vectors', cast(QObject, view))
+        vel_act.triggered.connect(lambda: VisualizationService.toggle_velocity_vectors(view.main_window, not view.show_velocity_vectors))
         menu.addAction(vel_act)
-        frames_act = QAction('Show Frame Numbers' if not getattr(view, 'show_all_frame_numbers', False) else 'Hide Frame Numbers', view)
-        frames_act.triggered.connect(lambda: VizOps.toggle_all_frame_numbers(view.main_window, not getattr(view, 'show_all_frame_numbers', False)))
+        frames_act = QAction('Show Frame Numbers' if not view.show_all_frame_numbers else 'Hide Frame Numbers', cast(QObject, view))
+        frames_act.triggered.connect(lambda: VisualizationService.toggle_all_frame_numbers(view.main_window, not view.show_all_frame_numbers))
         menu.addAction(frames_act)
-        bg_act = QAction('Show Background' if not getattr(view, 'show_background', False) else 'Hide Background', view)
-        bg_act.triggered.connect(lambda: view.toggleBackgroundVisible(not getattr(view, 'show_background', False)))
+        bg_act = QAction('Show Background' if not view.show_background else 'Hide Background', cast(QObject, view))
+        bg_act.triggered.connect(lambda: view.toggleBackgroundVisible(not view.show_background))
         menu.addAction(bg_act)
         menu.exec_(event.globalPos())

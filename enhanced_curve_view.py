@@ -16,12 +16,14 @@ from PySide6.QtGui import (
 )
 import os
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-from services.input_service import InputService
+from services.input_service import InputService, CurveViewProtocol  # Import for type checking
 from services.image_service import ImageService
 from services.curve_service import CurveService as CurveViewOperations
 
 
 class EnhancedCurveView(QWidget):
+    # Type annotation to indicate this class implements the protocol without inheritance
+    _dummy: CurveViewProtocol
     """Enhanced widget for displaying and editing the 2D tracking curve with
     added visualization options like grid, vectors, and all frame numbers."""
 
@@ -91,6 +93,12 @@ class EnhancedCurveView(QWidget):
 
         # Debug options
         self.debug_mode = True  # Enable debug visuals
+        
+        # Protocol required properties
+        self.rubber_band = None
+        self.rubber_band_origin = QPointF()
+        self.rubber_band_active = False
+        self.last_drag_pos = None
 
         # Nudging increments
         self.nudge_increment = 1.0

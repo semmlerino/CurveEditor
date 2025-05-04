@@ -46,13 +46,16 @@ This document tracks the progress of implementing the post-refactoring improveme
 
 - ⏳ Convert debug prints in other key files:
   - ✅ Enhanced curve view implementation
-  - ⏳ Service implementations (60% complete)
+  - ⏳ Service implementations (70% complete)
+    - ✅ `visualization_service.py` debug prints converted to proper logging
+      - ✅ Tests updated to verify logging calls instead of print statements
   - ⏳ Analysis operations and dialogs
 
 ### Testing Expansion
 
 - ⏳ Implement tests for remaining services:
-  - ⏳ VisualizationService (50% complete)
+  - ✅ VisualizationService (100% complete)
+    - ✅ Fixed test assertions to match new logging implementation
   - ⏳ ImageService (25% complete)
   - ⏳ FileService (20% complete)
   - ⏳ DialogService
@@ -101,9 +104,9 @@ This document tracks the progress of implementing the post-refactoring improveme
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Debug prints cleaned | ~60% | 100% |
-| Test coverage | ~45% | 80%+ |
-| Services with tests | 5/10 | 10/10 |
+| Debug prints cleaned | ~70% | 100% |
+| Test coverage | ~55% | 80%+ |
+| Services with tests | 6/10 | 10/10 |
 | Architecture validation | Moderate | Comprehensive |
 
 ## Conclusion

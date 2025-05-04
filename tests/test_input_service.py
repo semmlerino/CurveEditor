@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import MagicMock, patch, ANY
+from unittest.mock import MagicMock, patch
 
 # Mock necessary Qt classes/objects if they are not easily instantiable
 # or if we want to control their behavior precisely.
@@ -9,7 +8,7 @@ from unittest.mock import MagicMock, patch, ANY
 # Mock the actual services/classes being tested or depended upon
 from services.input_service import InputService
 # Mock dependencies that InputService interacts with
-CurveViewOperations = MagicMock()
+CurveService = MagicMock()
 # Mock Qt classes used
 QRect = MagicMock()
 QPointF = MagicMock(return_value=MagicMock(x=MagicMock(return_value=10), y=MagicMock(return_value=20), toPoint=MagicMock(return_value=(10, 20)))) # Simple mock for position/point
@@ -19,7 +18,7 @@ Qt.MiddleButton = 2 # Example value
 Qt.AltModifier = 0x08000000 # Example value
 
 # Patch the dependencies directly in the service's namespace if necessary
-@patch('services.input_service.CurveViewOperations', CurveViewOperations)
+@patch('services.input_service.CurveService', CurveService)
 @patch('services.input_service.QRect', QRect)
 @patch('services.input_service.QPointF', QPointF)
 @patch('services.input_service.Qt', Qt)
@@ -58,9 +57,9 @@ def test_handle_mouse_move_rubber_band_active():
     mock_rubber_band.setGeometry.assert_called_once_with(mock_selection_rect)
 
     # 3. Point selection was called in real-time
-    CurveViewOperations.select_points_in_rect.assert_called_once_with(mock_view, mock_view.main_window, mock_selection_rect)
+    CurveService.select_points_in_rect.assert_called_once_with(mock_view, mock_view.main_window, mock_selection_rect)
 
-@patch('services.input_service.CurveViewOperations', CurveViewOperations)
+@patch('services.input_service.CurveService', CurveService)
 @patch('services.input_service.Qt', Qt)
 def test_handle_mouse_release_rubber_band_finalize():
     """
@@ -79,7 +78,7 @@ def test_handle_mouse_release_rubber_band_finalize():
     mock_view.rubber_band = mock_rubber_band
     mock_view.main_window = mock_main_window
     # Reset mock calls from previous tests if necessary
-    CurveViewOperations.reset_mock()
+    CurveService.reset_mock()
     mock_main_window.add_to_history.reset_mock()
 
 
@@ -95,7 +94,7 @@ def test_handle_mouse_release_rubber_band_finalize():
     # 3. History was added
     mock_main_window.add_to_history.assert_called_once()
     # 4. Point selection was NOT called again on release
-    CurveViewOperations.select_points_in_rect.assert_not_called()
+    CurveService.select_points_in_rect.assert_not_called()
 
 # Add more tests for other scenarios in InputService if needed
 # (e.g., mouse press, drag, pan, context menu)

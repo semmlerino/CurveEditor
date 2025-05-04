@@ -45,8 +45,9 @@ class TestAnalysisService(unittest.TestCase):
         expected_x = np.mean([105.0, 110.0, 115.0])
         expected_y = np.mean([203.0, 205.0, 208.0])
 
-        self.assertAlmostEqual(smoothed_data[2][1], expected_x, places=4)
-        self.assertAlmostEqual(smoothed_data[2][2], expected_y, places=4)
+        # Add explicit type casting to help mypy with type inference
+        self.assertAlmostEqual(float(smoothed_data[2][1]), float(expected_x), places=4)
+        self.assertAlmostEqual(float(smoothed_data[2][2]), float(expected_y), places=4)
 
     def test_smooth_gaussian(self):
         """Test smoothing with Gaussian filter."""

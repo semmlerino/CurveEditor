@@ -12,10 +12,14 @@ from PySide6.QtGui import QColor
 import os
 import re
 from services.centering_zoom_service import CenteringZoomService
+from services.logging_service import LoggingService
 from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
 
 if TYPE_CHECKING:
     from curve_view import CurveView
+
+# Configure logger for this module
+logger = LoggingService.get_logger("visualization_service")
 
 class VisualizationService:
     """Service for visualization operations in the curve editor."""
@@ -128,22 +132,22 @@ class VisualizationService:
         """
         try:
             if not image_filenames:
-                print("update_timeline_for_image: No image filenames available")
+                logger.warning("No image filenames available")
                 return
 
             if index < 0 or index >= len(image_filenames):
-                print(f"update_timeline_for_image: Invalid index {index}")
+                logger.warning(f"Invalid index {index}")
                 return
 
             # Extract frame number
             filename = os.path.basename(image_filenames[index])
             frame_match = re.search(r'(\d+)', filename)
             if not frame_match:
-                print(f"update_timeline_for_image: Could not extract frame from {filename}")
+                logger.warning(f"Could not extract frame from {filename}")
                 return
 
             frame_num = int(frame_match.group(1))
-            print(f"update_timeline_for_image: Extracted frame {frame_num} from {filename}")
+            logger.debug(f"Extracted frame {frame_num} from {filename}")
 
             # Update frame marker position if it exists
             VisualizationService.update_frame_marker_position(curve_view, frame_num)
@@ -159,10 +163,10 @@ class VisualizationService:
                             curve_view.selected_point_idx = i
                             curve_view.selected_points = {i}
                             curve_view.update()
-                            print(f"update_timeline_for_image: Updated selected point to {i}")
+                            logger.debug(f"Updated selected point to {i}")
                         break
         except Exception as e:
-            print(f"update_timeline_for_image: Error updating timeline: {str(e)}")
+            logger.error(f"Error updating timeline: {str(e)}")
 
     @staticmethod
     def update_frame_marker_position(curve_view: 'CurveView', frame: int) -> None:
@@ -260,7 +264,7 @@ class VisualizationService:
         if curve_view:
             CenteringZoomService.center_on_selected_point(curve_view)
         else:
-            print("Cannot center: no curve view available.")
+            logger.warning("Cannot center: no curve view available.")
 
     @staticmethod
     def toggle_crosshair_internal(curve_view: 'CurveView', enabled: bool) -> None:

@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
 import os
-from PySide6.QtWidgets import QWidget
-from typing import Any, Optional
+from PySide6.QtWidgets import QWidget, QRubberBand
+from typing import Any, Optional, Tuple
 from PySide6.QtCore import Qt, Signal
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPaintEvent
 from PySide6.QtCore import QPointF
-from services.input_service import InputService
+from services.input_service import InputService, CurveViewProtocol  # For type checking only
 from keyboard_shortcuts import ShortcutManager
 from services.image_service import ImageService
 from services.logging_service import LoggingService
@@ -18,7 +17,10 @@ from services.logging_service import LoggingService
 logger = LoggingService.get_logger("curve_view")
 
 
-class CurveView(QWidget):
+class CurveView(QWidget):  # Implements CurveViewProtocol through type annotations
+    # Type annotation to indicate this class implements the protocol
+    # without inheritance, to avoid metaclass conflicts
+    _dummy: CurveViewProtocol
     """Widget for displaying and editing the 2D tracking curve."""
 
     # --- Added for type safety and linting ---
@@ -30,8 +32,9 @@ class CurveView(QWidget):
     grid_line_width: int = 1
     # Removed class-level offset_x and offset_y to avoid shadowing instance variables
 
-    x_offset: int = 0
-    y_offset: int = 0
+    # Using float for protocol compatibility
+    x_offset: float = 0.0
+    y_offset: float = 0.0
     timeline_slider: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QSlider]
     frame_marker_label: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QLabel]
     curve_data: list[tuple[int, float, float]] = []
@@ -40,6 +43,12 @@ class CurveView(QWidget):
     point_moved = Signal(int, float, float)  # Signal emitted when a point is moved
     point_selected = Signal(int)  # Signal emitted when a point is selected
     image_changed = Signal(int)  # Signal emitted when image changes via keyboard
+    
+    # Protocol required properties
+    rubber_band: Optional[QRubberBand] = None
+    rubber_band_origin: QPointF = QPointF()
+    rubber_band_active: bool = False
+    main_window: Any = None  # Reference to the main window, initialized later
 
     def __init__(self, parent: Optional[Any] = None) -> None:
         super().__init__(parent)
@@ -52,8 +61,9 @@ class CurveView(QWidget):
         self.selected_points: set[int] = set()
         self.drag_active: bool = False
         self.zoom_factor: float = 1.0
-        self.offset_x: int = 0
-        self.offset_y: int = 0
+        # Using float for protocol compatibility
+        self.offset_x: float = 0.0
+        self.offset_y: float = 0.0
         self.image_width: int = 1920  # Default, will be updated when data is loaded
         self.image_height: int = 1080  # Default, will be updated when data is loaded
         self.setMouseTracking(True)
@@ -80,8 +90,8 @@ class CurveView(QWidget):
 
     def reset_view_slot(self) -> None:
         self.resetView()
-        self.x_offset = 0
-        self.y_offset = 0
+        self.x_offset = 0.0
+        self.y_offset = 0.0
         self.update()
 
     def toggle_y_flip(self) -> None:
@@ -144,9 +154,13 @@ class CurveView(QWidget):
 
     def toggle_background_visible(self, visible: bool) -> None:
         """Toggle visibility of background image."""
-        logger.debug("Toggling background visibility: %s", "visible" if visible else "hidden")
+        logger.debug(f"Toggling background visibility: {visible}")
         self.show_background = visible
         self.update()
+        
+    def toggleBackgroundVisible(self, visible: bool) -> None:
+        """Protocol-required alias for toggle_background_visible."""
+        self.toggle_background_visible(visible)
 
     def set_background_opacity(self, opacity: float) -> None:
         """Set the opacity of the background image."""
@@ -381,7 +395,7 @@ self)])}"
 
     def mousePressEvent(self, event: Any) -> None:
         """Handle mouse press to select or move points."""
-        self.setFocus()
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
         InputService.handle_mouse_press(self, event)
 
     def mouseMoveEvent(self, event: Any) -> None:
@@ -415,6 +429,11 @@ self)])}"
         else:
             self.selected_point_idx = -1
         self.update()
+        
+    def selectPointByIndex(self, idx: int) -> None:
+        """Protocol-required method to select a point by index."""
+        self.set_selected_indices([idx])
+        self.point_selected.emit(idx)
 
     def get_selected_indices(self) -> list[int]:
         """Return list of selected indices (singleton list or empty)."""
@@ -444,3 +463,48 @@ self)])}"
         """Stub for centering on point (not implemented in basic view)."""
         # Basic view doesn't support centering on points
         pass
+        
+    # Implementation that satisfies both Protocol and QWidget requirements
+    # Note: using type: ignore to suppress parameter name mismatch
+    def setCursor(self, cursor: Qt.CursorShape) -> None:  # type: ignore[override]
+        """Set the cursor to the specified shape."""
+        # Call parent implementation without annotating parameter name
+        QWidget.setCursor(self, cursor)
+        
+    def unsetCursor(self) -> None:
+        """Unset the cursor as required by CurveViewProtocol."""
+        super().unsetCursor()
+        
+    # Additional methods required by CurveViewProtocol
+    def findPointAt(self, pos: QPointF) -> int:
+        """Find point at the given position."""
+        from services.curve_service import CurveService
+        result = CurveService.find_point_at(self, pos.x(), pos.y())
+        # Ensure we always return an int as required by the protocol
+        return result if result is not None else -1
+        
+    def get_point_data(self, idx: int) -> Tuple[int, float, float, Optional[str]]:
+        """Get point data for the given index."""
+        if 0 <= idx < len(self.points):
+            point = self.points[idx]
+            # Add 'interpolated' tag as fourth element if applicable
+            if len(point) > 3 and point[3] == 'interpolated':
+                return (point[0], point[1], point[2], 'interpolated')
+            return (point[0], point[1], point[2], None)
+        return (-1, 0.0, 0.0, None)
+        
+    def toggle_point_interpolation(self, idx: int) -> None:
+        """Toggle interpolation status of a point."""
+        if 0 <= idx < len(self.points):
+            point = list(self.points[idx])
+            if len(point) > 3 and point[3] == 'interpolated':
+                # Remove interpolated tag
+                point = point[:3]
+            else:
+                # Add interpolated tag
+                if len(point) <= 3:
+                    point.append('interpolated')
+                else:
+                    point[3] = 'interpolated'
+            self.points[idx] = tuple(point)
+            self.update()

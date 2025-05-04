@@ -109,18 +109,31 @@ def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
         # Return original data copy in case of error
         return copy.deepcopy(curve_data)
 
-def batch_normalize_velocity(curve_data, indices, target_velocity=None):
-    """Normalize the velocity of selected points to be more consistent.
-
+def batch_normalize_velocity(curve_data: list, indices: list, target_velocity: float) -> list:
+    """Normalize velocity between points to target value.
+    
     Args:
-        curve_data: List of (frame, x, y) tuples
-        indices: List of indices to normalize
-        target_velocity: Target velocity in pixels/frame (None for average)
-
+        curve_data: List of point tuples (frame, x, y)
+        indices: List of indices to consider for normalization
+        target_velocity: Target velocity in pixels per frame
+    
     Returns:
         Modified copy of curve_data
     """
-    return AnalysisService.normalize_velocity(curve_data, indices, target_velocity)
+    # Create a temporary AnalysisService instance with the curve data
+    service = AnalysisService()
+    service.data = [curve_data[i] for i in indices if i < len(curve_data)]
+    
+    # Call the normalize_velocity method on this instance
+    service.normalize_velocity(target_velocity)
+    
+    # Create a new list with normalized points for specified indices
+    result = curve_data.copy()
+    for idx, normalized_idx in enumerate(indices):
+        if normalized_idx < len(result) and idx < len(service.data):
+            result[normalized_idx] = service.data[idx]
+    
+    return result
 
 class BatchEditUI:
     """UI integration for batch editing operations.
