@@ -60,6 +60,7 @@ This pattern ensures backward compatibility while moving to a cleaner architectu
 | `DialogService` | Dialog management and UI interactions | DialogOperations |
 | `SettingsService` | Application settings management | SettingsOperations |
 | `InputService` | Keyboard and mouse input handling | N/A |
+| `LoggingService` | Centralized logging system | N/A |
 
 ## Implementation Notes
 

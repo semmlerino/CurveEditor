@@ -108,6 +108,11 @@ class EnhancedCurveView(QWidget):
         self.default_shortcuts = {"toggleGrid": QKeySequence("Ctrl+Shift+G"), "openShortcutSettings": QKeySequence("Ctrl+Shift+S")}
         self.initShortcuts()
 
+        # Nudge overlay toggle
+        self.show_nudge_overlay = True
+        self.toggle_nudge_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        self.toggle_nudge_shortcut.activated.connect(self.toggle_nudge_overlay)
+
     def setPoints(self, points, image_width, image_height, preserve_view=False):
         """Set the points to display and adjust view accordingly.
 
@@ -344,134 +349,8 @@ class EnhancedCurveView(QWidget):
             painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), pixmap)
             painter.setOpacity(1.0)
 
-        # Draw grid if enabled
-        if self.show_grid:
-            painter.setPen(QPen(self.grid_color, self.grid_line_width, Qt.DotLine))
-
-            # Calculate the range of grid lines to draw
-            grid_min_x = 0
-            grid_max_x = display_width
-            grid_min_y = 0
-            grid_max_y = display_height
-
-            # Center grid on selected point if available
-            grid_center_x = 0
-            grid_center_y = 0
-
-            if self.selected_point_idx >= 0 and self.selected_point_idx < len(self.points):
-                # Use get_point_data to safely handle points with different structures
-                point_data = self.get_point_data(self.selected_point_idx)
-                if point_data:
-                    frame, center_x, center_y, _ = point_data
-                    grid_center_x = center_x
-                    grid_center_y = center_y
-
-            # Calculate grid line positions centered on the selected point
-            # Draw horizontal grid lines
-            # Start from the center and go in both directions
-            y = grid_center_y - (int(grid_center_y / self.grid_spacing) * self.grid_spacing)
-            while y <= grid_max_y:
-                tx1, ty = transform_point(grid_min_x, y)
-                tx2, _ = transform_point(grid_max_x, y)
-                painter.drawLine(int(tx1), int(ty), int(tx2), int(ty))
-                y += self.grid_spacing
-
-            y = grid_center_y - self.grid_spacing
-            while y >= grid_min_y:
-                tx1, ty = transform_point(grid_min_x, y)
-                tx2, _ = transform_point(grid_max_x, y)
-                painter.drawLine(int(tx1), int(ty), int(tx2), int(ty))
-                y -= self.grid_spacing
-
-            # Draw vertical grid lines
-            # Start from the center and go in both directions
-            x = grid_center_x - (int(grid_center_x / self.grid_spacing) * self.grid_spacing)
-            while x <= grid_max_x:
-                tx, ty1 = transform_point(x, grid_min_y)
-                _, ty2 = transform_point(x, grid_max_y)
-                painter.drawLine(int(tx), int(ty1), int(tx), int(ty2))
-                x += self.grid_spacing
-
-            x = grid_center_x - self.grid_spacing
-            while x >= grid_min_x:
-                tx, ty1 = transform_point(x, grid_min_y)
-                _, ty2 = transform_point(x, grid_max_y)
-                painter.drawLine(int(tx), int(ty1), int(tx), int(ty2))
-                x -= self.grid_spacing
-
-            # Add coordinate labels at grid intersections
-            painter.setPen(QPen(QColor(150, 150, 150, 180)))
-            font = painter.font()
-            font.setPointSize(7)
-            painter.setFont(font)
-
-            # Draw labels at some grid intersections (not all to avoid clutter)
-            for x in range(0, int(grid_max_x) + 1, self.grid_spacing * 5):
-                for y in range(0, int(grid_max_y) + 1, self.grid_spacing * 5):
-                    tx, ty = transform_point(x, y)
-                    painter.drawText(int(tx) + 2, int(ty) - 2, f"{x},{y}")
-
         # Draw the main curve if available
         if self.points:
-            # Prepare to draw velocity vectors if enabled
-            if self.show_velocity_vectors and len(self.points) > 1:
-                # Sort points by frame for correct velocity calculation
-                sorted_points = sorted(self.points, key=lambda p: p[0])
-
-                for i in range(1, len(sorted_points)):
-                    # Extract only frame, x, y even if there's a status
-                    prev_point = sorted_points[i-1]
-                    prev_frame, prev_x, prev_y = prev_point[:3]
-
-                    curr_point = sorted_points[i]
-                    curr_frame, curr_x, curr_y = curr_point[:3]
-
-                    # Calculate velocity components
-                    frame_diff = curr_frame - prev_frame
-                    if frame_diff > 0:
-                        vx = (curr_x - prev_x) / frame_diff
-                        vy = (curr_y - prev_y) / frame_diff
-
-                        # Scale velocity for better visualization
-                        scaled_vx = vx * self.velocity_vector_scale
-                        scaled_vy = vy * self.velocity_vector_scale
-
-                        # Draw velocity vector
-                        tx, ty = transform_point(curr_x, curr_y)
-                        end_x, end_y = transform_point(curr_x + scaled_vx, curr_y + scaled_vy)
-
-                        # Set pen based on velocity magnitude
-                        vel_magnitude = (vx*vx + vy*vy)**0.5
-
-                        # Color based on magnitude (slow=green, medium=yellow, fast=red)
-                        if vel_magnitude < 2:
-                            color = QColor(0, 200, 0, 180)  # Green for slow
-                        elif vel_magnitude < 10:
-                            color = QColor(200, 200, 0, 180)  # Yellow for medium
-                        else:
-                            color = QColor(200, 0, 0, 180)  # Red for fast
-
-                        painter.setPen(QPen(color, 1))
-                        painter.drawLine(int(tx), int(ty), int(end_x), int(end_y))
-
-                        # Draw arrow head
-                        if vel_magnitude > 0.5:  # Only draw arrowhead if velocity is significant
-                            # Calculate arrow angle
-                            angle = (end_y - ty) / (end_x - tx)
-                            arrow_size = 6
-
-                            # Calculate arrow points
-                            arrow_p1_x = end_x - arrow_size * (1 / (1 + angle**2)**0.5)
-                            arrow_p1_y = end_y - arrow_size * angle / (1 + angle**2)**0.5
-                            arrow_p2_x = end_x - arrow_size * (angle / (1 + angle**2)**0.5)
-                            arrow_p2_y = end_y + arrow_size * (1 / (1 + angle**2)**0.5)
-
-                            # Draw arrow
-                            points = [QPointF(end_x, end_y), QPointF(arrow_p1_x, arrow_p1_y),
-                                      QPointF(arrow_p2_x, arrow_p2_y)]
-                            painter.setBrush(color)
-                            painter.drawPolygon(points)
-
             # Set pen for the main curve
             curve_pen = QPen(QColor(0, 160, 230), 2)
             painter.setPen(curve_pen)
@@ -544,103 +423,39 @@ class EnhancedCurveView(QWidget):
                 elif self.show_all_frame_numbers or frame % 10 == 0:
                     painter.drawText(int(tx) + 10, int(ty) - 10, str(frame))
 
-
-        # Draw selection rectangle if active
-        if self.selection_rect:
-            painter.setPen(QPen(QColor(100, 180, 255), 1, Qt.DashLine))
-            painter.setBrush(QColor(100, 180, 255, 30))
-            painter.drawRect(self.selection_rect)
-
-        # Display info
-        info_font = QFont("Monospace", 9)
-        painter.setFont(info_font)
-        painter.setPen(QPen(QColor(200, 200, 200), 1))
-
-        # Show current view info
-        info_text = f"Zoom: {self.zoom_factor:.2f}x | Points: {len(self.points)}"
-        if self.selected_point_idx >= 0:
-            point = self.points[self.selected_point_idx]
-            frame, x, y = point[:3]  # Extract only frame, x, y even if there's a status
-            coord_format = f"{{:.{self.display_precision}f}}"
-            info_text += f" | Selected: Frame {frame}, X: {coord_format.format(x)}, Y: {coord_format.format(y)}"
-        elif self.selected_points:
-            info_text += f" | Selected: {len(self.selected_points)} points"
-
-        painter.drawText(10, 20, info_text)
-
-        # Show image info if available
-        if self.background_image:
-            img_info = f"Image: {self.current_image_idx + 1}/{len(self.image_filenames)}"
-            if self.image_filenames and self.current_image_idx >= 0:
-                img_info += f" - {os.path.basename(self.image_filenames[self.current_image_idx])}"
-            painter.drawText(10, 40, img_info)
-
-        # Debug info
-        if self.debug_mode:
-            debug_info = f"Debug Mode: ON | Y-Flip: {'ON' if self.flip_y_axis else 'OFF'} | Scale to Image: {'ON' if self.scale_to_image else 'OFF'}"
-            debug_info += f" | Track Dims: {self.image_width}x{self.image_height}"
-
-            if self.background_image:
-                debug_info += f" | Image: {self.background_image.width()}x{self.background_image.height()}"
-
-            painter.drawText(10, 60, debug_info)
-
-            # Display keyboard shortcuts
-            shortcuts = "Shortcuts: [R] Reset View, [Y] Toggle Y-Flip, [S] Toggle Scale-to-Image"
-            shortcuts += " | [G] Toggle Grid, [V] Toggle Vectors, [F] Toggle All Frame Numbers"
-            shortcuts += " | Alt+Drag: Select multiple points"
-            painter.drawText(10, 80, shortcuts)
-
-            # Display nudge increment value with visual indicator
-            nudge_info = f"Nudge Increment: {self.nudge_increment:.1f}"
-
-            # Create a visual indicator showing the current increment position
-            indicator_width = 200
-            indicator_height = 20
+        # Display nudge increment overlay
+        if self.show_nudge_overlay:
+            indicator_width = 150
+            indicator_height = 15
             indicator_x = 10
-            indicator_y = 100
+            indicator_y = 10
 
-            # Draw background bar
             painter.setBrush(QColor(50, 50, 50, 180))
             painter.setPen(QPen(QColor(100, 100, 100), 1))
             painter.drawRect(indicator_x, indicator_y, indicator_width, indicator_height)
 
-            # Draw increment markers and labels
             for i, increment in enumerate(self.available_increments):
-                # Calculate position for this increment
                 pos_x = indicator_x + (i / (len(self.available_increments) - 1)) * indicator_width
-
-                # Draw tick mark
                 painter.setPen(QPen(QColor(150, 150, 150), 1))
                 painter.drawLine(int(pos_x), indicator_y, int(pos_x), indicator_y + indicator_height)
 
-                # Draw value label
-                painter.setPen(QPen(QColor(200, 200, 200), 1))
-                painter.drawText(int(pos_x - 10), indicator_y + indicator_height + 15, f"{increment:.1f}")
-
-            # Draw cursor position for current increment
             current_pos_x = indicator_x + (self.current_increment_index / (len(self.available_increments) - 1)) * indicator_width
 
-            # Draw triangle cursor
-            cursor_size = 8
+            cursor_size = 6
             painter.setBrush(QColor(255, 200, 0))
             painter.setPen(Qt.NoPen)
             cursor_points = [
-                QPointF(current_pos_x, indicator_y - cursor_size),
-                QPointF(current_pos_x - cursor_size, indicator_y - cursor_size * 2),
-                QPointF(current_pos_x + cursor_size, indicator_y - cursor_size * 2)
+                QPointF(current_pos_x, indicator_y),
+                QPointF(current_pos_x - cursor_size/2, indicator_y - cursor_size),
+                QPointF(current_pos_x + cursor_size/2, indicator_y - cursor_size),
             ]
             painter.drawPolygon(cursor_points)
 
-            # Draw increment value
             painter.setPen(QPen(QColor(255, 200, 0), 1))
-            painter.drawText(indicator_x + indicator_width + 10, indicator_y + indicator_height // 2 + 5,
-                           f"Current: {self.nudge_increment:.1f}")
+            painter.drawText(indicator_x + indicator_width + 5, indicator_y + indicator_height - 2, f"{self.nudge_increment:.1f}")
 
-            # Draw up/down arrow instructions
             painter.setPen(QPen(QColor(200, 200, 200), 1))
-            painter.drawText(indicator_x, indicator_y + indicator_height + 35,
-                           "Use ↑/↓ keys to change nudge increment")
+            painter.drawText(indicator_x, indicator_y + indicator_height + 12, "↑/↓ to change increment")
 
     def mousePressEvent(self, event):
         """Delegate mouse press to InputService."""
@@ -741,6 +556,14 @@ class EnhancedCurveView(QWidget):
         dlg = ShortcutSettingsDialog(self)
         if dlg.exec() == QDialog.Accepted:
             self.reloadShortcuts()
+
+    def toggle_nudge_overlay(self, enabled=None):
+        """Show or hide the nudge overlay."""
+        if enabled is None:
+            self.show_nudge_overlay = not self.show_nudge_overlay
+        else:
+            self.show_nudge_overlay = enabled
+        self.update()
 
 
 class ShortcutSettingsDialog(QDialog):

@@ -741,15 +741,6 @@ class UIComponents:
 
         left_layout.addWidget(point_info_group)
 
-        # Selection Controls Group
-        selection_group = QGroupBox("Selection")
-        selection_layout = QHBoxLayout(selection_group)
-        main_window.select_all_button = QPushButton("Select All")
-        main_window.deselect_all_button = QPushButton("Deselect All")
-        selection_layout.addWidget(main_window.select_all_button)
-        selection_layout.addWidget(main_window.deselect_all_button)
-        left_layout.addWidget(selection_group)
-
         left_layout.addStretch() # Push controls to the top
 
         # Center: Visualization Controls

@@ -149,6 +149,14 @@ class TestCenteringZoomService(unittest.TestCase):
         # Set up transformations for the selected point
         self.mock_curve_view.transform_point = Mock(return_value=(150, 250))
 
+        # Set a mock main_window with curve_data for the method to succeed
+        mock_main_window = MagicMock()
+        mock_main_window.curve_data = self.mock_curve_view.points
+        self.mock_curve_view.main_window = mock_main_window
+        
+        # Reset update mock to ensure clean state
+        self.mock_curve_view.update.reset_mock()
+        
         # Call the method
         CenteringZoomService.center_on_selected_point(self.mock_curve_view)
 

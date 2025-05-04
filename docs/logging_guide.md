@@ -13,7 +13,7 @@ CurveEditor uses a structured logging system that allows:
 ## Log Locations
 
 By default, logs are stored in:
-- `~/.curve_editor/logs/curve_editor.log`
+- `~/.curve_editor/curve_editor.log`
 
 Console output is also enabled by default, showing the same log messages that are written to the file.
 
@@ -35,7 +35,7 @@ The logging system supports the standard Python logging levels:
 
 The logging configuration is stored in a JSON file at:
 ```
-~/.curve_editor/logs/logging_config.json
+~/.curve_editor/logging_config.json
 ```
 
 This file allows you to set different log levels for different modules. The default configuration looks like this:

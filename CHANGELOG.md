@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+### Added
+- Implemented centralized logging system via new `LoggingService` to replace debug print statements
+- Created `logging_config.py` with support for JSON configuration and module-specific log levels
+- Added comprehensive logging guide in `docs/logging_guide.md`
+- Added implementation progress tracking document in `docs/implementation_progress.md`
+- Integrated logging system with main application startup in `main.py`
+
 ### Fixed
 - Fixed TypeError: safe_operation() got an unexpected keyword argument 'record_history' by updating the `safe_operation` decorator in `error_handling.py` to support the `record_history` parameter.
 - `record_history` parameter now controls whether operations automatically add state changes to the undo/redo history.
@@ -19,3 +26,6 @@
 - Enhanced `safe_operation` decorator to automatically add operations to history when successful (only when `record_history=True`).
 - Completed code consolidation by renaming all legacy operations files to .deprecated and ensuring proper import patterns throughout the codebase.
 - Updated documentation to reflect current architecture and code consolidation status.
+- Replaced debug print statements in key files with proper logging:
+  - Converted debug prints in `curve_view.py` to use LoggingService
+  - Converted debug prints in `main_window.py` to use LoggingService

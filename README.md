@@ -27,6 +27,8 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 ### Technical Guides
 - [Feature Catalogue](docs/features.md)
 - [Coordinate Transformation Guide](docs/coordinate_transformation_guide.md)
+- [Logging Guide](docs/logging_guide.md)
+- [Testing Guide](docs/testing_guide.md)
 
 ## Recent Changes
 
@@ -87,6 +89,10 @@ Additional implementation progress:
 - Implemented logging configuration system with JSON support
 - Updated main application to use configurable logging
 - Enabled per-module log level configuration
+- Created comprehensive logging guide documentation
+- Added testing guide with detailed instructions for running and creating tests
+- Updated services documentation to include LoggingService
+- Cleaned up project by removing obsolete components
 
 ### Future Development
 
