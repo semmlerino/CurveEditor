@@ -46,6 +46,7 @@ from services.dialog_service import DialogService
 from services.image_service import ImageService as ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
 from services.settings_service import SettingsService
+from services.logging_service import LoggingService
 
 from keyboard_shortcuts import ShortcutManager
 from ui_components import UIComponents
@@ -57,8 +58,8 @@ from typing import Any
 from services.analysis_service import AnalysisService as CurveDataOperations
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 
-if False:
-    pass
+# Configure logger for this module
+logger = LoggingService.get_logger("main_window")
 
 class MainWindow(QMainWindow):
     """Main application window for 3DE4 Curve Editor.
@@ -186,12 +187,12 @@ class MainWindow(QMainWindow):
             # Use the UIComponents centralized method for creating enhanced curve view
             success = UIComponents.create_enhanced_curve_view(self)
             if success:
-                print("Enhanced curve view loaded successfully")
+                logger.info("Enhanced curve view loaded successfully")
             else:
-                print("Failed to initialize enhanced curve view")
+                logger.warning("Failed to initialize enhanced curve view")
         except Exception as e:
-            print(f"Error loading enhanced curve view: {str(e)}")
-            print("Using standard curve view")
+            logger.error(f"Error loading enhanced curve view: {str(e)}")
+            logger.info("Using standard curve view")
 
         # Initialize batch editing UI
         # self.batch_edit_ui = batch_edit.BatchEditUI(self)
@@ -688,8 +689,7 @@ class MainWindow(QMainWindow):
 
         # If data was modified, update state, view, and history
         if modified_data is not None:
-            print(f"[DEBUG MainWindow] Smoothing successful. Data modified.")
-            sys.stdout.flush()
+            logger.debug("Smoothing successful. Data modified, updating view.")
             # Update the curve data
             self.curve_data = modified_data
 

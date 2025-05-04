@@ -88,33 +88,37 @@ The migration to a service-based architecture followed this phased approach:
 
 Several minor issues remain to be addressed:
 
-1. **Legacy Import in `curve_view.py`**: Fixed an import from `centering_zoom_operations` to use `services.centering_zoom_service` instead.
+1. **Debug Logging**: The codebase contains numerous debug print statements that should be cleaned up or converted to proper logging for production use. Particularly in `curve_view.py` where multiple redundant debug statements exist.
 
-2. **Debug Logging**: The codebase contains numerous debug print statements that should be cleaned up or converted to proper logging for production use.
+2. **Unnecessary Duplication**: Some service methods contain duplicated code that could be further consolidated, especially in coordinate transformation logic between services.
 
-3. **Unnecessary Duplication**: Some service methods contain duplicated code that could be further consolidated.
+3. **Test Coverage**: More comprehensive tests are needed to verify the new service implementations. Currently, test coverage is limited and should be expanded to all service classes.
 
-4. **Test Coverage**: More comprehensive tests are needed to verify the new service implementations.
+4. **Deprecated Files Cleanup**: Files with `.deprecated` extension should eventually be removed once all code has been verified to work with the service-based architecture.
 
 ## Next Steps
 
-### Short-term
-1. Continue testing the application to ensure all functionality works as expected
-2. Complete test suite for all service classes
-3. Replace any remaining imports from legacy operations modules
-4. Clean up debug print statements and implement proper logging
+### Short-term (0-1 month)
+1. **Clean Debug Output**: Remove redundant debug print statements from `curve_view.py` and other files
+2. **Complete Test Suite**: Expand test coverage for all service classes, particularly:
+   - `CurveService` (point selection, movement, coordinate transformation)
+   - `AnalysisService` (data transformation operations)
+   - `CenteringZoomService` (zoom and panning operations)
+3. **Validation Tool**: Enhance `refactoring_validation.py` to perform comprehensive checks of service usage
+4. **Code Cleanup**: Implement a proper logging system to replace print statements
 
-### Medium-term
-1. Remove `.deprecated` files once all imports are updated
-2. Enhance service implementations with more robust error handling
-3. Improve performance where possible
-4. Add validation tools to ensure architectural compliance
+### Medium-term (1-3 months)
+1. **Remove `.deprecated` Files**: Once thorough testing confirms all functionality works with service-based architecture
+2. **Error Handling Improvements**: Add consistent error handling across all services with recovery mechanisms
+3. **Performance Optimization**: Profile the application and optimize performance bottlenecks
+4. **User Documentation**: Update user-facing documentation to reflect any changes in behavior or functionality
 
-### Long-term
-1. Consider further modularization with explicit interfaces
-2. Add comprehensive API documentation
-3. Implement dependency injection for better testability
-4. Evolve to a more decoupled plugin-based architecture if needed
+### Long-term (3+ months)
+1. **Service Interfaces**: Define explicit interfaces for each service to enforce API contracts
+2. **API Documentation**: Create comprehensive API documentation for developers
+3. **Dependency Injection**: Implement dependency injection for better testability and component isolation
+4. **Plugin Architecture**: Evolve to a plugin-based architecture for extensibility
+5. **Continuous Integration**: Establish automated testing and deployment processes
 
 ## Conclusion
 

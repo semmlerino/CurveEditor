@@ -12,6 +12,10 @@ from PySide6.QtCore import QPointF
 from services.input_service import InputService
 from keyboard_shortcuts import ShortcutManager
 from services.image_service import ImageService
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("curve_view")
 
 
 class CurveView(QWidget):
@@ -100,74 +104,81 @@ class CurveView(QWidget):
         self.y_offset = 0  # Manual Y offset for fine-tuning alignment
 
     def setPoints(self, points: list[tuple[int, float, float]], image_width: int, image_height: int, preserve_view: bool = False) -> None:
-        print(f"[DEBUG CurveView.setPoints] Start - preserve_view={preserve_view}")
-        print(f"[DEBUG CurveView.setPoints] State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         """Set the points to display and optionally preserve the current view state."""
+        logger.debug("Setting points - preserve_view=%s, Points count=%d", preserve_view, len(points))
+        logger.debug("State BEFORE: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+
         self.points = points
+
         # Update dimensions only if they are validly provided (greater than 0)
         if image_width > 0:
             self.image_width = image_width
         if image_height > 0:
             self.image_height = image_height
-            sys.stdout.flush() # Correct indentation
 
         if not preserve_view:
-            self.resetView() # Reset pan/zoom only if not preserving
-            sys.stdout.flush() # Correct indentation
+            logger.debug("Resetting view since preserve_view=False")
+            self.resetView()  # Reset pan/zoom only if not preserving
 
-        self.update() # Trigger repaint with new data and current/reset view state
+        self.update()  # Trigger repaint with new data and current/reset view state
 
-        sys.stdout.flush()
-        print(f"[DEBUG CurveView.setPoints] State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        logger.debug("Points set - State AFTER: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
     def set_image_sequence(self, path: str, filenames: list[str]) -> None:
         """Set the image sequence to display as background."""
-        sys.stdout.flush()
-        ImageService.set_image_sequence(  # type: ignore[attr-defined]
-self, path, filenames)
+        logger.debug("Setting image sequence from path: %s, %d files", path, len(filenames))
+        ImageService.set_image_sequence(self, path, filenames)
         self.update()
 
     def set_current_image_by_frame(self, frame: int) -> None:
         """Set the current background image based on frame number."""
-        ImageService.set_current_image_by_frame(  # type: ignore[attr-defined]
-self, frame)
+        logger.debug("Setting current image by frame: %d", frame)
+        ImageService.set_current_image_by_frame(self, frame)
 
     def set_current_image_by_index(self, idx: int) -> None:
         """Set current image by index and update the view."""
-        ImageService.set_current_image_by_index(  # type: ignore[attr-defined]
-self, idx)
+        logger.debug("Setting current image by index: %d", idx)
+        ImageService.set_current_image_by_index(self, idx)
         self.update()
 
     def toggle_background_visible(self, visible: bool) -> None:
         """Toggle visibility of background image."""
+        logger.debug("Toggling background visibility: %s", "visible" if visible else "hidden")
         self.show_background = visible
         self.update()
 
     def set_background_opacity(self, opacity: float) -> None:
+        """Set the opacity of the background image."""
+        logger.debug("Setting background opacity to %.2f", opacity)
         self.background_opacity = min(max(opacity, 0.0), 1.0)
         self.update()
 
     def load_current_image(self) -> None:
         """Load the current image in the sequence."""
-        print(f"[DEBUG CurveView.resetView] Start - State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
-        print(f"[DEBUG CurveView.resetView] Start - State BEFORE: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
-        ImageService.load_current_image(  # type: ignore[attr-defined]
-self)
-        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        logger.debug("Loading current image - State before: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+
+        ImageService.load_current_image(self)
+
+        logger.debug("Image loaded - State after: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
 
     def resetView(self) -> None:
-        print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
         """Reset view to show all points."""
-        # Use the CenteringZoomService instead of the deprecated operations module
-        from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-        print(f"[DEBUG CurveView.resetView] End - State AFTER: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        logger.debug("Resetting view - State before: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+
+        # Use the already imported CenteringZoomService at the top of the file
         ZoomOperations.reset_view(self)
 
-        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
+        logger.debug("View reset complete - State after: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+
     def paintEvent(self, event: QPaintEvent) -> None:
-        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
-        print(f"[DEBUG CurveView.paintEvent] Start - State: Zoom={self.zoom_factor}, OffX={self.offset_x}, OffY={self.offset_y}, ManX={self.x_offset}, ManY={self.y_offset}")
-        sys.stdout.flush()
         """Draw the curve and points."""
+        logger.debug("Paint event - View state: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
+                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
         if not self.points and not self.background_image:
             return
 
