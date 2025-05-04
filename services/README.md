@@ -48,19 +48,19 @@ This pattern ensures backward compatibility while moving to a cleaner architectu
 
 ## Available Services
 
-| Service | Description | Legacy Equivalent |
-|---------|-------------|------------------|
-| `CurveService` | Curve view and point manipulation operations | CurveViewOperations |
-| `ImageService` | Image sequence handling and manipulation | ImageOperations |
-| `VisualizationService` | Visualization features (grid, vectors, crosshair) | VisualizationOperations |
-| `CenteringZoomService` | View centering and zoom operations | ZoomOperations |
-| `AnalysisService` | Curve data analysis and manipulation | CurveDataOperations |
-| `HistoryService` | Undo/redo and history management | HistoryOperations |
-| `FileService` | File loading and saving operations | FileOperations |
-| `DialogService` | Dialog management and UI interactions | DialogOperations |
-| `SettingsService` | Application settings management | SettingsOperations |
-| `InputService` | Keyboard and mouse input handling | N/A |
-| `LoggingService` | Centralized logging system | N/A |
+| Service | Description | Legacy Equivalent | Status |
+|---------|-------------|------------------|--------|
+| `CurveService` | Curve view and point manipulation operations | CurveViewOperations | ✅ Complete |
+| `AnalysisService` | Curve data analysis and manipulation | CurveDataOperations | ✅ Complete |
+| `CenteringZoomService` | View centering and zoom operations | ZoomOperations | ✅ Complete |
+| `InputService` | Keyboard and mouse input handling | N/A | ✅ Complete |
+| `VisualizationService` | Visualization features (grid, vectors, crosshair) | VisualizationOperations | ⏳ In Progress |
+| `ImageService` | Image sequence handling and manipulation | ImageOperations | ⏳ In Progress |
+| `FileService` | File loading and saving operations | FileOperations | ⏳ In Progress |
+| `HistoryService` | Undo/redo and history management | HistoryOperations | ⏳ In Progress |
+| `DialogService` | Dialog management and UI interactions | DialogOperations | ⏳ In Progress |
+| `SettingsService` | Application settings management | SettingsOperations | ⏳ In Progress |
+| `LoggingService` | Centralized logging system | N/A | ✅ Complete |
 
 ## Implementation Notes
 
@@ -116,6 +116,33 @@ filled_data = AnalysisService.fill_gap(
     end_frame=20,
     method='cubic_spline'
 )
+```
+
+### Logging Operations
+
+```python
+from services.logging_service import LoggingService
+
+# Get a logger for a specific module
+logger = LoggingService.get_logger("my_module")
+
+# Use different log levels
+logger.debug("Detailed debugging information")
+logger.info("General operational information")
+logger.warning("Warning about potential issues")
+logger.error("Error that prevents functionality")
+logger.critical("Critical error that requires immediate attention")
+
+# Configure logging globally
+LoggingService.setup_logging(
+    level="INFO",                      # Global log level
+    log_file="~/.curve_editor/logs/curve_editor.log",  # Log file location
+    console=True                       # Also output to console
+)
+
+# Set module-specific log levels
+LoggingService.set_module_level("curve_view", "DEBUG")
+LoggingService.set_module_level("services.curve_service", "DEBUG")
 ```
 
 ## Adding New Services

@@ -160,10 +160,13 @@ This will generate a coverage report showing:
 |--------|----------|
 | CurveService | ~85% |
 | AnalysisService | ~80% |
-| CenteringZoomService | ~75% |
-| Overall | ~35% |
+| CenteringZoomService | ~78% |
+| InputService | ~70% |
+| MainWindow (UI) | ~40% |
+| VisualizationService | ~50% |
+| Overall | ~45% |
 
-The target is to achieve at least 80% overall coverage.
+The target is to achieve at least 80% overall coverage. Significant progress has been made, especially in the core service classes. The next focus areas are FileService, ImageService, and DialogService which currently have limited test coverage.
 
 ## Architecture Validation
 

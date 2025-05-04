@@ -199,13 +199,18 @@ if __name__ == '__main__':
 
 ## Test Implementation Timeline
 
-| Phase | Timeframe | Activities |
-|-------|-----------|------------|
-| 1 | Week 1 | Set up testing framework, create base test classes |
-| 2 | Week 2-3 | Implement CurveService, AnalysisService tests |
-| 3 | Week 4 | Implement remaining service tests |
-| 4 | Week 5 | Integration tests and validation scripts |
-| 5 | Ongoing | Maintain and expand test coverage with new features |
+| Phase | Timeframe | Status | Activities |
+|-------|-----------|--------|------------|
+| 1 | Week 1 | ✅ Complete | Set up testing framework, create base test classes |
+| 2 | Week 2-3 | ✅ Complete | Implement CurveService, AnalysisService, CenteringZoomService tests |
+| 3 | Week 4 | ⏳ In Progress | Implement InputService, VisualizationService tests |
+| 4 | Week 5 | ⏳ Started | Initial MainWindow tests and validation scripts |
+| 5 | Week 6-7 | 🔜 Planned | Implement FileService, ImageService, DialogService tests |
+| 6 | Week 8 | 🔜 Planned | Implement HistoryService, SettingsService tests |
+| 7 | Week 9-10 | 🔜 Planned | Integration tests between services |
+| 8 | Ongoing | 🔄 Continuous | Maintain and expand test coverage with new features |
+
+Current focus is on completing phase 3 with VisualizationService testing as the highest priority.
 
 ## Testing Best Practices
 

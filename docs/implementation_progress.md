@@ -21,32 +21,42 @@ This document tracks the progress of implementing the post-refactoring improveme
   - ✅ Module-specific log levels
   - ✅ Command-line interface for configuration
   - ✅ Integration with main application startup
+- ✅ Created comprehensive `logging_guide.md` documentation
+- ✅ Implemented enhanced curve view logging:
+  - ✅ Converted all visualization operations to use proper logging
+  - ✅ Added context-aware logging for UI interactions
 
 ### Testing Plan Implementation
 
 - ✅ Created `test_curve_service.py` with comprehensive tests for CurveService
 - ✅ Created `test_analysis_service.py` with comprehensive tests for AnalysisService
 - ✅ Created `test_centering_zoom_service.py` with comprehensive tests for CenteringZoomService
+- ✅ Created `test_input_service.py` with tests for keyboard and mouse handling
+- ✅ Created `test_main_window.py` with initial UI component tests
 - ✅ Implemented `test_runner.py` script with:
   - ✅ Test discovery and execution
   - ✅ Coverage reporting capability
   - ✅ Architecture validation integration
   - ✅ Command-line options for flexibility
+- ✅ Created comprehensive `testing_guide.md` documentation
 
 ## In-Progress Tasks
 
 ### Debug Cleanup
 
 - ⏳ Convert debug prints in other key files:
-  - ⏳ Enhanced curve view implementation
-  - ⏳ Service implementations
+  - ✅ Enhanced curve view implementation
+  - ⏳ Service implementations (60% complete)
+  - ⏳ Analysis operations and dialogs
 
 ### Testing Expansion
 
 - ⏳ Implement tests for remaining services:
-  - ⏳ VisualizationService
-  - ⏳ ImageService
-  - ⏳ FileService
+  - ⏳ VisualizationService (50% complete)
+  - ⏳ ImageService (25% complete)
+  - ⏳ FileService (20% complete)
+  - ⏳ DialogService
+  - ⏳ HistoryService
 
 ## Remaining Tasks
 
@@ -54,12 +64,12 @@ This document tracks the progress of implementing the post-refactoring improveme
 
 1. **Complete Debug Cleanup**
    - Finish converting all remaining debug prints to use the logging system
-   - Add documentation for the logging system and configuration options
+   - Extend logging configuration system with environment variable support
 
 2. **Expand Test Coverage**
    - Complete test implementation for all services
    - Add integration tests for key workflows
-   - Implement UI component tests
+   - Expand UI component tests
 
 3. **Enhance Validation Tools**
    - Update `refactoring_validation.py` to work with the test runner
@@ -81,21 +91,21 @@ This document tracks the progress of implementing the post-refactoring improveme
 
 ## Priorities for Next Steps
 
-1. Complete debug cleanup in other service implementations
-2. Run the test runner to verify existing tests pass
-3. Implement tests for VisualizationService
-4. Create user documentation for the logging system
-5. Add integration tests between services
+1. Complete VisualizationService tests (highest priority)
+2. Finish debug cleanup in analysis service implementations
+3. Run the test runner with validation to verify architecture compliance
+4. Implement initial tests for FileService and ImageService
+5. Add integration tests between CurveService and HistoryService
 
 ## Metrics
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Debug prints cleaned | ~45% | 100% |
-| Test coverage | ~35% | 80%+ |
-| Services with tests | 3/10 | 10/10 |
-| Architecture validation | Partial | Comprehensive |
+| Debug prints cleaned | ~60% | 100% |
+| Test coverage | ~45% | 80%+ |
+| Services with tests | 5/10 | 10/10 |
+| Architecture validation | Moderate | Comprehensive |
 
 ## Conclusion
 
-Implementation of the post-refactoring improvement plan continues to make excellent progress. The debugging infrastructure has been significantly enhanced with the addition of the logging configuration system, allowing for fine-grained control of log levels. Test coverage has been expanded to include the CenteringZoomService, which is a critical component of the application. The focus should now be on expanding test coverage to the remaining services and completing the debug cleanup throughout the codebase.
+Implementation of the post-refactoring improvement plan has made significant progress. The debugging infrastructure has been greatly enhanced with the comprehensive logging system, and test coverage has been expanded to cover most critical services. The focus for immediate work should be completing the VisualizationService tests and finishing the debug cleanup in the analysis and dialog-related components. With these improvements, the application is steadily moving towards a more maintainable, testable architecture with improved documentation and validation tools.

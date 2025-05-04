@@ -14,15 +14,13 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 
 ### Architecture
 - [Architecture Overview](docs/architecture.md)
-- [Refactoring Notes](docs/refactoring_notes.md)
-- [Code Consolidation](docs/code_consolidation.md)
+- [Refactoring Guide](docs/refactoring_guide.md) (NEW - consolidated reference)
 - [Services Reference](services/README.md)
 
 ### Development Plans
+- [Implementation Progress](docs/implementation_progress.md)
 - [Debug Cleanup Plan](docs/debug_cleanup_plan.md)
 - [Service Testing Plan](docs/service_testing_plan.md)
-- [Implementation Progress](docs/implementation_progress.md) (NEW)
-- [Refactoring Update Summary](refactoring_update_summary.md)
 
 ### Technical Guides
 - [Feature Catalogue](docs/features.md)
@@ -84,31 +82,39 @@ The implementation of improvement plans has begun:
 
 #### Latest Implementation (May 4, 2025 - Evening)
 Additional implementation progress:
-- Added debug cleanup for `main_window.py`
-- Created comprehensive test suite for `CenteringZoomService`
+- Added debug cleanup for `main_window.py` and `enhanced_curve_view.py`
+- Created comprehensive test suites for `CurveService`, `AnalysisService`, `CenteringZoomService`, and `InputService`
 - Implemented logging configuration system with JSON support
-- Updated main application to use configurable logging
-- Enabled per-module log level configuration
-- Created comprehensive logging guide documentation
+- Updated main application to use configurable logging with per-module log levels
+- Created comprehensive logging guide documentation with configuration instructions
 - Added testing guide with detailed instructions for running and creating tests
-- Updated services documentation to include LoggingService
+- Updated services documentation to include implementation status
 - Cleaned up project by removing obsolete components
+- Added initial UI component tests in `test_main_window.py`
+
+#### Current Status (Updated May 4, 2025 - Night)
+- Debug print cleanup: ~60% complete (focused on core components)
+- Test coverage: ~45% overall (core services at 75-85%)
+- Services implementation: 5 complete, 6 in progress
+- Documentation: All major systems documented with comprehensive guides
 
 ### Future Development
 
 The project roadmap has been organized into short, medium, and long-term goals:
 
 #### Short-term (0-1 month)
-- Clean up debug print statements according to [Debug Cleanup Plan](docs/debug_cleanup_plan.md)
-- Implement comprehensive test suite following [Service Testing Plan](docs/service_testing_plan.md)
+- Complete VisualizationService tests (highest priority)
+- Finish debug cleanup in service implementations
+- Complete test implementation for remaining services
+- Add integration tests between services (especially CurveService and HistoryService)
 - Enhance validation tools to verify architecture compliance
-- Implement proper logging system to replace debug prints
 
 #### Medium-term (1-3 months)
 - Remove `.deprecated` files once all functionality is verified
 - Enhance error handling and recovery mechanisms
 - Optimize performance in key areas identified during testing
 - Update user-facing documentation to reflect architectural changes
+- Implement log rotation and environment variable support for logging
 
 #### Long-term (3+ months)
 - Define explicit interfaces for all services
@@ -122,16 +128,18 @@ For full details on the development roadmap, see the [Refactoring Notes](docs/re
 
 The application uses the following services:
 
-| Service | Description |
-|---------|-------------|
-| `CurveService` | Curve view and point manipulation |
-| `ImageService` | Image sequence handling |
-| `VisualizationService` | Grid, vectors, and display features |
-| `CenteringZoomService` | View centering and zoom operations |
-| `AnalysisService` | Curve data analysis and manipulation |
-| `HistoryService` | Undo/redo functionality |
-| `FileService` | File I/O operations |
-| `DialogService` | UI dialog management |
-| `SettingsService` | Application settings management |
+| Service | Description | Status |
+|---------|-------------|--------|
+| `CurveService` | Curve view and point manipulation | ✅ Complete |
+| `AnalysisService` | Curve data analysis and manipulation | ✅ Complete |
+| `CenteringZoomService` | View centering and zoom operations | ✅ Complete |
+| `InputService` | Keyboard and mouse input handling | ✅ Complete |
+| `LoggingService` | Centralized logging system | ✅ Complete |
+| `VisualizationService` | Grid, vectors, and display features | ⏳ In Progress |
+| `ImageService` | Image sequence handling | ⏳ In Progress |
+| `FileService` | File I/O operations | ⏳ In Progress |
+| `HistoryService` | Undo/redo functionality | ⏳ In Progress |
+| `DialogService` | UI dialog management | ⏳ In Progress |
+| `SettingsService` | Application settings management | ⏳ In Progress |
 
-For more details on the service architecture, see the [services documentation](services/README.md).
+For more details on the service architecture, including implementation status and usage examples, see the [services documentation](services/README.md).

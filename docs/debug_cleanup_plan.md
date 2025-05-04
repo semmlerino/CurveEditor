@@ -125,12 +125,33 @@ def resetView(self) -> None:
 
 3. **Debug Verification**: Confirm that debugging is still effective with the new logging system.
 
-## Timeline
+## Timeline and Progress
 
-1. **Audit (1-2 days)**: Complete the audit of debug statements
-2. **Logging Setup (1 day)**: Implement the logging service
-3. **Cleanup (2-3 days)**: Replace debug prints with proper logging
-4. **Testing (1-2 days)**: Verify application functionality
+1. **Audit (1-2 days)**: ✅ Complete
+   - Completed full audit of debug statements across the codebase
+   - Identified priority areas for conversion to logging system
+
+2. **Logging Setup (1 day)**: ✅ Complete
+   - Implemented the LoggingService class
+   - Created logging configuration system with JSON support
+   - Added command-line interface for configuration
+   - Documented the logging system in logging_guide.md
+
+3. **Cleanup (2-3 days)**: ⏳ In Progress (~60% complete)
+   - ✅ Converted debug prints in curve_view.py
+   - ✅ Converted debug prints in main_window.py
+   - ✅ Converted debug prints in enhanced_curve_view.py
+   - ⏳ Converting debug prints in service implementations (60% complete)
+   - ⏳ Converting debug prints in analysis operations and dialogs
+
+4. **Testing (1-2 days)**: ⏳ Started
+   - Implemented basic tests for logging configuration
+   - Started verification of logging functionality
+
+5. **Additional Enhancements (2 days)**: 🔜 Planned
+   - Add environment variable support for configuration
+   - Add log rotation capability
+   - Implement module-specific debug mode toggles
 
 ## Future Improvements
 
