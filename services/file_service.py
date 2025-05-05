@@ -11,8 +11,9 @@ from PySide6.QtWidgets import QFileDialog, QMessageBox
 import utils
 import config
 import csv_export
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 from services.logging_service import LoggingService
+from services.protocols import MainWindowProtocol, FileServiceProtocol
 
 # Configure logger for this module
 logger = LoggingService.get_logger("file_service")
@@ -24,7 +25,7 @@ class FileService:
     """Service class for file operations in the 3DE4 Curve Editor."""
 
     @staticmethod
-    def export_to_csv(main_window: "MainWindow") -> None:
+    def export_to_csv(main_window: MainWindowProtocol) -> None:
         """Export tracking data to CSV format."""
         if not main_window.curve_data:
             QMessageBox.information(main_window, "Info", "No data to export.")
@@ -48,7 +49,7 @@ class FileService:
             QMessageBox.critical(main_window, "Error", "Failed to export data.")
 
     @staticmethod
-    def load_track_data(main_window: "MainWindow") -> None:
+    def load_track_data(main_window: MainWindowProtocol) -> None:
         """Load 2D track data from a file."""
         file_path, _ = QFileDialog.getOpenFileName(
             main_window, "Load 2D Track Data", main_window.default_directory, "Text Files (*.txt);;All Files (*)"
@@ -105,7 +106,7 @@ class FileService:
             QMessageBox.critical(main_window, "Error", "Failed to load track data.")
 
     @staticmethod
-    def add_track_data(main_window: "MainWindow") -> None:
+    def add_track_data(main_window: MainWindowProtocol) -> None:
         """Add an additional 2D track to the current data."""
         if not main_window.curve_data:
             return
@@ -177,7 +178,7 @@ class FileService:
             QMessageBox.critical(main_window, "Error", "Failed to load additional track data.")
 
     @staticmethod
-    def save_track_data(main_window: "MainWindow") -> None:
+    def save_track_data(main_window: MainWindowProtocol) -> None:
         """Save modified 2D track data to a file."""
         if not main_window.curve_data:
             return
@@ -200,7 +201,7 @@ class FileService:
             QMessageBox.critical(main_window, "Error", "Failed to save track data.")
 
     @staticmethod
-    def load_image_sequence(main_window: "MainWindow") -> None:
+    def load_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load an image sequence to use as background."""
         directory = QFileDialog.getExistingDirectory(
             main_window, "Select Image Sequence Directory", main_window.default_directory

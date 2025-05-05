@@ -11,10 +11,10 @@ from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
                     ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog,
                     OffsetDialog)
 from services.analysis_service import AnalysisService as CurveDataOperations
-from typing import Any, Optional, List, Tuple
-
-# Define a type alias for curve data for clarity
-CurveDataType = List[Tuple[int, float, float]]
+from typing import Optional, List, Tuple, TYPE_CHECKING, cast, Any
+from services.protocols import (
+    MainWindowProtocol, PointsList, DialogServiceProtocol
+)
 
 class DialogService:
     """Service for managing all dialog operations in the CurveEditor."""
@@ -22,10 +22,10 @@ class DialogService:
     @staticmethod
     def show_smooth_dialog(
         parent_widget: QWidget,
-        curve_data: CurveDataType,
+        curve_data: PointsList,
         selected_indices: List[int],
         selected_point_idx: int
-    ) -> Optional[CurveDataType]:
+    ) -> Optional[PointsList]:
         """
         Show dialog for curve smoothing.
         Accepts curve data and selection info, returns modified data or None.
@@ -113,7 +113,7 @@ class DialogService:
             return None
 
     @staticmethod
-    def show_filter_dialog(main_window: Any) -> None:
+    def show_filter_dialog(main_window: MainWindowProtocol) -> None:
         """Show dialog for applying filters to the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 3:
             QMessageBox.information(main_window, "Info", "Not enough points to filter curve.")
@@ -195,7 +195,7 @@ class DialogService:
         main_window.add_to_history()
 
     @staticmethod
-    def detect_gaps(main_window: Any) -> List[Tuple[int, int]]:
+    def detect_gaps(main_window: MainWindowProtocol) -> List[Tuple[int, int]]:
         """Detect gaps in the tracking data."""
         if not main_window.curve_data or len(main_window.curve_data) < 2:
             return []
@@ -216,7 +216,7 @@ class DialogService:
         return gaps
 
     @staticmethod
-    def show_fill_gaps_dialog(main_window: Any) -> None:
+    def show_fill_gaps_dialog(main_window: MainWindowProtocol) -> None:
         """Show dialog for filling gaps in the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 2:
             QMessageBox.information(main_window, "Info", "Not enough points to fill gaps.")
@@ -267,7 +267,7 @@ class DialogService:
         main_window.add_to_history()
 
     @staticmethod
-    def fill_gap(main_window: Any, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
+    def fill_gap(main_window: MainWindowProtocol, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
         """Helper method to fill a gap using the specified method via CurveDataOperations."""
         # Window size for certain methods (can be adjusted or made configurable)
         window_size = 5
@@ -306,7 +306,7 @@ class DialogService:
             QMessageBox.critical(main_window, "Error", f"Gap filling failed: {e}")
 
     @staticmethod
-    def show_extrapolate_dialog(main_window: Any) -> None:
+    def show_extrapolate_dialog(main_window: MainWindowProtocol) -> None:
         """Show dialog for extrapolating the curve."""
         if not main_window.curve_data or len(main_window.curve_data) < 3:
             QMessageBox.information(main_window, "Info", "Not enough points to extrapolate curve.")
@@ -368,13 +368,13 @@ class DialogService:
         main_window.statusBar().showMessage(f"Extrapolated {total_frames} frames", 3000)
 
     @staticmethod
-    def show_shortcuts_dialog(main_window: Any) -> None:
+    def show_shortcuts_dialog(main_window: MainWindowProtocol) -> None:
         """Show dialog with keyboard shortcuts."""
         dialog = ShortcutsDialog(main_window)
         dialog.exec()
 
     @staticmethod
-    def show_offset_dialog(main_window: Any) -> Any:
+    def show_offset_dialog(main_window: MainWindowProtocol) -> Optional[PointsList]:
         """Show dialog for offsetting all curve points."""
         if not main_window.curve_data:
             QMessageBox.information(main_window, "Info", "No points to offset.")
@@ -395,7 +395,10 @@ class DialogService:
         return new_data
 
     @staticmethod
-    def show_problem_detection_dialog(main_window: Any, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None) -> Optional[ProblemDetectionDialog]:
+    def show_problem_detection_dialog(
+        main_window: MainWindowProtocol,
+        problems: Optional[List[Tuple[int, Any, Any, Any]]] = None
+    ) -> Optional[ProblemDetectionDialog]:
         """Show dialog for detecting problems in the tracking data."""
         if problems is None:
             if not main_window.curve_data or len(main_window.curve_data) < 10:

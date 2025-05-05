@@ -10,8 +10,12 @@ import os
 from PySide6.QtWidgets import QMessageBox, QFileDialog
 from PySide6.QtGui import QImage
 import config
-from typing import List, Tuple, Optional, Any
+from typing import List, Tuple, Optional, TYPE_CHECKING
 from services.logging_service import LoggingService
+from services.protocols import (
+    CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol,
+    ImageServiceProtocol
+)
 
 # Configure logger for this module
 logger = LoggingService.get_logger("image_service")
@@ -21,7 +25,7 @@ class ImageService:
     """Service class for image operations in the 3DE4 Curve Editor."""
 
     @staticmethod
-    def set_current_image_by_frame(curve_view: Any, frame: int) -> None:
+    def set_current_image_by_frame(curve_view: CurveViewProtocol, frame: int) -> None:
         """Set the current background image based on frame number.
 
         Args:
@@ -64,7 +68,7 @@ class ImageService:
             curve_view.update()
 
     @staticmethod
-    def load_current_image(curve_view: Any) -> None:
+    def load_current_image(curve_view: ImageSequenceProtocol) -> None:
         """Load the current image in the sequence.
 
         Args:
@@ -105,7 +109,7 @@ class ImageService:
             curve_view.background_image = None
 
     @staticmethod
-    def set_current_image_by_index(curve_view: Any, idx: int) -> None:
+    def set_current_image_by_index(curve_view: ImageSequenceProtocol, idx: int) -> None:
         """Set current image by index and update the view.
 
         Args:
@@ -159,7 +163,7 @@ class ImageService:
         curve_view.setFocus()
 
     @staticmethod
-    def load_image_sequence(main_window: Any) -> None:
+    def load_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load an image sequence to use as background."""
         # Open file dialog to select the first image in a sequence
         options = QFileDialog.Options()
@@ -270,7 +274,7 @@ class ImageService:
         return None, None, None
 
     @staticmethod
-    def previous_image(main_window: Any) -> None:
+    def previous_image(main_window: MainWindowProtocol) -> None:
         """Show the previous image in the sequence."""
         if not main_window.image_filenames or main_window.curve_view.current_image_idx <= 0:
             return
@@ -279,7 +283,7 @@ class ImageService:
         main_window.update_image_label()
 
     @staticmethod
-    def next_image(main_window: Any) -> None:
+    def next_image(main_window: MainWindowProtocol) -> None:
         """Show the next image in the sequence."""
         if not main_window.image_filenames or main_window.curve_view.current_image_idx >= len(main_window.image_filenames) - 1:
             return
@@ -288,7 +292,7 @@ class ImageService:
         main_window.update_image_label()
 
     @staticmethod
-    def update_image_label(main_window: Any) -> None:
+    def update_image_label(main_window: MainWindowProtocol) -> None:
         """Update the image label with current image info."""
         if not main_window.image_filenames:
             main_window.image_label.setText("No images loaded")
@@ -302,7 +306,7 @@ class ImageService:
             main_window.image_label.setText("Invalid image index")
 
     @staticmethod
-    def toggle_background(main_window: Any) -> None:
+    def toggle_background(main_window: MainWindowProtocol) -> None:
         """Toggle background image visibility."""
         if not main_window.image_filenames:
             return
@@ -312,18 +316,18 @@ class ImageService:
         main_window.toggle_bg_button.setText("Hide Background" if visible else "Show Background")
 
     @staticmethod
-    def opacity_changed(main_window: Any, value: int) -> None:
+    def opacity_changed(main_window: MainWindowProtocol, value: int) -> None:
         """Handle opacity slider value changed."""
         opacity = value / 100.0  # Convert from 0-100 to 0.0-1.0
         main_window.curve_view.setBackgroundOpacity(opacity)
 
     @staticmethod
-    def on_image_changed(main_window: Any, index: int) -> None:
+    def on_image_changed(main_window: MainWindowProtocol, index: int) -> None:
         """Handle image changed via keyboard navigation."""
         main_window.update_image_label()
 
     @staticmethod
-    def set_image_sequence(curve_view: Any, path: str, filenames: List[str]) -> None:
+    def set_image_sequence(curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
         """Set the image sequence to display as background.
 
         Args:

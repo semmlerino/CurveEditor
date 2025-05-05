@@ -26,6 +26,8 @@
 - **Coordinate Transformation**: Created a dedicated TransformationService to centralize all coordinate transformation logic
 - **Type Hints**: Enhanced parameter type checking with proper protocols
 - **Protocol System**: Implemented centralized protocol definitions for key interfaces
+- **Protocol Coverage**: Extended protocol system to all service files, including:
+  - FileService, ImageService, HistoryService, and DialogService
 - **Circular Imports**: Eliminated remaining circular imports
 - **Service Completion**: Updated VisualizationService with protocol-based interfaces
 
@@ -38,7 +40,7 @@
 | Services with tests | 6/11 | 11/11 |
 | Deprecated files removed | 100% | 100% |
 | Architecture migration | 100% | 100% |
-| Protocol coverage | 30% | 80%+ |
+| Protocol coverage | 80% | 80%+ |
 
 ## Remaining Work
 
@@ -49,9 +51,8 @@
    - Add integration tests between services
    - Create tests for coordinate transformation functionality
 
-2. **Protocol System Extension**
-   - Extend protocol definitions to remaining services
-   - Update remaining service methods to use protocol types
+2. **Protocol System Refinement**
+   - Add specific typing for any remaining `Any` types
    - Create tests to validate protocol compliance
 
 ### Medium-term (1-3 months)

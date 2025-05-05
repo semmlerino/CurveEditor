@@ -11,6 +11,11 @@
 - Created protocol system in `services/protocols.py` for standardized interface definitions
 - Added comprehensive protocol system documentation in `docs/protocol_system.md`
 - Implemented type aliases for common data structures in the protocol system
+- Extended protocol system to cover all service interfaces:
+  - Added FileServiceProtocol for file operations
+  - Added ImageSequenceProtocol and ImageServiceProtocol for image handling
+  - Added HistoryStateProtocol and HistoryContainerProtocol for history management
+  - Added DialogServiceProtocol for dialog operations
 
 ### Fixed
 - Fixed TypeError: safe_operation() got an unexpected keyword argument 'record_history' by updating the `safe_operation` decorator in `error_handling.py` to support the `record_history` parameter.
@@ -37,3 +42,9 @@
 - Updated TransformationService to use protocol-based type hints
 - Updated VisualizationService to use protocol-based type hints and more consistent method signatures
 - Standardized service method parameter types using the new protocol system
+- Updated all remaining services to use protocol-based interfaces:
+  - Updated FileService to use MainWindowProtocol
+  - Updated ImageService to use CurveViewProtocol, ImageSequenceProtocol, and MainWindowProtocol
+  - Updated HistoryService to use HistoryContainerProtocol
+  - Updated DialogService to use MainWindowProtocol and PointsList types
+- Increased protocol coverage from 30% to 80% across the codebase

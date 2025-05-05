@@ -16,6 +16,7 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 - [Architecture Overview](docs/architecture.md)
 - [Refactoring Guide](docs/refactoring_guide.md)
 - [Services Reference](services/README.md)
+- [Protocol System](docs/protocol_system.md)
 - [Refactoring Status](refactoring_status.md) (NEW - consolidated status report)
 
 ### Development Plans
@@ -37,6 +38,7 @@ CurveEditor uses a service-based architecture to maintain clean separation of co
 - ✅ Standardized import patterns for consistency
 - ✅ Improved module organization and reduced duplication
 - ✅ Enhanced error handling and type annotations
+- ✅ Implemented protocol system across all service files
 - ✅ Removed all deprecated files from codebase
 - ✅ Added proper logging throughout service implementations
 - ✅ Consolidated duplicate code in coordinate transformation logic
@@ -59,6 +61,9 @@ For detailed metrics and next steps, see the [Refactoring Status](refactoring_st
   - Removed all deprecated files from codebase
   - Modernized service import patterns
   - Consolidated duplicate code for coordinate transformations
+  - Extended protocol system to all remaining services:
+    - FileService, ImageService, HistoryService, and DialogService
+  - Achieved 80% protocol coverage across the codebase
 
 See [Refactoring Status](refactoring_status.md) for current metrics and detailed plans.
 
@@ -78,10 +83,10 @@ The application uses the following services:
 | `InputService` | Keyboard and mouse input handling | ✅ Complete |
 | `LoggingService` | Centralized logging system | ✅ Complete |
 | `VisualizationService` | Grid, vectors, and display features | ✅ Complete |
-| `ImageService` | Image sequence handling | ⏳ In Progress |
-| `FileService` | File I/O operations | ⏳ In Progress |
-| `HistoryService` | Undo/redo functionality | ⏳ In Progress |
-| `DialogService` | UI dialog management | ⏳ In Progress |
-| `SettingsService` | Application settings management | ⏳ In Progress |
+| `ImageService` | Image sequence handling | ✅ Complete |
+| `FileService` | File I/O operations | ✅ Complete |
+| `HistoryService` | Undo/redo functionality | ✅ Complete |
+| `DialogService` | UI dialog management | ✅ Complete |
+| `SettingsService` | Application settings management | ✅ Complete |
 
 For more details on the service architecture, including implementation status and usage examples, see the [services documentation](services/README.md).

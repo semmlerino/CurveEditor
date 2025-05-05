@@ -12,14 +12,17 @@ This service handles:
 """
 
 import copy
-from typing import Any, Dict, List, Optional
+from typing import Dict, List, Optional, TYPE_CHECKING
+from services.protocols import (
+    HistoryContainerProtocol, HistoryServiceProtocol, HistoryStateProtocol
+)
 
 
 class HistoryService:
     """Service for managing application history stack and undo/redo operations."""
 
     @staticmethod
-    def add_to_history(main_window: Any) -> None:
+    def add_to_history(main_window: HistoryContainerProtocol) -> None:
         """Add current state to history.
 
         This method:
@@ -55,7 +58,7 @@ class HistoryService:
         HistoryService.update_history_buttons(main_window)
 
     @staticmethod
-    def update_history_buttons(main_window: Any) -> None:
+    def update_history_buttons(main_window: HistoryContainerProtocol) -> None:
         """Update the state of undo/redo buttons based on history position.
 
         Args:
@@ -65,7 +68,7 @@ class HistoryService:
         main_window.redo_button.setEnabled(main_window.history_index < len(main_window.history) - 1)
 
     @staticmethod
-    def undo_action(main_window: Any) -> None:
+    def undo_action(main_window: HistoryContainerProtocol) -> None:
         """Undo the last action by moving back in history.
 
         Args:
@@ -79,7 +82,7 @@ class HistoryService:
         HistoryService.update_history_buttons(main_window)
 
     @staticmethod
-    def redo_action(main_window: Any) -> None:
+    def redo_action(main_window: HistoryContainerProtocol) -> None:
         """Redo the previously undone action by moving forward in history.
 
         Args:
@@ -93,7 +96,7 @@ class HistoryService:
         HistoryService.update_history_buttons(main_window)
 
     @staticmethod
-    def restore_state(main_window: Any, state: Dict[str, Any]) -> None:
+    def restore_state(main_window: HistoryContainerProtocol, state: Dict[str, any]) -> None:
         """Restore application state from history.
 
         Applies saved state to the main window and updates the curve view
