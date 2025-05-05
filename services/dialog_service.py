@@ -91,19 +91,8 @@ class DialogService:
             window_size = dialog.window_spin.value()
             sigma = dialog.sigma_spin.value() # Only used for Gaussian
 
-            if method == 0:  # Moving Average
-                data_ops.smooth_moving_average(points_to_smooth, window_size)
-            elif method == 1:  # Gaussian
-                data_ops.smooth_gaussian(points_to_smooth, window_size, sigma)
-            elif method == 2:  # Savitzky-Golay
-                # Ensure window size is valid for Savitzky-Golay (odd, >= 5)
-                if window_size < 5 or window_size % 2 == 0:
-                     QMessageBox.warning(parent_widget, "Warning", "Savitzky-Golay requires an odd window size of at least 5.")
-                     return None
-                data_ops.smooth_savitzky_golay(points_to_smooth, window_size)
-            else:
-                QMessageBox.warning(parent_widget, "Warning", "Unknown smoothing method.")
-                return None
+            # Simplified: Always use moving average method
+            data_ops.smooth_moving_average(points_to_smooth, window_size)
 
             # Return the modified data directly
             return data_ops.get_data()

@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 # mypy: disable-error-code=annotation-unchecked
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel, 
+from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
                                QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
                                QCheckBox, QGroupBox, QWidget, QSlider)
 from typing import Optional, Any, List, Tuple
@@ -10,22 +10,30 @@ from typing import Optional, Any, List, Tuple
 
 class SmoothingDialog(QDialog):
     """Dialog for curve smoothing options."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0) -> None:
         super(SmoothingDialog, self).__init__(parent)
         self.setWindowTitle("Smooth Curve")
         self.resize(400, 300)
-        
+
+        # Position the dialog to the right side of the parent to avoid obscuring the curve
+        if parent:
+            parent_pos = parent.pos()
+            parent_size = parent.size()
+            dialog_pos_x = parent_pos.x() + parent_size.width() - self.width() - 20
+            dialog_pos_y = parent_pos.y() + 50  # Position near the top
+            self.move(dialog_pos_x, dialog_pos_y)
+
         layout = QVBoxLayout(self)
-        
+
         # Smoothing method
         method_layout = QHBoxLayout()
         method_layout.addWidget(QLabel("Method:"))
         self.method_combo = QComboBox()
-        self.method_combo.addItems(["Moving Average", "Gaussian", "Savitzky-Golay"])
+        self.method_combo.addItems(["Moving Average"])  # Simplified to only show Moving Average
         method_layout.addWidget(self.method_combo)
         layout.addLayout(method_layout)
-        
+
         # Window size
         window_layout = QHBoxLayout()
         window_layout.addWidget(QLabel("Window Size:"))
@@ -37,7 +45,7 @@ class SmoothingDialog(QDialog):
         self.window_spin.setValue(5)
         window_layout.addWidget(self.window_spin)
         layout.addLayout(window_layout)
-        
+
         # Sigma (for Gaussian)
         sigma_layout = QHBoxLayout()
         sigma_layout.addWidget(QLabel("Sigma:"))
@@ -50,7 +58,7 @@ class SmoothingDialog(QDialog):
         self.sigma_spin.setValue(1.0)
         sigma_layout.addWidget(self.sigma_spin)
         layout.addLayout(sigma_layout)
-        
+
         # Frame range
         range_layout = QHBoxLayout()
         range_layout.addWidget(QLabel("Apply to:"))
@@ -58,7 +66,7 @@ class SmoothingDialog(QDialog):
         self.range_combo.addItems(["Entire Curve", "Selected Range", "Current Point Only", "Selected Points"])
         range_layout.addWidget(self.range_combo)
         layout.addLayout(range_layout)
-        
+
         # Range selection
         self.range_group = QGroupBox("Frame Range")
         range_group_layout = QHBoxLayout(self.range_group)
@@ -75,12 +83,12 @@ class SmoothingDialog(QDialog):
         self.end_frame.setValue(max_frame)
         range_group_layout.addWidget(self.end_frame)
         layout.addWidget(self.range_group)
-        
+
         # Preserve keyframes option
         self.preserve_keyframes = QCheckBox("Preserve Key Points")
         self.preserve_keyframes.setChecked(True)
         layout.addWidget(self.preserve_keyframes)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
@@ -90,24 +98,33 @@ class SmoothingDialog(QDialog):
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
-        
+
         # Connect signals
         self.range_combo.currentIndexChanged.connect(self.on_range_changed)
         self.method_combo.currentIndexChanged.connect(self.on_method_changed)
-        
+
         # Set current frame if using "Current Point Only"
         self.current_frame = current_frame
-        
+
+        # Before showing the dialog, position it to not obscure the curve view
+        if parent:
+            parent_rect = parent.geometry()
+            dialog_rect = self.geometry()
+            # Place the dialog in the right side of the parent window
+            new_x = parent_rect.right() - dialog_rect.width() - 20
+            new_y = parent_rect.top() + 50
+            self.setGeometry(new_x, new_y, dialog_rect.width(), dialog_rect.height())
+
         # Initial state
         self.on_range_changed(0)
         self.on_method_changed(0)
-        
+
     def on_range_changed(self, index: int) -> None:
         """Handle range selection change."""
         # Enable frame range only for "Selected Range" (index 1)
         # Disable for "Entire Curve" (0), "Current Point Only" (2), and "Selected Points" (3)
         self.range_group.setEnabled(index == 1)
-        
+
     def on_method_changed(self, index: int) -> None:
         """Handle method selection change."""
         # Show sigma only for Gaussian (which is at index 1)
@@ -116,14 +133,14 @@ class SmoothingDialog(QDialog):
 
 class FilterDialog(QDialog):
     """Dialog for applying different filters to the curve data."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0) -> None:
         super(FilterDialog, self).__init__(parent)
         self.setWindowTitle("Apply Filter")
         self.resize(400, 300)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Filter type selection
         filter_layout = QHBoxLayout()
         filter_layout.addWidget(QLabel("Filter:"))
@@ -131,7 +148,7 @@ class FilterDialog(QDialog):
         self.filter_combo.addItems(["Median", "Gaussian", "Average", "Butterworth"])
         filter_layout.addWidget(self.filter_combo)
         layout.addLayout(filter_layout)
-        
+
         # Frame range selection
         range_layout = QHBoxLayout()
         range_layout.addWidget(QLabel("Apply to:"))
@@ -139,7 +156,7 @@ class FilterDialog(QDialog):
         self.range_combo.addItems(["Entire Curve", "Selected Range", "Current Point"])
         range_layout.addWidget(self.range_combo)
         layout.addLayout(range_layout)
-        
+
         # Range selection
         self.range_group = QGroupBox("Frame Range")
         range_group_layout = QHBoxLayout(self.range_group)
@@ -156,13 +173,13 @@ class FilterDialog(QDialog):
         self.end_frame.setValue(max_frame)
         range_group_layout.addWidget(self.end_frame)
         layout.addWidget(self.range_group)
-        
+
         # Filter parameters
         self.param_group = QGroupBox("Filter Parameters")
         self.param_layout = QVBoxLayout(self.param_group)
         # Parameter UI elements will be added dynamically based on filter selection
         layout.addWidget(self.param_group)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
@@ -172,22 +189,22 @@ class FilterDialog(QDialog):
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
-        
+
         # Connect signals
         self.filter_combo.currentIndexChanged.connect(self.on_filter_changed)
         self.range_combo.currentIndexChanged.connect(self.on_range_changed)
-        
+
         # Initialize UI
         self.create_param_widgets()
         self.on_filter_changed(0)
         self.on_range_changed(0)
-        
+
         # Generic accessor for window size - adds compatibility with existing code
         self.window_size_spin: Optional[QSpinBox] = self.median_size
         self.sigma_spin: Optional[QDoubleSpinBox] = None
         self.cutoff_spin: Optional[QDoubleSpinBox] = None
         self.order_spin: Optional[QSpinBox] = None
-        
+
     def create_param_widgets(self) -> None:
         """Create all parameter widgets for different filters."""
         # Median filter parameters
@@ -201,7 +218,7 @@ class FilterDialog(QDialog):
         self.median_size.setValue(5)
         median_layout.addWidget(self.median_size)
         self.median_widgets.append((median_layout, "median_layout"))
-        
+
         # Gaussian filter parameters
         self.gaussian_widgets: list[tuple[QHBoxLayout, str]] = []
         gaussian_layout = QHBoxLayout()
@@ -222,7 +239,7 @@ class FilterDialog(QDialog):
         self.gaussian_size.setValue(5)
         gaussian_layout2.addWidget(self.gaussian_size)
         self.gaussian_widgets.append((gaussian_layout2, "gaussian_layout2"))
-        
+
         # Average filter parameters
         self.average_widgets: list[tuple[QHBoxLayout, str]] = []
         average_layout = QHBoxLayout()
@@ -234,7 +251,7 @@ class FilterDialog(QDialog):
         self.average_size.setValue(5)
         average_layout.addWidget(self.average_size)
         self.average_widgets.append((average_layout, "average_layout"))
-        
+
         # Butterworth filter parameters
         self.butterworth_widgets: list[tuple[QHBoxLayout, str]] = []
         butterworth_layout1 = QHBoxLayout()
@@ -254,7 +271,7 @@ class FilterDialog(QDialog):
         self.butterworth_order.setValue(2)
         butterworth_layout2.addWidget(self.butterworth_order)
         self.butterworth_widgets.append((butterworth_layout2, "butterworth_layout2"))
-        
+
     def on_filter_changed(self, index: int) -> None:
         """Update parameter widgets based on selected filter."""
         # Clear existing parameter widgets
@@ -266,7 +283,7 @@ class FilterDialog(QDialog):
                     item_widget = item.layout().takeAt(0)
                     if item_widget.widget():
                         item_widget.widget().setParent(None)
-        
+
         # Add new parameter widgets based on filter type
         if index == 0:  # Median
             for layout, _ in self.median_widgets:
@@ -300,7 +317,7 @@ class FilterDialog(QDialog):
             self.sigma_spin = None
             self.cutoff_spin = self.butterworth_cutoff
             self.order_spin = self.butterworth_order
-                
+
     def on_range_changed(self, index: int) -> None:
         """Handle range selection change."""
         self.range_group.setEnabled(index == 1)  # Enable range only for "Selected Range"
@@ -308,14 +325,14 @@ class FilterDialog(QDialog):
 
 class FillGapsDialog(QDialog):
     """Dialog for filling gaps in the tracking data."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100):
         super(FillGapsDialog, self).__init__(parent)
         self.setWindowTitle("Fill Gaps")
         self.resize(450, 300)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Gap selection
         gap_group = QGroupBox("Gap Range")
         gap_layout = QVBoxLayout(gap_group)
@@ -333,39 +350,39 @@ class FillGapsDialog(QDialog):
         self.end_frame.setValue(max_frame)
         range_layout.addWidget(self.end_frame)
         gap_layout.addLayout(range_layout)
-        
+
         # Auto-detect gaps checkbox
         self.auto_detect = QCheckBox("Auto-detect gaps")
         self.auto_detect.setChecked(True)
         self.auto_detect.stateChanged.connect(self.on_auto_detect_changed)
         gap_layout.addWidget(self.auto_detect)
-        
+
         # Preserve endpoints checkbox
         self.preserve_endpoints = QCheckBox("Preserve original points at gap boundaries")
         self.preserve_endpoints.setChecked(True)
         gap_layout.addWidget(self.preserve_endpoints)
-        
+
         layout.addWidget(gap_group)
-        
+
         # Method selection
         method_group = QGroupBox("Fill Method")
         method_layout = QVBoxLayout(method_group)
         self.method_combo = QComboBox()
         self.method_combo.addItems([
-            "Linear Interpolation", 
+            "Linear Interpolation",
             "Cubic Spline",
             "Constant Velocity",
             "Accelerated Motion",
             "Neighboring Frames Average"
         ])
         method_layout.addWidget(self.method_combo)
-        
+
         # Parameter UI based on method
         self.param_widget = QWidget()
         self.param_layout = QVBoxLayout(self.param_widget)
         method_layout.addWidget(self.param_widget)
         layout.addWidget(method_group)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
@@ -375,20 +392,20 @@ class FillGapsDialog(QDialog):
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
-        
+
         # Connect signals
         self.method_combo.currentIndexChanged.connect(self.on_method_changed)
-        
+
         # Initialize parameter widgets
         self.create_param_widgets()
         self.on_method_changed(0)
         self.on_auto_detect_changed(self.auto_detect.checkState().value)
-        
+
     def create_param_widgets(self) -> None:
         """Create parameter widgets for different fill methods."""
         # Linear interpolation parameters
         self.linear_widgets: list[tuple[QHBoxLayout, str]] = []
-        
+
         # Cubic spline parameters
         self.cubic_widgets: list[tuple[QHBoxLayout, str]] = []
         tension_layout = QHBoxLayout()
@@ -400,7 +417,7 @@ class FillGapsDialog(QDialog):
         self.cubic_tension.setValue(0.5)
         tension_layout.addWidget(self.cubic_tension)
         self.cubic_widgets.append((tension_layout, "tension_layout"))
-        
+
         # Constant velocity parameters
         self.velocity_widgets: list[tuple[QHBoxLayout, str]] = []
         window_layout = QHBoxLayout()
@@ -411,7 +428,7 @@ class FillGapsDialog(QDialog):
         self.velocity_window.setValue(3)
         window_layout.addWidget(self.velocity_window)
         self.velocity_widgets.append((window_layout, "window_layout"))
-        
+
         # Accelerated motion parameters
         self.accel_widgets: list[tuple[QHBoxLayout, str]] = []
         accel_window_layout = QHBoxLayout()
@@ -431,7 +448,7 @@ class FillGapsDialog(QDialog):
         self.accel_weight.setValue(0.5)
         accel_weight_layout.addWidget(self.accel_weight)
         self.accel_widgets.append((accel_weight_layout, "accel_weight_layout"))
-        
+
         # Neighboring frames average parameters
         self.average_widgets: list[tuple[QHBoxLayout, str]] = []
         avg_window_layout = QHBoxLayout()
@@ -442,7 +459,7 @@ class FillGapsDialog(QDialog):
         self.avg_window.setValue(3)
         avg_window_layout.addWidget(self.avg_window)
         self.average_widgets.append((avg_window_layout, "avg_window_layout"))
-    
+
     def on_method_changed(self, index: int) -> None:
         """Update parameter widgets based on selected method."""
         # Clear current widgets
@@ -459,7 +476,7 @@ class FillGapsDialog(QDialog):
                 widget = item.widget()
                 widget.setParent(None)
                 self.param_layout.removeWidget(widget)
-                
+
         # Add appropriate widgets for selected method
         if index == 0:  # Linear Interpolation
             for layout, _ in self.linear_widgets:
@@ -476,7 +493,7 @@ class FillGapsDialog(QDialog):
         elif index == 4:  # Neighboring Frames Average
             for layout, _ in self.average_widgets:
                 self.param_layout.addLayout(layout)
-                
+
     def on_auto_detect_changed(self, state: Qt.CheckState) -> None:
         """Enable/disable manual frame range selection based on auto-detect setting."""
         self.start_frame.setEnabled(bool(Qt.CheckState(state) != Qt.Checked))  # type: ignore  # See: https://doc.qt.io/qtforpython-6/PySide6/QtCore/Qt.html
@@ -485,14 +502,14 @@ class FillGapsDialog(QDialog):
 
 class ExtrapolateDialog(QDialog):
     """Dialog for extrapolating curve data beyond the existing frames."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100):
         super(ExtrapolateDialog, self).__init__(parent)
         self.setWindowTitle("Extrapolate Curve")
         self.resize(450, 300)
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Direction selection
         direction_layout = QHBoxLayout()
         direction_layout.addWidget(QLabel("Direction:"))
@@ -500,7 +517,7 @@ class ExtrapolateDialog(QDialog):
         self.direction_combo.addItems(["Extrapolate Forward", "Extrapolate Backward", "Both Directions"])
         direction_layout.addWidget(self.direction_combo)
         layout.addLayout(direction_layout)
-        
+
         # Frame range
         range_group = QGroupBox("Frame Range")
         range_layout = QVBoxLayout(range_group)
@@ -521,14 +538,14 @@ class ExtrapolateDialog(QDialog):
         backward_layout.addWidget(self.backward_frames)
         range_layout.addLayout(backward_layout)
         layout.addWidget(range_group)
-        
+
         # Method selection
         method_group = QGroupBox("Extrapolation Method")
         method_layout = QVBoxLayout(method_group)
         self.method_combo = QComboBox()
         self.method_combo.addItems(["Linear", "Last Velocity", "Quadratic"])
         method_layout.addWidget(self.method_combo)
-        
+
         # Advanced options for quadratic
         self.advanced_group = QGroupBox("Advanced Options")
         advanced_layout = QVBoxLayout(self.advanced_group)
@@ -542,12 +559,12 @@ class ExtrapolateDialog(QDialog):
         advanced_layout.addLayout(fit_layout)
         method_layout.addWidget(self.advanced_group)
         layout.addWidget(method_group)
-        
+
         # Display preview option
         self.preview_checkbox = QCheckBox("Show preview")
         self.preview_checkbox.setChecked(True)
         layout.addWidget(self.preview_checkbox)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         self.apply_button = QPushButton("Apply")
@@ -557,20 +574,20 @@ class ExtrapolateDialog(QDialog):
         button_layout.addWidget(self.apply_button)
         button_layout.addWidget(self.cancel_button)
         layout.addLayout(button_layout)
-        
+
         # Connect signals
         self.method_combo.currentIndexChanged.connect(self.on_method_changed)
         self.direction_combo.currentIndexChanged.connect(self.on_direction_changed)
-        
+
         # Initial state updates
         self.on_method_changed(0)
         self.on_direction_changed(0)
-        
+
     def on_method_changed(self, index: int) -> None:
         """Handle method selection change."""
         # Show advanced options only for quadratic (index 2)
         self.advanced_group.setVisible(index == 2)
-        
+
     def on_direction_changed(self, index: int) -> None:
         """Handle direction selection change."""
         # Enable/disable appropriate frame inputs based on selected direction
@@ -587,24 +604,24 @@ class ExtrapolateDialog(QDialog):
 
 class ProblemDetectionDialog(QDialog):
     """Dialog for detecting and navigating to problematic areas in the curve."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None) -> None:
         super(ProblemDetectionDialog, self).__init__(parent)
         self.setWindowTitle("Problem Detection")
         self.resize(500, 400)
         self.selected_problem: Optional[Tuple[int, Any, Any, Any]] = None
-        
+
         if problems is None:
             problems = []
-            
+
         # Store problems data first to avoid attribute error
         self.problems = problems
-            
+
         layout = QVBoxLayout(self)
-        
+
         # Problems list header
         layout.addWidget(QLabel("Detected problems in tracking curve:"))
-        
+
         # Problems list
         self.problems_list = QComboBox()
         for problem in problems:
@@ -616,7 +633,7 @@ class ProblemDetectionDialog(QDialog):
             severity_text = "High" if sev > 0.7 else "Medium" if sev > 0.3 else "Low"
             self.problems_list.addItem(f"Frame {frame}: {problem_type} - {severity_text} - {description}")
         layout.addWidget(self.problems_list)
-        
+
         # Information area
         info_group = QGroupBox("Problem Details")
         info_layout = QVBoxLayout(info_group)
@@ -630,7 +647,7 @@ class ProblemDetectionDialog(QDialog):
         info_layout.addWidget(self.info_severity)
         info_layout.addWidget(self.info_description)
         layout.addWidget(info_group)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         self.jump_button = QPushButton("Jump to Problem")
@@ -643,14 +660,14 @@ class ProblemDetectionDialog(QDialog):
         button_layout.addWidget(self.next_button)
         button_layout.addWidget(self.close_button)
         layout.addLayout(button_layout)
-        
+
         # Connect signals
         self.problems_list.currentIndexChanged.connect(self.update_problem_info)
-        
+
         # Initial update
         if problems:
             self.update_problem_info(0)
-        
+
     def update_problem_info(self, index: int) -> None:
         """Update the problem information display."""
         if index < 0 or index >= len(self.problems):
@@ -665,14 +682,14 @@ class ProblemDetectionDialog(QDialog):
         self.info_type.setText(f"Type: {problem_type}")
         self.info_severity.setText(f"Severity: {severity_text} ({sev:.2f})")
         self.info_description.setText(f"Description: {description}")
-        
+
     def jump_to_problem(self) -> None:
         """Signal to jump to the selected problem."""
         index = self.problems_list.currentIndex()
         if 0 <= index < len(self.problems):
             self.selected_problem = self.problems[index]
             self.accept()
-            
+
     def next_problem(self) -> None:
         """Move to the next problem in the list."""
         index = self.problems_list.currentIndex()
@@ -684,14 +701,14 @@ class ProblemDetectionDialog(QDialog):
 
 class ShortcutsDialog(QDialog):
     """Dialog displaying keyboard shortcuts."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super(ShortcutsDialog, self).__init__(parent)
         self.setWindowTitle("Keyboard Shortcuts")
         self.resize(500, 400)
-        
+
         layout = QVBoxLayout(self)
-        
+
         shortcuts_label = QLabel("""
         <h3>Keyboard Shortcuts</h3>
         <table>
@@ -711,7 +728,7 @@ class ShortcutsDialog(QDialog):
         """)
         shortcuts_label.setTextFormat(Qt.TextFormat(Qt.TextFormat.RichText))
         layout.addWidget(shortcuts_label)
-        
+
         # Close button
         button = QPushButton("Close")
         button.clicked.connect(self.accept)
@@ -720,7 +737,7 @@ class ShortcutsDialog(QDialog):
 
 class ScaleDialog(QDialog):
     """Dialog for scaling points."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Scale Points")
@@ -761,9 +778,9 @@ class ScaleDialog(QDialog):
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
         self.setWindowTitle("Scale Points")
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Scale factors
         x_layout = QHBoxLayout()
         x_layout.addWidget(QLabel("Scale X:"))
@@ -773,7 +790,7 @@ class ScaleDialog(QDialog):
         self.scale_x_spin.setValue(1.0)
         x_layout.addWidget(self.scale_x_spin)
         layout.addLayout(x_layout)
-        
+
         y_layout = QHBoxLayout()
         y_layout.addWidget(QLabel("Scale Y:"))
         self.scale_y_spin = QDoubleSpinBox()
@@ -782,12 +799,12 @@ class ScaleDialog(QDialog):
         self.scale_y_spin.setValue(1.0)
         y_layout.addWidget(self.scale_y_spin)
         layout.addLayout(y_layout)
-        
+
         # Use centroid as scaling center
         self.use_centroid_check = QCheckBox("Scale around selection centroid")
         self.use_centroid_check.setChecked(True)
         layout.addWidget(self.use_centroid_check)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
@@ -797,7 +814,7 @@ class ScaleDialog(QDialog):
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
-    
+
     @property
     def scale_x(self) -> float:
         return self.scale_x_spin.value()
@@ -813,7 +830,7 @@ class ScaleDialog(QDialog):
 
 class OffsetDialog(QDialog):
     """Dialog for offsetting points."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Offset Points")
@@ -849,9 +866,9 @@ class OffsetDialog(QDialog):
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
         self.setWindowTitle("Offset Points")
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Offset values
         x_layout = QHBoxLayout()
         x_layout.addWidget(QLabel("Offset X:"))
@@ -861,7 +878,7 @@ class OffsetDialog(QDialog):
         self.offset_x_spin.setValue(0.0)
         x_layout.addWidget(self.offset_x_spin)
         layout.addLayout(x_layout)
-        
+
         y_layout = QHBoxLayout()
         y_layout.addWidget(QLabel("Offset Y:"))
         self.offset_y_spin = QDoubleSpinBox()
@@ -870,7 +887,7 @@ class OffsetDialog(QDialog):
         self.offset_y_spin.setValue(0.0)
         y_layout.addWidget(self.offset_y_spin)
         layout.addLayout(y_layout)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
@@ -880,11 +897,11 @@ class OffsetDialog(QDialog):
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
-    
+
     @property
     def offset_x(self) -> float:
         return self.offset_x_spin.value()
-    
+
     @property
     def offset_y(self) -> float:
         return self.offset_y_spin.value()
@@ -892,7 +909,7 @@ class OffsetDialog(QDialog):
 
 class RotationDialog(QDialog):
     """Dialog for rotating points."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Rotate Points")
@@ -924,9 +941,9 @@ class RotationDialog(QDialog):
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
         self.setWindowTitle("Rotate Points")
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Rotation angle
         angle_layout = QHBoxLayout()
         angle_layout.addWidget(QLabel("Angle (degrees):"))
@@ -936,12 +953,12 @@ class RotationDialog(QDialog):
         self.angle_spin.setValue(0.0)
         angle_layout.addWidget(self.angle_spin)
         layout.addLayout(angle_layout)
-        
+
         # Use centroid as rotation center
         self.use_centroid_check = QCheckBox("Rotate around selection centroid")
         self.use_centroid_check.setChecked(True)
         layout.addWidget(self.use_centroid_check)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
@@ -951,7 +968,7 @@ class RotationDialog(QDialog):
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
-    
+
     @property
     def angle(self) -> float:
         return self.angle_spin.value()
@@ -963,7 +980,7 @@ class RotationDialog(QDialog):
 
 class SmoothFactorDialog(QDialog):
     """Dialog for selecting smoothness factor."""
-    
+
     def __init__(self, parent: Optional[QWidget] = None):
         super().__init__(parent)
         self.setWindowTitle("Smooth Points")
@@ -1000,29 +1017,29 @@ class SmoothFactorDialog(QDialog):
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
         self.setWindowTitle("Smooth Points")
-        
+
         layout = QVBoxLayout(self)
-        
+
         # Smoothness factor
         layout.addWidget(QLabel("Smoothness Factor:"))
-        
+
         slider_layout = QHBoxLayout()
         self.factor_slider = QSlider(Qt.Orientation(Qt.Orientation.Horizontal))
         self.factor_slider.setRange(0, 100)
         self.factor_slider.setValue(50)
         slider_layout.addWidget(self.factor_slider)
-        
+
         self.factor_spin = QDoubleSpinBox()
         self.factor_spin.setRange(0.0, 1.0)
         self.factor_spin.setSingleStep(0.05)
         self.factor_spin.setValue(0.5)
         slider_layout.addWidget(self.factor_spin)
         layout.addLayout(slider_layout)
-        
+
         # Connect slider and spin box
         self.factor_slider.valueChanged.connect(self.update_spin_from_slider)
         self.factor_spin.valueChanged.connect(self.update_slider_from_spin)
-        
+
         # Buttons
         button_layout = QHBoxLayout()
         ok_button = QPushButton("Apply")
@@ -1032,15 +1049,15 @@ class SmoothFactorDialog(QDialog):
         button_layout.addWidget(ok_button)
         button_layout.addWidget(cancel_button)
         layout.addLayout(button_layout)
-    
+
     def update_spin_from_slider(self, value: int) -> None:
         """Update spin box value when slider changes."""
         self.factor_spin.setValue(value / 100.0)
-    
+
     def update_slider_from_spin(self, value: float) -> None:
         """Update slider value when spin box changes."""
         self.factor_slider.setValue(int(value * 100))
-    
+
     @property
     def smoothness_factor(self) -> float:
         return self.factor_spin.value()

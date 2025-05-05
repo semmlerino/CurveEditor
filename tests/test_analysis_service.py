@@ -35,6 +35,15 @@ class TestAnalysisService(unittest.TestCase):
         indices_to_smooth = [1, 2, 3]  # Smooth the middle points
         window_size = 3
 
+        # Calculate original centroid before smoothing
+        original_x_sum = 0
+        original_y_sum = 0
+        for idx in indices_to_smooth:
+            original_x_sum += self.curve_data[idx][1]
+            original_y_sum += self.curve_data[idx][2]
+        original_centroid_x = original_x_sum / len(indices_to_smooth)
+        original_centroid_y = original_y_sum / len(indices_to_smooth)
+
         # Act
         self.analysis_service.smooth_moving_average(indices_to_smooth, window_size)
         smoothed_data = self.analysis_service.get_data()
@@ -49,6 +58,20 @@ class TestAnalysisService(unittest.TestCase):
         self.assertAlmostEqual(float(smoothed_data[2][1]), float(expected_x), places=4)
         self.assertAlmostEqual(float(smoothed_data[2][2]), float(expected_y), places=4)
 
+        # Calculate new centroid after smoothing
+        smoothed_x_sum = 0
+        smoothed_y_sum = 0
+        for idx in indices_to_smooth:
+            smoothed_x_sum += smoothed_data[idx][1]
+            smoothed_y_sum += smoothed_data[idx][2]
+        smoothed_centroid_x = smoothed_x_sum / len(indices_to_smooth)
+        smoothed_centroid_y = smoothed_y_sum / len(indices_to_smooth)
+
+        # Check that the centroid position is maintained (within a small tolerance)
+        # This ensures that the curve isn't being displaced during smoothing
+        self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
+        self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
+
     def test_smooth_gaussian(self):
         """Test smoothing with Gaussian filter."""
         # Arrange
@@ -56,36 +79,80 @@ class TestAnalysisService(unittest.TestCase):
         window_size = 3
         sigma = 1.0
 
+        # Calculate original centroid before smoothing
+        original_x_sum = 0
+        original_y_sum = 0
+        for i in range(5):
+            original_x_sum += self.curve_data[i][1]
+            original_y_sum += self.curve_data[i][2]
+        original_centroid_x = original_x_sum / 5
+        original_centroid_y = original_y_sum / 5
+
         # Act
         self.analysis_service.smooth_gaussian(indices_to_smooth, window_size, sigma)
         smoothed_data = self.analysis_service.get_data()
 
-        # Assert
-        # Since we're using a Gaussian filter, results will depend on the implementation
-        # Just ensure that smoothing occurred without errors and data structure is preserved
+        # Calculate new centroid after smoothing
+        smoothed_x_sum = 0
+        smoothed_y_sum = 0
         for i in range(5):
-            # Check that each point has frame, x, y
+            smoothed_x_sum += smoothed_data[i][1]
+            smoothed_y_sum += smoothed_data[i][2]
+        smoothed_centroid_x = smoothed_x_sum / 5
+        smoothed_centroid_y = smoothed_y_sum / 5
+
+        # Assert
+        # Check that each point has frame, x, y
+        for i in range(5):
             self.assertEqual(len(smoothed_data[i]), 3)
             # Check that frame numbers are preserved
             self.assertEqual(smoothed_data[i][0], i + 1)
+
+        # Check that the centroid position is maintained (within a small tolerance)
+        # This ensures that the curve isn't being displaced during smoothing
+        self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
+        self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
 
     def test_smooth_savitzky_golay(self):
         """Test smoothing with Savitzky-Golay filter."""
         # Arrange
         indices_to_smooth = list(range(5))  # Smooth the first 5 points
-        window_size = 3  # Must be odd
+        window_size = 5  # Must be odd and >= 5 for Savitzky-Golay
+
+        # Calculate original centroid before smoothing
+        original_x_sum = 0
+        original_y_sum = 0
+        for i in range(5):
+            original_x_sum += self.curve_data[i][1]
+            original_y_sum += self.curve_data[i][2]
+        original_centroid_x = original_x_sum / 5
+        original_centroid_y = original_y_sum / 5
 
         # Act
         self.analysis_service.smooth_savitzky_golay(indices_to_smooth, window_size)
         smoothed_data = self.analysis_service.get_data()
 
+        # Calculate new centroid after smoothing
+        smoothed_x_sum = 0
+        smoothed_y_sum = 0
+        for i in range(5):
+            smoothed_x_sum += smoothed_data[i][1]
+            smoothed_y_sum += smoothed_data[i][2]
+        smoothed_centroid_x = smoothed_x_sum / 5
+        smoothed_centroid_y = smoothed_y_sum / 5
+
         # Assert
-        # Ensure smoothing occurred without errors and data structure is preserved
+        # Check data structure preservation
         for i in range(5):
             # Check that each point has frame, x, y
             self.assertEqual(len(smoothed_data[i]), 3)
             # Check that frame numbers are preserved
             self.assertEqual(smoothed_data[i][0], i + 1)
+
+        # Check that the centroid position is maintained (within a small tolerance)
+        # This ensures that the curve isn't being displaced during smoothing
+        self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
+        self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
 
     def test_fill_gap_linear(self):
         """Test filling a gap with linear interpolation."""

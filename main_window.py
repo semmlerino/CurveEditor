@@ -669,6 +669,11 @@ class MainWindow(QMainWindow):
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
 
+        # Save current view state
+        current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+        current_offset_x = getattr(self.curve_view, 'offset_x', 0)
+        current_offset_y = getattr(self.curve_view, 'offset_y', 0)
+
         # Gather necessary data
         current_data = self.curve_data
         # Get selected indices from curve view
@@ -703,6 +708,11 @@ class MainWindow(QMainWindow):
                 self.image_height,
                 preserve_view=True
             )
+
+            # Explicitly restore view state to ensure consistent behavior
+            self.curve_view.zoom_factor = current_zoom
+            self.curve_view.offset_x = current_offset_x
+            self.curve_view.offset_y = current_offset_y
 
             # Add to history
             self.add_to_history()

@@ -11,6 +11,11 @@ flexibility in implementation.
 
 from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, cast, Set
 
+# Type aliases for common data structures
+PointTuple = Tuple[int, float, float]  # frame, x, y
+PointTupleWithStatus = Tuple[int, float, float, bool]  # frame, x, y, interpolated
+PointsList = List[Union[PointTuple, PointTupleWithStatus]]
+
 
 class CurveViewProtocol(Protocol):
     """Protocol defining the interface for curve view components."""
@@ -147,11 +152,6 @@ class DialogServiceProtocol(Protocol):
         self, main_window: MainWindowProtocol, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None
     ) -> Optional[Any]: ...
 
-
-# Type aliases for common data structures
-PointTuple = Tuple[int, float, float]  # frame, x, y
-PointTupleWithStatus = Tuple[int, float, float, bool]  # frame, x, y, interpolated
-PointsList = List[Union[PointTuple, PointTupleWithStatus]]
 
 # Generic type for service method return values
 T = TypeVar('T')
