@@ -13,10 +13,8 @@ import os
 import re
 from services.centering_zoom_service import CenteringZoomService
 from services.logging_service import LoggingService
-from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from curve_view import CurveView
+from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
+from typing import List, Tuple, Optional, Union, cast, TYPE_CHECKING
 
 # Configure logger for this module
 logger = LoggingService.get_logger("visualization_service")
@@ -25,13 +23,13 @@ class VisualizationService:
     """Service for visualization operations in the curve editor."""
 
     @staticmethod
-    def toggle_background_visible(curve_view: 'CurveView', visible: bool) -> None:
+    def toggle_background_visible(curve_view: CurveViewProtocol, visible: bool) -> None:
         """Toggle visibility of background image."""
         curve_view.show_background = visible
         curve_view.update()
 
     @staticmethod
-    def toggle_grid(curve_view: 'CurveView', enabled: Optional[bool] = None) -> None:
+    def toggle_grid(curve_view: CurveViewProtocol, enabled: Optional[bool] = None) -> None:
         """Toggle grid visibility."""
         if enabled is None:
             curve_view.show_grid = not getattr(curve_view, 'show_grid', False)
@@ -40,25 +38,25 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def toggle_velocity_vectors(curve_view: 'CurveView', enabled: bool) -> None:
+    def toggle_velocity_vectors(curve_view: CurveViewProtocol, enabled: bool) -> None:
         """Toggle velocity vector display."""
         curve_view.show_velocity_vectors = enabled
         curve_view.update()
 
     @staticmethod
-    def toggle_all_frame_numbers(curve_view: 'CurveView', enabled: bool) -> None:
+    def toggle_all_frame_numbers(curve_view: CurveViewProtocol, enabled: bool) -> None:
         """Toggle display of all frame numbers."""
         curve_view.show_all_frame_numbers = enabled
         curve_view.update()
 
     @staticmethod
-    def toggle_crosshair(curve_view: 'CurveView', enabled: bool) -> None:
+    def toggle_crosshair(curve_view: CurveViewProtocol, enabled: bool) -> None:
         """Toggle crosshair visibility."""
         curve_view.show_crosshair = enabled
         curve_view.update()
 
     @staticmethod
-    def set_background_opacity(curve_view: 'CurveView', opacity: float) -> None:
+    def set_background_opacity(curve_view: CurveViewProtocol, opacity: float) -> None:
         """Set the opacity of the background image.
 
         Args:
@@ -69,7 +67,7 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def pan_view(curve_view: 'CurveView', dx: float, dy: float) -> None:
+    def pan_view(curve_view: CurveViewProtocol, dx: float, dy: float) -> None:
         """Pan the view by the specified delta.
 
         Args:
@@ -78,14 +76,14 @@ class VisualizationService:
             dy: Change in y position
         """
         # Apply the pan offset
-        curve_view.offset_x = int(getattr(curve_view, 'offset_x', 0) + dx)
-        curve_view.offset_y = int(getattr(curve_view, 'offset_y', 0) + dy)
+        curve_view.x_offset = int(curve_view.x_offset + dx)
+        curve_view.y_offset = int(curve_view.y_offset + dy)
 
         # Update the view
         curve_view.update()
 
     @staticmethod
-    def set_point_radius(curve_view: 'CurveView', radius: int) -> None:
+    def set_point_radius(curve_view: CurveViewProtocol, radius: int) -> None:
         """Set the radius for points in the curve view.
 
         Args:
@@ -96,7 +94,7 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def set_grid_color(curve_view: 'CurveView', color: QColor) -> None:
+    def set_grid_color(curve_view: CurveViewProtocol, color: QColor) -> None:
         """Set the color of the grid lines.
 
         Args:
@@ -107,7 +105,7 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def set_grid_line_width(curve_view: 'CurveView', width: int) -> None:
+    def set_grid_line_width(curve_view: CurveViewProtocol, width: int) -> None:
         """Set the width of grid lines.
 
         Args:
@@ -118,7 +116,7 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def update_timeline_for_image(index: int, curve_view: 'CurveView', image_filenames: List[str]) -> None:
+    def update_timeline_for_image(index: int, curve_view: CurveViewProtocol, image_filenames: List[str]) -> None:
         """Update the timeline for the current image.
 
         This method extracts the frame number from an image filename and updates
@@ -169,7 +167,7 @@ class VisualizationService:
             logger.error(f"Error updating timeline: {str(e)}")
 
     @staticmethod
-    def update_frame_marker_position(curve_view: 'CurveView', frame: int) -> None:
+    def update_frame_marker_position(curve_view: CurveViewProtocol, frame: int) -> None:
         """Update the position of the frame marker based on current frame.
 
         Args:
@@ -194,8 +192,8 @@ class VisualizationService:
 
     @staticmethod
     def set_points(
-        curve_view: 'CurveView',
-        points: List[Union[Tuple[int, float, float], Tuple[int, float, float, Any]]],
+        curve_view: CurveViewProtocol,
+        points: PointsList,
         image_width: int,
         image_height: int,
         preserve_view: bool = False
@@ -214,10 +212,8 @@ class VisualizationService:
         if preserve_view:
             view_state = {
                 'zoom_factor': curve_view.zoom_factor,
-                'offset_x': getattr(curve_view, 'offset_x', 0),
-                'offset_y': getattr(curve_view, 'offset_y', 0),
-                'x_offset': getattr(curve_view, 'x_offset', 0),
-                'y_offset': getattr(curve_view, 'y_offset', 0)
+                'x_offset': curve_view.x_offset,
+                'y_offset': curve_view.y_offset
             }
 
         # Update data
@@ -232,17 +228,13 @@ class VisualizationService:
             # Restore view state
             if view_state:
                 curve_view.zoom_factor = view_state['zoom_factor']
-                curve_view.offset_x = int(view_state['offset_x'])
-                curve_view.offset_y = int(view_state['offset_y'])
-                if hasattr(curve_view, 'x_offset'):
-                    curve_view.x_offset = int(view_state['x_offset'])
-                if hasattr(curve_view, 'y_offset'):
-                    curve_view.y_offset = int(view_state['y_offset'])
+                curve_view.x_offset = int(view_state['x_offset'])
+                curve_view.y_offset = int(view_state['y_offset'])
 
         curve_view.update()
 
     @staticmethod
-    def jump_to_frame_by_click(curve_view: 'CurveView', position: int) -> None:
+    def jump_to_frame_by_click(curve_view: CurveViewProtocol, position: int) -> None:
         """
         Jump to a frame by clicking on the timeline (if implemented).
 
@@ -254,20 +246,17 @@ class VisualizationService:
         pass
 
     @staticmethod
-    def center_on_selected_point_from_main_window(main_window: Any) -> None:
+    def center_on_selected_point_from_main_window(main_window: MainWindowProtocol) -> None:
         """Center the view on the selected point from the main window.
 
         Args:
             main_window: The main window instance
         """
-        curve_view = getattr(main_window, 'curve_view', None)
-        if curve_view:
-            CenteringZoomService.center_on_selected_point(curve_view)
-        else:
-            logger.warning("Cannot center: no curve view available.")
+        curve_view = main_window.curve_view
+        CenteringZoomService.center_on_selected_point(curve_view)
 
     @staticmethod
-    def toggle_crosshair_internal(curve_view: 'CurveView', enabled: bool) -> None:
+    def toggle_crosshair_internal(curve_view: CurveViewProtocol, enabled: bool) -> None:
         """Internal implementation of toggle_crosshair.
 
         Args:

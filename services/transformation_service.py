@@ -6,25 +6,16 @@ TransformationService: Centralized coordinate transformation logic.
 Provides methods for mapping between different coordinate spaces in the application.
 """
 
-from typing import Any, Tuple, Protocol, Optional, TYPE_CHECKING
+from typing import Tuple, Optional, TYPE_CHECKING, List, Union, cast
 from services.logging_service import LoggingService
+from services.centering_zoom_service import CenteringZoomService
+from services.protocols import CurveViewProtocol, PointTuple, PointTupleWithStatus, PointsList
 
 # Configure logger for this module
 logger = LoggingService.get_logger("transformation_service")
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPointF
-
-class CurveViewTransformProtocol(Protocol):
-    """Protocol defining required attributes for coordinate transformation."""
-
-    x_offset: float
-    y_offset: float
-    flip_y_axis: bool
-    scale_to_image: bool
-    background_image: Optional[Any]
-    image_width: int
-    image_height: int
 
 
 class TransformationService:
@@ -42,7 +33,7 @@ class TransformationService:
 
     @staticmethod
     def transform_point_to_widget(
-        curve_view: Any,
+        curve_view: CurveViewProtocol,
         x: float,
         y: float,
         display_width: float,
@@ -116,7 +107,7 @@ class TransformationService:
 
     @staticmethod
     def transform_widget_to_track(
-        curve_view: Any,
+        curve_view: CurveViewProtocol,
         widget_x: float,
         widget_y: float,
         display_width: float,
@@ -186,14 +177,14 @@ class TransformationService:
 
     @staticmethod
     def transform_point_list(
-        curve_view: Any,
-        points: list,
+        curve_view: CurveViewProtocol,
+        points: PointsList,
         display_width: float,
         display_height: float,
         offset_x: float,
         offset_y: float,
         scale: float
-    ) -> list:
+    ) -> PointsList:
         """Transform a list of points from track coordinates to widget coordinates.
 
         Args:
@@ -229,7 +220,7 @@ class TransformationService:
 
     @staticmethod
     def calculate_display_parameters(
-        curve_view: Any,
+        curve_view: CurveViewProtocol,
         widget_width: int,
         widget_height: int
     ) -> Tuple[float, float, float, float, float]:
@@ -261,11 +252,10 @@ class TransformationService:
         scale = min(scale_x, scale_y) * getattr(curve_view, 'zoom_factor', 1.0)
 
         # Calculate centering offsets
-        from services.centering_zoom_service import CenteringZoomService
         offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
             widget_width, widget_height,
             display_width * scale, display_height * scale,
-            getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
+            curve_view.x_offset, curve_view.y_offset
         )
 
         return display_width, display_height, scale, offset_x, offset_y

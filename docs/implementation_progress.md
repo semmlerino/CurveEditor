@@ -40,6 +40,25 @@ This document tracks the progress of implementing the post-refactoring improveme
   - ✅ Command-line options for flexibility
 - ✅ Created comprehensive `testing_guide.md` documentation
 
+### Type System Improvements
+
+- ✅ Created `services/protocols.py` to centralize protocol definitions
+- ✅ Defined protocols for key components:
+  - ✅ `CurveViewProtocol`: Interface for curve view components
+  - ✅ `MainWindowProtocol`: Interface for the main window
+  - ✅ `PointDataProtocol`: Structure for point data
+  - ✅ `ImageProtocol`: Interface for image objects
+- ✅ Defined common type aliases for data structures
+- ✅ Updated `TransformationService` to use protocol types
+- ✅ Updated `VisualizationService` to use protocol types
+- ✅ Created comprehensive `protocol_system.md` documentation
+
+### Dependency Management
+
+- ✅ Fixed circular dependency between `TransformationService` and `CenteringZoomService`
+- ✅ Improved direct property access using protocol properties
+- ✅ Standardized import patterns for service modules
+
 ## In-Progress Tasks
 
 ### Debug Cleanup
