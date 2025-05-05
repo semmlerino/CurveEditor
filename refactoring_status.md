@@ -6,19 +6,24 @@
 - **Service Migration**: Completed migration to service-based architecture
 - **Deprecated Files**: Removed all `.deprecated` files from the codebase
 - **Import Patterns**: Modernized service imports to use direct names instead of aliases
+- **New Services**: Added TransformationService for consolidated coordinate transformations
 
 ### Debug Cleanup ✅
-- **Logging Implementation**: Added proper logging to all service classes
-- **Service Coverage**: Converted debug prints to logging in all core services:
+- **Logging Implementation**: Added proper logging to all service classes and utility modules
+- **Service Coverage**: Converted debug prints to logging in all services and modules:
   - `centering_zoom_service.py`
   - `settings_service.py`
   - `file_service.py`
   - `image_service.py`
   - `visualization_service.py`
+  - `transformation_service.py`
+  - `batch_edit.py`
+  - `quick_filter_presets.py`
+  - `curve_view_plumbing.py`
 - **Error Handling**: Improved error handling with consistent logging patterns
 
 ### Code Quality Improvements ✅
-- **Coordinate Transformation**: Consolidated duplicate code in `transform_point_to_widget` utility
+- **Coordinate Transformation**: Created a dedicated TransformationService to centralize all coordinate transformation logic
 - **Type Hints**: Enhanced parameter type checking with proper protocols
 - **Circular Imports**: Eliminated remaining circular imports
 
@@ -26,21 +31,20 @@
 
 | Metric | Current | Target |
 |--------|---------|--------|
-| Debug prints cleaned | 85% | 100% |
+| Debug prints cleaned | 100% | 100% |
 | Test coverage | 55% | 80%+ |
-| Services with tests | 6/10 | 10/10 |
+| Services with tests | 6/11 | 11/11 |
 | Deprecated files removed | 100% | 100% |
 | Architecture migration | 100% | 100% |
 
 ## Remaining Work
 
 ### Short-term (0-1 month)
-1. **Complete Debug Cleanup**
-   - Finish converting debug prints in analysis and dialog components
-2. **Testing**
+1. **Testing**
    - Complete tests for remaining services:
-     - ImageService, FileService, DialogService, HistoryService
+     - TransformationService, ImageService, FileService, DialogService, HistoryService
    - Add integration tests between services
+   - Create tests for coordinate transformation functionality
 
 ### Medium-term (1-3 months)
 1. **Error Handling**

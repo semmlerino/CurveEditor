@@ -3,7 +3,11 @@
 
 # import curve_operations as ops # Removed old import
 from services.analysis_service import AnalysisService
+from services.logging_service import LoggingService
 import copy # Keep copy for unknown preset case
+
+# Configure logger for this module
+logger = LoggingService.get_logger("quick_filter_presets")
 
 def apply_filter_preset(curve_data, indices, preset_name):
     """Apply a predefined filter preset to the selected points.
@@ -58,11 +62,11 @@ def apply_filter_preset(curve_data, indices, preset_name):
 
         else:
             # Unknown preset, return original data copy
-            print(f"Warning: Unknown filter preset '{preset_name}'")
+            logger.warning(f"Unknown filter preset '{preset_name}'")
             return copy.deepcopy(curve_data)
 
     except Exception as e:
-        print(f"Error applying filter preset '{preset_name}': {e}")
+        logger.error(f"Error applying filter preset '{preset_name}': {e}")
         # Return original data copy in case of error
         return copy.deepcopy(curve_data)
 

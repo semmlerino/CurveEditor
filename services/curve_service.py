@@ -4,9 +4,10 @@ from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
 from error_handling import safe_operation
 from PySide6.QtCore import QRect
 
-from services.curve_utils import normalize_point, set_point_status, transform_point_to_widget
+from services.curve_utils import normalize_point, set_point_status
 from services.centering_zoom_service import CenteringZoomService
 from services.visualization_service import VisualizationService
+from services.transformation_service import TransformationService
 from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
@@ -375,8 +376,8 @@ class CurveService:
         Returns:
             Tuple[float, float]: The transformed (x, y) coordinates in widget space
         """
-        # Use the consolidated transformation utility function
-        return transform_point_to_widget(
+        # Use the centralized TransformationService for coordinate transformations
+        return TransformationService.transform_point_to_widget(
             curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
         )
 

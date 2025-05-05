@@ -54,6 +54,7 @@ This pattern ensures backward compatibility while moving to a cleaner architectu
 | `AnalysisService` | Curve data analysis and manipulation | CurveDataOperations | ✅ Complete |
 | `CenteringZoomService` | View centering and zoom operations | ZoomOperations | ✅ Complete |
 | `InputService` | Keyboard and mouse input handling | N/A | ✅ Complete |
+| `TransformationService` | Coordinate transformation between spaces | N/A | ✅ Complete |
 | `VisualizationService` | Visualization features (grid, vectors, crosshair) | VisualizationOperations | ⏳ In Progress |
 | `ImageService` | Image sequence handling and manipulation | ImageOperations | ⏳ In Progress |
 | `FileService` | File loading and saving operations | FileOperations | ⏳ In Progress |

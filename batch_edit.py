@@ -17,7 +17,11 @@ from PySide6.QtCore import Qt, Signal
 
 from services.curve_service import CurveService as CurveViewOperations
 from services.analysis_service import AnalysisService
+from services.logging_service import LoggingService
 from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialog
+
+# Configure logger for this module
+logger = LoggingService.get_logger("batch_edit")
 
 def batch_scale_points(curve_data, indices, scale_x, scale_y, center_x=None, center_y=None):
     """Scale multiple points around a center point.
@@ -105,34 +109,34 @@ def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
             sigma=sigma
         )
     except Exception as e:
-        print(f"Error during batch smoothness adjustment: {e}")
+        logger.error(f"Error during batch smoothness adjustment: {e}")
         # Return original data copy in case of error
         return copy.deepcopy(curve_data)
 
 def batch_normalize_velocity(curve_data: list, indices: list, target_velocity: float) -> list:
     """Normalize velocity between points to target value.
-    
+
     Args:
         curve_data: List of point tuples (frame, x, y)
         indices: List of indices to consider for normalization
         target_velocity: Target velocity in pixels per frame
-    
+
     Returns:
         Modified copy of curve_data
     """
     # Create a temporary AnalysisService instance with the curve data
     service = AnalysisService()
     service.data = [curve_data[i] for i in indices if i < len(curve_data)]
-    
+
     # Call the normalize_velocity method on this instance
     service.normalize_velocity(target_velocity)
-    
+
     # Create a new list with normalized points for specified indices
     result = curve_data.copy()
     for idx, normalized_idx in enumerate(indices):
         if normalized_idx < len(result) and idx < len(service.data):
             result[normalized_idx] = service.data[idx]
-    
+
     return result
 
 class BatchEditUI:

@@ -137,7 +137,7 @@ def resetView(self) -> None:
    - Added command-line interface for configuration
    - Documented the logging system in logging_guide.md
 
-3. **Cleanup (2-3 days)**: ✅ Core Components Complete, ⏳ Analysis Components In Progress (~85% complete)
+3. **Cleanup (2-3 days)**: ✅ Complete
    - ✅ Converted debug prints in curve_view.py
    - ✅ Converted debug prints in main_window.py
    - ✅ Converted debug prints in enhanced_curve_view.py
@@ -147,7 +147,11 @@ def resetView(self) -> None:
      - ✅ file_service.py
      - ✅ centering_zoom_service.py
      - ✅ settings_service.py
-   - ⏳ Converting debug prints in analysis operations and dialogs
+     - ✅ transformation_service.py
+   - ✅ Converted debug prints in analysis operations and dialogs:
+     - ✅ batch_edit.py
+     - ✅ quick_filter_presets.py
+     - ✅ curve_view_plumbing.py
 
 4. **Testing (1-2 days)**: ⏳ Started
    - Implemented basic tests for logging configuration

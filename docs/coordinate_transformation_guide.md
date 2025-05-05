@@ -2,8 +2,8 @@
 
 ## Overview
 
-This document explains the coordinate transformation system used in the Curve Editor application, 
-focusing on how points are mapped between different coordinate spaces, how centering works, 
+This document explains the coordinate transformation system used in the Curve Editor application,
+focusing on how points are mapped between different coordinate spaces, how centering works,
 and how these transformations behave during window resizing and fullscreen mode.
 
 ## Coordinate Spaces
@@ -25,13 +25,15 @@ Tracking Data Coordinates → Image Space (optional) → Scaled Space → Widget
 
 ### Key Functions
 
-The main transformation is handled by `transform_point()` in `services/curve_service.py`:
+The main transformation is now centralized in the dedicated `TransformationService` in `services/transformation_service.py`:
 
 ```python
-def transform_point(curve_view, x, y, display_width, display_height, offset_x, offset_y, scale):
+def transform_point_to_widget(curve_view, x, y, display_width, display_height, offset_x, offset_y, scale):
     # Transform from tracking data coordinates to widget/screen space
     # ...
 ```
+
+The service also provides `transform_widget_to_track()` for converting from widget to tracking coordinates and other helper methods.
 
 ## Centering Calculation
 
@@ -86,13 +88,14 @@ This ensures that selected points remain correctly centered regardless of the wi
 If transformation or centering issues occur:
 
 1. Enable debug mode in EnhancedCurveView (self.debug_mode = True)
-2. Check the transformation calculations in transform_point() 
+2. Check the transformation calculations in transform_point()
 3. Verify the scaling factors and offsets being calculated
 4. Use print statements to trace the coordinate transformation pipeline
 
 ## Related Files
 
-- `services/curve_service.py`: Contains the transform_point() function
-- `services/centering_zoom_service.py`: Facade for centering and zoom operations
-- `centering_zoom_operations.py`: Core implementation of centering and zooming
+- `services/transformation_service.py`: Central service for all coordinate transformations
+- `services/curve_service.py`: Uses TransformationService for point operations
+- `services/curve_utils.py`: Contains utility functions that forward to TransformationService
+- `services/centering_zoom_service.py`: Handles centering and zoom operations
 - `enhanced_curve_view.py`: Main view that uses these transformations

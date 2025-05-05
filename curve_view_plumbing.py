@@ -11,6 +11,10 @@ from PySide6.QtWidgets import QMessageBox
 # Top-level import for CurveService using the standard alias
 from services.curve_service import CurveService as CurveViewOperations
 from services.curve_utils import normalize_point, set_point_status, update_point_coords
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("curve_view_plumbing")
 
 
 def _get_curve_view(target):
@@ -63,7 +67,9 @@ def operation(action_name, record_history=True):
                     main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)
                 QMessageBox.critical(main_window, f"Error in {action_name}",
                                     f"An error occurred during {action_name}:\n{e}")
-                import traceback as _tb; _tb.print_exc()
+                import traceback
+                error_traceback = traceback.format_exc()
+                logger.error(f"Exception in {action_name}: {e}\n{error_traceback}")
                 return None
             # Determine success and message
             if isinstance(result, tuple) and len(result) == 2:
