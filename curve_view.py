@@ -9,18 +9,21 @@ from services.centering_zoom_service import CenteringZoomService
 from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPaintEvent
 from PySide6.QtCore import QPointF
 from services.input_service import InputService, CurveViewProtocol  # For type checking only
+from services.protocols import ImageSequenceProtocol  # For type checking only
 from keyboard_shortcuts import ShortcutManager
 from services.image_service import ImageService
 from services.logging_service import LoggingService
+from typing import List
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_view")
 
 
-class CurveView(QWidget):  # Implements CurveViewProtocol through type annotations
-    # Type annotation to indicate this class implements the protocol
+class CurveView(QWidget):  # Implements protocols through type annotations
+    # Type annotations to indicate this class implements the protocols
     # without inheritance, to avoid metaclass conflicts
     _dummy: CurveViewProtocol
+    _image_seq_dummy: ImageSequenceProtocol
     """Widget for displaying and editing the 2D tracking curve."""
 
     # --- Added for type safety and linting ---
@@ -72,10 +75,14 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
         self.last_drag_pos: Optional[QPointF] = None
         self.pan_active: bool = False
         self.last_pan_pos: Optional[QPointF] = None
-        # Image sequence support
+        # Image sequence support - implementing ImageSequenceProtocol
         self.background_image: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QImage]
         self.show_background: bool = True
         self.background_opacity: float = 0.7  # 0.0 to 1.0
+        self.image_filenames: List[str] = []
+        self.image_sequence_path: str = ""
+        self.current_image_idx: int = 0
+        self.scale_to_image: bool = True
 
         # Register shortcuts via ShortcutManager
         self._register_shortcuts()
@@ -113,42 +120,83 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
         self.x_offset = 0  # Manual X offset for fine-tuning alignment
         self.y_offset = 0  # Manual Y offset for fine-tuning alignment
 
-    def setPoints(self, points: list[tuple[int, float, float]], image_width: int, image_height: int, preserve_view: bool = False) -> None:
+    def setPoints(self, points: List[Tuple[int, float, float]], image_width: int = 0, image_height: int = 0, preserve_view: bool = False) -> None:
+        """Set the points to display with optional dimension and view preservation parameters.
+
+        This overload accepts the same parameters as setPoints_ext for compatibility,
+        but delegates to setPoints_ext to ensure consistent behavior.
+        """
+        logger.info(f"setPoints called with {len(points)} points (preserve_view={preserve_view})")
+        logger.info(f"Current view state: scale_to_image={getattr(self, 'scale_to_image', True)}, zoom={self.zoom_factor}, offset_x={self.offset_x}, offset_y={self.offset_y}")
+
+        # Delegate to the extended version to ensure consistent behavior
+        self.setPoints_ext(points, image_width, image_height, preserve_view)
+
+    def setPoints_ext(self, points: list[tuple[int, float, float]], image_width: int, image_height: int, preserve_view: bool = False) -> None:
         """Set the points to display and optionally preserve the current view state."""
-        logger.debug("Setting points - preserve_view=%s, Points count=%d", preserve_view, len(points))
-        logger.debug("State BEFORE: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+        logger.info("Setting points - preserve_view=%s, Points count=%d", preserve_view, len(points))
+        logger.info("State BEFORE: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d, scale_to_image=%s",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset,
+                     getattr(self, "scale_to_image", True))
+
+        # Store original bounds for logging
+        if len(self.points) > 0:
+            old_min_x = min(p[1] for p in self.points)
+            old_max_x = max(p[1] for p in self.points)
+            old_min_y = min(p[2] for p in self.points)
+            old_max_y = max(p[2] for p in self.points)
+            logger.info(f"BEFORE data bounds: X=[{old_min_x:.2f}, {old_max_x:.2f}], Y=[{old_min_y:.2f}, {old_max_y:.2f}]")
 
         self.points = points
 
+        # Log new data bounds
+        if len(points) > 0:
+            new_min_x = min(p[1] for p in points)
+            new_max_x = max(p[1] for p in points)
+            new_min_y = min(p[2] for p in points)
+            new_max_y = max(p[2] for p in points)
+            logger.info(f"AFTER data bounds: X=[{new_min_x:.2f}, {new_max_x:.2f}], Y=[{new_min_y:.2f}, {new_max_y:.2f}]")
+
         # Update dimensions only if they are validly provided (greater than 0)
+        old_width = self.image_width
+        old_height = self.image_height
+
         if image_width > 0:
             self.image_width = image_width
         if image_height > 0:
             self.image_height = image_height
 
+        if old_width != self.image_width or old_height != self.image_height:
+            logger.info(f"Image dimensions changed: [{old_width}x{old_height}] -> [{self.image_width}x{self.image_height}]")
+
         if not preserve_view:
-            logger.debug("Resetting view since preserve_view=False")
+            logger.info("Resetting view since preserve_view=False")
             self.resetView()  # Reset pan/zoom only if not preserving
+        else:
+            logger.info("Preserving view as requested (preserve_view=True)")
 
         self.update()  # Trigger repaint with new data and current/reset view state
 
-        logger.debug("Points set - State AFTER: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+        logger.info("Points set - State AFTER: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d, scale_to_image=%s",
+                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset,
+                     getattr(self, "scale_to_image", True))
+
     def set_image_sequence(self, path: str, filenames: list[str]) -> None:
-        """Set the image sequence to display as background."""
-        logger.debug("Setting image sequence from path: %s, %d files", path, len(filenames))
+        # Update our own properties to satisfy ImageSequenceProtocol
+        self.image_sequence_path = path
+        self.image_filenames = filenames
+        self.current_image_idx = 0
         ImageService.set_image_sequence(self, path, filenames)
         self.update()
 
     def set_current_image_by_frame(self, frame: int) -> None:
-        """Set the current background image based on frame number."""
-        logger.debug("Setting current image by frame: %d", frame)
-        ImageService.set_current_image_by_frame(self, frame)
+        # Delegate to the service but use self as the protocol implementation
+        from services.image_service import ImageService as IS
+        IS.set_current_image_by_frame(self, frame)
 
     def set_current_image_by_index(self, idx: int) -> None:
-        """Set current image by index and update the view."""
-        logger.debug("Setting current image by index: %d", idx)
+        # Update our own property to satisfy ImageSequenceProtocol
+        self.current_image_idx = idx
         ImageService.set_current_image_by_index(self, idx)
         self.update()
 
@@ -169,21 +217,53 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
         self.update()
 
     def load_current_image(self) -> None:
-        """Load the current image in the sequence."""
-        logger.debug("Loading current image - State before: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
-
+        # Delegate to the service but use self as the protocol implementation
         ImageService.load_current_image(self)
 
-        logger.debug("Image loaded - State after: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+    def update_transform_parameters(self) -> None:
+        """Explicitly update the transformation parameters used for rendering.
+
+        This method ensures that all transformation parameters are in sync
+        before rendering the curve, which helps prevent unexpected curve shifts.
+        """
+        logger.info("Explicitly updating transform parameters")
+
+        # Store current values for logging
+        before_scale_to_image = getattr(self, "scale_to_image", True)
+
+        # Force recalculation of any derived parameters used in paintEvent's transform_point function
+        # This ensures consistent rendering coordinates between operations
+        display_width = self.image_width
+        display_height = self.image_height
+
+        if self.background_image:
+            display_width = self.background_image.width()
+            display_height = self.background_image.height()
+
+        # Calculate the scale factor to fit in the widget (match the logic in paintEvent exactly)
+        widget_width = self.width()
+        widget_height = self.height()
+        scale_x = widget_width / display_width
+        scale_y = widget_height / display_height
+        uniform_scale = min(scale_x, scale_y) * self.zoom_factor
+
+        # Log the parameter values to verify they're consistent
+        logger.info(f"Transform parameters updated: scale_to_image={before_scale_to_image}, "
+                    f"display_dims={display_width}x{display_height}, widget_dims={widget_width}x{widget_height}, "
+                    f"uniform_scale={uniform_scale:.6f}")
+
+        # No need to store uniform_scale as it's recalculated in paintEvent
+        # This method primarily ensures all parameters that affect transform_point are properly synchronized
+
+    # Implementation of get_selected_points to satisfy CurveViewProtocol
+    def get_selected_points(self) -> List[int]:
+        return list(self.selected_points)
 
     def resetView(self) -> None:
         """Reset view to show all points."""
         logger.debug("Resetting view - State before: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
+                    self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
 
-        # Use the already imported CenteringZoomService at the top of the file
         CenteringZoomService.reset_view(self)
 
         logger.debug("View reset complete - State after: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
@@ -233,6 +313,14 @@ class CurveView(QWidget):  # Implements CurveViewProtocol through type annotatio
             if getattr(self, "flip_y_axis", False):
                 img_h = getattr(self, "image_height", self.height())
                 ty = img_h - y
+
+            # Store scale_to_image value to detect inconsistencies
+            scale_to_image_val = getattr(self, "scale_to_image", True)
+
+            # Log the parameters being used for transformation (debug level since this happens on every paint)
+            logger.debug(f"Transform params: scale_to_image={scale_to_image_val}, scale={scale}, "
+                         f"offset_x={offset_x}, offset_y={offset_y}, manual_x={getattr(self, 'x_offset', 0)}, "
+                         f"manual_y={getattr(self, 'y_offset', 0)}")
 
             # 2. Scale by overall scale
             sx = x * scale

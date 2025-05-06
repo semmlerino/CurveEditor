@@ -61,21 +61,28 @@ class ConcreteCurveProcessor:
         import logging
         logger = logging.getLogger(__name__)
 
-        logger.debug(f"Starting smooth_moving_average with {len(indices)} indices and window_size={window_size}")
+        logger.info(f"Starting smooth_moving_average with {len(indices)} indices and window_size={window_size}")
         if not self.data or not indices or window_size < 2:
             logger.warning(f"Smoothing skipped: data={bool(self.data)}, indices={bool(indices)}, window={window_size}")
             return
 
         # Log some sample points before smoothing
         if len(self.data) > 0 and len(indices) > 0:
-            sample_idx = indices[0]
-            if 0 <= sample_idx < len(self.data):
-                before_point = self.data[sample_idx]
-                logger.debug(f"BEFORE - Sample point at idx={sample_idx}: frame={before_point[0]}, x={before_point[1]}, y={before_point[2]}")
+            # Log a few sample points
+            sample_indices = [indices[0]]
+            if len(indices) > 1:
+                sample_indices.append(indices[len(indices)//2])
+            if len(indices) > 2:
+                sample_indices.append(indices[-1])
+
+            for sample_idx in sample_indices:
+                if 0 <= sample_idx < len(self.data):
+                    before_point = self.data[sample_idx]
+                    logger.info(f"BEFORE - Sample point at idx={sample_idx}: frame={before_point[0]}, x={before_point[1]}, y={before_point[2]}")
 
         # Sort indices to maintain data structure
         sorted_indices = sorted(indices)
-        logger.debug(f"Sorted indices: first={sorted_indices[0] if sorted_indices else 'none'}, last={sorted_indices[-1] if sorted_indices else 'none'}")
+        logger.info(f"Sorted indices: first={sorted_indices[0] if sorted_indices else 'none'}, last={sorted_indices[-1] if sorted_indices else 'none'}")
 
         # Create a copy of the data for processing
         result = copy.deepcopy(self.data)
@@ -127,15 +134,28 @@ class ConcreteCurveProcessor:
             new_point = result[idx]
             logger.debug(f"CHANGED idx={idx}: From ({old_point[0]}, {old_point[1]}, {old_y}) to ({new_point[0]}, {new_point[1]}, {new_y})")
 
-        # Log sample point after smoothing
+        # Log sample points after smoothing
         if len(result) > 0 and len(indices) > 0:
-            sample_idx = indices[0]
-            if 0 <= sample_idx < len(result):
-                after_point = result[sample_idx]
-                logger.debug(f"AFTER - Sample point at idx={sample_idx}: frame={after_point[0]}, x={after_point[1]}, y={after_point[2]}")
+            # Log the same sample points after smoothing
+            sample_indices = [indices[0]]
+            if len(indices) > 1:
+                sample_indices.append(indices[len(indices)//2])
+            if len(indices) > 2:
+                sample_indices.append(indices[-1])
+
+            for sample_idx in sample_indices:
+                if 0 <= sample_idx < len(result):
+                    after_point = result[sample_idx]
+                    logger.info(f"AFTER - Sample point at idx={sample_idx}: frame={after_point[0]}, x={after_point[1]}, y={after_point[2]}")
+
+                    # Also log the changes
+                    if 0 <= sample_idx < len(self.data):
+                        before_point = self.data[sample_idx]
+                        y_diff = after_point[2] - before_point[2]
+                        logger.info(f"CHANGE at idx={sample_idx}: y changed by {y_diff:.6f} ({before_point[2]:.6f} -> {after_point[2]:.6f})")
 
         self.data = result
-        logger.debug(f"Smoothing complete, updated {len(sorted_indices)} points")
+        logger.info(f"Smoothing complete, updated {len(sorted_indices)} points")
 
     def smooth_gaussian(self, indices: List[int], window_size: int, sigma: float) -> None:
         """Apply Gaussian smoothing to both x and y coordinates
