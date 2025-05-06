@@ -21,27 +21,31 @@ DEFAULT_CONFIG_PATH = os.path.join(
 
 # Default logging levels per module
 DEFAULT_CONFIG = {
-    "global": "INFO",
-    "curve_view": "INFO",
-    "main_window": "INFO",
+    "global": "DEBUG",
+    "curve_view": "DEBUG",
+    "main_window": "DEBUG",
     "services": {
-        "curve_service": "INFO",
-        "image_service": "INFO",
-        "file_service": "INFO",
-        "dialog_service": "INFO",
-        "analysis_service": "INFO",
-        "visualization_service": "INFO",
-        "centering_zoom_service": "INFO",
-        "settings_service": "INFO",
-        "history_service": "INFO",
-        "input_service": "INFO"
+        "curve_service": "DEBUG",
+        "image_service": "DEBUG",
+        "file_service": "DEBUG",
+        "dialog_service": "DEBUG",
+        "analysis_service": "DEBUG",
+        "visualization_service": "DEBUG",
+        "centering_zoom_service": "DEBUG",
+        "settings_service": "DEBUG",
+        "history_service": "DEBUG",
+        "input_service": "DEBUG"
     }
 }
 
 
 def get_level(level_name: str) -> int:
     """Convert a level name to logging level value."""
-    return getattr(logging, level_name.upper(), logging.INFO)
+    # We use try/except instead of isinstance check since we know level_name is typed as str
+    try:
+        return getattr(logging, level_name.upper(), logging.INFO)
+    except (AttributeError, TypeError):
+        return logging.INFO
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
@@ -78,13 +82,21 @@ def apply_config(config: Dict[str, Any]) -> None:
 
         if isinstance(level, dict):
             # Handle nested configurations (e.g., services)
-            for submodule, sublevel in level.items():
-                module_logger = LoggingService.get_logger(f"{module}.{submodule}")
-                module_logger.setLevel(get_level(sublevel))
+            module_dict: Dict[str, Any] = level  # Explicit type annotation
+            for submodule_key, sublevel_value in module_dict.items():
+                # We can skip type check for submodule_key as it's always a string in dict keys
+                # We only need to type-check the sublevel value
+                if not isinstance(sublevel_value, str):
+                    continue
+                    
+                # Create logger for submodule
+                module_logger = LoggingService.get_logger(f"{module}.{submodule_key}")
+                module_logger.setLevel(get_level(sublevel_value))
         else:
             # Handle flat configurations
             module_logger = LoggingService.get_logger(module)
-            module_logger.setLevel(get_level(level))
+            if isinstance(level, str):
+                module_logger.setLevel(get_level(level))
 
     logger.info(f"Logging configuration applied: global level={logging.getLevelName(global_level)}")
 

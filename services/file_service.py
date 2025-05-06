@@ -232,3 +232,86 @@ class FileService:
 
         # Update label
         main_window.update_image_label()
+        
+        # Save the directory path to config
+        config.set_last_image_sequence_path(directory)
+
+    @staticmethod
+    def load_previous_file(main_window: MainWindowProtocol) -> None:
+        """Load the previously used file and folder if they exist."""
+        # Check for last folder path and update default directory
+        folder_path = config.get_last_folder_path()
+        if folder_path and os.path.exists(folder_path):
+            main_window.default_directory = folder_path
+
+        # Load last file if it exists
+        file_path = config.get_last_file_path()
+        if file_path and os.path.exists(file_path):
+            # Load track data from file
+            point_name, point_color, _num_frames, curve_data = utils.load_3de_track(file_path)
+
+            if curve_data:
+                # Set the data
+                main_window.point_name = point_name if isinstance(point_name, str) else ""
+                main_window.point_color = str(point_color) if point_color is not None else config.DEFAULT_POINT_COLOR
+                main_window.curve_data = curve_data
+
+                # Determine image dimensions from the data
+                main_window.image_width, main_window.image_height = utils.estimate_image_dimensions(curve_data)
+
+                # Update view
+                main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
+
+                # Enable controls (guarded for robustness)
+                if hasattr(main_window, "save_button"):
+                    main_window.save_button.setEnabled(True)
+                if hasattr(main_window, "add_point_button"):
+                    main_window.add_point_button.setEnabled(True)
+                if hasattr(main_window, "smooth_button"):
+                    main_window.smooth_button.setEnabled(True)
+                if hasattr(main_window, "fill_gaps_button"):
+                    main_window.fill_gaps_button.setEnabled(True)
+                if hasattr(main_window, "filter_button"):
+                    main_window.filter_button.setEnabled(True)
+                if hasattr(main_window, "detect_problems_button"):
+                    main_window.detect_problems_button.setEnabled(True)
+                if hasattr(main_window, "extrapolate_button"):
+                    main_window.extrapolate_button.setEnabled(True)
+
+                # Update info
+                main_window.info_label.setText(f"Loaded: {main_window.point_name} ({len(main_window.curve_data)} frames)")
+
+                # Setup timeline
+                main_window.setup_timeline()
+
+                # Enable timeline controls
+                main_window.timeline_slider.setEnabled(True)
+                main_window.frame_edit.setEnabled(True)
+                main_window.go_button.setEnabled(True)
+
+                # Add to history
+                main_window.add_to_history()
+
+        # Load last image sequence if it exists
+        FileService.load_previous_image_sequence(main_window)
+
+    @staticmethod
+    def load_previous_image_sequence(main_window: MainWindowProtocol) -> None:
+        """Load the previously used image sequence if it exists."""
+        # Check for last image sequence path
+        sequence_path = config.get_last_image_sequence_path()
+        if sequence_path and os.path.exists(sequence_path):
+            # Find all image files in the directory
+            image_files = utils.get_image_files(sequence_path)
+
+            if image_files:
+                # Set the image sequence
+                main_window.image_sequence_path = sequence_path
+                main_window.image_filenames = image_files
+
+                # Setup the curve view with images
+                main_window.curve_view.setImageSequence(sequence_path, image_files)
+
+                # Update the UI
+                main_window.update_image_label()
+                main_window.toggle_bg_button.setEnabled(True)
