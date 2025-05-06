@@ -84,6 +84,13 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         self.current_image_idx: int = 0
         self.scale_to_image: bool = True
 
+        # Debug visualization attributes
+        self.debug_mode: bool = True  # Enable debug visuals by default to help diagnose issues
+        self.flip_y_axis: bool = True  # Default Y-axis flip setting
+        self.debug_img_pos: Tuple[float, float] = (0.0, 0.0)
+        self.debug_origin_pos: Tuple[float, float] = (0.0, 0.0)
+        self.debug_width_pt: Tuple[float, float] = (0.0, 0.0)
+
         # Register shortcuts via ShortcutManager
         self._register_shortcuts()
 
@@ -110,15 +117,21 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         self.update()
 
     def toggle_debug_mode(self) -> None:
-        self.debug_mode = not getattr(self, "debug_mode", False)
-        self.update()
+        """Toggle debug visualization mode.
 
-        # Debug options
-        self.debug_mode = True  # Enable debug visuals
-        self.flip_y_axis = True  # Toggle Y-axis flip
-        self.scale_to_image = True  # Automatically scale track data to match image dimensions
-        self.x_offset = 0  # Manual X offset for fine-tuning alignment
-        self.y_offset = 0  # Manual Y offset for fine-tuning alignment
+        This enables detailed visual feedback about the transform system, including
+        origin points, alignment markers, and detailed parameter display.
+        """
+        current_mode = getattr(self, "debug_mode", False)
+        self.debug_mode = not current_mode
+
+        logger.info(f"Debug mode {'enabled' if self.debug_mode else 'disabled'}")
+        if self.debug_mode:
+            logger.info(f"Debug state: flip_y={getattr(self, 'flip_y_axis', False)}, "
+                       f"scale_to_image={getattr(self, 'scale_to_image', True)}, "
+                       f"x_offset={getattr(self, 'x_offset', 0)}, y_offset={getattr(self, 'y_offset', 0)}")
+
+        self.update()
 
     def setPoints(self, points: List[Tuple[int, float, float]], image_width: int = 0, image_height: int = 0, preserve_view: bool = False) -> None:
         """Set the points to display with optional dimension and view preservation parameters.
@@ -224,12 +237,15 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         """Explicitly update the transformation parameters used for rendering.
 
         This method ensures that all transformation parameters are in sync
-        before rendering the curve, which helps prevent unexpected curve shifts.
+        before rendering the curve, which helps prevent unexpected curve shifts
+        and eliminates the "floating curve" effect where the curve doesn't align
+        with the background image features.
         """
         logger.info("Explicitly updating transform parameters")
 
         # Store current values for logging
         before_scale_to_image = getattr(self, "scale_to_image", True)
+        flip_y_axis = getattr(self, "flip_y_axis", False)
 
         # Force recalculation of any derived parameters used in paintEvent's transform_point function
         # This ensures consistent rendering coordinates between operations
@@ -248,6 +264,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         uniform_scale = min(scale_x, scale_y) * self.zoom_factor
 
         # Calculate image scaling factors for accurate positioning
+        # This is critical for curve-to-image alignment
         image_scale_x = 1.0
         image_scale_y = 1.0
         if before_scale_to_image:
@@ -257,13 +274,25 @@ class CurveView(QWidget):  # Implements protocols through type annotations
                 image_scale_y = display_height / self.image_height
 
         # Log the parameter values to verify they're consistent
-        logger.info(f"Transform parameters updated: scale_to_image={before_scale_to_image}, "
+        logger.info(f"Transform parameters updated: scale_to_image={before_scale_to_image}, y_flip={flip_y_axis}, "
                     f"display_dims={display_width}x{display_height}, widget_dims={widget_width}x{widget_height}, "
-                    f"track_dims={self.image_width}x{self.image_height}, "
+                    f"track_dims={self.image_width}x{self.image_height}, offsets=(x:{self.offset_x}, y:{self.offset_y}), "
+                    f"manual_offsets=(x:{self.x_offset}, y:{self.y_offset}), "
                     f"uniform_scale={uniform_scale:.6f}, image_scale=({image_scale_x:.2f}, {image_scale_y:.2f})")
 
-        # No need to store uniform_scale as it's recalculated in paintEvent
-        # This method primarily ensures all parameters that affect transform_point are properly synchronized
+        # Generate a ViewState and Transform for validation
+        from services.view_state import ViewState
+        from services.transformation_service import TransformationService
+
+        view_state = ViewState.from_curve_view(self)
+        transform = TransformationService.calculate_transform(view_state)
+
+        # Log transform details to help diagnose any alignment issues
+        params = transform.get_parameters()
+        logger.debug(f"Transform validation: scale={params['scale']:.4f}, "
+                    f"center=({params['center_offset'][0]:.1f}, {params['center_offset'][1]:.1f}), "
+                    f"pan=({params['pan_offset'][0]:.1f}, {params['pan_offset'][1]:.1f}), "
+                    f"manual=({params['manual_offset'][0]:.1f}, {params['manual_offset'][1]:.1f})")
 
     # Implementation of get_selected_points to satisfy CurveViewProtocol
     def get_selected_points(self) -> List[int]:
@@ -337,17 +366,44 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             image_scale_x, image_scale_y = params.get('image_scale', (1.0, 1.0))
             scale_to_image = params.get('scale_to_image', True)
 
-            # Calculate scaled dimensions
+            # Calculate scaled dimensions for the image
             scaled_width = display_width * scale
             scaled_height = display_height * scale
 
-            # Use special method for image positioning that handles the transforms correctly
-            # without applying scale_to_image or y-flip (which shouldn't affect image itself)
+            # Get the image position that will properly align with curve data
+            # This special method handles the correct positioning of the image in relation to curve data
+            # using our new fixed algorithm (skipping image scaling)
             img_x, img_y = transform.apply_for_image_position()
 
-            # Calculate scaled dimensions based on the transform's scale factor
-            scaled_width = display_width * scale
-            scaled_height = display_height * scale
+            # For debugging, calculate where several key points would appear on screen:
+            # 1. Data origin (0,0) with full transform including image scaling (should match curve)
+            origin_x, origin_y = transform.apply(0, 0)
+
+            # 2. Data origin (0,0) without image scaling (should match image position)
+            origin_no_scale_x, origin_no_scale_y = transform.apply(0, 0, use_image_scale=False)
+
+            # 3. Data point at image dimensions (width, height)
+            width_pt_x, width_pt_y = transform.apply(self.image_width, self.image_height)
+
+            # Log these points for debugging
+            logger.debug(f"FIXED Image position: ({img_x:.1f}, {img_y:.1f})")
+            logger.debug(f"Data origin (with scaling): ({origin_x:.1f}, {origin_y:.1f})")
+            logger.debug(f"Data origin (without scaling): ({origin_no_scale_x:.1f}, {origin_no_scale_y:.1f})")
+            logger.debug(f"Data point at image dims: ({width_pt_x:.1f}, {width_pt_y:.1f})")
+
+            # Calculate offsets between image position and data origins
+            origin_offset_x = origin_x - img_x
+            origin_offset_y = origin_y - img_y
+            no_scale_offset_x = origin_no_scale_x - img_x
+            no_scale_offset_y = origin_no_scale_y - img_y
+            logger.debug(f"Origin to image offset (with scaling): ({origin_offset_x:.1f}, {origin_offset_y:.1f})")
+            logger.debug(f"Origin to image offset (without scaling): ({no_scale_offset_x:.1f}, {no_scale_offset_y:.1f})")
+
+            # Store values for debug visualization
+            self.debug_img_pos = (img_x, img_y)
+            self.debug_origin_pos = (origin_x, origin_y)
+            self.debug_origin_no_scale_pos = (origin_no_scale_x, origin_no_scale_y)
+            self.debug_width_pt = (width_pt_x, width_pt_y)
 
             # Draw the image
             painter.setOpacity(self.background_opacity)
@@ -370,6 +426,85 @@ class CurveView(QWidget):  # Implements protocols through type annotations
                     painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: OFF")
 
                 painter.drawText(10, 200, f"Adjust with arrow keys + Shift/Ctrl")
+
+                # Add alignment grid crosshair for checking if curve is properly aligned with the background
+                # Draw at the center of the image
+                center_x = img_x + (scaled_width / 2)
+                center_y = img_y + (scaled_height / 2)
+
+                # Draw crosshair lines
+                painter.setPen(QPen(QColor(255, 255, 0), 1, Qt.PenStyle.DashLine))
+                painter.drawLine(center_x - 50, center_y, center_x + 50, center_y)  # Horizontal line
+                painter.drawLine(center_x, center_y - 50, center_x, center_y + 50)  # Vertical line
+
+                # Draw text label
+                painter.setPen(QPen(QColor(255, 255, 0), 1))
+                painter.drawText(center_x + 10, center_y - 10, "Center")
+
+                # Draw comprehensive alignment debug visualization
+                if hasattr(self, 'debug_origin_pos'):
+                    origin_x, origin_y = self.debug_origin_pos
+
+                    # Draw a large crosshair at the data origin with scaling
+                    painter.setPen(QPen(QColor(0, 255, 0), 2, Qt.PenStyle.DashLine))
+                    painter.drawLine(origin_x - 30, origin_y, origin_x + 30, origin_y)  # Horizontal
+                    painter.drawLine(origin_x, origin_y - 30, origin_x, origin_y + 30)  # Vertical
+
+                    # Draw a circle at the origin
+                    painter.setPen(QPen(QColor(0, 255, 0), 2))
+                    painter.drawEllipse(origin_x - 5, origin_y - 5, 10, 10)
+
+                    # Label the origin (with scaling)
+                    painter.drawText(origin_x + 15, origin_y - 15, "Data Origin (with scaling)")
+
+                    # Draw the non-scaled origin point (blue)
+                    if hasattr(self, 'debug_origin_no_scale_pos'):
+                        origin_no_scale_x, origin_no_scale_y = self.debug_origin_no_scale_pos
+
+                        # Draw crosshair for non-scaled origin
+                        painter.setPen(QPen(QColor(0, 0, 255), 2, Qt.PenStyle.DashLine))
+                        painter.drawLine(origin_no_scale_x - 30, origin_no_scale_y, origin_no_scale_x + 30, origin_no_scale_y)
+                        painter.drawLine(origin_no_scale_x, origin_no_scale_y - 30, origin_no_scale_x, origin_no_scale_y + 30)
+
+                        # Draw square at non-scaled origin
+                        painter.setPen(QPen(QColor(0, 0, 255), 2))
+                        painter.drawRect(origin_no_scale_x - 5, origin_no_scale_y - 5, 10, 10)
+
+                        # Label the non-scaled origin
+                        painter.drawText(origin_no_scale_x + 15, origin_no_scale_y - 15, "Data Origin (no scaling)")
+
+                    # Calculate and show offset between image position and data origins
+                    if hasattr(self, 'debug_img_pos'):
+                        img_x, img_y = self.debug_img_pos
+                        dx = origin_x - img_x
+                        dy = origin_y - img_y
+
+                        # Show offset information
+                        painter.setPen(QPen(QColor(255, 255, 255), 1))
+                        painter.drawText(10, 220, f"Origin-Image Offset (scaled): ({dx:.1f}, {dy:.1f})")
+
+                        if hasattr(self, 'debug_origin_no_scale_pos'):
+                            # Calculate no-scale offset
+                            no_scale_dx = origin_no_scale_x - img_x
+                            no_scale_dy = origin_no_scale_y - img_y
+                            painter.drawText(10, 240, f"Origin-Image Offset (no scaling): ({no_scale_dx:.1f}, {no_scale_dy:.1f})")
+
+                        painter.drawText(10, 260, f"Y-flip: {getattr(self, 'flip_y_axis', False)}, Scale-to-image: {getattr(self, 'scale_to_image', True)}")
+
+                        # Draw a line from image corner to each origin point
+                        painter.setPen(QPen(QColor(255, 0, 0), 1, Qt.PenStyle.DashLine))
+                        painter.drawLine(img_x, img_y, origin_x, origin_y)
+
+                        if hasattr(self, 'debug_origin_no_scale_pos'):
+                            painter.setPen(QPen(QColor(0, 0, 255), 1, Qt.PenStyle.DashLine))
+                            painter.drawLine(img_x, img_y, origin_no_scale_x, origin_no_scale_y)
+
+                        # Show the image width point if available
+                        if hasattr(self, 'debug_width_pt'):
+                            width_pt_x, width_pt_y = self.debug_width_pt
+                            painter.setPen(QPen(QColor(255, 165, 0), 2))
+                            painter.drawEllipse(width_pt_x - 5, width_pt_y - 5, 10, 10)
+                            painter.drawText(width_pt_x + 10, width_pt_y - 10, f"({self.image_width}, {self.image_height})")
 
         # Draw the main curve if available
         if self.points:

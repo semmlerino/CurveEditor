@@ -144,8 +144,8 @@ class ViewState:
             offset_y=getattr(curve_view, 'offset_y', 0.0),
             scale_to_image=getattr(curve_view, 'scale_to_image', True),
             flip_y_axis=getattr(curve_view, 'flip_y_axis', False),
-            manual_x_offset=getattr(curve_view, 'x_offset', 0.0),
-            manual_y_offset=getattr(curve_view, 'y_offset', 0.0),
+            manual_x_offset=getattr(curve_view, 'x_offset', 0.0),  # Manual offset in CurveView is in x_offset
+            manual_y_offset=getattr(curve_view, 'y_offset', 0.0),  # Manual offset in CurveView is in y_offset
             background_image=background_image,
             image_width=image_width,
             image_height=image_height

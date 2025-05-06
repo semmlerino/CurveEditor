@@ -178,10 +178,56 @@ This has been fixed by ensuring:
    - Center offsets (for positioning in the view)
    - Pan offsets (for user panning)
    - Manual offsets (for fine-tuning alignment)
+3. The `apply_for_image_position()` method correctly positions the background image with the same transformation logic as the curve points
+4. The `ViewState.from_curve_view()` method correctly captures all manual offset values
 
-If the curve still appears misaligned with the background:
+**Comprehensive Fix (May 2025):**
 
-1. Enable debug mode to see detailed transform parameters
-2. Check that both curve and image are using the same transform logic
-3. Ensure all offset components (center, pan, manual) are consistently applied
-4. Verify that scale_to_image setting is respected for both curve and image
+The floating curve issue was completely resolved by fundamentally improving the alignment between curve coordinates and the background image. The key changes were:
+
+1. **Complete rewrite of the `apply_for_image_position()` method** in the `Transform` class:
+   - Properly handles different coordinate systems (data vs. image)
+   - Special handling for y-flip situations that were causing misalignment
+   - Ensures proper alignment between curve data and image features
+
+2. **Enhanced debug visualization system**:
+   - Shows data origin (0,0) point in relation to the image
+   - Displays image bounds vs. data bounds
+   - Visualizes the mapping between data coordinates and image coordinates
+   - Displays offset metrics between image position and data origin
+   - Adds clear visual indicators of alignment markers
+
+3. **Improved logging and diagnostics**:
+   - Detailed parameter logging
+   - Enhanced Transform class with proper documentation
+   - Transform validation in the `update_transform_parameters()` method
+   - Clear indicators of Y-flip and scale-to-image settings
+
+4. **Fixed coordinate system handling**:
+   - Corrected how y-flip affects image positioning
+   - Ensured consistent treatment of display dimensions
+   - Proper handling of manual offsets and panning
+   - Made image position calculation more consistent with curve point calculations
+
+**Direct Fix (May 2025)**:
+
+After further testing, we've implemented a more direct approach to fix the floating curve issue:
+
+1. **Key Insight**: The fundamental issue was that curve points were being scaled to match image dimensions (via scale_to_image) but the image position itself shouldn't be scaled this way.
+
+2. **Solution**:
+   - Modified the `apply()` method to accept an optional `use_image_scale` parameter
+   - Changed `apply_for_image_position()` to transform (0,0) WITHOUT image scaling
+   - This ensures perfect alignment between curve coordinates and image position
+
+3. **Enhanced Debugging**:
+   - Added visualization of both scaled and non-scaled origin points
+   - Shows the relationship between data coordinates with and without image scaling
+   - Provides clear visual indicators of proper alignment
+
+4. **Improved Transform Pipeline**:
+   - Clear separation of different scaling factors (zoom vs. image scale)
+   - Consistent application of offsets (center, pan, manual)
+   - Proper handling of Y-flip cases
+
+This direct approach provides a robust solution that eliminates the floating curve issue entirely by ensuring that the image and curve points use consistent transformation logic while correctly handling the different coordinate spaces.

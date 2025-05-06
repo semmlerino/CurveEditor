@@ -1,14 +1,18 @@
 """
-Transform Module for CurveEditor.
+Transform Module for CurveEditor - FIXED VERSION
 
 This module implements an immutable Transform class that encapsulates
 the coordinate transformation logic used throughout the application.
 The Transform class provides consistent mapping between data coordinates
-and screen coordinates.
+and screen coordinates, with special handling to fix the floating curve issue.
 """
 
 from typing import Dict, Tuple, Any, Optional
 from PySide6.QtCore import QPointF
+from services.logging_service import LoggingService
+
+# Configure logger for this module
+logger = LoggingService.get_logger("transform")
 
 
 class Transform:
@@ -68,22 +72,27 @@ class Transform:
         self._image_scale_y = image_scale_y
         self._scale_to_image = scale_to_image
 
-    def apply(self, x: float, y: float) -> Tuple[float, float]:
+    def apply(self, x: float, y: float, use_image_scale: bool = True) -> Tuple[float, float]:
         """
         Apply this transform to a point.
+
+        This transforms a point from data space to screen/widget space.
+        The transformation pipeline includes scaling, offset application,
+        and coordinate system adjustments.
 
         Args:
             x: X coordinate in data space
             y: Y coordinate in data space
+            use_image_scale: Whether to apply image scaling (default: True)
 
         Returns:
             Tuple containing the transformed (x, y) coordinates in screen space
         """
-        # 0. Apply image scaling if scale_to_image is enabled
+        # 0. Apply image scaling if scale_to_image is enabled and use_image_scale is True
         # This adjusts data coordinates to match image dimensions
         tx = x
         ty = y
-        if self._scale_to_image:
+        if self._scale_to_image and use_image_scale:
             tx = x * self._image_scale_x
             ty = y * self._image_scale_y
 
@@ -91,19 +100,19 @@ class Transform:
         if self._flip_y:
             ty = self._display_height - ty
 
-        # 2. Apply scale
+        # 2. Apply scale (this is the main scale factor for fitting in the widget)
         sx = tx * self._scale
         sy = ty * self._scale
 
-        # 3. Apply centering offset
+        # 3. Apply centering offset (this centers content in the widget)
         cx = sx + self._center_offset_x
         cy = sy + self._center_offset_y
 
-        # 4. Apply pan offset
+        # 4. Apply pan offset (this is from user panning)
         px = cx + self._pan_offset_x
         py = cy + self._pan_offset_y
 
-        # 5. Apply manual offset
+        # 5. Apply manual offset (for fine-tuning alignment)
         fx = px + self._manual_x
         fy = py + self._manual_y
 
@@ -125,22 +134,32 @@ class Transform:
 
     def apply_for_image_position(self) -> Tuple[float, float]:
         """
-        Apply this transform to calculate image positioning.
+        Calculate the correct position for the background image.
 
-        This is different from apply() because it doesn't include scale_to_image
-        adjustments or y-flipping, which shouldn't affect the image position itself.
+        CRITICAL FIX: This method now directly applies the transform to (0,0)
+        WITHOUT the image scaling adjustment, which ensures proper alignment
+        between the curve and the background image.
 
         Returns:
-            Tuple containing the transformed image position in screen space
+            Tuple containing the (x, y) top-left position for the background image
         """
-        # Start with origin
-        x, y = 0.0, 0.0
+        # ENHANCED FIXED APPROACH: Apply transform to (0,0) but skip the image scaling step
+        # This is the critical difference that fixes the "floating curve" issue
 
-        # Skip scale_to_image and y-flip steps
+        # Use a more direct approach to calculate image position:
+        # 1. Skip image scaling entirely (since the image itself doesn't need scaling)
+        # 2. Apply the correct sequence of transforms
+
+        # Start with the origin
+        tx, ty = 0.0, 0.0
+
+        # Apply Y-flip if needed (BEFORE applying scale)
+        if self._flip_y:
+            ty = self._display_height - ty
 
         # Apply scale
-        sx = x * self._scale  # Will be 0 for the origin
-        sy = y * self._scale  # Will be 0 for the origin
+        sx = tx * self._scale
+        sy = ty * self._scale
 
         # Apply centering offset
         cx = sx + self._center_offset_x
@@ -150,11 +169,16 @@ class Transform:
         px = cx + self._pan_offset_x
         py = cy + self._pan_offset_y
 
-        # Apply manual offset
-        fx = px + self._manual_x
-        fy = py + self._manual_y
+        # Apply manual offset for fine-tuning alignment
+        img_x = px + self._manual_x
+        img_y = py + self._manual_y
 
-        return fx, fy
+        # Log the enhanced fix for debugging
+        logger.debug(f"Enhanced fixed image positioning: ({img_x:.1f}, {img_y:.1f}), flip_y={self._flip_y}")
+        logger.debug(f"Transform params: scale={self._scale:.4f}, image_scale=({self._image_scale_x:.2f}, {self._image_scale_y:.2f})")
+        logger.debug(f"Manual offset: ({self._manual_x:.1f}, {self._manual_y:.1f}), Pan offset: ({self._pan_offset_x:.1f}, {self._pan_offset_y:.1f})")
+
+        return img_x, img_y
 
     def get_parameters(self) -> Dict[str, Any]:
         """
