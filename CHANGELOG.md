@@ -16,6 +16,14 @@
   - Added ImageSequenceProtocol and ImageServiceProtocol for image handling
   - Added HistoryStateProtocol and HistoryContainerProtocol for history management
   - Added DialogServiceProtocol for dialog operations
+- Created new transformation system to ensure consistent coordinate transformations:
+  - Added `TransformationService` for centralized transform calculation and application
+  - Added `Transform` class to encapsulate coordinate transformations
+  - Added `ViewState` class to capture all view parameters
+  - Added `TransformStabilizer` module for maintaining view stability during operations
+  - Added documentation in `docs/curve_shift_fix.md` explaining the transformation system
+  - Added diagnostic capabilities for detecting and fixing curve shifting issues
+  - Implemented transform caching for performance optimization
 
 ### Fixed
 - Fixed TypeError: safe_operation() got an unexpected keyword argument 'record_history' by updating the `safe_operation` decorator in `error_handling.py` to support the `record_history` parameter.
@@ -31,6 +39,15 @@
   - Updated multiple visualization_operations imports in enhanced_curve_view.py
 - Fixed circular dependency between TransformationService and CenteringZoomService
 - Improved direct property access using protocol properties instead of getattr calls
+- Fixed curve shifting issue that occurred during smoothing operations:
+  - Refactored `apply_smooth_operation` method to use stable transformation system
+  - Updated CurveView's paintEvent to use consistent transformation logic
+  - Fixed background image rendering to maintain proper alignment during operations
+  - Added diagnostic logging to help identify and resolve transformation inconsistencies
+  - Implemented point position verification to detect unexpected shifts
+  - Fixed type compatibility issues between QPointF and tuple return types in transform methods
+  - Added robust error handling for transformation functions across multiple view classes
+  - Fixed "floating curve" issue by ensuring both curve and background image use identical transformation parameters
 
 ### Changed
 - Enhanced `safe_operation` decorator to automatically add operations to history when successful (only when `record_history=True`).

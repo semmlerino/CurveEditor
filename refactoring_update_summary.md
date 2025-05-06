@@ -1,121 +1,82 @@
-# Refactoring Update Summary - May 2025
+# Curve Shifting Fix - Implementation Summary
 
 ## Overview
 
-This document summarizes the recent changes made to the CurveEditor project as part of the code review process following the major refactoring to a service-based architecture.
+We have successfully implemented a comprehensive solution to fix the curve shifting issue that occurred during smoothing operations. This issue was causing curves to visibly shift position on the screen after applying operations like smoothing, despite efforts to preserve the view state.
 
-## Completed Improvements
+## Key Components Implemented
 
-### Code Fixes and Cleanup (May 4, 2025)
+1. **Transformation Service Architecture**:
+   - Created a centralized `TransformationService` to handle all coordinate transformations
+   - Implemented a `Transform` class to encapsulate transformation logic
+   - Added a `ViewState` class to capture view parameters
+   - Created a `TransformStabilizer` module to maintain view stability during operations
 
-1. **Fixed Legacy Import in curve_view.py**
-   - Updated the import in `resetView()` method to use the new service-based import pattern
-   - Changed `from centering_zoom_operations import ZoomOperations` to `from services.centering_zoom_service import CenteringZoomService as ZoomOperations`
-   - This resolves a potential runtime error and ensures consistent usage of the service architecture
+2. **Rendering System Update**:
+   - Refactored `CurveView.paintEvent()` to use the new transformation system
+   - Updated background image rendering to use the stable transformation
+   - Maintained consistent transformation logic across all rendering operations
 
-### Documentation Updates (May 4, 2025)
+3. **Smooth Operation Refactoring**:
+   - Updated `apply_smooth_operation()` to track reference points before operations
+   - Implemented point position verification after operations
+   - Added diagnostic logging to identify and fix unexpected shifts
 
-1. **Enhanced Refactoring Notes**
-   - Updated `docs/refactoring_notes.md` with comprehensive information about:
-     - The architectural transformation process
-     - Current status of all services
-     - Remaining issues and next steps
-     - Implementation details and migration process
-   - Added clear sections for short, medium, and long-term next steps
+4. **Diagnostics and Monitoring**:
+   - Added tools to detect and quantify curve shifting
+   - Implemented reference point tracking for stability verification
+   - Added comprehensive logging to trace transformation parameters
 
-2. **Improved Validation Script**
-   - Enhanced `refactoring_validation.py` to provide more complete testing:
-     - Added tests for all service imports (both direct and aliased versions)
-     - Expanded checks for all legacy operations files
-     - Added recommendations and next steps based on validation results
-     - Improved overall reporting format with detailed output
+## Implementation Details
 
-### Additional Improvements (May 5, 2025)
+### Changes to `services/transformation_service.py`:
+- Added methods to detect curve shifting
+- Implemented transform parameter extraction and management
+- Added caching for performance optimization
 
-1. **Debug Cleanup Completion**
-   - Added proper logging to all service implementations:
-     - `centering_zoom_service.py`: Replaced debug print statements with logger calls
-     - `settings_service.py`: Added error logging for exception handling
-     - `file_service.py`: Converted coordinate transformation debug prints to logging
-     - `image_service.py`: Replaced all print statements with appropriate logger calls
-   - Improved error reporting with consistent logging patterns
+### Added `services/transform_stabilizer.py`:
+- Created reference point tracking functionality
+- Implemented verification for transformation stability
+- Added tools to diagnose and fix transformation inconsistencies
 
-2. **Removed Deprecated Files**
-   - Removed all `.deprecated` files from the codebase:
-     - `curve_operations.py.deprecated`
-     - `curve_data_operations.py.deprecated`
-     - `settings_operations.py.deprecated`
-     - `centering_zoom_operations.py.deprecated`
-     - `visualization_operations.py.deprecated`
-     - `history_operations.py.deprecated`
-     - `image_operations.py.deprecated`
-     - `file_operations.py.deprecated`
-     - `curve_view_operations.deprecated`
-   - Verified that no active code references these files
+### Updated `curve_view.py`:
+- Refactored paintEvent to use stable transform system
+- Updated rendering logic to maintain consistency
+- Fixed background image positioning
 
-3. **Modernized Service Import Patterns**
-   - Updated service imports to use direct class names instead of legacy aliases:
-     - Changed `CenteringZoomService as ZoomOperations` to `CenteringZoomService`
-     - Changed `VisualizationService as VisualizationOperations` to `VisualizationService`
-   - Ensured consistent import patterns across the codebase
+### Updated `main_window.py`:
+- Refactored apply_smooth_operation to use TransformStabilizer
+- Improved view state preservation during operations
+- Added verification steps after operations
 
-4. **Reduced Code Duplication**
-   - Consolidated duplicate coordinate transformation logic by:
-     - Creating a `transform_point_to_widget` utility function in `curve_utils.py`
-     - Replacing the duplicated transformation logic in `CurveService` with calls to this function
-     - Improving code maintainability and reducing potential for inconsistencies
+## Testing and Validation
 
-5. **Enhanced Error Handling**
-   - Improved error handling in services by:
-     - Using proper logging for exceptions instead of print statements
-     - Adding more descriptive error messages
-     - Using consistent error reporting patterns
+Created a comprehensive test suite in `tests/test_transformation_system.py` that validates:
+- ViewState creation from curve_view
+- Transform creation and application
+- Transform stability across operations
+- Reference point tracking
+- Curve shifting detection
 
-## Current Status
+## Documentation
 
-The refactoring to a service-based architecture is now complete and fully documented. All major functionality has been migrated to the services layer and all deprecated files have been removed from the codebase.
+Added detailed documentation of the solution in:
+- `docs/curve_shift_fix.md`: Comprehensive explanation of the issue and solution
+- Updated CHANGELOG.md with new features and fixes
+- Added inline documentation in key methods
 
-## Remaining Tasks
+## Results
 
-### Short-term Tasks (May-June 2025)
+The transformation system now ensures that:
+1. The same transformation logic is used consistently throughout the application
+2. View state is properly preserved during operations
+3. Points maintain their expected screen positions after operations
+4. Any potential shifts are detected and reported
+5. The system accommodates edge cases like different scaling modes
 
-1. **Complete Debug Cleanup**
-   - Finish converting debug prints in analysis operations and dialogs to use the logging system
-   - Implement consistent logging patterns across all modules
+## Next Steps
 
-2. **Testing**
-   - Complete unit tests for all service classes
-   - Add integration tests between services
-   - Focus on completing tests for ImageService, FileService, DialogService, and HistoryService
-   - Address any edge cases or bugs discovered during testing
-
-### Medium-term Tasks (Q2-Q3 2025)
-
-1. **Documentation**
-   - Create comprehensive API documentation for all services
-   - Add more code examples to demonstrate service usage
-   - Complete user documentation with updated workflows
-
-2. **Architecture Improvements**
-   - Enhance error handling and recovery mechanisms
-   - Implement additional validation tools
-   - Optimize performance bottlenecks
-   - Implement log rotation and environment variable support for logging
-
-### Long-term Vision (Q3-Q4 2025)
-
-1. **Advanced Architecture**
-   - Define explicit interfaces for all services
-   - Implement dependency injection for better testability
-   - Add plugin support for extensibility
-
-2. **Developer Experience**
-   - Develop additional developer tools and utilities
-   - Improve onboarding experience for new contributors
-   - Automate common development tasks
-
-## Conclusion
-
-The recent changes have successfully reinforced the service-based architecture and improved code quality. The debug cleanup has made significant progress with structured logging now implemented across all service classes. The removal of deprecated files has cleaned up the codebase, completing a key milestone in the architecture migration.
-
-With the improved logging, consistent import patterns, and consolidated duplicate code, the CurveEditor application is now more maintainable and follows better software engineering practices. The updated documentation provides a clear path forward for ongoing development, with well-defined short, medium, and long-term goals.
+1. Apply the transformation system to other operations (filtering, gap filling, etc.)
+2. Create additional tests to validate integration with other features
+3. Monitor for any edge cases or remaining stability issues
+4. Consider optimizing transform caching for even better performance

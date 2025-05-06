@@ -377,9 +377,36 @@ class CurveService:
             Tuple[float, float]: The transformed (x, y) coordinates in widget space
         """
         # Use the centralized TransformationService for coordinate transformations
-        return TransformationService.transform_point_to_widget(
+        # The transform_point_to_widget returns a Tuple[float, float]
+        # Ensure we're returning a tuple and not a QPointF
+        transformed = TransformationService.transform_point_to_widget(
             curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
         )
+
+        # Make sure we return a tuple of floats, not a QPointF
+        if isinstance(transformed, tuple):
+            return transformed
+        elif hasattr(transformed, "x") and hasattr(transformed, "y"):
+            # Handle QPointF or similar object
+            return (transformed.x(), transformed.y())
+        else:
+            # Fallback
+            logger.warning(f"Unexpected transform result type: {type(transformed)}")
+
+            # Calculate a basic transform as fallback
+            ty = y
+            if getattr(curve_view, "flip_y_axis", False):
+                ty = display_height - y
+
+            # Apply transformations in consistent order
+            sx = x * scale
+            sy = ty * scale
+            cx = sx + offset_x
+            cy = sy + offset_y
+            fx = cx + getattr(curve_view, "x_offset", 0)
+            fy = cy + getattr(curve_view, "y_offset", 0)
+
+            return (fx, fy)
 
     @staticmethod
     @safe_operation("On Point Selected")

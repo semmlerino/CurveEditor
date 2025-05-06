@@ -247,10 +247,20 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         scale_y = widget_height / display_height
         uniform_scale = min(scale_x, scale_y) * self.zoom_factor
 
+        # Calculate image scaling factors for accurate positioning
+        image_scale_x = 1.0
+        image_scale_y = 1.0
+        if before_scale_to_image:
+            if self.image_width > 0 and display_width > 0:
+                image_scale_x = display_width / self.image_width
+            if self.image_height > 0 and display_height > 0:
+                image_scale_y = display_height / self.image_height
+
         # Log the parameter values to verify they're consistent
         logger.info(f"Transform parameters updated: scale_to_image={before_scale_to_image}, "
                     f"display_dims={display_width}x{display_height}, widget_dims={widget_width}x{widget_height}, "
-                    f"uniform_scale={uniform_scale:.6f}")
+                    f"track_dims={self.image_width}x{self.image_height}, "
+                    f"uniform_scale={uniform_scale:.6f}, image_scale=({image_scale_x:.2f}, {image_scale_y:.2f})")
 
         # No need to store uniform_scale as it's recalculated in paintEvent
         # This method primarily ensures all parameters that affect transform_point are properly synchronized
@@ -270,7 +280,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
                      self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
 
     def paintEvent(self, event: QPaintEvent) -> None:
-        """Draw the curve and points."""
+        """Draw the curve and points using stable transformation system."""
         logger.debug("Paint event - View state: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
                     self.zoom_factor, self.offset_x, self.offset_y, self.x_offset, self.y_offset)
         if not self.points and not self.background_image:
@@ -282,73 +292,62 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         # Fill background
         painter.fillRect(self.rect(), QColor(40, 40, 40))
 
-        # Get widget dimensions
-        widget_width = self.width()
-        widget_height = self.height()
+        # Use the TransformationService to create a stable transform
+        from services.view_state import ViewState
+        from services.transformation_service import TransformationService
+        from services.transformation_shim import install
 
-        # Use the background image dimensions if available, otherwise use track dimensions
-        display_width = self.image_width
-        display_height = self.image_height
+        # Ensure the transformation system is installed
+        install(self)
 
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
+        # Get current view state
+        view_state = ViewState.from_curve_view(self)
 
-        # Calculate the scale factor to fit in the widget
-        scale_x = widget_width / display_width
-        scale_y = widget_height / display_height
+        # Create stable transform for consistent coordinate mapping
+        transform = TransformationService.calculate_transform(view_state)
 
-        # Use uniform scaling to maintain aspect ratio
-        scale = min(scale_x, scale_y) * self.zoom_factor
+        # Log transform parameters for debugging
+        transform_params = transform.get_parameters()
+        logger.debug(f"Using stable transform: scale={transform_params['scale']:.4f}, "
+                    f"center=({transform_params['center_offset'][0]:.1f}, {transform_params['center_offset'][1]:.1f}), "
+                    f"pan=({transform_params['pan_offset'][0]:.1f}, {transform_params['pan_offset'][1]:.1f}), "
+                    f"manual=({transform_params['manual_offset'][0]:.1f}, {transform_params['manual_offset'][1]:.1f}), "
+                    f"flip_y={transform_params['flip_y']}")
 
-        # Calculate centering offsets
-        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
-        # offset_y is set below
-        # offset_y is now set by calculate_centering_offsets above
-
-        # Transform data points to widget coordinates, respecting scale, centering, pan, and manual offsets
+        # Define transform_point function using the stable transform
         def transform_point(x: float, y: float) -> tuple[float, float]:
-            # 1. Flip Y if needed
-            ty = y
-            if getattr(self, "flip_y_axis", False):
-                img_h = getattr(self, "image_height", self.height())
-                ty = img_h - y
-
-            # Store scale_to_image value to detect inconsistencies
-            scale_to_image_val = getattr(self, "scale_to_image", True)
-
-            # Log the parameters being used for transformation (debug level since this happens on every paint)
-            logger.debug(f"Transform params: scale_to_image={scale_to_image_val}, scale={scale}, "
-                         f"offset_x={offset_x}, offset_y={offset_y}, manual_x={getattr(self, 'x_offset', 0)}, "
-                         f"manual_y={getattr(self, 'y_offset', 0)}")
-
-            # 2. Scale by overall scale
-            sx = x * scale
-            sy = ty * scale
-
-            # 3. Center content in widget
-            cx = sx + offset_x
-            cy = sy + offset_y
-
-            # 4. Apply pan offsets
-            px = getattr(self, "offset_x", 0)
-            py = getattr(self, "offset_y", 0)
-
-            # 5. Apply manual alignment offsets
-            fx = cx + px + getattr(self, "x_offset", 0)
-            fy = cy + py + getattr(self, "y_offset", 0)
-
-            return fx, fy
+            return transform.apply(x, y)
 
         # Draw background image if available
         if self.show_background and self.background_image:
+            # Get widget and display dimensions for background image
+            widget_width = self.width()
+            widget_height = self.height()
+
+            # Use background image dimensions
+            display_width = self.background_image.width()
+            display_height = self.background_image.height()
+
+            # Get the transform parameters for positioning
+            params = transform.get_parameters()
+            scale = params['scale']
+            center_offset_x, center_offset_y = params['center_offset']
+            pan_offset_x, pan_offset_y = params['pan_offset']
+            manual_offset_x, manual_offset_y = params['manual_offset']
+            image_scale_x, image_scale_y = params.get('image_scale', (1.0, 1.0))
+            scale_to_image = params.get('scale_to_image', True)
+
             # Calculate scaled dimensions
             scaled_width = display_width * scale
             scaled_height = display_height * scale
 
-            # Position image
-            img_x = offset_x
-            img_y = offset_y
+            # Use special method for image positioning that handles the transforms correctly
+            # without applying scale_to_image or y-flip (which shouldn't affect image itself)
+            img_x, img_y = transform.apply_for_image_position()
+
+            # Calculate scaled dimensions based on the transform's scale factor
+            scaled_width = display_width * scale
+            scaled_height = display_height * scale
 
             # Draw the image
             painter.setOpacity(self.background_opacity)
@@ -357,10 +356,20 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
             # Debugging visuals
             if self.debug_mode:
-                # Show alignment info
+                # Show alignment info with transform details
                 painter.setPen(QPen(QColor(255, 100, 100), 1))
                 painter.drawText(10, 100, f"Manual Alignment: X-offset: {self.x_offset}, Y-offset: {self.y_offset}")
-                painter.drawText(10, 120, f"Adjust with arrow keys + Shift/Ctrl")
+                painter.drawText(10, 120, f"Transform Scale: {scale:.4f}, Center: ({center_offset_x:.1f}, {center_offset_y:.1f})")
+                painter.drawText(10, 140, f"Pan Offset: ({pan_offset_x:.1f}, {pan_offset_y:.1f})")
+                painter.drawText(10, 160, f"Final Image Pos: ({img_x:.1f}, {img_y:.1f})")
+
+                # Add more debugging info about image scaling
+                if scale_to_image:
+                    painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: ON")
+                else:
+                    painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: OFF")
+
+                painter.drawText(10, 200, f"Adjust with arrow keys + Shift/Ctrl")
 
         # Draw the main curve if available
         if self.points:

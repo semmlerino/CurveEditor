@@ -683,150 +683,92 @@ class MainWindow(QMainWindow):
 
     # Smoothing Operations
     def apply_smooth_operation(self):
-        """Entry point for smoothing operations, coordinates UI updates."""
+        """Entry point for smoothing operations, coordinates UI updates using stable transformation."""
         if not self.curve_data:
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
 
-        # Save current view state
-        current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
-        current_offset_x = getattr(self.curve_view, 'offset_x', 0)
-        current_offset_y = getattr(self.curve_view, 'offset_y', 0)
-        current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
+        # Import the TransformStabilizer module for handling coordinate transformations
+        from services.transform_stabilizer import TransformStabilizer
+        from services.view_state import ViewState
+        from services.transformation_service import TransformationService
+        from PySide6.QtCore import QPointF, QTimer
 
-        # Save current auto-center state and temporarily disable it during smoothing
-        # to prevent automatic view changes
-        was_auto_center_enabled = getattr(self, 'auto_center_enabled', False)
-        self.auto_center_enabled = False
-
-        logger.info(f"BEFORE SMOOTH - View state: zoom={current_zoom}, offset_x={current_offset_x}, offset_y={current_offset_y}, scale_to_image={current_scale_to_image}, auto_center={was_auto_center_enabled}")
-
-        # Log curve bounds for better diagnosis
-        if self.curve_data and len(self.curve_data) > 0:
-            min_x = min(p[1] for p in self.curve_data)
-            max_x = max(p[1] for p in self.curve_data)
-            min_y = min(p[2] for p in self.curve_data)
-            max_y = max(p[2] for p in self.curve_data)
-            logger.info(f"BEFORE SMOOTH - Curve bounds: X=[{min_x:.2f}, {max_x:.2f}], Y=[{min_y:.2f}, {max_y:.2f}]")
-
-        # Log some sample points before smoothing
-        if self.curve_data and len(self.curve_data) > 0:
-            total_points = len(self.curve_data)
-            logger.info(f"Current curve has {total_points} points")
-            sample_indices = [0, total_points//2, total_points-1] if total_points > 2 else [0]
-            for idx in sample_indices:
-                if idx < total_points:
-                    pt = self.curve_data[idx]
-                    logger.info(f"BEFORE SMOOTH - Point[{idx}]: frame={pt[0]}, x={pt[1]}, y={pt[2]}")
-
-        # Log curve view widget dimensions
-        logger.info(f"Curve view dimensions: widget={self.curve_view.width()}x{self.curve_view.height()}, image={self.image_width}x{self.image_height}")
-
-        # Gather necessary data
-        current_data = self.curve_data
         # Get selected indices from curve view
-        selected_indices: list[int] = []
+        selected_indices = []
         if hasattr(self.curve_view, 'get_selected_indices'):
             selected_indices = self.curve_view.get_selected_indices()
         elif hasattr(self.curve_view, 'selected_points'):
             selected_indices = list(self.curve_view.selected_points)
         selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
 
-        logger.debug(f"Selected points: count={len(selected_indices)}, current_idx={selected_point_idx}")
+        logger.info("Starting smooth operation with TransformStabilizer")
 
-        # Call the refactored dialog operation, passing data
+        # 1. Get the current curve data before any modifications
+        before_data = self.curve_data
+
+        # 2. Create a stable transform for the operation
+        stable_transform = TransformationService.create_stable_transform_for_operation(self.curve_view)
+
+        # 3. Track reference points before any changes
+        reference_points = TransformStabilizer.track_reference_points(before_data, stable_transform)
+
+        # 4. Call the dialog service to get modified data
+        # We'll handle view state management separately
         modified_data = DialogService.show_smooth_dialog(
             parent_widget=self,
-            curve_data=current_data,
+            curve_data=before_data,
             selected_indices=selected_indices,
             selected_point_idx=selected_point_idx
         )
 
-        # If data was modified, update state, view, and history
+        # If data was modified, update using stable transform
         if modified_data is not None:
-            logger.debug("Smoothing successful. Data modified, updating view.")
+            logger.info("Smoothing operation completed successfully, updating view with stable transform")
 
-            # Log comparison of original vs modified data
-            if len(current_data) == len(modified_data):
-                logger.info(f"Data point count unchanged: {len(current_data)}")
+            # Log data analysis for diagnostics
+            if len(before_data) == len(modified_data):
+                logger.info(f"Data point count unchanged: {len(before_data)}")
 
-                # Calculate bounds for modified data
+                # Calculate bounds for comparison
+                min_x_before = min(p[1] for p in before_data)
+                max_x_before = max(p[1] for p in before_data)
+                min_y_before = min(p[2] for p in before_data)
+                max_y_before = max(p[2] for p in before_data)
+
                 min_x_after = min(p[1] for p in modified_data)
                 max_x_after = max(p[1] for p in modified_data)
                 min_y_after = min(p[2] for p in modified_data)
                 max_y_after = max(p[2] for p in modified_data)
 
-                # Calculate bounds for original data
-                min_x_before = min(p[1] for p in current_data)
-                max_x_before = max(p[1] for p in current_data)
-                min_y_before = min(p[2] for p in current_data)
-                max_y_before = max(p[2] for p in current_data)
-
-                # Log the bounds comparison
-                logger.info(f"BEFORE bounds: X=[{min_x_before:.2f}, {max_x_before:.2f}], Y=[{min_y_before:.2f}, {max_y_before:.2f}]")
-                logger.info(f"AFTER bounds: X=[{min_x_after:.2f}, {max_x_after:.2f}], Y=[{min_y_after:.2f}, {max_y_after:.2f}]")
-                logger.info(f"Change in bounds: X=({min_x_after-min_x_before:.2f}, {max_x_after-max_x_before:.2f}), Y=({min_y_after-min_y_before:.2f}, {max_y_after-max_y_before:.2f})")
-
-                # Log some sample differences
-                sample_indices = [0, len(current_data)//2, len(current_data)-1] if len(current_data) > 2 else [0]
-                for idx in sample_indices:
-                    if idx < len(current_data) and idx < len(modified_data):
-                        old_pt = current_data[idx]
-                        new_pt = modified_data[idx]
-                        x_diff = new_pt[1] - old_pt[1]
-                        y_diff = new_pt[2] - old_pt[2]
-                        logger.info(f"DIFF - Point[{idx}]: ({old_pt[1]:.2f}, {old_pt[2]:.2f}) -> ({new_pt[1]:.2f}, {new_pt[2]:.2f}), change: ({x_diff:.4f}, {y_diff:.4f})")
+                # Report bounds changes
+                logger.info(f"Data bounds changed: X=[{min_x_before:.2f},{max_x_before:.2f}] -> [{min_x_after:.2f},{max_x_after:.2f}], " +
+                            f"Y=[{min_y_before:.2f},{max_y_before:.2f}] -> [{min_y_after:.2f},{max_y_after:.2f}]")
             else:
-                logger.info(f"Data point count changed: {len(current_data)} -> {len(modified_data)}")
+                logger.info(f"Data point count changed: {len(before_data)} -> {len(modified_data)}")
 
-            # Update the curve data
+            # 5. Update curve data
             self.curve_data = modified_data
 
-            # Calculate and store stable transform parameters BEFORE any changes
-            try:
-                # Get stable transform parameters before the update
-                stable_transform_params = TransformStabilizer.calculate_stable_transform(self.curve_view)
-                logger.info(f"Stored stable transform parameters before update")
+            # 6. Save current view state
+            current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+            current_offset_x = getattr(self.curve_view, 'offset_x', 0)
+            current_offset_y = getattr(self.curve_view, 'offset_y', 0)
+            current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
+            was_auto_center_enabled = getattr(self, 'auto_center_enabled', False)
 
-                # Cache first point position as a reference to detect shifts
-                if self.curve_data and len(self.curve_data) > 0:
-                    first_point = self.curve_data[0]
-                    first_point_pos = TransformStabilizer.transform_point(
-                        self.curve_view,
-                        first_point[1],
-                        first_point[2],
-                        stable_transform_params
-                    )
-                    logger.info(f"First point reference position: {first_point_pos.x():.2f}, {first_point_pos.y():.2f}")
-            except Exception as e:
-                logger.error(f"Error calculating stable transform: {str(e)}")
-                stable_transform_params = None
-                first_point_pos = None
+            # Temporarily disable auto-center
+            self.auto_center_enabled = False
 
-            # Don't change the scaling mode as it causes drastic shifts
-            # Keep track of the current scaling mode for logging
-            was_scaling = getattr(self.curve_view, 'scale_to_image', False)
-            logger.info(f"Preserving scaling mode (currently: {was_scaling})")
-
-            # Log view state before setPoints
-            before_set_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
-            before_set_offset_x = getattr(self.curve_view, 'offset_x', 0)
-            before_set_offset_y = getattr(self.curve_view, 'offset_y', 0)
-            before_set_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
-            logger.info(f"BEFORE setPoints - View: zoom={before_set_zoom}, offset_x={before_set_offset_x}, offset_y={before_set_offset_y}, scale_to_image={before_set_scale_to_image}")
-
-            # Explicitly set the properties to ensure consistency
-            self.curve_view.scale_to_image = current_scale_to_image
+            # 7. Explicitly restore view state parameters
+            logger.info(f"Ensuring consistent view state: zoom={current_zoom}, offset=({current_offset_x},{current_offset_y}), scale_to_image={current_scale_to_image}")
             self.curve_view.zoom_factor = current_zoom
             self.curve_view.offset_x = current_offset_x
             self.curve_view.offset_y = current_offset_y
+            self.curve_view.scale_to_image = current_scale_to_image
 
-            # Use the new method to explicitly update transformation parameters
-            if hasattr(self.curve_view, 'update_transform_parameters'):
-                self.curve_view.update_transform_parameters()
-
-            # Set points WITH preserve_view=True to maintain view position
-            logger.info(f"Calling setPoints with preserve_view=True, image dimensions: {self.image_width}x{self.image_height}")
+            # 8. Set points with preserve_view=True to maintain view position
+            logger.info("Updating points with preserve_view=True")
             self.curve_view.setPoints(
                 self.curve_data,
                 self.image_width,
@@ -834,81 +776,51 @@ class MainWindow(QMainWindow):
                 preserve_view=True
             )
 
-            # Log view state after setPoints
-            after_set_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
-            after_set_offset_x = getattr(self.curve_view, 'offset_x', 0)
-            after_set_offset_y = getattr(self.curve_view, 'offset_y', 0)
-            after_set_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
-            logger.info(f"AFTER setPoints - View: zoom={after_set_zoom}, offset_x={after_set_offset_x}, offset_y={after_set_offset_y}, scale_to_image={after_set_scale_to_image}")
+            # 9. Verify if points have shifted unexpectedly
+            is_stable = TransformStabilizer.verify_reference_points(
+                self.curve_data,
+                reference_points,
+                stable_transform,
+                threshold=1.0  # 1-pixel threshold
+            )
 
-            # Check if view state has changed
-            if (before_set_zoom != after_set_zoom or
-                before_set_offset_x != after_set_offset_x or
-                before_set_offset_y != after_set_offset_y or
-                before_set_scale_to_image != after_set_scale_to_image):
-                logger.info(f"View state changed during setPoints despite preserve_view=True!")
+            if not is_stable:
+                logger.warning("Point shifting detected despite stable transform! Applying additional stabilization...")
 
-                # Log the differences
-                if before_set_zoom != after_set_zoom:
-                    logger.info(f"Zoom changed: {before_set_zoom} -> {after_set_zoom}")
-                if before_set_offset_x != after_set_offset_x:
-                    logger.info(f"OffsetX changed: {before_set_offset_x} -> {after_set_offset_x}")
-                if before_set_offset_y != after_set_offset_y:
-                    logger.info(f"OffsetY changed: {before_set_offset_y} -> {after_set_offset_y}")
-                if before_set_scale_to_image != after_set_scale_to_image:
-                    logger.info(f"scale_to_image changed: {before_set_scale_to_image} -> {after_set_scale_to_image}")
+                # Additional stabilization
+                self.curve_view.zoom_factor = current_zoom
+                self.curve_view.offset_x = current_offset_x
+                self.curve_view.offset_y = current_offset_y
+                self.curve_view.scale_to_image = current_scale_to_image
 
-            # Explicitly restore view state to ensure consistent behavior
-            logger.info(f"Explicitly restoring view state to original values")
-            self.curve_view.zoom_factor = current_zoom
-            self.curve_view.offset_x = current_offset_x
-            self.curve_view.offset_y = current_offset_y
+                # Force update
+                if hasattr(self.curve_view, 'update_transform_parameters'):
+                    self.curve_view.update_transform_parameters()
 
-            # Explicitly restore scale_to_image state to prevent display shifts
-            # This is likely the key to fixing the curve shift issue
-            self.curve_view.scale_to_image = current_scale_to_image
-
-            # Update transform parameters again after restoring view state
-            if hasattr(self.curve_view, 'update_transform_parameters'):
-                self.curve_view.update_transform_parameters()
-
-            logger.info(f"RESTORED View state: zoom={self.curve_view.zoom_factor}, offset_x={self.curve_view.offset_x}, offset_y={self.curve_view.offset_y}, scale_to_image={self.curve_view.scale_to_image}")
-
-            # Add to history
+            # 10. Add to history
             self.add_to_history()
 
-            # Brief delay to ensure all state changes are processed
-            from PySide6.QtCore import QTimer
-
-            # Use a timer to add a small delay before final update
+            # 11. Use QTimer for a clean update
             def delayed_update():
-                try:
-                    # Use our stable transform parameters if available
-                    if 'stable_transform_params' in locals() and stable_transform_params is not None:
-                        logger.info("Applying stable transform parameters for consistent rendering")
-
-                        # Verify the first point position hasn't changed
-                        if 'first_point_pos' in locals() and first_point_pos is not None and len(self.curve_data) > 0:
-                            first_point = self.curve_data[0]
-                            new_pos = TransformStabilizer.transform_point(
-                                self.curve_view,
-                                first_point[1],
-                                first_point[2],
-                                stable_transform_params
-                            )
-                            logger.info(f"First point position check: original=({first_point_pos.x():.2f}, {first_point_pos.y():.2f}), " +
-                                        f"now=({new_pos.x():.2f}, {new_pos.y():.2f})")
-                except Exception as e:
-                    logger.error(f"Error applying stable transform: {str(e)}")
-
-                # Final update to ensure proper rendering
+                # Force update with the stable transform
                 self.curve_view.update()
-                logger.info("View updated after smoothing (with delay)")
+                logger.info("View updated with delayed timer after smoothing")
 
-            # 10ms delay, just enough to let the event loop process everything
+                # Perform a secondary verification
+                is_stable_after_update = TransformStabilizer.verify_reference_points(
+                    self.curve_data,
+                    reference_points,
+                    stable_transform,
+                    threshold=1.0
+                )
+
+                if not is_stable_after_update:
+                    logger.warning("Points still shifted after update - this may require further investigation")
+
+            # 12. Schedule the update with a small delay
             QTimer.singleShot(10, delayed_update)
 
-            # Restore auto-center state that was saved earlier
+            # Restore auto-center state
             if was_auto_center_enabled:
                 self.auto_center_enabled = True
                 logger.debug("Restored auto-center enabled state")

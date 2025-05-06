@@ -1,101 +1,272 @@
-# Coordinate Transformation System Guide
+# Coordinate Transformation System Integration Guide
+
+This guide explains how to use the new coordinate transformation system to fix issues like curve shifting during smoothing operations.
+
+## Table of Contents
+
+1. [Overview](#overview)
+2. [Key Components](#key-components)
+3. [Quick Start](#quick-start)
+4. [Integration Examples](#integration-examples)
+5. [Migration Guide](#migration-guide)
+6. [Troubleshooting](#troubleshooting)
 
 ## Overview
 
-This document explains the coordinate transformation system used in the Curve Editor application,
-focusing on how points are mapped between different coordinate spaces, how centering works,
-and how these transformations behave during window resizing and fullscreen mode.
+The coordinate transformation system provides a centralized, consistent way to transform coordinates between data space and screen space. It addresses issues like curve shifting by ensuring that the same transformation logic is used throughout the application.
 
-## Coordinate Spaces
+**Benefits:**
+- Consistent coordinate transformations
+- Immutable objects prevent accidental state changes
+- Single source of truth for transformation parameters
+- Improved debugging with detailed logging
+- Transformation caching for better performance
 
-The application deals with four main coordinate spaces:
+## Key Components
 
-1. **Tracking Data Space**: Raw (x, y) coordinates from the tracking data. These are the "source of truth" coordinates.
-2. **Image Space**: Coordinates mapped to the current background image dimensions (when using scale_to_image mode)
-3. **Widget Space**: Coordinates mapped to the view widget dimensions after scaling and transformation
-4. **Screen Space**: Final rendered positions on screen after all transformations (including manual offsets)
+### ViewState
 
-## Transformation Flow
-
-The transformation from tracking data coordinates to screen coordinates follows this pipeline:
-
-```
-Tracking Data Coordinates → Image Space (optional) → Scaled Space → Widget Space → Screen Space
-```
-
-### Key Functions
-
-The main transformation is now centralized in the dedicated `TransformationService` in `services/transformation_service.py`:
+`ViewState` encapsulates all parameters that affect coordinate transformations:
 
 ```python
-def transform_point_to_widget(curve_view, x, y, display_width, display_height, offset_x, offset_y, scale):
-    # Transform from tracking data coordinates to widget/screen space
+from services.view_state import ViewState
+
+# Create from curve view
+state = ViewState.from_curve_view(curve_view)
+
+# Create manually
+state = ViewState(
+    display_width=1920,
+    display_height=1080,
+    widget_width=800,
+    widget_height=600,
+    zoom_factor=1.5,
+    offset_x=10,
+    offset_y=20
+)
+
+# Create modified copy
+new_state = state.with_updates(zoom_factor=2.0)
+```
+
+### Transform
+
+`Transform` applies a specific transformation to coordinates:
+
+```python
+from services.transform import Transform
+
+# Create directly
+transform = Transform(
+    scale=1.5,
+    center_offset_x=100,
+    center_offset_y=150,
+    pan_offset_x=10,
+    pan_offset_y=20
+)
+
+# Apply to point
+screen_x, screen_y = transform.apply(data_x, data_y)
+```
+
+### TransformationService
+
+`TransformationService` provides high-level methods for coordinate transformations:
+
+```python
+from services.transformation_service import TransformationService
+
+# Calculate transform from view state
+transform = TransformationService.calculate_transform(view_state)
+
+# Transform a point
+screen_x, screen_y = TransformationService.transform_point(view_state, data_x, data_y)
+
+# Transform multiple points
+transformed_points = TransformationService.transform_points(view_state, points)
+```
+
+## Quick Start
+
+For the fastest integration, use the transformation shim:
+
+```python
+from services.transformation_shim import install, transform_point, transform_points
+
+# Install in main window
+def __init__(self):
+    super().__init__()
+    # ... existing initialization ...
+    install(self.curve_view)
+
+# Use in methods that transform coordinates
+def find_point_at(self, x, y):
+    transformed_points = transform_points(self.curve_view, self.points)
+    # Find closest point...
+```
+
+## Integration Examples
+
+### Fixing Curve Shifting in Smoothing Operations
+
+The key to fixing curve shifting is to use the same transform before and after changes:
+
+```python
+def apply_smooth_operation(self):
+    # 1. Create a stable transform before changes
+    from services.view_state import ViewState
+    from services.transformation_service import TransformationService
+
+    view_state = ViewState.from_curve_view(self.curve_view)
+    stable_transform = TransformationService.calculate_transform(view_state)
+
+    # 2. Store position of reference points (like the first point)
+    if self.curve_data:
+        first_point = self.curve_data[0]
+        original_pos = stable_transform.apply(first_point[1], first_point[2])
+
+    # 3. Apply smoothing (existing code)
+    # ...
+
+    # 4. Update view with preserved transform
+    self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height, preserve_view=True)
+
+    # 5. Force consistent transform for final rendering
+    if hasattr(self.curve_view, 'set_force_transform'):
+        self.curve_view.set_force_transform(stable_transform)
+```
+
+### Updating paintEvent
+
+For best results, refactor the paintEvent to use the transformation system:
+
+```python
+def paintEvent(self, event):
+    # Get consistent transform for all operations
+    from services.view_state import ViewState
+    from services.transformation_service import TransformationService
+
+    # Use forced transform if available (for operations like smoothing)
+    if hasattr(self, '_force_transform') and self._force_transform:
+        transform = self._force_transform
+    else:
+        view_state = ViewState.from_curve_view(self)
+        transform = TransformationService.calculate_transform(view_state)
+
+    # Use transform for all coordinate conversions
     # ...
 ```
 
-The service also provides `transform_widget_to_track()` for converting from widget to tracking coordinates and other helper methods.
+### Other Coordinate Transformations
 
-## Centering Calculation
+Replace all manual coordinate transformations with the new system:
 
-Centering a point involves:
+```python
+# Before
+def transform_point(self, curve_view, x, y):
+    # Multiple steps of scale calculation, offset application, etc.
 
-1. Getting the selected point's coordinates in tracking data space
-2. Calculating the proper transformation to place this point in the center of the view
-3. Applying the proper offset to achieve this centering
-4. Accounting for any scaling, aspect ratio considerations, and manual offsets
+# After
+def transform_point(self, curve_view, x, y):
+    from services.transformation_service import TransformationService
+    from services.view_state import ViewState
 
-The main centering logic is in `center_on_selected_point()` in `centering_zoom_operations.py`.
+    view_state = ViewState.from_curve_view(curve_view)
+    return TransformationService.transform_point(view_state, x, y)
+```
 
-## Resize and Fullscreen Handling
+## Migration Guide
 
-When the window is resized or enters fullscreen mode, several adjustments are made:
+Follow these steps to gradually adopt the new system:
 
-1. The widget dimensions change (`widget_width`, `widget_height`)
-2. The scale factors are recalculated to maintain proper aspect ratio
-3. Centering offsets are recalculated based on the new dimensions
-4. Transformations are updated to maintain visual consistency
+1. **Install the transformation shim**:
+   ```python
+   from services.transformation_shim import install
+   install(self.curve_view)
+   ```
 
-This allows the view to maintain proper scale and center positions regardless of window state.
+2. **Fix critical operations** like smoothing:
+   - Modify the smooth operation as shown in the examples
+   - Add reference point tracking to detect shifts
 
-## Key Parameters Explained
+3. **Update core rendering** in paintEvent:
+   - Refactor to use a single transform for all coordinates
+   - Add support for forced transforms
 
-- **scale**: The zoom factor applied to transform between coordinate spaces
-- **offset_x/offset_y**: Base offsets to center content in the widget
-- **x_offset/y_offset**: Manual offsets applied by user panning
-- **scale_to_image**: Boolean flag that determines whether to scale tracking coordinates to the background image
-- **flip_y_axis**: Boolean flag that determines whether to flip the Y-axis (Y increases downward in screen space)
+4. **Gradually replace other coordinate transformations**:
+   - Update methods in CurveService
+   - Update methods in CurveViewOperations
+   - Update any custom coordinate transformations
 
-## Recent Bug Fix (2025-05-02)
+5. **Remove the shim** once all code is migrated
 
-The centering issue during resize and fullscreen was fixed by:
+## Troubleshooting
 
-1. Correcting how coordinate transformations handle resizing events
-2. Properly accounting for the widget dimensions in centering calculations
-3. Applying manual offsets consistently in the transform_point function
-4. Fixing the base offset calculation to properly respect aspect ratio constraints
+### Curve Still Shifting
 
-This ensures that selected points remain correctly centered regardless of the window state or dimensions.
+If the curve is still shifting during operations:
 
-## Common Pitfalls
+1. Check that the same transform is used before and after changes:
+   ```python
+   # Log transform parameters
+   params = transform.get_parameters()
+   logger.info(f"Transform: scale={params['scale']}, center={params['center_offset']}")
+   ```
 
-1. **Order of Transformations**: The order of applying transformations is critical - scale first, then offsets
-2. **Aspect Ratio Handling**: Always use the minimum of X/Y scale factors to maintain aspect ratio
-3. **Coordinate System Origins**: Remember that Y increases downward in screen space, but may be inverted in other spaces
-4. **Manual Offset Application**: Manual offsets from panning must be applied after scaling, not before
+2. Verify reference point positions:
+   ```python
+   # Track the first point
+   first_point = self.curve_data[0]
+   before_pos = transform.apply(first_point[1], first_point[2])
+   # ... after changes ...
+   after_pos = transform.apply(first_point[1], first_point[2])
+   dx = after_pos[0] - before_pos[0]
+   dy = after_pos[1] - before_pos[1]
+   logger.info(f"Point shifted by ({dx}, {dy}) pixels")
+   ```
 
-## How to Debug Transformation Issues
+3. Force consistent transformation:
+   ```python
+   # Store the initial transform
+   self._saved_transform = transform
 
-If transformation or centering issues occur:
+   # In paintEvent:
+   transform = getattr(self, '_saved_transform', None) or calculate_transform()
+   ```
 
-1. Enable debug mode in EnhancedCurveView (self.debug_mode = True)
-2. Check the transformation calculations in transform_point()
-3. Verify the scaling factors and offsets being calculated
-4. Use print statements to trace the coordinate transformation pipeline
+### Performance Issues
 
-## Related Files
+If you notice performance issues:
 
-- `services/transformation_service.py`: Central service for all coordinate transformations
-- `services/curve_service.py`: Uses TransformationService for point operations
-- `services/curve_utils.py`: Contains utility functions that forward to TransformationService
-- `services/centering_zoom_service.py`: Handles centering and zoom operations
-- `enhanced_curve_view.py`: Main view that uses these transformations
+1. Use transform caching:
+   ```python
+   # TransformationService caches transforms automatically
+   # To clear cache if needed:
+   TransformationService.clear_cache()
+   ```
+
+2. Transform points in bulk:
+   ```python
+   # Instead of:
+   for point in points:
+       tx, ty = transform.apply(point[1], point[2])
+
+   # Use:
+   transformed = TransformationService.transform_points(view_state, points)
+   ```
+
+3. Only recalculate transforms when necessary:
+   ```python
+   # Cache view state and transform
+   if not hasattr(self, '_cached_view_state'):
+       self._cached_view_state = ViewState.from_curve_view(self)
+       self._cached_transform = TransformationService.calculate_transform(self._cached_view_state)
+
+   # Only invalidate cache when parameters change
+   def on_zoom_changed(self):
+       self._cached_view_state = None  # Force recalculation
+   ```
+
+---
+
+For more details, refer to the [full refactoring plan](coordinate_transformation_refactoring_plan.md) and the [example implementation](../examples/fix_curve_shift.py).

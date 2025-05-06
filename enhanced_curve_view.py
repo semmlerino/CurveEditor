@@ -93,7 +93,7 @@ class EnhancedCurveView(QWidget):
 
         # Debug options
         self.debug_mode = True  # Enable debug visuals
-        
+
         # Protocol required properties
         self.rubber_band = None
         self.rubber_band_origin = QPointF()
@@ -306,7 +306,20 @@ class EnhancedCurveView(QWidget):
         # Coordinate transformation functions
         def transform_point(x, y):
             """Transform from track coordinates to widget coordinates."""
-            return CurveViewOperations.transform_point(self, x, y, display_width, display_height, offset_x, offset_y, scale)
+            # Handle both tuple and QPointF return types
+            result = CurveViewOperations.transform_point(self, x, y, display_width, display_height, offset_x, offset_y, scale)
+
+            # If it's already a tuple, return it directly
+            if isinstance(result, tuple):
+                return result
+
+            # If it's a QPointF or similar object with x() and y() methods, convert to tuple
+            if hasattr(result, "x") and hasattr(result, "y"):
+                return (result.x(), result.y())
+
+            # Fallback
+            logger.warning(f"Unexpected transform result type in enhanced_curve_view: {type(result)}")
+            return (0, 0)
 
         def inverse_transform(tx, ty):
             """Transform from widget coordinates to track coordinates."""

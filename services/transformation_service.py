@@ -1,261 +1,326 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
-TransformationService: Centralized coordinate transformation logic.
-Provides methods for mapping between different coordinate spaces in the application.
+TransformationService Module for CurveEditor.
+
+This module implements a service for managing coordinate transformations
+throughout the application. It provides a central point for calculating
+and applying transforms, ensuring consistency across different operations.
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING, List, Union, cast
+from typing import Dict, List, Tuple, Any, Optional
+from PySide6.QtCore import QPointF
+
+from services.view_state import ViewState
+from services.transform import Transform
 from services.logging_service import LoggingService
-from services.centering_zoom_service import CenteringZoomService
-from services.protocols import CurveViewProtocol, PointTuple, PointTupleWithStatus, PointsList
 
 # Configure logger for this module
 logger = LoggingService.get_logger("transformation_service")
 
-if TYPE_CHECKING:
-    from PySide6.QtCore import QPointF
-
-
 class TransformationService:
-    """Service for coordinate transformations between different spaces.
+    """
+    Central service for all coordinate transformations in the application.
 
-    This service centralizes all coordinate transformation logic in the application,
-    ensuring consistent behavior across different components.
+    This service provides methods for:
+    1. Extracting view state from the curve view
+    2. Calculating transforms based on view state
+    3. Applying transforms to points
+    4. Caching transforms for performance
 
-    Coordinate Spaces:
-    1. Tracking Data Space: Raw (x, y) coordinates from the tracking data
-    2. Image Space: Coordinates mapped to the background image dimensions (when using scale_to_image)
-    3. Widget Space: Coordinates mapped to the view widget dimensions
-    4. Screen Space: Final rendered positions after all transformations
+    By centralizing transformation logic, we ensure consistent coordinate
+    mappings across different operations, preventing issues like the
+    curve shifting problem.
     """
 
-    @staticmethod
-    def transform_point_to_widget(
-        curve_view: CurveViewProtocol,
-        x: float,
-        y: float,
-        display_width: float,
-        display_height: float,
-        offset_x: float,
-        offset_y: float,
-        scale: float
-    ) -> Tuple[float, float]:
-        """Transform from track coordinates to widget coordinates.
-
-        This function transforms from tracking data coordinates to widget display coordinates,
-        taking into account scaling, offsets, and any coordinate system transformations.
-
-        Args:
-            curve_view: The curve view instance
-            x: X coordinate in tracking data coordinates
-            y: Y coordinate in tracking data coordinates
-            display_width: Width of the display content area
-            display_height: Height of the display content area
-            offset_x: Content centering X offset
-            offset_y: Content centering Y offset
-            scale: Scale factor to apply
-
-        Returns:
-            Tuple[float, float]: The transformed (x, y) coordinates in widget space
-        """
-        # Get any manual offsets applied through panning
-        manual_x_offset = getattr(curve_view, 'x_offset', 0)
-        manual_y_offset = getattr(curve_view, 'y_offset', 0)
-
-        # Use the image content centered base position
-        # This ensures content stays properly centered in the widget
-        base_x = offset_x + manual_x_offset
-        base_y = offset_y + manual_y_offset
-
-        if hasattr(curve_view, 'background_image') and curve_view.background_image and getattr(curve_view, 'scale_to_image', False):
-            # When scaling to image, we need to first convert from curve coordinates to image coordinates
-            img_width = getattr(curve_view, 'image_width', 1920)
-            img_height = getattr(curve_view, 'image_height', 1080)
-
-            # Convert tracking coordinates to image space
-            img_scale_x = display_width / max(img_width, 1)
-            img_scale_y = display_height / max(img_height, 1)
-
-            # Apply image-to-tracking coordinate transformation
-            # This maps curve points to positions on the background image
-            img_x = x * img_scale_x
-            img_y = y * img_scale_y
-
-            # Apply Y-flip if enabled
-            if getattr(curve_view, 'flip_y_axis', False):
-                img_y = display_height - img_y
-
-            # Now scale to widget space and apply centering offset
-            tx = base_x + img_x * scale
-            ty = base_y + img_y * scale
-
-        else:
-            # Direct scaling from tracking coordinates to widget space
-            # No image-based transformation, but we still need to handle Y-flip
-            if getattr(curve_view, 'flip_y_axis', False):
-                # For Y-flip, we need the original data height
-                img_height = getattr(curve_view, 'image_height', 1080)
-                tx = base_x + (x * scale)
-                ty = base_y + (img_height - y) * scale
-            else:
-                tx = base_x + (x * scale)
-                ty = base_y + (y * scale)
-
-        return tx, ty
+    # Transform cache to avoid recalculating transforms for the same view state
+    _transform_cache: Dict[int, Transform] = {}
+    _max_cache_size: int = 10
 
     @staticmethod
-    def transform_widget_to_track(
-        curve_view: CurveViewProtocol,
-        widget_x: float,
-        widget_y: float,
-        display_width: float,
-        display_height: float,
-        offset_x: float,
-        offset_y: float,
-        scale: float
-    ) -> Tuple[float, float]:
-        """Transform from widget coordinates to track coordinates.
-
-        This function transforms from widget display coordinates to tracking data coordinates,
-        applying the inverse of the transformations used in transform_point_to_widget.
+    def calculate_transform(view_state: ViewState) -> Transform:
+        """
+        Calculate a transform object from a view state.
 
         Args:
-            curve_view: The curve view instance
-            widget_x: X coordinate in widget space
-            widget_y: Y coordinate in widget space
-            display_width: Width of the display content area
-            display_height: Height of the display content area
-            offset_x: Content centering X offset
-            offset_y: Content centering Y offset
-            scale: Scale factor to apply
+            view_state: The ViewState to calculate transform from
 
         Returns:
-            Tuple[float, float]: The transformed (x, y) coordinates in tracking data space
+            A Transform object that can be used to transform coordinates
         """
-        # Get any manual offsets applied through panning
-        manual_x_offset = getattr(curve_view, 'x_offset', 0)
-        manual_y_offset = getattr(curve_view, 'y_offset', 0)
+        # Check cache first
+        cache_key = hash(tuple(view_state.to_dict().items()))
+        if cache_key in TransformationService._transform_cache:
+            logger.debug("Using cached transform")
+            return TransformationService._transform_cache[cache_key]
 
-        # Adjust for base offsets and manual panning
-        base_x = offset_x + manual_x_offset
-        base_y = offset_y + manual_y_offset
-
-        # Remove centering offset to get to scaled space
-        scaled_x = (widget_x - base_x) / scale if scale != 0 else 0
-        scaled_y = (widget_y - base_y) / scale if scale != 0 else 0
-
-        if hasattr(curve_view, 'background_image') and curve_view.background_image and getattr(curve_view, 'scale_to_image', False):
-            # Handle image-based transformation
-            img_width = getattr(curve_view, 'image_width', 1920)
-            img_height = getattr(curve_view, 'image_height', 1080)
-
-            # Apply Y-flip if enabled
-            if getattr(curve_view, 'flip_y_axis', False):
-                scaled_y = display_height - scaled_y
-
-            # Convert from image space back to tracking coordinates
-            img_scale_x = display_width / max(img_width, 1)
-            img_scale_y = display_height / max(img_height, 1)
-
-            track_x = scaled_x / img_scale_x if img_scale_x != 0 else 0
-            track_y = scaled_y / img_scale_y if img_scale_y != 0 else 0
-
-        else:
-            # Direct scaling without image-based transformation
-            if getattr(curve_view, 'flip_y_axis', False):
-                # Handle Y-flip in direct mode
-                img_height = getattr(curve_view, 'image_height', 1080)
-                track_x = scaled_x
-                track_y = img_height - scaled_y
-            else:
-                track_x = scaled_x
-                track_y = scaled_y
-
-        return track_x, track_y
-
-    @staticmethod
-    def transform_point_list(
-        curve_view: CurveViewProtocol,
-        points: PointsList,
-        display_width: float,
-        display_height: float,
-        offset_x: float,
-        offset_y: float,
-        scale: float
-    ) -> PointsList:
-        """Transform a list of points from track coordinates to widget coordinates.
-
-        Args:
-            curve_view: The curve view instance
-            points: List of points to transform, each as (frame, x, y) or (frame, x, y, status)
-            display_width: Width of the display content area
-            display_height: Height of the display content area
-            offset_x: Content centering X offset
-            offset_y: Content centering Y offset
-            scale: Scale factor to apply
-
-        Returns:
-            List of transformed points in widget coordinates
-        """
-        transformed_points = []
-        for point in points:
-            frame = point[0]
-            x, y = point[1], point[2]
-
-            # Transform the point coordinates
-            tx, ty = TransformationService.transform_point_to_widget(
-                curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
-            )
-
-            # Preserve additional attributes if present
-            if len(point) > 3:
-                status = point[3]
-                transformed_points.append((frame, tx, ty, status))
-            else:
-                transformed_points.append((frame, tx, ty))
-
-        return transformed_points
-
-    @staticmethod
-    def calculate_display_parameters(
-        curve_view: CurveViewProtocol,
-        widget_width: int,
-        widget_height: int
-    ) -> Tuple[float, float, float, float, float]:
-        """Calculate display parameters for coordinate transformations.
-
-        This centralized function computes the standard parameters needed for
-        coordinate transformations, ensuring consistency across the application.
-
-        Args:
-            curve_view: The curve view instance
-            widget_width: Width of the widget
-            widget_height: Height of the widget
-
-        Returns:
-            Tuple with (display_width, display_height, scale, offset_x, offset_y)
-        """
-        # Get display dimensions
-        display_width = getattr(curve_view, 'image_width', 1920)
-        display_height = getattr(curve_view, 'image_height', 1080)
-
-        # Use background image dimensions if available
-        if hasattr(curve_view, 'background_image') and curve_view.background_image:
-            display_width = curve_view.background_image.width()
-            display_height = curve_view.background_image.height()
-
-        # Calculate scale
-        scale_x = widget_width / display_width
-        scale_y = widget_height / display_height
-        scale = min(scale_x, scale_y) * getattr(curve_view, 'zoom_factor', 1.0)
+        # Calculate scale factor
+        scale_x = view_state.widget_width / view_state.display_width
+        scale_y = view_state.widget_height / view_state.display_height
+        scale = min(scale_x, scale_y) * view_state.zoom_factor
 
         # Calculate centering offsets
-        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
-            widget_width, widget_height,
-            display_width * scale, display_height * scale,
-            curve_view.x_offset, curve_view.y_offset
+        from services.centering_zoom_service import CenteringZoomService
+        center_x, center_y = CenteringZoomService.calculate_centering_offsets(
+            view_state.widget_width,
+            view_state.widget_height,
+            view_state.display_width * scale,
+            view_state.display_height * scale,
+            view_state.offset_x,
+            view_state.offset_y
         )
 
-        return display_width, display_height, scale, offset_x, offset_y
+        # Handle scaling to image if needed
+        # This is crucial for ensuring the curve aligns with the background features
+        image_scale_x = 1.0
+        image_scale_y = 1.0
+        if view_state.scale_to_image:
+            # Calculate scale factor to adjust curve data to match image dimensions
+            # Convert from curve dimensions to image dimensions
+            if view_state.image_width > 0 and view_state.display_width > 0:
+                image_scale_x = view_state.display_width / view_state.image_width
+            if view_state.image_height > 0 and view_state.display_height > 0:
+                image_scale_y = view_state.display_height / view_state.image_height
+
+            # Log details about the scaling calculation
+            logger.debug(f"Image dimensions: {view_state.image_width}x{view_state.image_height}")
+            logger.debug(f"Display dimensions: {view_state.display_width}x{view_state.display_height}")
+            logger.debug(f"Scale-to-image enabled, calculated factors: x={image_scale_x:.4f}, y={image_scale_y:.4f}")
+
+        # Log scaling information for debugging
+        if image_scale_x != 1.0 or image_scale_y != 1.0:
+            logger.debug(f"Image scaling factors: x={image_scale_x:.4f}, y={image_scale_y:.4f}")
+
+        # Create the transform with image scaling incorporated in the scale
+        transform = Transform(
+            scale=scale,
+            center_offset_x=center_x,
+            center_offset_y=center_y,
+            pan_offset_x=view_state.offset_x,
+            pan_offset_y=view_state.offset_y,
+            manual_x=view_state.manual_x_offset,
+            manual_y=view_state.manual_y_offset,
+            flip_y=view_state.flip_y_axis,
+            display_height=view_state.display_height,
+            image_scale_x=image_scale_x,
+            image_scale_y=image_scale_y,
+            scale_to_image=view_state.scale_to_image
+        )
+
+        # Update cache (manage cache size)
+        if len(TransformationService._transform_cache) >= TransformationService._max_cache_size:
+            # Remove oldest entry
+            first_key = next(iter(TransformationService._transform_cache))
+            TransformationService._transform_cache.pop(first_key)
+
+        # Add new transform to cache
+        TransformationService._transform_cache[cache_key] = transform
+
+        # Log transform details
+        logger.debug(f"Created transform: scale={scale:.4f}, center=({center_x:.1f},{center_y:.1f}), "
+                    f"pan=({view_state.offset_x:.1f},{view_state.offset_y:.1f}), "
+                    f"image_scale=({image_scale_x:.2f},{image_scale_y:.2f})")
+
+        return transform
+
+    @staticmethod
+    def transform_point(view_state: ViewState, x: float, y: float) -> Tuple[float, float]:
+        """
+        Transform a point using the view state.
+
+        Args:
+            view_state: The ViewState to use for transformation
+            x: X coordinate in data space
+            y: Y coordinate in data space
+
+        Returns:
+            Tuple containing the transformed (x, y) coordinates in screen space
+        """
+        transform = TransformationService.calculate_transform(view_state)
+        return transform.apply(x, y)
+
+    @staticmethod
+    def transform_points(view_state: ViewState, points: List[Any]) -> List[Tuple[float, float]]:
+        """
+        Transform multiple points using the same view state.
+
+        This is more efficient than calling transform_point multiple times
+        as it calculates the transform only once.
+
+        Args:
+            view_state: The ViewState to use for transformation
+            points: List of points, each with x at index 1 and y at index 2
+
+        Returns:
+            List of transformed (x, y) coordinates in screen space
+        """
+        transform = TransformationService.calculate_transform(view_state)
+        return [transform.apply(p[1], p[2]) for p in points]
+
+    @staticmethod
+    def transform_points_qt(view_state: ViewState, points: List[Any]) -> List[QPointF]:
+        """
+        Transform multiple points to QPointF objects.
+
+        Args:
+            view_state: The ViewState to use for transformation
+            points: List of points, each with x at index 1 and y at index 2
+
+        Returns:
+            List of QPointF objects in screen space
+        """
+        transform = TransformationService.calculate_transform(view_state)
+        return [QPointF(*transform.apply(p[1], p[2])) for p in points]
+
+    @staticmethod
+    def clear_cache() -> None:
+        """Clear the transform cache."""
+        TransformationService._transform_cache.clear()
+        logger.debug("Transform cache cleared")
+
+    @staticmethod
+    def transform_point_to_widget(curve_view: Any, x: float, y: float,
+                                  display_width: Optional[float] = None,
+                                  display_height: Optional[float] = None,
+                                  offset_x: Optional[float] = None,
+                                  offset_y: Optional[float] = None,
+                                  scale: Optional[float] = None) -> Tuple[float, float]:
+        """
+        Legacy-compatible method to transform a point to widget coordinates.
+
+        This method is provided for backward compatibility with the existing
+        CurveService.transform_point method. It creates a ViewState from the
+        curve_view and optional parameters, then applies the transformation.
+
+        Args:
+            curve_view: The curve view instance
+            x: X coordinate in data space
+            y: Y coordinate in data space
+            display_width: Optional override for display width
+            display_height: Optional override for display height
+            offset_x: Optional override for offset X
+            offset_y: Optional override for offset Y
+            scale: Optional override for scale
+
+        Returns:
+            Tuple containing the transformed (x, y) coordinates in widget space
+        """
+        # Create view state from curve_view
+        view_state = ViewState.from_curve_view(curve_view)
+
+        # Create modified view state if any parameters are provided
+        kwargs = {}
+        if display_width is not None:
+            kwargs['display_width'] = int(display_width)
+        if display_height is not None:
+            kwargs['display_height'] = int(display_height)
+        if offset_x is not None:
+            kwargs['offset_x'] = float(offset_x)
+        if offset_y is not None:
+            kwargs['offset_y'] = float(offset_y)
+
+        if kwargs:
+            view_state = view_state.with_updates(**kwargs)
+
+        # Calculate transform with optional scale override
+        transform = TransformationService.calculate_transform(view_state)
+        if scale is not None:
+            transform = transform.with_updates(scale=float(scale))
+
+        # Apply transform - explicitly return a tuple (not QPointF)
+        # This is critical for compatibility with existing code
+        return transform.apply(x, y)
+
+    @staticmethod
+    def detect_curve_shifting(before_points: List[Any], after_points: List[Any],
+                              before_transform: Transform, after_transform: Transform,
+                              threshold: float = 1.0) -> Tuple[bool, Dict[int, float]]:
+        """
+        Detect if curve points have shifted in screen space after an operation.
+
+        This is useful for diagnosing transformation issues that cause points to
+        shift unexpectedly during operations like smoothing.
+
+        Args:
+            before_points: List of points before the operation
+            after_points: List of points after the operation
+            before_transform: Transform used before the operation
+            after_transform: Transform used after the operation
+            threshold: Threshold in pixels above which a shift is considered significant
+
+        Returns:
+            Tuple of (shifted_detected, shift_details) where shift_details is a dict
+            mapping point indices to shift distances
+        """
+        if not before_points or not after_points:
+            return False, {}
+
+        # Check at most 5 points (first, last, and up to 3 points in the middle)
+        sample_indices = [0]  # Always check the first point
+
+        # Add middle points if available
+        if len(before_points) > 2:
+            # Evenly spaced middle points
+            step = max(1, len(before_points) // 4)
+            for i in range(step, len(before_points) - 1, step):
+                if len(sample_indices) < 4:  # Limit to 3 middle points
+                    sample_indices.append(i)
+
+        # Add last point if available
+        if len(before_points) > 1:
+            sample_indices.append(len(before_points) - 1)
+
+        # Calculate shifts
+        shifts = {}
+        significant_shift_detected = False
+
+        for idx in sample_indices:
+            if idx >= len(before_points) or idx >= len(after_points):
+                continue
+
+            # Get points
+            before_point = before_points[idx]
+            after_point = after_points[idx]
+
+            # Apply transforms to get screen positions
+            before_screen_pos = before_transform.apply(before_point[1], before_point[2])
+            after_screen_pos = after_transform.apply(after_point[1], after_point[2])
+
+            # Calculate shift distance
+            dx = before_screen_pos[0] - after_screen_pos[0]
+            dy = before_screen_pos[1] - after_screen_pos[1]
+            distance = (dx*dx + dy*dy) ** 0.5
+
+            shifts[idx] = distance
+
+            if distance > threshold:
+                significant_shift_detected = True
+                logger.warning(f"Point {idx} shifted by {distance:.2f} pixels (threshold: {threshold})")
+
+        return significant_shift_detected, shifts
+
+    @staticmethod
+    def create_stable_transform_for_operation(curve_view: Any) -> Transform:
+        """
+        Create a stable transform for use during operations that modify curve data.
+
+        This creates a transform that can be applied both before and after the
+        operation to ensure consistent point positioning in screen space.
+
+        Args:
+            curve_view: The curve view instance
+
+        Returns:
+            A stable Transform object
+        """
+        # Get view state
+        view_state = ViewState.from_curve_view(curve_view)
+
+        # Calculate transform
+        transform = TransformationService.calculate_transform(view_state)
+
+        # Log for debugging
+        params = transform.get_parameters()
+        logger.info(f"Created stable transform for operation: scale={params['scale']:.4f}, "
+                   f"center=({params['center_offset'][0]:.1f}, {params['center_offset'][1]:.1f}), "
+                   f"pan=({params['pan_offset'][0]:.1f}, {params['pan_offset'][1]:.1f})")
+
+        return transform
