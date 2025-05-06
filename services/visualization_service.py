@@ -210,10 +210,21 @@ class VisualizationService:
         # Store current view state if preserving view
         view_state = None
         if preserve_view:
+            # Log the view state we're preserving
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"VISUALSERVICE: Preserving view state before setting points")
+
+            # Handle different naming conventions in different view implementations
+            offset_x = getattr(curve_view, 'offset_x', getattr(curve_view, 'x_offset', 0))
+            offset_y = getattr(curve_view, 'offset_y', getattr(curve_view, 'y_offset', 0))
+            logger.debug(f"VISUALSERVICE: Current offsets: x={offset_x}, y={offset_y}")
+
             view_state = {
                 'zoom_factor': curve_view.zoom_factor,
-                'x_offset': curve_view.x_offset,
-                'y_offset': curve_view.y_offset
+                'offset_x': offset_x,
+                'offset_y': offset_y,
+                'scale_to_image': getattr(curve_view, 'scale_to_image', True)
             }
 
         # Update data
@@ -227,9 +238,30 @@ class VisualizationService:
         else:
             # Restore view state
             if view_state:
+                import logging
+                logger = logging.getLogger(__name__)
+
+                logger.debug(f"VISUALSERVICE: Restoring view state after setting points: {view_state}")
+
+                # Set zoom factor first
                 curve_view.zoom_factor = view_state['zoom_factor']
-                curve_view.x_offset = int(view_state['x_offset'])
-                curve_view.y_offset = int(view_state['y_offset'])
+
+                # Restore scale_to_image setting
+                if 'scale_to_image' in view_state and hasattr(curve_view, 'scale_to_image'):
+                    curve_view.scale_to_image = view_state['scale_to_image']
+                    logger.debug(f"VISUALSERVICE: Restored scale_to_image: {curve_view.scale_to_image}")
+
+                # Handle different naming conventions in different view implementations
+                # First try the offset_x/offset_y naming convention
+                if hasattr(curve_view, 'offset_x') and hasattr(curve_view, 'offset_y'):
+                    curve_view.offset_x = int(view_state['offset_x'])
+                    curve_view.offset_y = int(view_state['offset_y'])
+                    logger.debug(f"VISUALSERVICE: Restored using offset_x/offset_y: {curve_view.offset_x}, {curve_view.offset_y}")
+                # Fall back to x_offset/y_offset naming convention
+                elif hasattr(curve_view, 'x_offset') and hasattr(curve_view, 'y_offset'):
+                    curve_view.x_offset = int(view_state['offset_x'])
+                    curve_view.y_offset = int(view_state['offset_y'])
+                    logger.debug(f"VISUALSERVICE: Restored using x_offset/y_offset: {curve_view.x_offset}, {curve_view.y_offset}")
 
         curve_view.update()
 

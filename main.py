@@ -20,17 +20,22 @@ def main():
     config = logging_config.load_config()
 
     # Initialize logging with global level from config
-    global_level = logging_config.get_level(config.get("global", "INFO"))
+    global_level = logging.DEBUG  # Force DEBUG level for all loggers
     logger = LoggingService.setup_logging(
         level=global_level,
         log_file=log_file,
         console_output=True
     )
 
+    # Set all loggers to DEBUG level explicitly
+    logging.getLogger().setLevel(logging.DEBUG)
+
     # Apply module-specific log levels
     logging_config.apply_config(config)
 
-    logger.info("CurveEditor starting up")
+    # Print confirmation of logging level
+    logger.debug("Logging initialized at DEBUG level")
+    logger.info("CurveEditor starting up - Debug logging enabled")
 
     # Start Qt application
     app = QApplication(sys.argv)

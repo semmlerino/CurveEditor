@@ -91,8 +91,19 @@ class DialogService:
             window_size = dialog.window_spin.value()
             sigma = dialog.sigma_spin.value() # Only used for Gaussian
 
-            # Simplified: Always use moving average method
-            data_ops.smooth_moving_average(points_to_smooth, window_size)
+            # Apply the appropriate smoothing method based on dialog selection
+            if method == 0:
+                # Moving average only modifies y-coordinates, preserving x positions
+                data_ops.smooth_moving_average(points_to_smooth, window_size)
+            elif method == 1:
+                # Gaussian smoothing affects both x and y coordinates
+                data_ops.smooth_gaussian(points_to_smooth, window_size, sigma)
+            elif method == 2:
+                # Savitzky-Golay also affects both x and y coordinates
+                data_ops.smooth_savitzky_golay(points_to_smooth, window_size)
+            else:
+                # Fallback to moving average if unknown method
+                data_ops.smooth_moving_average(points_to_smooth, window_size)
 
             # Return the modified data directly
             return data_ops.get_data()

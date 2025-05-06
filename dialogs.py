@@ -30,7 +30,7 @@ class SmoothingDialog(QDialog):
         method_layout = QHBoxLayout()
         method_layout.addWidget(QLabel("Method:"))
         self.method_combo = QComboBox()
-        self.method_combo.addItems(["Moving Average"])  # Simplified to only show Moving Average
+        self.method_combo.addItems(["Moving Average", "Gaussian", "Savitzky-Golay"])
         method_layout.addWidget(self.method_combo)
         layout.addLayout(method_layout)
 

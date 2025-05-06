@@ -48,6 +48,7 @@ class LoggingService:
             console_formatter = logging.Formatter('[%(levelname)s] %(name)s: %(message)s')
             console_handler.setFormatter(console_formatter)
             logger.addHandler(console_handler)
+            logger.debug("Console logging enabled at level %s", logging.getLevelName(level))
 
         # File handler (optional)
         if log_file:

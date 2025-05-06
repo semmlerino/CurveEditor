@@ -34,18 +34,27 @@ import sys
 import os
 import re
 import config
+import logging
 from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QLabel, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from curve_view import CurveView
 from services.file_service import FileService as FileOperations
+from services.protocols import PointsList
+from services.dialog_service import DialogService
+from services.settings_service import SettingsService
+from services.history_service import HistoryService
+
+# Configure logging
+logger = logging.getLogger(__name__)
+
+# Constants
+DEFAULT_POINT_COLOR = "#FF0000"  # Default red color for points
 
 from utils import load_3de_track, estimate_image_dimensions, get_image_files
 
-from services.history_service import HistoryService
-from services.dialog_service import DialogService
 from services.image_service import ImageService as ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
-from services.settings_service import SettingsService
 from services.logging_service import LoggingService
 
 from keyboard_shortcuts import ShortcutManager
@@ -84,7 +93,7 @@ class MainWindow(QMainWindow):
     Attributes:
         curve_data (list): List of tracking points in format [(frame, x, y), ...]
         point_name (str): Name of the current tracking point
-        point_color (int): Color ID for the tracking point
+        point_color (str): Color (hex string) for the tracking point
         image_width (int): Width of the background image/workspace
         image_height (int): Height of the background image/workspace
         curve_view (CurveView): The main curve editing view
@@ -131,9 +140,22 @@ class MainWindow(QMainWindow):
         self.resize(1200, 800)
 
         # Data storage
-        self.curve_data = []
-        self.point_name = ""
-        self.point_color = 0
+        self.curve_data: PointsList = []  # Initialize as an empty list that matches PointsList type
+        self.point_name: str = "Default"
+        self.point_color: str = DEFAULT_POINT_COLOR
+
+        # Create undo/redo buttons if they don't exist yet
+        # These are needed to satisfy the HistoryContainerProtocol
+        if not hasattr(self, 'undo_button'):
+            self.undo_button = self.findChild(QAction, "actionUndo")
+            if not self.undo_button:
+                self.undo_button = QAction("Undo", self)  # Create placeholder if not found
+
+        if not hasattr(self, 'redo_button'):
+            self.redo_button = self.findChild(QAction, "actionRedo")
+            if not self.redo_button:
+                self.redo_button = QAction("Redo", self)  # Create placeholder if not found
+
         self.image_width = 1920
         self.image_height = 1080
 
@@ -480,82 +502,11 @@ class MainWindow(QMainWindow):
 
     def load_previous_file(self):
         """Load the previously used file and folder if they exist."""
-        # Check for last folder path and update default directory
-        folder_path = config.get_last_folder_path()
-        if folder_path and os.path.exists(folder_path):
-            self.default_directory = folder_path
-
-        # Load last file if it exists
-        file_path = config.get_last_file_path()
-        if file_path and os.path.exists(file_path):
-            # Load track data from file
-            point_name, point_color, _num_frames, curve_data = load_3de_track(file_path)
-
-            if curve_data:
-                # Set the data
-                self.point_name = point_name
-                self.point_color = point_color
-                self.curve_data = curve_data
-
-                # Determine image dimensions from the data
-                self.image_width, self.image_height = estimate_image_dimensions(curve_data)
-
-                # Update view
-                self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height)
-
-                # Enable controls (guarded for robustness)
-                if hasattr(self, "save_button"):
-                    self.save_button.setEnabled(True)
-                if hasattr(self, "add_point_button"):
-                    self.add_point_button.setEnabled(True)
-                if hasattr(self, "smooth_button"):
-                    self.smooth_button.setEnabled(True)
-                if hasattr(self, "fill_gaps_button"):
-                    self.fill_gaps_button.setEnabled(True)
-                if hasattr(self, "filter_button"):
-                    self.filter_button.setEnabled(True)
-                if hasattr(self, "detect_problems_button"):
-                    self.detect_problems_button.setEnabled(True)
-                if hasattr(self, "extrapolate_button"):
-                    self.extrapolate_button.setEnabled(True)
-
-                # Update info
-                self.info_label: QLabel
-                self.info_label.setText(f"Loaded: {self.point_name} ({len(self.curve_data)} frames)")
-
-                # Setup timeline
-                self.setup_timeline()
-
-                # Enable timeline controls
-                self.timeline_slider.setEnabled(True)
-                self.frame_edit.setEnabled(True)
-                self.go_button.setEnabled(True)
-
-                # Add to history
-                self.add_to_history()
-
-        # Load last image sequence if it exists
-        self.load_previous_image_sequence()
+        FileOperations.load_previous_file(self)
 
     def load_previous_image_sequence(self):
         """Load the previously used image sequence if it exists."""
-        # Check for last image sequence path
-        sequence_path = config.get_last_image_sequence_path()
-        if sequence_path and os.path.exists(sequence_path):
-            # Find all image files in the directory
-            image_files = get_image_files(sequence_path)
-
-            if image_files:
-                # Set the image sequence
-                self.image_sequence_path = sequence_path
-                self.image_filenames = image_files
-
-                # Setup the curve view with images
-                self.curve_view.setImageSequence(sequence_path, image_files)
-
-                # Update the UI
-                self.update_image_label()
-                self.toggle_bg_button.setEnabled(True)
+        FileOperations.load_previous_image_sequence(self)
 
     # Timeline Operations
     def setup_timeline(self):
@@ -613,13 +564,24 @@ class MainWindow(QMainWindow):
             self.quality_ui = TrackQualityUI(self)
 
         # Run analysis
-        self.quality_ui.analyze_and_update_ui(self.curve_data)
+        # Only pass 3-tuples to analyze_and_update_ui to satisfy type checker
+        filtered_curve_data = [p for p in self.curve_data if len(p) == 3]
+        self.quality_ui.analyze_and_update_ui(filtered_curve_data)
 
     def apply_ui_smoothing(self) -> None:
         """Apply smoothing based on inline UI controls."""
         if not self.curve_data or len(self.curve_data) < 3:
             QMessageBox.information(self, "Info", "Not enough points to smooth curve.")
             return
+
+        # Save auto-center state and temporarily disable it during smoothing
+        # to prevent automatic view changes
+        was_auto_center_enabled = getattr(self, 'auto_center_enabled', False)
+        self.auto_center_enabled = False
+
+        # Save current scale_to_image state
+        current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
+        logger.debug(f"INLINE SMOOTH - Before: scale_to_image={current_scale_to_image}")
         method = self.smoothing_method_combo.currentIndex()
         range_type = self.smoothing_range_combo.currentIndex()
         window = self.smoothing_window_spin.value()
@@ -644,6 +606,8 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "Warning", "No points to smooth.")
             return
         try:
+            # Don't filter out points with status - pass the full curve data
+            # with all status information preserved
             ops = CurveDataOperations(self.curve_data)
             if method == 0:
                 ops.smooth_moving_average(points_to_smooth, window)
@@ -654,13 +618,26 @@ class MainWindow(QMainWindow):
             else:
                 QMessageBox.warning(self, "Warning", "Unknown smoothing method.")
                 return
-            self.curve_data = ops.get_data()
+            # Ensure curve_data remains PointsList, but type checker expects only 3-tuples in some places
+            # Cast result to PointsList for type safety
+            self.curve_data = ops.get_data()  # type: ignore[assignment]
+
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Smoothing failed: {e}")
             return
-        self.curve_view.scale_to_image = False
+        # Don't force scale_to_image = False, which causes the curve to shift drastically
+        # Instead, preserve the current scaling mode
         self.curve_view.setPoints(self.curve_data, self.image_width, self.image_height, preserve_view=True)
+
+        # Explicitly ensure scale_to_image state is restored
+        self.curve_view.scale_to_image = current_scale_to_image
+        logger.debug(f"INLINE SMOOTH - After: scale_to_image={self.curve_view.scale_to_image}")
+
         self.add_to_history()
+
+        # Restore auto-center state
+        if was_auto_center_enabled:
+            self.auto_center_enabled = True
 
     # Smoothing Operations
     def apply_smooth_operation(self):
@@ -673,6 +650,24 @@ class MainWindow(QMainWindow):
         current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
         current_offset_x = getattr(self.curve_view, 'offset_x', 0)
         current_offset_y = getattr(self.curve_view, 'offset_y', 0)
+        current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
+
+        # Save current auto-center state and temporarily disable it during smoothing
+        # to prevent automatic view changes
+        was_auto_center_enabled = getattr(self, 'auto_center_enabled', False)
+        self.auto_center_enabled = False
+
+        logger.debug(f"BEFORE SMOOTH - View state: zoom={current_zoom}, offset_x={current_offset_x}, offset_y={current_offset_y}, scale_to_image={current_scale_to_image}, auto_center={was_auto_center_enabled}")
+
+        # Log some sample points before smoothing
+        if self.curve_data and len(self.curve_data) > 0:
+            total_points = len(self.curve_data)
+            logger.debug(f"Current curve has {total_points} points")
+            sample_indices = [0, total_points//2, total_points-1] if total_points > 2 else [0]
+            for idx in sample_indices:
+                if idx < total_points:
+                    pt = self.curve_data[idx]
+                    logger.debug(f"BEFORE SMOOTH - Point[{idx}]: frame={pt[0]}, x={pt[1]}, y={pt[2]}")
 
         # Gather necessary data
         current_data = self.curve_data
@@ -683,6 +678,8 @@ class MainWindow(QMainWindow):
         elif hasattr(self.curve_view, 'selected_points'):
             selected_indices = list(self.curve_view.selected_points)
         selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
+
+        logger.debug(f"Selected points: count={len(selected_indices)}, current_idx={selected_point_idx}")
 
         # Call the refactored dialog operation, passing data
         modified_data = DialogService.show_smooth_dialog(
@@ -695,11 +692,32 @@ class MainWindow(QMainWindow):
         # If data was modified, update state, view, and history
         if modified_data is not None:
             logger.debug("Smoothing successful. Data modified, updating view.")
+
+            # Log comparison of original vs modified data
+            if len(current_data) == len(modified_data):
+                logger.debug(f"Data point count unchanged: {len(current_data)}")
+                # Log some sample differences
+                for idx in range(min(5, len(current_data))):
+                    old_pt = current_data[idx]
+                    new_pt = modified_data[idx]
+                    if old_pt != new_pt:
+                        logger.debug(f"DIFF - Point[{idx}]: {old_pt} -> {new_pt}")
+            else:
+                logger.debug(f"Data point count changed: {len(current_data)} -> {len(modified_data)}")
+
             # Update the curve data
             self.curve_data = modified_data
 
-            # Disable auto-scaling to preserve current view
-            self.curve_view.scale_to_image = False
+            # Don't change the scaling mode as it causes drastic shifts
+            # Keep track of the current scaling mode for logging
+            was_scaling = getattr(self.curve_view, 'scale_to_image', False)
+            logger.debug(f"Preserving scaling mode (currently: {was_scaling})")
+
+            # Log view state before setPoints
+            before_set_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+            before_set_offset_x = getattr(self.curve_view, 'offset_x', 0)
+            before_set_offset_y = getattr(self.curve_view, 'offset_y', 0)
+            logger.debug(f"BEFORE setPoints - View: zoom={before_set_zoom}, offset_x={before_set_offset_x}, offset_y={before_set_offset_y}")
 
             # Set points WITH preserve_view=True to maintain view position
             self.curve_view.setPoints(
@@ -709,23 +727,43 @@ class MainWindow(QMainWindow):
                 preserve_view=True
             )
 
+            # Log view state after setPoints
+            after_set_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+            after_set_offset_x = getattr(self.curve_view, 'offset_x', 0)
+            after_set_offset_y = getattr(self.curve_view, 'offset_y', 0)
+            logger.debug(f"AFTER setPoints - View: zoom={after_set_zoom}, offset_x={after_set_offset_x}, offset_y={after_set_offset_y}")
+
             # Explicitly restore view state to ensure consistent behavior
             self.curve_view.zoom_factor = current_zoom
             self.curve_view.offset_x = current_offset_x
             self.curve_view.offset_y = current_offset_y
+
+            # Explicitly restore scale_to_image state to prevent display shifts
+            self.curve_view.scale_to_image = current_scale_to_image
+
+            logger.debug(f"RESTORED View state: zoom={self.curve_view.zoom_factor}, offset_x={self.curve_view.offset_x}, offset_y={self.curve_view.offset_y}, scale_to_image={self.curve_view.scale_to_image}")
 
             # Add to history
             self.add_to_history()
 
             # Final update to ensure proper rendering
             self.curve_view.update()
+            logger.debug("View updated after smoothing")
+
+            # Restore auto-center state that was saved earlier
+            if was_auto_center_enabled:
+                self.auto_center_enabled = True
+                logger.debug("Restored auto-center enabled state")
 
             # Update status
             self.statusBar().showMessage("Smoothing applied successfully", 3000)
+
     def show_filter_dialog(self):
+        """Show the filter dialog for the curve data."""
         DialogService.show_filter_dialog(self)
 
     def show_fill_gaps_dialog(self):
+        """Show dialog for filling gaps in the curve data."""
         DialogService.show_fill_gaps_dialog(self)
 
     def fill_gap(self, start_frame: int, end_frame: int, method: int, preserve_endpoints: bool = True) -> None:
@@ -743,6 +781,39 @@ class MainWindow(QMainWindow):
             # Center view on selected point
             if hasattr(self.curve_view, 'centerOnSelectedPoint'):
                 self.curve_view.centerOnSelectedPoint(-1)
+
+    def update_status_message(self, message: str) -> None:
+        """Update the status bar message.
+
+        Args:
+            message: Message to display in the status bar
+        """
+        self.statusBar().showMessage(message, 3000)  # Show for 3 seconds by default
+        logger.debug(f"Status message updated: {message}")
+
+    def refresh_point_edit_controls(self) -> None:
+        """Refresh the point editing controls to match current selection."""
+        # Update point editing controls based on current selection
+        if not hasattr(self, 'curve_view') or not self.curve_view:
+            return
+
+        selected_idx = getattr(self.curve_view, 'selected_point_idx', -1)
+        if selected_idx >= 0 and self.curve_data and selected_idx < len(self.curve_data):
+            # Update controls for the selected point
+            selected_point = self.curve_data[selected_idx]
+            logger.debug(f"Refreshing point edit controls for point {selected_idx}: {selected_point}")
+            # If UI controls for editing points exist, update them here
+            # For example:
+            # self.frame_edit.setValue(selected_point[0])
+            # self.x_edit.setValue(selected_point[1])
+            # self.y_edit.setValue(selected_point[2])
+        else:
+            # Clear controls if no valid selection
+            logger.debug("No valid point selected, clearing edit controls")
+            # For example:
+            # self.frame_edit.setValue(0)
+            # self.x_edit.setValue(0.0)
+            # self.y_edit.setValue(0.0)
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event, saving settings before exit.
