@@ -370,34 +370,31 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             scaled_width = display_width * scale
             scaled_height = display_height * scale
 
-            # Get the image position that will properly align with curve data
-            # This special method handles the correct positioning of the image in relation to curve data
-            # using our new fixed algorithm (skipping image scaling)
-            img_x, img_y = transform.apply_for_image_position()
+            # Get the image position by directly transforming the origin point (0,0)
+            # using the SAME transform method used for curve points
+            # This ensures the image and curve use identical transformation logic
+            img_x, img_y = transform.apply(0, 0)
 
             # For debugging, calculate where several key points would appear on screen:
-            # 1. Data origin (0,0) with full transform including image scaling (should match curve)
-            origin_x, origin_y = transform.apply(0, 0)
+            # 1. Data origin (0,0) - this is now the same as the image position since we're using the same transform
+            origin_x, origin_y = img_x, img_y  # img_x, img_y already calculated using transform.apply(0, 0)
 
-            # 2. Data origin (0,0) without image scaling (should match image position)
+            # 2. Data origin (0,0) without image scaling (for comparison only)
             origin_no_scale_x, origin_no_scale_y = transform.apply(0, 0, use_image_scale=False)
 
             # 3. Data point at image dimensions (width, height)
             width_pt_x, width_pt_y = transform.apply(self.image_width, self.image_height)
 
             # Log these points for debugging
-            logger.debug(f"FIXED Image position: ({img_x:.1f}, {img_y:.1f})")
-            logger.debug(f"Data origin (with scaling): ({origin_x:.1f}, {origin_y:.1f})")
+            logger.debug(f"Image position = Data origin: ({img_x:.1f}, {img_y:.1f}) - using same transform")
             logger.debug(f"Data origin (without scaling): ({origin_no_scale_x:.1f}, {origin_no_scale_y:.1f})")
             logger.debug(f"Data point at image dims: ({width_pt_x:.1f}, {width_pt_y:.1f})")
 
-            # Calculate offsets between image position and data origins
-            origin_offset_x = origin_x - img_x
-            origin_offset_y = origin_y - img_y
-            no_scale_offset_x = origin_no_scale_x - img_x
-            no_scale_offset_y = origin_no_scale_y - img_y
-            logger.debug(f"Origin to image offset (with scaling): ({origin_offset_x:.1f}, {origin_offset_y:.1f})")
-            logger.debug(f"Origin to image offset (without scaling): ({no_scale_offset_x:.1f}, {no_scale_offset_y:.1f})")
+            # Calculate offset between with/without scaling for reference
+            scale_diff_x = img_x - origin_no_scale_x
+            scale_diff_y = img_y - origin_no_scale_y
+            logger.debug(f"Difference with vs. without scaling: ({scale_diff_x:.1f}, {scale_diff_y:.1f})")
+            logger.debug(f"Scale to image setting: {getattr(self, 'scale_to_image', True)}")
 
             # Store values for debug visualization
             self.debug_img_pos = (img_x, img_y)
@@ -422,6 +419,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
                 # Add more debugging info about image scaling
                 if scale_to_image:
                     painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: ON")
+                    painter.drawText(10, 195, f"Using identical transform for both curve and image")
                 else:
                     painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: OFF")
 

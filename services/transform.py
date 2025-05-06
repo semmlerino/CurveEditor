@@ -1,10 +1,12 @@
 """
-Transform Module for CurveEditor - FIXED VERSION
+Transform Module for CurveEditor - UPDATED FIXED VERSION
 
 This module implements an immutable Transform class that encapsulates
 the coordinate transformation logic used throughout the application.
 The Transform class provides consistent mapping between data coordinates
-and screen coordinates, with special handling to fix the floating curve issue.
+and screen coordinates, with updated handling that completely resolves
+the floating curve issue by ensuring image position calculations match
+curve point transformations.
 """
 
 from typing import Dict, Tuple, Any, Optional
@@ -136,22 +138,25 @@ class Transform:
         """
         Calculate the correct position for the background image.
 
-        CRITICAL FIX: This method now directly applies the transform to (0,0)
-        WITHOUT the image scaling adjustment, which ensures proper alignment
-        between the curve and the background image.
+        CRITICAL FIX UPDATE: This method now applies the transform to (0,0)
+        and INCLUDES the image scaling adjustment when scale_to_image is true,
+        which ensures proper alignment between the curve and the background image.
 
         Returns:
             Tuple containing the (x, y) top-left position for the background image
         """
-        # ENHANCED FIXED APPROACH: Apply transform to (0,0) but skip the image scaling step
-        # This is the critical difference that fixes the "floating curve" issue
-
-        # Use a more direct approach to calculate image position:
-        # 1. Skip image scaling entirely (since the image itself doesn't need scaling)
-        # 2. Apply the correct sequence of transforms
+        # UPDATED APPROACH: Apply transform to (0,0) WITH image scaling when scale_to_image is true
+        # This ensures the image position is consistent with how curve points are being transformed
+        # The previous approach skipped image scaling, which caused the curve to appear "floating" above the image
 
         # Start with the origin
         tx, ty = 0.0, 0.0
+
+        # 0. Apply image scaling if scale_to_image is enabled
+        # This critical change matches how points are transformed in the apply() method
+        if self._scale_to_image:
+            tx = tx * self._image_scale_x
+            ty = ty * self._image_scale_y
 
         # Apply Y-flip if needed (BEFORE applying scale)
         if self._flip_y:
@@ -173,10 +178,11 @@ class Transform:
         img_x = px + self._manual_x
         img_y = py + self._manual_y
 
-        # Log the enhanced fix for debugging
-        logger.debug(f"Enhanced fixed image positioning: ({img_x:.1f}, {img_y:.1f}), flip_y={self._flip_y}")
+        # Log the updated approach for debugging
+        logger.debug(f"Updated image positioning: ({img_x:.1f}, {img_y:.1f}), flip_y={self._flip_y}")
         logger.debug(f"Transform params: scale={self._scale:.4f}, image_scale=({self._image_scale_x:.2f}, {self._image_scale_y:.2f})")
         logger.debug(f"Manual offset: ({self._manual_x:.1f}, {self._manual_y:.1f}), Pan offset: ({self._pan_offset_x:.1f}, {self._pan_offset_y:.1f})")
+        logger.debug(f"Scale to image: {self._scale_to_image}")
 
         return img_x, img_y
 

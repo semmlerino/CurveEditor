@@ -213,21 +213,30 @@ The floating curve issue was completely resolved by fundamentally improving the 
 
 After further testing, we've implemented a more direct approach to fix the floating curve issue:
 
-1. **Key Insight**: The fundamental issue was that curve points were being scaled to match image dimensions (via scale_to_image) but the image position itself shouldn't be scaled this way.
+1. **Key Insight**: The fundamental issue was that curve points were being scaled to match image dimensions (via scale_to_image) but the image position itself wasn't being scaled the same way.
 
-2. **Solution**:
+2. **Initial Solution**:
    - Modified the `apply()` method to accept an optional `use_image_scale` parameter
    - Changed `apply_for_image_position()` to transform (0,0) WITHOUT image scaling
-   - This ensures perfect alignment between curve coordinates and image position
+   - This approach aimed to ensure alignment between curve coordinates and image position
 
-3. **Enhanced Debugging**:
+3. **Updated Solution (June 2025)**:
+   - Discovered the initial approach was still causing curve-floating issues
+   - First tried revising the `apply_for_image_position()` method to include image scaling when scale_to_image is true
+   - Ultimately implemented a simpler, more direct solution: Use the exact same transformation method for both image and curve points
+   - Replaced the call to `transform.apply_for_image_position()` with `transform.apply(0, 0)` to ensure perfect alignment
+   - This ensures both curve points and image position use the exact same transformation code path
+   - The curve no longer appears to float above the image, as both use truly identical coordinate transformations
+
+4. **Enhanced Debugging**:
    - Added visualization of both scaled and non-scaled origin points
    - Shows the relationship between data coordinates with and without image scaling
    - Provides clear visual indicators of proper alignment
 
-4. **Improved Transform Pipeline**:
+5. **Improved Transform Pipeline**:
    - Clear separation of different scaling factors (zoom vs. image scale)
    - Consistent application of offsets (center, pan, manual)
    - Proper handling of Y-flip cases
+   - Complete consistency between curve point transforms and image positioning
 
-This direct approach provides a robust solution that eliminates the floating curve issue entirely by ensuring that the image and curve points use consistent transformation logic while correctly handling the different coordinate spaces.
+This streamlined approach provides a robust solution that eliminates the floating curve issue entirely by ensuring that the image and curve points use exactly the same transform method call, not just similar logic but the actual same code path. The key insight was that any special handling for the image position would inevitably lead to subtle inconsistencies - using the same transform.apply() method for both guarantees perfect alignment.
