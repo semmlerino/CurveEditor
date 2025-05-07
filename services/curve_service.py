@@ -76,12 +76,13 @@ class CurveService:
 
         # Create a view state from the curve view for transformation
         view_state = ViewState.from_curve_view(curve_view)
+        transform = TransformationService.calculate_transform(view_state)
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            # Transform point to widget coordinates using TransformationService
-            tx, ty = TransformationService.transform_point(view_state, point_x, point_y)
+            # Transform point to widget coordinates using pre-calculated transform
+            tx, ty = transform.apply(point_x, point_y)
 
             # Check if the transformed point is within the selection rectangle
             if selection_rect.contains(int(tx), int(ty)):
@@ -315,6 +316,7 @@ class CurveService:
 
         # Create a view state from the curve view for transformation
         view_state = ViewState.from_curve_view(curve_view)
+        transform = TransformationService.calculate_transform(view_state)
 
         # Find closest point
         closest_idx = -1
@@ -323,8 +325,8 @@ class CurveService:
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            # Transform point to widget coordinates using TransformationService
-            tx, ty = TransformationService.transform_point(view_state, point_x, point_y)
+            # Transform point to widget coordinates using the pre-calculated transform
+            tx, ty = transform.apply(point_x, point_y)
 
             distance = ((x - tx) ** 2 + (y - ty) ** 2) ** 0.5
             detection_radius = getattr(curve_view, 'point_radius', 5) * 2
@@ -503,13 +505,14 @@ class CurveService:
 
         # Create a view state from the curve view for transformation
         view_state = ViewState.from_curve_view(curve_view)
+        transform = TransformationService.calculate_transform(view_state)
 
         # Find points inside rectangle
         sel: set[int] = set()
         for i, pt in enumerate(curve_view.points):
             _, x, y = pt[:3]
-            # Transform point to widget coordinates using TransformationService
-            tx, ty = TransformationService.transform_point(view_state, x, y)
+            # Transform point to widget coordinates using the pre-calculated transform
+            tx, ty = transform.apply(x, y)
             if rect.contains(int(tx), int(ty)):
                 sel.add(i)
 

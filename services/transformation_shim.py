@@ -31,8 +31,10 @@ class TransformationShim:
     Shim class for bridging between old and new transformation systems.
 
     This class provides methods that match the signature of existing transformation
-    methods, but can delegate to either the old or new implementation based on
-    the feature flag.
+    methods, but delegates to the new transformation system implementation.
+
+    All methods in this class should use the TransformationService backend,
+    allowing for a gradual migration to the new system with minimal code changes.
     """
 
     @staticmethod
@@ -45,8 +47,8 @@ class TransformationShim:
         """
         Transform from data coordinates to widget coordinates.
 
-        This method mirrors the signature of TransformationService.transform_point_to_widget,
-        but can delegate to either the old or new implementation.
+        This method acts as a compatibility layer, maintaining the signature of the
+        old CurveService.transform_point method but using the TransformationService backend.
 
         Args:
             curve_view: The curve view instance
@@ -61,18 +63,10 @@ class TransformationShim:
         Returns:
             Tuple containing the transformed (x, y) coordinates in widget space
         """
-        if USE_NEW_TRANSFORMATION_SYSTEM:
-            # Use the new transformation system
-            return TransformationService.transform_point_to_widget(
-                curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
-            )
-        else:
-            # Use the original transform_point implementation
-            # Import here to avoid circular imports
-            from services.curve_service import CurveService
-            return CurveService.transform_point(
-                curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
-            )
+        # Always use the new transformation system
+        return TransformationService.transform_point_to_widget(
+            curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
+        )
 
     @staticmethod
     def get_view_state_for_paint(curve_view: Any) -> ViewState:
@@ -110,10 +104,12 @@ class TransformationShim:
     @staticmethod
     def transform_with_cache(transform: Transform, points: List[Tuple[Any, float, float]]) -> List[QPointF]:
         """
-        Transform a list of points using a cached transform.
+        Transform a list of points using a pre-calculated transform.
 
-        This is more efficient than transforming each point individually when
-        they all use the same transformation.
+        This method is a thin wrapper around the Transform class's application
+        to a list of points. It's provided for API compatibility with existing code.
+
+        For new code, consider using TransformationService.transform_points_qt directly.
 
         Args:
             transform: The Transform to apply
@@ -122,6 +118,7 @@ class TransformationShim:
         Returns:
             List of QPointF objects in screen space
         """
+        # Directly apply the transform to all points
         return [QPointF(*transform.apply(p[1], p[2])) for p in points]
 
     @staticmethod
@@ -154,16 +151,39 @@ class TransformationShim:
         # Add the method to the curve_view class
         setattr(curve_view.__class__, 'get_transform', get_transform)
 
-# Provide convenience methods at module level
+# Provide convenience methods at module level for better discoverability
 def transform_point(curve_view: Any, x: float, y: float) -> Tuple[float, float]:
-    """Transform a point to widget coordinates."""
+    """
+    Transform a point to widget coordinates.
+
+    This is a convenience function that delegates to TransformationShim.transform_point_to_widget.
+    For transforming multiple points, use transform_points() which is more efficient.
+    """
     return TransformationShim.transform_point_to_widget(curve_view, x, y)
 
 def transform_points(curve_view: Any, points: List[Tuple[Any, float, float]]) -> List[QPointF]:
-    """Transform multiple points to widget coordinates."""
+    """
+    Transform multiple points to widget coordinates efficiently.
+
+    This calculates the transform only once and applies it to all points.
+    """
     transform = TransformationShim.calculate_transform_for_paint(curve_view)
     return TransformationShim.transform_with_cache(transform, points)
 
+def get_transform(curve_view: Any) -> Transform:
+    """
+    Get the current transform for a curve view.
+
+    This is useful when you need to manually apply transformations
+    to multiple points in different contexts.
+    """
+    return TransformationShim.calculate_transform_for_paint(curve_view)
+
 def install(curve_view: Any) -> None:
-    """Install the transformation system."""
+    """
+    Install the transformation system.
+
+    This must be called before using any transformation functionality.
+    It patches the necessary methods in the curve view.
+    """
     TransformationShim.install_transformation_system(curve_view)
