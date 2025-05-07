@@ -479,6 +479,10 @@ class CurveService:
     def extract_frame_number(curve_view: Any, img_idx: int) -> int:
         """Extract frame number from the current image index.
 
+        This method is a curve_view-specific wrapper around the general-purpose
+        utils.extract_frame_number function. It handles the specific case of
+        extracting frame numbers from image filenames in a curve_view context.
+
         Args:
             curve_view: The curve view instance
             img_idx: Index of the image in the sequence
@@ -489,7 +493,7 @@ class CurveService:
         if not hasattr(curve_view, 'image_filenames') or not curve_view.image_filenames or img_idx < 0 or img_idx >= len(curve_view.image_filenames):
             return img_idx
 
-        # Use the enhanced extract_frame_number function from utils
+        # Delegate to the consolidated implementation in utils
         from utils import extract_frame_number as utils_extract_frame_number
 
         filename = curve_view.image_filenames[img_idx]
