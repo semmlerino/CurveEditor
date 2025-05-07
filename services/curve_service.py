@@ -560,17 +560,11 @@ class CurveService:
         if not hasattr(curve_view, 'image_filenames') or not curve_view.image_filenames or img_idx < 0 or img_idx >= len(curve_view.image_filenames):
             return img_idx
 
-        # Try to extract frame number from filename using regex
-        import re
-        import os
+        # Use the enhanced extract_frame_number function from utils
+        from utils import extract_frame_number as utils_extract_frame_number
 
-        filename = os.path.basename(curve_view.image_filenames[img_idx])
-        match = re.search(r'(\d+)', filename)
-
-        if match:
-            return int(match.group(1))
-        else:
-            return img_idx  # Fallback to index
+        filename = curve_view.image_filenames[img_idx]
+        return utils_extract_frame_number(filename, fallback=img_idx)
 
     @staticmethod
     @safe_operation("Finalize Selection", record_history=False)

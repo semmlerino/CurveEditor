@@ -307,7 +307,18 @@ class EnhancedCurveView(QWidget):
         def transform_point(x, y):
             """Transform from track coordinates to widget coordinates."""
             # Handle both tuple and QPointF return types
-            result = CurveViewOperations.transform_point(self, x, y, display_width, display_height, offset_x, offset_y, scale)
+            # Use only the explicit pan offsets (self.offset_x, self.offset_y) here to prevent
+            # double-application of the centering offsets inside the transformation service.
+            # Passing the already centered *offset_x/offset_y* would cause the center calculation
+            # to be applied a second time, making the curve appear to "float" relative to the
+            # background image when panning or zooming.
+            result = CurveViewOperations.transform_point(
+                self, x, y,
+                display_width, display_height,
+                self.offset_x,  # pan offset only
+                self.offset_y,  # pan offset only
+                scale,
+            )
 
             # If it's already a tuple, return it directly
             if isinstance(result, tuple):
