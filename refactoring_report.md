@@ -24,6 +24,10 @@ The initial code review identified several areas of concern:
    - Separate implementations in `utils.py` and `services/curve_service.py`
    - Different approaches to the same functionality
 
+4. **transform_point_to_widget Function Duplication**:
+   - Multiple implementations and wrappers across transformation-related files
+   - Redundant wrapper in `services/curve_utils.py` forwarding to `TransformationService`
+
 ## Implementation Details
 
 ### 1. ViewState Class Consolidation
@@ -36,7 +40,7 @@ Similarly, no duplicate `pan_view` method was found in `visualization_service.py
 
 ### 3. extract_frame_number Function Consolidation
 
-This was the primary focus of our refactoring work:
+This was a key focus of our refactoring work:
 
 1. **Enhanced the core utility function in utils.py**:
    - Added a fallback parameter for more flexibility
@@ -52,9 +56,25 @@ This was the primary focus of our refactoring work:
 3. **Verified references**:
    - Checked that `enhanced_curve_view.py` correctly references the consolidated implementation
 
+### 4. transform_point_to_widget Consolidation
+
+This new refactoring addressed the transformation system duplication:
+
+1. **Removed redundant wrapper function**:
+   - Eliminated the duplicated `transform_point_to_widget` function from `services/curve_utils.py`
+   - Reduced code duplication and dependency on multiple transformation methods
+
+2. **Added compatibility layer**:
+   - Maintained backward compatibility by adding `transform_point` to `CurveService` that delegates to `TransformationService.transform_point_to_widget`
+   - Ensured existing code like `enhanced_curve_view.py` continues to work correctly
+
+3. **Simplified transformation flow**:
+   - Consolidated transformation operations to use `TransformationService` as the single source of truth
+   - Added clear documentation to indicate the proper path for new code
+
 ## Validation
 
-A validation script (`refactoring_validation.py`) was created to verify all refactoring tasks:
+Multiple validation scripts were created to verify all refactoring tasks:
 
 1. **ViewState validation**:
    - Confirms no duplicate definition exists in models.py
@@ -68,21 +88,35 @@ A validation script (`refactoring_validation.py`) was created to verify all refa
    - Confirms CurveService now uses the utility function
    - Verifies the enhanced implementation in utils.py
 
+4. **Transformation system validation** (new):
+   - Confirms `transform_point_to_widget` has been removed from curve_utils.py
+   - Verifies that the consolidated implementation in TransformationService works correctly
+   - Tests that backward compatibility with CurveService.transform_point is maintained
+   - Validates that the ViewState-based transformation still functions properly
+
 ## Benefits of Changes
 
 1. **Improved Maintainability**:
-   - Single source of truth for the extract_frame_number functionality
+   - Single source of truth for core functions (extract_frame_number, transform_point_to_widget)
    - Changes only need to be made in one place
+   - Clearer transformation flow with reduced indirection
 
 2. **Enhanced Code Quality**:
-   - More robust implementation with better error handling
+   - More robust implementations with better error handling
    - Improved parameter flexibility with fallback options
    - Comprehensive documentation
+   - Simplified code paths for transformation operations
 
 3. **Better Adherence to Principles**:
-   - DRY: Eliminated duplicate code
-   - KISS: Simplified implementation structure
-   - SOLID: Better separation of concerns
+   - DRY: Eliminated duplicate code in multiple areas
+   - KISS: Simplified implementation structure and reduced complexity
+   - SOLID: Better separation of concerns with clearer responsibility boundaries
+   - YAGNI: Removed unnecessary code while maintaining required functionality
+
+4. **Improved System Stability**:
+   - Maintained backward compatibility for existing code
+   - Added clear deprecation notices for transitioning to preferred implementations
+   - Validated changes with comprehensive testing
 
 ## Future Recommendations
 
@@ -93,8 +127,16 @@ Based on the refactoring work, the following additional improvements are recomme
    - Improve testability and encapsulation
 
 2. **Transformation Logic Simplification**:
-   - Once the new transformation system is fully adopted, remove shim and legacy paths
+   - Continue the transformation system cleanup by removing the shim and legacy paths
+   - Consider fully deprecating `TransformationShim` once the new system is universally adopted
+   - Gradually update all code to use ViewState-based transformation directly
 
-3. **Continued Vigilance**:
+3. **Additional Refactoring Opportunities**:
+   - Identify and consolidate other duplicate utility functions
+   - Standardize parameter names and ordering across similar functions
+   - Consider introducing interface classes to formalize the contracts between components
+
+4. **Continued Vigilance**:
    - Regularly review the codebase for potential duplications
    - Apply DRY, SOLID, YAGNI, and KISS principles to all future development
+   - Establish automated checks to catch duplication early

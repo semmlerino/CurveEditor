@@ -565,6 +565,36 @@ class CurveService:
         return True
 
     @staticmethod
+    def transform_point(curve_view: Any, x: float, y: float,
+                         display_width: Optional[float] = None,
+                         display_height: Optional[float] = None,
+                         offset_x: Optional[float] = None,
+                         offset_y: Optional[float] = None,
+                         scale: Optional[float] = None) -> Tuple[float, float]:
+        """Transform a point from data space to widget space (DEPRECATED).
+
+        This method is kept for backward compatibility. New code should
+        use TransformationService.transform_point_to_widget directly.
+
+        Args:
+            curve_view: The curve view instance
+            x: X coordinate in data space
+            y: Y coordinate in data space
+            display_width: Optional override for display width
+            display_height: Optional override for display height
+            offset_x: Optional override for offset X
+            offset_y: Optional override for offset Y
+            scale: Optional override for scale
+
+        Returns:
+            Tuple containing transformed coordinates (tx, ty) in widget space
+        """
+        # Forward to TransformationService
+        return TransformationService.transform_point_to_widget(
+            curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
+        )
+
+    @staticmethod
     @safe_operation("Change Nudge Increment")
     def change_nudge_increment(curve_view: Any, increase: bool = True) -> float:
         """Change the nudge increment for point movement.
