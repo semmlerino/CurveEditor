@@ -8,6 +8,7 @@ from services.curve_utils import normalize_point, set_point_status
 from services.centering_zoom_service import CenteringZoomService
 from services.visualization_service import VisualizationService
 from services.transformation_service import TransformationService
+from services.view_state import ViewState
 from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
@@ -21,6 +22,24 @@ class CurveService:
     """Service facade for curve view and point manipulation operations."""
 
     @staticmethod
+    def _update_status_bar(main_window: Any, message: str, timeout: int = 2000) -> None:
+        """Helper method to update the status bar if available.
+
+        Args:
+            main_window: Reference to the main window
+            message: Message to display
+            timeout: Display timeout in milliseconds (default: 2000)
+        """
+        if main_window and hasattr(main_window, 'statusBar'):
+            try:
+                status_bar = main_window.statusBar()
+                if status_bar and hasattr(status_bar, 'showMessage'):
+                    status_bar.showMessage(message, timeout)
+            except Exception as e:
+                # Log but don't raise since status bar updates are non-critical
+                logger.warning(f"Failed to update status bar: {e}")
+
+    @staticmethod
     @safe_operation("Select All Points")
     def select_all_points(curve_view: "CurveViewProtocol", main_window: "MainWindow") -> int:
         """Select all points in the curve."""
@@ -31,8 +50,7 @@ class CurveService:
         curve_view.selected_point_idx = 0
         curve_view.update()
 
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage(f"Selected all {len(curve_view.points)} points", 3000)
+        CurveService._update_status_bar(main_window, f"Selected all {len(curve_view.points)} points", 3000)
 
         return len(curve_view.points)
 
@@ -44,8 +62,7 @@ class CurveService:
         curve_view.selected_point_idx = -1
         curve_view.update()
 
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage("Selection cleared", 2000)
+        CurveService._update_status_bar(main_window, "Selection cleared", 2000)
 
 
     @staticmethod
@@ -57,30 +74,14 @@ class CurveService:
 
         selected_indices: set[int] = set()
 
-        # Calculate transform parameters once
-        display_width = getattr(curve_view, 'image_width', 1920)
-        display_height = getattr(curve_view, 'image_height', 1080)
-        if hasattr(curve_view, 'background_image') and curve_view.background_image:
-            display_width = curve_view.background_image.width()
-            display_height = curve_view.background_image.height()
-        scale_x = curve_view.width() / display_width
-        scale_y = curve_view.height() / display_height
-        scale = min(scale_x, scale_y) * getattr(curve_view, 'zoom_factor', 1.0)
-        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
-            curve_view.width(), curve_view.height(),
-            display_width * scale, display_height * scale,
-            getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
-        )
+        # Create a view state from the curve view for transformation
+        view_state = ViewState.from_curve_view(curve_view)
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            # Transform point to widget coordinates
-            tx, ty = CurveService.transform_point(
-                curve_view, point_x, point_y,
-                display_width, display_height,
-                offset_x, offset_y, scale
-            )
+            # Transform point to widget coordinates using TransformationService
+            tx, ty = TransformationService.transform_point(view_state, point_x, point_y)
 
             # Check if the transformed point is within the selection rectangle
             if selection_rect.contains(int(tx), int(ty)):
@@ -92,8 +93,11 @@ class CurveService:
         curve_view.update()
 
         count = len(selected_indices)
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage(f"Selected {count} point{'s' if count != 1 else ''}", 3000)
+        CurveService._update_status_bar(
+            main_window,
+            f"Selected {count} point{'s' if count != 1 else ''}",
+            3000
+        )
 
         # Optionally emit a signal if needed for multi-selection updates
         # if hasattr(curve_view, 'selection_changed'):
@@ -200,6 +204,7 @@ class CurveService:
     def update_point_position(curve_view: Any, main_window: Any, index: int, x: float, y: float) -> bool:
         """Update a point's position while preserving its status."""
         if main_window and hasattr(main_window, 'curve_data') and 0 <= index < len(main_window.curve_data):
+            # Use normalize_point to get standardized values regardless of point format
             frame, _, _, status = normalize_point(main_window.curve_data[index])
             main_window.curve_data[index] = (frame, x, y, status)
 
@@ -231,8 +236,7 @@ class CurveService:
         if updated:
              if hasattr(main_window, 'add_to_history'):
                  main_window.add_to_history() # Add state change to history
-             if hasattr(main_window, 'statusBar'):
-                 main_window.statusBar().showMessage(f"Updated point {idx} position", 2000)
+             CurveService._update_status_bar(main_window, f"Updated point {idx} position", 2000)
         return bool(updated)
 
     @staticmethod
@@ -259,8 +263,7 @@ class CurveService:
         """Set the visual size of points in the curve view."""
         # Use VisualizationService to set point radius and avoid recursive calls
         VisualizationService.set_point_radius(curve_view, int(size))
-        if hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage(f"Point size set to {size}", 2000)
+        CurveService._update_status_bar(main_window, f"Point size set to {size}", 2000)
 
     @staticmethod
     @safe_operation("Nudge Points")
@@ -310,28 +313,8 @@ class CurveService:
         if not hasattr(curve_view, 'points') or not curve_view.points:
             return -1
 
-        # Calculate transform parameters
-        widget_width = curve_view.width()
-        widget_height = curve_view.height()
-
-        display_width = getattr(curve_view, 'image_width', 1920)
-        display_height = getattr(curve_view, 'image_height', 1080)
-
-        if hasattr(curve_view, 'background_image') and curve_view.background_image:
-            display_width = curve_view.background_image.width()
-            display_height = curve_view.background_image.height()
-
-        # Calculate scaling factors
-        scale_x = widget_width / display_width
-        scale_y = widget_height / display_height
-        scale = min(scale_x, scale_y) * curve_view.zoom_factor
-
-        # Calculate centering offsets
-        offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
-            widget_width, widget_height,
-            display_width * scale, display_height * scale,
-            getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
-        )
+        # Create a view state from the curve view for transformation
+        view_state = ViewState.from_curve_view(curve_view)
 
         # Find closest point
         closest_idx = -1
@@ -340,11 +323,8 @@ class CurveService:
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            tx, ty = CurveService.transform_point(
-                curve_view, point_x, point_y,
-                display_width, display_height,
-                offset_x, offset_y, scale
-            )
+            # Transform point to widget coordinates using TransformationService
+            tx, ty = TransformationService.transform_point(view_state, point_x, point_y)
 
             distance = ((x - tx) ** 2 + (y - ty) ** 2) ** 0.5
             detection_radius = getattr(curve_view, 'point_radius', 5) * 2
@@ -355,58 +335,7 @@ class CurveService:
 
         return closest_idx
 
-    @staticmethod
-    def transform_point(curve_view: "CurveViewProtocol", x: float, y: float, display_width: float, display_height: float,
-                        offset_x: float, offset_y: float, scale: float) -> Tuple[float, float]:
-        """Transform from track coordinates to widget coordinates.
 
-        This function transforms from tracking data coordinates to widget display coordinates,
-        taking into account scaling, offsets, and any coordinate system transformations.
-
-        Args:
-            curve_view: The curve view instance
-            x: X coordinate in tracking data coordinates
-            y: Y coordinate in tracking data coordinates
-            display_width: Width of the display content area
-            display_height: Height of the display content area
-            offset_x: Content centering X offset
-            offset_y: Content centering Y offset
-            scale: Scale factor to apply
-
-        Returns:
-            Tuple[float, float]: The transformed (x, y) coordinates in widget space
-        """
-        # Use the centralized TransformationService for coordinate transformations
-        # The transform_point_to_widget returns a Tuple[float, float]
-        # Ensure we're returning a tuple and not a QPointF
-        transformed = TransformationService.transform_point_to_widget(
-            curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
-        )
-
-        # Make sure we return a tuple of floats, not a QPointF
-        if isinstance(transformed, tuple):
-            return transformed
-        elif hasattr(transformed, "x") and hasattr(transformed, "y"):
-            # Handle QPointF or similar object
-            return (transformed.x(), transformed.y())
-        else:
-            # Fallback
-            logger.warning(f"Unexpected transform result type: {type(transformed)}")
-
-            # Calculate a basic transform as fallback
-            ty = y
-            if getattr(curve_view, "flip_y_axis", False):
-                ty = display_height - y
-
-            # Apply transformations in consistent order
-            sx = x * scale
-            sy = ty * scale
-            cx = sx + offset_x
-            cy = sy + offset_y
-            fx = cx + getattr(curve_view, "x_offset", 0)
-            fy = cy + getattr(curve_view, "y_offset", 0)
-
-            return (fx, fy)
 
     @staticmethod
     @safe_operation("On Point Selected")
@@ -455,8 +384,7 @@ class CurveService:
 
         # Update status bar if available via main window
         main_window = getattr(curve_view, 'main_window', None)
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage("View reset to default", 2000)
+        CurveService._update_status_bar(main_window, "View reset to default", 2000)
 
     @staticmethod
     @safe_operation("Update Point Info")
@@ -511,11 +439,10 @@ class CurveService:
             main_window.enable_point_controls(bool(selected_types))
 
         # Update status bar
-        if hasattr(main_window, 'statusBar'):
-            if selected_types and frame is not None:
-                main_window.statusBar().showMessage(f"Selected point(s) at frame {frame}: {', '.join(sorted(selected_types))}", 3000)
-            else:
-                main_window.statusBar().clearMessage()
+        if selected_types and frame is not None:
+            CurveService._update_status_bar(main_window, f"Selected point(s) at frame {frame}: {', '.join(sorted(selected_types))}", 3000)
+        elif hasattr(main_window, 'statusBar'):
+            main_window.statusBar().clearMessage()
 
     @staticmethod
     @safe_operation("Find Closest Point by Frame")
@@ -574,26 +501,15 @@ class CurveService:
         if rect is None or not hasattr(curve_view, 'points') or not curve_view.points:
             return False
 
-        # Calculate transform parameters
-        w, h = curve_view.width(), curve_view.height()
-        dw, dh = getattr(curve_view, 'image_width', 1920), getattr(curve_view, 'image_height', 1080)
-
-        if hasattr(curve_view, 'background_image') and curve_view.background_image:
-            dw, dh = curve_view.background_image.width(), curve_view.background_image.height()
-
-        sx, sy = w / dw, h / dh
-        scale = min(sx, sy) * getattr(curve_view, 'zoom_factor', 1.0)
-
-        ox, oy = CenteringZoomService.calculate_centering_offsets(
-            w, h, dw * scale, dh * scale,
-            getattr(curve_view, 'offset_x', 0), getattr(curve_view, 'offset_y', 0)
-        )
+        # Create a view state from the curve view for transformation
+        view_state = ViewState.from_curve_view(curve_view)
 
         # Find points inside rectangle
         sel: set[int] = set()
         for i, pt in enumerate(curve_view.points):
             _, x, y = pt[:3]
-            tx, ty = CurveService.transform_point(curve_view, x, y, dw, dh, ox, oy, scale)
+            # Transform point to widget coordinates using TransformationService
+            tx, ty = TransformationService.transform_point(view_state, x, y)
             if rect.contains(int(tx), int(ty)):
                 sel.add(i)
 
@@ -673,7 +589,6 @@ class CurveService:
 
         # Update status bar if available
         main_window = getattr(curve_view, 'main_window', None)
-        if main_window and hasattr(main_window, 'statusBar'):
-            main_window.statusBar().showMessage(f"Nudge increment set to {curve_view.nudge_increment:.1f}", 2000)
+        CurveService._update_status_bar(main_window, f"Nudge increment set to {curve_view.nudge_increment:.1f}", 2000)
 
         return curve_view.nudge_increment
