@@ -64,7 +64,7 @@ class ViewState:
     image_width: int = 1920
     image_height: int = 1080
 
-    def with_updates(self, **kwargs) -> 'ViewState':
+    def with_updates(self, **kwargs: Any) -> 'ViewState':
         """
         Create a new ViewState with updated values.
 

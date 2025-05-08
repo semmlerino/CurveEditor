@@ -68,6 +68,28 @@ class LoggingService:
         return logger
 
     @staticmethod
+    def configure_logging(level: int = logging.INFO,
+                          log_file: Optional[str] = None,
+                          console_output: bool = True) -> logging.Logger:
+        """Compatibility wrapper for legacy calls expecting `configure_logging`.
+
+        Delegates to :py:meth:`setup_logging` so that existing code and unit tests
+        can keep using ``LoggingService.configure_logging`` without changes.
+
+        Args:
+            level: Minimum logging level to capture (default: ``logging.INFO``).
+            log_file: Optional path to a log file that should receive log output.
+            console_output: Whether to output logs to the console as well.
+
+        Returns:
+            The configured root logger instance.
+        """
+        # Internally reuse ``setup_logging`` to avoid duplicating logic.
+        return LoggingService.setup_logging(level=level,
+                                            log_file=log_file,
+                                            console_output=console_output)
+
+    @staticmethod
     def get_logger(name: str) -> logging.Logger:
         """Get a logger with the specified name.
 

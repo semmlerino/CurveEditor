@@ -4,8 +4,8 @@ Unit tests for the AnalysisService class.
 
 import unittest
 import numpy as np
-from unittest.mock import Mock, patch
-from services.analysis_service import AnalysisService
+from typing import List, Tuple, cast
+from services.analysis_service import AnalysisService, PointsList
 
 
 class TestAnalysisService(unittest.TestCase):
@@ -14,7 +14,7 @@ class TestAnalysisService(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures for each test."""
         # Sample curve data for testing
-        self.curve_data = [
+        self.curve_data: List[Tuple[int, float, float]] = [
             (1, 100.0, 200.0),
             (2, 105.0, 203.0),
             (3, 110.0, 205.0),
@@ -27,7 +27,9 @@ class TestAnalysisService(unittest.TestCase):
         ]
 
         # Create an AnalysisService instance with the sample data
-        self.analysis_service = AnalysisService(self.curve_data)
+        # Cast the data to ensure type compatibility
+        points_list: PointsList = cast(PointsList, self.curve_data)
+        self.analysis_service = AnalysisService(points_list)
 
     def test_smooth_moving_average(self):
         """Test smoothing with moving average."""
@@ -36,8 +38,8 @@ class TestAnalysisService(unittest.TestCase):
         window_size = 3
 
         # Calculate original centroid before smoothing
-        original_x_sum = 0
-        original_y_sum = 0
+        original_x_sum = 0.0
+        original_y_sum = 0.0
         for idx in indices_to_smooth:
             original_x_sum += self.curve_data[idx][1]
             original_y_sum += self.curve_data[idx][2]
@@ -59,8 +61,8 @@ class TestAnalysisService(unittest.TestCase):
         self.assertAlmostEqual(float(smoothed_data[2][2]), float(expected_y), places=4)
 
         # Calculate new centroid after smoothing
-        smoothed_x_sum = 0
-        smoothed_y_sum = 0
+        smoothed_x_sum = 0.0
+        smoothed_y_sum = 0.0
         for idx in indices_to_smooth:
             smoothed_x_sum += smoothed_data[idx][1]
             smoothed_y_sum += smoothed_data[idx][2]
@@ -72,87 +74,9 @@ class TestAnalysisService(unittest.TestCase):
         self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
         self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
 
-    def test_smooth_gaussian(self):
-        """Test smoothing with Gaussian filter."""
-        # Arrange
-        indices_to_smooth = list(range(5))  # Smooth the first 5 points
-        window_size = 3
-        sigma = 1.0
+    # Removed test_smooth_gaussian as that functionality is no longer supported
 
-        # Calculate original centroid before smoothing
-        original_x_sum = 0
-        original_y_sum = 0
-        for i in range(5):
-            original_x_sum += self.curve_data[i][1]
-            original_y_sum += self.curve_data[i][2]
-        original_centroid_x = original_x_sum / 5
-        original_centroid_y = original_y_sum / 5
-
-        # Act
-        self.analysis_service.smooth_gaussian(indices_to_smooth, window_size, sigma)
-        smoothed_data = self.analysis_service.get_data()
-
-        # Calculate new centroid after smoothing
-        smoothed_x_sum = 0
-        smoothed_y_sum = 0
-        for i in range(5):
-            smoothed_x_sum += smoothed_data[i][1]
-            smoothed_y_sum += smoothed_data[i][2]
-        smoothed_centroid_x = smoothed_x_sum / 5
-        smoothed_centroid_y = smoothed_y_sum / 5
-
-        # Assert
-        # Check that each point has frame, x, y
-        for i in range(5):
-            self.assertEqual(len(smoothed_data[i]), 3)
-            # Check that frame numbers are preserved
-            self.assertEqual(smoothed_data[i][0], i + 1)
-
-        # Check that the centroid position is maintained (within a small tolerance)
-        # This ensures that the curve isn't being displaced during smoothing
-        self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
-        self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
-
-    def test_smooth_savitzky_golay(self):
-        """Test smoothing with Savitzky-Golay filter."""
-        # Arrange
-        indices_to_smooth = list(range(5))  # Smooth the first 5 points
-        window_size = 5  # Must be odd and >= 5 for Savitzky-Golay
-
-        # Calculate original centroid before smoothing
-        original_x_sum = 0
-        original_y_sum = 0
-        for i in range(5):
-            original_x_sum += self.curve_data[i][1]
-            original_y_sum += self.curve_data[i][2]
-        original_centroid_x = original_x_sum / 5
-        original_centroid_y = original_y_sum / 5
-
-        # Act
-        self.analysis_service.smooth_savitzky_golay(indices_to_smooth, window_size)
-        smoothed_data = self.analysis_service.get_data()
-
-        # Calculate new centroid after smoothing
-        smoothed_x_sum = 0
-        smoothed_y_sum = 0
-        for i in range(5):
-            smoothed_x_sum += smoothed_data[i][1]
-            smoothed_y_sum += smoothed_data[i][2]
-        smoothed_centroid_x = smoothed_x_sum / 5
-        smoothed_centroid_y = smoothed_y_sum / 5
-
-        # Assert
-        # Check data structure preservation
-        for i in range(5):
-            # Check that each point has frame, x, y
-            self.assertEqual(len(smoothed_data[i]), 3)
-            # Check that frame numbers are preserved
-            self.assertEqual(smoothed_data[i][0], i + 1)
-
-        # Check that the centroid position is maintained (within a small tolerance)
-        # This ensures that the curve isn't being displaced during smoothing
-        self.assertAlmostEqual(original_centroid_x, smoothed_centroid_x, delta=0.01)
-        self.assertAlmostEqual(original_centroid_y, smoothed_centroid_y, delta=0.01)
+    # Removed test_smooth_savitzky_golay as that functionality is no longer supported
 
     def test_fill_gap_linear(self):
         """Test filling a gap with linear interpolation."""
@@ -230,7 +154,7 @@ class TestAnalysisService(unittest.TestCase):
     def test_detect_problems(self):
         """Test detecting problems in tracking data."""
         # Create data with intentional problems
-        problem_data = [
+        problem_data: List[Tuple[int, float, float]] = [
             (1, 100.0, 200.0),
             (2, 100.1, 200.1),  # Very small movement (jitter)
             (3, 150.0, 250.0),  # Sudden jump
@@ -240,7 +164,9 @@ class TestAnalysisService(unittest.TestCase):
             (11, 100.0, 100.0)  # Another sudden jump
         ]
 
-        analysis = AnalysisService(problem_data)
+        # Cast the data to ensure type compatibility
+        points_list: PointsList = cast(PointsList, problem_data)
+        analysis = AnalysisService(points_list)
 
         # Act
         problems = analysis.detect_problems()

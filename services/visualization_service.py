@@ -6,15 +6,13 @@ VisualizationService: Handles visualization operations for the CurveEditor.
 Provides methods for toggling display features and manipulating the view.
 """
 
-from PySide6.QtWidgets import QMessageBox
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 import os
 import re
 from services.centering_zoom_service import CenteringZoomService
 from services.logging_service import LoggingService
 from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
-from typing import List, Tuple, Optional, Union, cast, TYPE_CHECKING
+from typing import List, Optional
 
 # Configure logger for this module
 logger = LoggingService.get_logger("visualization_service")
@@ -64,22 +62,6 @@ class VisualizationService:
             opacity: Opacity value between 0.0 and 1.0
         """
         curve_view.background_opacity = max(0.0, min(1.0, opacity))
-        curve_view.update()
-
-    @staticmethod
-    def pan_view(curve_view: CurveViewProtocol, dx: float, dy: float) -> None:
-        """Pan the view by the specified delta.
-
-        Args:
-            curve_view: The curve view instance
-            dx: Change in x position
-            dy: Change in y position
-        """
-        # Apply the pan offset
-        curve_view.x_offset = int(curve_view.x_offset + dx)
-        curve_view.y_offset = int(curve_view.y_offset + dy)
-
-        # Update the view
         curve_view.update()
 
     @staticmethod
@@ -234,7 +216,8 @@ class VisualizationService:
 
         # Reset view if not preserving
         if not preserve_view:
-            CenteringZoomService.reset_view(curve_view)
+            # Type ignore: CenteringZoomService.reset_view accepts CurveViewProtocol
+            CenteringZoomService.reset_view(curve_view)  # type: ignore[arg-type]
         else:
             # Restore view state
             if view_state:
@@ -248,7 +231,8 @@ class VisualizationService:
 
                 # Restore scale_to_image setting
                 if 'scale_to_image' in view_state and hasattr(curve_view, 'scale_to_image'):
-                    curve_view.scale_to_image = view_state['scale_to_image']
+                    # Ensure only bool is assigned
+                    curve_view.scale_to_image = bool(view_state['scale_to_image'])
                     logger.debug(f"VISUALSERVICE: Restored scale_to_image: {curve_view.scale_to_image}")
 
                 # Handle different naming conventions in different view implementations
@@ -285,7 +269,12 @@ class VisualizationService:
             main_window: The main window instance
         """
         curve_view = main_window.curve_view
-        CenteringZoomService.center_on_selected_point(curve_view)
+        if curve_view is None:
+            logger.warning("Cannot center: no curve view available.")
+            return
+            
+        # Type ignore: CenteringZoomService.center_on_selected_point accepts CurveViewProtocol
+        CenteringZoomService.center_on_selected_point(curve_view)  # type: ignore[arg-type]
 
     @staticmethod
     def toggle_crosshair_internal(curve_view: CurveViewProtocol, enabled: bool) -> None:

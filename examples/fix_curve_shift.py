@@ -19,6 +19,8 @@ import logging
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from PySide6.QtCore import QPointF, QTimer
+from main_window import MainWindow
+from curve_view import CurveView
 from services.view_state import ViewState
 from services.transform import Transform
 from services.transformation_service import TransformationService

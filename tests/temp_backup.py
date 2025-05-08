@@ -35,7 +35,7 @@ class TestVisualizationService(unittest.TestCase):
         self.mock_curve_view.show_crosshair = False
         self.mock_curve_view.background_opacity = 0.5
         self.mock_curve_view.point_radius = 5
-        self.mock_curve_view.grid_color = QColor(100, 100.0, 100.0)
+        self.mock_curve_view.grid_color = QColor(100, 100, 100)
         self.mock_curve_view.grid_line_width = 1
         self.mock_curve_view.image_width = 1920
         self.mock_curve_view.image_height = 1080
@@ -156,7 +156,7 @@ class TestVisualizationService(unittest.TestCase):
 
     def test_set_grid_color(self):
         """Test setting grid color."""
-        new_color = QColor(255, 0.0, 0.0)  # Red
+        new_color = QColor(255, 0, 0)  # Red
         VisualizationService.set_grid_color(self.mock_curve_view, new_color)
         self.assertEqual(self.mock_curve_view.grid_color, new_color)
         self.mock_curve_view.update.assert_called_once()
@@ -228,7 +228,7 @@ class TestVisualizationService(unittest.TestCase):
         self.mock_curve_view.offset_y = 50
 
         # New points to set
-        new_points = [(10, 300.0, 400.0), (20, 350.0, 450.0), (30, 400.0, 500.0)]
+        new_points = [(10, 300, 400), (20, 350, 450), (30, 400, 500)]
 
         # Call the method with preserve_view=True
         VisualizationService.set_points(
@@ -256,7 +256,7 @@ class TestVisualizationService(unittest.TestCase):
         self.mock_curve_view.offset_y = 50
 
         # New points to set
-        new_points = [(10, 300.0, 400.0), (20, 350.0, 450.0), (30, 400.0, 500.0)]
+        new_points = [(10, 300, 400), (20, 350, 450), (30, 400, 500)]
 
         # Patch the reset_view method to verify it's called
         with patch.object(CenteringZoomService, 'reset_view') as mock_reset_view:

@@ -7,17 +7,20 @@ import pytest
 import sys
 import os
 from unittest.mock import MagicMock, patch
-from typing import Any, Optional
+from typing import Any, Optional, List
+from PySide6.QtWidgets import QRubberBand
+from PySide6.QtCore import QPointF
 
 # Add the parent directory to the path to import modules correctly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
+from services.protocols import CurveViewProtocol
 
 
 # Mock classes for testing
-class MockCurveView:
+class MockCurveView(CurveViewProtocol):
     """Mock CurveView for testing centering and transform operations."""
     
     width_val: int
@@ -25,10 +28,10 @@ class MockCurveView:
     image_width: int
     image_height: int
     zoom_factor: float
-    x_offset: int
-    y_offset: int
-    offset_x: int
-    offset_y: int
+    x_offset: float
+    y_offset: float
+    offset_x: float
+    offset_y: float
     flip_y_axis: bool
     scale_to_image: bool
     selected_point_idx: int
@@ -39,8 +42,8 @@ class MockCurveView:
     update_called: bool
     
     def __init__(self, width: int = 800, height: int = 600, img_width: int = 1920, img_height: int = 1080,
-                 zoom_factor: float = 1.0, x_offset: int = 0, y_offset: int = 0,
-                 offset_x: int = 0, offset_y: int = 0,
+                 zoom_factor: float = 1.0, x_offset: float = 0.0, y_offset: float = 0.0,
+                 offset_x: float = 0.0, offset_y: float = 0.0,
                  flip_y_axis: bool = True, scale_to_image: bool = False,
                  selected_point_idx: int = 0, selected_points: Optional[set[int]] = None):
         self.width_val = width
@@ -69,6 +72,128 @@ class MockCurveView:
         
     def update(self) -> None:
         self.update_called = True
+        
+    # Implementing required protocol methods
+    show_background: bool = True
+    show_grid: bool = True
+    show_vectors: bool = False
+    show_frame_numbers: bool = False
+    show_velocity_vectors: bool = False
+    show_all_frame_numbers: bool = False
+        
+    # Properties required by the protocol
+    rubber_band: Optional[QRubberBand] = None
+    rubber_band_origin: QPointF = QPointF(0, 0)
+    rubber_band_active: bool = False
+        
+    drag_active: bool = False
+    last_drag_pos: Optional[QPointF] = None
+    pan_active: bool = False
+    last_pan_pos: Optional[QPointF] = None
+        
+    # Additional methods required by the protocol
+    def point_moved(self, index: int, x: float, y: float) -> None:
+        pass
+        
+    def findPointAt(self, pos: QPointF) -> int:
+        return -1
+        
+    def selectPointByIndex(self, idx: int) -> None:
+        self.selected_point_idx = idx
+        
+    def get_point_data(self, idx: int) -> tuple[int, float, float, Optional[str]]:
+        if not self.points or idx >= len(self.points):
+            return (0, 0.0, 0.0, None)
+        point = self.points[idx]
+        if len(point) == 3:
+            return (point[0], point[1], point[2], None)
+        else:
+            return point
+            
+    def setPoints(self, points: list[tuple[int, float, float]]) -> None:
+        self.points = points
+        
+    def get_selected_points(self) -> List[int]:
+        return list(self.selected_points)
+        
+    def is_point_selected(self, idx: int) -> bool:
+        return idx in self.selected_points
+        
+    def set_background_image(self, img_path: str) -> bool:
+        return True
+        
+    def setVelocityData(self, velocities: list[tuple[float, float]]) -> None:
+        pass
+        
+    def toggleVelocityVectors(self, enabled: bool = True) -> None:
+        self.show_velocity_vectors = enabled
+        
+    def toggle_point_interpolation(self, idx: int) -> None:
+        pass
+        
+    def toggleBackgroundVisible(self, visible: bool = True) -> None:
+        self.background_visible = visible
+        
+    def setCursor(self, cursor: Any) -> None:
+        pass
+        
+    def unsetCursor(self) -> None:
+        pass
+        
+    show_crosshair: bool = False
+    background_opacity: float = 1.0
+        
+    def setToolTip(self, tooltip: str) -> None:
+        pass
+        
+    def resizeEvent(self, event: Any) -> None:
+        pass
+        
+    def closeEvent(self, event: Any) -> None:
+        pass
+        
+    def wheelEvent(self, event: Any) -> None:
+        pass
+        
+    def paintEvent(self, event: Any) -> None:
+        pass
+        
+    def mousePressEvent(self, event: Any) -> None:
+        pass
+        
+    def mouseMoveEvent(self, event: Any) -> None:
+        pass
+        
+    def mouseReleaseEvent(self, event: Any) -> None:
+        pass
+        
+    def keyPressEvent(self, event: Any) -> None:
+        pass
+        
+    # Add remaining required properties
+    point_radius: int = 5
+    grid_color: Any = MagicMock()  # QColor in actual implementation
+    crosshair_color: Any = MagicMock()  # QColor in actual implementation
+    point_color: Any = MagicMock()  # QColor in actual implementation
+    selected_point_color: Any = MagicMock()  # QColor in actual implementation
+    interpolated_point_color: Any = MagicMock()  # QColor in actual implementation
+    selected_interpolated_point_color: Any = MagicMock()  # QColor in actual implementation
+    frame_number_color: Any = MagicMock()  # QColor in actual implementation
+    grid_line_width: int = 1
+    curve_data: Any = []
+    line_pen: Any = MagicMock()  # QPen in actual implementation
+    selected_line_pen: Any = MagicMock()  # QPen in actual implementation
+    point_pen: Any = MagicMock()  # QPen in actual implementation
+    selected_point_pen: Any = MagicMock()  # QPen in actual implementation
+    interpolated_point_pen: Any = MagicMock()  # QPen in actual implementation
+    selected_interpolated_point_pen: Any = MagicMock()  # QPen in actual implementation
+    crosshair_pen: Any = MagicMock()  # QPen in actual implementation
+    frame_marker_label: Any = MagicMock()
+    timeline_slider: Any = MagicMock()
+    grid_visible: bool = True
+    background_visible: bool = True
+    current_frame: int = 0
+    point_status_callback: Any = MagicMock()
 
 
 class MockBackgroundImage:

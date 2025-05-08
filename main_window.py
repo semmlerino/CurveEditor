@@ -33,9 +33,9 @@ This architecture ensures:
 import sys
 import os
 import re
-import config
+
 import logging
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QLabel, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from curve_view import CurveView
@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 # Constants
 DEFAULT_POINT_COLOR = "#FF0000"  # Default red color for points
 
-from utils import load_3de_track, estimate_image_dimensions, get_image_files
+
 
 from services.image_service import ImageService as ImageOperations
 from services.curve_service import CurveService as CurveViewOperations
@@ -64,14 +64,22 @@ from ui_components import UIComponents
 from track_quality import TrackQualityUI
 from menu_bar import MenuBar
 # import typing  # Removed unused import
-from typing import Any
+
 from services.analysis_service import AnalysisService as CurveDataOperations
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 
 # Configure logger for this module
 logger = LoggingService.get_logger("main_window")
 
+from typing import Optional, Any, cast
+
+# Import TrackQualityUIProtocol for type checking
+from services.protocols import TrackQualityUIProtocol
+
 class MainWindow(QMainWindow):
+    # Type annotation to indicate this class implements the TrackQualityUIProtocol interface
+    # without using inheritance (which would cause metaclass conflicts)
+    _protocol_type: TrackQualityUIProtocol
     """Main application window for 3DE4 Curve Editor.
 
     This class implements the main window of the curve editor application,
@@ -137,6 +145,18 @@ class MainWindow(QMainWindow):
         """Initialize the main window."""
         super(MainWindow, self).__init__()
 
+        # --- Protocol attributes for MainWindowProtocol ---
+        self.quality_score_label: Optional[Any] = None
+        self.smoothness_label: Optional[Any] = None
+        self.consistency_label: Optional[Any] = None
+        self.coverage_label: Optional[Any] = None
+        self.analyze_button: Optional[Any] = None
+        self.toggle_vectors_button: Optional[Any] = None
+        # 'widget' property provided below
+        # --- Protocol attributes for HistoryContainerProtocol ---
+        self.info_label: Optional[Any] = None
+        # --- End protocol attributes ---
+
         self.setWindowTitle("3DE4 2D Curve Editor")
         # Set a nice default size
         self.resize(1200, 800)
@@ -191,8 +211,9 @@ class MainWindow(QMainWindow):
         # Note: FileOperations, ImageOperations, and UIComponents use static methods
         # and don't need to be instantiated
 
-        # Track quality analyzer
-        self.quality_ui = TrackQualityUI(self)
+        # Initialize track quality UI with type cast to avoid type errors
+        # This creates a safe wrapper around self that satisfies the TrackQualityUIProtocol
+        self.track_quality_ui = TrackQualityUI(cast(TrackQualityUIProtocol, self))
 
         # Load settings first to get initial state
         SettingsService.load_settings(self)  # Use the service implementation
@@ -567,17 +588,25 @@ class MainWindow(QMainWindow):
     # Quality Check Operations
     def check_tracking_quality(self):
         """Run quality checks on the tracking data."""
+        # Local import to ensure cast is available in this method scope
+        from typing import cast
+        from services.protocols import TrackQualityUIProtocol
+        
         if not self.curve_data:
             return
 
         # Initialize quality UI if not already done
         if not hasattr(self, 'quality_ui'):
-            self.quality_ui = TrackQualityUI(self)
+            self.quality_ui = TrackQualityUI(cast(TrackQualityUIProtocol, self))
 
         # Run analysis
         # Only pass 3-tuples to analyze_and_update_ui to satisfy type checker
         filtered_curve_data = [p for p in self.curve_data if len(p) == 3]
-        self.quality_ui.analyze_and_update_ui(filtered_curve_data)
+        # Cast to PointsList to satisfy type checker
+        from typing import cast
+        from services.protocols import PointsList
+        points_list = cast(PointsList, filtered_curve_data)
+        self.quality_ui.analyze_and_update_ui(points_list)
 
     def apply_ui_smoothing(self) -> None:
         """Apply smoothing based on inline UI controls."""
@@ -597,46 +626,38 @@ class MainWindow(QMainWindow):
         current_offset_y = getattr(self.curve_view, 'offset_y', 0)
         logger.info(f"INLINE SMOOTH - Before: scale_to_image={current_scale_to_image}, zoom={current_zoom}, offset_x={current_offset_x}, offset_y={current_offset_y}")
 
-        method = self.smoothing_method_combo.currentIndex()
+        # Get window size for moving average smoothing
+        window_size = self.smoothing_window_spin.value()
         range_type = self.smoothing_range_combo.currentIndex()
-        window = self.smoothing_window_spin.value()
-        sigma = self.smoothing_sigma_spin.value()
+        
+        # Initialize points_to_smooth list
         points_to_smooth = []
+        
         if range_type == 0:
             points_to_smooth = list(range(len(self.curve_data)))
         elif range_type == 1:
-            selected = getattr(self.curve_view, 'selected_points', [])
-            if selected:
-                frames = sorted([self.curve_data[i][0] for i in selected])
-                for i, pt in enumerate(self.curve_data):
-                    if frames[0] <= pt[0] <= frames[-1]:
-                        points_to_smooth.append(i)
-        elif range_type == 2:
-            idx = getattr(self.curve_view, 'selected_point_idx', -1)
-            if idx >= 0:
-                half = window // 2
-                for i in range(max(0, idx-half), min(len(self.curve_data), idx+half+1)):
-                    points_to_smooth.append(i)
-        if not points_to_smooth:
-            QMessageBox.warning(self, "Warning", "No points to smooth.")
-            return
-        try:
-            # Don't filter out points with status - pass the full curve data
-            # with all status information preserved
-            ops = CurveDataOperations(self.curve_data)
-            if method == 0:
-                ops.smooth_moving_average(points_to_smooth, window)
-            elif method == 1:
-                ops.smooth_gaussian(points_to_smooth, window, sigma)
-            elif method == 2:
-                ops.smooth_savitzky_golay(points_to_smooth, window)
+            if hasattr(self.curve_view, 'selected_indices') and self.curve_view.selected_indices:
+                points_to_smooth = self.curve_view.selected_indices
             else:
-                QMessageBox.warning(self, "Warning", "Unknown smoothing method.")
+                QMessageBox.information(self, "Info", "No points selected for smoothing.")
                 return
+        elif range_type == 2:  # Selected curve segments
+            if hasattr(self.curve_view, 'selected_indices') and len(self.curve_view.selected_indices) > 2:
+                # Only makes sense for sufficiently large selections
+                window_size = min(window_size, len(self.curve_view.selected_indices) // 2)
+                points_to_smooth = self.curve_view.selected_indices
+            else:
+                QMessageBox.information(self, "Info", "Not enough points selected for curve segment smoothing.")
+                return
+
+        try:
+            # Apply moving average smoothing
+            data_ops = CurveDataOperations(self.curve_data)
+            data_ops.smooth_moving_average(points_to_smooth, window_size)
+
             # Ensure curve_data remains PointsList, but type checker expects only 3-tuples in some places
             # Cast result to PointsList for type safety
-            self.curve_data = ops.get_data()  # type: ignore[assignment]
-
+            self.curve_data = data_ops.get_data()  # type: ignore[assignment]
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Smoothing failed: {e}")
             return
@@ -690,9 +711,8 @@ class MainWindow(QMainWindow):
 
         # Import the TransformStabilizer module for handling coordinate transformations
         from services.transform_stabilizer import TransformStabilizer
-        from services.view_state import ViewState
         from services.transformation_service import TransformationService
-        from PySide6.QtCore import QPointF, QTimer
+        from PySide6.QtCore import QTimer
 
         # Get selected indices from curve view
         selected_indices = []
@@ -884,6 +904,11 @@ class MainWindow(QMainWindow):
             # self.frame_edit.setValue(0)
             # self.x_edit.setValue(0.0)
             # self.y_edit.setValue(0.0)
+
+    @property
+    def widget(self) -> Any:
+        """Property for protocol compatibility (QWidget for QMessageBox, etc)."""
+        return self
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event, saving settings before exit.

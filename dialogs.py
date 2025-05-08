@@ -26,11 +26,11 @@ class SmoothingDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
-        # Smoothing method
+        # Smoothing method - Only Moving Average is implemented
         method_layout = QHBoxLayout()
         method_layout.addWidget(QLabel("Method:"))
         self.method_combo = QComboBox()
-        self.method_combo.addItems(["Moving Average", "Gaussian", "Savitzky-Golay"])
+        self.method_combo.addItems(["Moving Average"])
         method_layout.addWidget(self.method_combo)
         layout.addLayout(method_layout)
 
@@ -45,19 +45,6 @@ class SmoothingDialog(QDialog):
         self.window_spin.setValue(5)
         window_layout.addWidget(self.window_spin)
         layout.addLayout(window_layout)
-
-        # Sigma (for Gaussian)
-        sigma_layout = QHBoxLayout()
-        sigma_layout.addWidget(QLabel("Sigma:"))
-        self.sigma_spin: QDoubleSpinBox = QDoubleSpinBox()
-        self.cutoff_spin: Optional[QDoubleSpinBox] = None
-        self.order_spin: Optional[QSpinBox] = None
-        self.sigma_spin.setMinimum(0.5)
-        self.sigma_spin.setMaximum(10.0)
-        self.sigma_spin.setSingleStep(0.1)
-        self.sigma_spin.setValue(1.0)
-        sigma_layout.addWidget(self.sigma_spin)
-        layout.addLayout(sigma_layout)
 
         # Frame range
         range_layout = QHBoxLayout()
@@ -101,7 +88,6 @@ class SmoothingDialog(QDialog):
 
         # Connect signals
         self.range_combo.currentIndexChanged.connect(self.on_range_changed)
-        self.method_combo.currentIndexChanged.connect(self.on_method_changed)
 
         # Set current frame if using "Current Point Only"
         self.current_frame = current_frame
@@ -117,18 +103,12 @@ class SmoothingDialog(QDialog):
 
         # Initial state
         self.on_range_changed(0)
-        self.on_method_changed(0)
 
     def on_range_changed(self, index: int) -> None:
         """Handle range selection change."""
         # Enable frame range only for "Selected Range" (index 1)
         # Disable for "Entire Curve" (0), "Current Point Only" (2), and "Selected Points" (3)
         self.range_group.setEnabled(index == 1)
-
-    def on_method_changed(self, index: int) -> None:
-        """Handle method selection change."""
-        # Show sigma only for Gaussian (which is at index 1)
-        self.sigma_spin.setEnabled(index == 1)
 
 
 class FilterDialog(QDialog):
@@ -590,14 +570,22 @@ class ExtrapolateDialog(QDialog):
 
     def on_direction_changed(self, index: int) -> None:
         """Handle direction selection change."""
-        # Enable/disable appropriate frame inputs based on selected direction
+        # Show controls for forward/backward extrapolation based on selection
+        forward_enabled = index == 0 or index == 2
+        backward_enabled = index == 1 or index == 2
+
+        # Update controls
+        self.forward_frames.setEnabled(forward_enabled)
+        self.backward_frames.setEnabled(backward_enabled)
+
+        # If only one direction, disable the other to avoid confusion
         if index == 0:  # Forward only
             self.forward_frames.setEnabled(True)
             self.backward_frames.setEnabled(False)
         elif index == 1:  # Backward only
             self.forward_frames.setEnabled(False)
             self.backward_frames.setEnabled(True)
-        else:  # Both
+        else:  # Both directions
             self.forward_frames.setEnabled(True)
             self.backward_frames.setEnabled(True)
 

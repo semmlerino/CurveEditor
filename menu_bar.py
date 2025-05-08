@@ -18,7 +18,10 @@ from services.history_service import HistoryService as HistoryOperations # Assum
 
 if TYPE_CHECKING:
     from main_window import MainWindow
+    from services.protocols import MainWindowProtocol, HistoryContainerProtocol
+    import typing
     # Service facades imported above; no redeclaration needed here
+    # NOTE: MainWindow should implement all attributes required by MainWindowProtocol and HistoryContainerProtocol for type checking.
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""
@@ -44,19 +47,19 @@ class MenuBar(QMenuBar):
         load_action = QAction('&Open Track...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # load_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('open_file')))
-        load_action.triggered.connect(lambda: FileOperations.load_track_data(self.main_window))
+        load_action.triggered.connect(lambda: FileOperations.load_track_data(typing.cast(MainWindowProtocol, self.main_window)))
         file_menu.addAction(load_action)
 
         # Add track data
         add_action = QAction('&Add Track...', self)
-        add_action.triggered.connect(lambda: FileOperations.add_track_data(self.main_window))
+        add_action.triggered.connect(lambda: FileOperations.add_track_data(typing.cast(MainWindowProtocol, self.main_window)))
         file_menu.addAction(add_action)
 
         # Save track data
         save_action = QAction('&Save Track...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # save_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('save_file')))
-        save_action.triggered.connect(lambda: FileOperations.save_track_data(self.main_window))
+        save_action.triggered.connect(lambda: FileOperations.save_track_data(typing.cast(MainWindowProtocol, self.main_window)))
         file_menu.addAction(save_action)
 
         file_menu.addSeparator()
@@ -66,7 +69,7 @@ class MenuBar(QMenuBar):
         # Remove explicit shortcut assignment to avoid conflict and for consistency with other edits
         # export_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('export_csv')))
         # Use static method from FileOperations class
-        export_action.triggered.connect(lambda: FileOperations.export_to_csv(self.main_window))
+        export_action.triggered.connect(lambda: FileOperations.export_to_csv(typing.cast(MainWindowProtocol, self.main_window)))
         file_menu.addAction(export_action)
 
         file_menu.addSeparator()
@@ -86,14 +89,14 @@ class MenuBar(QMenuBar):
         # Remove explicit shortcut assignment to avoid conflict
         # undo_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('undo')))
         # undo_action.triggered.connect(lambda: CurveOperations.undo(self.main_window)) # Original call removed
-        undo_action.triggered.connect(lambda: HistoryOperations.undo_action(self.main_window)) # Corrected method name
+        undo_action.triggered.connect(lambda: HistoryOperations.undo_action(typing.cast(HistoryContainerProtocol, self.main_window))) # Corrected method name
         edit_menu.addAction(undo_action)
 
         redo_action = QAction('&Redo', self)
         # Remove explicit shortcut assignment to avoid conflict
         # redo_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('redo')))
         # redo_action.triggered.connect(lambda: CurveOperations.redo(self.main_window)) # Original call removed
-        redo_action.triggered.connect(lambda: HistoryOperations.redo_action(self.main_window)) # Corrected method name
+        redo_action.triggered.connect(lambda: HistoryOperations.redo_action(typing.cast(HistoryContainerProtocol, self.main_window))) # Corrected method name
         edit_menu.addAction(redo_action)
 
         edit_menu.addSeparator()
@@ -177,7 +180,7 @@ class MenuBar(QMenuBar):
         # Remove explicit shortcut assignment to avoid conflict
         # load_images_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('load_images')))
         # Use static method from ImageOperations class
-        load_images_action.triggered.connect(lambda: ImageOperations.load_image_sequence(self.main_window))
+        load_images_action.triggered.connect(lambda: ImageOperations.load_image_sequence(typing.cast(MainWindowProtocol, self.main_window)))
         view_menu.addAction(load_images_action)
 
     def create_tools_menu(self):
@@ -194,19 +197,19 @@ class MenuBar(QMenuBar):
         filter_action = QAction('&Filter Selected...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # filter_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('filter_selected')))
-        filter_action.triggered.connect(lambda: DialogService.show_filter_dialog(self.main_window))
+        filter_action.triggered.connect(lambda: DialogService.show_filter_dialog(typing.cast(MainWindowProtocol, self.main_window)))
         tools_menu.addAction(filter_action)
 
         fill_gaps_action = QAction('Fill &Gaps...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # fill_gaps_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('fill_gaps')))
-        fill_gaps_action.triggered.connect(lambda: DialogService.show_fill_gaps_dialog(self.main_window))
+        fill_gaps_action.triggered.connect(lambda: DialogService.show_fill_gaps_dialog(typing.cast(MainWindowProtocol, self.main_window)))
         tools_menu.addAction(fill_gaps_action)
 
         extrapolate_action = QAction('&Extrapolate...', self)
         # Remove explicit shortcut assignment to avoid conflict
         # extrapolate_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('extrapolate')))
-        extrapolate_action.triggered.connect(lambda: DialogService.show_extrapolate_dialog(self.main_window))
+        extrapolate_action.triggered.connect(lambda: DialogService.show_extrapolate_dialog(typing.cast(MainWindowProtocol, self.main_window)))
         tools_menu.addAction(extrapolate_action)
 
         tools_menu.addSeparator()
@@ -226,7 +229,7 @@ class MenuBar(QMenuBar):
 
         # Keyboard shortcuts
         shortcuts_action = QAction('&Keyboard Shortcuts', self)
-        shortcuts_action.triggered.connect(lambda: DialogService.show_shortcuts_dialog(self.main_window))
+        shortcuts_action.triggered.connect(lambda: DialogService.show_shortcuts_dialog(typing.cast(MainWindowProtocol, self.main_window)))
         help_menu.addAction(shortcuts_action)
 
     def _handle_auto_center_toggled(self, enabled: bool) -> None:
@@ -249,7 +252,8 @@ class MenuBar(QMenuBar):
         if self.main_window:
             VisualizationOperations.toggle_all_frame_numbers(self.main_window.curve_view, enabled)
 
+
     def _handle_background_toggled(self, enabled: bool) -> None:
         """Handle background toggled signal."""
         if self.main_window:
-            ImageOperations.toggle_background(self.main_window)
+            ImageOperations.toggle_background(typing.cast(MainWindowProtocol, self.main_window))

@@ -9,7 +9,7 @@ the floating curve issue by ensuring image position calculations match
 curve point transformations.
 """
 
-from typing import Dict, Tuple, Any, Optional
+from typing import Dict, Tuple, Any
 from PySide6.QtCore import QPointF
 from services.logging_service import LoggingService
 
@@ -204,7 +204,7 @@ class Transform:
             "scale_to_image": self._scale_to_image
         }
 
-    def with_updates(self, **kwargs) -> 'Transform':
+    def with_updates(self, **kwargs: Any) -> 'Transform':
         """
         Create a new Transform with updated parameters.
 

@@ -40,7 +40,9 @@ class CurveView(QWidget):  # Implements protocols through type annotations
     y_offset: float = 0.0
     timeline_slider: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QSlider]
     frame_marker_label: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QLabel]
-    curve_data: list[tuple[int, float, float]] = []
+    # Use the type from protocols.py for better type compatibility
+    from services.protocols import PointsList
+    curve_data: PointsList = []
     # -----------------------------------------
 
     point_moved = Signal(int, float, float)  # Signal emitted when a point is moved
@@ -349,11 +351,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
         # Draw background image if available
         if self.show_background and self.background_image:
-            # Get widget and display dimensions for background image
-            widget_width = self.width()
-            widget_height = self.height()
-
-            # Use background image dimensions
+            # Get current transformation parameters
             display_width = self.background_image.width()
             display_height = self.background_image.height()
 
@@ -362,7 +360,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             scale = params['scale']
             center_offset_x, center_offset_y = params['center_offset']
             pan_offset_x, pan_offset_y = params['pan_offset']
-            manual_offset_x, manual_offset_y = params['manual_offset']
+            # Use params['manual_offset'] directly where needed instead of separate variables
             image_scale_x, image_scale_y = params.get('image_scale', (1.0, 1.0))
             scale_to_image = params.get('scale_to_image', True)
 
@@ -445,15 +443,15 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
                     # Draw a large crosshair at the data origin with scaling
                     painter.setPen(QPen(QColor(0, 255, 0), 2, Qt.PenStyle.DashLine))
-                    painter.drawLine(origin_x - 30, origin_y, origin_x + 30, origin_y)  # Horizontal
-                    painter.drawLine(origin_x, origin_y - 30, origin_x, origin_y + 30)  # Vertical
+                    painter.drawLine(int(origin_x - 30), int(origin_y), int(origin_x + 30), int(origin_y))  # Horizontal
+                    painter.drawLine(int(origin_x), int(origin_y - 30), int(origin_x), int(origin_y + 30))  # Vertical
 
                     # Draw a circle at the origin
                     painter.setPen(QPen(QColor(0, 255, 0), 2))
-                    painter.drawEllipse(origin_x - 5, origin_y - 5, 10, 10)
+                    painter.drawEllipse(int(origin_x - 5), int(origin_y - 5), 10, 10)
 
                     # Label the origin (with scaling)
-                    painter.drawText(origin_x + 15, origin_y - 15, "Data Origin (with scaling)")
+                    painter.drawText(int(origin_x + 15), int(origin_y - 15), "Data Origin (with scaling)")
 
                     # Draw the non-scaled origin point (blue)
                     if hasattr(self, 'debug_origin_no_scale_pos'):
@@ -461,15 +459,15 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
                         # Draw crosshair for non-scaled origin
                         painter.setPen(QPen(QColor(0, 0, 255), 2, Qt.PenStyle.DashLine))
-                        painter.drawLine(origin_no_scale_x - 30, origin_no_scale_y, origin_no_scale_x + 30, origin_no_scale_y)
-                        painter.drawLine(origin_no_scale_x, origin_no_scale_y - 30, origin_no_scale_x, origin_no_scale_y + 30)
+                        painter.drawLine(int(origin_no_scale_x - 30), int(origin_no_scale_y), int(origin_no_scale_x + 30), int(origin_no_scale_y))
+                        painter.drawLine(int(origin_no_scale_x), int(origin_no_scale_y - 30), int(origin_no_scale_x), int(origin_no_scale_y + 30))
 
                         # Draw square at non-scaled origin
                         painter.setPen(QPen(QColor(0, 0, 255), 2))
-                        painter.drawRect(origin_no_scale_x - 5, origin_no_scale_y - 5, 10, 10)
+                        painter.drawRect(int(origin_no_scale_x - 5), int(origin_no_scale_y - 5), 10, 10)
 
                         # Label the non-scaled origin
-                        painter.drawText(origin_no_scale_x + 15, origin_no_scale_y - 15, "Data Origin (no scaling)")
+                        painter.drawText(int(origin_no_scale_x + 15), int(origin_no_scale_y - 15), "Data Origin (no scaling)")
 
                     # Calculate and show offset between image position and data origins
                     if hasattr(self, 'debug_img_pos'):
@@ -491,18 +489,19 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
                         # Draw a line from image corner to each origin point
                         painter.setPen(QPen(QColor(255, 0, 0), 1, Qt.PenStyle.DashLine))
-                        painter.drawLine(img_x, img_y, origin_x, origin_y)
+                        painter.drawLine(int(img_x), int(img_y), int(origin_x), int(origin_y))
 
                         if hasattr(self, 'debug_origin_no_scale_pos'):
                             painter.setPen(QPen(QColor(0, 0, 255), 1, Qt.PenStyle.DashLine))
-                            painter.drawLine(img_x, img_y, origin_no_scale_x, origin_no_scale_y)
+                            painter.drawLine(int(img_x), int(img_y), int(origin_no_scale_x), int(origin_no_scale_y))
 
                         # Show the image width point if available
                         if hasattr(self, 'debug_width_pt'):
                             width_pt_x, width_pt_y = self.debug_width_pt
                             painter.setPen(QPen(QColor(255, 165, 0), 2))
-                            painter.drawEllipse(width_pt_x - 5, width_pt_y - 5, 10, 10)
-                            painter.drawText(width_pt_x + 10, width_pt_y - 10, f"({self.image_width}, {self.image_height})")
+                            painter.drawEllipse(int(width_pt_x - 5), int(width_pt_y - 5), 10, 10)
+                            painter.drawText(int(width_pt_x + 10), int(width_pt_y - 10), f"({self.image_width}, {self.image_height})")
+
 
         # Draw the main curve if available
         if self.points:
@@ -675,9 +674,18 @@ self)])}"
         pass
 
     def toggleVelocityVectors(self, enabled: bool) -> None:
-        """Stub for velocity vector toggling (not implemented in basic view)."""
-        # Basic view doesn't support velocity vectors
-        pass
+        """Toggle display of velocity vectors."""
+        self.show_velocity_vectors = enabled
+        self.update()
+        
+    def setVelocityData(self, velocities: Any) -> None:
+        """Set velocity data for visualization.
+        
+        Args:
+            velocities: List of velocity data points
+        """
+        self.velocity_data = velocities
+        self.update()
 
     def toggleAllFrameNumbers(self, enabled: bool) -> None:
         """Stub for frame numbers toggling (not implemented in basic view)."""

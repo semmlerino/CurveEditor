@@ -118,11 +118,13 @@ class TransformStabilizer:
             curve_view._original_transform_point = CurveService.transform_point
 
         # Replace with stable transform
-        def stable_transform_point(cv, x, y, *args, **kwargs):
+        from typing import Any
+        def stable_transform_point(cv: Any, x: float, y: float, *args: Any, **kwargs: Any) -> Any:
             return TransformStabilizer.transform_point(cv, x, y)
 
         from services.curve_service import CurveService
-        CurveService.transform_point = stable_transform_point
+        # Instead of assigning to a method, assign to an attribute on the curve_view instance for monkey-patching
+        curve_view.transform_point = stable_transform_point  # type: ignore[attr-defined]
 
         # Flag as installed
         curve_view._transform_stabilizer_installed = True

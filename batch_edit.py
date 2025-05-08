@@ -6,14 +6,9 @@ Batch editing operations for 3DE4 Curve Editor.
 Provides functions for manipulating multiple track points simultaneously.
 """
 
-import copy
-import math
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QDoubleSpinBox, QGroupBox, QRadioButton, QButtonGroup,
-    QGridLayout, QDialog, QDialogButtonBox, QMessageBox
+    QHBoxLayout, QPushButton, QGroupBox, QDialog, QMessageBox, QWidget
 )
-from PySide6.QtCore import Qt, Signal
 
 from services.curve_service import CurveService as CurveViewOperations
 from services.analysis_service import AnalysisService
@@ -23,7 +18,43 @@ from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialo
 # Configure logger for this module
 logger = LoggingService.get_logger("batch_edit")
 
-def batch_scale_points(curve_data, indices, scale_x, scale_y, center_x=None, center_y=None):
+from typing import Optional, List
+from services.protocols import PointsList
+from typing import Protocol, runtime_checkable
+from PySide6.QtWidgets import QVBoxLayout
+
+# NOTE: The parent must be both a QWidget and implement this protocol (via duck typing or multiple inheritance)
+@runtime_checkable
+class BatchEditParentWidgetProtocol(Protocol):
+    selected_indices: list[int]
+    curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool]]
+    curve_view: QWidget
+    def setPoints(self, points: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
+    def set_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
+    def showMessage(self, message: str) -> None: ...
+    image_width: int
+    image_height: int
+    batch_edit_group: QGroupBox
+    scale_button: QPushButton
+    offset_button: QPushButton
+    rotate_button: QPushButton
+    smooth_button: QPushButton
+    select_all_button: QPushButton
+    point_edit_layout: QVBoxLayout
+    def update_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
+    def statusBar(self) -> object: ...
+    def add_to_history(self) -> None: ...
+
+from typing import cast
+
+def batch_scale_points(
+    curve_data: PointsList,
+    indices: List[int],
+    scale_x: float,
+    scale_y: float,
+    center_x: Optional[float] = None,
+    center_y: Optional[float] = None
+) -> PointsList:
     """Scale multiple points around a center point.
 
     Args:
@@ -37,9 +68,33 @@ def batch_scale_points(curve_data, indices, scale_x, scale_y, center_x=None, cen
     Returns:
         Modified copy of curve_data
     """
-    return AnalysisService.scale_points(curve_data, indices, scale_x, scale_y, center_x, center_y)
+    import copy
+    if not indices:
+        return copy.deepcopy(curve_data)
+    # Calculate centroid if not provided
+    if center_x is None or center_y is None:
+        xs = [curve_data[i][1] for i in indices]
+        ys = [curve_data[i][2] for i in indices]
+        center_x = sum(xs) / len(xs)
+        center_y = sum(ys) / len(ys)
+    new_data = copy.deepcopy(curve_data)
+    for i in indices:
+        point = new_data[i]
+        frame, x, y = point[:3]
+        new_x = center_x + (x - center_x) * scale_x
+        new_y = center_y + (y - center_y) * scale_y
+        if len(point) == 4 and type(point[3]) is bool:
+            new_data[i] = (frame, new_x, new_y, point[3])
+        else:
+            new_data[i] = (frame, new_x, new_y)
+    return new_data
 
-def batch_offset_points(curve_data, indices, offset_x, offset_y):
+def batch_offset_points(
+    curve_data: PointsList,
+    indices: List[int],
+    offset_x: float,
+    offset_y: float
+) -> PointsList:
     """Offset multiple points by a fixed amount.
 
     Args:
@@ -51,9 +106,28 @@ def batch_offset_points(curve_data, indices, offset_x, offset_y):
     Returns:
         Modified copy of curve_data
     """
-    return AnalysisService.offset_points(curve_data, indices, offset_x, offset_y)
+    import copy
+    if not indices:
+        return copy.deepcopy(curve_data)
+    new_data = copy.deepcopy(curve_data)
+    for idx in indices:
+        point = curve_data[idx]
+        frame, x, y = point[:3]
+        new_x = x + offset_x
+        new_y = y + offset_y
+        if len(point) == 4 and type(point[3]) is bool:
+            new_data[idx] = (frame, new_x, new_y, point[3])
+        else:
+            new_data[idx] = (frame, new_x, new_y)
+    return new_data
 
-def batch_rotate_points(curve_data, indices, angle_degrees, center_x=None, center_y=None):
+def batch_rotate_points(
+    curve_data: PointsList,
+    indices: List[int],
+    angle_degrees: float,
+    center_x: Optional[float] = None,
+    center_y: Optional[float] = None
+) -> PointsList:
     """Rotate multiple points around a center point.
 
     Args:
@@ -66,9 +140,33 @@ def batch_rotate_points(curve_data, indices, angle_degrees, center_x=None, cente
     Returns:
         Modified copy of curve_data
     """
-    return AnalysisService.rotate_points(curve_data, indices, angle_degrees, center_x, center_y)
+    import copy
+    if not indices:
+        return copy.deepcopy(curve_data)
+    # Calculate centroid if not provided
+    if center_x is None or center_y is None:
+        xs = [curve_data[i][1] for i in indices]
+        ys = [curve_data[i][2] for i in indices]
+        center_x = sum(xs) / len(xs)
+        center_y = sum(ys) / len(ys)
+    # Only use first 3 elements for rotate_curve
+    points3 = [(curve_data[i][0], curve_data[i][1], curve_data[i][2]) for i in range(len(curve_data))]
+    rotated_points3 = AnalysisService.rotate_curve(points3, angle_degrees, center_x, center_y)
+    new_data = copy.deepcopy(curve_data)
+    for i in indices:
+        point = new_data[i]
+        # Preserve status if present and it's a bool
+        if len(point) == 4 and type(point[3]) is bool:
+            new_data[i] = (*rotated_points3[i], point[3])
+        else:
+            new_data[i] = rotated_points3[i]
+    return new_data
 
-def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
+def batch_smoothness_adjustment(
+    curve_data: PointsList,
+    indices: List[int],
+    smoothness_factor: float
+) -> PointsList:
     """Adjust the smoothness of a selection of points.
 
     Args:
@@ -79,41 +177,28 @@ def batch_smoothness_adjustment(curve_data, indices, smoothness_factor):
     Returns:
         Modified copy of curve_data
     """
-    # Validate smoothness factor
+    import copy
+    if not indices:
+        return copy.deepcopy(curve_data)
     smoothness_factor = max(0.0, min(1.0, smoothness_factor))
-
     # No effect if smoothness factor is 0
     if smoothness_factor == 0:
         return copy.deepcopy(curve_data)
-
-    # Compute parameters for gaussian smoothing
     window_base = 3
-    window_max = 15  # Max window size for smoothing
-    sigma_base = 0.5  # Min sigma
-    sigma_max = 3.0  # Max sigma
-
-    # Interpolate window size and sigma based on the smoothness factor
+    window_max = 15
     window_size = window_base + int((window_max - window_base) * smoothness_factor)
-    # Ensure window size is odd
     if window_size % 2 == 0:
         window_size += 1
-    sigma = sigma_base + (sigma_max - sigma_base) * smoothness_factor
+    # Use AnalysisService instance
+    analysis = AnalysisService(curve_data)
+    analysis.smooth_moving_average(indices, window_size)
+    return analysis.get_data()
 
-    try:
-        # Use AnalysisService for smoothing
-        return AnalysisService.smooth_curve(
-            curve_data,
-            indices,
-            method='gaussian',
-            window_size=window_size,
-            sigma=sigma
-        )
-    except Exception as e:
-        logger.error(f"Error during batch smoothness adjustment: {e}")
-        # Return original data copy in case of error
-        return copy.deepcopy(curve_data)
-
-def batch_normalize_velocity(curve_data: list, indices: list, target_velocity: float) -> list:
+def batch_normalize_velocity(
+    curve_data: PointsList,
+    indices: List[int],
+    target_velocity: float
+) -> PointsList:
     """Normalize velocity between points to target value.
 
     Args:
@@ -125,14 +210,14 @@ def batch_normalize_velocity(curve_data: list, indices: list, target_velocity: f
         Modified copy of curve_data
     """
     # Create a temporary AnalysisService instance with the curve data
-    service = AnalysisService()
-    service.data = [curve_data[i] for i in indices if i < len(curve_data)]
+    filtered_data = [curve_data[i] for i in indices if i < len(curve_data)]
+    service = AnalysisService(data=filtered_data)
 
     # Call the normalize_velocity method on this instance
     service.normalize_velocity(target_velocity)
 
     # Create a new list with normalized points for specified indices
-    result = curve_data.copy()
+    result = curve_data[:]
     for idx, normalized_idx in enumerate(indices):
         if normalized_idx < len(result) and idx < len(service.data):
             result[normalized_idx] = service.data[idx]
@@ -140,21 +225,17 @@ def batch_normalize_velocity(curve_data: list, indices: list, target_velocity: f
     return result
 
 class BatchEditUI:
-    """UI integration for batch editing operations.
+    parent: BatchEditParentWidgetProtocol
+    point_edit_layout: QVBoxLayout
 
-    This class provides methods that connect UI actions with the batch edit functions,
-    handling dialogs and user interaction.
-    """
-
-    def __init__(self, parent_window):
-        """Initialize with reference to parent window.
-
-        Args:
-            parent_window: The main window that will use batch operations
-        """
+    def __init__(self, parent_window: BatchEditParentWidgetProtocol) -> None:
+        """Initialize with reference to parent window."""
+        self.parent = parent_window
+        self.point_edit_layout = QVBoxLayout()
+        self.setup_batch_editing_ui()
         self.parent = parent_window
 
-    def setup_batch_editing_ui(self):
+    def setup_batch_editing_ui(self) -> None:
         """Set up batch editing controls in the parent window."""
         self.parent.batch_edit_group = QGroupBox("Batch Edit")
         batch_layout = QHBoxLayout(self.parent.batch_edit_group)
@@ -189,15 +270,15 @@ class BatchEditUI:
         if hasattr(self.parent, 'point_edit_layout'):
             self.parent.point_edit_layout.addWidget(self.parent.batch_edit_group)
 
-    def batch_scale(self):
+    def batch_scale(self) -> None:
         """Scale selected points with dialog UI."""
         if not self.parent.selected_indices:
-            QMessageBox.warning(self.parent, "No Selection", "Please select points to scale.")
+            QMessageBox.warning(cast(QWidget, self.parent), "No Selection", "Please select points to scale.")
             return
 
         # Show scale dialog
         dialog = ScaleDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted:
+        if dialog.exec_() != QDialog.Accepted  # type: ignore[attr-defined]:
             return
 
         # Get scale values
@@ -226,15 +307,15 @@ class BatchEditUI:
         # Update curve data
         self.update_parent_data(new_data, f"Scaled {len(self.parent.selected_indices)} points")
 
-    def batch_offset(self):
+    def batch_offset(self) -> None:
         """Offset selected points with dialog UI."""
         if not self.parent.selected_indices:
-            QMessageBox.warning(self.parent, "No Selection", "Please select points to offset.")
+            QMessageBox.warning(self.parent.curve_view, "No Selection", "Please select points to offset.")
             return
 
         # Show offset dialog
-        dialog = OffsetDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted:
+        dialog = OffsetDialog(self.parent.curve_view)
+        if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 
         # Get offset values
@@ -252,15 +333,15 @@ class BatchEditUI:
         # Update curve data
         self.update_parent_data(new_data, f"Offset {len(self.parent.selected_indices)} points")
 
-    def batch_rotate(self):
+    def batch_rotate(self) -> None:
         """Rotate selected points with dialog UI."""
         if not self.parent.selected_indices:
-            QMessageBox.warning(self.parent, "No Selection", "Please select points to rotate.")
+            QMessageBox.warning(self.parent.curve_view, "No Selection", "Please select points to rotate.")
             return
 
         # Show rotation dialog
-        dialog = RotationDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted:
+        dialog = RotationDialog(self.parent.curve_view)
+        if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 
         # Get rotation values
@@ -287,15 +368,15 @@ class BatchEditUI:
         # Update curve data
         self.update_parent_data(new_data, f"Rotated {len(self.parent.selected_indices)} points by {angle}°")
 
-    def batch_smooth(self):
+    def batch_smooth(self) -> None:
         """Smooth selected points with dialog UI."""
         if not self.parent.selected_indices:
-            QMessageBox.warning(self.parent, "No Selection", "Please select points to smooth.")
+            QMessageBox.warning(self.parent.curve_view, "No Selection", "Please select points to smooth.")
             return
 
         # Show smoothing factor dialog
         dialog = SmoothFactorDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted:
+        if dialog.exec_() != QDialog.Accepted  # type: ignore[attr-defined]:
             return
 
         # Get smoothing factor
@@ -311,7 +392,7 @@ class BatchEditUI:
         # Update curve data
         self.update_parent_data(new_data, f"Smoothed {len(self.parent.selected_indices)} points with factor {factor}")
 
-    def update_parent_data(self, new_data, status_message):
+    def update_parent_data(self, new_data: PointsList, status_message: str) -> None:
         """Update the parent window with new curve data.
 
         Args:

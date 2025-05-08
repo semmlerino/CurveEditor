@@ -128,7 +128,7 @@ class CenteringZoomService:
         curve_view.update()
 
     @staticmethod
-    def center_on_selected_point(curve_view: 'CurveView', point_idx: int = -1, preserve_zoom: bool = True) -> bool:
+    def center_on_selected_point(curve_view: Optional['CurveView'], point_idx: int = -1, preserve_zoom: bool = True) -> bool:
         """Center the view on the specified point index.
 
         If no index is provided, uses the currently selected point.
@@ -141,6 +141,10 @@ class CenteringZoomService:
         Returns:
             bool: True if centering was successful, False otherwise
         """
+        # Check if curve_view is None first to avoid AttributeError
+        if curve_view is None:
+            return False
+        
         # Get the target point index
         idx: int = point_idx if point_idx >= 0 else getattr(curve_view, "selected_point_idx", -1)
 

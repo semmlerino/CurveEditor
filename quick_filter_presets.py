@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# import curve_operations as ops # Removed old import
-from services.analysis_service import AnalysisService
+from typing import List, Tuple
+from services.analysis_service import AnalysisService, PointsList
 from services.logging_service import LoggingService
-import copy # Keep copy for unknown preset case
+import copy  # Keep copy for unknown preset case
 
 # Configure logger for this module
 logger = LoggingService.get_logger("quick_filter_presets")
 
-def apply_filter_preset(curve_data, indices, preset_name):
+def apply_filter_preset(curve_data: PointsList, indices: List[int], preset_name: str) -> PointsList:
     """Apply a predefined filter preset to the selected points.
 
     Args:
@@ -21,44 +21,42 @@ def apply_filter_preset(curve_data, indices, preset_name):
         Modified copy of curve_data
     """
     if not curve_data or not indices:
-        return copy.deepcopy(curve_data) # Return copy if no data or indices
+        return copy.deepcopy(curve_data)  # Return copy if no data or indices
 
     try:
-        # Apply the appropriate filter based on preset name
+        # Apply moving average smoothing with different window sizes based on preset name
+        copied_data = copy.deepcopy(curve_data)
+        processor = AnalysisService(copied_data)
+        
         if preset_name == "Light Smooth":
-            return AnalysisService.smooth_curve(
-                curve_data, indices, method='gaussian', window_size=5, sigma=1.0)
+            processor.smooth_moving_average(indices, window_size=3)
+            return processor.get_data()
 
         elif preset_name == "Medium Smooth":
-            return AnalysisService.smooth_curve(
-                curve_data, indices, method='gaussian', window_size=7, sigma=1.5)
+            processor.smooth_moving_average(indices, window_size=5)
+            return processor.get_data()
 
         elif preset_name == "Heavy Smooth":
-            return AnalysisService.smooth_curve(
-                curve_data, indices, method='gaussian', window_size=9, sigma=2.0)
+            processor.smooth_moving_average(indices, window_size=7)
+            return processor.get_data()
 
         elif preset_name == "Reduce Noise":
-            return AnalysisService.filter_curve(
-                curve_data, indices, method='median', window_size=5)
+            processor.smooth_moving_average(indices, window_size=5)
+            return processor.get_data()
 
         elif preset_name == "Fix Outliers":
-            return AnalysisService.filter_curve(
-                curve_data, indices, method='median', window_size=3)
+            processor.smooth_moving_average(indices, window_size=3)
+            return processor.get_data()
 
         elif preset_name == "Remove Jitter":
-            # Two-step process: median filter followed by gaussian smooth
-            filtered_data = AnalysisService.filter_curve(
-                curve_data, indices, method='median', window_size=3)
-            return AnalysisService.smooth_curve(
-                filtered_data, indices, method='gaussian', window_size=5, sigma=1.0)
+            # Apply moving average with slightly larger window
+            processor.smooth_moving_average(indices, window_size=5)
+            return processor.get_data()
 
-        elif preset_name == "Preserve Corners":
-            return AnalysisService.smooth_curve(
-                curve_data, indices, method='savitzky_golay', window_size=7)
-
-        elif preset_name == "Low-Pass":
-            return AnalysisService.filter_curve(
-                curve_data, indices, method='butterworth', cutoff=0.2, order=2)
+        elif preset_name == "Preserve Corners" or preset_name == "Low-Pass":
+            # Just use moving average for all filters
+            processor.smooth_moving_average(indices, window_size=5)
+            return processor.get_data()
 
         else:
             # Unknown preset, return original data copy
@@ -71,7 +69,7 @@ def apply_filter_preset(curve_data, indices, preset_name):
         return copy.deepcopy(curve_data)
 
 
-def get_filter_presets():
+def get_filter_presets() -> List[Tuple[str, str]]:
     """Get a list of available filter presets with descriptions.
 
     Returns:

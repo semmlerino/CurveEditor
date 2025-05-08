@@ -9,7 +9,7 @@ across the application. These protocols help ensure type safety while allowing
 flexibility in implementation.
 """
 
-from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, cast, Set
+from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar
 
 # Type aliases for common data structures
 PointTuple = Tuple[int, float, float]  # frame, x, y
@@ -30,17 +30,55 @@ class CurveViewProtocol(Protocol):
     image_height: int
     zoom_factor: float
 
+    # Visualization attributes (added for type safety)
+    show_background: bool
+    show_grid: bool
+    show_velocity_vectors: bool
+    show_all_frame_numbers: bool
+    show_crosshair: bool
+    background_opacity: float
+    point_radius: int
+    grid_color: Any  # QColor, but use Any for protocol compatibility
+    grid_line_width: int
+
+    # Data and selection
+    curve_data: PointsList
+    selected_point_idx: int
+    selected_points: set[int]
+    frame_marker_label: Any
+    timeline_slider: Any
+    points: list[Any]
+
+    # Pan/offset attributes
+    offset_x: float
+    offset_y: float
+
     # Required methods
     def update(self) -> None: ...
     def setPoints(self, points: List[Tuple[int, float, float]]) -> None: ...
     def get_selected_points(self) -> List[int]: ...
+    def setVelocityData(self, velocities: Any) -> None: ...
+    def toggleVelocityVectors(self, enabled: bool) -> None: ...
 
 
 class MainWindowProtocol(Protocol):
     """Protocol defining the interface for the main window."""
 
     # Required attributes
-    curve_view: CurveViewProtocol
+    curve_view: Optional[CurveViewProtocol]
+    quality_score_label: Any
+    smoothness_label: Any
+    consistency_label: Any
+    coverage_label: Any
+    curve_data: PointsList
+    analyze_button: Any
+    toggle_vectors_button: Any
+    
+    # Required methods that match QMainWindow behavior
+    def statusBar(self) -> Any: ...
+    # Add a property to get the underlying QWidget for QMessageBox
+    @property
+    def widget(self) -> Any: ...
 
     # Required methods
     def update_status_message(self, message: str) -> None: ...
@@ -130,6 +168,21 @@ class HistoryServiceProtocol(Protocol):
     def redo_action(self, main_window: HistoryContainerProtocol) -> None: ...
     def restore_state(self, main_window: HistoryContainerProtocol, state: Dict[str, Any]) -> None: ...
 
+
+# Track Quality Protocols
+class TrackQualityUIProtocol(MainWindowProtocol):
+    """Protocol defining the interface for UI components used in track quality analysis.
+    
+    Extends MainWindowProtocol to support use with DialogService and other services
+    that expect the MainWindowProtocol interface.
+    """
+    
+    quality_score_label: Any
+    smoothness_label: Any
+    consistency_label: Any
+    coverage_label: Any
+    analyze_button: Any
+    toggle_vectors_button: Any
 
 # Dialog Service Protocols
 class DialogServiceProtocol(Protocol):
