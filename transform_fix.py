@@ -1,9 +1,20 @@
 """
-Transform fix module for CurveEditor.
+Transform fix module for CurveEditor - DEPRECATED
+
+⚠️  DEPRECATION NOTICE ⚠️
+This module has been superseded by the unified transformation system.
+Please use services/unified_transformation_service.py with stable_transformation_context instead.
+
+Migration path:
+- Replace TransformStabilizer with stable_transformation_context
+- Use services.transformation_integration for compatibility
+- See docs/unified_transformation_system.md for migration guide
 
 This module adds a transform stabilizer mechanism that can be applied to ensure
 consistent coordinate transformations across operations, preventing unexpected
 curve shifts when applying transformations like smoothing.
+
+DEPRECATED: Will be removed in future version
 """
 
 from typing import Tuple, Optional, Any

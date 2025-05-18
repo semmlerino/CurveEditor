@@ -1,5 +1,14 @@
 """
-Transform Module for CurveEditor - UPDATED FIXED VERSION
+Transform Module for CurveEditor - DEPRECATED
+
+⚠️  DEPRECATION NOTICE ⚠️
+This module has been superseded by the unified transformation system.
+Please use services/unified_transform.py instead.
+
+Migration path:
+- Replace imports: from services.unified_transform import Transform
+- Use services.transformation_integration for compatibility
+- See docs/unified_transformation_system.md for migration guide
 
 This module implements an immutable Transform class that encapsulates
 the coordinate transformation logic used throughout the application.
@@ -7,6 +16,8 @@ The Transform class provides consistent mapping between data coordinates
 and screen coordinates, with updated handling that completely resolves
 the floating curve issue by ensuring image position calculations match
 curve point transformations.
+
+DEPRECATED: Will be removed in future version
 """
 
 from typing import Dict, Tuple, Any

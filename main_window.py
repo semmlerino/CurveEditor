@@ -44,7 +44,16 @@ from services.protocols import PointsList
 from services.dialog_service import DialogService
 from services.settings_service import SettingsService
 from services.history_service import HistoryService
+# DEPRECATED: Old transform system (will be removed)
 from transform_fix import TransformStabilizer
+
+# NEW: Auto-activate unified transformation system
+try:
+    from services.main_window_unified_patch import apply_unified_transform_patch
+    apply_unified_transform_patch()
+    print("✅ Unified transformation system activated")
+except Exception as e:
+    print(f"⚠️  Using legacy transformation system: {e}")
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -591,7 +600,7 @@ class MainWindow(QMainWindow):
         # Local import to ensure cast is available in this method scope
         from typing import cast
         from services.protocols import TrackQualityUIProtocol
-        
+
         if not self.curve_data:
             return
 
@@ -629,10 +638,10 @@ class MainWindow(QMainWindow):
         # Get window size for moving average smoothing
         window_size = self.smoothing_window_spin.value()
         range_type = self.smoothing_range_combo.currentIndex()
-        
+
         # Initialize points_to_smooth list
         points_to_smooth = []
-        
+
         if range_type == 0:
             points_to_smooth = list(range(len(self.curve_data)))
         elif range_type == 1:

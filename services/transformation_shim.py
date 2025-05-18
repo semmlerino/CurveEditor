@@ -1,9 +1,20 @@
 """
-Transformation Shim Module for CurveEditor.
+Transformation Shim Module for CurveEditor - DEPRECATED
+
+⚠️  DEPRECATION NOTICE ⚠️
+This module has been superseded by the unified transformation system.
+Please use services/transformation_integration.py instead.
+
+Migration path:
+- Replace TransformationShim with TransformationIntegration
+- Use services.transformation_integration for compatibility
+- See docs/unified_transformation_system.md for migration guide
 
 This module provides a temporary bridge between the existing transformation code
 and the new transformation system. It allows incremental adoption of the new
 system without breaking existing functionality.
+
+DEPRECATED: Will be removed in future version
 """
 
 from typing import Any, List, Tuple, Optional

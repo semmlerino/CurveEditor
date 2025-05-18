@@ -30,8 +30,20 @@ from services.image_service import ImageService
 from services.input_service import InputService
 from services.logging_service import LoggingService
 from services.settings_service import SettingsService
-from services.transformation_service import TransformationService
 from services.visualization_service import VisualizationService
+
+# Unified transformation system (NEW)
+from services.unified_transform import Transform
+from services.unified_transformation_service import UnifiedTransformationService
+from services.transformation_integration import (
+    TransformationIntegration, get_transform, transform_point, transform_points,
+    install_unified_system, stable_transform_operation
+)
+
+# Legacy transformation modules (DEPRECATED - use unified system instead)
+from services.transformation_service import TransformationService
+from services.transformation_shim import TransformationShim
+from services.transform_stabilizer import TransformStabilizer
 
 # Import track quality service
 from track_quality import TrackQualityAnalysisService
@@ -39,11 +51,23 @@ from track_quality import TrackQualityAnalysisService
 # These imports are here for convenience when importing from services
 # The __all__ list below makes them available when using 'from services import *'
 __all__ = [
+    # Core models and protocols
     'Point', 'ViewState', 'PointsCollection', 'PointsList',
+
+    # Legacy services
     'AnalysisService', 'CurveService', 'DialogService', 'FileService',
     'HistoryService', 'ImageService', 'InputService', 'LoggingService',
-    'SettingsService', 'TransformationService', 'VisualizationService',
-    'TrackQualityAnalysisService',
+    'SettingsService', 'VisualizationService', 'TrackQualityAnalysisService',
+
+    # Unified transformation system (RECOMMENDED)
+    'Transform', 'UnifiedTransformationService', 'TransformationIntegration',
+    'get_transform', 'transform_point', 'transform_points',
+    'install_unified_system', 'stable_transform_operation',
+
+    # Legacy transformation services (DEPRECATED)
+    'TransformationService', 'TransformationShim', 'TransformStabilizer',
+
+    # Utility functions
     'get_module_logger', 'get_service'
 ]
 
@@ -52,10 +76,10 @@ __all__ = [
 def get_module_logger() -> Any:
     """
     Get a logger named after the calling module.
-    
+
     This utility function reduces boilerplate by automatically determining
     the module name from the calling context.
-    
+
     Returns:
         Logger: A logger configured for the calling module
     """
@@ -63,7 +87,7 @@ def get_module_logger() -> Any:
     module = inspect.getmodule(frame[0])
     if module is None:
         return LoggingService.get_logger("unknown")
-        
+
     module_name = module.__name__.split('.')[-1]
     return LoggingService.get_logger(module_name)
 
@@ -77,13 +101,13 @@ T = TypeVar('T')
 def get_service(service_class: Type[T]) -> T:
     """
     Get or create a singleton instance of a service class.
-    
+
     This utility reduces redundant service instantiations by caching
     service instances by class.
-    
+
     Args:
         service_class: The service class to instantiate
-        
+
     Returns:
         An instance of the requested service
     """

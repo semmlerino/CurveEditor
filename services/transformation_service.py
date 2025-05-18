@@ -1,9 +1,20 @@
 """
-TransformationService Module for CurveEditor.
+TransformationService Module for CurveEditor - DEPRECATED
+
+⚠️  DEPRECATION NOTICE ⚠️
+This module has been superseded by the unified transformation system.
+Please use services/unified_transformation_service.py instead.
+
+Migration path:
+- Replace imports: from services.unified_transformation_service import UnifiedTransformationService
+- Use services.transformation_integration for compatibility
+- See docs/unified_transformation_system.md for migration guide
 
 This module implements a service for managing coordinate transformations
 throughout the application. It provides a central point for calculating
 and applying transforms, ensuring consistency across different operations.
+
+DEPRECATED: Will be removed in future version
 """
 
 from typing import Dict, List, Tuple, Any, Optional

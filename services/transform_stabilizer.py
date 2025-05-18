@@ -1,9 +1,20 @@
 """
-Transform Stabilizer Module for CurveEditor.
+Transform Stabilizer Module for CurveEditor - DEPRECATED
+
+⚠️  DEPRECATION NOTICE ⚠️
+This module has been superseded by the unified transformation system.
+Please use services/unified_transformation_service.py with stable_transformation_context instead.
+
+Migration path:
+- Replace TransformStabilizer.stabilize_operation with stable_transformation_context
+- Use services.transformation_integration for compatibility
+- See docs/unified_transformation_system.md for migration guide
 
 This module provides utilities for maintaining stable coordinate transformations
 during operations that modify curve data, preventing issues like curve shifting
 during smoothing operations.
+
+DEPRECATED: Will be removed in future version
 """
 
 from typing import Dict, List, Tuple, Any, Optional, Callable
