@@ -1,4 +1,4 @@
-# Code Refactoring Report: DRY Principle Implementation (Update 2025-05-08)
+# Code Refactoring Report: DRY Principle Implementation (Update 2025-05-08) - Legacy Document
 
 ## Overview
 

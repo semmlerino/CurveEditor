@@ -1,4 +1,9 @@
-# Unified Transformation System Documentation
+# Unified Transformation System Documentation (Legacy)
+
+> **Note**: This document has been superseded by the consolidated documentation. Please refer to:
+> - [transformation-system.md](transformation-system.md) for the comprehensive transformation guide
+> - [api-reference.md](api-reference.md) for API documentation
+> - [migration-guide.md](migration-guide.md) for migration instructions
 
 ## Overview
 

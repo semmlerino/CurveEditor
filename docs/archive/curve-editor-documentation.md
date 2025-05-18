@@ -1,4 +1,4 @@
-# Curve Editor Documentation
+# Curve Editor Documentation (Legacy)
 
 ## Overview
 
@@ -40,7 +40,7 @@ def select_points_in_rect(curve_view, main_window, selection_rect):
     scale_y = curve_view.height() / display_height
     scale = min(scale_x, scale_y) * getattr(curve_view, 'zoom_factor', 1.0)
     # ... more calculation code ...
-    
+
 # After refactoring - using TransformationService consistently
 def select_points_in_rect(curve_view, main_window, selection_rect):
     # Create a view state from the curve view for transformation
