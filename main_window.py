@@ -44,16 +44,8 @@ from services.protocols import PointsList
 from services.dialog_service import DialogService
 from services.settings_service import SettingsService
 from services.history_service import HistoryService
-# DEPRECATED: Old transform system (will be removed)
-from transform_fix import TransformStabilizer
-
-# NEW: Auto-activate unified transformation system
-try:
-    from services.main_window_unified_patch import apply_unified_transform_patch
-    apply_unified_transform_patch()
-    print("✅ Unified transformation system activated")
-except Exception as e:
-    print(f"⚠️  Using legacy transformation system: {e}")
+# NEW: Unified transformation system
+from services.unified_transformation_service import UnifiedTransformationService
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -104,7 +96,7 @@ class MainWindow(QMainWindow):
     - UIComponents: Common UI operations
     - HistoryService: Undo/redo functionality
     - CurveDataOperations: Mathematical operations on curves (New consolidated class)
-    - TransformStabilizer: Ensures consistent coordinate transformations (fixing curve shifts)
+    - UnifiedTransformationService: Handles coordinate transformations (unified system)
 
     This architecture reduces code duplication and improves maintainability
     by centralizing specific functionality in dedicated utility classes.
@@ -169,6 +161,9 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("3DE4 2D Curve Editor")
         # Set a nice default size
         self.resize(1200, 800)
+
+        # Initialize unified transformation system
+        self._setup_transformation_system()
 
         # Data storage
         self.curve_data: PointsList = []  # Initialize as an empty list that matches PointsList type
@@ -267,6 +262,16 @@ class MainWindow(QMainWindow):
         if hasattr(self.menu_bar, 'auto_center_action'):
             self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
 
+    def _setup_transformation_system(self):
+        """Initialize the unified transformation system."""
+        try:
+            # Clear any existing transform cache
+            UnifiedTransformationService.clear_cache()
+            logger.info("✅ Unified transformation system initialized")
+        except Exception as e:
+            logger.error(f"Failed to initialize transformation system: {e}")
+            raise
+
     def set_centering_enabled(self, enabled: bool) -> None:
         """Enable or disable auto-centering of the view."""
         self.auto_center_enabled = enabled
@@ -364,14 +369,9 @@ class MainWindow(QMainWindow):
         if hasattr(self.menu_bar, 'auto_center_action'):
             self.menu_bar.auto_center_action.setChecked(getattr(self, 'auto_center_enabled', False))
 
-        # Initialize the TransformStabilizer to prevent curve shifting issues
-        if hasattr(self, 'curve_view') and self.curve_view:
-            try:
-                # Install the transform stabilizer to ensure consistent coordinate transformations
-                TransformStabilizer.install(self.curve_view)
-                logger.info("TransformStabilizer installed successfully")
-            except Exception as e:
-                logger.error(f"Failed to install TransformStabilizer: {str(e)}")
+        # Transformation system is now initialized in __init__
+        # No additional setup needed here
+        logger.info("UI setup complete with unified transformation system")
 
 
     def create_toolbar(self) -> QWidget:
