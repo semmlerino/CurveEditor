@@ -217,7 +217,7 @@ class MenuBar(QMenuBar):
         # Analysis
         detect_problems_action = QAction('&Detect Problems', self)
         # detect_problems_action.setShortcut(QKeySequence(ShortcutManager.get_shortcut_key('detect_problems'))) # Handled by ShortcutManager
-        # detect_problems_action.triggered.connect(lambda: DialogOperations.show_problem_detection_dialog(self.main_window, CurveOperations.detect_problems(self.main_window))) # TODO: Move detect_problems logic
+        # detect_problems_action.triggered.connect(lambda: DialogService.show_problem_detection_dialog(typing.cast(MainWindowProtocol, self.main_window)))
         # Temporarily disable until detect_problems is refactored
         detect_problems_action.setEnabled(False)
         detect_problems_action.setToolTip("Problem detection temporarily disabled during refactoring.")

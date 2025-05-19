@@ -38,8 +38,9 @@ class CurveView(QWidget):  # Implements protocols through type annotations
     # Using float for protocol compatibility
     x_offset: float = 0.0
     y_offset: float = 0.0
-    timeline_slider: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QSlider]
-    frame_marker_label: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QLabel]
+    from PySide6.QtWidgets import QSlider, QLabel
+    timeline_slider: Optional[QSlider] = None
+    frame_marker_label: Optional[QLabel] = None
     # Use the type from protocols.py for better type compatibility
     from services.protocols import PointsList
     curve_data: PointsList = []

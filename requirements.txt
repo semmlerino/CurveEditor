@@ -1,0 +1,31 @@
+# CurveEditor Dependencies
+# Main GUI Framework
+PySide6>=6.4.0
+
+# Python Standard Library requirements
+# The following packages are part of Python's standard library
+# and do not need to be installed separately:
+# - os
+# - sys
+# - json
+# - logging
+# - typing
+# - unittest
+# - math
+# - re
+# - time
+# - functools
+# - dataclasses
+# - pathlib
+# - collections
+# - threading
+# - copy
+
+# Development dependencies (optional)
+# For testing and development
+# pytest>=7.0.0
+# black>=23.0.0
+# flake8>=6.0.0
+
+# Note: This application primarily uses Python's standard library
+# modules along with PySide6 for the GUI framework.

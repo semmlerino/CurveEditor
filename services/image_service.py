@@ -54,7 +54,7 @@ class ImageService:
                     else:
                         # Just use sequential index if can't parse frame
                         img_frame = i
-            except:
+            except (ValueError, IndexError):
                 img_frame = i
 
             diff = abs(img_frame - frame)

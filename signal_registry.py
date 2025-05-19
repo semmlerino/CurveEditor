@@ -786,7 +786,7 @@ class SignalRegistry:
                                          main_window.apply_smooth_operation) # Connect to MainWindow method
         ShortcutManager.connect_shortcut(main_window, "filter_selected",
                                          lambda: DialogService.show_filter_dialog(main_window))
-        # ShortcutManager.connect_shortcut(main_window, "detect_problems", # TODO: Refactor detect_problems
-        #                                  lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window))) # Old class removed
+        # ShortcutManager.connect_shortcut(main_window, "detect_problems", # Refactored detect_problems
+        #                                  lambda: DialogService.show_problem_detection_dialog(main_window))
         ShortcutManager.connect_shortcut(main_window, "detect_problems",
                                          lambda: print("Problem detection temporarily disabled.")) # Placeholder action

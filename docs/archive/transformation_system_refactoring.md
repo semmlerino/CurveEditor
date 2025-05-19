@@ -56,10 +56,10 @@ from services.unified_transformation_service import UnifiedTransformationService
 # In MainWindow.__init__()
 def __init__(self):
     # ... existing initialization ...
-    
+
     # Initialize unified transformation system
     self._setup_transformation_system()
-    
+
 def _setup_transformation_system(self):
     """Initialize the unified transformation system."""
     try:
@@ -95,7 +95,7 @@ from services.view_state import ViewState
 # main_window.py lines 366-375
 def setup_ui(self):
     # ... UI setup ...
-    
+
     # Initialize the TransformStabilizer to prevent curve shifting issues
     if hasattr(self, 'curve_view') and self.curve_view:
         try:
@@ -110,7 +110,7 @@ def setup_ui(self):
 ```python
 def setup_ui(self):
     # ... UI setup ...
-    
+
     # Transformation system is now initialized in __init__
     # No additional setup needed here
     logger.info("UI setup complete with unified transformation system")
@@ -171,7 +171,7 @@ def select_points_in_rect(curve_view: Any, main_window: Any, selection_rect: QRe
     # Create a view state from the curve view for transformation
     view_state = ViewState.from_curve_view(curve_view)
     transform = TransformationService.calculate_transform(view_state)
-    
+
     for i, point in enumerate(curve_view.points):
         _, point_x, point_y = point[:3]
         # Transform point to widget coordinates using pre-calculated transform
@@ -185,7 +185,7 @@ def select_points_in_rect(curve_view: Any, main_window: Any, selection_rect: QRe
 def select_points_in_rect(curve_view: Any, main_window: Any, selection_rect: QRect) -> int:
     # Use unified transformation service
     transform = UnifiedTransformationService.from_curve_view(curve_view)
-    
+
     for i, point in enumerate(curve_view.points):
         _, point_x, point_y = point[:3]
         # Transform point to widget coordinates
@@ -235,10 +235,10 @@ UnifiedTransformationService.transform_point
 # main_window.py apply_smooth_operation method
 def apply_smooth_operation(self):
     # ... existing code ...
-    
+
     # 2. Create a stable transform for the operation
     stable_transform = TransformationService.create_stable_transform_for_operation(self.curve_view)
-    
+
     # 3. Track reference points before any changes
     reference_points = TransformStabilizer.track_reference_points(before_data, stable_transform)
 ```
@@ -251,7 +251,7 @@ def apply_smooth_operation(self):
         # Get selected indices
         selected_indices = getattr(self.curve_view, 'selected_indices', [])
         selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
-        
+
         # Show smooth dialog and get modified data
         modified_data = DialogService.show_smooth_dialog(
             parent_widget=self,
@@ -259,7 +259,7 @@ def apply_smooth_operation(self):
             selected_indices=selected_indices,
             selected_point_idx=selected_point_idx
         )
-        
+
         if modified_data is not None:
             # Update curve data - transformation stability is handled by context manager
             self.curve_data = modified_data
@@ -287,21 +287,21 @@ from services.view_state import ViewState
 
 class TestUnifiedTransformationComplete:
     """Test the completely migrated transformation system."""
-    
+
     def test_no_legacy_imports(self):
         """Ensure no legacy transformation imports exist."""
         # This test should pass after migration
         import main_window
         import services.curve_service
-        
+
         # Check that legacy imports don't exist
         assert not hasattr(main_window, 'TransformStabilizer')
         assert not hasattr(services.curve_service, 'TransformationService')
-    
+
     def test_unified_transformation_in_curve_service(self):
         """Test that CurveService uses unified transformations."""
         from services.curve_service import CurveService
-        
+
         # Mock curve view
         curve_view = Mock()
         curve_view.width.return_value = 800
@@ -310,34 +310,34 @@ class TestUnifiedTransformationComplete:
         curve_view.offset_x = 0.0
         curve_view.offset_y = 0.0
         curve_view.points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        
+
         # Mock selection rect
         from PySide6.QtCore import QRect
         selection_rect = QRect(50, 100, 200, 200)
-        
+
         # This should work without any legacy transformation calls
         result = CurveService.select_points_in_rect(curve_view, Mock(), selection_rect)
         assert isinstance(result, int)
-    
+
     def test_transformation_cache_management(self):
         """Test that cache management works correctly."""
         # Clear cache
         UnifiedTransformationService.clear_cache()
-        
+
         # Check cache stats
         stats = UnifiedTransformationService.get_cache_stats()
         assert stats['cache_size'] == 0
-        
+
         # Create multiple transforms to test cache
         mock_view = Mock()
         mock_view.width.return_value = 800
         mock_view.height.return_value = 600
-        
+
         for i in range(5):
             mock_view.zoom_factor = 1.0 + i * 0.1
             transform = UnifiedTransformationService.from_curve_view(mock_view)
             assert transform is not None
-        
+
         # Check cache has entries
         stats = UnifiedTransformationService.get_cache_stats()
         assert stats['cache_size'] > 0
@@ -361,7 +361,7 @@ from unittest.mock import Mock
 def test_no_legacy_references():
     """Test that no legacy transformation references exist."""
     print("Testing for legacy transformation references...")
-    
+
     # Try to import legacy modules - these should fail
     legacy_modules = [
         'transform_fix',
@@ -369,7 +369,7 @@ def test_no_legacy_references():
         'services.transformation_shim',
         'services.transformation_integration'
     ]
-    
+
     for module_name in legacy_modules:
         try:
             __import__(module_name)
@@ -377,17 +377,17 @@ def test_no_legacy_references():
             return False
         except ImportError:
             print(f"✅ OK: Legacy module {module_name} not found (expected)")
-    
+
     return True
 
 def test_unified_transformation_functionality():
     """Test basic unified transformation functionality."""
     print("Testing unified transformation functionality...")
-    
+
     try:
         from services.unified_transformation_service import UnifiedTransformationService
         from services.view_state import ViewState
-        
+
         # Create a mock curve view
         mock_curve_view = Mock()
         mock_curve_view.width.return_value = 800
@@ -399,30 +399,30 @@ def test_unified_transformation_functionality():
         mock_curve_view.scale_to_image = True
         mock_curve_view.image_width = 1920
         mock_curve_view.image_height = 1080
-        
+
         # Test transform creation
         transform = UnifiedTransformationService.from_curve_view(mock_curve_view)
         assert transform is not None
         print("✅ OK: Transform creation works")
-        
+
         # Test point transformation
         result = UnifiedTransformationService.transform_point(transform, 100.0, 200.0)
         assert len(result) == 2
         print("✅ OK: Point transformation works")
-        
+
         # Test batch transformation
         points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         results = UnifiedTransformationService.transform_points(transform, points)
         assert len(results) == 2
         print("✅ OK: Batch transformation works")
-        
+
         # Test stable transformation context
         with UnifiedTransformationService.stable_transformation_context(mock_curve_view) as stable_transform:
             assert stable_transform is not None
         print("✅ OK: Stable transformation context works")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"❌ FAILED: Unified transformation test failed: {e}")
         traceback.print_exc()
@@ -431,11 +431,11 @@ def test_unified_transformation_functionality():
 def test_main_window_initialization():
     """Test that main window initializes without legacy references."""
     print("Testing main window initialization...")
-    
+
     try:
         # This is a basic import test
         import main_window
-        
+
         # Check that legacy imports are not present
         source_lines = open('main_window.py', 'r').readlines()
         legacy_imports = [
@@ -443,16 +443,16 @@ def test_main_window_initialization():
             'from services.transform_stabilizer import TransformStabilizer',
             'from services.transformation_shim import'
         ]
-        
+
         for line in source_lines:
             for legacy_import in legacy_imports:
                 if legacy_import in line and not line.strip().startswith('#'):
                     print(f"❌ FAILED: Found legacy import: {line.strip()}")
                     return False
-        
+
         print("✅ OK: No legacy imports found in main_window.py")
         return True
-        
+
     except Exception as e:
         print(f"❌ FAILED: Main window test failed: {e}")
         traceback.print_exc()
@@ -463,16 +463,16 @@ def main():
     print("=" * 60)
     print("TRANSFORMATION SYSTEM MIGRATION VALIDATION")
     print("=" * 60)
-    
+
     tests = [
         test_no_legacy_references,
         test_unified_transformation_functionality,
         test_main_window_initialization
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for test in tests:
         try:
             if test():
@@ -483,9 +483,9 @@ def main():
             print(f"❌ FAILED: Test {test.__name__} crashed: {e}")
             failed += 1
         print("-" * 40)
-    
+
     print(f"\nRESULTS: {passed} passed, {failed} failed")
-    
+
     if failed == 0:
         print("🎉 ALL TESTS PASSED! Migration completed successfully.")
         return 0
@@ -503,7 +503,7 @@ if __name__ == "__main__":
 - **Day 1-2**: Phase 1 - Remove legacy dependencies
 - **Day 3-5**: Phase 2 - Update transformation calls
 
-### Week 2  
+### Week 2
 - **Day 1**: Phase 3 - Remove legacy files
 - **Day 2**: Phase 4 - Update smoothing operations
 - **Day 3-4**: Phase 5 - Testing and validation
@@ -554,8 +554,8 @@ If issues arise:
 
 ---
 
-**Estimated Total Effort**: 8-10 business days  
-**Risk Level**: Medium (well-tested migration path)  
+**Estimated Total Effort**: 8-10 business days
+**Risk Level**: Medium (well-tested migration path)
 **Impact**: High (resolves critical architectural issue)
 
 This migration represents the most important refactoring task for the CurveEditor project and should be prioritized above all other improvements.

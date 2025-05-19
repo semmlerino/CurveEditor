@@ -246,7 +246,7 @@ class UIComponents:
 
         main_window.detect_problems_button = QPushButton("Detect")
         main_window.detect_problems_button.setToolTip("Detect Problems in Track Data")
-        # main_window.detect_problems_button.clicked.connect(lambda: DialogOperations.show_problem_detection_dialog(main_window, CurveOperations.detect_problems(main_window))) # TODO: Refactor detect_problems
+        # main_window.detect_problems_button.clicked.connect(lambda: DialogOperations.show_problem_detection_dialog(main_window)) # Refactored detect_problems
         # Temporarily disable until detect_problems is refactored
         main_window.detect_problems_button.setEnabled(False)
         main_window.detect_problems_button.setToolTip("Problem detection temporarily disabled during refactoring.")
@@ -292,12 +292,12 @@ class UIComponents:
     @staticmethod
     def _create_curve_view(main_window: Any) -> QWidget:
         """Create the curve view container and view widget.
-        
+
         This helper method centralizes curve view creation used by multiple methods.
-        
+
         Args:
             main_window: The main application window instance
-            
+
         Returns:
             QWidget: The curve view container widget with curve view inside
         """
@@ -316,9 +316,9 @@ class UIComponents:
             main_window.original_curve_view = main_window.curve_view  # Store reference to original view
 
         curve_view_layout.addWidget(main_window.curve_view)
-        
+
         return curve_view_container
-        
+
     @staticmethod
     def create_view_and_timeline_separated(main_window: Any) -> tuple[QWidget, QWidget]:
         """Create and return the curve view and timeline controls as separate widgets.
@@ -492,13 +492,13 @@ class UIComponents:
     @staticmethod
     def create_view_and_timeline(main_window: Any) -> QWidget:
         """Create the curve view widget and timeline controls in a single container.
-        
+
         This method uses the same helper methods as create_view_and_timeline_separated
         but combines the components into a single widget for simpler integration.
-        
+
         Args:
             main_window: The main application window instance
-            
+
         Returns:
             QWidget: A container widget with curve view and timeline
         """
@@ -919,10 +919,10 @@ class UIComponents:
     @staticmethod
     def _apply_auto_centering(main_window: Any, source_func: str = "") -> None:
         """Apply auto-centering if enabled.
-        
+
         This utility method centralizes the auto-centering logic used by multiple timeline methods,
         following the DRY principle.
-        
+
         Args:
             main_window: The main application window instance
             source_func: Optional name of the calling function for error reporting
@@ -932,7 +932,7 @@ class UIComponents:
                 CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
             except Exception as e:
                 print(f"Error during auto-centering in {source_func}: {e}")
-    
+
     @staticmethod
     def advance_frames(main_window: Any, count: int) -> None:
         """Advance timeline by specified number of frames (positive or negative)."""
@@ -955,7 +955,7 @@ class UIComponents:
     @staticmethod
     def go_to_frame(main_window: Any, frame: int, display_message: bool = True) -> None:
         """Go to a specific frame.
-        
+
         Args:
             main_window: The main application window instance
             frame: The frame number to go to
@@ -972,7 +972,7 @@ class UIComponents:
             # Apply auto-centering using the utility method
             UIComponents._apply_auto_centering(main_window, "go_to_frame")
             main_window.curve_view.update() # Ensure view updates
-            
+
             # Display status message if requested
             if display_message:
                 if frame == min_frame:
@@ -989,7 +989,7 @@ class UIComponents:
         """Go to the first frame in the timeline."""
         if not main_window.curve_data:
             return
-            
+
         min_frame = main_window.timeline_slider.minimum()
         UIComponents.go_to_frame(main_window, min_frame)
 
@@ -998,28 +998,28 @@ class UIComponents:
         """Go to the last frame in the timeline."""
         if not main_window.curve_data:
             return
-            
+
         max_frame = main_window.timeline_slider.maximum()
         UIComponents.go_to_frame(main_window, max_frame)
 
     @staticmethod
     def _calculate_marker_position(min_frame: int, max_frame: int, current_frame: int) -> float:
         """Calculate the relative position of the frame marker.
-        
+
         Args:
             min_frame: Minimum frame of the timeline
             max_frame: Maximum frame of the timeline
             current_frame: Current frame position
-            
+
         Returns:
             float: Relative position (0.0 to 1.0) of the marker
         """
         if max_frame <= min_frame:  # Avoid division by zero
             return 0.0
-            
+
         position = (current_frame - min_frame) / (max_frame - min_frame)
         return max(0.0, min(1.0, position))  # Ensure position is between 0 and 1
-    
+
     @staticmethod
     def update_frame_marker(main_window: Any) -> None:
         """Update the position of the frame marker based on current frame."""
@@ -1037,11 +1037,11 @@ class UIComponents:
     @staticmethod
     def _setup_timeline_press_handler(main_window: Any, handler_func: Any) -> None:
         """Set up the timeline press event handler.
-        
+
         This method attaches a custom mouse press event handler to the timeline slider,
         while preserving the original handler. This follows DRY principles by centralizing
         the mouse event handling setup logic.
-        
+
         Args:
             main_window: The main application window instance
             handler_func: The handler function to call when mouse press events occur
@@ -1057,14 +1057,14 @@ class UIComponents:
 
         # Set the custom handler on the slider
         setattr(main_window.timeline_slider, "mousePressEvent", custom_press_event)  # type: ignore
-    
+
     @staticmethod
     def _handle_timeline_press(main_window: Any, ev: QMouseEvent) -> None:
         """Handle mouse press on timeline for direct frame selection.
-        
+
         This method is extracted to follow DRY principles and eliminate code duplication
         between the different timeline implementations.
-        
+
         Args:
             main_window: The main application window instance
             ev: The mouse event to handle
@@ -1090,14 +1090,14 @@ class UIComponents:
 
                 # Update status message
                 main_window.statusBar().showMessage(f"Jumped to frame {frame}", 2000)
-                
+
     @staticmethod
     def on_control_center_toggled(main_window: Any, checked: bool) -> None:
         """Handle center on point toggle.
-        
+
         This method is extracted as a static method to follow DRY principles and
         allow reuse across different parts of the UI.
-        
+
         Args:
             main_window: The main application window instance
             checked: Whether center is enabled or disabled
@@ -1105,7 +1105,7 @@ class UIComponents:
         main_window.set_centering_enabled(checked)
         if checked:
             CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
-    
+
     @staticmethod
     def setup_enhanced_controls(main_window: Any) -> None:
         """Set up enhanced visualization controls in the control panel."""

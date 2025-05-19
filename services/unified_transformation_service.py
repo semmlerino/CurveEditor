@@ -320,26 +320,60 @@ class UnifiedTransformationService:
 
             logger.debug(f"Tracking {len(reference_points)} reference points")
 
-        # 3. Store original view properties
+        # 3. Store original view properties - including ALL transformation-related properties
         original_properties = {}
         property_names = ['zoom_factor', 'offset_x', 'offset_y', 'scale_to_image',
-                         'flip_y_axis', 'x_offset', 'y_offset']
+                         'flip_y_axis', 'x_offset', 'y_offset', 'image_width', 'image_height']
 
         for prop in property_names:
             if hasattr(curve_view, prop):
                 original_properties[prop] = getattr(curve_view, prop)
+
+        # 4. Store the original transformation for precise restoration
+        original_view_state = ViewState.from_curve_view(curve_view)
+
+        logger.debug(f"Captured initial state: zoom={original_view_state.zoom_factor}, "
+                    f"offset=({original_view_state.offset_x}, {original_view_state.offset_y}), "
+                    f"scale_to_image={original_view_state.scale_to_image}, "
+                    f"flip_y={original_view_state.flip_y_axis}")
 
         try:
             # Yield the stable transform for use during the operation
             yield initial_transform
 
         finally:
-            # 4. Restore original properties
+            # 5. Restore ALL original properties precisely
             for prop, value in original_properties.items():
                 if hasattr(curve_view, prop):
                     setattr(curve_view, prop, value)
 
-            # 5. Verify transformation stability
+            # 6. Force-restore transformation state to match the original exactly
+            if original_view_state:
+                # Manually restore the exact view state that we captured
+                curve_view.zoom_factor = original_view_state.zoom_factor
+
+                # Handle both naming conventions for offsets
+                if hasattr(curve_view, 'offset_x'):
+                    curve_view.offset_x = original_view_state.offset_x
+                    curve_view.offset_y = original_view_state.offset_y
+                elif hasattr(curve_view, 'x_offset'):
+                    curve_view.x_offset = original_view_state.offset_x
+                    curve_view.y_offset = original_view_state.offset_y
+
+                # Restore other properties
+                if hasattr(curve_view, 'scale_to_image'):
+                    curve_view.scale_to_image = original_view_state.scale_to_image
+                if hasattr(curve_view, 'flip_y_axis'):
+                    curve_view.flip_y_axis = original_view_state.flip_y_axis
+
+                logger.debug(f"Restored exact view state: zoom={curve_view.zoom_factor}, "
+                           f"offset=({getattr(curve_view, 'offset_x', getattr(curve_view, 'x_offset', 0))}, "
+                           f"{getattr(curve_view, 'offset_y', getattr(curve_view, 'y_offset', 0))})")
+
+            # 7. Clear any cached transforms to force recalculation with restored state
+            UnifiedTransformationService.clear_cache()
+
+            # 8. Verify transformation stability (now should be much more stable)
             if reference_points and hasattr(curve_view, 'points'):
                 final_transform = UnifiedTransformationService.from_curve_view(curve_view)
 
@@ -356,10 +390,21 @@ class UnifiedTransformationService:
 
                 if max_drift > 1.0:  # 1 pixel threshold
                     logger.warning(f"Transformation drift detected: {max_drift:.2f} pixels")
+                    # Force another restoration attempt if drift is significant
+                    if max_drift > 10.0:
+                        logger.warning("Significant drift detected, attempting correction")
+                        # Force update view to match original transform exactly
+                        curve_view.zoom_factor = original_view_state.zoom_factor
+                        if hasattr(curve_view, 'offset_x'):
+                            curve_view.offset_x = original_view_state.offset_x
+                            curve_view.offset_y = original_view_state.offset_y
+                        elif hasattr(curve_view, 'x_offset'):
+                            curve_view.x_offset = original_view_state.offset_x
+                            curve_view.y_offset = original_view_state.offset_y
                 else:
                     logger.info("Transformation remained stable")
 
-            # 6. Update the view
+            # 9. Update the view
             if hasattr(curve_view, 'update'):
                 curve_view.update()
 
