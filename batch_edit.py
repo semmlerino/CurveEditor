@@ -278,7 +278,7 @@ class BatchEditUI:
 
         # Show scale dialog
         dialog = ScaleDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted  # type: ignore[attr-defined]:
+        if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 
         # Get scale values
@@ -376,7 +376,7 @@ class BatchEditUI:
 
         # Show smoothing factor dialog
         dialog = SmoothFactorDialog(self.parent)
-        if dialog.exec_() != QDialog.Accepted  # type: ignore[attr-defined]:
+        if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 
         # Get smoothing factor
