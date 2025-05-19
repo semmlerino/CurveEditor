@@ -323,19 +323,11 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         # Fill background
         painter.fillRect(self.rect(), QColor(40, 40, 40))
 
-        # Use the TransformationService to create a stable transform
-        from services.view_state import ViewState
-        from services.transformation_service import TransformationService
-        from services.transformation_shim import install
-
-        # Ensure the transformation system is installed
-        install(self)
-
-        # Get current view state
-        view_state = ViewState.from_curve_view(self)
+        # Use the UnifiedTransformationService to create a stable transform
+        from services.unified_transformation_service import UnifiedTransformationService
 
         # Create stable transform for consistent coordinate mapping
-        transform = TransformationService.calculate_transform(view_state)
+        transform = UnifiedTransformationService.from_curve_view(self)
 
         # Log transform parameters for debugging
         transform_params = transform.get_parameters()
@@ -677,10 +669,10 @@ self)])}"
         """Toggle display of velocity vectors."""
         self.show_velocity_vectors = enabled
         self.update()
-        
+
     def setVelocityData(self, velocities: Any) -> None:
         """Set velocity data for visualization.
-        
+
         Args:
             velocities: List of velocity data points
         """

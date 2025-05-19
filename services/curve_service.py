@@ -7,8 +7,7 @@ from PySide6.QtCore import QRect
 from services.curve_utils import normalize_point, set_point_status
 from services.centering_zoom_service import CenteringZoomService
 from services.visualization_service import VisualizationService
-from services.transformation_service import TransformationService
-from services.view_state import ViewState
+from services.unified_transformation_service import UnifiedTransformationService
 from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
@@ -74,15 +73,14 @@ class CurveService:
 
         selected_indices: set[int] = set()
 
-        # Create a view state from the curve view for transformation
-        view_state = ViewState.from_curve_view(curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        # Use unified transformation service
+        transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            # Transform point to widget coordinates using pre-calculated transform
-            tx, ty = transform.apply(point_x, point_y)
+            # Transform point to widget coordinates
+            tx, ty = UnifiedTransformationService.transform_point(transform, point_x, point_y)
 
             # Check if the transformed point is within the selection rectangle
             if selection_rect.contains(int(tx), int(ty)):
@@ -314,9 +312,8 @@ class CurveService:
         if not hasattr(curve_view, 'points') or not curve_view.points:
             return -1
 
-        # Create a view state from the curve view for transformation
-        view_state = ViewState.from_curve_view(curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        # Use unified transformation service
+        transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         # Find closest point
         closest_idx = -1
@@ -325,8 +322,8 @@ class CurveService:
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
-            # Transform point to widget coordinates using the pre-calculated transform
-            tx, ty = transform.apply(point_x, point_y)
+            # Transform point to widget coordinates
+            tx, ty = UnifiedTransformationService.transform_point(transform, point_x, point_y)
 
             distance = ((x - tx) ** 2 + (y - ty) ** 2) ** 0.5
             detection_radius = getattr(curve_view, 'point_radius', 5) * 2
@@ -507,16 +504,15 @@ class CurveService:
         if rect is None or not hasattr(curve_view, 'points') or not curve_view.points:
             return False
 
-        # Create a view state from the curve view for transformation
-        view_state = ViewState.from_curve_view(curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        # Use unified transformation service
+        transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         # Find points inside rectangle
         sel: set[int] = set()
         for i, pt in enumerate(curve_view.points):
             _, x, y = pt[:3]
-            # Transform point to widget coordinates using the pre-calculated transform
-            tx, ty = transform.apply(x, y)
+            # Transform point to widget coordinates
+            tx, ty = UnifiedTransformationService.transform_point(transform, x, y)
             if rect.contains(int(tx), int(ty)):
                 sel.add(i)
 
@@ -581,7 +577,7 @@ class CurveService:
         """Transform a point from data space to widget space (DEPRECATED).
 
         This method is kept for backward compatibility. New code should
-        use TransformationService.transform_point_to_widget directly.
+        use UnifiedTransformationService directly.
 
         Args:
             curve_view: The curve view instance
@@ -596,10 +592,9 @@ class CurveService:
         Returns:
             Tuple containing transformed coordinates (tx, ty) in widget space
         """
-        # Forward to TransformationService
-        return TransformationService.transform_point_to_widget(
-            curve_view, x, y, display_width, display_height, offset_x, offset_y, scale
-        )
+        # Get transform from unified service
+        transform = UnifiedTransformationService.from_curve_view(curve_view)
+        return UnifiedTransformationService.transform_point(transform, x, y)
 
     @staticmethod
     @safe_operation("Change Nudge Increment")

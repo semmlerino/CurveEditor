@@ -11,9 +11,6 @@ from PySide6.QtCore import QPointF, QRectF
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor
 from PySide6.QtWidgets import QWidget
 
-from services.transformation_integration import (
-    get_transform, install_unified_system, stable_transform_operation
-)
 from services.unified_transformation_service import UnifiedTransformationService
 from services.logging_service import LoggingService
 
@@ -51,8 +48,7 @@ class UnifiedTransformCurveView(QWidget):
         self.image_width: int = 1920
         self.image_height: int = 1080
 
-        # Install the unified transformation system
-        install_unified_system(self)
+        # Unified transformation system is automatically available
         logger.info("Enhanced CurveView initialized with unified transformation system")
 
     def paintEvent(self, event):
@@ -69,7 +65,7 @@ class UnifiedTransformCurveView(QWidget):
 
         try:
             # Get the current transform - this is the key improvement
-            transform = get_transform(self)
+            transform = UnifiedTransformationService.from_curve_view(self)
 
             # Draw background image if available
             if self.background_image:
@@ -207,7 +203,7 @@ class UnifiedTransformCurveView(QWidget):
             return
 
         # Get the transform for coordinate conversion
-        transform = get_transform(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
 
         # Convert mouse position to data coordinates
         screen_pos = (event.position().x(), event.position().y())
@@ -248,7 +244,7 @@ class UnifiedTransformCurveView(QWidget):
 
         logger.info(f"Starting curve smoothing with factor {smoothing_factor}")
 
-        with stable_transform_operation(self) as stable_transform:
+        with UnifiedTransformationService.stable_transformation_context(self) as stable_transform:
             # Record reference points for verification
             reference_indices = [0, len(self.points) // 2, len(self.points) - 1]
             reference_positions = {}
@@ -319,7 +315,7 @@ class UnifiedTransformCurveView(QWidget):
 
     def get_transform_info(self) -> dict:
         """Get information about the current transform for debugging."""
-        transform = get_transform(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
         params = transform.get_parameters()
 
         return {
@@ -371,7 +367,7 @@ def migrate_paint_event_example():
         painter = QPainter(self)
 
         # Get transform once
-        transform = get_transform(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
 
         # Transform all points efficiently
         transformed_points = UnifiedTransformationService.transform_points_qt(

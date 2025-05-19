@@ -713,149 +713,36 @@ class MainWindow(QMainWindow):
 
     # Smoothing Operations
     def apply_smooth_operation(self):
-        """Entry point for smoothing operations, coordinates UI updates using stable transformation."""
+        """Entry point for smoothing operations using unified transformation system."""
         if not self.curve_data:
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
 
-        # Import the TransformStabilizer module for handling coordinate transformations
-        from services.transform_stabilizer import TransformStabilizer
-        from services.transformation_service import TransformationService
-        from PySide6.QtCore import QTimer
+        # Use the new stable transformation context manager
+        with UnifiedTransformationService.stable_transformation_context(self.curve_view) as stable_transform:
+            # Get selected indices
+            selected_indices = getattr(self.curve_view, 'selected_indices', [])
+            selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
 
-        # Get selected indices from curve view
-        selected_indices = []
-        if hasattr(self.curve_view, 'get_selected_indices'):
-            selected_indices = self.curve_view.get_selected_indices()
-        elif hasattr(self.curve_view, 'selected_points'):
-            selected_indices = list(self.curve_view.selected_points)
-        selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
-
-        logger.info("Starting smooth operation with TransformStabilizer")
-
-        # 1. Get the current curve data before any modifications
-        before_data = self.curve_data
-
-        # 2. Create a stable transform for the operation
-        stable_transform = TransformationService.create_stable_transform_for_operation(self.curve_view)
-
-        # 3. Track reference points before any changes
-        reference_points = TransformStabilizer.track_reference_points(before_data, stable_transform)
-
-        # 4. Call the dialog service to get modified data
-        # We'll handle view state management separately
-        modified_data = DialogService.show_smooth_dialog(
-            parent_widget=self,
-            curve_data=before_data,
-            selected_indices=selected_indices,
-            selected_point_idx=selected_point_idx
-        )
-
-        # If data was modified, update using stable transform
-        if modified_data is not None:
-            logger.info("Smoothing operation completed successfully, updating view with stable transform")
-
-            # Log data analysis for diagnostics
-            if len(before_data) == len(modified_data):
-                logger.info(f"Data point count unchanged: {len(before_data)}")
-
-                # Calculate bounds for comparison
-                min_x_before = min(p[1] for p in before_data)
-                max_x_before = max(p[1] for p in before_data)
-                min_y_before = min(p[2] for p in before_data)
-                max_y_before = max(p[2] for p in before_data)
-
-                min_x_after = min(p[1] for p in modified_data)
-                max_x_after = max(p[1] for p in modified_data)
-                min_y_after = min(p[2] for p in modified_data)
-                max_y_after = max(p[2] for p in modified_data)
-
-                # Report bounds changes
-                logger.info(f"Data bounds changed: X=[{min_x_before:.2f},{max_x_before:.2f}] -> [{min_x_after:.2f},{max_x_after:.2f}], " +
-                            f"Y=[{min_y_before:.2f},{max_y_before:.2f}] -> [{min_y_after:.2f},{max_y_after:.2f}]")
-            else:
-                logger.info(f"Data point count changed: {len(before_data)} -> {len(modified_data)}")
-
-            # 5. Update curve data
-            self.curve_data = modified_data
-
-            # 6. Save current view state
-            current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
-            current_offset_x = getattr(self.curve_view, 'offset_x', 0)
-            current_offset_y = getattr(self.curve_view, 'offset_y', 0)
-            current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
-            was_auto_center_enabled = getattr(self, 'auto_center_enabled', False)
-
-            # Temporarily disable auto-center
-            self.auto_center_enabled = False
-
-            # 7. Explicitly restore view state parameters
-            logger.info(f"Ensuring consistent view state: zoom={current_zoom}, offset=({current_offset_x},{current_offset_y}), scale_to_image={current_scale_to_image}")
-            self.curve_view.zoom_factor = current_zoom
-            self.curve_view.offset_x = current_offset_x
-            self.curve_view.offset_y = current_offset_y
-            self.curve_view.scale_to_image = current_scale_to_image
-
-            # 8. Set points with preserve_view=True to maintain view position
-            logger.info("Updating points with preserve_view=True")
-            self.curve_view.setPoints(
-                self.curve_data,
-                self.image_width,
-                self.image_height,
-                preserve_view=True
+            # Show smooth dialog and get modified data
+            modified_data = DialogService.show_smooth_dialog(
+                parent_widget=self,
+                curve_data=self.curve_data,
+                selected_indices=selected_indices,
+                selected_point_idx=selected_point_idx
             )
 
-            # 9. Verify if points have shifted unexpectedly
-            is_stable = TransformStabilizer.verify_reference_points(
-                self.curve_data,
-                reference_points,
-                stable_transform,
-                threshold=1.0  # 1-pixel threshold
-            )
-
-            if not is_stable:
-                logger.warning("Point shifting detected despite stable transform! Applying additional stabilization...")
-
-                # Additional stabilization
-                self.curve_view.zoom_factor = current_zoom
-                self.curve_view.offset_x = current_offset_x
-                self.curve_view.offset_y = current_offset_y
-                self.curve_view.scale_to_image = current_scale_to_image
-
-                # Force update
-                if hasattr(self.curve_view, 'update_transform_parameters'):
-                    self.curve_view.update_transform_parameters()
-
-            # 10. Add to history
-            self.add_to_history()
-
-            # 11. Use QTimer for a clean update
-            def delayed_update():
-                # Force update with the stable transform
-                self.curve_view.update()
-                logger.info("View updated with delayed timer after smoothing")
-
-                # Perform a secondary verification
-                is_stable_after_update = TransformStabilizer.verify_reference_points(
+            if modified_data is not None:
+                # Update curve data - transformation stability is handled by context manager
+                self.curve_data = modified_data
+                self.curve_view.setPoints(
                     self.curve_data,
-                    reference_points,
-                    stable_transform,
-                    threshold=1.0
+                    self.image_width,
+                    self.image_height,
+                    preserve_view=True
                 )
-
-                if not is_stable_after_update:
-                    logger.warning("Points still shifted after update - this may require further investigation")
-
-            # 12. Schedule the update with a small delay
-            QTimer.singleShot(10, delayed_update)
-
-            # Restore auto-center state
-            if was_auto_center_enabled:
-                self.auto_center_enabled = True
-                logger.debug("Restored auto-center enabled state")
-
-            # Update status
-            self.statusBar().showMessage("Smoothing applied successfully", 3000)
+                self.add_to_history()
+                self.statusBar().showMessage("Smoothing applied successfully", 3000)
 
     def show_filter_dialog(self):
         """Show the filter dialog for the curve data."""

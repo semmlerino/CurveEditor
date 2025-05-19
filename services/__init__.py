@@ -35,15 +35,6 @@ from services.visualization_service import VisualizationService
 # Unified transformation system (NEW)
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
-from services.transformation_integration import (
-    TransformationIntegration, get_transform, transform_point, transform_points,
-    install_unified_system, stable_transform_operation
-)
-
-# Legacy transformation modules (DEPRECATED - use unified system instead)
-from services.transformation_service import TransformationService
-from services.transformation_shim import TransformationShim
-from services.transform_stabilizer import TransformStabilizer
 
 # Import track quality service
 from track_quality import TrackQualityAnalysisService
@@ -54,18 +45,13 @@ __all__ = [
     # Core models and protocols
     'Point', 'ViewState', 'PointsCollection', 'PointsList',
 
-    # Legacy services
+    # Core services
     'AnalysisService', 'CurveService', 'DialogService', 'FileService',
     'HistoryService', 'ImageService', 'InputService', 'LoggingService',
     'SettingsService', 'VisualizationService', 'TrackQualityAnalysisService',
 
-    # Unified transformation system (RECOMMENDED)
-    'Transform', 'UnifiedTransformationService', 'TransformationIntegration',
-    'get_transform', 'transform_point', 'transform_points',
-    'install_unified_system', 'stable_transform_operation',
-
-    # Legacy transformation services (DEPRECATED)
-    'TransformationService', 'TransformationShim', 'TransformStabilizer',
+    # Unified transformation system
+    'Transform', 'UnifiedTransformationService',
 
     # Utility functions
     'get_module_logger', 'get_service'
