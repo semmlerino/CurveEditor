@@ -7,7 +7,7 @@ Please use services/unified_transform.py instead.
 
 Migration path:
 - Replace imports: from services.unified_transform import Transform
-- Use services.transformation_integration for compatibility
+- Use services.unified_transformation_integration for compatibility
 - See docs/unified_transformation_system.md for migration guide
 
 This module implements an immutable Transform class that encapsulates

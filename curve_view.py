@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QWidget, QRubberBand
 from typing import Any, Optional, Tuple
 from PySide6.QtCore import Qt, Signal
 from services.centering_zoom_service import CenteringZoomService
-from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPaintEvent
+from PySide6.QtGui import QPainter, QColor, QPen, QFont, QPainterPath, QPaintEvent, QPixmap
 from PySide6.QtCore import QPointF
 from services.input_service import InputService, CurveViewProtocol  # For type checking only
 from services.protocols import ImageSequenceProtocol  # For type checking only
@@ -79,7 +79,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
         self.pan_active: bool = False
         self.last_pan_pos: Optional[QPointF] = None
         # Image sequence support - implementing ImageSequenceProtocol
-        self.background_image: Optional[Any] = None  # TODO: Use correct type if known, e.g. Optional[QImage]
+        self.background_image: Optional[QPixmap] = None
         self.show_background: bool = True
         self.background_opacity: float = 0.7  # 0.0 to 1.0
         self.image_filenames: List[str] = []
@@ -283,12 +283,12 @@ class CurveView(QWidget):  # Implements protocols through type annotations
                     f"manual_offsets=(x:{self.x_offset}, y:{self.y_offset}), "
                     f"uniform_scale={uniform_scale:.6f}, image_scale=({image_scale_x:.2f}, {image_scale_y:.2f})")
 
-        # Generate a ViewState and Transform for validation
+        # Generate a ViewState and Transform using the unified transformation system for validation
         from services.view_state import ViewState
-        from services.transformation_service import TransformationService
+        from services.unified_transformation_service import UnifiedTransformationService
 
         view_state = ViewState.from_curve_view(self)
-        transform = TransformationService.calculate_transform(view_state)
+        transform = UnifiedTransformationService.from_view_state(view_state)
 
         # Log transform details to help diagnose any alignment issues
         params = transform.get_parameters()
@@ -371,7 +371,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             origin_x, origin_y = img_x, img_y  # img_x, img_y already calculated using transform.apply(0, 0)
 
             # 2. Data origin (0,0) without image scaling (for comparison only)
-            origin_no_scale_x, origin_no_scale_y = transform.apply(0, 0, use_image_scale=False)
+            origin_no_scale_x, origin_no_scale_y = origin_x, origin_y
 
             # 3. Data point at image dimensions (width, height)
             width_pt_x, width_pt_y = transform.apply(self.image_width, self.image_height)

@@ -90,7 +90,9 @@ class DialogService:
 
             window_size = dialog.window_spin.value()
 
-            data_ops.smooth_moving_average(points_to_smooth, window_size)
+            # Pass the parent_widget as the curve_view for stable transformation
+            # This ensures the smoothing operation uses the same transformation parameters
+            data_ops.smooth_moving_average(points_to_smooth, window_size, parent_widget)
 
             # Return the modified data directly
             return data_ops.get_data()

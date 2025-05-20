@@ -4,6 +4,7 @@ from services.protocols import PointsList
 import math
 
 from services.logging_service import LoggingService
+from services.unified_transformation_service import UnifiedTransformationService
 
 # Configure logger for this module
 logger = LoggingService.get_logger("analysis_service")
@@ -41,15 +42,19 @@ class ConcreteCurveProcessor:
         """Get the processed curve data"""
         return self.data
 
-    def smooth_moving_average(self, indices: List[int], window_size: int) -> None:
+    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
         """Apply moving average smoothing to x and y coordinates.
 
         This implementation uses all points with indices in the 'indices' parameter
         to calculate the average values, then applies these averages to each point.
+        Uses the UnifiedTransformationService's stable_transformation_context to prevent
+        point drift in screen space.
+        
+        Args:
+            indices: List of indices to smooth
+            window_size: Size of the smoothing window
+            real_view: Optional reference to the actual curve view for stable transformation
         """
-        import logging
-        logger = logging.getLogger(__name__)
-
         logger.info(f"Starting smooth_moving_average with {len(indices)} indices and window_size={window_size}")
         if not self.data or not indices:
             logger.warning(f"Smoothing skipped: data={bool(self.data)}, indices={bool(indices)}, window={window_size}")
@@ -66,80 +71,222 @@ class ConcreteCurveProcessor:
         # Create a copy of the data for processing
         result = copy.deepcopy(self.data)
         
-        # Initialize list for tracking changes
-        changes: list[tuple[int, float, float]] = []
+        # Create a mock curve view to use with the transformation service
+        # This allows us to use the stable_transformation_context
+        from PySide6.QtWidgets import QWidget
         
-        # Log some sample points before smoothing
-        for sample_idx in sorted_indices[:2] + [sorted_indices[-1]] if len(sorted_indices) > 2 else sorted_indices:
-            before_point = self.data[sample_idx]
-            logger.info(f"BEFORE - Sample point at idx={sample_idx}: frame={before_point[0]}, x={before_point[1]}, y={before_point[2]}")
-
-        # Calculate the moving average using all points in indices
-        # This is what the test expects - using all the provided indices as the window
-        window_points = [self.data[idx] for idx in sorted_indices]
-        
-        # Calculate averages for x and y
-        sum_x = sum(p[1] for p in window_points)
-        sum_y = sum(p[2] for p in window_points)
-        count = len(window_points)
-        
-        if count > 0:
-            avg_x = sum_x / count
-            avg_y = sum_y / count
-            logger.info(f"Calculated averages: x={avg_x}, y={avg_y} from {count} points")
-            
-            # Apply the same average to all points being smoothed
-            for idx in sorted_indices:
-
-                # Replace the point with smoothed x and y, keeping original frame number
-                frame = self.data[idx][0]  # Keep original frame number
-                original_y = self.data[idx][2]  # Store original for logging
-
-                # Preserve status (keyframe, interpolated, etc.) if present
-                # Safely check if point has a status flag (4th element)
-                point = self.data[idx]
-                if len(point) > 3 and hasattr(point, '__getitem__'):
-                    try:
-                        status = bool(point[3])
-                        result[idx] = (frame, avg_x, avg_y, status)
-                    except (IndexError, TypeError):
-                        # If accessing the status fails, just use 3-tuple
-                        result[idx] = (frame, avg_x, avg_y)
-                else:
-                    result[idx] = (frame, avg_x, avg_y)
+        class MockCurveView(QWidget):
+            """
+            Mock curve view used for operations requiring transformation.
+            This allows for consistent work with transformation while allowing reuse of 
+            processing routines.
+            """
+            def __init__(self, points, real_view=None):
+                super().__init__()
+                self.points = points
+                self._real_view = real_view  # Store reference to real view for stable transforms
                 
-                # Track the change for logging
-                changes.append((idx, original_y, avg_y))
-
-        # Ensure result has the correct type annotation
-        result: PointsList = result
-
-        # Log the changes
-        for idx, old_y, new_y in changes:
-            old_point = self.data[idx]
-            new_point = result[idx]
-            logger.debug(f"CHANGED idx={idx}: From ({old_point[0]}, {old_point[1]}, {old_y}) to ({new_point[0]}, {new_point[1]}, {new_y})")
-
-        # Log sample points after smoothing
-        if len(result) > 0 and len(indices) > 0:
-            # Log the same sample points after smoothing
-            sample_indices = [indices[0]]
-            if len(indices) > 1:
-                sample_indices.append(indices[len(indices)//2])
-            if len(indices) > 2:
-                sample_indices.append(indices[-1])
-
-            for sample_idx in sample_indices:
-                if 0 <= sample_idx < len(result):
-                    after_point = result[sample_idx]
-                    logger.info(f"AFTER - Sample point at idx={sample_idx}: frame={after_point[0]}, x={after_point[1]}, y={after_point[2]}")
-
-                    # Also log the changes
-                    if 0 <= sample_idx < len(self.data):
-                        before_point = self.data[sample_idx]
-                        y_diff = after_point[2] - before_point[2]
-                        logger.info(f"CHANGE at idx={sample_idx}: y changed by {y_diff:.6f} ({before_point[2]:.6f} -> {after_point[2]:.6f})")
-
+                # Copy parameters from real view if provided
+                if real_view is not None:
+                    self.zoom_factor = getattr(real_view, 'zoom_factor', 1.0)
+                    self.offset_x = getattr(real_view, 'offset_x', 0)
+                    self.offset_y = getattr(real_view, 'offset_y', 0)
+                    self.flip_y_axis = getattr(real_view, 'flip_y_axis', True)
+                    self.scale_to_image = getattr(real_view, 'scale_to_image', True)
+                    self.x_offset = getattr(real_view, 'x_offset', 0)
+                    self.y_offset = getattr(real_view, 'y_offset', 0)
+                    self.image_width = getattr(real_view, 'image_width', None)
+                    self.image_height = getattr(real_view, 'image_height', None)
+                    self._width = getattr(real_view, 'width', lambda: 800)()
+                    self._height = getattr(real_view, 'height', lambda: 600)()
+                    
+                    # Log the copied parameters for debugging
+                    logger.debug(f"MockCurveView created with parameters: zoom_factor={self.zoom_factor}, " + 
+                                 f"offset=({self.offset_x}, {self.offset_y}), flip_y={self.flip_y_axis}, " +
+                                 f"scale_to_image={self.scale_to_image}, dimensions={self._width}x{self._height}")
+                else:
+                    # Default values if no real view provided
+                    self.zoom_factor = 1.0
+                    self.offset_x = 0
+                    self.offset_y = 0
+                    self.flip_y_axis = True
+                    self.scale_to_image = True
+                    self.x_offset = 0
+                    self.y_offset = 0
+                    self.image_width = 1920  # Default image width
+                    self.image_height = 1080  # Default image height
+                    self._width = 800
+                    self._height = 600
+                    self.display_width = 1920  # Standard display width
+                    self.display_height = 1080  # Standard display height
+                
+                self.background_image = None
+            
+            def width(self) -> int:
+                return 800  # Default width
+            
+            def height(self) -> int:
+                return 600  # Default height
+            
+            def update(self, arg__1=None) -> None:
+                # QWidget.update() expects arg__1 parameter name in PySide6
+                super().update()  # Call parent implementation
+                
+            def transform_point(self, x: float, y: float) -> tuple[float, float]:
+                """Transform a data point to screen coordinates using stable transform."""
+                from services.unified_transformation_service import UnifiedTransformationService
+                # Use the real view's stable transform if available
+                if self._real_view is not None:
+                    # Use the stable transform flag to ensure consistent transformations
+                    return UnifiedTransformationService.transform_point_to_widget(
+                        self._real_view, x, y, use_stable_transform=True
+                    )
+                else:
+                    # Fall back to using this mock view's transform
+                    return UnifiedTransformationService.transform_point_to_widget(
+                        self, x, y
+                    )
+        
+        # Get the minimum and maximum coordinate values to properly setup the mock view
+        min_x = min(point[1] for point in self.data) if self.data else 0
+        max_x = max(point[1] for point in self.data) if self.data else 100
+        min_y = min(point[2] for point in self.data) if self.data else 0
+        max_y = max(point[2] for point in self.data) if self.data else 100
+        data_width = max(1, max_x - min_x)
+        data_height = max(1, max_y - min_y)
+        
+        # Create mock curve view with the real view to ensure consistent transformation
+        mock_view = MockCurveView(self.data, real_view=real_view)
+        
+        # Calculate averages for each point with respect to screen coordinates
+        # Use the stable transformation context to prevent drift
+        try:
+            # Create a reference set of points for tracking transformation stability
+            reference_points = {}
+            for idx in sorted_indices:
+                if 0 <= idx < len(self.data):
+                    reference_points[idx] = self.data[idx]
+            
+            # Use the transformation service with a properly tracked transformation context
+            with UnifiedTransformationService.stable_transformation_context(mock_view) as transform:
+                logger.info("Using stable transformation context for smoothing")
+                
+                # Log sample points before smoothing
+                for sample_idx in sorted_indices[:2] + [sorted_indices[-1]] if len(sorted_indices) > 2 else sorted_indices:
+                    if sample_idx in reference_points:
+                        before_point = reference_points[sample_idx]
+                        tx, ty = transform.apply(before_point[1], before_point[2])
+                        logger.info(f"BEFORE - Point idx={sample_idx}: frame={before_point[0]}, data=({before_point[1]:.2f},{before_point[2]:.2f}), screen=({tx:.2f},{ty:.2f})")
+                
+                # Instead of calculating average in screen space, let's take a different approach
+                # First, get the screen-space positions of all points
+                screen_positions = {}
+                for idx in sorted_indices:
+                    if 0 <= idx < len(self.data):
+                        point = self.data[idx]
+                        # Transform data coordinates to screen coordinates
+                        screen_x, screen_y = mock_view.transform_point(point[1], point[2])
+                        screen_positions[idx] = (point[0], screen_x, screen_y)
+                
+                # Calculate average position in screen space
+                if screen_positions:
+                    # Calculate centroid in screen space
+                    sum_screen_x = sum(float(screen_positions[idx][1]) for idx in screen_positions)
+                    sum_screen_y = sum(float(screen_positions[idx][2]) for idx in screen_positions)
+                    count = len(screen_positions)
+                    avg_screen_x = sum_screen_x / count
+                    avg_screen_y = sum_screen_y / count
+                    
+                    # Use a fixed smoothing radius in screen space
+                    # This gives more consistent results regardless of zoom level
+                    smooth_radius = 5.0  # pixels
+                    
+                    logger.info(f"Target screen space centroid: x={avg_screen_x:.2f}, y={avg_screen_y:.2f} from {count} points")
+                    
+                    # Instead of making all points identical, blend them toward the average
+                    # This preserves the curve shape while reducing noise
+                    for idx in sorted_indices:
+                        if idx not in screen_positions:
+                            continue
+                            
+                        point = self.data[idx]
+                        frame_num = point[0]
+                        screen_x, screen_y = screen_positions[idx][1], screen_positions[idx][2]
+                        
+                        # Calculate blend factor based on distance from average
+                        dx = screen_x - avg_screen_x
+                        dy = screen_y - avg_screen_y
+                        distance = math.sqrt(dx*dx + dy*dy)
+                        blend_factor = min(1.0, distance / smooth_radius) * 0.5
+                        
+                        # Blend current position with average position
+                        new_screen_x = screen_x * blend_factor + avg_screen_x * (1.0 - blend_factor)
+                        new_screen_y = screen_y * blend_factor + avg_screen_y * (1.0 - blend_factor)
+                        
+                        # Convert back to data coordinates
+                        data_x, data_y = transform.apply_inverse(new_screen_x, new_screen_y)
+                        
+                        # Preserve status if available, otherwise mark as modified
+                        if len(point) > 3 and isinstance(point[3], bool):
+                            result[idx] = (frame_num, data_x, data_y, point[3])
+                        else:
+                            result[idx] = (frame_num, data_x, data_y, False)
+                    
+                    # Log sample points after smoothing to verify consistency
+                    for sample_idx in sorted_indices[:2] + [sorted_indices[-1]] if len(sorted_indices) > 2 else sorted_indices:
+                        if sample_idx in screen_positions and sample_idx < len(result):
+                            after_point = result[sample_idx]
+                            tx, ty = transform.apply(after_point[1], after_point[2])
+                            logger.info(f"AFTER - Point idx={sample_idx}: frame={after_point[0]}, screen=({tx:.2f},{ty:.2f})")
+            
+            logger.info(f"Applied smoothing with blending to {len(sorted_indices)} points using stable transformation")
+        
+        except Exception as e:
+            logger.error(f"Error during stable transformation smoothing: {e}")
+            # Create a more sophisticated fallback method that maintains curve shape
+            # while still reducing noise
+            window_points = [self.data[idx] for idx in sorted_indices]
+            if window_points:
+                # Calculate centroid of points in data space
+                sum_x = sum(float(p[1]) for p in window_points)
+                sum_y = sum(float(p[2]) for p in window_points)
+                count = len(window_points)
+                avg_x = sum_x / count
+                avg_y = sum_y / count
+                
+                logger.info(f"Fallback smoothing: centroid=({avg_x:.2f},{avg_y:.2f}) from {count} points")
+                
+                # Calculate average distance from centroid for scaling
+                total_dist = sum(math.sqrt((p[1] - avg_x)**2 + (p[2] - avg_y)**2) for p in window_points)
+                avg_dist = total_dist / max(1, count)
+                smooth_radius = avg_dist * 0.3  # Use 30% of average distance as smoothing radius
+                
+                for idx in sorted_indices:
+                    if idx >= len(self.data):
+                        continue
+                        
+                    point = self.data[idx]
+                    frame_num = point[0]
+                    
+                    # Calculate blend factor based on distance from average
+                    dx = point[1] - avg_x
+                    dy = point[2] - avg_y
+                    distance = math.sqrt(dx*dx + dy*dy)
+                    blend_factor = min(1.0, distance / max(0.001, smooth_radius)) * 0.7
+                    
+                    # Blend toward average position, but preserve more of original shape
+                    new_x = point[1] * blend_factor + avg_x * (1.0 - blend_factor)
+                    new_y = point[2] * blend_factor + avg_y * (1.0 - blend_factor)
+                    
+                    # Preserve status if available
+                    if len(point) > 3 and isinstance(point[3], bool):
+                        result[idx] = (frame_num, new_x, new_y, point[3])
+                    else:
+                        result[idx] = (frame_num, new_x, new_y, False)
+                        
+                logger.warning(f"Used fallback smoothing algorithm due to error")
+        
+        # Update the data with the smoothed values
         self.data = result
         logger.info(f"Smoothing complete, updated {len(sorted_indices)} points")
 
@@ -234,16 +381,16 @@ class AnalysisService:
         """
         return copy.deepcopy(self.data)
 
-    def smooth_moving_average(self, indices: List[int], window_size: int) -> None:
-        """
-        Apply moving average smoothing to the specified indices.
+    def smooth_moving_average(self, indices: List[int], window_size: int, curve_view=None) -> None:
+        """Apply moving average smoothing to the specified indices.
 
         Args:
             indices: List of indices to smooth
             window_size: Size of the smoothing window
+            curve_view: Optional reference to the actual curve view for stable transformation
         """
         processor = self.create_processor(self.data)
-        processor.smooth_moving_average(indices, window_size)
+        processor.smooth_moving_average(indices, window_size, curve_view)
         self.data = processor.get_data()
 
     def fill_gap(self, data: PointsList, start_frame: int, end_frame: int, method: str = 'linear') -> PointsList:
@@ -337,7 +484,7 @@ class AnalysisService:
                     cs_x = CubicSpline(frames_list, xs_list)
                     cs_y = CubicSpline(frames_list, ys_list)
 
-                    # Add the interpolated points to the result
+                    # Insert all interpolated points
                     interpolated_points: PointsList = []
                     for frame in range(start_frame, end_frame + 1):
                         # Convert numpy values to Python floats

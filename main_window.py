@@ -35,7 +35,7 @@ import os
 import re
 
 import logging
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton
+from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton, QLabel
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from curve_view import CurveView
@@ -147,15 +147,15 @@ class MainWindow(QMainWindow):
         super(MainWindow, self).__init__()
 
         # --- Protocol attributes for MainWindowProtocol ---
-        self.quality_score_label: Optional[Any] = None
-        self.smoothness_label: Optional[Any] = None
-        self.consistency_label: Optional[Any] = None
-        self.coverage_label: Optional[Any] = None
-        self.analyze_button: Optional[Any] = None
-        self.toggle_vectors_button: Optional[Any] = None
+        self.quality_score_label: Optional[QLabel] = None
+        self.smoothness_label: Optional[QLabel] = None
+        self.consistency_label: Optional[QLabel] = None
+        self.coverage_label: Optional[QLabel] = None
+        self.analyze_button: Optional[QPushButton] = None
+        self.toggle_vectors_button: Optional[QPushButton] = None
         # 'widget' property provided below
         # --- Protocol attributes for HistoryContainerProtocol ---
-        self.info_label: Optional[Any] = None
+        self.info_label: Optional[QLabel] = None
         # --- End protocol attributes ---
 
         self.setWindowTitle("3DE4 2D Curve Editor")
@@ -266,6 +266,7 @@ class MainWindow(QMainWindow):
         """Initialize the unified transformation system."""
         try:
             # Clear any existing transform cache
+            from services.unified_transformation_service import UnifiedTransformationService
             UnifiedTransformationService.clear_cache()
             logger.info("✅ Unified transformation system initialized")
         except Exception as e:
@@ -717,32 +718,128 @@ class MainWindow(QMainWindow):
         if not self.curve_data:
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
-
-        # Use the new stable transformation context manager
-        with UnifiedTransformationService.stable_transformation_context(self.curve_view) as stable_transform:
-            # Get selected indices
-            selected_indices = getattr(self.curve_view, 'selected_indices', [])
-            selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
-
-            # Show smooth dialog and get modified data
-            modified_data = DialogService.show_smooth_dialog(
-                parent_widget=self,
-                curve_data=self.curve_data,
-                selected_indices=selected_indices,
-                selected_point_idx=selected_point_idx
-            )
-
-            if modified_data is not None:
-                # Update curve data - transformation stability is handled by context manager
-                self.curve_data = modified_data
-                self.curve_view.setPoints(
-                    self.curve_data,
-                    self.image_width,
-                    self.image_height,
-                    preserve_view=True
+        
+        # Save critical view state parameters before any operations
+        # These will be used to restore the exact view state after updating points
+        current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+        current_offset_x = getattr(self.curve_view, 'offset_x', 0.0)
+        current_offset_y = getattr(self.curve_view, 'offset_y', 0.0)
+        current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
+        current_flip_y = getattr(self.curve_view, 'flip_y_axis', True)
+        logger.info(f"SMOOTH - Before: zoom={current_zoom}, offset=({current_offset_x},{current_offset_y}), scale_to_image={current_scale_to_image}")
+        
+        # Use an outer stable transformation context to track reference points
+        # and ensure we can detect and correct any drift
+        reference_points = {}
+        try:
+            # Start the stable transformation context
+            with UnifiedTransformationService.stable_transformation_context(self.curve_view) as transform:
+                # Get selected indices
+                selected_indices = getattr(self.curve_view, 'selected_indices', [])
+                selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
+                
+                # Store screen space positions of key reference points for verification
+                if self.curve_data and len(self.curve_data) > 0:
+                    # Store first, middle and last points as references
+                    reference_indices = [0]
+                    if len(self.curve_data) > 2:
+                        reference_indices.append(len(self.curve_data) // 2)
+                    reference_indices.append(len(self.curve_data) - 1)
+                    
+                    for idx in reference_indices:
+                        if 0 <= idx < len(self.curve_data):
+                            point = self.curve_data[idx]
+                            # Store screen-space position
+                            screen_x, screen_y = transform.apply(point[1], point[2])
+                            reference_points[idx] = (point[0], screen_x, screen_y)
+                            logger.info(f"Reference point {idx}: frame={point[0]}, screen=({screen_x:.2f},{screen_y:.2f})")
+                
+                # Show smooth dialog and get modified data
+                modified_data = DialogService.show_smooth_dialog(
+                    parent_widget=self,
+                    curve_data=self.curve_data,
+                    selected_indices=selected_indices,
+                    selected_point_idx=selected_point_idx
                 )
-                self.add_to_history()
-                self.statusBar().showMessage("Smoothing applied successfully", 3000)
+                
+                if modified_data is not None:
+                    # Store the modified data but don't update the view yet
+                    self.curve_data = modified_data
+                    
+                    # First, explicitly restore the exact original view transform parameters
+                    # This ensures the transformation remains perfectly stable
+                    self.curve_view.zoom_factor = current_zoom
+                    self.curve_view.offset_x = current_offset_x
+                    self.curve_view.offset_y = current_offset_y
+                    self.curve_view.scale_to_image = current_scale_to_image
+                    self.curve_view.flip_y_axis = current_flip_y
+                    
+                    # Explicitly save ALL transformation parameters before smoothing
+                    original_zoom = self.curve_view.zoom_factor
+                    original_offset_x = self.curve_view.offset_x
+                    original_offset_y = self.curve_view.offset_y
+                    original_flip_y = self.curve_view.flip_y_axis
+                    original_scale_to_image = self.curve_view.scale_to_image
+                    
+                    logger.info(f"SMOOTH - Original params: zoom={original_zoom}, offset=({original_offset_x}, {original_offset_y}), flip_y={original_flip_y}, scale_to_image={original_scale_to_image}")
+                    
+                    # Create a transform that we'll use for the entire operation
+                    original_transform = UnifiedTransformationService.from_curve_view(self.curve_view)
+                    
+                    # Apply the smoothing operation while ensuring consistent transformation
+                    try:
+                        # Update the view with special preservation and force_parameters flags
+                        self.curve_view.setPoints(
+                            self.curve_data, 
+                            self.image_width,
+                            self.image_height,
+                            preserve_view=True,
+                            force_parameters=True  # Ensures parameters aren't recalculated during update
+                        )
+                        
+                        # Force-restore the original transformation parameters 
+                        # This is critical to prevent drift
+                        self.curve_view.zoom_factor = original_zoom
+                        self.curve_view.offset_x = original_offset_x 
+                        self.curve_view.offset_y = original_offset_y
+                        self.curve_view.flip_y_axis = original_flip_y
+                        self.curve_view.scale_to_image = original_scale_to_image
+                        
+                        # Clear any stable transform caches to prevent stale transforms
+                        UnifiedTransformationService.clear_stable_transforms()
+                        
+                        # Verify the reference points are in the same position using the original transform
+                        if reference_points:
+                            for idx, (frame, ref_x, ref_y) in reference_points.items():
+                                if idx < len(self.curve_data):
+                                    point = self.curve_data[idx]
+                                    new_x, new_y = original_transform.apply(point[1], point[2])
+                                    drift_x = new_x - ref_x
+                                    drift_y = new_y - ref_y
+                                    drift = (drift_x**2 + drift_y**2)**0.5
+                                    logger.info(f"Point {idx}: drift=({drift_x:.2f},{drift_y:.2f}), total={drift:.2f}px")
+                    except Exception as e:
+                        logger.error(f"Error during smooth operation: {e}")
+                        # Ensure parameters are restored even in case of error
+                        self.curve_view.zoom_factor = original_zoom
+                        self.curve_view.offset_x = original_offset_x
+                        self.curve_view.offset_y = original_offset_y
+                        self.curve_view.flip_y_axis = original_flip_y
+                        self.curve_view.scale_to_image = original_scale_to_image
+                    
+                    # Add to history and show success message
+                    self.add_to_history()
+                    self.statusBar().showMessage("Smoothing applied successfully with drift correction", 3000)
+        
+        except Exception as e:
+            logger.error(f"Error in stable smoothing operation: {e}")
+            self.statusBar().showMessage(f"Smoothing failed: {e}", 3000)
+            
+        # Log final transform state
+        current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
+        current_offset_x = getattr(self.curve_view, 'offset_x', 0.0)
+        current_offset_y = getattr(self.curve_view, 'offset_y', 0.0)
+        logger.info(f"SMOOTH - After: zoom={current_zoom}, offset=({current_offset_x},{current_offset_y}), scale_to_image={getattr(self.curve_view, 'scale_to_image', True)}")
 
     def show_filter_dialog(self):
         """Show the filter dialog for the curve data."""

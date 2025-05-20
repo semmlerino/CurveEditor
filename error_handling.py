@@ -9,7 +9,7 @@ user experience and proper error reporting throughout the application.
 """
 
 import traceback
-from PySide6.QtWidgets import QMessageBox
+from PySide6.QtWidgets import QMessageBox, QWidget
 from typing import Any, Callable, Optional, TypeVar
 from unittest.mock import MagicMock, Mock
 
@@ -74,7 +74,7 @@ def safe_operation(operation_name: Optional[str] = None, record_history: bool = 
         return wrapper
     return decorator
 
-def show_error(parent: Optional[Any], title: str, message: str, detailed_message: Optional[str] = None) -> None:
+def show_error(parent: Optional[QWidget], title: str, message: str, detailed_message: Optional[str] = None) -> None:
     """Display a standardized error message to the user.
 
     Args:

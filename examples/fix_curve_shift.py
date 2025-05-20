@@ -22,9 +22,9 @@ from PySide6.QtCore import QPointF, QTimer
 from main_window import MainWindow
 from curve_view import CurveView
 from services.view_state import ViewState
-from services.transform import Transform
-from services.transformation_service import TransformationService
-from services.transformation_shim import install, transform_points
+from services.unified_transform import Transform
+from services.unified_transformation_service import UnifiedTransformationService
+from services.unified_transformation_shim import install, transform_points
 from services.logging_service import LoggingService
 
 # Set up logging
@@ -50,7 +50,7 @@ def apply_smooth_with_stable_transform(main_window: 'MainWindow') -> None:
     # 1. BEFORE ANY CHANGES: Store the view state and create a transform
     logger.info("Creating stable transform before smoothing operation")
     before_state = ViewState.from_curve_view(curve_view)
-    stable_transform = TransformationService.calculate_transform(before_state)
+    stable_transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(before_state)
 
     # 2. Track positions of reference points before changes
     # This helps verify that points don't shift unexpectedly
@@ -124,7 +124,7 @@ def fix_paintEvent_with_stable_transform(curve_view: 'CurveView') -> None:
     """
     # Create a consistent transform for all painting operations
     view_state = ViewState.from_curve_view(curve_view)
-    transform = TransformationService.calculate_transform(view_state)
+    transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
 
     logger.info(f"Using transform with scale={transform.get_parameters()['scale']:.4f}")
 

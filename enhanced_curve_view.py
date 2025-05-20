@@ -121,7 +121,7 @@ class EnhancedCurveView(QWidget):
         self.toggle_nudge_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
         self.toggle_nudge_shortcut.activated.connect(self.toggle_nudge_overlay)
 
-    def setPoints(self, points, image_width, image_height, preserve_view=False):
+    def setPoints(self, points, image_width, image_height, preserve_view=False, force_parameters=False):
         """Set the points to display and adjust view accordingly.
 
         Args:
@@ -129,9 +129,10 @@ class EnhancedCurveView(QWidget):
             image_width: Width of the image/workspace
             image_height: Height of the image/workspace
             preserve_view: If True, maintain current view position
+            force_parameters: If True, force use of provided view parameters without recalculation
         """
         from services.visualization_service import VisualizationService as VisualizationOperations
-        VisualizationOperations.set_points(self, points, image_width, image_height, preserve_view)
+        VisualizationOperations.set_points(self, points, image_width, image_height, preserve_view, force_parameters)
 
     def setImageSequence(self, path, filenames):
         """Set the image sequence to display as background."""

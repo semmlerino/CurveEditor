@@ -47,7 +47,8 @@ class CurveViewProtocol(Protocol):
 
 
 class UnifiedTransformationService:
-    """Centralized service for all coordinate transformations.
+    """
+    Centralized service for all coordinate transformations.
 
     This service consolidates the functionality previously spread across
     TransformationService, TransformStabilizer, and TransformationShim.
@@ -62,10 +63,6 @@ class UnifiedTransformationService:
     # Transform cache for performance optimization
     _transform_cache: Dict[int, Transform] = {}
     _max_cache_size: int = 20
-    
-    # Stable transform cache for maintaining consistency across operations
-    _stable_transform_cache: Dict[int, Transform] = {}
-    _stable_cache_size: int = 10
 
     @staticmethod
     def from_view_state(view_state: ViewState) -> Transform:
@@ -116,8 +113,8 @@ class UnifiedTransformationService:
             center_offset_y=center_y,
             pan_offset_x=0.0,  # Pan is already included in center offsets
             pan_offset_y=0.0,
-            manual_offset_x=view_state.manual_x_offset,
-            manual_offset_y=view_state.manual_y_offset,
+            manual_x=view_state.manual_x_offset,
+            manual_y=view_state.manual_y_offset,
             flip_y=view_state.flip_y_axis,
             display_height=view_state.display_height,
             image_scale_x=image_scale_x,
@@ -191,50 +188,6 @@ class UnifiedTransformationService:
         return [QPointF(*transform.apply(p[1], p[2])) for p in points]
 
     @staticmethod
-    def get_stable_transform(curve_view: Any) -> Transform:
-        """
-        Get a stable transform for a curve view that won't change between calls.
-
-        This is critical for operations that require multiple transform operations
-        with the exact same transform parameters.
-
-        Args:
-            curve_view: The curve view to create a stable transform for
-
-        Returns:
-            A cached Transform object with the same parameters
-        """
-        # Create a key based on the object id and critical transform parameters
-        key_parts = [
-            id(curve_view),
-            getattr(curve_view, 'zoom_factor', 1.0),
-            getattr(curve_view, 'offset_x', 0.0),
-            getattr(curve_view, 'offset_y', 0.0),
-            getattr(curve_view, 'flip_y_axis', True),
-            getattr(curve_view, 'scale_to_image', True),
-        ]
-        cache_key = hash(tuple(key_parts))
-
-        # Check if we already have a transform for this configuration
-        if cache_key in UnifiedTransformationService._stable_transform_cache:
-            logger.debug("Using cached stable transform")
-            return UnifiedTransformationService._stable_transform_cache[cache_key]
-
-        # Create a new transform and cache it
-        transform = UnifiedTransformationService.from_curve_view(curve_view)
-        UnifiedTransformationService._stable_transform_cache[cache_key] = transform
-        
-        # Manage cache size to prevent memory issues
-        if len(UnifiedTransformationService._stable_transform_cache) > UnifiedTransformationService._stable_cache_size:
-            # Remove oldest entry (by key order)
-            oldest_key = next(iter(UnifiedTransformationService._stable_transform_cache))
-            del UnifiedTransformationService._stable_transform_cache[oldest_key]
-            logger.debug("Removed oldest stable transform from cache")
-
-        logger.debug(f"Created new stable transform for curve view {id(curve_view)}")
-        return transform
-
-    @staticmethod
     def create_stable_transform(curve_view: Any) -> Transform:
         """
         Create a stable transform for operations that modify data.
@@ -248,8 +201,8 @@ class UnifiedTransformationService:
         Returns:
             A stable Transform object
         """
-        # Use our get_stable_transform which caches transforms for consistency
-        return UnifiedTransformationService.get_stable_transform(curve_view)
+        # We simply delegate to from_curve_view which already creates a stable transform
+        return UnifiedTransformationService.from_curve_view(curve_view)
 
     @staticmethod
     def detect_transformation_drift(before_points: List[Tuple[int, float, float]],
@@ -464,18 +417,6 @@ class UnifiedTransformationService:
             'cache_size': len(UnifiedTransformationService._transform_cache),
             'max_cache_size': UnifiedTransformationService._max_cache_size
         }
-        # Manage cache size to prevent memory issues
-        if len(UnifiedTransformationService._stable_transform_cache) > 10:
-            # Remove oldest entry (by key order)
-            oldest_key = next(iter(UnifiedTransformationService._stable_transform_cache))
-            del UnifiedTransformationService._stable_transform_cache[oldest_key]
-
-        return transform
-
-    @staticmethod
-    def clear_stable_transforms() -> None:
-        """Clear the stable transform cache."""
-        UnifiedTransformationService._stable_transform_cache.clear()
 
     # Backward compatibility methods
     @staticmethod
@@ -485,8 +426,7 @@ class UnifiedTransformationService:
                                  display_height: Optional[float] = None,
                                  offset_x: Optional[float] = None,
                                  offset_y: Optional[float] = None,
-                                 scale: Optional[float] = None,
-                                 use_stable_transform: bool = False) -> Tuple[float, float]:
+                                 scale: Optional[float] = None) -> Tuple[float, float]:
         """
         Legacy-compatible method for transforming points to widget coordinates.
 
@@ -514,16 +454,7 @@ class UnifiedTransformationService:
             x == 100 and y == 200 and display_width == 1920 and display_height == 1080):
             # Legacy test case behavior
             return (60.0, 110.0)
-            
-        # Use stable transform if requested - this ensures consistent results
-        # across multiple transform operations during smoothing and other operations
-        if use_stable_transform:
-            # Get or create a cached stable transform for this curve view
-            transform = UnifiedTransformationService.get_stable_transform(curve_view)
-            logger.debug(f"Using stable transform for point ({x:.2f}, {y:.2f})")
-            return transform.apply(x, y)
 
-        # Otherwise use the normal transformation workflow
         # Create view state from curve view
         view_state = ViewState.from_curve_view(curve_view)
 

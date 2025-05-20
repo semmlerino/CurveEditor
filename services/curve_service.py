@@ -1,18 +1,19 @@
 # services/curve_service.py
 
-from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING
+from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING, Set
 from error_handling import safe_operation
 from PySide6.QtCore import QRect
 
 from services.curve_utils import normalize_point, set_point_status
 from services.centering_zoom_service import CenteringZoomService
 from services.visualization_service import VisualizationService
-from services.unified_transformation_service import UnifiedTransformationService
+from services.unified_transformation_service import UnifiedTransformationService, Transform
 from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
     from services.input_service import CurveViewProtocol
     from main_window import MainWindow
+    from services.protocols import PointsList, PointTuple, PointTupleWithStatus
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_service")
@@ -66,15 +67,15 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Select Points in Rectangle")
-    def select_points_in_rect(curve_view: Any, main_window: Any, selection_rect: QRect) -> int:
+    def select_points_in_rect(curve_view: "CurveViewProtocol", main_window: "MainWindow", selection_rect: QRect) -> int:
         """Select all points within the given rectangle in widget coordinates."""
         if not hasattr(curve_view, 'points') or not curve_view.points:
             return 0
 
-        selected_indices: set[int] = set()
+        selected_indices: Set[int] = set()
 
         # Use unified transformation service
-        transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
@@ -106,7 +107,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Select Point")
-    def select_point_by_index(curve_view: Any, main_window: Any, index: int) -> bool:
+    def select_point_by_index(curve_view: "CurveViewProtocol", main_window: "MainWindow", index: int) -> bool:
         """Select a point by its index."""
         try:
             index = int(index)
@@ -131,7 +132,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Set Curve Data")
-    def set_curve_data(curve_view: Any, curve_data: List[Tuple[Any, ...]]) -> None:
+    def set_curve_data(curve_view: "CurveViewProtocol", curve_data: List[Tuple[Any, ...]]) -> None:
         """Set curve data on the view."""
         if hasattr(curve_view, 'set_curve_data'):
             curve_view.set_curve_data(curve_data)
@@ -148,7 +149,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Delete Points")
-    def delete_selected_points(curve_view: Any, main_window: Any, show_confirmation: bool = False) -> Union[int, Tuple[int, str]]:
+    def delete_selected_points(curve_view: "CurveViewProtocol", main_window: "MainWindow", show_confirmation: bool = False) -> Union[int, Tuple[int, str]]:
         """Delete or mark as interpolated the selected points."""
         from curve_view_plumbing import confirm_delete
         from curve_data_utils import compute_interpolated_curve_data
@@ -176,7 +177,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Toggle Point Interpolation")
-    def toggle_point_interpolation(curve_view: Any, index: int) -> Union[bool, Tuple[bool, str]]:
+    def toggle_point_interpolation(curve_view: "CurveViewProtocol", index: int) -> Union[bool, Tuple[bool, str]]:
         """Toggle the interpolation status of a point."""
         try:
             point = curve_view.points[index]
@@ -200,7 +201,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Update Point Position")
-    def update_point_position(curve_view: Any, main_window: Any, index: int, x: float, y: float) -> bool:
+    def update_point_position(curve_view: "CurveViewProtocol", main_window: "MainWindow", index: int, x: float, y: float) -> bool:
         """Update a point's position while preserving its status."""
         if main_window and hasattr(main_window, 'curve_data') and 0 <= index < len(main_window.curve_data):
             # Use normalize_point to get standardized values regardless of point format
@@ -215,7 +216,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Update Point from Edit")
-    def update_point_from_edit(main_window: Any) -> bool:
+    def update_point_from_edit(main_window: "MainWindow") -> bool:
         """Update the selected point's position from the UI edit fields."""
         curve_view = main_window.curve_view
         idx = getattr(curve_view, 'selected_point_idx', -1)
@@ -240,7 +241,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("On Point Moved")
-    def on_point_moved(main_window: Any, idx: int, x: float, y: float) -> None:
+    def on_point_moved(main_window: "MainWindow", idx: int, x: float, y: float) -> None:
         """Handle point moved in the view. Updates curve_data and point info."""
         if not hasattr(main_window, 'curve_data') or idx < 0 or idx >= len(main_window.curve_data):
             return
@@ -258,7 +259,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Set Point Size")
-    def set_point_size(curve_view: Any, main_window: Any, size: float) -> None:
+    def set_point_size(curve_view: "CurveViewProtocol", main_window: "MainWindow", size: float) -> None:
         """Set the visual size of points in the curve view."""
         # Use VisualizationService to set point radius and avoid recursive calls
         VisualizationService.set_point_radius(curve_view, int(size))
@@ -266,13 +267,13 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Nudge Points")
-    def nudge_selected_points(curve_view: Any, dx: float = 0.0, dy: float = 0.0) -> bool:
+    def nudge_selected_points(curve_view: "CurveViewProtocol", dx: float = 0.0, dy: float = 0.0) -> bool:
         """Nudge selected points by the specified delta."""
         main_window = getattr(curve_view, 'main_window', None)
         if not main_window or not hasattr(main_window, 'curve_data'):
             return False
 
-        selected: set[int] = getattr(curve_view, 'selected_points', set[int]())
+        selected: Set[int] = getattr(curve_view, 'selected_points', set[int]())
         if not selected:
             return False
 
@@ -297,7 +298,7 @@ class CurveService:
         return True
 
     @staticmethod
-    def get_point_data(curve_view: Any, index: int) -> Optional[Tuple[Any, ...]]:
+    def get_point_data(curve_view: "CurveViewProtocol", index: int) -> Optional[Tuple[Any, ...]]:
         """Get point data as a tuple (frame, x, y, status)."""
         pts = getattr(curve_view, 'points', None)
         if pts is None or index < 0 or index >= len(pts):
@@ -307,13 +308,13 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Find Point At")
-    def find_point_at(curve_view: Any, x: float, y: float) -> int:
+    def find_point_at(curve_view: "CurveViewProtocol", x: float, y: float) -> int:
         """Find a point at the given widget coordinates."""
         if not hasattr(curve_view, 'points') or not curve_view.points:
             return -1
 
         # Use unified transformation service
-        transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         # Find closest point
         closest_idx = -1
@@ -338,7 +339,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("On Point Selected")
-    def on_point_selected(curve_view: Any, main_window: Any, idx: int) -> None:
+    def on_point_selected(curve_view: "CurveViewProtocol", main_window: "MainWindow", idx: int) -> None:
         """Handle point selected event from the curve view."""
         # Update main window selected indices
         sel_idx = getattr(curve_view, 'selected_point_idx', idx) if hasattr(curve_view, 'selected_point_idx') else idx
@@ -375,8 +376,7 @@ class CurveService:
                     main_window.add_to_history()
 
     @staticmethod
-    @safe_operation("Reset View")
-    def reset_view(curve_view: Any) -> None:
+    def reset_view(curve_view: "CurveViewProtocol") -> None:
         """Reset the curve view to default zoom and position."""
         # Use CenteringZoomService to reset the view
         CenteringZoomService.reset_view(curve_view)
@@ -387,14 +387,14 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Update Point Info")
-    def update_point_info(main_window: Any, idx: int, x: float, y: float) -> None:
+    def update_point_info(main_window: "MainWindow", idx: int, x: float, y: float) -> None:
         """Update the point information panel with selected point data."""
         # Collect types for all selected points on the active frame
-        selected_types: set[str] = set()
+        selected_types: Set[str] = set()
         frame = None
 
         # Get selected indices if available
-        selected_indices: list[int] = []
+        selected_indices: List[int] = []
         if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'get_selected_indices'):
             selected_indices = main_window.curve_view.get_selected_indices()
 
@@ -445,7 +445,7 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Find Closest Point by Frame")
-    def find_closest_point_by_frame(curve_view: Any, frame_num: Union[int, float]) -> int:
+    def find_closest_point_by_frame(curve_view: "CurveViewProtocol", frame_num: Union[int, float]) -> int:
         """Find the index of the point closest to the given frame number.
 
         Args:
@@ -473,12 +473,12 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Extract Frame Number")
-    def extract_frame_number(curve_view: Any, img_idx: int) -> int:
+    def extract_frame_number(curve_view: "CurveViewProtocol", img_idx: int) -> int:
         """Extract frame number from the current image index.
 
         This method is a curve_view-specific wrapper around the general-purpose
         utils.extract_frame_number function. It handles the specific case of
-        extracting frame numbers from image filenames in a curve_view context.
+        getting a frame number from the current curve_view image sequence.
 
         Args:
             curve_view: The curve view instance
@@ -487,14 +487,12 @@ class CurveService:
         Returns:
             int: Frame number extracted from filename, or the index itself as fallback
         """
-        if not hasattr(curve_view, 'image_filenames') or not curve_view.image_filenames or img_idx < 0 or img_idx >= len(curve_view.image_filenames):
-            return img_idx
-
-        # Delegate to the consolidated implementation in utils
-        from utils import extract_frame_number as utils_extract_frame_number
-
-        filename = curve_view.image_filenames[img_idx]
-        return utils_extract_frame_number(filename, fallback=img_idx)
+        if hasattr(curve_view, 'image_filenames') and img_idx < len(getattr(curve_view, 'image_filenames', [])):
+            from utils import extract_frame_number as utils_extract_frame_number
+            filename = getattr(curve_view, 'image_filenames')[img_idx]
+            frame_num = utils_extract_frame_number(filename)
+            return frame_num if frame_num is not None else img_idx
+        return img_idx
 
     @staticmethod
     @safe_operation("Finalize Selection", record_history=False)
@@ -508,7 +506,7 @@ class CurveService:
         transform = UnifiedTransformationService.from_curve_view(curve_view)
 
         # Find points inside rectangle
-        sel: set[int] = set()
+        sel: Set[int] = set()
         for i, pt in enumerate(curve_view.points):
             _, x, y = pt[:3]
             # Transform point to widget coordinates
@@ -568,7 +566,7 @@ class CurveService:
         return True
 
     @staticmethod
-    def transform_point(curve_view: Any, x: float, y: float,
+    def transform_point(curve_view: "CurveViewProtocol", x: float, y: float,
                          display_width: Optional[float] = None,
                          display_height: Optional[float] = None,
                          offset_x: Optional[float] = None,
@@ -593,7 +591,7 @@ class CurveService:
             Tuple containing transformed coordinates (tx, ty) in widget space
         """
         # Get transform from unified service
-        transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
         return UnifiedTransformationService.transform_point(transform, x, y)
 
     @staticmethod

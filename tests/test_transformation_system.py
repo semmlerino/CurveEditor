@@ -15,9 +15,8 @@ from unittest.mock import MagicMock, patch
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.view_state import ViewState
-from services.transform import Transform
-from services.transformation_service import TransformationService
-from services.transform_stabilizer import TransformStabilizer
+from services.unified_transform import Transform
+from services.unified_transformation_service import UnifiedTransformationService
 from services.logging_service import LoggingService
 
 # Configure logging
@@ -78,42 +77,44 @@ class TestTransformationSystem(unittest.TestCase):
     def test_transform_creation(self):
         """Test creation of Transform from ViewState."""
         view_state = ViewState.from_curve_view(self.curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        transform = UnifiedTransformationService.from_view_state(view_state)
 
         # Verify transform parameters
         params = transform.get_parameters()
         self.assertIsNotNone(params['scale'])
-        self.assertIsNotNone(params['center_offset'])
-        self.assertIsNotNone(params['pan_offset'])
-        self.assertIsNotNone(params['manual_offset'])
+        self.assertIsNotNone(params['center_offset_x'])
+        self.assertIsNotNone(params['center_offset_y'])
+        self.assertIsNotNone(params['pan_offset_x'])
+        self.assertIsNotNone(params['pan_offset_y'])
+        self.assertIsNotNone(params['manual_offset_x'])
+        self.assertIsNotNone(params['manual_offset_y'])
         self.assertEqual(params['flip_y'], False)
 
-    def test_transform_point_application(self):
-        """Test applying a transform to a point."""
+    def test_transform_application(self):
+        """Test application of Transform to points."""
         view_state = ViewState.from_curve_view(self.curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        transform = UnifiedTransformationService.from_view_state(view_state)
 
-        # Transform a sample point
-        x, y = 100.0, 200.0
-        tx, ty = transform.apply(x, y)
-
-        # Verify transformed point is not None
+        # Test application to point
+        tx, ty = transform.apply(1.0, 2.0)
+        
+        # Verify transformation results are valid
         self.assertIsNotNone(tx)
         self.assertIsNotNone(ty)
-
-        # Transform the point again to verify consistency
-        tx2, ty2 = transform.apply(x, y)
-        self.assertEqual(tx, tx2)
-        self.assertEqual(ty, ty2)
+        
+        # Test application to another point
+        tx2, ty2 = transform.apply(3.0, 4.0)
+        self.assertNotEqual(tx, tx2)
+        self.assertNotEqual(ty, ty2)
 
     def test_transform_stability(self):
         """Test that transform remains stable with same view state."""
         view_state1 = ViewState.from_curve_view(self.curve_view)
-        transform1 = TransformationService.calculate_transform(view_state1)
+        transform1 = UnifiedTransformationService.from_view_state(view_state1)
 
         # Create a second transform with the same view state
         view_state2 = ViewState.from_curve_view(self.curve_view)
-        transform2 = TransformationService.calculate_transform(view_state2)
+        transform2 = UnifiedTransformationService.from_view_state(view_state2)
 
         # Apply both transforms to the same point
         x, y = 100.0, 200.0
@@ -127,79 +128,55 @@ class TestTransformationSystem(unittest.TestCase):
     def test_transform_caching(self):
         """Test that transform caching works."""
         # Clear cache first
-        TransformationService.clear_cache()
+        UnifiedTransformationService.clear_cache()
 
         # Create two transforms with the same view state
         view_state = ViewState.from_curve_view(self.curve_view)
 
         # First transform should be calculated and cached
-        transform1 = TransformationService.calculate_transform(view_state)
+        first_transform = UnifiedTransformationService.from_view_state(view_state)
+        # Verify the first transform is valid
+        self.assertIsNotNone(first_transform)
 
         # Second transform should use cache
         with patch.object(Transform, '__init__', return_value=None) as mock_init:
-            transform2 = TransformationService.calculate_transform(view_state)
+            second_transform = UnifiedTransformationService.from_view_state(view_state)
+            # Verify the second transform is valid
+            self.assertIsNotNone(second_transform)
             # Verify Transform constructor wasn't called again
             mock_init.assert_not_called()
 
-    def test_track_reference_points(self):
-        """Test tracking reference points."""
+    def test_transformation_drift(self):
+        """Test detecting transformation drift between points."""
         view_state = ViewState.from_curve_view(self.curve_view)
-        transform = TransformationService.calculate_transform(view_state)
+        transform = UnifiedTransformationService.from_view_state(view_state)
 
-        # Track reference points
-        reference_points = TransformStabilizer.track_reference_points(self.curve_data, transform)
-
-        # Verify reference points were tracked
-        self.assertIn(0, reference_points)  # First point
-        self.assertIn(len(self.curve_data)-1, reference_points)  # Last point
-
-    def test_verify_reference_points(self):
-        """Test verifying reference points for stability."""
-        view_state = ViewState.from_curve_view(self.curve_view)
-        transform = TransformationService.calculate_transform(view_state)
-
-        # Track original points
-        reference_points = TransformStabilizer.track_reference_points(self.curve_data, transform)
-
-        # Verify with same data (should be stable)
-        is_stable = TransformStabilizer.verify_reference_points(
-            self.curve_data, reference_points, transform
+        # Create before and after points
+        before_points = self.curve_data.copy()
+        after_points = self.curve_data.copy()
+        after_points[0] = (0, 120.0, 220.0)  # Significant change to first point
+        
+        # Detect drift
+        drift_report = UnifiedTransformationService.detect_transformation_drift(
+            before_points, after_points, transform, transform
         )
-        self.assertTrue(is_stable)
-
-        # Modify data slightly
-        modified_data = self.curve_data.copy()
-        modified_data[0] = (0, 100.5, 200.5)  # Small change
-
-        # Verify with modified data and small threshold (should detect change)
-        is_stable = TransformStabilizer.verify_reference_points(
-            modified_data, reference_points, transform, threshold=0.1
-        )
-        self.assertFalse(is_stable)
-
-        # Verify with modified data and large threshold (should ignore small change)
-        is_stable = TransformStabilizer.verify_reference_points(
-            modified_data, reference_points, transform, threshold=10.0
-        )
-        self.assertTrue(is_stable)
-
-    def test_detect_curve_shifting(self):
-        """Test the curve shifting detection method."""
-        view_state = ViewState.from_curve_view(self.curve_view)
-        transform = TransformationService.calculate_transform(view_state)
-
-        # Modify data to simulate a shift
-        modified_data = self.curve_data.copy()
-        modified_data[0] = (0, 120.0, 220.0)  # Significant change
-
-        # Detect shifts
-        shifted, shifts = TransformationService.detect_curve_shifting(
-            self.curve_data, modified_data, transform, transform, threshold=1.0
-        )
-
-        # Verify shift detection
-        self.assertTrue(shifted)
-        self.assertIn(0, shifts)  # First point should be detected as shifted
+        
+        # Verify drift detection
+        self.assertGreater(len(drift_report), 0)  # Should detect drift
+        self.assertIn(0, drift_report)  # Should identify first point
+        self.assertGreater(drift_report[0], 1.0)  # Drift should be significant
+        
+    def test_stable_transformation_context(self):
+        """Test the stable transformation context manager."""
+        # Create a transform through the context manager
+        with UnifiedTransformationService.stable_transformation_context(self.curve_view) as transform:
+            # Verify we got a valid transform
+            self.assertIsNotNone(transform)
+            
+            # Test that the transform works properly
+            tx, ty = transform.apply(100.0, 200.0)
+            self.assertIsNotNone(tx)
+            self.assertIsNotNone(ty)
 
 
 if __name__ == '__main__':
