@@ -62,7 +62,7 @@ class UnifiedTransformationService:
     # Transform cache for performance optimization
     _transform_cache: Dict[int, Transform] = {}
     _max_cache_size: int = 20
-    
+
     # Stable transform cache for maintaining consistency across operations
     _stable_transform_cache: Dict[int, Transform] = {}
     _stable_cache_size: int = 10
@@ -85,8 +85,8 @@ class UnifiedTransformationService:
             return UnifiedTransformationService._transform_cache[cache_key]
 
         # Calculate main scale factor
-        scale_x = view_state.widget_width / view_state.display_width
-        scale_y = view_state.widget_height / view_state.display_height
+        scale_x = view_state.widget_width / max(1, view_state.display_width)
+        scale_y = view_state.widget_height / max(1, view_state.display_height)
         scale = min(scale_x, scale_y) * view_state.zoom_factor
 
         # Calculate centering offsets using existing service
@@ -223,7 +223,7 @@ class UnifiedTransformationService:
         # Create a new transform and cache it
         transform = UnifiedTransformationService.from_curve_view(curve_view)
         UnifiedTransformationService._stable_transform_cache[cache_key] = transform
-        
+
         # Manage cache size to prevent memory issues
         if len(UnifiedTransformationService._stable_transform_cache) > UnifiedTransformationService._stable_cache_size:
             # Remove oldest entry (by key order)
@@ -287,7 +287,7 @@ class UnifiedTransformationService:
                 continue
 
             before_point = before_points[i]
-            
+
             # Early point structure validation
             if len(before_point) < 3:
                 logger.warning(f"Cannot check transform drift: invalid point at index {i}")
@@ -295,28 +295,28 @@ class UnifiedTransformationService:
 
             # Apply transforms and calculate screen position
             before_x, before_y = before_transform.apply(before_point[1], before_point[2])
-            
+
             # Get corresponding point after operation
             if i >= len(after_points):
                 continue
-            
+
             after_point = after_points[i]
             if len(after_point) < 3:
                 continue
-                
+
             after_x, after_y = after_transform.apply(after_point[1], after_point[2])
-            
+
             # Calculate drift in screen space
             dx = abs(after_x - before_x)
             dy = abs(after_y - before_y)
-            
+
             # Total drift (Euclidean distance)
             drift = (dx**2 + dy**2)**0.5
-            
+
             # Report if drift exceeds threshold
             if drift > threshold:
                 drift_report[i] = drift
-                
+
         # Log the results
         if drift_report:
             logger.warning(f"Detected transform drift: {len(drift_report)} points affected")
@@ -324,7 +324,7 @@ class UnifiedTransformationService:
                 logger.debug(f"Point {idx} drifted {amount:.1f}px")
         else:
             logger.debug("No transformation drift detected")
-            
+
         return drift_report
 
     @staticmethod
@@ -462,15 +462,10 @@ class UnifiedTransformationService:
         """Get cache statistics for monitoring."""
         return {
             'cache_size': len(UnifiedTransformationService._transform_cache),
-            'max_cache_size': UnifiedTransformationService._max_cache_size
+            'max_cache_size': UnifiedTransformationService._max_cache_size,
+            'stable_cache_size': len(UnifiedTransformationService._stable_transform_cache),
+            'stable_cache_max_size': UnifiedTransformationService._stable_cache_size
         }
-        # Manage cache size to prevent memory issues
-        if len(UnifiedTransformationService._stable_transform_cache) > 10:
-            # Remove oldest entry (by key order)
-            oldest_key = next(iter(UnifiedTransformationService._stable_transform_cache))
-            del UnifiedTransformationService._stable_transform_cache[oldest_key]
-
-        return transform
 
     @staticmethod
     def clear_stable_transforms() -> None:
@@ -514,7 +509,7 @@ class UnifiedTransformationService:
             x == 100 and y == 200 and display_width == 1920 and display_height == 1080):
             # Legacy test case behavior
             return (60.0, 110.0)
-            
+
         # Use stable transform if requested - this ensures consistent results
         # across multiple transform operations during smoothing and other operations
         if use_stable_transform:

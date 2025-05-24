@@ -498,6 +498,14 @@ class CurveView(QWidget):  # Implements protocols through type annotations
 
         # Draw the main curve if available
         if self.points:
+            # Cache transformed points to avoid recalculating
+            transformed_points = []
+            for i, pt in enumerate(self.points):
+                frame = pt[0]
+                x, y = pt[1], pt[2]
+                tx, ty = transform_point(x, y)
+                transformed_points.append((i, frame, tx, ty, pt))
+
             # Set pen for the curve
             curve_pen = QPen(QColor(0, 160, 230), 2)
             painter.setPen(curve_pen)
@@ -506,9 +514,7 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             path = QPainterPath()
             first_point = True
 
-            for frame, x, y in self.points:
-                tx, ty = transform_point(x, y)
-
+            for _, _, tx, ty, _ in transformed_points:
                 if first_point:
                     path.moveTo(tx, ty)
                     first_point = False
@@ -519,16 +525,9 @@ class CurveView(QWidget):  # Implements protocols through type annotations
             painter.drawPath(path)
 
             # Draw points
-            for i, pt in enumerate(self.points):
+            for i, frame, tx, ty, pt in transformed_points:
                 # Support both (frame, x, y) and (frame, x, y, status)
-                if len(pt) == 4 and pt[3] == 'interpolated':
-                    frame, x, y, _ = pt
-                    is_interpolated = True
-                else:
-                    frame, x, y = pt[:3]
-                    is_interpolated = False
-
-                tx, ty = transform_point(x, y)
+                is_interpolated = len(pt) == 4 and pt[3] == 'interpolated'
 
                 # Highlight selected points
                 if i in self.selected_points:

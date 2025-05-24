@@ -83,7 +83,7 @@ def batch_scale_points(
         frame, x, y = point[:3]
         new_x = center_x + (x - center_x) * scale_x
         new_y = center_y + (y - center_y) * scale_y
-        if len(point) == 4 and type(point[3]) is bool:
+        if len(point) == 4 and isinstance(point[3], bool):
             new_data[i] = (frame, new_x, new_y, point[3])
         else:
             new_data[i] = (frame, new_x, new_y)
@@ -115,7 +115,7 @@ def batch_offset_points(
         frame, x, y = point[:3]
         new_x = x + offset_x
         new_y = y + offset_y
-        if len(point) == 4 and type(point[3]) is bool:
+        if len(point) == 4 and isinstance(point[3], bool):
             new_data[idx] = (frame, new_x, new_y, point[3])
         else:
             new_data[idx] = (frame, new_x, new_y)
@@ -156,7 +156,7 @@ def batch_rotate_points(
     for i in indices:
         point = new_data[i]
         # Preserve status if present and it's a bool
-        if len(point) == 4 and type(point[3]) is bool:
+        if len(point) == 4 and isinstance(point[3], bool):
             new_data[i] = (*rotated_points3[i], point[3])
         else:
             new_data[i] = rotated_points3[i]
@@ -165,7 +165,8 @@ def batch_rotate_points(
 def batch_smoothness_adjustment(
     curve_data: PointsList,
     indices: List[int],
-    smoothness_factor: float
+    smoothness_factor: float,
+    curve_view: Optional[Any] = None
 ) -> PointsList:
     """Adjust the smoothness of a selection of points.
 
@@ -173,6 +174,7 @@ def batch_smoothness_adjustment(
         curve_data: List of (frame, x, y) tuples
         indices: List of indices to smooth
         smoothness_factor: Factor between 0.0 and 1.0 controlling smoothness intensity
+        curve_view: Optional curve view for stable transformation context
 
     Returns:
         Modified copy of curve_data
@@ -189,9 +191,12 @@ def batch_smoothness_adjustment(
     window_size = window_base + int((window_max - window_base) * smoothness_factor)
     if window_size % 2 == 0:
         window_size += 1
-    # Use AnalysisService instance
+    # Use AnalysisService instance with optional curve_view
     analysis = AnalysisService(curve_data)
-    analysis.smooth_moving_average(indices, window_size)
+    # Pass curve_view to smooth_moving_average for stable transformation
+    processor = analysis.create_processor(analysis.data)
+    processor.smooth_moving_average(indices, window_size, real_view=curve_view)
+    analysis.data = processor.get_data()
     return analysis.get_data()
 
 def batch_normalize_velocity(
@@ -233,7 +238,6 @@ class BatchEditUI:
         self.parent = parent_window
         self.point_edit_layout = QVBoxLayout()
         self.setup_batch_editing_ui()
-        self.parent = parent_window
 
     def setup_batch_editing_ui(self) -> None:
         """Set up batch editing controls in the parent window."""
@@ -386,7 +390,8 @@ class BatchEditUI:
         new_data = batch_smoothness_adjustment(
             self.parent.curve_data,
             self.parent.selected_indices,
-            factor
+            factor,
+            self.parent.curve_view  # Pass curve_view for stable transformation
         )
 
         # Update curve data

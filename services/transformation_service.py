@@ -59,13 +59,13 @@ class TransformationService:
         """
         # Check cache first
         cache_key = hash(tuple(view_state.to_dict().items()))
-        if cache_key in UnifiedUnifiedUnifiedTransformationService._transform_cache:
+        if cache_key in TransformationService._transform_cache:
             logger.debug("Using cached transform")
-            return UnifiedUnifiedUnifiedTransformationService._transform_cache[cache_key]
+            return TransformationService._transform_cache[cache_key]
 
         # Calculate scale factor
-        scale_x = view_state.widget_width / view_state.display_width
-        scale_y = view_state.widget_height / view_state.display_height
+        scale_x = view_state.widget_width / max(1, view_state.display_width)
+        scale_y = view_state.widget_height / max(1, view_state.display_height)
         scale = min(scale_x, scale_y) * view_state.zoom_factor
 
         # Calculate centering offsets
@@ -107,8 +107,8 @@ class TransformationService:
             center_offset_y=center_y,
             pan_offset_x=0.0,  # Pan is already included in center_x, center_y
             pan_offset_y=0.0,  # Pan is already included in center_x, center_y
-            manual_x=view_state.manual_x_offset,
-            manual_y=view_state.manual_y_offset,
+            manual_offset_x=view_state.manual_x_offset,
+            manual_offset_y=view_state.manual_y_offset,
             flip_y=view_state.flip_y_axis,
             display_height=view_state.display_height,
             image_scale_x=image_scale_x,
@@ -117,13 +117,13 @@ class TransformationService:
         )
 
         # Update cache (manage cache size)
-        if len(UnifiedUnifiedUnifiedTransformationService._transform_cache) >= UnifiedUnifiedUnifiedTransformationService._max_cache_size:
+        if len(TransformationService._transform_cache) >= TransformationService._max_cache_size:
             # Remove oldest entry
-            first_key = next(iter(UnifiedUnifiedUnifiedTransformationService._transform_cache))
-            UnifiedUnifiedUnifiedTransformationService._transform_cache.pop(first_key)
+            first_key = next(iter(TransformationService._transform_cache))
+            TransformationService._transform_cache.pop(first_key)
 
         # Add new transform to cache
-        UnifiedUnifiedUnifiedTransformationService._transform_cache[cache_key] = transform
+        TransformationService._transform_cache[cache_key] = transform
 
         # Log transform details
         logger.debug(f"Created transform: scale={scale:.4f}, center=({center_x:.1f},{center_y:.1f}), "
@@ -148,7 +148,7 @@ class TransformationService:
         Returns:
             Tuple containing the transformed (x, y) coordinates in screen space
         """
-        transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+        transform = TransformationService.calculate_transform(view_state)
         return transform.apply(x, y)
 
     @staticmethod
@@ -166,7 +166,7 @@ class TransformationService:
         Returns:
             List of transformed (x, y) coordinates in screen space
         """
-        transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+        transform = TransformationService.calculate_transform(view_state)
         return [transform.apply(p[1], p[2]) for p in points]
 
     @staticmethod
@@ -181,13 +181,13 @@ class TransformationService:
         Returns:
             List of QPointF objects in screen space
         """
-        transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+        transform = TransformationService.calculate_transform(view_state)
         return [QPointF(*transform.apply(p[1], p[2])) for p in points]
 
     @staticmethod
     def clear_cache() -> None:
         """Clear the transform cache."""
-        UnifiedUnifiedUnifiedTransformationService._transform_cache.clear()
+        TransformationService._transform_cache.clear()
         logger.debug("Transform cache cleared")
 
     @staticmethod
@@ -246,7 +246,7 @@ class TransformationService:
             view_state = view_state.with_updates(**kwargs)
 
         # Calculate transform with optional scale override
-        transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+        transform = TransformationService.calculate_transform(view_state)
         if scale is not None:
             transform = transform.with_updates(scale=float(scale))
 
@@ -340,7 +340,7 @@ class TransformationService:
         view_state = ViewState.from_curve_view(curve_view)
 
         # Calculate transform
-        transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+        transform = TransformationService.calculate_transform(view_state)
 
         # Log for debugging
         params = transform.get_parameters()

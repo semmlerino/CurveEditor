@@ -94,7 +94,13 @@ class ImageService:
                 curve_view.background_image = None
             else:
                 logger.debug(f"Successfully loaded image from: {image_path}")
-                curve_view.background_image = image
+                # Convert QImage to QPixmap for display
+                from PySide6.QtGui import QPixmap
+                # Clean up previous pixmap if it exists
+                if hasattr(curve_view, 'background_image') and curve_view.background_image is not None:
+                    # QPixmap doesn't need explicit cleanup in Python/Qt bindings
+                    pass
+                curve_view.background_image = QPixmap.fromImage(image)
 
                 # Update track dimensions to match image dimensions
                 if curve_view.scale_to_image:
