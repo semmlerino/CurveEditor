@@ -1,6 +1,12 @@
 # CurveEditor Dependencies
+
+# Core Dependencies (Required)
 # Main GUI Framework
 PySide6>=6.4.0
+
+# Optional Dependencies
+# For Excel export functionality (not required for core functionality)
+# xlsxwriter>=3.0.0  # Uncomment if you need Excel export support
 
 # Python Standard Library requirements
 # The following packages are part of Python's standard library
@@ -26,6 +32,7 @@ PySide6>=6.4.0
 # pytest>=7.0.0
 # black>=23.0.0
 # flake8>=6.0.0
+# mypy>=1.0.0
 
 # Note: This application primarily uses Python's standard library
 # modules along with PySide6 for the GUI framework.

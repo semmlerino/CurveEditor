@@ -189,10 +189,21 @@ class MainWindow(QMainWindow):
         self.curve_view_class = CurveView
 
         # Default directory for 3DE points
-        self.default_directory = "/home/gabriel-ha/3DEpoints"
-        if not os.path.exists(self.default_directory):
-            # Fallback to home directory if the specified path doesn't exist
-            self.default_directory = os.path.expanduser("~")
+        # First try user-specific 3DE points directory, then fall back to Documents, then home
+        home_dir = os.path.expanduser("~")
+        possible_dirs = [
+            os.path.join(home_dir, "3DEpoints"),
+            os.path.join(home_dir, "Documents", "3DEpoints"),
+            os.path.join(home_dir, "Documents"),
+            home_dir
+        ]
+
+        self.default_directory = home_dir  # Default fallback
+        for directory in possible_dirs:
+            if os.path.exists(directory):
+                self.default_directory = directory
+                logger.info(f"Using default directory: {self.default_directory}")
+                break
 
         # Image sequence
         self.image_sequence_path = ""
@@ -718,7 +729,7 @@ class MainWindow(QMainWindow):
         if not self.curve_data:
             QMessageBox.information(self, "Info", "No curve data loaded.")
             return
-        
+
         # Save critical view state parameters before any operations
         # These will be used to restore the exact view state after updating points
         current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
@@ -727,7 +738,7 @@ class MainWindow(QMainWindow):
         current_scale_to_image = getattr(self.curve_view, 'scale_to_image', True)
         current_flip_y = getattr(self.curve_view, 'flip_y_axis', True)
         logger.info(f"SMOOTH - Before: zoom={current_zoom}, offset=({current_offset_x},{current_offset_y}), scale_to_image={current_scale_to_image}")
-        
+
         # Use an outer stable transformation context to track reference points
         # and ensure we can detect and correct any drift
         reference_points = {}
@@ -737,7 +748,7 @@ class MainWindow(QMainWindow):
                 # Get selected indices
                 selected_indices = getattr(self.curve_view, 'selected_indices', [])
                 selected_point_idx = getattr(self.curve_view, 'selected_point_idx', -1)
-                
+
                 # Store screen space positions of key reference points for verification
                 if self.curve_data and len(self.curve_data) > 0:
                     # Store first, middle and last points as references
@@ -745,7 +756,7 @@ class MainWindow(QMainWindow):
                     if len(self.curve_data) > 2:
                         reference_indices.append(len(self.curve_data) // 2)
                     reference_indices.append(len(self.curve_data) - 1)
-                    
+
                     for idx in reference_indices:
                         if 0 <= idx < len(self.curve_data):
                             point = self.curve_data[idx]
@@ -753,7 +764,7 @@ class MainWindow(QMainWindow):
                             screen_x, screen_y = transform.apply(point[1], point[2])
                             reference_points[idx] = (point[0], screen_x, screen_y)
                             logger.info(f"Reference point {idx}: frame={point[0]}, screen=({screen_x:.2f},{screen_y:.2f})")
-                
+
                 # Show smooth dialog and get modified data
                 modified_data = DialogService.show_smooth_dialog(
                     parent_widget=self,
@@ -761,11 +772,11 @@ class MainWindow(QMainWindow):
                     selected_indices=selected_indices,
                     selected_point_idx=selected_point_idx
                 )
-                
+
                 if modified_data is not None:
                     # Store the modified data but don't update the view yet
                     self.curve_data = modified_data
-                    
+
                     # First, explicitly restore the exact original view transform parameters
                     # This ensures the transformation remains perfectly stable
                     self.curve_view.zoom_factor = current_zoom
@@ -773,41 +784,41 @@ class MainWindow(QMainWindow):
                     self.curve_view.offset_y = current_offset_y
                     self.curve_view.scale_to_image = current_scale_to_image
                     self.curve_view.flip_y_axis = current_flip_y
-                    
+
                     # Explicitly save ALL transformation parameters before smoothing
                     original_zoom = self.curve_view.zoom_factor
                     original_offset_x = self.curve_view.offset_x
                     original_offset_y = self.curve_view.offset_y
                     original_flip_y = self.curve_view.flip_y_axis
                     original_scale_to_image = self.curve_view.scale_to_image
-                    
+
                     logger.info(f"SMOOTH - Original params: zoom={original_zoom}, offset=({original_offset_x}, {original_offset_y}), flip_y={original_flip_y}, scale_to_image={original_scale_to_image}")
-                    
+
                     # Create a transform that we'll use for the entire operation
                     original_transform = UnifiedTransformationService.from_curve_view(self.curve_view)
-                    
+
                     # Apply the smoothing operation while ensuring consistent transformation
                     try:
                         # Update the view with special preservation and force_parameters flags
                         self.curve_view.setPoints(
-                            self.curve_data, 
+                            self.curve_data,
                             self.image_width,
                             self.image_height,
                             preserve_view=True,
                             force_parameters=True  # Ensures parameters aren't recalculated during update
                         )
-                        
-                        # Force-restore the original transformation parameters 
+
+                        # Force-restore the original transformation parameters
                         # This is critical to prevent drift
                         self.curve_view.zoom_factor = original_zoom
-                        self.curve_view.offset_x = original_offset_x 
+                        self.curve_view.offset_x = original_offset_x
                         self.curve_view.offset_y = original_offset_y
                         self.curve_view.flip_y_axis = original_flip_y
                         self.curve_view.scale_to_image = original_scale_to_image
-                        
+
                         # Clear any stable transform caches to prevent stale transforms
                         UnifiedTransformationService.clear_stable_transforms()
-                        
+
                         # Verify the reference points are in the same position using the original transform
                         if reference_points:
                             for idx, (frame, ref_x, ref_y) in reference_points.items():
@@ -826,15 +837,15 @@ class MainWindow(QMainWindow):
                         self.curve_view.offset_y = original_offset_y
                         self.curve_view.flip_y_axis = original_flip_y
                         self.curve_view.scale_to_image = original_scale_to_image
-                    
+
                     # Add to history and show success message
                     self.add_to_history()
                     self.statusBar().showMessage("Smoothing applied successfully with drift correction", 3000)
-        
+
         except Exception as e:
             logger.error(f"Error in stable smoothing operation: {e}")
             self.statusBar().showMessage(f"Smoothing failed: {e}", 3000)
-            
+
         # Log final transform state
         current_zoom = getattr(self.curve_view, 'zoom_factor', 1.0)
         current_offset_x = getattr(self.curve_view, 'offset_x', 0.0)
@@ -899,8 +910,8 @@ class MainWindow(QMainWindow):
             # self.y_edit.setValue(0.0)
 
     @property
-    def widget(self) -> Any:
-        """Property for protocol compatibility (QWidget for QMessageBox, etc)."""
+    def qwidget(self) -> QWidget:
+        """Property for protocol compatibility with HistoryContainerProtocol."""
         return self
 
     def closeEvent(self, event: QCloseEvent) -> None:
