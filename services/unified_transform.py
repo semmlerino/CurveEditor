@@ -14,7 +14,7 @@ Key improvements:
 - Type-safe interfaces
 """
 
-from typing import Dict, Tuple, Any, Optional
+from typing import Dict, Tuple, Any
 import hashlib
 from PySide6.QtCore import QPointF
 from services.logging_service import LoggingService
@@ -120,34 +120,42 @@ class Transform:
         Returns:
             Tuple containing the transformed (x, y) coordinates in screen space
         """
-        # Step 1: Apply image scaling if enabled
+        # Step 1: Apply image scaling first if enabled
         tx = x
         ty = y
         if self._parameters['scale_to_image']:
             tx = x * self._parameters['image_scale_x']
             ty = y * self._parameters['image_scale_y']
 
-        # Step 2: Apply Y-flip if needed (before main scaling)
+        # Step 2: Apply Y-flip if needed
+        # This needs to happen before scaling to ensure consistent behavior
         if self._parameters['flip_y']:
-            ty = self._parameters['display_height'] - ty
+            # We need to flip relative to the data height, not the display height
+            # This ensures the curve aligns properly with the background image
+            if self._parameters['scale_to_image']:
+                # When scaling to image, flip relative to the post-scaled height
+                ty = self._parameters['display_height'] - ty
+            else:
+                # When not scaling, flip relative to the original data height
+                ty = self._parameters['display_height'] - ty
 
-        # Step 3: Apply main scale
-        sx = tx * self._parameters['scale']
-        sy = ty * self._parameters['scale']
+        # Step 3: Apply main scaling factor
+        tx *= self._parameters['scale']
+        ty *= self._parameters['scale']
 
-        # Step 4: Apply centering offset
-        cx = sx + self._parameters['center_offset_x']
-        cy = sy + self._parameters['center_offset_y']
+        # Step 4: Apply centering offsets
+        tx += self._parameters['center_offset_x']
+        ty += self._parameters['center_offset_y']
 
-        # Step 5: Apply pan offset
-        px = cx + self._parameters['pan_offset_x']
-        py = cy + self._parameters['pan_offset_y']
+        # Step 5: Apply pan offsets from user interaction
+        tx += self._parameters['pan_offset_x']
+        ty += self._parameters['pan_offset_y']
 
-        # Step 6: Apply manual offset
-        fx = px + self._parameters['manual_offset_x']
-        fy = py + self._parameters['manual_offset_y']
+        # Step 6: Apply manual offsets
+        tx += self._parameters['manual_offset_x']
+        ty += self._parameters['manual_offset_y']
 
-        return fx, fy
+        return tx, ty
 
     def apply_inverse(self, screen_x: float, screen_y: float) -> Tuple[float, float]:
         """
@@ -254,18 +262,18 @@ class Transform:
 
         # Create new instance
         return Transform(
-            scale=new_params['scale'],
-            center_offset_x=new_params['center_offset_x'],
-            center_offset_y=new_params['center_offset_y'],
-            pan_offset_x=new_params['pan_offset_x'],
-            pan_offset_y=new_params['pan_offset_y'],
-            manual_offset_x=new_params['manual_offset_x'],
-            manual_offset_y=new_params['manual_offset_y'],
-            flip_y=new_params['flip_y'],
-            display_height=new_params['display_height'],
-            image_scale_x=new_params['image_scale_x'],
-            image_scale_y=new_params['image_scale_y'],
-            scale_to_image=new_params['scale_to_image']
+            scale=float(new_params['scale']),
+            center_offset_x=float(new_params['center_offset_x']),
+            center_offset_y=float(new_params['center_offset_y']),
+            pan_offset_x=float(new_params['pan_offset_x']),
+            pan_offset_y=float(new_params['pan_offset_y']),
+            manual_offset_x=float(new_params['manual_offset_x']),
+            manual_offset_y=float(new_params['manual_offset_y']),
+            flip_y=bool(new_params['flip_y']),
+            display_height=int(new_params['display_height']),
+            image_scale_x=float(new_params['image_scale_x']),
+            image_scale_y=float(new_params['image_scale_y']),
+            scale_to_image=bool(new_params['scale_to_image'])
         )
 
     def get_parameters(self) -> Dict[str, Any]:

@@ -8,13 +8,12 @@ Provides functionality for loading and manipulating image sequences.
 
 import os
 from PySide6.QtWidgets import QMessageBox, QFileDialog
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QPixmap
 import config
-from typing import List, Tuple, Optional, TYPE_CHECKING
+from typing import List, Tuple, Optional, cast
 from services.logging_service import LoggingService
 from services.protocols import (
-    CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol,
-    ImageServiceProtocol
+    CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol
 )
 
 # Configure logger for this module
@@ -32,40 +31,38 @@ class ImageService:
             curve_view: The curve view instance
             frame: Frame number to find the closest image for
         """
-        if not curve_view.image_filenames:
+        if not hasattr(curve_view, 'image_filenames'):
             return
 
         # Find the closest image index to the requested frame
-        closest_idx = -1
-        min_diff = float('inf')
+        closest_idx: int = -1
+        min_diff: float = float('inf')
 
-        for i, filename in enumerate(curve_view.image_filenames):
-            # Try to extract frame number from filename
+        image_filenames = getattr(curve_view, 'image_filenames', [])
+        for i, filename in enumerate(image_filenames):
             try:
-                # Common formats: name.####.ext or name_####.ext
                 parts = os.path.basename(filename).split('.')
                 if len(parts) >= 2 and parts[-2].isdigit():
-                    img_frame = int(parts[-2])
+                    frame_number = int(parts[-2])
                 else:
-                    # Try underscore format
                     name_parts = parts[0].split('_')
-                    if name_parts[-1].isdigit():
-                        img_frame = int(name_parts[-1])
+                    if len(name_parts) > 1 and name_parts[-1].isdigit():
+                        frame_number = int(name_parts[-1])
                     else:
-                        # Just use sequential index if can't parse frame
-                        img_frame = i
+                        frame_number = i
             except (ValueError, IndexError):
-                img_frame = i
+                frame_number = i
 
-            diff = abs(img_frame - frame)
+            diff = abs(frame_number - frame)
             if diff < min_diff:
                 min_diff = diff
                 closest_idx = i
 
-        if closest_idx >= 0 and closest_idx < len(curve_view.image_filenames):
+        if 0 <= closest_idx < len(image_filenames):
             curve_view.current_image_idx = closest_idx
             ImageService.load_current_image(curve_view)
-            curve_view.update()
+            if hasattr(curve_view, 'update'):
+                curve_view.update()
 
     @staticmethod
     def load_current_image(curve_view: ImageSequenceProtocol) -> None:
@@ -74,7 +71,11 @@ class ImageService:
         Args:
             curve_view: The curve view instance containing image properties
         """
-        if curve_view.current_image_idx < 0 or not curve_view.image_filenames:
+        # Defensive: do not assume curve_view has main_window, check for required attributes directly
+        if not hasattr(curve_view, 'current_image_idx') or not hasattr(curve_view, 'image_filenames'):
+            curve_view.background_image = None
+            return
+        if curve_view.current_image_idx < 0:
             curve_view.background_image = None
             return
 
@@ -84,23 +85,21 @@ class ImageService:
             logger.debug(f"Loading image: {image_path}")
 
             # Load image using PySide6.QtGui.QImage
-            image = QImage(image_path)
+            image: QImage = QImage(image_path)
 
             # Make sure we have focus to receive keyboard events
-            curve_view.setFocus()
+            if hasattr(curve_view, 'setFocus'):
+                curve_view.setFocus()
 
             if image.isNull():
                 logger.error(f"Failed to load image: {image_path}")
                 curve_view.background_image = None
             else:
                 logger.debug(f"Successfully loaded image from: {image_path}")
-                # Convert QImage to QPixmap for display
-                from PySide6.QtGui import QPixmap
-                # Clean up previous pixmap if it exists
-                if hasattr(curve_view, 'background_image') and curve_view.background_image is not None:
-                    # QPixmap doesn't need explicit cleanup in Python/Qt bindings
-                    pass
-                curve_view.background_image = QPixmap.fromImage(image)
+                # Store the QPixmap in a member variable to prevent it from being garbage collected
+                # This is important to avoid the "QPaintDevice: Cannot destroy paint device that is being painted" error
+                pixmap: QPixmap = QPixmap.fromImage(image)
+                curve_view.background_image = pixmap
 
                 # Update track dimensions to match image dimensions
                 if curve_view.scale_to_image:
@@ -127,58 +126,75 @@ class ImageService:
             return
 
         # Store current zoom factor and view offsets
-        current_zoom = curve_view.zoom_factor
-        current_offset_x = curve_view.offset_x
-        current_offset_y = curve_view.offset_y
-
-        # Store current center position before changing the image
-        center_pos = None
-        if curve_view.selected_point_idx >= 0 and hasattr(curve_view, 'main_window') and curve_view.main_window.curve_data:
-            # Remember center point if we have a selected point
-            try:
-                point = curve_view.main_window.curve_data[curve_view.selected_point_idx]
-                center_pos = (point[1], point[2])  # x, y coordinates
-                logger.debug(f"Storing center position at {center_pos}")
-            except (IndexError, AttributeError) as e:
-                logger.error(f"Could not store center position: {str(e)}")
-
         # Update image index and load the image
         curve_view.current_image_idx = idx
         ImageService.load_current_image(curve_view)
 
-        # Restore the zoom factor that was in effect before switching images
-        logger.debug(f"Preserving zoom factor of {current_zoom}")
-        curve_view.zoom_factor = current_zoom
-
         # After changing the image, center on the selected point using our improved function
-        if curve_view.selected_point_idx >= 0:
-            success = curve_view.centerOnSelectedPoint(preserve_zoom=True)
-            if success:
-                logger.debug(f"Successfully centered on point {curve_view.selected_point_idx}")
-            else:
-                logger.debug(f"Could not center on point {curve_view.selected_point_idx}")
-                # If centering fails, restore previous view position
-                curve_view.offset_x = current_offset_x
-                curve_view.offset_y = current_offset_y
-        else:
-            # If no point is selected, at least maintain the zoom level
-            curve_view.offset_x = current_offset_x
-            curve_view.offset_y = current_offset_y
-
-        curve_view.update()
-        curve_view.setFocus()
+        from typing import Any, Tuple, Optional
+        point: Optional[Tuple[float, float, float]] = None
+        center_pos: Optional[Tuple[float, float]] = None
+        curve_data: Any = None
+        if hasattr(curve_view, 'selected_point_idx') and hasattr(curve_view, 'main_window'):
+            main_window = getattr(curve_view, 'main_window', None)
+            selected_idx = getattr(curve_view, 'selected_point_idx', -1)
+            if main_window is not None and hasattr(main_window, 'curve_data') and selected_idx >= 0:
+                try:
+                    curve_data = getattr(main_window, 'curve_data', None)
+                    if curve_data is not None:
+                        point = curve_data[selected_idx]
+                        if isinstance(point, tuple) and len(point) == 3:
+                            center_pos = (point[1], point[2])  # x, y coordinates
+                            logger.debug(f"Storing center position at {center_pos}")
+                except (IndexError, AttributeError) as e:
+                    logger.error(f"Could not store center position: {str(e)}")
+        if hasattr(curve_view, 'centerOnSelectedPoint'):
+            center_fn = getattr(curve_view, 'centerOnSelectedPoint', None)
+            if callable(center_fn):
+                success: bool = False
+                try:
+                    result = center_fn()
+                    success = bool(result)
+                except TypeError:
+                    try:
+                        result = center_fn(preserve_zoom=True)
+                        success = bool(result)
+                    except Exception:
+                        success = False
+                if success:
+                    logger.debug(f"Successfully centered on point {getattr(curve_view, 'selected_point_idx', '?')}")
+        if hasattr(curve_view, 'setImageSequence'):
+            curve_view.setImageSequence(curve_view.image_sequence_path, curve_view.image_filenames)
+            if hasattr(curve_view, 'current_image_idx'):
+                curve_view.current_image_idx = idx
+            update_fn = getattr(curve_view, 'update', None)
+            if callable(update_fn):
+                update_fn()
+            set_focus_fn = getattr(curve_view, 'setFocus', None)
+            if callable(set_focus_fn):
+                set_focus_fn()
+        from services.protocols import CurveViewProtocol
+        if isinstance(curve_view, CurveViewProtocol):
+            update_fn = getattr(curve_view, 'update', None)
+            if callable(update_fn):
+                update_fn()
+            set_focus_fn = getattr(curve_view, 'setFocus', None)
+            if callable(set_focus_fn):
+                set_focus_fn()
 
     @staticmethod
     def load_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load an image sequence to use as background."""
         # Open file dialog to select the first image in a sequence
-        options = QFileDialog.Options()
+        options = QFileDialog.Option.DontUseNativeDialog
+        
         file_path, _ = QFileDialog.getOpenFileName(
-            main_window,
+            main_window.qwidget if hasattr(main_window, 'qwidget') else None,
             "Select First Image in Sequence",
             main_window.default_directory,
             "Image Files (*.jpg *.jpeg *.png *.tif *.tiff *.exr)",
-            options=options
+            "",
+            options
         )
 
         if not file_path:
@@ -187,8 +203,6 @@ class ImageService:
         # Get the directory and base filename
         directory = os.path.dirname(file_path)
         filename = os.path.basename(file_path)
-
-        # Save the directory path to config
         config.set_last_folder_path(directory)
 
         # Save the image sequence path to config
@@ -197,11 +211,11 @@ class ImageService:
         # Try to determine the frame number format
         # Look for patterns like name.1234.ext or name_1234.ext
         base_name, frame_num, ext = ImageService._parse_filename(filename)
-        if frame_num is None:
+        if frame_num is None or base_name is None or not ext:
             QMessageBox.warning(
-                main_window,
-                "Invalid Sequence",
-                "Could not determine frame numbering pattern in the selected file."
+                main_window.qwidget if hasattr(main_window, 'qwidget') else None,
+                "Invalid Filename",
+                "Could not determine frame number format from filename.",
             )
             return
 
@@ -214,124 +228,170 @@ class ImageService:
 
         # Filter for files that match our pattern
         for file in all_files:
-            if file.startswith(base_name) and file.endswith(ext):
-                main_window.image_filenames.append(os.path.join(directory, file))
+            # Check if this file matches our pattern (either name.X.ext or name_X.ext)
+            if (file.startswith(base_name) and file.endswith(ext)):
+                main_window.image_filenames.append(file)
 
-        # Sort the filenames
+        # Sort the filenames (they should sort naturally by frame number)
         main_window.image_filenames.sort()
 
         if not main_window.image_filenames:
             QMessageBox.warning(
-                main_window,
+                main_window.qwidget if hasattr(main_window, 'qwidget') else None,
                 "No Images Found",
-                "No image sequence found matching the selected file pattern."
+                "Could not find any matching images in the sequence.",
             )
             return
 
-        # Load the first image to get dimensions
-        first_image = QImage(main_window.image_filenames[0])
-        if not first_image.isNull():
-            main_window.image_width = first_image.width()
-            main_window.image_height = first_image.height()
+        # Set the image sequence in the curve view
+        from PySide6.QtCore import Qt
+        from PySide6.QtWidgets import QApplication
+        QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
-        # Set the images in the curve view
-        main_window.curve_view.setImageSequence(
-            directory,
-            main_window.image_filenames
-        )
+        # Configure curve view to use the image sequence
+        if hasattr(main_window, 'curve_view'):
+            main_window.curve_view.setImageSequence(
+                directory,
+                main_window.image_filenames
+            )
 
         # Update the UI
-        main_window.update_image_label()
-        main_window.toggle_bg_button.setEnabled(True)
+        if hasattr(main_window, 'update_image_label'):
+            main_window.update_image_label()
+        if hasattr(main_window, 'toggle_bg_button') and hasattr(main_window.toggle_bg_button, 'setEnabled'):
+            main_window.toggle_bg_button.setEnabled(True)
 
         # Show a success message
         QMessageBox.information(
-            main_window,
+            main_window.qwidget if hasattr(main_window, 'qwidget') else None,
             "Image Sequence Loaded",
             f"Loaded {len(main_window.image_filenames)} images from sequence."
         )
 
     @staticmethod
-    def _parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], Optional[str]]:
-        """Parse an image filename to extract base name, frame number, and extension."""
-        # Split extension
-        name_parts = filename.split('.')
-        if len(name_parts) < 2:
-            return None, None, None
-
-        ext = '.' + name_parts[-1]
-
-        # Try to find frame number
-        # First check for name.1234.ext pattern
-        if len(name_parts) > 2 and name_parts[-2].isdigit():
-            frame_num = name_parts[-2]
-            base_name = '.'.join(name_parts[:-2]) + '.'
+    def _parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], str]:
+        """Parse a filename to extract base name, frame number and extension.
+        
+        Args:
+            filename: The filename to parse
+            
+        Returns:
+            Tuple of (base_name, frame_num, ext)
+        """
+        # Split the filename by extension
+        main_part, ext = os.path.splitext(filename)
+        if not ext:
+            return None, None, ""
+            
+        # Look for patterns like name.1234.ext
+        dot_parts = main_part.split('.')
+        if len(dot_parts) > 1 and dot_parts[-1].isdigit():
+            frame_num = dot_parts[-1]
+            base_name = '.'.join(dot_parts[:-1]) + '.'
             return base_name, frame_num, ext
-
-        # Check for name_1234.ext pattern
-        base_without_ext = '.'.join(name_parts[:-1])
-        parts = base_without_ext.split('_')
-
-        if len(parts) > 1 and parts[-1].isdigit():
-            frame_num = parts[-1]
-            base_name = '_'.join(parts[:-1]) + '_'
-            return base_name, frame_num, ext
-
-        return None, None, None
-
+            
+        # Look for patterns like name_1234.ext
+        underscore_parts = main_part.split('_')
+        return ImageService._parse_filename_parts(underscore_parts, ext)
+        
     @staticmethod
-    def previous_image(main_window: MainWindowProtocol) -> None:
-        """Show the previous image in the sequence."""
-        if not main_window.image_filenames or main_window.curve_view.current_image_idx <= 0:
-            return
-
-        main_window.curve_view.setCurrentImageByIndex(main_window.curve_view.current_image_idx - 1)
-        main_window.update_image_label()
+    def _parse_filename_parts(parts: List[str], ext: str) -> Tuple[Optional[str], Optional[str], str]:
+        """Parse filename parts to extract base name and frame number.
+        
+        Args:
+            parts: Parts of the filename
+            ext: File extension
+            
+        Returns:
+            Tuple of (base_name, frame_num, ext)
+        """
+        if len(parts) > 1 and parts[-1].isdigit():
+            inner_frame_num: str = parts[-1]
+            inner_base_name: str = '_'.join(parts[:-1]) + '_'
+            return inner_base_name, inner_frame_num, ext
+        # Always return a tuple
+        return None, None, ext
 
     @staticmethod
     def next_image(main_window: MainWindowProtocol) -> None:
         """Show the next image in the sequence."""
-        if not main_window.image_filenames or main_window.curve_view.current_image_idx >= len(main_window.image_filenames) - 1:
+        from typing import Any, Optional  # Ensure imports
+        curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
+        if curve_view is None:
             return
-
-        main_window.curve_view.setCurrentImageByIndex(main_window.curve_view.current_image_idx + 1)
-        main_window.update_image_label()
+        # Use stricter type guards to ensure curve_view has required attributes
+        if not hasattr(curve_view, 'current_image_idx') or not hasattr(curve_view, 'setCurrentImageByIndex'):
+            # If curve_view does not have required attributes, log an error and return
+            logger.error("curve_view is missing required attributes")
+            return
+        # Use cast to help type checker and avoid type: ignore
+        cv = cast(CurveViewProtocol, curve_view)
+        if cv.current_image_idx >= len(main_window.image_filenames) - 1:
+            return
+        cv.setCurrentImageByIndex(cv.current_image_idx + 1)
+        
+    @staticmethod
+    def previous_image(main_window: MainWindowProtocol) -> None:
+        """Show the previous image in the sequence."""
+        from typing import Any, Optional
+        curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
+        if curve_view is None:
+            return
+        # Use stricter type guards to ensure curve_view has required attributes
+        if not hasattr(curve_view, 'current_image_idx') or not hasattr(curve_view, 'setCurrentImageByIndex'):
+            # If curve_view does not have required attributes, log an error and return
+            logger.error("curve_view is missing required attributes")
+            return
+        # Use cast to help type checker and avoid type: ignore
+        cv = cast(CurveViewProtocol, curve_view)
+        if cv.current_image_idx <= 0:
+            return
+        cv.setCurrentImageByIndex(cv.current_image_idx - 1)
 
     @staticmethod
-    def update_image_label(main_window: MainWindowProtocol) -> None:
-        """Update the image label with current image info."""
-        if not main_window.image_filenames:
-            main_window.image_label.setText("No images loaded")
+    def toggle_background_visible(main_window: MainWindowProtocol) -> None:
+        """Toggle the visibility of the background image."""
+        from typing import Any, Optional
+        curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
+        if curve_view is None:
             return
-
-        idx = main_window.curve_view.current_image_idx
-        if 0 <= idx < len(main_window.image_filenames):
-            filename = os.path.basename(main_window.image_filenames[idx])
-            main_window.image_label.setText(f"Image: {idx + 1}/{len(main_window.image_filenames)} - {filename}")
-        else:
-            main_window.image_label.setText("Invalid image index")
-
+        visible: bool = not getattr(curve_view, 'show_background', False)
+        if hasattr(curve_view, 'toggleBackgroundVisible'):
+            curve_view.toggleBackgroundVisible(visible)
+        main_window.toggle_bg_button.setText("Hide Background" if visible else "Show Background")
+        
     @staticmethod
     def toggle_background(main_window: MainWindowProtocol) -> None:
-        """Toggle background image visibility."""
-        if not main_window.image_filenames:
+        """Alias for toggle_background_visible for backward compatibility."""
+        ImageService.toggle_background_visible(main_window)
+        
+    @staticmethod
+    def opacity_changed(main_window: MainWindowProtocol, value: float) -> None:
+        """Change the opacity of the background image.
+        
+        Args:
+            main_window: The main window instance
+            value: Opacity value between 0.0 and 1.0
+        """
+        # Ensure value is within valid range
+        opacity = max(0.0, min(1.0, value))
+        
+        # Get curve view if it exists
+        curve_view = getattr(main_window, 'curve_view', None)
+        if curve_view is None:
             return
-
-        visible = not main_window.curve_view.show_background
-        main_window.curve_view.toggleBackgroundVisible(visible)
-        main_window.toggle_bg_button.setText("Hide Background" if visible else "Show Background")
-
-    @staticmethod
-    def opacity_changed(main_window: MainWindowProtocol, value: int) -> None:
-        """Handle opacity slider value changed."""
-        opacity = value / 100.0  # Convert from 0-100 to 0.0-1.0
-        main_window.curve_view.setBackgroundOpacity(opacity)
-
-    @staticmethod
-    def on_image_changed(main_window: MainWindowProtocol, index: int) -> None:
-        """Handle image changed via keyboard navigation."""
-        main_window.update_image_label()
-
+            
+        # Set opacity if the method exists
+        if hasattr(curve_view, 'setBackgroundOpacity'):
+            curve_view.setBackgroundOpacity(opacity)
+        # Or try alternative attribute name
+        elif hasattr(curve_view, 'background_opacity'):
+            curve_view.background_opacity = opacity
+            
+        # Trigger update if possible
+        if hasattr(curve_view, 'update'):
+            curve_view.update()
+        
     @staticmethod
     def set_image_sequence(curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
         """Set the image sequence to display as background.
@@ -346,3 +406,41 @@ class ImageService:
         curve_view.current_image_idx = 0 if filenames else -1
         ImageService.load_current_image(curve_view)
         curve_view.update()
+
+    def set_image_sequence_instance(self, curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
+        """Instance method for protocol compatibility. Delegates to static method set_image_sequence."""
+        ImageService.set_image_sequence(curve_view, path, filenames)
+        
+    @staticmethod
+    def update_image_label(main_window: MainWindowProtocol) -> None:
+        """Update the image label with current image info.
+        
+        Args:
+            main_window: The main window instance containing the image label
+        """
+        # Check if required attributes exist
+        curve_view = getattr(main_window, 'curve_view', None)
+        if curve_view is None or not hasattr(curve_view, 'current_image_idx'):
+            return
+            
+        # Get current image information
+        current_idx = curve_view.current_image_idx
+        total_images = len(getattr(main_window, 'image_filenames', []))
+        
+        # Update label if it exists
+        if hasattr(main_window, 'image_label') and hasattr(main_window.image_label, 'setText'):
+            if current_idx >= 0 and total_images > 0 and current_idx < total_images:
+                # Get image filename with proper type checking
+                image_filenames: List[str] = getattr(main_window, 'image_filenames', [])
+                if image_filenames and 0 <= current_idx < len(image_filenames):
+                    # Use cast to help type checker understand this is definitely a string
+                    filename: str = cast(str, image_filenames[current_idx])
+                    # Now we know filename is definitely a string
+                    image_name: str = os.path.basename(filename)
+                    main_window.image_label.setText(f"Image: {current_idx + 1}/{total_images} - {image_name}")
+                else:
+                    main_window.image_label.setText(f"Image: {current_idx + 1}/{total_images}")
+            else:
+                main_window.image_label.setText("No images loaded")
+
+# End of class ImageService

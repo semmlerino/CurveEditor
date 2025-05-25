@@ -301,65 +301,69 @@ class EnhancedCurveView(QWidget):
 
         # Calculate centering offsets
         offset_x, offset_y = ZoomOperations.calculate_centering_offsets(widget_width, widget_height, display_width * scale, display_height * scale, self.offset_x, self.offset_y)
-        # offset_y is set below
-        # offset_y is now set by calculate_centering_offsets above
 
         # Coordinate transformation functions
         def transform_point(x, y):
             """Transform from track coordinates to widget coordinates."""
-            # Handle both tuple and QPointF return types
-            # Use only the explicit pan offsets (self.offset_x, self.offset_y) here to prevent
-            # double-application of the centering offsets inside the transformation service.
-            # Passing the already centered *offset_x/offset_y* would cause the center calculation
-            # to be applied a second time, making the curve appear to "float" relative to the
-            # background image when panning or zooming.
-            result = CurveViewOperations.transform_point(
-                self, x, y,
-                display_width, display_height,
-                self.offset_x,  # pan offset only
-                self.offset_y,  # pan offset only
-                scale,
-            )
-
-            # If it's already a tuple, return it directly
-            if isinstance(result, tuple):
-                return result
-
-            # If it's a QPointF or similar object with x() and y() methods, convert to tuple
-            if hasattr(result, "x") and hasattr(result, "y"):
-                return (result.x(), result.y())
-
-            # Fallback
-            logger.warning(f"Unexpected transform result type in enhanced_curve_view: {type(result)}")
-            return (0, 0)
-
+            # We need to ensure the transformation is consistent with the background image
+            # This direct transformation approach ensures the curve and background move together
+            
+            if self.scale_to_image:
+                # Apply image scaling first if needed
+                tx = x * (display_width / self.image_width) if self.image_width > 0 else x
+                ty = y * (display_height / self.image_height) if self.image_height > 0 else y
+                
+                # Apply Y-flip if needed
+                if self.flip_y_axis:
+                    ty = display_height - ty
+                    
+                # Apply scaling, centering, and pan offsets consistently with background image
+                tx = tx * scale + offset_x + self.x_offset
+                ty = ty * scale + offset_y + self.y_offset
+                
+                return tx, ty
+            else:
+                # Fall back to standard transformation when not scaling to image
+                result = CurveViewOperations.transform_point(
+                    self, x, y,
+                    display_width, display_height,
+                    self.offset_x,
+                    self.offset_y,
+                    scale,
+                )
+                
+                # Convert result to tuple if needed
+                if isinstance(result, tuple):
+                    return result
+                elif hasattr(result, "x") and hasattr(result, "y"):
+                    return (result.x(), result.y())
+                else:
+                    logger.warning(f"Unexpected transform result type: {type(result)}")
+                    return (0, 0)
+                    
         def inverse_transform(tx, ty):
             """Transform from widget coordinates to track coordinates."""
             if self.background_image and self.scale_to_image:
                 # Convert from widget to image space
-                img_x = (tx - offset_x) / scale
-
+                img_x = (tx - offset_x - self.x_offset) / scale
+                
                 if self.flip_y_axis:
-                    img_y = display_height - ((ty - offset_y) / scale)
+                    img_y = display_height - ((ty - offset_y - self.y_offset) / scale)
                 else:
-                    img_y = (ty - offset_y) / scale
-
-                # Remove manual offset
-                img_x = img_x - self.x_offset
-                img_y = img_y - self.y_offset
-
+                    img_y = (ty - offset_y - self.y_offset) / scale
+                
                 # Convert from image coordinates to track coordinates
-                x = img_x / (display_width / self.image_width)
-                y = img_y / (display_height / self.image_height)
+                x = img_x / (display_width / self.image_width) if self.image_width > 0 else img_x
+                y = img_y / (display_height / self.image_height) if self.image_height > 0 else img_y
             else:
                 # Direct conversion
-                x = (tx - offset_x) / scale
-
+                x = (tx - offset_x - self.x_offset) / scale
+                
                 if self.flip_y_axis:
-                    y = self.image_height - ((ty - offset_y) / scale)
+                    y = self.image_height - ((ty - offset_y - self.y_offset) / scale)
                 else:
-                    y = (ty - offset_y) / scale
-
+                    y = (ty - offset_y - self.y_offset) / scale
+                    
             return x, y
 
         # Draw background image if available
@@ -376,10 +380,21 @@ class EnhancedCurveView(QWidget):
             img_x = img_x_scaled + self.x_offset
             img_y = img_y_scaled + self.y_offset
 
-            # Draw the image
-            pixmap = QPixmap.fromImage(self.background_image)
+            # Draw the image - use self.background_image directly if it's already a QPixmap
+            # to avoid creating a new QPixmap during painting
             painter.setOpacity(self.background_opacity)
-            painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), pixmap)
+            
+            if isinstance(self.background_image, QPixmap):
+                # If it's already a QPixmap, use it directly
+                painter.drawPixmap(int(img_x), int(img_y), int(scaled_width), int(scaled_height), self.background_image)
+            else:
+                # Convert QImage to QPixmap only when necessary
+                try:
+                    painter.drawImage(int(img_x), int(img_y), self.background_image.scaled(int(scaled_width), int(scaled_height), Qt.KeepAspectRatio, Qt.SmoothTransformation))
+                except Exception as e:
+                    # Fallback if there's an issue with the image
+                    pass
+                    
             painter.setOpacity(1.0)
 
         # Draw the main curve if available

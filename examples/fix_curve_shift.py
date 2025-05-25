@@ -50,7 +50,7 @@ def apply_smooth_with_stable_transform(main_window: 'MainWindow') -> None:
     # 1. BEFORE ANY CHANGES: Store the view state and create a transform
     logger.info("Creating stable transform before smoothing operation")
     before_state = ViewState.from_curve_view(curve_view)
-    stable_transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(before_state)
+    stable_transform = UnifiedTransformationService.calculate_transform(before_state)
 
     # 2. Track positions of reference points before changes
     # This helps verify that points don't shift unexpectedly
@@ -124,7 +124,7 @@ def fix_paintEvent_with_stable_transform(curve_view: 'CurveView') -> None:
     """
     # Create a consistent transform for all painting operations
     view_state = ViewState.from_curve_view(curve_view)
-    transform = UnifiedUnifiedUnifiedTransformationService.calculate_transform(view_state)
+    transform = UnifiedTransformationService.calculate_transform(view_state)
 
     logger.info(f"Using transform with scale={transform.get_parameters()['scale']:.4f}")
 

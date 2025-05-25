@@ -12,10 +12,8 @@ This service handles:
 """
 
 import copy
-from typing import Dict, List, Optional, TYPE_CHECKING
-from services.protocols import (
-    HistoryContainerProtocol, HistoryServiceProtocol, HistoryStateProtocol
-)
+from typing import Dict, Any
+from services.protocols import HistoryContainerProtocol
 
 
 class HistoryService:
@@ -96,7 +94,7 @@ class HistoryService:
         HistoryService.update_history_buttons(main_window)
 
     @staticmethod
-    def restore_state(main_window: HistoryContainerProtocol, state: Dict[str, any]) -> None:
+    def restore_state(main_window: HistoryContainerProtocol, state: Dict[str, Any]) -> None:
         """Restore application state from history.
 
         Applies saved state to the main window and updates the curve view
@@ -114,10 +112,14 @@ class HistoryService:
         if hasattr(main_window.curve_view, 'set_curve_data'):
             main_window.curve_view.set_curve_data(main_window.curve_data)
         elif hasattr(main_window.curve_view, 'setPoints'):
+            # Get image dimensions if available, else use defaults
+            image_width = getattr(main_window, 'image_width', 0)
+            image_height = getattr(main_window, 'image_height', 0)
+            
             main_window.curve_view.setPoints(
                 main_window.curve_data,
-                main_window.image_width,
-                main_window.image_height,
+                image_width,
+                image_height,
                 preserve_view=True
             )
         else:

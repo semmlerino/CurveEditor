@@ -1,3 +1,4 @@
+from __future__ import annotations
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
@@ -9,7 +10,7 @@ across the application. These protocols help ensure type safety while allowing
 flexibility in implementation.
 """
 
-from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, Set
+from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, Set, runtime_checkable
 from PySide6.QtGui import QPixmap, QColor
 from PySide6.QtCore import QRect
 
@@ -18,8 +19,46 @@ PointTuple = Tuple[int, float, float]  # frame, x, y
 PointTupleWithStatus = Tuple[int, float, float, bool]  # frame, x, y, interpolated
 PointsList = List[Union[PointTuple, PointTupleWithStatus]]
 
+# Image Service Protocols
+@runtime_checkable
+class ImageSequenceProtocol(Protocol):
+    # Added for image_service compatibility
+    image_sequence_path: str
+    current_image_idx: int
+    image_filenames: list[str]
+    image_width: int
+    image_height: int
+    zoom_factor: float
+    offset_x: float
+    offset_y: float
+    selected_point_idx: int
+    def setFocus(self) -> None: ...
+    def setCurrentImageByIndex(self, idx: int) -> None: ...
+    def centerOnSelectedPoint(self) -> bool: ...
+    def setImageSequence(self, path: str, filenames: list[str]) -> None: ...
+    background_image: Any
+    scale_to_image: bool
+    image_changed: Any
+    def emit(self, *args: Any, **kwargs: Any) -> None: ...
+    def update(self) -> None: ...
 
-class CurveViewProtocol(Protocol):
+@runtime_checkable
+class CurveViewProtocol(ImageSequenceProtocol, Protocol):
+    # Added for image_service compatibility
+    current_image_idx: int
+    def setCurrentImageByIndex(self, idx: int) -> None: ...
+    def setImageSequence(self, path: str, filenames: list[str]) -> None: ...
+    def toggleBackgroundVisible(self, visible: bool) -> None: ...
+    def setBackgroundOpacity(self, opacity: float) -> None: ...
+    image_filenames: list[str]
+    show_background: bool
+    image_width: int
+    image_height: int
+    zoom_factor: float
+    offset_x: float
+    offset_y: float
+    selected_point_idx: int
+    def centerOnSelectedPoint(self) -> bool: ...
     """Protocol defining the interface for curve view components."""
 
     # Common attributes
@@ -28,12 +67,8 @@ class CurveViewProtocol(Protocol):
     flip_y_axis: bool
     scale_to_image: bool
     background_image: Optional[QPixmap]  # Changed from Any to QPixmap
-    image_width: int
-    image_height: int
-    zoom_factor: float
 
     # Visualization attributes (added for type safety)
-    show_background: bool
     show_grid: bool
     show_velocity_vectors: bool
     show_all_frame_numbers: bool
@@ -45,64 +80,70 @@ class CurveViewProtocol(Protocol):
 
     # Data and selection
     curve_data: PointsList
-    selected_point_idx: int
     selected_points: Set[int]
     frame_marker_label: Any
     timeline_slider: Any
-    points: List[Union[PointTuple, PointTupleWithStatus]]  # Specific point data list
-    main_window: Any  # Reference to main window
+    points: PointsList  # Specific point data list
     nudge_increment: float
     current_increment_index: int
     available_increments: List[float]
-    image_filenames: List[str]  # Added for extract_frame_number
-    
+    main_window: Any  # Reference to main window for status updates
     # Selection rectangle
     selection_rect: QRect  # Properly typed as QRect
-    
-    # Pan/offset attributes
-    offset_x: float
-    offset_y: float
-    
     # Signals
     point_selected: Any  # Signal
     point_moved: Any  # Signal
     selection_changed: Any  # Signal
-    
-    # Methods for points manipulation
+    # Points manipulation
     def set_curve_data(self, curve_data: PointsList) -> None: ...
     def get_selected_indices(self) -> List[int]: ...
-
-    # Required methods
-    def update(self) -> None: ...
-    def setPoints(self, points: List[Tuple[Any, ...]], image_width: int = 0, 
-                 image_height: int = 0, preserve_view: bool = False) -> None: ...
+    def setPoints(self, points: PointsList, image_width: int = 0, image_height: int = 0, preserve_view: bool = False) -> None: ...
     def get_selected_points(self) -> List[int]: ...
     def setVelocityData(self, velocities: Any) -> None: ...
     def toggleVelocityVectors(self, enabled: bool) -> None: ...
 
 
+from PySide6.QtWidgets import QWidget
+
 class MainWindowProtocol(Protocol):
-    """Protocol defining the interface for the main window."""
-
-    # Required attributes
-    curve_view: Optional[CurveViewProtocol]
-    quality_score_label: Any
-    smoothness_label: Any
-    consistency_label: Any
-    coverage_label: Any
+    # For image_service compatibility
+    image_sequence_path: str
+    image_filenames: list[str]
+    image_label: Any
+    toggle_bg_button: Any
+    default_directory: str
+    image_width: int
+    image_height: int
+    curve_view: CurveViewProtocol
     curve_data: PointsList
-    analyze_button: Any
-    toggle_vectors_button: Any
+    point_name: str
+    point_color: str
+    status_bar: Any
+    save_button: Any
+    add_point_button: Any
+    smooth_button: Any
+    fill_gaps_button: Any
+    filter_button: Any
+    detect_problems_button: Any
+    extrapolate_button: Any
+    timeline_slider: Any
+    frame_edit: Any
+    go_button: Any
+    info_label: Any
+    prev_image_button: Any
+    next_image_button: Any
+    opacity_slider: Any
     
-    # Required methods that match QMainWindow behavior
-    def statusBar(self) -> Any: ...
-    # Add a property to get the underlying QWidget for QMessageBox
     @property
-    def widget(self) -> Any: ...
-
-    # Required methods
+    def qwidget(self) -> Any: ...
+    def update_image_label(self) -> None: ...
+    def statusBar(self) -> Any: ...
     def update_status_message(self, message: str) -> None: ...
     def refresh_point_edit_controls(self) -> None: ...
+    def add_to_history(self) -> None: ...
+    def setup_timeline(self, start_frame: int, end_frame: int) -> None: ...
+    def setImageSequence(self, filenames: list[str]) -> None: ...
+
 
 
 class ImageProtocol(Protocol):
@@ -135,18 +176,6 @@ class FileServiceProtocol(Protocol):
     def save_track_data(self, main_window: MainWindowProtocol) -> None: ...
     def load_image_sequence(self, main_window: MainWindowProtocol) -> None: ...
 
-
-# Image Service Protocols
-class ImageSequenceProtocol(Protocol):
-    """Protocol defining the interface for image sequence operations."""
-
-    image_filenames: List[str]
-    image_sequence_path: str
-    current_image_idx: int
-    background_image: Optional[QPixmap]  # Changed from ImageProtocol to QPixmap
-    scale_to_image: bool
-
-    def update(self) -> None: ...
 
 
 class ImageServiceProtocol(Protocol):
@@ -181,6 +210,7 @@ class HistoryContainerProtocol(Protocol):
     point_color: str
     curve_view: CurveViewProtocol
     info_label: Any
+    qwidget: QWidget  # Underlying QWidget for dialogs
 
 
 class HistoryServiceProtocol(Protocol):

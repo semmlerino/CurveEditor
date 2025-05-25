@@ -18,7 +18,7 @@ from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialo
 # Configure logger for this module
 logger = LoggingService.get_logger("batch_edit")
 
-from typing import Optional, List
+from typing import Optional, List, Any
 from services.protocols import PointsList
 from typing import Protocol, runtime_checkable
 from PySide6.QtWidgets import QVBoxLayout

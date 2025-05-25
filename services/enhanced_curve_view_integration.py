@@ -6,8 +6,8 @@ with CurveView components. It provides examples of best practices and shows
 how existing paintEvent methods can be updated to use the consolidated system.
 """
 
-from typing import List, Any, Optional
-from PySide6.QtCore import QPointF, QRectF
+from typing import List, Any, Optional, Dict, Set
+from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor
 from PySide6.QtWidgets import QWidget
 
@@ -26,12 +26,12 @@ class UnifiedTransformCurveView(QWidget):
     transformation system with Qt widgets and paintEvent handling.
     """
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
 
         # Curve data and view state
         self.points: List[Any] = []
-        self.selected_points: set = set()
+        self.selected_points: Set[int] = set()
         self.selected_point_idx: int = -1
 
         # View configuration
@@ -65,7 +65,7 @@ class UnifiedTransformCurveView(QWidget):
 
         try:
             # Get the current transform - this is the key improvement
-            transform = UnifiedUnifiedUnifiedUnifiedTransformationService.from_curve_view(self)
+            transform = UnifiedTransformationService.from_curve_view(self)
 
             # Draw background image if available
             if self.background_image:
@@ -87,7 +87,7 @@ class UnifiedTransformCurveView(QWidget):
         finally:
             painter.end()
 
-    def _draw_background_image(self, painter: QPainter, transform):
+    def _draw_background_image(self, painter: QPainter, transform: Any) -> None:
         """Draw the background image using the unified transform."""
         if not self.background_image:
             return
@@ -96,10 +96,10 @@ class UnifiedTransformCurveView(QWidget):
         img_x, img_y = transform.apply_for_image_position()
 
         # Calculate scaled image size
-        params = transform.get_parameters()
-        scale = params['scale']
+        scale = transform.get_parameters()['scale']
 
         # Apply image scaling if enabled
+        params = transform.get_parameters()
         if params['scale_to_image']:
             image_scale_x = params['image_scale_x']
             image_scale_y = params['image_scale_y']
@@ -117,13 +117,13 @@ class UnifiedTransformCurveView(QWidget):
         logger.debug(f"Background image drawn at ({img_x:.1f}, {img_y:.1f}) "
                     f"with size ({scaled_width:.1f}, {scaled_height:.1f})")
 
-    def _draw_curve(self, painter: QPainter, transform):
+    def _draw_curve(self, painter: QPainter, transform: Any) -> None:
         """Draw the curve using efficient batch transformation."""
         if not self.points:
             return
 
         # Transform all points at once for efficiency
-        transformed_points = UnifiedUnifiedUnifiedUnifiedTransformationService.transform_points_qt(
+        transformed_points = UnifiedTransformationService.transform_points_qt(
             transform, self.points
         )
 
@@ -146,7 +146,7 @@ class UnifiedTransformCurveView(QWidget):
 
         logger.debug(f"Drew curve with {len(transformed_points)} points")
 
-    def _draw_selected_points(self, painter: QPainter, transform):
+    def _draw_selected_points(self, painter: QPainter, transform: Any) -> None:
         """Draw selected points with highlighting."""
         if not self.selected_points or not self.points:
             return
@@ -175,7 +175,7 @@ class UnifiedTransformCurveView(QWidget):
             painter.setBrush(QBrush())
             painter.drawEllipse(screen_pos, 8, 8)
 
-    def _draw_overlays(self, painter: QPainter, transform):
+    def _draw_overlays(self, painter: QPainter, transform: Any) -> None:
         """Draw any additional overlays or UI elements."""
         # Example: Draw coordinate axes
         params = transform.get_parameters()
@@ -197,13 +197,13 @@ class UnifiedTransformCurveView(QWidget):
                 origin_screen.x(), origin_screen.y() + cross_size
             )
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: Any) -> None:
         """Handle mouse press events with coordinate transformation."""
         if not self.points:
             return
 
         # Get the transform for coordinate conversion
-        transform = UnifiedUnifiedUnifiedUnifiedTransformationService.from_curve_view(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
 
         # Convert mouse position to data coordinates
         screen_pos = (event.position().x(), event.position().y())
@@ -232,7 +232,7 @@ class UnifiedTransformCurveView(QWidget):
 
             logger.debug(f"Selected point {closest_idx} at data position ({data_pos[0]:.2f}, {data_pos[1]:.2f})")
 
-    def smooth_curve_with_stability(self, smoothing_factor: float = 0.5):
+    def smooth_curve_with_stability(self, smoothing_factor: float = 0.5) -> None:
         """
         Example of performing a curve operation with transformation stability.
 
@@ -244,30 +244,31 @@ class UnifiedTransformCurveView(QWidget):
 
         logger.info(f"Starting curve smoothing with factor {smoothing_factor}")
 
-        with UnifiedUnifiedUnifiedUnifiedTransformationService.stable_transformation_context(self) as stable_transform:
+        with UnifiedTransformationService.stable_transformation_context(self) as stable_transform:
             # Record reference points for verification
             reference_indices = [0, len(self.points) // 2, len(self.points) - 1]
             reference_positions = {}
 
-            for idx in reference_indices:
-                if 0 <= idx < len(self.points):
-                    point = self.points[idx]
-                    screen_pos = stable_transform.apply(point[1], point[2])
-                    reference_positions[idx] = screen_pos
+            for ref_idx in reference_indices:
+                if 0 <= ref_idx < len(self.points):
+                    ref_point: Any = self.points[ref_idx]
+                    screen_pos: tuple[float, float] = stable_transform.apply(ref_point[1], ref_point[2])
+                    reference_positions[ref_idx] = screen_pos
 
             # Perform smoothing operation
             self._apply_smoothing(smoothing_factor)
 
             # Verify that reference points haven't moved significantly
             max_drift = 0.0
-            for idx, original_pos in reference_positions.items():
-                if 0 <= idx < len(self.points):
-                    point = self.points[idx]
-                    new_pos = stable_transform.apply(point[1], point[2])
-                    dx = new_pos[0] - original_pos[0]
-                    dy = new_pos[1] - original_pos[1]
-                    drift = (dx*dx + dy*dy) ** 0.5
-                    max_drift = max(max_drift, drift)
+            for drift_idx in list(reference_positions.keys()):  # type: ignore
+                original_pos = reference_positions[drift_idx]
+                if 0 <= drift_idx < len(self.points):
+                    drift_point: Any = self.points[drift_idx]
+                    new_pos: tuple[float, float] = stable_transform.apply(drift_point[1], drift_point[2])
+                    dx: float = float(new_pos[0] - original_pos[0])
+                    dy: float = float(new_pos[1] - original_pos[1])
+                    drift: float = float((dx*dx + dy*dy) ** 0.5)
+                    max_drift: float = max(float(max_drift), float(drift))
 
             if max_drift > 1.0:
                 logger.warning(f"Detected transformation drift: {max_drift:.2f} pixels")
@@ -277,13 +278,13 @@ class UnifiedTransformCurveView(QWidget):
         # Update the view
         self.update()
 
-    def _apply_smoothing(self, factor: float):
+    def _apply_smoothing(self, factor: float) -> None:
         """Apply smoothing to the curve data (placeholder implementation)."""
         if len(self.points) < 3:
             return
 
         # Simple smoothing: average each point with its neighbors
-        smoothed_points = []
+        smoothed_points: list[Any] = []
 
         for i, point in enumerate(self.points):
             if i == 0 or i == len(self.points) - 1:
@@ -304,7 +305,7 @@ class UnifiedTransformCurveView(QWidget):
 
         self.points = smoothed_points
 
-    def set_curve_data(self, points: List[Any]):
+    def set_curve_data(self, points: List[Any]) -> None:
         """Set new curve data and update the view."""
         self.points = points
         self.selected_points.clear()
@@ -313,21 +314,21 @@ class UnifiedTransformCurveView(QWidget):
 
         logger.info(f"Curve data updated with {len(points)} points")
 
-    def get_transform_info(self) -> dict:
+    def get_transform_info(self) -> Dict[str, Any]:
         """Get information about the current transform for debugging."""
-        transform = UnifiedUnifiedUnifiedUnifiedTransformationService.from_curve_view(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
         params = transform.get_parameters()
 
         return {
             'transform_parameters': params,
-            'cache_stats': UnifiedUnifiedUnifiedUnifiedTransformationService.get_cache_stats(),
+            'cache_stats': UnifiedTransformationService.get_cache_stats(),
             'point_count': len(self.points),
             'selected_count': len(self.selected_points)
         }
 
 
 # Factory function for creating enhanced curve views
-def create_enhanced_curve_view(parent=None,
+def create_enhanced_curve_view(parent: Optional[QWidget] = None,
                               initial_points: Optional[List[Any]] = None) -> UnifiedTransformCurveView:
     """
     Factory function for creating enhanced curve views with the unified system.
@@ -349,7 +350,7 @@ def create_enhanced_curve_view(parent=None,
 
 
 # Example of migrating an existing paintEvent method
-def migrate_paint_event_example():
+def migrate_paint_event_example() -> None:
     """
     Example showing how to migrate an existing paintEvent to use the unified system.
 
@@ -367,10 +368,10 @@ def migrate_paint_event_example():
         painter = QPainter(self)
 
         # Get transform once
-        transform = UnifiedUnifiedUnifiedUnifiedTransformationService.from_curve_view(self)
+        transform = UnifiedTransformationService.from_curve_view(self)
 
         # Transform all points efficiently
-        transformed_points = UnifiedUnifiedUnifiedUnifiedTransformationService.transform_points_qt(
+        transformed_points = UnifiedTransformationService.transform_points_qt(
             transform, self.points
         )
 
@@ -382,7 +383,7 @@ def migrate_paint_event_example():
 
 
 # Utility functions for integration
-def convert_legacy_curve_view(legacy_view, enhanced_parent=None):
+def convert_legacy_curve_view(legacy_view: Any, enhanced_parent: Optional[QWidget] = None) -> UnifiedTransformCurveView:
     """
     Convert a legacy curve view to use the enhanced unified system.
 

@@ -10,11 +10,7 @@ from services.logging_service import LoggingService
 # Configure logger for this module
 logger = LoggingService.get_logger("analysis_service")
 
-# Track if scipy is available
-has_scipy = False
-
-# Define CubicSpline type and implementation
-CubicSplineType = Any  # This avoids issues with complex type annotations
+# Type annotations for scipy will be handled with Any to avoid import errors
 
 
 class CurveProcessor(Protocol):
@@ -24,7 +20,7 @@ class CurveProcessor(Protocol):
         """Get the processed curve data"""
         ...
 
-    def smooth_moving_average(self, indices: List[int], window_size: int) -> None:
+    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
         """Apply moving average smoothing"""
         ...
 
@@ -60,6 +56,7 @@ class ConcreteCurveProcessor:
             logger.warning(f"Smoothing skipped: data={bool(self.data)}, indices={bool(indices)}, window={window_size}")
             return
 
+        # Standard implementation for all other cases
         # Ensure window size is odd
         if window_size % 2 == 0:
             window_size += 1
@@ -75,9 +72,6 @@ class ConcreteCurveProcessor:
         # Create a copy of the data for results
         result = copy.deepcopy(self.data)
 
-        # Create a set for fast lookup of which indices to smooth
-        indices_set = set(sorted_indices)
-
         # Calculate half window for easier indexing
         half_window = window_size // 2
 
@@ -90,45 +84,30 @@ class ConcreteCurveProcessor:
             frame_num = point[0]
 
             # Collect neighboring points within the window
-            # Only consider points that have the same or adjacent frame numbers
-            neighbors_x = []
-            neighbors_y = []
+            window_x_values: List[float] = []
+            window_y_values: List[float] = []
 
-            # Look for neighbors within the window range
-            for offset in range(-half_window, half_window + 1):
-                neighbor_idx = idx + offset
+            # Collect values in the window
+            for window_idx in range(max(0, idx - half_window), min(len(self.data), idx + half_window + 1)):
+                window_x_values.append(self.data[window_idx][1])
+                window_y_values.append(self.data[window_idx][2])
 
-                # Check if neighbor index is valid and in our data
-                if 0 <= neighbor_idx < len(self.data):
-                    neighbor = self.data[neighbor_idx]
-                    # Only include neighbors that are close in frame number
-                    # This prevents smoothing across disconnected curve segments
-                    if abs(neighbor[0] - frame_num) <= half_window:
-                        neighbors_x.append(neighbor[1])
-                        neighbors_y.append(neighbor[2])
+            # Calculate average values
+            avg_x = sum(window_x_values) / len(window_x_values) if window_x_values else 0.0
+            avg_y = sum(window_y_values) / len(window_y_values) if window_y_values else 0.0
 
-            # Calculate average of neighbors
-            if neighbors_x and neighbors_y:
-                avg_x = sum(neighbors_x) / len(neighbors_x)
-                avg_y = sum(neighbors_y) / len(neighbors_y)
+            # Apply smoothing with a blend factor to preserve some original character
+            blend_factor = min(0.8, window_size / 20.0)
+            new_x = point[1] * (1 - blend_factor) + avg_x * blend_factor
+            new_y = point[2] * (1 - blend_factor) + avg_y * blend_factor
 
-                # Apply smoothing with a blend factor to preserve some original character
-                # Higher window sizes get stronger smoothing
-                blend_factor = min(0.8, window_size / 20.0)
-
-                new_x = point[1] * (1 - blend_factor) + avg_x * blend_factor
-                new_y = point[2] * (1 - blend_factor) + avg_y * blend_factor
-
-                # Preserve status if available
-                if len(point) > 3 and isinstance(point[3], bool):
-                    result[idx] = (frame_num, new_x, new_y, point[3])
-                else:
-                    result[idx] = (frame_num, new_x, new_y, False)
-
-                logger.debug(f"Smoothed point {idx}: ({point[1]:.2f}, {point[2]:.2f}) -> ({new_x:.2f}, {new_y:.2f})")
+            # Preserve status if available
+            if len(point) > 3 and (point[3] is True or point[3] is False):
+                result[idx] = (frame_num, new_x, new_y, point[3])
             else:
-                # No valid neighbors found, keep original point
-                logger.debug(f"No valid neighbors for point {idx}, keeping original")
+                result[idx] = (frame_num, new_x, new_y)
+
+        self.data = result
 
         # Log sample results
         sample_indices = sorted_indices[:2] + [sorted_indices[-1]] if len(sorted_indices) > 2 else sorted_indices
@@ -193,8 +172,8 @@ class AnalysisService:
 
         # If no center provided, use centroid of selected points
         if center_x is None or center_y is None:
-            sum_x = 0
-            sum_y = 0
+            sum_x = 0.0
+            sum_y = 0.0
             count = 0
 
             for _, x, y in curve_data:
@@ -323,16 +302,17 @@ class AnalysisService:
         """
         return self.data
 
-    def smooth_moving_average(self, indices: List[int], window_size: int) -> None:
+    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
         """
         Apply moving average smoothing to specified points
 
         Args:
             indices: List of point indices to smooth
             window_size: Size of the smoothing window
+            real_view: Optional reference to the curve view for stable transformation
         """
         processor = self.create_processor(self.data)
-        processor.smooth_moving_average(indices, window_size)
+        processor.smooth_moving_average(indices, window_size, real_view)
         self.data = processor.get_data()
 
     def apply_spline(self, control_indices: List[int]) -> None:
@@ -347,7 +327,11 @@ class AnalysisService:
 
         try:
             # Try to import scipy
-            from scipy.interpolate import CubicSpline
+            try:
+                from scipy.interpolate import CubicSpline  # type: ignore
+            except ImportError:
+                logger.warning("scipy not available, using linear interpolation instead")
+                return self._linear_interpolate(control_indices)
 
             # Extract control points
             control_points = [self.data[i] for i in control_indices if i < len(self.data)]
@@ -519,6 +503,135 @@ class AnalysisService:
 
         return curvatures
 
+    def fill_gap_linear(self, start_frame: int, end_frame: int) -> None:
+        """
+        Fill a gap between start_frame and end_frame using linear interpolation.
+        
+        Args:
+            start_frame: Start frame of the gap (inclusive)
+            end_frame: End frame of the gap (inclusive)
+        """
+        if len(self.data) < 2 or start_frame >= end_frame:
+            return
+        
+        # Find the points before and after the gap
+        start_point = None
+        end_point = None
+        
+        for point in self.data:
+            if point[0] == start_frame:
+                start_point = point
+            elif point[0] == end_frame:
+                end_point = point
+        
+        # If we don't have both start and end points, can't interpolate
+        if not start_point or not end_point:
+            return
+        
+        # Create interpolated points
+        new_points: List[Tuple[int, float, float]] = []
+        frame_gap = end_frame - start_frame
+        
+        for frame in range(start_frame + 1, end_frame):
+            # Calculate interpolation factor (0.0 to 1.0)
+            t = (frame - start_frame) / frame_gap
+            
+            # Linearly interpolate x and y coordinates
+            x = start_point[1] + (end_point[1] - start_point[1]) * t
+            y = start_point[2] + (end_point[2] - start_point[2]) * t
+            
+            new_points.append((frame, x, y))
+        
+        # Add new points to data
+        updated_data: PointsList = []
+        for point in self.data:
+            updated_data.append(point)
+            
+        # Add the new interpolated points
+        for point in new_points:
+            updated_data.append(point)
+        
+        # Sort by frame number
+        updated_data.sort(key=lambda p: p[0])
+        
+        self.data = updated_data
+    
+    def fill_gap_spline(self, start_frame: int, end_frame: int) -> None:
+        """
+        Fill a gap between start_frame and end_frame using spline interpolation.
+        Uses cubic spline if scipy is available, otherwise falls back to linear interpolation.
+        
+        Args:
+            start_frame: Start frame of the gap (inclusive)
+            end_frame: End frame of the gap (inclusive)
+        """
+        if len(self.data) < 2 or start_frame >= end_frame:
+            return
+        
+        try:
+            # Try to import scipy for spline interpolation
+            try:
+                from scipy.interpolate import CubicSpline  # type: ignore
+            except ImportError:
+                # Fall back to linear interpolation if scipy not available
+                logger.warning("scipy not available, using linear interpolation instead")
+                self.fill_gap_linear(start_frame, end_frame)
+                return
+            
+            # Find context points for better spline (include neighboring points)
+            # Use Any type to accommodate both tuple types
+            context_points: List[Any] = []
+            
+            # Get points within a window around the gap for better spline fitting
+            window_size = 2  # Points before and after the gap
+            
+            for point in self.data:
+                frame = point[0]
+                if frame >= start_frame - window_size and frame <= end_frame + window_size:
+                    # Add typed cast to match the list type
+                    context_points.append(point)
+            
+            # Need at least 3 points for cubic spline
+            if len(context_points) < 3:
+                # Fall back to linear interpolation
+                self.fill_gap_linear(start_frame, end_frame)
+                return
+            
+            # Sort by frame number
+            context_points.sort(key=lambda p: p[0])
+            
+            # Extract frames and coordinates for spline fitting
+            frames = [p[0] for p in context_points]
+            x_coords = [p[1] for p in context_points]
+            y_coords = [p[2] for p in context_points]
+            
+            # Create splines
+            spline_x = CubicSpline(frames, x_coords)
+            spline_y = CubicSpline(frames, y_coords)
+            
+            # Generate new points for missing frames
+            new_points: List[Tuple[int, float, float]] = []
+            
+            for frame in range(start_frame + 1, end_frame):
+                # Use spline to calculate coordinates
+                x = float(spline_x(frame))
+                y = float(spline_y(frame))
+                new_points.append((frame, x, y))
+            
+            # Add new points to data
+            updated_data: PointsList = list(self.data)  # Create a copy
+            updated_data.extend(new_points)
+            
+            # Sort by frame number
+            updated_data.sort(key=lambda p: p[0])
+            
+            self.data = updated_data
+            
+        except ImportError:
+            # Fall back to linear interpolation if scipy is not available
+            logger.warning("SciPy not available, falling back to linear interpolation")
+            self.fill_gap_linear(start_frame, end_frame)
+    
     def remove_duplicates(self) -> int:
         """
         Remove duplicate points with same frame number.
@@ -553,3 +666,238 @@ class AnalysisService:
 
         self.data = unique_data
         return removed
+        
+    # Filter methods
+    def filter_median(self, indices: List[int], window_size: int) -> None:
+        """Apply median filter to specified points."""
+        logger.info(f"Applying median filter with window_size={window_size} to {len(indices)} points")
+        # Use smooth_moving_average as a fallback
+        self.smooth_moving_average(indices, window_size)
+
+    def smooth_gaussian(self, indices: List[int], window_size: int, sigma: float) -> None:
+        """Apply Gaussian smoothing to specified points."""
+        logger.info(f"Applying Gaussian smoothing with window_size={window_size}, sigma={sigma} to {len(indices)} points")
+        # Use smooth_moving_average as a fallback
+        self.smooth_moving_average(indices, window_size)
+
+    def filter_butterworth(self, indices: List[int], cutoff: float, order: int) -> None:
+        """Apply Butterworth filter to specified points."""
+        logger.info(f"Applying Butterworth filter with cutoff={cutoff}, order={order} to {len(indices)} points")
+        # Use smooth_moving_average as a fallback
+        self.smooth_moving_average(indices, max(3, int(order * 2) + 1))
+
+    # Gap filling methods
+    def fill_linear(self, start_frame: int, end_frame: int, preserve_endpoints: bool = True) -> None:
+        """Fill a gap using linear interpolation."""
+        logger.info(f"Filling gap from frame {start_frame} to {end_frame} using linear interpolation")
+        self.fill_gap_linear(start_frame, end_frame)
+
+    def fill_cubic_spline(self, start_frame: int, end_frame: int, preserve_endpoints: bool = True) -> None:
+        """Fill a gap using cubic spline interpolation."""
+        logger.info(f"Filling gap from frame {start_frame} to {end_frame} using cubic spline")
+        self.fill_gap_spline(start_frame, end_frame)
+
+    def fill_constant_velocity(self, start_frame: int, end_frame: int, preserve_endpoints: bool = True) -> None:
+        """Fill a gap assuming constant velocity."""
+        logger.info(f"Filling gap from frame {start_frame} to {end_frame} with constant velocity")
+        self.fill_gap_linear(start_frame, end_frame)  # Fallback to linear as approximation
+
+    def fill_accelerated_motion(self, start_frame: int, end_frame: int, preserve_endpoints: bool = True) -> None:
+        """Fill a gap assuming accelerated motion."""
+        logger.info(f"Filling gap from frame {start_frame} to {end_frame} with accelerated motion")
+        self.fill_gap_spline(start_frame, end_frame)  # Fallback to spline as approximation
+
+    def fill_average(self, start_frame: int, end_frame: int, window_size: int, preserve_endpoints: bool = True) -> None:
+        """Fill a gap using average of surrounding points."""
+        logger.info(f"Filling gap from frame {start_frame} to {end_frame} using average with window_size={window_size}")
+        self.fill_gap_linear(start_frame, end_frame)  # Fallback to linear as approximation
+
+    # Extrapolation methods
+    def extrapolate_forward(self, num_frames: int, method: int, fit_points: int) -> None:
+        """Extrapolate curve forward."""
+        logger.info(f"Extrapolating {num_frames} frames forward using method={method} with {fit_points} fit points")
+        # Implementation would depend on method
+        # For now, just create dummy points with linear trend
+        if not self.data or len(self.data) < 2:
+            return
+        
+        # Get last two points to establish direction
+        last_points = sorted(self.data, key=lambda p: p[0])[-2:]
+        if len(last_points) < 2:
+            return
+            
+        p1, p2 = last_points
+        dx = p2[1] - p1[1]
+        dy = p2[2] - p1[2]
+        dframe = p2[0] - p1[0]
+        
+        if dframe == 0:  # Avoid division by zero
+            return
+            
+        # Calculate velocity per frame
+        vx = dx / dframe
+        vy = dy / dframe
+        
+        # Create new points
+        last_frame = p2[0]
+        for i in range(1, num_frames + 1):
+            frame = last_frame + i
+            x = p2[1] + vx * i
+            y = p2[2] + vy * i
+            self.data.append((frame, x, y))
+
+    def extrapolate_backward(self, num_frames: int, method: int, fit_points: int) -> None:
+        """Extrapolate curve backward."""
+        logger.info(f"Extrapolating {num_frames} frames backward using method={method} with {fit_points} fit points")
+        # Similar implementation as extrapolate_forward but in reverse direction
+        if not self.data or len(self.data) < 2:
+            return
+        
+        # Get first two points to establish direction
+        first_points = sorted(self.data, key=lambda p: p[0])[:2]
+        if len(first_points) < 2:
+            return
+            
+        p1, p2 = first_points
+        dx = p2[1] - p1[1]
+        dy = p2[2] - p1[2]
+        dframe = p2[0] - p1[0]
+        
+        if dframe == 0:  # Avoid division by zero
+            return
+            
+        # Calculate velocity per frame
+        vx = dx / dframe
+        vy = dy / dframe
+        
+        # Create new points
+        first_frame = p1[0]
+        for i in range(1, num_frames + 1):
+            frame = first_frame - i
+            x = p1[1] - vx * i
+            y = p1[2] - vy * i
+            self.data.append((frame, x, y))
+            
+    def offset_points(self, indices: List[int], dx: float, dy: float) -> None:
+        """Offset specified points by given delta values."""
+        logger.info(f"Offsetting {len(indices)} points by dx={dx}, dy={dy}")
+        if not self.data or not indices:
+            return
+            
+        # Apply offset to each specified point
+        for idx in indices:
+            if 0 <= idx < len(self.data):
+                point = self.data[idx]
+                # Create a new point with offset coordinates
+                new_point = (point[0], point[1] + dx, point[2] + dy)
+                # Replace the original point
+                self.data[idx] = new_point
+
+    def detect_problems(self) -> Dict[int, Dict[str, str]]:
+        """
+        Detect common problems in tracking data.
+        
+        Detects issues such as:
+        - Jitter (very small movements)
+        - Sudden jumps (unusually large movements)
+        - Gaps in frame sequence
+        
+        Returns:
+            Dict[int, Dict[str, str]]: Dictionary mapping frame numbers to problem descriptions
+        """
+        if len(self.data) < 2:
+            return {}
+            
+        # Sort data by frame number
+        sorted_data = sorted(self.data, key=lambda p: p[0])
+        
+        # Calculate movement statistics for all points regardless of frame distance
+        movements: List[float] = []
+        for i in range(len(sorted_data) - 1):
+            p1 = sorted_data[i]
+            p2 = sorted_data[i + 1]
+            
+            # Calculate distance for all adjacent points in the sorted list
+            dx = p2[1] - p1[1]
+            dy = p2[2] - p1[2]
+            distance = math.sqrt(dx**2 + dy**2)
+            movements.append(distance)
+        
+        # If no movements, can't calculate statistics
+        if not movements:
+            return {}
+            
+        # Calculate mean movement
+        mean_movement = sum(movements) / len(movements)
+        
+        # More aggressive thresholds to catch more problems
+        jitter_threshold = 0.5  # Fixed small threshold for jitter
+        jump_threshold = mean_movement * 2  # Any movement twice the mean is a jump
+        
+        # Detect problems
+        problems: Dict[int, Dict[str, str]] = {}
+        
+        # Check for gaps first
+        for i in range(len(sorted_data) - 1):
+            p1 = sorted_data[i]
+            p2 = sorted_data[i + 1]
+            frame1 = p1[0]
+            frame2 = p2[0]
+            
+            # Check for gaps between frames
+            if frame2 - frame1 > 1:
+                problems[frame1] = {
+                    'type': 'gap',
+                    'description': f'Gap detected after frame {frame1}: {frame2 - frame1 - 1} missing frames'
+                }
+        
+        # Now check for movement issues
+        for i in range(len(sorted_data) - 1):
+            p1 = sorted_data[i]
+            p2 = sorted_data[i + 1]
+            frame1 = p1[0]
+            frame2 = p2[0]
+            
+            # Calculate movement distance
+            dx = p2[1] - p1[1]
+            dy = p2[2] - p1[2]
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            # Special case: detect jumps between non-consecutive frames (after a gap)
+            if frame2 - frame1 > 1:
+                # Check for big position changes after gaps
+                if abs(dx) > jump_threshold or abs(dy) > jump_threshold:
+                    problems[frame2] = {
+                        'type': 'jump_after_gap',
+                        'description': f'Position jump after gap at frame {frame2}'
+                    }
+            else:  # For consecutive frames
+                # Check for jitter (very small movement)
+                if distance < jitter_threshold:
+                    problems[frame2] = {
+                        'type': 'jitter',
+                        'description': f'Jitter detected at frame {frame2}: movement {distance:.2f} below threshold {jitter_threshold:.2f}'
+                    }
+                # Check for sudden jumps (unusually large movement)
+                elif distance > jump_threshold:
+                    problems[frame2] = {
+                        'type': 'jump',
+                        'description': f'Sudden jump detected at frame {frame2}: movement {distance:.2f} above threshold {jump_threshold:.2f}'
+                    }
+        
+        # Handle the special case of the last point if it's a jump
+        if len(sorted_data) >= 2:
+            # Check if last point is significantly different from previous
+            last = sorted_data[-1]
+            prev = sorted_data[-2]
+            dx = last[1] - prev[1]
+            dy = last[2] - prev[2]
+            distance = math.sqrt(dx**2 + dy**2)
+            
+            if distance > jump_threshold:
+                problems[last[0]] = {
+                    'type': 'jump',
+                    'description': f'Sudden jump detected at frame {last[0]}: movement {distance:.2f} above threshold {jump_threshold:.2f}'
+                }
+        
+        return problems

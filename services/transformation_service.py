@@ -232,7 +232,7 @@ class TransformationService:
         view_state = ViewState.from_curve_view(curve_view)
 
         # Create modified view state if any parameters are provided
-        kwargs = {}
+        kwargs: Dict[str, Any] = {}
         if display_width is not None:
             kwargs['display_width'] = int(display_width)
         if display_height is not None:
@@ -240,6 +240,7 @@ class TransformationService:
         if offset_x is not None:
             kwargs['offset_x'] = float(offset_x)
         if offset_y is not None:
+            # Ensure offset_y is a float type
             kwargs['offset_y'] = float(offset_y)
 
         if kwargs:

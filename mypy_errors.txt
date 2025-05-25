@@ -1,0 +1,73 @@
+services\curve_service.py:232: error: Argument 1 to "normalize_point" has incompatible type "tuple[int, float, float] | tuple[int, float, float, bool]"; expected "tuple[int, float, float]"  [arg-type]
+services\curve_service.py:233: error: Incompatible types in assignment (expression has type "tuple[int, float, float, str]", target has type "tuple[int, float, float] | tuple[int, float, float, bool]")  [assignment]
+services\curve_service.py:289: error: Argument 1 to "set_point_radius" of "VisualizationService" has incompatible type "services.input_service.CurveViewProtocol"; expected "services.protocols.CurveViewProtocol"  [arg-type]
+services\curve_service.py:395: error: Incompatible types in assignment (expression has type "tuple[int, float, float, str]", target has type "tuple[int, float, float] | tuple[int, float, float, bool]")  [assignment]
+services\curve_service.py:406: error: Argument 1 to "reset_view" of "CenteringZoomService" has incompatible type "CurveViewProtocol"; expected "CurveView"  [arg-type]
+services\curve_service.py:437: error: Argument 1 to "add" of "set" has incompatible type "bool | str"; expected "str"  [arg-type]
+services\curve_service.py:442: error: Tuple index out of range  [misc]
+services\curve_service.py:443: error: Argument 1 to "add" of "set" has incompatible type "Any | bool | str"; expected "str"  [arg-type]
+curve_view.py:204: error: Argument 1 to "set_image_sequence" of "ImageService" has incompatible type "CurveView"; expected "ImageSequenceProtocol"  [arg-type]
+curve_view.py:204: note: Error code "arg-type" not covered by "type: ignore" comment
+curve_view.py:204: note: Following member(s) of "CurveView" have conflicts:
+curve_view.py:204: note:     Expected:
+curve_view.py:204: note:         def emit(self, *args: Any, **kwargs: Any) -> None
+curve_view.py:204: note:     Got:
+curve_view.py:204: note:         def emit(self, arg__1: bytes | bytearray | memoryview[int], *args: None) -> bool
+curve_view.py:210: error: Argument 1 to "set_current_image_by_frame" of "ImageService" has incompatible type "CurveView"; expected "CurveViewProtocol"  [arg-type]
+curve_view.py:210: note: Error code "arg-type" not covered by "type: ignore" comment
+curve_view.py:210: note: Following member(s) of "CurveView" have conflicts:
+curve_view.py:210: note:     Expected:
+curve_view.py:210: note:         def emit(self, *args: Any, **kwargs: Any) -> None
+curve_view.py:210: note:     Got:
+curve_view.py:210: note:         def emit(self, arg__1: bytes | bytearray | memoryview[int], *args: None) -> bool
+curve_view.py:215: error: Argument 1 to "set_current_image_by_index" of "ImageService" has incompatible type "CurveView"; expected "ImageSequenceProtocol"  [arg-type]
+curve_view.py:215: note: Error code "arg-type" not covered by "type: ignore" comment
+curve_view.py:215: note: Following member(s) of "CurveView" have conflicts:
+curve_view.py:215: note:     Expected:
+curve_view.py:215: note:         def emit(self, *args: Any, **kwargs: Any) -> None
+curve_view.py:215: note:     Got:
+curve_view.py:215: note:         def emit(self, arg__1: bytes | bytearray | memoryview[int], *args: None) -> bool
+curve_view.py:236: error: Argument 1 to "load_current_image" of "ImageService" has incompatible type "CurveView"; expected "ImageSequenceProtocol"  [arg-type]
+curve_view.py:236: note: Error code "arg-type" not covered by "type: ignore" comment
+curve_view.py:236: note: Following member(s) of "CurveView" have conflicts:
+curve_view.py:236: note:     Expected:
+curve_view.py:236: note:         def emit(self, *args: Any, **kwargs: Any) -> None
+curve_view.py:236: note:     Got:
+curve_view.py:236: note:         def emit(self, arg__1: bytes | bytearray | memoryview[int], *args: None) -> bool
+main_window.py:150: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:151: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:152: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:153: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:154: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:155: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:158: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:169: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:170: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:171: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+main_window.py:596: error: Argument 1 to "restore_state" of "HistoryService" has incompatible type "MainWindow"; expected "HistoryContainerProtocol"  [arg-type]
+main_window.py:596: note: Error code "arg-type" not covered by "type: ignore" comment
+main_window.py:596: note: "MainWindow" is missing following "HistoryContainerProtocol" protocol member:
+main_window.py:596: note:     qwidget
+main_window.py:854: error: Argument 1 to "fill_gap" of "DialogService" has incompatible type "MainWindow"; expected "MainWindowProtocol"  [arg-type]
+batch_edit.py:169: error: Name "Any" is not defined  [name-defined]
+batch_edit.py:169: note: Did you forget to import it from "typing"? (Suggestion: "from typing import Any")
+batch_edit.py:284: error: Argument 1 to "ScaleDialog" has incompatible type "BatchEditParentWidgetProtocol"; expected "QWidget | None"  [arg-type]
+batch_edit.py:382: error: Argument 1 to "SmoothFactorDialog" has incompatible type "BatchEditParentWidgetProtocol"; expected "QWidget | None"  [arg-type]
+services\transformation_integration.py:71: error: Cannot assign to a type  [misc]
+services\enhanced_curve_view_integration.py:271: error: Name "max_drift" already defined on line 262  [no-redef]
+examples\fix_curve_shift.py:53: error: Name "UnifiedUnifiedUnifiedTransformationService" is not defined  [name-defined]
+examples\fix_curve_shift.py:127: error: Name "UnifiedUnifiedUnifiedTransformationService" is not defined  [name-defined]
+migrate_to_unified_transforms.py:168: error: Argument 2 to "transform_points" of "UnifiedTransformationService" has incompatible type "list[tuple[int, int, int]]"; expected "list[tuple[int, float, float]]"  [arg-type]
+migrate_to_unified_transforms.py:168: note: "List" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+migrate_to_unified_transforms.py:168: note: Consider using "Sequence" instead, which is covariant
+tests\test_analysis_service.py:17: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+tests\test_analysis_service.py:31: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+tests\test_analysis_service.py:176: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+tests\test_analysis_service.py:187: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+tests\test_centering_zoom.py:113: error: Signature of "setPoints" incompatible with supertype "CurveViewProtocol"  [override]
+tests\test_centering_zoom.py:113: note:      Superclass:
+tests\test_centering_zoom.py:113: note:          def setPoints(self, points: list[tuple[int, float, float] | tuple[int, float, float, bool]], image_width: int = ..., image_height: int = ..., preserve_view: bool = ...) -> None
+tests\test_centering_zoom.py:113: note:      Subclass:
+tests\test_centering_zoom.py:113: note:          def setPoints(self, points: list[tuple[int, float, float]]) -> None
+tests\test_centering_zoom.py:298: note: By default the bodies of untyped functions are not checked, consider using --check-untyped-defs  [annotation-unchecked]
+Found 23 errors in 9 files (checked 68 source files)

@@ -156,13 +156,14 @@ class TestTransformationSystem(unittest.TestCase):
         after_points = self.curve_data.copy()
         after_points[0] = (0, 120.0, 220.0)  # Significant change to first point
         
-        # Detect drift
-        drift_report = UnifiedTransformationService.detect_transformation_drift(
+        # Detect drift - function now returns (drift_detected, drift_report)
+        drift_detected, drift_report = UnifiedTransformationService.detect_transformation_drift(
             before_points, after_points, transform, transform
         )
         
         # Verify drift detection
-        self.assertGreater(len(drift_report), 0)  # Should detect drift
+        self.assertTrue(drift_detected)  # Should detect drift
+        self.assertGreater(len(drift_report), 0)  # Should have entries
         self.assertIn(0, drift_report)  # Should identify first point
         self.assertGreater(drift_report[0], 1.0)  # Drift should be significant
         
