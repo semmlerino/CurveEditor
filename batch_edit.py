@@ -7,7 +7,7 @@ Provides functions for manipulating multiple track points simultaneously.
 """
 
 from PySide6.QtWidgets import (
-    QHBoxLayout, QPushButton, QGroupBox, QDialog, QMessageBox, QWidget
+    QHBoxLayout, QPushButton, QGroupBox, QDialog, QMessageBox, QWidget, QVBoxLayout
 )
 
 from services.curve_service import CurveService as CurveViewOperations
@@ -18,19 +18,17 @@ from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialo
 # Configure logger for this module
 logger = LoggingService.get_logger("batch_edit")
 
-from typing import Optional, List, Any
+from typing import Optional, Sequence, Any, cast, Protocol, runtime_checkable
 from services.protocols import PointsList
-from typing import Protocol, runtime_checkable
-from PySide6.QtWidgets import QVBoxLayout
 
 # NOTE: The parent must be both a QWidget and implement this protocol (via duck typing or multiple inheritance)
 @runtime_checkable
 class BatchEditParentWidgetProtocol(Protocol):
     selected_indices: list[int]
-    curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool]]
-    curve_view: QWidget
-    def setPoints(self, points: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
-    def set_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
+    curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]
+    curve_view: Any  # Using Any instead of QWidget to avoid strict widget type checking
+    def setPoints(self, points: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None: ...
+    def set_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None: ...
     def showMessage(self, message: str) -> None: ...
     image_width: int
     image_height: int
@@ -41,15 +39,15 @@ class BatchEditParentWidgetProtocol(Protocol):
     smooth_button: QPushButton
     select_all_button: QPushButton
     point_edit_layout: QVBoxLayout
-    def update_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool]]) -> None: ...
+    def update_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None: ...
     def statusBar(self) -> object: ...
     def add_to_history(self) -> None: ...
 
-from typing import cast
+# Avoid duplicate imports
 
 def batch_scale_points(
     curve_data: PointsList,
-    indices: List[int],
+    indices: Sequence[int],
     scale_x: float,
     scale_y: float,
     center_x: Optional[float] = None,
@@ -91,7 +89,7 @@ def batch_scale_points(
 
 def batch_offset_points(
     curve_data: PointsList,
-    indices: List[int],
+    indices: Sequence[int],
     offset_x: float,
     offset_y: float
 ) -> PointsList:
@@ -123,7 +121,7 @@ def batch_offset_points(
 
 def batch_rotate_points(
     curve_data: PointsList,
-    indices: List[int],
+    indices: Sequence[int],
     angle_degrees: float,
     center_x: Optional[float] = None,
     center_y: Optional[float] = None
@@ -164,7 +162,7 @@ def batch_rotate_points(
 
 def batch_smoothness_adjustment(
     curve_data: PointsList,
-    indices: List[int],
+    indices: Sequence[int],
     smoothness_factor: float,
     curve_view: Optional[Any] = None
 ) -> PointsList:
@@ -201,7 +199,7 @@ def batch_smoothness_adjustment(
 
 def batch_normalize_velocity(
     curve_data: PointsList,
-    indices: List[int],
+    indices: Sequence[int],
     target_velocity: float
 ) -> PointsList:
     """Normalize velocity between points to target value.
@@ -281,7 +279,7 @@ class BatchEditUI:
             return
 
         # Show scale dialog
-        dialog = ScaleDialog(self.parent)
+        dialog = ScaleDialog(cast(QWidget, self.parent))
         if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 
@@ -379,7 +377,7 @@ class BatchEditUI:
             return
 
         # Show smoothing factor dialog
-        dialog = SmoothFactorDialog(self.parent)
+        dialog = SmoothFactorDialog(cast(QWidget, self.parent))
         if dialog.exec_() != QDialog.Accepted:  # type: ignore[attr-defined]
             return
 

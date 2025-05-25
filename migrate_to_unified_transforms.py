@@ -164,7 +164,7 @@ class TransformationMigrationTool:
             transform = UnifiedTransformationService.from_view_state(view_state)
 
             # Test multiple points
-            test_points = [(0, 0, 0), (0, 100, 100), (0, 500, 300), (0, 1000, 800)]
+            test_points = [(0, 0.0, 0.0), (0, 100.0, 100.0), (0, 500.0, 300.0), (0, 1000.0, 800.0)]
             results = UnifiedTransformationService.transform_points(transform, test_points)
 
             if len(results) == len(test_points):

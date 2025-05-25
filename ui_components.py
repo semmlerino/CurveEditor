@@ -41,38 +41,13 @@ from services.visualization_service import VisualizationService  # For visualiza
 
 from enhanced_curve_view import EnhancedCurveView  # type: ignore[attr-defined]
 
-
-class TimelineFrameMarker(QWidget):
-    """Custom widget to show the current frame position marker in the timeline."""
-
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
-        super(TimelineFrameMarker, self).__init__(parent)
-        self.position: float = 0.0
-        self.setFixedHeight(10)
-        self.setMinimumWidth(100)
-
-    def setPosition(self, position: float) -> None:
-        """Set the relative position of the marker (0.0 to 1.0)."""
-        self.position = max(0.0, min(1.0, position))
-        self.update()
-
-    def paintEvent(self, event: QPaintEvent) -> None:
-        """Draw the frame marker."""
-        painter = QPainter(self)  # type: ignore[arg-type]
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Calculate marker position
-        width = self.width()
-        x_pos = int(width * self.position)
-
-        # Draw the triangle marker
-        path = QPainterPath()
-        path.moveTo(x_pos, 0)
-        path.lineTo(x_pos - 5, 10)
-        path.lineTo(x_pos + 5, 10)
-        path.closeSubpath()
-
-        painter.fillPath(path, QColor(255, 0, 0))
+# Import component modules (refactored from this file)
+from timeline_components import TimelineFrameMarker, TimelineComponents
+from point_edit_components import PointEditComponents
+from toolbar_components import ToolbarComponents
+from status_components import StatusComponents
+from visualization_components import VisualizationComponents
+from smoothing_components import SmoothingComponents
 
 
 class UIComponents:
@@ -95,199 +70,11 @@ class UIComponents:
 
     @staticmethod
     def create_toolbar(main_window: Any) -> QWidget:
-        """Create a more organized toolbar with action buttons grouped by function."""
+        """Create a more organized toolbar with action buttons grouped by function.
 
-        toolbar = QToolBar()
-        toolbar.setIconSize(QSize(24, 24))
-        toolbar.setMovable(False)
-
-        # File operations group
-        file_group = QWidget()
-        file_layout = QVBoxLayout(file_group)
-        file_layout.setContentsMargins(5, 2, 5, 2)
-        file_layout.setSpacing(2)
-
-        file_label = QLabel("File")
-        file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # bold font for label
-        file_font = QFont("Arial")  # type: ignore[arg-type]
-        file_font.setPointSize(8)
-        file_font.setBold(True)
-        file_label.setFont(file_font)
-        file_layout.addWidget(file_label)
-
-        file_buttons = QHBoxLayout()
-
-        main_window.load_button = QPushButton("Load")
-        main_window.load_button.setToolTip("Load 2D Track Data")
-        main_window.load_button.clicked.connect(main_window.load_track_data)
-
-        main_window.add_point_button = QPushButton("Add")
-        main_window.add_point_button.setToolTip("Add 2D Track Data")
-        main_window.add_point_button.clicked.connect(main_window.add_track_data)
-        main_window.add_point_button.setEnabled(False)
-
-        main_window.save_button = QPushButton("Save")
-        main_window.save_button.setToolTip("Save 2D Track Data")
-        main_window.save_button.clicked.connect(main_window.save_track_data)
-        main_window.save_button.setEnabled(False)
-
-        file_buttons.addWidget(main_window.load_button)
-        file_buttons.addWidget(main_window.add_point_button)
-        file_buttons.addWidget(main_window.save_button)
-        file_layout.addLayout(file_buttons)
-
-        # View operations group
-        view_group = QWidget()
-        view_layout = QVBoxLayout(view_group)
-        view_layout.setContentsMargins(5, 2, 5, 2)
-        view_layout.setSpacing(2)
-
-        view_label = QLabel("View")
-        view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # bold font for label
-        view_font = QFont("Arial")  # type: ignore[arg-type]
-        view_font.setPointSize(8)
-        view_font.setBold(True)
-        view_label.setFont(view_font)
-        view_layout.addWidget(view_label)
-
-        view_buttons = QHBoxLayout()
-
-        main_window.reset_view_button = QPushButton("Reset")
-        main_window.reset_view_button.setToolTip("Reset View")
-        main_window.reset_view_button.clicked.connect(lambda: CurveViewOperations.reset_view(main_window))
-
-        main_window.load_images_button = QPushButton("Images")
-        main_window.load_images_button.setToolTip("Load Image Sequence")
-        main_window.load_images_button.clicked.connect(lambda: ImageOperations.load_image_sequence(main_window))
-
-        main_window.toggle_bg_button = QPushButton("Toggle BG")
-        main_window.toggle_bg_button.setToolTip("Toggle Background Visibility")
-        main_window.toggle_bg_button.clicked.connect(lambda: ImageOperations.toggle_background(main_window))
-        main_window.toggle_bg_button.setEnabled(False)
-
-        view_buttons.addWidget(main_window.reset_view_button)
-        view_buttons.addWidget(main_window.load_images_button)
-        view_buttons.addWidget(main_window.toggle_bg_button)
-        view_layout.addLayout(view_buttons)
-
-        # Curve operations group
-        curve_group = QWidget()
-        curve_layout = QVBoxLayout(curve_group)
-        curve_layout.setContentsMargins(5, 2, 5, 2)
-        curve_layout.setSpacing(2)
-
-        curve_label = QLabel("Curve Tools")
-        curve_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        # bold font for label
-        curve_font = QFont("Arial", 8)
-        curve_font.setBold(True)
-        curve_label.setFont(curve_font)
-        curve_layout.addWidget(curve_label)
-
-        curve_buttons = QGridLayout()
-        curve_buttons.setSpacing(2)
-
-        main_window.smooth_button = QPushButton("Smooth")
-        main_window.smooth_button.setToolTip("Smooth Selected Curve")
-        main_window.smooth_button.clicked.connect(main_window.apply_smooth_operation)  # renamed method
-        main_window.smooth_button.setEnabled(True)
-
-        main_window.fill_gaps_button = QPushButton("Fill Gaps")
-        main_window.fill_gaps_button.setToolTip("Fill Gaps in Tracking Data")
-        main_window.fill_gaps_button.clicked.connect(lambda: DialogOperations.show_fill_gaps_dialog(main_window))
-        main_window.fill_gaps_button.setEnabled(False)
-
-        main_window.filter_button = QPushButton("Filter")
-        main_window.filter_button.setToolTip("Apply Filter to Curve")
-        main_window.filter_button.clicked.connect(lambda: DialogOperations.show_filter_dialog(main_window))
-        main_window.filter_button.setEnabled(False)
-
-        main_window.extrapolate_button = QPushButton("Extrapolate")
-        main_window.extrapolate_button.setToolTip("Extrapolate Curve")
-        main_window.extrapolate_button.clicked.connect(lambda: DialogOperations.show_extrapolate_dialog(main_window))
-        main_window.extrapolate_button.setEnabled(False)
-
-        curve_buttons.addWidget(main_window.smooth_button, 0, 0)
-        curve_buttons.addWidget(main_window.fill_gaps_button, 0, 1)
-        curve_buttons.addWidget(main_window.filter_button, 1, 0)
-        curve_buttons.addWidget(main_window.extrapolate_button, 1, 1)
-
-        curve_layout.addLayout(curve_buttons)
-
-        # History and Analysis group
-        history_group = QWidget()
-        history_layout = QVBoxLayout(history_group)
-        history_layout.setContentsMargins(5, 2, 5, 2)
-        history_layout.setSpacing(2)
-
-        history_label = QLabel("History & Analysis")
-        history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        history_font = QFont("Arial")  # type: ignore[arg-type]
-        history_font.setPointSize(8)
-        history_font.setWeight(QFont.Weight.Bold)
-        history_label.setFont(history_font)
-        history_layout.addWidget(history_label)  # type: ignore[arg-type]
-
-        history_buttons = QHBoxLayout()
-
-        main_window.undo_button = QPushButton("Undo")
-        main_window.undo_button.setToolTip("Undo Last Action")
-        # main_window.undo_button.clicked.connect(lambda: CurveOperations.undo(main_window)) # Original call removed
-        main_window.undo_button.clicked.connect(lambda: HistoryOperations.undo_action(main_window)) # Use HistoryOperations
-        main_window.undo_button.setEnabled(False)
-
-        main_window.redo_button = QPushButton("Redo")
-        main_window.redo_button.setToolTip("Redo Last Action")
-        # main_window.redo_button.clicked.connect(lambda: CurveOperations.redo(main_window)) # Original call removed
-        main_window.redo_button.clicked.connect(lambda: HistoryOperations.redo_action(main_window)) # Use HistoryOperations
-        main_window.redo_button.setEnabled(False)
-
-        main_window.detect_problems_button = QPushButton("Detect")
-        main_window.detect_problems_button.setToolTip("Detect Problems in Track Data")
-        # main_window.detect_problems_button.clicked.connect(lambda: DialogOperations.show_problem_detection_dialog(main_window)) # Refactored detect_problems
-        # Temporarily disable until detect_problems is refactored
-        main_window.detect_problems_button.setEnabled(False)
-        main_window.detect_problems_button.setToolTip("Problem detection temporarily disabled during refactoring.")
-        main_window.detect_problems_button.setEnabled(False)
-
-        history_buttons.addWidget(main_window.undo_button)
-        history_buttons.addWidget(main_window.redo_button)
-        history_buttons.addWidget(main_window.detect_problems_button)
-        history_layout.addLayout(history_buttons)
-
-        # Add vertical separator lines between groups
-        def create_vertical_line():
-            line = QFrame()
-            line.setFrameShape(QFrame.Shape.VLine)
-            line.setFrameShadow(QFrame.Shadow.Sunken)
-            return line
-
-        # Create the main toolbar layout
-        toolbar_layout = QHBoxLayout()
-        toolbar_layout.setContentsMargins(5, 0, 5, 0)
-        toolbar_layout.setSpacing(10)
-
-        # Add all groups to toolbar with separators
-        toolbar_layout.addWidget(file_group)
-        toolbar_layout.addWidget(create_vertical_line())
-        toolbar_layout.addWidget(view_group)
-        toolbar_layout.addWidget(create_vertical_line())
-        toolbar_layout.addWidget(curve_group)
-        toolbar_layout.addWidget(create_vertical_line())
-        toolbar_layout.addWidget(history_group)
-        toolbar_layout.addStretch()
-
-        # Add info label
-        main_window.info_label = QLabel("No data loaded")
-        toolbar_layout.addWidget(main_window.info_label)
-
-        # Create a container widget for the toolbar
-        toolbar_widget = QWidget()
-        toolbar_widget.setLayout(toolbar_layout)
-
-        return toolbar_widget
+        This method delegates to ToolbarComponents.create_toolbar for the actual implementation.
+        """
+        return ToolbarComponents.create_toolbar(main_window)
 
     @staticmethod
     def _create_curve_view(main_window: Any) -> QWidget:
@@ -384,110 +171,32 @@ class UIComponents:
 
         timeline_layout.addLayout(image_controls)
 
-        return UIComponents._finish_timeline_widget(main_window, timeline_layout, timeline_widget)
+        # Delegate timeline controls creation to TimelineComponents
+        timeline_controls_widget = TimelineComponents.create_timeline_widget(
+            main_window=main_window,
+            on_timeline_changed=UIComponents.on_timeline_changed,
+            on_timeline_press=lambda mw, ev: UIComponents._handle_timeline_press(mw, ev),
+            toggle_playback=UIComponents.toggle_playback,
+            prev_frame=UIComponents.prev_frame,
+            next_frame=UIComponents.next_frame,
+            go_to_first_frame=UIComponents.go_to_first_frame,
+            go_to_last_frame=UIComponents.go_to_last_frame,
+            on_frame_edit_changed=UIComponents.on_frame_edit_changed
+        )
 
-    @staticmethod
-    def _finish_timeline_widget(main_window: Any, timeline_layout: QVBoxLayout, timeline_widget: QWidget) -> QWidget:
-        """Finish setting up the timeline widget with controls and slider.
-
-        This is a helper method for _create_timeline_widget.
-        """
-        # Timeline controls
-        timeline_controls = QHBoxLayout()
-
-        # Add playback controls
-        main_window.play_button = QPushButton("Play")
-        main_window.play_button.setCheckable(True)
-        main_window.play_button.clicked.connect(lambda: UIComponents.toggle_playback(main_window))
-        main_window.play_button.setToolTip("Play/Pause (Space)")
-        main_window.play_button.setEnabled(False)
-
-        main_window.prev_frame_button = QPushButton("<")
-        main_window.prev_frame_button.clicked.connect(lambda: UIComponents.prev_frame(main_window))
-        main_window.prev_frame_button.setToolTip("Previous Frame (,)")
-        main_window.prev_frame_button.setEnabled(False)
-
-        main_window.next_frame_button = QPushButton(">")
-        main_window.next_frame_button.clicked.connect(lambda: UIComponents.next_frame(main_window))
-        main_window.next_frame_button.setToolTip("Next Frame (.)")
-        main_window.next_frame_button.setEnabled(False)
-
-        timeline_controls.addWidget(main_window.prev_frame_button)
-        timeline_controls.addWidget(main_window.play_button)
-        timeline_controls.addWidget(main_window.next_frame_button)
-
-        # Add frame jump buttons
-        main_window.first_frame_button = QPushButton("<<")
-        main_window.first_frame_button.clicked.connect(lambda: UIComponents.go_to_first_frame(main_window))
-        main_window.first_frame_button.setToolTip("Go to First Frame (Home)")
-        main_window.first_frame_button.setEnabled(False)
-
-        main_window.last_frame_button = QPushButton(">>")
-        main_window.last_frame_button.clicked.connect(lambda: UIComponents.go_to_last_frame(main_window))
-        main_window.last_frame_button.setToolTip("Go to Last Frame (End)")
-        main_window.last_frame_button.setEnabled(False)
-
-        timeline_controls.addWidget(main_window.first_frame_button)
-
-        # Frame controls
-        main_window.frame_label = QLabel("Frame: N/A")
-        main_window.frame_edit = QLineEdit()
-        main_window.frame_edit.setMaximumWidth(60)
-        main_window.frame_edit.returnPressed.connect(lambda: UIComponents.on_frame_edit_changed(main_window))
-        main_window.go_button = QPushButton("Go")
-        main_window.go_button.clicked.connect(lambda: UIComponents.on_frame_edit_changed(main_window))
-        main_window.go_button.setMaximumWidth(50)
-
-        timeline_controls.addWidget(main_window.frame_label)
-        timeline_controls.addWidget(main_window.frame_edit)
-        timeline_controls.addWidget(main_window.go_button)
-        timeline_controls.addWidget(main_window.last_frame_button)
-        timeline_controls.addStretch()
-
-        timeline_layout.addLayout(timeline_controls)
-
-        # Enhanced Timeline slider with individual frame ticks
-        main_window.timeline_slider = QSlider(Qt.Orientation.Horizontal)
-        main_window.timeline_slider.setMinimum(0)
-        main_window.timeline_slider.setMaximum(100)  # Will be updated when data is loaded
-
-        # Configure slider to show individual frames
-        main_window.timeline_slider.setTickPosition(QSlider.TickPosition.TicksBelow)
-        main_window.timeline_slider.setSingleStep(1)    # Move by 1 frame at a time
-        main_window.timeline_slider.setPageStep(1)      # Page step is also 1 frame
-
-        # Determine a reasonable tick interval based on frame count
-        frame_count = 100  # Default to 100 frames
-        tick_interval = max(1, frame_count // 100)  # Prevent too many ticks on large frame ranges
-        main_window.timeline_slider.setTickInterval(tick_interval)
-
-        # Add frame tracking tooltip
-        main_window.timeline_slider.setToolTip("Frame: 0")
-
-        # Typed slot for timeline slider
-        def on_slider_value_changed(value: int) -> None:
-            UIComponents.on_timeline_changed(main_window, value)
-        main_window.timeline_slider.valueChanged.connect(on_slider_value_changed)
-
-        # Create frame marker for better visual indication
-        main_window.frame_marker = TimelineFrameMarker()
-
-        # Create a layout for the slider with the marker
-        slider_layout = QVBoxLayout()
-        slider_layout.addWidget(main_window.frame_marker)
-        slider_layout.addWidget(main_window.timeline_slider)
-        slider_layout.setSpacing(0)
-
-        timeline_layout.addLayout(slider_layout)
-
-        # Use the shared static timeline press handler
-        def on_timeline_press(ev: QMouseEvent) -> None:
-            UIComponents._handle_timeline_press(main_window, ev)
-
-        # Set up mouse event handling using static helper method
-        UIComponents._setup_timeline_press_handler(main_window, on_timeline_press)
+        # Extract the timeline controls from the created widget and add to our layout
+        if timeline_controls_widget.layout():
+            # Move all items from the timeline controls widget to our layout
+            controls_layout = timeline_controls_widget.layout()
+            while controls_layout.count():
+                item = controls_layout.takeAt(0)
+                if item.widget():
+                    timeline_layout.addWidget(item.widget())
+                elif item.layout():
+                    timeline_layout.addLayout(item.layout())
 
         return timeline_widget
+
 
     @staticmethod
     def create_view_and_timeline(main_window: Any) -> QWidget:
@@ -545,145 +254,25 @@ class UIComponents:
         controls_layout = QHBoxLayout(controls_container)
 
         # Left side: Point Info and Editing
-        left_panel = QWidget()
-        left_layout = QVBoxLayout(left_panel)
-
-        # Point Info Group
-        point_info_group = QGroupBox("Point Info")
-        point_info_layout = QGridLayout(point_info_group)
-
-        main_window.frame_info_label = QLabel("Frame: N/A")
-        main_window.type_label = QLabel("Type:")
-        main_window.type_edit = QLineEdit()
-        main_window.type_edit.setReadOnly(True)
-        main_window.update_point_button = QPushButton("Update Point")
-
-        point_info_layout.addWidget(main_window.frame_info_label, 0, 0, 1, 2)
-        point_info_layout.addWidget(main_window.type_label, 1, 0)
-        point_info_layout.addWidget(main_window.type_edit, 1, 1)
-        point_info_layout.addWidget(main_window.update_point_button, 2, 0, 1, 2)
-
-        left_layout.addWidget(point_info_group)
-
-        left_layout.addStretch() # Push controls to the top
+        left_panel = PointEditComponents.create_point_info_panel(main_window)
 
         # Center: Visualization Controls
-        center_panel = QWidget()
-        center_layout = QVBoxLayout(center_panel)
-
-        vis_group = QGroupBox("Visualization")
-        vis_layout = QGridLayout(vis_group)
-
-        main_window.toggle_grid_button = QPushButton("Grid")
-        main_window.toggle_grid_button.setCheckable(True)
-        main_window.toggle_grid_button.setToolTip("Toggle Grid Visibility (G)")
-
-        main_window.toggle_vectors_button = QPushButton("Vectors")
-        main_window.toggle_vectors_button.setCheckable(True)
-        main_window.toggle_vectors_button.setToolTip("Toggle Velocity Vectors (V)")
-
-        main_window.toggle_frame_numbers_button = QPushButton("Numbers")
-        main_window.toggle_frame_numbers_button.setCheckable(True)
-        main_window.toggle_frame_numbers_button.setToolTip("Toggle Frame Numbers (F)")
-
-        main_window.toggle_crosshair_button = QPushButton("Crosshair")
-        main_window.toggle_crosshair_button.setCheckable(True)
-        main_window.toggle_crosshair_button.setToolTip("Toggle Crosshair (X)")
-
-        # Typed slot for center toggled in control panel
-        def on_control_center_toggled(checked: bool) -> None:
-            main_window.set_centering_enabled(checked)
-            if checked:
-                CenteringZoomService.auto_center_view(main_window, preserve_zoom=True)
-        main_window.center_on_point_button = QPushButton("Center")
-        main_window.center_on_point_button.setCheckable(True)
-        main_window.center_on_point_button.toggled.connect(on_control_center_toggled)
-        main_window.center_on_point_button.setStyleSheet("QPushButton:checked { background-color: lightblue; }")
-        main_window.center_on_point_button.setToolTip("Center View on Selected Point (C)")
-
-        main_window.point_size_label = QLabel("Point Size:")
-        main_window.point_size_spin = QSpinBox()
-        main_window.point_size_spin.setRange(1, 20)
-        main_window.point_size_spin.setValue(5) # Default size
-        main_window.point_size_spin.setToolTip("Adjust Point Size")
-
-        vis_layout.addWidget(main_window.toggle_grid_button, 0, 0)
-        vis_layout.addWidget(main_window.toggle_vectors_button, 0, 1)
-        vis_layout.addWidget(main_window.toggle_frame_numbers_button, 1, 0)
-        vis_layout.addWidget(main_window.toggle_crosshair_button, 1, 1)
-        vis_layout.addWidget(main_window.center_on_point_button, 2, 0, 1, 2)
-        vis_layout.addWidget(main_window.point_size_label, 3, 0)
-        vis_layout.addWidget(main_window.point_size_spin, 3, 1)
-
-        center_layout.addWidget(vis_group)
-        center_layout.addStretch()
+        center_panel = VisualizationComponents.create_visualization_panel(main_window)
 
         # Right side: Track Quality and Presets
         right_panel = QWidget()
         right_layout = QVBoxLayout(right_panel)
 
         # Add inline smoothing controls
-        smoothing_group = QGroupBox("Smoothing")
-        smoothing_layout = QGridLayout(smoothing_group)
-        smoothing_layout.addWidget(QLabel("Moving Average"), 0, 0, 1, 2)
-        smoothing_layout.addWidget(QLabel("Window:"), 1, 0)
-        main_window.smoothing_window_spin = QSpinBox()
-        main_window.smoothing_window_spin.setRange(1, 51)
-        main_window.smoothing_window_spin.setValue(5)
-        smoothing_layout.addWidget(main_window.smoothing_window_spin, 1, 1)
-        smoothing_layout.addWidget(QLabel("Sigma:"), 2, 0)
-        main_window.smoothing_sigma_spin = QDoubleSpinBox()
-        main_window.smoothing_sigma_spin.setRange(0.1, 10.0)
-        main_window.smoothing_sigma_spin.setSingleStep(0.1)
-        main_window.smoothing_sigma_spin.setValue(1.0)
-        smoothing_layout.addWidget(main_window.smoothing_sigma_spin, 2, 1)
-        smoothing_layout.addWidget(QLabel("Range:"), 3, 0)
-        main_window.smoothing_range_combo = QComboBox()
-        main_window.smoothing_range_combo.addItems(["Entire Curve", "Selected Range", "Current Window"])
-        smoothing_layout.addWidget(main_window.smoothing_range_combo, 3, 1)
-        main_window.smoothing_apply_button = QPushButton("Apply Smoothing")
-        main_window.smoothing_apply_button.setToolTip("Apply smoothing to curve")
-        smoothing_layout.addWidget(main_window.smoothing_apply_button, 4, 0, 1, 2)
+        smoothing_group = SmoothingComponents.create_smoothing_panel(main_window)
         right_layout.addWidget(smoothing_group)
 
         # Track Quality Group
-        quality_group = QGroupBox("Track Quality")
-        quality_layout = QGridLayout(quality_group)
-
-        quality_layout.addWidget(QLabel("Overall Score:"), 0, 0)
-        main_window.quality_score_label = QLabel("N/A")
-        quality_font = QFont("Arial")  # type: ignore[arg-type]
-        quality_font.setPointSize(10)
-        quality_font.setWeight(QFont.Weight.Bold)
-        main_window.quality_score_label.setFont(quality_font)
-        quality_layout.addWidget(main_window.quality_score_label, 0, 1)  # type: ignore[arg-type]
-
-        quality_layout.addWidget(QLabel("Smoothness:"), 1, 0)
-        main_window.smoothness_label = QLabel("N/A")
-        quality_layout.addWidget(main_window.smoothness_label, 1, 1)
-
-        quality_layout.addWidget(QLabel("Consistency:"), 2, 0)
-        main_window.consistency_label = QLabel("N/A")
-        quality_layout.addWidget(main_window.consistency_label, 2, 1)
-
-        quality_layout.addWidget(QLabel("Coverage:"), 3, 0)
-        main_window.coverage_label = QLabel("N/A")
-        quality_layout.addWidget(main_window.coverage_label, 3, 1)
-
-        main_window.analyze_button = QPushButton("Analyze Quality")
-        main_window.analyze_button.setToolTip("Analyze the quality of the current track data")
-        quality_layout.addWidget(main_window.analyze_button, 4, 0, 1, 2)
-
+        quality_group = StatusComponents.create_track_quality_panel(main_window)
         right_layout.addWidget(quality_group)
 
         # Quick Filter Presets Group
-        presets_group = QGroupBox("Quick Filters")
-        presets_layout = QVBoxLayout(presets_group)
-        main_window.presets_combo = QComboBox()
-        main_window.presets_combo.addItems(["Select Preset...", "Smooth Light", "Smooth Medium", "Smooth Heavy", "Filter Jitter"])
-        main_window.apply_preset_button = QPushButton("Apply Preset")
-        presets_layout.addWidget(main_window.presets_combo)
-        presets_layout.addWidget(main_window.apply_preset_button)
+        presets_group = StatusComponents.create_quick_filter_presets(main_window)
         right_layout.addWidget(presets_group)
 
         right_layout.addStretch()

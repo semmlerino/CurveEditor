@@ -13,9 +13,8 @@ from services.logging_service import LoggingService
 from curve_data_utils import compute_interpolated_curve_data
 
 if TYPE_CHECKING:
-    from services.input_service import CurveViewProtocol
+    from services.protocols import CurveViewProtocol, PointsList, PointTuple
     from main_window import MainWindow
-    from services.protocols import PointsList, PointTuple
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_service")

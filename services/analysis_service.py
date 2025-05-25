@@ -1,6 +1,6 @@
 # services/analysis_service.py
 
-from typing import List, Tuple, Optional, Dict, TypeVar, Protocol, Any
+from typing import List, Tuple, Optional, Dict, TypeVar, Protocol, Any, Sequence
 import copy
 from services.protocols import PointsList
 import math
@@ -20,7 +20,7 @@ class CurveProcessor(Protocol):
         """Get the processed curve data"""
         ...
 
-    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
         """Apply moving average smoothing"""
         ...
 
@@ -39,7 +39,7 @@ class ConcreteCurveProcessor:
         """Get the processed curve data"""
         return self.data
 
-    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
         """Apply moving average smoothing to x and y coordinates.
 
         This implementation applies a proper moving average filter where each point
@@ -302,7 +302,7 @@ class AnalysisService:
         """
         return self.data
 
-    def smooth_moving_average(self, indices: List[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
         """
         Apply moving average smoothing to specified points
 
