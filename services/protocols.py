@@ -16,7 +16,7 @@ from PySide6.QtCore import QRect
 
 # Type aliases for common data structures
 PointTuple = Tuple[int, float, float]  # frame, x, y
-PointTupleWithStatus = Tuple[int, float, float, bool]  # frame, x, y, interpolated
+PointTupleWithStatus = Tuple[int, float, float, Union[bool, str]]  # frame, x, y, status (bool or str)
 PointsList = List[Union[PointTuple, PointTupleWithStatus]]
 
 # Image Service Protocols

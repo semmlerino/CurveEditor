@@ -93,6 +93,24 @@ The application follows a service-oriented architecture with these key component
 
 ## Documentation
 
+### Documentation Structure & Consolidation
+
+- **Current & Maintained Documentation:**
+    - `README.md` (this file): Overview, features, installation, navigation
+    - `docs/quick-start.md`: Quick start and usage guide
+    - `docs/api-reference.md`: Service and API reference
+    - `docs/architecture.md`: Architectural overview
+    - `docs/design-decisions.md`: Key design decisions and rationale
+    - `docs/migration-guide.md`: Migration to the unified transformation system
+    - `TODO.md`: Remaining actionable technical debt and cleanup tasks
+
+- **Archived/Obsolete Documentation:**
+    - All files previously in the project root related to code review history, refactoring plans, or past process documentation have been moved to `docs/archive/`.
+    - All files in `docs/archive/` are for historical reference only. They may contain outdated or superseded information and are not maintained. For up-to-date information, always refer to the files listed above.
+
+If you are looking for the latest details or guidance, use the main documentation files above. The archive is only for legacy reference.
+
+
 ### Complete API Reference
 - **[API Documentation](docs/api-reference.md)**: Complete service and class documentation
 - **[Transformation System](docs/transformation-system.md)**: Detailed guide to the unified transformation system

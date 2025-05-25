@@ -15,7 +15,7 @@ from curve_data_utils import compute_interpolated_curve_data
 if TYPE_CHECKING:
     from services.input_service import CurveViewProtocol
     from main_window import MainWindow
-    from services.protocols import PointsList, PointTuple, PointTupleWithStatus
+    from services.protocols import PointsList, PointTuple
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_service")
@@ -45,10 +45,14 @@ class CurveService:
     @safe_operation("Select All Points")
     def select_all_points(curve_view: "CurveViewProtocol", main_window: "MainWindow") -> int:
         """Select all points in the curve."""
-        if not hasattr(curve_view, 'points') or not curve_view.points:
+        # Check if points exist by accessing the attribute safely with hasattr
+        # The points attribute might be available at runtime but not in the protocol definition
+        if not hasattr(curve_view, 'points') or not getattr(curve_view, 'points', []):
             return 0
 
-        curve_view.selected_points = set(range(len(curve_view.points)))
+        # We need to use getattr to access the points attribute since it's not in the protocol
+        points = getattr(curve_view, 'points', [])  # type: ignore[attr-defined]
+        curve_view.selected_points = set(range(len(points)))
         curve_view.selected_point_idx = 0
         curve_view.update()
 
@@ -184,8 +188,10 @@ class CurveService:
                     status_str = str(status)  # Cast to string in case it's another type
                 normalized_curve_data.append((frame, x, y, status_str))
         
-        # Compute interpolated data
-        interpolated_data = compute_interpolated_curve_data(normalized_curve_data, selected_indices)
+        # Compute interpolated data - using type ignore for the list invariance issue
+        # The compute_interpolated_curve_data function expects List[Tuple[int, float, float, str]]
+        # but we have List[Tuple[int, float, float, Union[str, bool]]], which is compatible at runtime
+        interpolated_data = compute_interpolated_curve_data(normalized_curve_data, selected_indices)  # type: ignore[arg-type]
         
         # Convert back to the format expected by main_window.curve_data - using cast for type safety
         from services.protocols import PointsList
@@ -230,6 +236,7 @@ class CurveService:
         if main_window and hasattr(main_window, 'curve_data') and 0 <= index < len(main_window.curve_data):
             # Use normalize_point to get standardized values regardless of point format
             frame, _, _, status = normalize_point(main_window.curve_data[index])
+            # Update with properly typed point data
             main_window.curve_data[index] = (frame, x, y, status)
 
             # Update the view
@@ -392,7 +399,14 @@ class CurveService:
                 frame = current_point[0]
                 # x and y are passed as arguments
                 x, y = current_point[1], current_point[2]
+                # Update point with new status
                 main_window.curve_data[idx] = (frame, x, y, 'keyframe')
+                
+                # Also update the point in curve_view.points if available
+                if hasattr(curve_view, 'points') and idx < len(getattr(curve_view, 'points', [])):
+                    # We access points via getattr since it's not in the protocol definition
+                    points = getattr(curve_view, 'points')  # type: ignore[attr-defined]
+                    points[idx] = (frame, x, y, 'keyframe')  # type: ignore[index]
                 # Update point info display
                 CurveService.update_point_info(main_window, idx, x, y)
                 # Add to history
@@ -403,7 +417,9 @@ class CurveService:
     def reset_view(curve_view: "CurveViewProtocol") -> None:
         """Reset the curve view to default zoom and position."""
         # Use CenteringZoomService to reset the view
-        CenteringZoomService.reset_view(curve_view)
+        # For compatibility with CenteringZoomService which expects CurveView
+        # We can use a type-ignoring comment here as both protocols have the necessary methods
+        CenteringZoomService.reset_view(curve_view)  # type: ignore[arg-type]
 
         # Update status bar if available via main window
         main_window = getattr(curve_view, 'main_window', None)
@@ -434,13 +450,17 @@ class CurveService:
                         pt = main_window.curve_data[idx_]
                         if pt[0] == frame:
                             status = pt[3] if len(pt) > 3 else 'normal'
-                            selected_types.add(status)
+                            # Ensure status is str for set compatibility
+                            selected_types.add(str(status))
 
         # Fallback if no selection or no types found
         if not selected_types and idx >= 0 and idx < len(main_window.curve_data):
-            frame = main_window.curve_data[idx][0]
-            status = main_window.curve_data[idx][3] if len(main_window.curve_data[idx]) > 3 else 'normal'
-            selected_types.add(status)
+            point_data = main_window.curve_data[idx]
+            frame = point_data[0]
+            # Safely handle variable length tuples
+            status = point_data[3] if len(point_data) > 3 else 'normal'
+            # Ensure status is str for set compatibility
+            selected_types.add(str(status))
 
         # Update UI text fields
         fields = {
