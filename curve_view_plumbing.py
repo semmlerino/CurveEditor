@@ -7,13 +7,13 @@ Contains decorators and helper functions for state capture, data mutation, and c
 """
 import functools
 import inspect
+
 from PySide6.QtWidgets import QMessageBox
-# Top-level import for CurveService using the standard alias
+
 from services.curve_service import CurveService as CurveViewOperations
-from services.curve_utils import normalize_point, set_point_status, update_point_coords
+from services.curve_service import normalize_point, set_point_status, update_point_coords
 from services.logging_service import LoggingService
 
-# Configure logger for this module
 logger = LoggingService.get_logger("curve_view_plumbing")
 
 

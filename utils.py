@@ -1,11 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
-import math
 import copy
+import math
+import os
 import re  # Added import for regex support
-
 
 def get_image_files(directory):
     """Get all image files in a directory."""

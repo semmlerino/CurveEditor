@@ -6,15 +6,16 @@ VisualizationService: Handles visualization operations for the CurveEditor.
 Provides methods for toggling display features and manipulating the view.
 """
 
-from PySide6.QtGui import QColor
 import os
 import re
+from typing import List, Optional
+
+from PySide6.QtGui import QColor
+
 from services.centering_zoom_service import CenteringZoomService
 from services.logging_service import LoggingService
 from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
-from typing import List, Optional
 
-# Configure logger for this module
 logger = LoggingService.get_logger("visualization_service")
 
 class VisualizationService:
@@ -224,19 +225,19 @@ class VisualizationService:
             # Only log if we have something to restore
             import logging
             logger = logging.getLogger(__name__)
-            
+
             if view_state:
                 logger.debug(f"VISUALSERVICE: Restoring view state after setting points: {view_state}")
 
                 # Restore zoom factor
                 curve_view.zoom_factor = view_state['zoom_factor']
-                
+
                 # Restore scale_to_image setting if available
                 if 'scale_to_image' in view_state and hasattr(curve_view, 'scale_to_image'):
                     # Ensure only bool is assigned
                     curve_view.scale_to_image = bool(view_state['scale_to_image'])
                     logger.debug(f"VISUALSERVICE: Restored scale_to_image: {curve_view.scale_to_image}")
-                
+
                 # Handle different naming conventions in different view implementations
                 # First try the offset_x/offset_y naming convention
                 if hasattr(curve_view, 'offset_x') and hasattr(curve_view, 'offset_y'):
@@ -249,7 +250,7 @@ class VisualizationService:
                     curve_view.y_offset = int(view_state['offset_y'])
                     logger.debug(f"VISUALSERVICE: Restored using x_offset/y_offset: {curve_view.x_offset}, {curve_view.y_offset}")
             elif force_parameters:
-                # When force_parameters is True but we have no view_state, 
+                # When force_parameters is True but we have no view_state,
                 # we still want to preserve current view parameters
                 logger.debug("VISUALSERVICE: Keeping current view parameters due to force_parameters flag")
 
@@ -278,7 +279,7 @@ class VisualizationService:
         if curve_view is None:
             logger.warning("Cannot center: no curve view available.")
             return
-            
+
         # Type ignore: CenteringZoomService.center_on_selected_point accepts CurveViewProtocol
         CenteringZoomService.center_on_selected_point(curve_view)  # type: ignore[arg-type]
 

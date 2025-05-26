@@ -7,14 +7,14 @@ how existing paintEvent methods can be updated to use the consolidated system.
 """
 
 from typing import List, Any, Optional, Dict, Set
+
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter, QPen, QBrush, QColor
 from PySide6.QtWidgets import QWidget
 
-from services.unified_transformation_service import UnifiedTransformationService
 from services.logging_service import LoggingService
+from services.unified_transformation_service import UnifiedTransformationService
 
-# Configure logger
 logger = LoggingService.get_logger("enhanced_curve_view")
 
 

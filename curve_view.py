@@ -1,19 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Standard library imports
 import os
-from PySide6.QtWidgets import QWidget, QRubberBand
-from typing import Any, Optional, Tuple
-from PySide6.QtCore import Qt, Signal
-from services.centering_zoom_service import CenteringZoomService
+from typing import Any, Optional, Tuple, List
+
+# Third-party imports
+from PySide6.QtCore import Qt, Signal, QPointF
 from PySide6.QtGui import QPainter, QColor, QPen, QPixmap, QPaintEvent, QFont
-from PySide6.QtCore import QPointF
-from services.input_service import InputService, CurveViewProtocol  # For type checking only
-from services.protocols import ImageSequenceProtocol, PointsList  # For type checking only
+from PySide6.QtWidgets import QWidget, QRubberBand
+
+# Local imports
 from keyboard_shortcuts import ShortcutManager
+from services.centering_zoom_service import CenteringZoomService
 from services.image_service import ImageService
+from services.input_service import InputService, CurveViewProtocol  # For type checking only
 from services.logging_service import LoggingService
-from typing import List
+from services.protocols import ImageSequenceProtocol, PointsList  # For type checking only
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_view")
@@ -726,7 +729,7 @@ self)])}"
             point = self.points[idx]
             # Base point data without interpolation flag
             frame, x, y = point[0], point[1], point[2]
-            
+
             # Check fourth element if it exists, using # type: ignore to bypass the type checking issue
             # since we know the actual runtime types are compatible with our checks
             if len(point) > 3:

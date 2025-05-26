@@ -1,27 +1,26 @@
-# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
-
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+# pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
 
+# Standard library imports
 from typing import TYPE_CHECKING
-from PySide6.QtWidgets import QMenuBar
+
+# Third-party imports
 from PySide6.QtGui import QAction
-# from keyboard_shortcuts import ShortcutManager
-from services.file_service import FileService as FileOperations
-from services.image_service import ImageService as ImageOperations
+from PySide6.QtWidgets import QMenuBar
+
+# Local imports
 from services.curve_service import CurveService as CurveViewOperations
-from services.visualization_service import VisualizationService as VisualizationOperations
 from services.dialog_service import DialogService
-from services.history_service import HistoryService as HistoryOperations # Assuming undo/redo will use this
-# from curve_operations import CurveOperations # Removed, logic moved
-# Removed: from main_window import MainWindow (causes circular import)
+from services.file_service import FileService as FileOperations
+from services.history_service import HistoryService as HistoryOperations
+from services.image_service import ImageService as ImageOperations
+from services.visualization_service import VisualizationService as VisualizationOperations
 
 if TYPE_CHECKING:
     from main_window import MainWindow
     from services.protocols import MainWindowProtocol, HistoryContainerProtocol
     import typing
-    # Service facades imported above; no redeclaration needed here
-    # NOTE: MainWindow should implement all attributes required by MainWindowProtocol and HistoryContainerProtocol for type checking.
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""

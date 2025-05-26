@@ -9,9 +9,10 @@ user experience and proper error reporting throughout the application.
 """
 
 import traceback
-from PySide6.QtWidgets import QMessageBox, QWidget
 from typing import Any, Callable, Optional, TypeVar
 from unittest.mock import MagicMock, Mock
+
+from PySide6.QtWidgets import QMessageBox, QWidget
 
 T = TypeVar("T")
 

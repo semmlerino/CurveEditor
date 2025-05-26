@@ -13,8 +13,8 @@ from typing import Optional, Any, Callable
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPainter, QPainterPath, QColor, QPaintEvent, QMouseEvent
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QSlider, QLineEdit
+    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider,
+    QSpinBox, QVBoxLayout, QWidget
 )
 
 

@@ -6,20 +6,18 @@ Batch editing operations for 3DE4 Curve Editor.
 Provides functions for manipulating multiple track points simultaneously.
 """
 
-from PySide6.QtWidgets import (
-    QHBoxLayout, QPushButton, QGroupBox, QDialog, QMessageBox, QWidget, QVBoxLayout
-)
+from typing import Optional, Sequence, Any, cast, Protocol, runtime_checkable
 
-from services.curve_service import CurveService as CurveViewOperations
-from services.analysis_service import AnalysisService
-from services.logging_service import LoggingService
+from PySide6.QtWidgets import QWidget
+
 from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialog
+from services.analysis_service import AnalysisService
+from services.curve_service import CurveService as CurveViewOperations
+from services.logging_service import LoggingService
+from services.protocols import PointsList
 
 # Configure logger for this module
 logger = LoggingService.get_logger("batch_edit")
-
-from typing import Optional, Sequence, Any, cast, Protocol, runtime_checkable
-from services.protocols import PointsList
 
 # NOTE: The parent must be both a QWidget and implement this protocol (via duck typing or multiple inheritance)
 @runtime_checkable

@@ -16,10 +16,11 @@ Key improvements:
 
 from typing import Dict, Tuple, Any
 import hashlib
+
 from PySide6.QtCore import QPointF
+
 from services.logging_service import LoggingService
 
-# Configure logger for this module
 logger = LoggingService.get_logger("unified_transform")
 
 

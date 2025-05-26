@@ -4,28 +4,34 @@ This list consolidates remaining actionable refactoring and cleanup tasks identi
 
 ---
 
-## 1. Refactor `ui_components.py`
-- Split the large `ui_components.py` file into logical, smaller component modules:
-    - `timeline_components.py` (Timeline UI)
-    - `point_edit_components.py` (Point editing UI)
-    - `toolbar_components.py` (Toolbar UI)
-    - `status_components.py` (Status bar components)
-- Create a facade in the original `ui_components.py` for backward compatibility.
-- Gradually update imports across the codebase to use the new modules.
+## ~~1. Refactor `ui_components.py`~~ ✅ COMPLETED (2025-05-28)
+- ✅ Split the large `ui_components.py` file into logical, smaller component modules:
+    - ✅ `timeline_components.py` (Timeline UI)
+    - ✅ `point_edit_components.py` (Point editing UI)
+    - ✅ `toolbar_components.py` (Toolbar UI)
+    - ✅ `status_components.py` (Status bar components)
+    - ✅ `visualization_components.py` (Visualization controls)
+    - ✅ `smoothing_components.py` (Smoothing controls)
+- ✅ Created a facade in the original `ui_components.py` for backward compatibility.
+- ✅ Verified imports across the codebase work correctly.
 
-## 2. Service Layer Rationalization
-- Analyze the service dependency graph to identify natural groupings.
-- Consider merging related services:
-    - `image_service.py` + `visualization_service.py`
-- Enforce consistent interfaces and protocol definitions across all services.
+## ~~2. Service Layer Rationalization~~ ✅ COMPLETED (2025-05-28)
+- ✅ Analyzed the service dependency graph to identify natural groupings.
+- ✅ Merged small utility modules:
+    - ✅ `curve_utils.py` merged into `curve_service.py`
+- ✅ Removed deprecated services:
+    - ✅ Deleted `transform.py` (deprecated)
+    - ✅ Deleted `transformation_service.py` (deprecated)
+- ✅ Kept services with distinct responsibilities separate (SRP principle)
 
-## 3. Import Organization and Cleanup
-- Standardize import organization in all files:
-    1. Standard library imports first
-    2. Third-party imports second
-    3. Local application imports third
-- Refactor to avoid circular imports.
-- Remove commented-out or unused imports.
+## ~~3. Import Organization and Cleanup~~ ✅ COMPLETED (2025-05-29)
+- ✅ Standardized import organization in all files:
+    1. ✅ Standard library imports first
+    2. ✅ Third-party imports second
+    3. ✅ Local application imports third
+- ✅ Verified no circular imports exist.
+- ✅ Removed commented-out or unused imports.
+- ✅ All service files properly organized (32+ files across 4 sessions)
 
 ---
 

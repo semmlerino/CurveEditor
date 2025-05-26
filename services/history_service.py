@@ -13,8 +13,8 @@ This service handles:
 
 import copy
 from typing import Dict, Any
-from services.protocols import HistoryContainerProtocol
 
+from services.protocols import HistoryContainerProtocol
 
 class HistoryService:
     """Service for managing application history stack and undo/redo operations."""
@@ -115,7 +115,7 @@ class HistoryService:
             # Get image dimensions if available, else use defaults
             image_width = getattr(main_window, 'image_width', 0)
             image_height = getattr(main_window, 'image_height', 0)
-            
+
             main_window.curve_view.setPoints(
                 main_window.curve_data,
                 image_width,

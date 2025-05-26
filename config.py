@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import os
 import json
+import os
 from typing import Dict, Any
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app_config.json')
@@ -11,7 +11,7 @@ def load_config() -> Dict[str, Any]:
     """Load application configuration from file."""
     if not os.path.exists(CONFIG_FILE):
         return {}
-        
+
     try:
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)

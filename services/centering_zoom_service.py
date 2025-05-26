@@ -7,9 +7,9 @@ Provides methods for zooming, centering, and handling view transformations.
 """
 
 from typing import Tuple, Optional, TYPE_CHECKING, Any, List
+
 from services.logging_service import LoggingService
 
-# Configure logger for this module
 logger = LoggingService.get_logger("centering_zoom_service")
 
 if TYPE_CHECKING:

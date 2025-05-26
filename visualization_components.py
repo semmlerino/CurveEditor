@@ -11,8 +11,7 @@ including grid, vectors, frame numbers, crosshair toggles, and point size contro
 from typing import Any, Callable
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout,
-    QGroupBox, QLabel, QPushButton, QSpinBox
+    QGridLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget
 )
 
 from services.centering_zoom_service import CenteringZoomService

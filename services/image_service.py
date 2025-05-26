@@ -7,14 +7,14 @@ Provides functionality for loading and manipulating image sequences.
 """
 
 import os
-from PySide6.QtWidgets import QMessageBox, QFileDialog
-from PySide6.QtGui import QImage, QPixmap
-import config
 from typing import List, Tuple, Optional, cast
+
+from PySide6.QtGui import QImage, QPixmap
+from PySide6.QtWidgets import QMessageBox, QFileDialog
+
+import config
 from services.logging_service import LoggingService
-from services.protocols import (
-    CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol
-)
+from services.protocols import CurveViewProtocol
 
 # Configure logger for this module
 logger = LoggingService.get_logger("image_service")
@@ -187,7 +187,7 @@ class ImageService:
         """Load an image sequence to use as background."""
         # Open file dialog to select the first image in a sequence
         options = QFileDialog.Option.DontUseNativeDialog
-        
+
         file_path, _ = QFileDialog.getOpenFileName(
             main_window.qwidget if hasattr(main_window, 'qwidget') else None,
             "Select First Image in Sequence",
@@ -271,10 +271,10 @@ class ImageService:
     @staticmethod
     def _parse_filename(filename: str) -> Tuple[Optional[str], Optional[str], str]:
         """Parse a filename to extract base name, frame number and extension.
-        
+
         Args:
             filename: The filename to parse
-            
+
         Returns:
             Tuple of (base_name, frame_num, ext)
         """
@@ -282,26 +282,26 @@ class ImageService:
         main_part, ext = os.path.splitext(filename)
         if not ext:
             return None, None, ""
-            
+
         # Look for patterns like name.1234.ext
         dot_parts = main_part.split('.')
         if len(dot_parts) > 1 and dot_parts[-1].isdigit():
             frame_num = dot_parts[-1]
             base_name = '.'.join(dot_parts[:-1]) + '.'
             return base_name, frame_num, ext
-            
+
         # Look for patterns like name_1234.ext
         underscore_parts = main_part.split('_')
         return ImageService._parse_filename_parts(underscore_parts, ext)
-        
+
     @staticmethod
     def _parse_filename_parts(parts: List[str], ext: str) -> Tuple[Optional[str], Optional[str], str]:
         """Parse filename parts to extract base name and frame number.
-        
+
         Args:
             parts: Parts of the filename
             ext: File extension
-            
+
         Returns:
             Tuple of (base_name, frame_num, ext)
         """
@@ -329,7 +329,7 @@ class ImageService:
         if cv.current_image_idx >= len(main_window.image_filenames) - 1:
             return
         cv.setCurrentImageByIndex(cv.current_image_idx + 1)
-        
+
     @staticmethod
     def previous_image(main_window: MainWindowProtocol) -> None:
         """Show the previous image in the sequence."""
@@ -359,39 +359,39 @@ class ImageService:
         if hasattr(curve_view, 'toggleBackgroundVisible'):
             curve_view.toggleBackgroundVisible(visible)
         main_window.toggle_bg_button.setText("Hide Background" if visible else "Show Background")
-        
+
     @staticmethod
     def toggle_background(main_window: MainWindowProtocol) -> None:
         """Alias for toggle_background_visible for backward compatibility."""
         ImageService.toggle_background_visible(main_window)
-        
+
     @staticmethod
     def opacity_changed(main_window: MainWindowProtocol, value: float) -> None:
         """Change the opacity of the background image.
-        
+
         Args:
             main_window: The main window instance
             value: Opacity value between 0.0 and 1.0
         """
         # Ensure value is within valid range
         opacity = max(0.0, min(1.0, value))
-        
+
         # Get curve view if it exists
         curve_view = getattr(main_window, 'curve_view', None)
         if curve_view is None:
             return
-            
+
         # Set opacity if the method exists
         if hasattr(curve_view, 'setBackgroundOpacity'):
             curve_view.setBackgroundOpacity(opacity)
         # Or try alternative attribute name
         elif hasattr(curve_view, 'background_opacity'):
             curve_view.background_opacity = opacity
-            
+
         # Trigger update if possible
         if hasattr(curve_view, 'update'):
             curve_view.update()
-        
+
     @staticmethod
     def set_image_sequence(curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
         """Set the image sequence to display as background.
@@ -410,11 +410,11 @@ class ImageService:
     def set_image_sequence_instance(self, curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
         """Instance method for protocol compatibility. Delegates to static method set_image_sequence."""
         ImageService.set_image_sequence(curve_view, path, filenames)
-        
+
     @staticmethod
     def update_image_label(main_window: MainWindowProtocol) -> None:
         """Update the image label with current image info.
-        
+
         Args:
             main_window: The main window instance containing the image label
         """
@@ -422,11 +422,11 @@ class ImageService:
         curve_view = getattr(main_window, 'curve_view', None)
         if curve_view is None or not hasattr(curve_view, 'current_image_idx'):
             return
-            
+
         # Get current image information
         current_idx = curve_view.current_image_idx
         total_images = len(getattr(main_window, 'image_filenames', []))
-        
+
         # Update label if it exists
         if hasattr(main_window, 'image_label') and hasattr(main_window.image_label, 'setText'):
             if current_idx >= 0 and total_images > 0 and current_idx < total_images:

@@ -11,8 +11,7 @@ point information display and coordinate editing controls.
 from typing import Any
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout,
-    QGroupBox, QLabel, QLineEdit, QPushButton
+    QGridLayout, QGroupBox, QLabel, QLineEdit, QPushButton, QVBoxLayout, QWidget
 )
 
 

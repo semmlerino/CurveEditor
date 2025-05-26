@@ -1,4 +1,5 @@
 from typing import Protocol, Any, List
+
 from services.protocols import PointsList
 
 class BatchEditParentProtocol(Protocol):

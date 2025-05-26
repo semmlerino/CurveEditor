@@ -6,20 +6,24 @@ FileService: Service class for file operations.
 Provides functionality for loading, saving, and exporting track data.
 """
 
-import os
+# Standard library imports
 import logging
+import os
+from types import ModuleType
 from typing import Optional, Any, Tuple
-from services.logging_service import LoggingService
-from services.protocols import MainWindowProtocol, PointsList
+
+# Third-party imports
 from PySide6.QtWidgets import QMessageBox, QFileDialog
 
+# Local imports
+from services.logging_service import LoggingService
+from services.protocols import MainWindowProtocol, PointsList
 
 # Safe module imports with fallbacks
 # We'll define utility functions that provide safe access to modules that might not be available
 utils_module: Optional[Any] = None
 config_module: Optional[Any] = None
 
-from types import ModuleType
 curve_utils_module: Optional[ModuleType] = None
 # track_exporter_module: Optional[ModuleType] = None
 # track_importer_module: Optional[ModuleType] = None
@@ -38,12 +42,12 @@ def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) 
     if module is None:
         logger.error(f"Module not available for {attr_name}")
         return None
-    
+
     func = getattr(module, attr_name, None)
     if func is None:
         logger.error(f"Function {attr_name} not available in module")
         return None
-        
+
     try:
         return func(*args, **kwargs)
     except Exception as e:
@@ -52,7 +56,7 @@ def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) 
 
 class FileService:
     """Service class for file operations in the 3DE4 Curve Editor."""
-    
+
     @staticmethod
     def get_config_value(attr_name: str, default: Any = None) -> Any:
         """Safely get a value from the config module."""
@@ -102,12 +106,12 @@ class FileService:
         try:
             # Export data to CSV using safe function calling
             success = FileService.call_utils(
-                "track_exporter", 
+                "track_exporter",
                 "export_to_csv",
-                file_path, 
-                main_window.point_name, 
-                main_window.curve_data, 
-                main_window.image_width, 
+                file_path,
+                main_window.point_name,
+                main_window.curve_data,
+                main_window.image_width,
                 main_window.image_height
             )
 
@@ -135,16 +139,16 @@ class FileService:
         try:
             # Load track data from file using safe function calls
             result = FileService.call_utils("track_importer", "load_3de_track", file_path)
-            
+
             # Check if result is valid
             if not result or len(result) < 4 or not result[3]:  # result[3] is curve_data
                 logger.error("Failed to load track data: Invalid data format")
                 QMessageBox.critical(main_window.qwidget(), "Error", "Failed to load track data: Invalid format")
                 return
-                
+
             # Unpack the result
             point_name, point_color, _, curve_data = result  # num_frames is unused
-            
+
             # Set the data with safe type conversion
             main_window.point_name = str(point_name) if point_name is not None else "Unknown"
             main_window.point_color = str(point_color) if point_color is not None else "red"
@@ -190,7 +194,7 @@ class FileService:
             folder_path = os.path.dirname(file_path)
             FileService.set_config_value("set_last_file_path", file_path)
             FileService.set_config_value("set_last_folder_path", folder_path)
-            
+
         except Exception as e:
             logger.error(f"Error loading track data: {e}")
             QMessageBox.critical(main_window.qwidget(), "Error", f"Failed to load track data: {e}")
@@ -221,7 +225,7 @@ class FileService:
             if not additional_data:
                 # No data to add, exit early
                 return
-                
+
             # Check frame compatibility
             # Extract frame numbers, handling both 3-tuple and 4-tuple formats
             existing_frames: set[int] = set()
@@ -236,7 +240,7 @@ class FileService:
                 response = QMessageBox.question(
                     main_window.qwidget(), "Frame Conflict",
                     "Some frames already exist. What would you like to do?",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No
                 )
                 if response == QMessageBox.StandardButton.No:
@@ -246,7 +250,7 @@ class FileService:
             current_height: float = float(main_window.image_height)
             orig_width: int
             orig_height: int
-            orig_width, orig_height = cast(Tuple[int, int], curve_utils_module.estimate_image_dimensions(additional_data)) if curve_utils_module else (0, 0)  
+            orig_width, orig_height = cast(Tuple[int, int], curve_utils_module.estimate_image_dimensions(additional_data)) if curve_utils_module else (0, 0)
 
             merged_data: dict[int, Tuple[float, float, *Tuple[Any, ...]]] = {}
             for main_point in main_window.curve_data:

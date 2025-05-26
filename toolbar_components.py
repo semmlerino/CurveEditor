@@ -13,8 +13,8 @@ from typing import Any, Callable
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
-    QLabel, QPushButton, QFrame, QToolBar
+    QFrame, QHBoxLayout, QLabel, QPushButton, QToolBar, QVBoxLayout, QWidget,
+    QWidgetAction
 )
 
 from services.dialog_service import DialogService as DialogOperations

@@ -6,12 +6,13 @@ DialogService: Service for managing all dialog operations in the CurveEditor.
 Implements all dialog operations directly rather than delegating to legacy DialogOperations.
 """
 
+from typing import Optional, List, Tuple, Any
+
 from PySide6.QtWidgets import QMessageBox, QDialog, QWidget
+
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
-                    ExtrapolateDialog, ProblemDetectionDialog, ShortcutsDialog,
                     OffsetDialog)
 from services.analysis_service import AnalysisService as CurveDataOperations
-from typing import Optional, List, Tuple, Any
 from services.protocols import (
     MainWindowProtocol, PointsList
 )
@@ -398,7 +399,7 @@ class DialogService:
                 # Create an instance of AnalysisService with the curve data
                 analysis_service = AnalysisService(main_window.curve_data)
                 problem_dict = analysis_service.detect_problems()
-                
+
                 # Convert dictionary to list of tuples for compatibility with the expected type
                 problems = []
                 for frame, details in problem_dict.items():

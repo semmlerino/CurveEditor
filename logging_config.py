@@ -7,15 +7,14 @@ This module provides tools to configure logging levels for different
 parts of the application through a configuration file or command-line arguments.
 """
 
-import os
+import argparse
 import json
 import logging
-import argparse
+import os
 from typing import Dict, Any, Optional
 
 from services.logging_service import LoggingService
 
-# Default configuration path
 DEFAULT_CONFIG_PATH = os.path.join(
     os.path.expanduser("~"), ".curve_editor", "logging_config.json")
 
@@ -88,7 +87,7 @@ def apply_config(config: Dict[str, Any]) -> None:
                 # We only need to type-check the sublevel value
                 if not isinstance(sublevel_value, str):
                     continue
-                    
+
                 # Create logger for submodule
                 module_logger = LoggingService.get_logger(f"{module}.{submodule_key}")
                 module_logger.setLevel(get_level(sublevel_value))

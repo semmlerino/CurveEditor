@@ -11,9 +11,8 @@ including moving average parameters and smoothing range selection.
 from typing import Any
 
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout,
-    QGroupBox, QLabel, QPushButton, QComboBox,
-    QSpinBox, QDoubleSpinBox
+    QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QLabel, QPushButton,
+    QSpinBox, QVBoxLayout, QWidget
 )
 
 

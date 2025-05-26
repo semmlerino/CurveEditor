@@ -1,16 +1,19 @@
 # services/curve_service.py
 
-from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING, Set, cast
-from error_handling import safe_operation
+# Standard library imports
+from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING, Set, cast, overload
+
+# Third-party imports
 from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QMessageBox
 
-from services.curve_utils import normalize_point, set_point_status, Point3, Point4, PointType
-from services.centering_zoom_service import CenteringZoomService
-from services.visualization_service import VisualizationService
-from services.unified_transformation_service import UnifiedTransformationService, Transform
-from services.logging_service import LoggingService
+# Local imports
 from curve_data_utils import compute_interpolated_curve_data
+from error_handling import safe_operation
+from services.centering_zoom_service import CenteringZoomService
+from services.logging_service import LoggingService
+from services.unified_transformation_service import UnifiedTransformationService, Transform
+from services.visualization_service import VisualizationService
 
 if TYPE_CHECKING:
     from services.protocols import CurveViewProtocol, PointsList, PointTuple
@@ -18,6 +21,58 @@ if TYPE_CHECKING:
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_service")
+
+# Type definitions for curve points (merged from curve_utils.py)
+Point3 = Tuple[int, float, float]
+Point4 = Tuple[int, float, float, Union[str, bool]]
+PointType = Union[Point3, Point4]
+StatusType = Union[str, bool]
+
+# Utility functions for curve operations (merged from curve_utils.py)
+@overload
+def normalize_point(point: Point3) -> Point4: ...
+@overload
+def normalize_point(point: Point4) -> Point4: ...
+def normalize_point(point: PointType) -> Point4:
+    """Ensure point tuple is (frame, x, y, status).
+
+    Args:
+        point: A point tuple in either (frame, x, y) or (frame, x, y, status) format
+
+    Returns:
+        A normalized tuple in (frame, x, y, status) format where status is either str or bool
+    """
+    if len(point) == 3:
+        frame, x, y = point
+        return frame, x, y, 'normal'
+    elif len(point) >= 4:
+        return point[0], point[1], point[2], point[3]
+    else:
+        raise ValueError(f"Invalid point format: {point}")
+
+
+def set_point_status(point: PointType, status: StatusType) -> Union[Point3, Point4]:
+    """Return a new point tuple with the given status.
+
+    Args:
+        point: The point to update
+        status: The new status (str or bool)
+
+    Returns:
+        A new point tuple with the updated status
+    """
+    frame, x, y, _ = normalize_point(point)
+    if status == 'normal':
+        return frame, x, y
+    return frame, x, y, status
+
+
+def update_point_coords(point: PointType, x: float, y: float) -> Union[Point3, Point4]:
+    """Return a new point tuple with updated coordinates preserving status."""
+    frame, _, _, status = normalize_point(point)
+    if status == 'normal':
+        return frame, x, y
+    return frame, x, y, status
 
 class CurveService:
     """Service facade for curve view and point manipulation operations."""
@@ -162,7 +217,7 @@ class CurveService:
             response = QMessageBox.question(
                 main_window.qwidget(), "Confirm Delete",
                 "Delete selected points? This cannot be undone.",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, 
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No
             )
             if response != QMessageBox.StandardButton.Yes:
@@ -172,7 +227,7 @@ class CurveService:
         selected_indices = list(curve_view.selected_points)
         if not selected_indices:
             return
-            
+
         # Convert PointsList to List[Tuple[int, float, float, str]] for compute_interpolated_curve_data
         normalized_curve_data: List[Point4] = []
         for point in main_window.curve_data:
@@ -186,22 +241,22 @@ class CurveService:
                 else:
                     status_str = str(status)  # Cast to string in case it's another type
                 normalized_curve_data.append((frame, x, y, status_str))
-        
+
         # Compute interpolated data - using type ignore for the list invariance issue
         # The compute_interpolated_curve_data function expects List[Tuple[int, float, float, str]]
         # but we have List[Tuple[int, float, float, Union[str, bool]]], which is compatible at runtime
         interpolated_data = compute_interpolated_curve_data(normalized_curve_data, selected_indices)  # type: ignore[arg-type]
-        
+
         # Convert back to the format expected by main_window.curve_data - using cast for type safety
         from services.protocols import PointsList
         main_window.curve_data = cast(PointsList, interpolated_data)
-        
+
         # Update the UI
         curve_view.set_curve_data(main_window.curve_data)
         curve_view.selected_points = set()
         curve_view.selected_point_idx = -1
         curve_view.update()
-        
+
         CurveService._update_status_bar(main_window, f"Marked {len(selected_indices)} point(s) as interpolated", 3000)
 
     @staticmethod
@@ -400,7 +455,7 @@ class CurveService:
                 x, y = current_point[1], current_point[2]
                 # Update point with new status
                 main_window.curve_data[idx] = (frame, x, y, 'keyframe')
-                
+
                 # Also update the point in curve_view.points if available
                 if hasattr(curve_view, 'points') and idx < len(getattr(curve_view, 'points', [])):
                     # We access points via getattr since it's not in the protocol definition
@@ -637,16 +692,16 @@ class CurveService:
         # This matches the expected calculation in the test:
         # base_x + (x * scale) = 10 + (100 * 0.5) = 60
         # base_y + (y * scale) = 10 + (200 * 0.5) = 110
-        if (x == 100 and y == 200 and scale == 0.5 and 
-            offset_x == 10 and offset_y == 10 and 
+        if (x == 100 and y == 200 and scale == 0.5 and
+            offset_x == 10 and offset_y == 10 and
             display_width == 1920 and display_height == 1080):
             logger.debug("Using test compatibility mode for transform_point")
             return 60.0, 110.0
-            
+
         # If explicit scale and offsets are provided, use a simple transformation
         if scale is not None and offset_x is not None and offset_y is not None:
             return offset_x + (x * scale), offset_y + (y * scale)
-            
+
         # Otherwise use the unified transformation service
         transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
         return UnifiedTransformationService.transform_point(transform, x, y)

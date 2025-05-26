@@ -5,13 +5,14 @@
 InputService: centralized handling for mouse, wheel, key, and context menu events.
 """
 from typing import Protocol, Optional, Tuple, cast, Any
-from PySide6.QtWidgets import QMenu, QRubberBand, QWidget
-from PySide6.QtGui import QAction, QMouseEvent, QWheelEvent, QKeyEvent
-from PySide6.QtCore import Qt, QPointF, QSize, QRect, QObject
-from services.curve_service import CurveService
-from services.centering_zoom_service import CenteringZoomService
-from services.visualization_service import VisualizationService
 
+from PySide6.QtCore import Qt, QPointF, QSize, QRect, QObject
+from PySide6.QtGui import QAction, QMouseEvent, QWheelEvent, QKeyEvent
+from PySide6.QtWidgets import QMenu, QRubberBand, QWidget
+
+from services.centering_zoom_service import CenteringZoomService
+from services.curve_service import CurveService
+from services.visualization_service import VisualizationService
 
 class CurveViewProtocol(Protocol):
     """Protocol defining the interface expected by InputService for curve views."""

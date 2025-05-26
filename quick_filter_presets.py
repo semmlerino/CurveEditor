@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import copy  # Keep copy for unknown preset case
 from typing import List, Tuple
+
 from services.analysis_service import AnalysisService, PointsList
 from services.logging_service import LoggingService
-import copy  # Keep copy for unknown preset case
 
-# Configure logger for this module
 logger = LoggingService.get_logger("quick_filter_presets")
 
 def apply_filter_preset(curve_data: PointsList, indices: List[int], preset_name: str) -> PointsList:
@@ -27,7 +27,7 @@ def apply_filter_preset(curve_data: PointsList, indices: List[int], preset_name:
         # Apply moving average smoothing with different window sizes based on preset name
         copied_data = copy.deepcopy(curve_data)
         processor = AnalysisService(copied_data)
-        
+
         if preset_name == "Light Smooth":
             processor.smooth_moving_average(indices, window_size=3)
             return processor.get_data()

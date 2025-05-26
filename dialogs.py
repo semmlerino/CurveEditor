@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # mypy: disable-error-code=annotation-unchecked
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                               QPushButton, QComboBox, QSpinBox, QDoubleSpinBox,
-                               QCheckBox, QGroupBox, QWidget, QSlider)
+
 from typing import Optional, Any, List, Tuple
+
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QGroupBox, QHBoxLayout,
+    QLabel, QPushButton, QSlider, QSpinBox, QVBoxLayout, QWidget
+)
 
 
 class SmoothingDialog(QDialog):

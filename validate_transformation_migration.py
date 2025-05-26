@@ -6,7 +6,6 @@ Run this after completing the migration to ensure everything works.
 
 import sys
 import traceback
-# unittest.mock no longer needed since we're not using mocks
 
 def test_no_legacy_references():
     """Test that no legacy transformation references exist."""

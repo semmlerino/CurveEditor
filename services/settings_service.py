@@ -7,12 +7,13 @@ preferences, and other configuration data.
 """
 
 import os
+from typing import Any, Optional, TYPE_CHECKING, cast
+
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent
-from typing import Any, Optional, TYPE_CHECKING, cast
+
 from services.logging_service import LoggingService
 
-# Configure logger for this module
 logger = LoggingService.get_logger("settings_service")
 
 if TYPE_CHECKING:

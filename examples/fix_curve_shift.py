@@ -11,11 +11,10 @@ Run this script as a reference when integrating the transformation system
 into the main application code.
 """
 
-import sys
-import os
 import logging
+import os
+import sys
 
-# Add parent directory to path for imports
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from PySide6.QtCore import QPointF, QTimer

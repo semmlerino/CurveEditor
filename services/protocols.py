@@ -1,7 +1,4 @@
-from __future__ import annotations
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 """
 Protocols for CurveEditor components.
 
@@ -9,12 +6,13 @@ This module defines structural protocols that enforce interface consistency
 across the application. These protocols help ensure type safety while allowing
 flexibility in implementation.
 """
+from __future__ import annotations
 
 from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, Set, runtime_checkable
-from PySide6.QtGui import QPixmap, QColor
-from PySide6.QtCore import QRect
 
-# Type aliases for common data structures
+from PySide6.QtCore import QRect
+from PySide6.QtGui import QPixmap, QColor
+
 PointTuple = Tuple[int, float, float]  # frame, x, y
 PointTupleWithStatus = Tuple[int, float, float, Union[bool, str]]  # frame, x, y, status (bool or str)
 PointsList = List[Union[PointTuple, PointTupleWithStatus]]
@@ -133,7 +131,7 @@ class MainWindowProtocol(Protocol):
     prev_image_button: Any
     next_image_button: Any
     opacity_slider: Any
-    
+
     @property
     def qwidget(self) -> Any: ...
     def update_image_label(self) -> None: ...
@@ -148,7 +146,7 @@ class MainWindowProtocol(Protocol):
 
 class ImageProtocol(Protocol):
     """Protocol defining the interface for image objects.
-    
+
     This protocol is compatible with QPixmap and other image types
     that provide width() and height() methods.
     """
@@ -226,11 +224,11 @@ class HistoryServiceProtocol(Protocol):
 # Track Quality Protocols
 class TrackQualityUIProtocol(MainWindowProtocol):
     """Protocol defining the interface for UI components used in track quality analysis.
-    
+
     Extends MainWindowProtocol to support use with DialogService and other services
     that expect the MainWindowProtocol interface.
     """
-    
+
     quality_score_label: Any
     smoothness_label: Any
     consistency_label: Any

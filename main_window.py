@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false, reportUnknownArgumentType=false, reportUnknownParameterType=false
 # -*- coding: utf-8 -*-
-from PySide6.QtGui import QCloseEvent
 
 """
 Main Window for 3DE4 Curve Editor.
@@ -30,22 +29,39 @@ This architecture ensures:
 - Better error handling and defensive programming
 """
 
-import sys
+# Standard library imports
+import logging
 import os
 import re
+import sys
+from typing import Optional, Any, cast
 
-import logging
-from PySide6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication, QStatusBar, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox, QPushButton, QLabel
+# Third-party imports
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QCloseEvent
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QSplitter, QApplication,
+    QStatusBar, QMessageBox, QComboBox, QSpinBox, QDoubleSpinBox,
+    QPushButton, QLabel
+)
+
+# Local imports
 from curve_view import CurveView
-from services.file_service import FileService as FileOperations
-from services.protocols import PointsList
+from keyboard_shortcuts import ShortcutManager
+from menu_bar import MenuBar
+from services.analysis_service import AnalysisService as CurveDataOperations
+from services.centering_zoom_service import CenteringZoomService as ZoomOperations
+from services.curve_service import CurveService as CurveViewOperations
 from services.dialog_service import DialogService
-from services.settings_service import SettingsService
+from services.file_service import FileService as FileOperations
 from services.history_service import HistoryService
-# NEW: Unified transformation system
+from services.image_service import ImageService as ImageOperations
+from services.logging_service import LoggingService
+from services.protocols import PointsList, TrackQualityUIProtocol
+from services.settings_service import SettingsService
 from services.unified_transformation_service import UnifiedTransformationService
+from track_quality import TrackQualityUI
+from ui_components import UIComponents
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -53,29 +69,8 @@ logger = logging.getLogger(__name__)
 # Constants
 DEFAULT_POINT_COLOR = "#FF0000"  # Default red color for points
 
-
-
-from services.image_service import ImageService as ImageOperations
-from services.curve_service import CurveService as CurveViewOperations
-from services.logging_service import LoggingService
-
-from keyboard_shortcuts import ShortcutManager
-from ui_components import UIComponents
-
-from track_quality import TrackQualityUI
-from menu_bar import MenuBar
-# import typing  # Removed unused import
-
-from services.analysis_service import AnalysisService as CurveDataOperations
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-
 # Configure logger for this module
 logger = LoggingService.get_logger("main_window")
-
-from typing import Optional, Any, cast
-
-# Import TrackQualityUIProtocol for type checking
-from services.protocols import TrackQualityUIProtocol
 
 class MainWindow(QMainWindow):
     # Type annotation to indicate this class implements the TrackQualityUIProtocol interface

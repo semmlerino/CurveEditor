@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import sys
-import os
 import logging
+import os
+import sys
+
 from PySide6.QtWidgets import QApplication
+
 from main_window import MainWindow
 from services.logging_service import LoggingService
 import logging_config

@@ -6,8 +6,8 @@ This module provides functions to export curve tracking data to CSV and Excel fo
 The Excel export functionality requires the optional xlsxwriter dependency.
 """
 
-import logging
 from typing import List, Tuple
+import logging
 
 logger = logging.getLogger(__name__)
 

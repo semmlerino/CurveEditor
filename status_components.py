@@ -13,8 +13,8 @@ from typing import Any, Optional
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QGridLayout,
-    QGroupBox, QLabel, QPushButton, QComboBox
+    QComboBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
+    QVBoxLayout, QWidget
 )
 
 

@@ -10,11 +10,10 @@ This script checks that:
 3. The backward compatibility through CurveService.transform_point is maintained
 """
 
+from typing import List
 import os
 import sys
-from typing import List
 
-# Add the current directory to path to ensure imports work
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def check_transform_point_to_widget_removal():

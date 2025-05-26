@@ -15,12 +15,6 @@ code organization and reduce duplication across the application.
 import inspect
 from typing import Any, Dict, Type, TypeVar, Protocol, cast
 
-# Make sure these imports are accessible when importing from services package
-from services.models import Point, PointsCollection
-from services.view_state import ViewState
-from services.protocols import PointsList
-
-# Import all service modules to make them available in __all__
 from services.analysis_service import AnalysisService
 from services.curve_service import CurveService
 from services.dialog_service import DialogService
@@ -29,18 +23,15 @@ from services.history_service import HistoryService
 from services.image_service import ImageService
 from services.input_service import InputService
 from services.logging_service import LoggingService
+from services.models import Point, PointsCollection
+from services.protocols import PointsList
 from services.settings_service import SettingsService
-from services.visualization_service import VisualizationService
-
-# Unified transformation system (NEW)
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
-
-# Import track quality service
+from services.view_state import ViewState
+from services.visualization_service import VisualizationService
 from track_quality import TrackQualityAnalysisService
 
-# These imports are here for convenience when importing from services
-# The __all__ list below makes them available when using 'from services import *'
 __all__ = [
     # Core models and protocols
     'Point', 'ViewState', 'PointsCollection', 'PointsList',

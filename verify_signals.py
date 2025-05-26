@@ -13,6 +13,7 @@ Usage:
 """
 
 import inspect
+
 from PySide6.QtCore import Signal, QObject
 
 def verify_signal_connections(main_window):

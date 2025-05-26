@@ -10,7 +10,6 @@ enabling consistent coordinate transformations.
 from dataclasses import dataclass
 from typing import Optional, Any, Dict
 
-
 @dataclass(frozen=True)
 class ViewState:
     """

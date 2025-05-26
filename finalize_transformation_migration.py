@@ -10,15 +10,15 @@ to the unified transformation service by:
 3. Verifying that the migration is complete
 """
 
-import os
-import sys
-import logging
-import glob
-import re
 from pathlib import Path
 from typing import List, Dict, Tuple, Set, Optional
+import logging
+import os
+import re
+import sys
 
-# Add the project root to the path to ensure imports work
+import glob
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Import logging service

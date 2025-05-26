@@ -9,12 +9,12 @@ successfully applied to the codebase. It checks that duplicated code
 has been properly consolidated.
 """
 
-import os
 import inspect
-import importlib.util
+import os
 import sys
 
-# Add the current directory to path to ensure imports work
+import importlib.util
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 def check_view_state_refactoring():

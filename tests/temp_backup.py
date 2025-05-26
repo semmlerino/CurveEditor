@@ -2,15 +2,15 @@
 Unit tests for the VisualizationService class.
 """
 
-import unittest
-from unittest.mock import patch, MagicMock
 from typing import cast
+from unittest.mock import patch, MagicMock
+import unittest
+
 from PySide6.QtGui import QColor
 
-from services.visualization_service import VisualizationService, logger
 from services.centering_zoom_service import CenteringZoomService
 from services.protocols import PointsList
-
+from services.visualization_service import VisualizationService, logger
 
 class TestVisualizationService(unittest.TestCase):
     """Test cases for the VisualizationService class."""
