@@ -597,9 +597,17 @@ class MainWindow(QMainWindow):
         """Redo the previously undone action."""
         HistoryService.redo_action(self)
 
+    @property
+    def qwidget(self) -> QWidget:
+        """Return the underlying QWidget for this window.
+        
+        This property is required by HistoryContainerProtocol.
+        """
+        return self
+        
     def restore_state(self, state: Any) -> None:
         """Restore application state from history."""
-        HistoryService.restore_state(self, state)  # type: ignore[attr-defined]
+        HistoryService.restore_state(self, state)
 
     # Quality Check Operations
     def check_tracking_quality(self):
@@ -855,9 +863,12 @@ class MainWindow(QMainWindow):
         """Show dialog for filling gaps in the curve data."""
         DialogService.show_fill_gaps_dialog(self)
 
-    def fill_gap(self, start_frame: int, end_frame: int, method: int, preserve_endpoints: bool = True) -> None:
-        """Delegate gap filling to DialogService using the selected method index."""
-        DialogService.fill_gap(self, start_frame, end_frame, method, preserve_endpoints)
+    def fill_gap(self, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
+        """Delegate gap filling to DialogService using the selected method index.
+        
+        Implements MainWindowProtocol.fill_gap method signature.
+        """
+        DialogService.fill_gap(self, start_frame, end_frame, method_index, preserve_endpoints)
 
     def show_extrapolate_dialog(self):
         DialogService.show_extrapolate_dialog(self)
@@ -904,10 +915,8 @@ class MainWindow(QMainWindow):
             # self.x_edit.setValue(0.0)
             # self.y_edit.setValue(0.0)
 
-    @property
-    def qwidget(self) -> QWidget:
-        """Property for protocol compatibility with HistoryContainerProtocol."""
-        return self
+    # This is a duplicate of the qwidget property defined earlier
+    # Removed to fix mypy error: Method declaration "qwidget" is obscured by a declaration of the same name
 
     def closeEvent(self, event: QCloseEvent) -> None:
         """Handle window close event, saving settings before exit.

@@ -6,9 +6,8 @@ Import analyzer for CurveEditor project.
 Identifies and reports import organization issues.
 """
 
-import os
 import re
-from typing import List, Dict, Tuple, Set
+from typing import List, Dict, Tuple, Set, Any, cast
 from pathlib import Path
 
 class ImportAnalyzer:
@@ -16,14 +15,14 @@ class ImportAnalyzer:
 
     def __init__(self, project_root: str):
         self.project_root = Path(project_root)
-        self.issues = []
+        self.issues: List[str] = []
 
-    def analyze_file(self, file_path: Path) -> Dict[str, List[str]]:
+    def analyze_file(self, file_path: Path) -> Dict[str, List[Tuple[int, str]] | List[str]]: 
         """Analyze imports in a single file."""
         with open(file_path, 'r', encoding='utf-8') as f:
             lines = f.readlines()
 
-        imports = {
+        imports: Dict[str, List[Tuple[int, str]] | List[str]] = {
             'standard': [],
             'third_party': [],
             'local': [],
@@ -32,7 +31,7 @@ class ImportAnalyzer:
         }
 
         # Standard library modules
-        standard_libs = {
+        standard_libs: Set[str] = {
             'os', 'sys', 're', 'json', 'time', 'datetime', 'math',
             'functools', 'itertools', 'collections', 'typing', 'pathlib',
             'logging', 'inspect', 'types', 'copy', 'hashlib', 'subprocess',
@@ -40,7 +39,7 @@ class ImportAnalyzer:
         }
 
         # Third-party modules in this project
-        third_party = {'PySide6', 'coverage'}
+        third_party: Set[str] = {'PySide6', 'coverage'}
 
         import_section_ended = False
         last_import_line = -1
@@ -59,15 +58,19 @@ class ImportAnalyzer:
 
                 # Categorize import
                 if module_root in standard_libs:
-                    imports['standard'].append((i, line.strip()))
+                    standard = cast(List[Tuple[int, str]], imports['standard']) 
+                    standard.append((i, line.strip()))
                 elif module_root in third_party:
-                    imports['third_party'].append((i, line.strip()))
+                    third_party_imports = cast(List[Tuple[int, str]], imports['third_party'])
+                    third_party_imports.append((i, line.strip()))
                 else:
-                    imports['local'].append((i, line.strip()))
+                    local = cast(List[Tuple[int, str]], imports['local'])
+                    local.append((i, line.strip()))
 
             # Check for commented imports
             elif re.match(r'^#\s*(from\s+\S+\s+import|import\s+)', line.strip()):
-                imports['commented'].append((i, line.strip()))
+                commented = cast(List[Tuple[int, str]], imports['commented'])
+                commented.append((i, line.strip()))
 
             # Check if we've moved past imports
             elif last_import_line >= 0 and i > last_import_line + 2 and line.strip() and not line.strip().startswith('#'):
@@ -75,22 +78,28 @@ class ImportAnalyzer:
 
             # Check for late imports
             if import_section_ended and import_match:
-                imports['issues'].append(f"Line {i+1}: Late import: {line.strip()}")
+                issues = cast(List[str], imports['issues'])
+                issues.append(f"Line {i+1}: Late import: {line.strip()}")
 
         # Check import order
-        if imports['standard'] and imports['third_party']:
-            if imports['standard'][-1][0] > imports['third_party'][0][0]:
-                imports['issues'].append("Standard library imports mixed with third-party imports")
+        standard = cast(List[Tuple[int, str]], imports['standard']) 
+        third_party_imports = cast(List[Tuple[int, str]], imports['third_party'])
+        local = cast(List[Tuple[int, str]], imports['local'])
+        issues = cast(List[str], imports['issues'])
+        
+        if standard and third_party_imports:
+            if standard[-1][0] > third_party_imports[0][0]:
+                issues.append("Standard library imports mixed with third-party imports")
 
-        if imports['third_party'] and imports['local']:
-            if imports['third_party'][-1][0] > imports['local'][0][0]:
-                imports['issues'].append("Third-party imports mixed with local imports")
+        if third_party_imports and local:
+            if third_party_imports[-1][0] > local[0][0]:
+                issues.append("Third-party imports mixed with local imports")
 
         return imports
 
     def find_circular_imports(self) -> List[Tuple[str, str]]:
         """Find potential circular imports."""
-        import_graph = {}
+        import_graph: Dict[str, Set[str]] = {}
 
         # Build import graph
         for py_file in self.project_root.rglob('*.py'):
@@ -98,32 +107,32 @@ class ImportAnalyzer:
                 continue
 
             module_name = str(py_file.relative_to(self.project_root)).replace('/', '.').replace('\\', '.')[:-3]
-            imports = set()
 
             with open(py_file, 'r', encoding='utf-8') as f:
                 content = f.read()
 
             # Find all local imports
+            module_imports: Set[str] = set()
             for match in re.finditer(r'from\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s+import', content):
                 if not match.group(1).startswith(('PySide6', 'typing')):
-                    imports.add(match.group(1))
+                    module_imports.add(match.group(1))
 
-            import_graph[module_name] = imports
+            import_graph[module_name] = module_imports
 
         # Find cycles (simplified - only direct cycles)
-        cycles = []
-        for module, imports in import_graph.items():
-            for imported in imports:
+        cycles: List[Tuple[str, str]] = []
+        for module, module_imports in import_graph.items():
+            for imported in module_imports:
                 if imported in import_graph and module in import_graph[imported]:
-                    cycle = tuple(sorted([module, imported]))
+                    cycle: Tuple[str, str] = (module, imported) if module < imported else (imported, module)
                     if cycle not in cycles:
                         cycles.append(cycle)
 
         return cycles
 
-    def analyze_project(self) -> Dict[str, any]:
+    def analyze_project(self) -> Dict[str, Any]:
         """Analyze all Python files in the project."""
-        results = {
+        results: Dict[str, Any] = {
             'files_analyzed': 0,
             'import_issues': {},
             'commented_imports': {},
@@ -131,6 +140,7 @@ class ImportAnalyzer:
             'summary': {
                 'files_with_issues': 0,
                 'total_issues': 0,
+                'circular_imports': 0,
                 'files_with_commented_imports': 0
             }
         }
@@ -143,19 +153,23 @@ class ImportAnalyzer:
             rel_path = str(py_file.relative_to(self.project_root))
             file_imports = self.analyze_file(py_file)
 
-            if file_imports['issues']:
-                results['import_issues'][rel_path] = file_imports['issues']
+            issues = cast(List[str], file_imports['issues'])
+            if issues:
+                results['import_issues'][rel_path] = issues
                 results['summary']['files_with_issues'] += 1
-                results['summary']['total_issues'] += len(file_imports['issues'])
+                results['summary']['total_issues'] += len(issues)
 
-            if file_imports['commented']:
-                results['commented_imports'][rel_path] = [c[1] for c in file_imports['commented']]
+            commented = cast(List[Tuple[int, str]], file_imports['commented'])
+            if commented:
+                results['commented_imports'][rel_path] = [c[1] for c in commented]
                 results['summary']['files_with_commented_imports'] += 1
 
             results['files_analyzed'] += 1
 
         # Find circular imports
-        results['circular_imports'] = self.find_circular_imports()
+        circular_imports = self.find_circular_imports()
+        results['circular_imports'] = circular_imports
+        results['summary']['circular_imports'] = len(circular_imports)
 
         return results
 

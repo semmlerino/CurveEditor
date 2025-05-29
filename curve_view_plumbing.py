@@ -11,7 +11,6 @@ import inspect
 from PySide6.QtWidgets import QMessageBox
 
 from services.curve_service import CurveService as CurveViewOperations
-from services.curve_service import normalize_point, set_point_status, update_point_coords
 from services.logging_service import LoggingService
 
 logger = LoggingService.get_logger("curve_view_plumbing")

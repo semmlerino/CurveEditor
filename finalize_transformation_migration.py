@@ -10,8 +10,7 @@ to the unified transformation service by:
 3. Verifying that the migration is complete
 """
 
-from pathlib import Path
-from typing import List, Dict, Tuple, Set, Optional
+from typing import List, Dict
 import logging
 import os
 import re
@@ -140,7 +139,7 @@ class MigrationFinalizer:
             self.replace_imports(file_path)
         
         # Generate summary
-        logger.info(f"\nMigration Summary:")
+        logger.info("\nMigration Summary:")
         logger.info(f"Files scanned: {self.stats['files_scanned']}")
         logger.info(f"Files updated: {self.stats['files_updated']}")
         logger.info(f"Files skipped: {len(self.skipped_files)}")

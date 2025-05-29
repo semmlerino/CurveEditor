@@ -9,7 +9,7 @@ Fixes import organization in all Python files that need it.
 import subprocess
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List
 
 # Files we've already fixed
 FIXED_FILES = {

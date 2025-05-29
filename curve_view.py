@@ -413,11 +413,11 @@ class CurveView(QWidget):  # type: ignore[override]
                 # Add more debugging info about image scaling
                 if scale_to_image:
                     painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: ON")
-                    painter.drawText(10, 195, f"Using identical transform for both curve and image")
+                    painter.drawText(10, 195, "Using identical transform for both curve and image")
                 else:
                     painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: OFF")
 
-                painter.drawText(10, 200, f"Adjust with arrow keys + Shift/Ctrl")
+                painter.drawText(10, 200, "Adjust with arrow keys + Shift/Ctrl")
 
                 # Add alignment grid crosshair for checking if curve is properly aligned with the background
                 # Draw at the center of the image

@@ -19,14 +19,13 @@ Options:
 
 import sys
 import argparse
-from typing import List, Dict, Any
 from pathlib import Path
 
 # Add the project root to the path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from services.transformation_integration import (
-    MigrationHelper, ValidationHelper, set_use_unified_system
+    MigrationHelper, set_use_unified_system
 )
 from services.unified_transformation_service import UnifiedTransformationService
 from services.logging_service import LoggingService
@@ -152,7 +151,6 @@ class TransformationMigrationTool:
         try:
             # Test 1: Basic transformation
             from services.view_state import ViewState
-            from services.unified_transform import Transform
 
             view_state = ViewState(
                 display_width=1920,
@@ -174,10 +172,13 @@ class TransformationMigrationTool:
                 return False
 
             # Test 2: Transform caching
-            cache_stats_before = UnifiedTransformationService.get_cache_stats()
+            # Get cache stats before creating the second transform (commented out as unused)
+            # cache_stats_before = UnifiedTransformationService.get_cache_stats()
 
-            # Create the same transform again
-            transform2 = UnifiedTransformationService.from_view_state(view_state)
+            # Create the same transform again (variable commented out as unused)
+            # transform2 = UnifiedTransformationService.from_view_state(view_state)
+            # Just create the transform without storing it
+            UnifiedTransformationService.from_view_state(view_state)
 
             cache_stats_after = UnifiedTransformationService.get_cache_stats()
 

@@ -8,7 +8,7 @@ This module contains UI components related to visualization controls,
 including grid, vectors, frame numbers, crosshair toggles, and point size controls.
 """
 
-from typing import Any, Callable
+from typing import Any
 
 from PySide6.QtWidgets import (
     QGridLayout, QGroupBox, QLabel, QPushButton, QSpinBox, QVBoxLayout, QWidget

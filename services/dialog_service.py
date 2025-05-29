@@ -11,7 +11,7 @@ from typing import Optional, List, Tuple, Any
 from PySide6.QtWidgets import QMessageBox, QDialog, QWidget
 
 from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
-                    OffsetDialog)
+                    OffsetDialog, ExtrapolateDialog, ShortcutsDialog, ProblemDetectionDialog)
 from services.analysis_service import AnalysisService as CurveDataOperations
 from services.protocols import (
     MainWindowProtocol, PointsList

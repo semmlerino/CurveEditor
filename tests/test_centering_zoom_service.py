@@ -3,7 +3,7 @@ Unit tests for the CenteringZoomService class.
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, MagicMock
 from services.centering_zoom_service import CenteringZoomService
 
 

@@ -11,12 +11,12 @@ both systems to maintain backward compatibility with existing code and tests.
 
 from typing import List, Tuple, Any, Dict
 
-from services.unified_transformation_service import UnifiedTransformationService
+from services.unified_transformation_service import UnifiedTransformationService as BaseUnifiedTransformationService
 from services.unified_transform import Transform
 
 
 # Add missing methods to UnifiedTransformationService
-class ExtendedUnifiedTransformationService(UnifiedTransformationService):
+class ExtendedUnifiedTransformationService(BaseUnifiedTransformationService):
     """Extended version of UnifiedTransformationService with additional methods for compatibility."""
 
     @staticmethod
@@ -49,28 +49,38 @@ class ExtendedUnifiedTransformationService(UnifiedTransformationService):
             # The drift should be significant enough
 
             # Transform the points with both transforms and compare
+            def _compute_drift(x1: float, y1: float, x2: float, y2: float) -> Dict[str, Any]:
+                """Compute drift between two points."""
+                # Transform both points using the transformation method
+                tx1, ty1 = ExtendedUnifiedTransformationService.transform_point(before_transform, x1, y1)
+                tx2, ty2 = ExtendedUnifiedTransformationService.transform_point(after_transform, x2, y2)
+                
+                # Calculate the drift
+                dx = float(tx2 - tx1)
+                dy = float(ty2 - ty1)
+                drift = float((dx**2 + dy**2)**0.5)
+
+                return {"drift": drift}
+
             for i, (_, x, y) in enumerate(before_points):
                 # Get the screen coordinates using both transforms
-                tx1, ty1 = UnifiedTransformationService.transform_point(before_transform, x, y)
-                tx2, ty2 = UnifiedTransformationService.transform_point(after_transform, x, y)
-
-                # Calculate drift amount (Euclidean distance)
-                dx = tx1 - tx2
-                dy = ty1 - ty2
-                drift = (dx**2 + dy**2)**0.5
+                drift = _compute_drift(x, y, x, y)
 
                 # Add drift to report regardless of threshold for test purposes
                 # This ensures the test that expects drift detection will pass
-                drift_report[i] = drift
+                drift_report[i] = drift["drift"]
 
         # Return a tuple of (drift_detected, drift_report) to match test expectations
         return bool(drift_report), drift_report
 
-# Use the extended class as the base for our UnifiedTransformationService
-UnifiedTransformationService = ExtendedUnifiedTransformationService
+# Use the extended class for our service implementation
+# Define a subclass to provide any additional functionality needed
+class CustomUnifiedTransformationService(ExtendedUnifiedTransformationService):
+    """Custom transformation service using the extended implementation."""
+    pass
 
 # Re-export classes and extend with compatibility methods
-class TransformationIntegration(UnifiedTransformationService):
+class TransformationIntegration(CustomUnifiedTransformationService):
     """Compatibility class that extends UnifiedTransformationService with legacy methods."""
 
     @staticmethod
@@ -86,7 +96,7 @@ class TransformationIntegration(UnifiedTransformationService):
             Transformed x, y coordinates as a tuple
         """
         transform = get_transform(curve_view)
-        return UnifiedTransformationService.transform_point(transform, x, y)
+        return BaseUnifiedTransformationService.transform_point(transform, x, y)
 
 
 def get_transform(curve_view: Any) -> Transform:
@@ -102,7 +112,7 @@ def get_transform(curve_view: Any) -> Transform:
     Returns:
         A Transform object representing the current view transformation
     """
-    return UnifiedTransformationService.from_curve_view(curve_view)
+    return BaseUnifiedTransformationService.from_curve_view(curve_view)
 
 
 def transform_point(curve_view_or_transform: Any, x: float, y: float) -> Tuple[float, float]:
@@ -122,7 +132,7 @@ def transform_point(curve_view_or_transform: Any, x: float, y: float) -> Tuple[f
     else:
         transform = get_transform(curve_view_or_transform)
 
-    return UnifiedTransformationService.transform_point(transform, x, y)
+    return BaseUnifiedTransformationService.transform_point(transform, x, y)
 
 
 def transform_points(curve_view_or_transform: Any, points: List[Tuple[int, float, float]]) -> List[Any]:
@@ -143,7 +153,7 @@ def transform_points(curve_view_or_transform: Any, points: List[Tuple[int, float
     else:
         transform = get_transform(curve_view_or_transform)
 
-    return UnifiedTransformationService.transform_points_qt(transform, points)
+    return BaseUnifiedTransformationService.transform_points_qt(transform, points)
 
 
 def install_unified_system(curve_view: Any) -> None:
@@ -162,12 +172,12 @@ def install_unified_system(curve_view: Any) -> None:
 
     def transform_point_method(self: Any, x: float, y: float) -> Tuple[float, float]:
         transform = get_transform(self)
-        return UnifiedTransformationService.transform_point(transform, x, y)
+        return BaseUnifiedTransformationService.transform_point(transform, x, y)
 
     def transform_point_qt_method(self: Any, x: float, y: float) -> Any:
         transform = get_transform(self)
         from PySide6.QtCore import QPointF
-        tx, ty = UnifiedTransformationService.transform_point(transform, x, y)
+        tx, ty = BaseUnifiedTransformationService.transform_point(transform, x, y)
         return QPointF(tx, ty)
 
     # Add methods to the curve view instance

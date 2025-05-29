@@ -13,8 +13,8 @@ from typing import Optional, Any, Callable
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QPainter, QPainterPath, QColor, QPaintEvent, QMouseEvent
 from PySide6.QtWidgets import (
-    QGridLayout, QGroupBox, QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider,
-    QSpinBox, QVBoxLayout, QWidget
+    QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider,
+    QVBoxLayout, QWidget
 )
 
 
@@ -182,7 +182,7 @@ class TimelineComponents:
     @staticmethod
     def _setup_timeline_press_handler(
         main_window: Any,
-        on_timeline_press: Callable[[QMouseEvent], None]
+        on_timeline_press: Callable[[Any, QMouseEvent], None]
     ) -> None:
         """
         Set up mouse press event handler for the timeline slider.
@@ -196,7 +196,7 @@ class TimelineComponents:
             original_press_event = main_window.timeline_slider.mousePressEvent
 
             def custom_press_event(event: QMouseEvent) -> None:
-                on_timeline_press(event)
+                on_timeline_press(main_window, event)
                 original_press_event(event)
 
             main_window.timeline_slider.mousePressEvent = custom_press_event

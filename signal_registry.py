@@ -30,7 +30,7 @@ from signal_connectors import (
 )
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    pass
 
 
 class SignalRegistry:

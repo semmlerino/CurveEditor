@@ -69,12 +69,12 @@ def test_smoothing_no_displacement():
     max_allowed_shift_y = y_range * 0.01  # 1% of range
 
     if shift_x < max_allowed_shift_x and shift_y < max_allowed_shift_y:
-        print(f"\n✓ TEST PASSED: Centroid shift is within acceptable range")
+        print("\n✓ TEST PASSED: Centroid shift is within acceptable range")
         print(f"  X shift: {shift_x:.2f} < {max_allowed_shift_x:.2f}")
         print(f"  Y shift: {shift_y:.2f} < {max_allowed_shift_y:.2f}")
         return True
     else:
-        print(f"\n✗ TEST FAILED: Centroid shift is too large")
+        print("\n✗ TEST FAILED: Centroid shift is too large")
         print(f"  X shift: {shift_x:.2f} > {max_allowed_shift_x:.2f}")
         print(f"  Y shift: {shift_y:.2f} > {max_allowed_shift_y:.2f}")
         return False

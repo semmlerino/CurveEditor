@@ -23,7 +23,7 @@ from services.centering_zoom_service import CenteringZoomService as ZoomOperatio
 from ui_components import UIComponents
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    pass
 
 
 class UISignalConnector:

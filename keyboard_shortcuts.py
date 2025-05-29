@@ -4,8 +4,8 @@
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QFont, QShortcut  # QShortcut is in QtGui, not QtWidgets
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QHBoxLayout, QLabel,
-                             QTreeWidget, QTreeWidgetItem, QPushButton,
-                             QHeaderView)
+                              QPushButton, QTableWidget, QTableWidgetItem,
+                              QHeaderView)
 
 class ShortcutManager:
     """Manages keyboard shortcuts for the application."""

@@ -7,7 +7,7 @@ preferences, and other configuration data.
 """
 
 import os
-from typing import Any, Optional, TYPE_CHECKING, cast
+from typing import Any, TYPE_CHECKING
 
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent

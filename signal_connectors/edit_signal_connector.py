@@ -17,7 +17,7 @@ from typing import TYPE_CHECKING, Any, Callable
 from services.curve_service import CurveService as CurveViewOperations
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    pass
 
 
 class EditSignalConnector:

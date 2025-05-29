@@ -7,7 +7,6 @@ Reorganizes imports according to PEP 8 standards.
 """
 
 import re
-from typing import List, Tuple
 from pathlib import Path
 
 class ImportFixer:

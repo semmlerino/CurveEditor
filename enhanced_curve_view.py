@@ -1,16 +1,15 @@
 # -*- coding: utf-8 -*-
 # type: ignore
 
-import os
 
 from PySide6.QtCore import Qt, Signal, QSettings, QPointF
 from PySide6.QtGui import (
     QPainter, QPen, QColor, QPainterPath,
-    QFont, QPixmap, QKeySequence
+    QPixmap, QKeySequence
 )
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QCheckBox,
-    QLabel, QKeySequenceEdit, QPushButton
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QKeySequenceEdit, QPushButton,
+    QDialog
 )
 try:
     from PySide6.QtWidgets import QShortcut
@@ -21,6 +20,9 @@ from services.centering_zoom_service import CenteringZoomService as ZoomOperatio
 from services.curve_service import CurveService as CurveViewOperations
 from services.image_service import ImageService
 from services.input_service import InputService, CurveViewProtocol  # Import for type checking
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class EnhancedCurveView(QWidget):
@@ -393,7 +395,7 @@ class EnhancedCurveView(QWidget):
                 # Convert QImage to QPixmap only when necessary
                 try:
                     painter.drawImage(int(img_x), int(img_y), self.background_image.scaled(int(scaled_width), int(scaled_height), Qt.KeepAspectRatio, Qt.SmoothTransformation))
-                except Exception as e:
+                except Exception:
                     # Fallback if there's an issue with the image
                     pass
 

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QMessageBox, QFileDialog
 
 import config
 from services.logging_service import LoggingService
-from services.protocols import CurveViewProtocol
+from services.protocols import CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol
 
 # Configure logger for this module
 logger = LoggingService.get_logger("image_service")

@@ -178,7 +178,8 @@ class UnifiedTransformCurveView(QWidget):
     def _draw_overlays(self, painter: QPainter, transform: Any) -> None:
         """Draw any additional overlays or UI elements."""
         # Example: Draw coordinate axes
-        params = transform.get_parameters()
+        # Parameters not needed for this implementation
+        # params = transform.get_parameters()
 
         # Draw origin if visible
         origin_screen = transform.apply_qt_point(0, 0)
@@ -268,7 +269,7 @@ class UnifiedTransformCurveView(QWidget):
                     dx: float = float(new_pos[0] - original_pos[0])
                     dy: float = float(new_pos[1] - original_pos[1])
                     drift: float = float((dx*dx + dy*dy) ** 0.5)
-                    max_drift: float = max(float(max_drift), float(drift))
+                    max_drift = max(float(max_drift), float(drift))  # Update existing variable, don't redefine
 
             if max_drift > 1.0:
                 logger.warning(f"Detected transformation drift: {max_drift:.2f} pixels")

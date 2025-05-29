@@ -12,7 +12,7 @@ from typing import Any
 
 from PySide6.QtWidgets import (
     QComboBox, QDoubleSpinBox, QGridLayout, QGroupBox, QLabel, QPushButton,
-    QSpinBox, QVBoxLayout, QWidget
+    QSpinBox, QWidget
 )
 
 

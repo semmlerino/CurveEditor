@@ -8,7 +8,7 @@ Provides functions for manipulating multiple track points simultaneously.
 
 from typing import Optional, Sequence, Any, cast, Protocol, runtime_checkable
 
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import QWidget, QGroupBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QDialog
 
 from dialogs import ScaleDialog, OffsetDialog, RotationDialog, SmoothFactorDialog
 from services.analysis_service import AnalysisService
@@ -38,7 +38,7 @@ class BatchEditParentWidgetProtocol(Protocol):
     select_all_button: QPushButton
     point_edit_layout: QVBoxLayout
     def update_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None: ...
-    def statusBar(self) -> object: ...
+    def statusBar(self) -> Any: ...  # Changed from object to Any for better type compatibility
     def add_to_history(self) -> None: ...
 
 # Avoid duplicate imports

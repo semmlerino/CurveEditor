@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import copy
-import math
 import os
 import re  # Added import for regex support
+from typing import List, Dict, Tuple, Optional, Any
 
-def get_image_files(directory):
+def get_image_files(directory: str) -> List[str]:
     """Get all image files in a directory."""
     if not os.path.isdir(directory):
         return []
@@ -27,7 +26,7 @@ def get_image_files(directory):
     return image_files
 
 
-def extract_frame_number(filename, fallback=None):
+def extract_frame_number(filename: str, fallback: Optional[Any] = None) -> Optional[int]:
     """
     Try to extract frame number from filename using multiple methods.
 
@@ -67,7 +66,7 @@ def extract_frame_number(filename, fallback=None):
     return fallback
 
 
-def map_frames_to_images(filenames):
+def map_frames_to_images(filenames: List[str]) -> Dict[int, str]:
     """Map frame numbers to image filenames."""
     frame_map = {}
 
@@ -84,7 +83,7 @@ def map_frames_to_images(filenames):
     return frame_map
 
 
-def find_closest_image(frame, frame_map):
+def find_closest_image(frame: int, frame_map: Dict[int, str]) -> Optional[str]:
     """Find the image closest to the given frame."""
     if not frame_map:
         return None
@@ -98,10 +97,12 @@ def find_closest_image(frame, frame_map):
             min_diff = diff
             closest_frame = f
 
+    if closest_frame is None:
+        return None
     return frame_map.get(closest_frame)
 
 
-def load_3de_track(file_path):
+def load_3de_track(file_path: str) -> Tuple[Optional[str], Optional[int], Optional[int], List[Tuple[int, float, float]]]:
     """Load 3DE track data from a file."""
     if not os.path.isfile(file_path):
         return None, None, None, []
@@ -114,7 +115,8 @@ def load_3de_track(file_path):
             return None, None, None, []
 
         # Parse header
-        num_points = int(lines[0].strip())
+        # Number of points not used in this implementation
+        # num_points = int(lines[0].strip())
 
         line_idx = 1
         # Point name
@@ -151,7 +153,12 @@ def load_3de_track(file_path):
         return None, None, None, []
 
 
-def save_3de_track(file_path, point_name, point_color, curve_data):
+def save_3de_track(
+    file_path: str,
+    point_name: str,
+    point_color: int,
+    curve_data: List[Tuple[int, float, float]]
+) -> bool:
     """Save 3DE track data to a file."""
     try:
         with open(file_path, 'w') as f:
@@ -171,7 +178,7 @@ def save_3de_track(file_path, point_name, point_color, curve_data):
         return False
 
 
-def estimate_image_dimensions(curve_data):
+def estimate_image_dimensions(curve_data: List[Tuple[int, float, float]]) -> Tuple[int, int]:
     """Estimate appropriate image dimensions from curve data."""
     if not curve_data:
         return 1920, 1080  # Default HD dimensions

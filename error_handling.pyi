@@ -3,7 +3,7 @@
 
 """Type stub file for error_handling.py"""
 
-from typing import Any, Callable, TypeVar, Optional, cast
+from typing import Any, Callable, TypeVar, Optional
 
 T = TypeVar('T')
 

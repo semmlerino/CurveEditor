@@ -6,7 +6,7 @@ from typing import Optional, Any, List, Tuple
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDialogButtonBox, QGroupBox, QHBoxLayout,
+    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QGroupBox, QHBoxLayout,
     QLabel, QPushButton, QSlider, QSpinBox, QVBoxLayout, QWidget
 )
 

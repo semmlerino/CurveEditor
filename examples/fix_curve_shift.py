@@ -21,7 +21,6 @@ from PySide6.QtCore import QPointF, QTimer
 from main_window import MainWindow
 from curve_view import CurveView
 from services.view_state import ViewState
-from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
 from services.unified_transformation_shim import install, transform_points
 from services.logging_service import LoggingService
@@ -134,8 +133,9 @@ def fix_paintEvent_with_stable_transform(curve_view: 'CurveView') -> None:
 
         # Use transformed points for drawing
         for i, point in enumerate(curve_view.points):
-            tx, ty = transformed_points[i].x(), transformed_points[i].y()
-            # Draw point at (tx, ty)
+            # Comment out unused assignments but keep as reference for implementation
+            # tx, ty = transformed_points[i].x(), transformed_points[i].y()
+            # Draw point at transformed coordinates
 
     # Example of how to use the transform for image positioning
     if curve_view.background_image:
@@ -144,13 +144,13 @@ def fix_paintEvent_with_stable_transform(curve_view: 'CurveView') -> None:
         scale = params['scale']
         center_offset_x, center_offset_y = params['center_offset']
 
-        # Calculate image position and size
-        img_width = curve_view.background_image.width() * scale
-        img_height = curve_view.background_image.height() * scale
-        img_x = center_offset_x
-        img_y = center_offset_y
+        # Calculate image position and size - commented out as reference implementation
+        # img_width = curve_view.background_image.width() * scale
+        # img_height = curve_view.background_image.height() * scale
+        # img_x = center_offset_x
+        # img_y = center_offset_y
 
-        # Draw image at (img_x, img_y) with size (img_width, img_height)
+        # Draw image at correct position and size
 
 
 if __name__ == "__main__":

@@ -48,7 +48,6 @@ def check_transformation_service_functionality():
     """
     try:
         from services.unified_transformation_service import UnifiedTransformationService
-        from services.view_state import ViewState
         
         print(f"Successfully imported UnifiedTransformationService: {UnifiedTransformationService}")
 

@@ -116,7 +116,8 @@ class InputService:
             delta = current_pos - view.last_drag_pos
             view.last_drag_pos = current_pos
             scale = view.zoom_factor
-            if scale == 0: scale = 1.0
+            if scale == 0:
+                scale = 1.0
             dx = delta.x() / scale
             dy = delta.y() / scale
             # Get current position and calculate new position with delta

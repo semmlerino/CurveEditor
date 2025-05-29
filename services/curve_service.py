@@ -16,7 +16,7 @@ from services.unified_transformation_service import UnifiedTransformationService
 from services.visualization_service import VisualizationService
 
 if TYPE_CHECKING:
-    from services.protocols import CurveViewProtocol, PointsList, PointTuple
+    from services.protocols import CurveViewProtocol
     from main_window import MainWindow
 
 # Configure logger for this module
@@ -215,7 +215,7 @@ class CurveService:
         if curve_view.selected_points and show_confirmation:
             # Confirm deletion
             response = QMessageBox.question(
-                main_window.qwidget(), "Confirm Delete",
+                main_window.qwidget, "Confirm Delete",
                 "Delete selected points? This cannot be undone.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                 QMessageBox.StandardButton.No

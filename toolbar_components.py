@@ -8,13 +8,12 @@ This module contains all toolbar-related UI components including file operations
 view controls, curve operations, and history/analysis buttons.
 """
 
-from typing import Any, Callable
+from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QFrame, QHBoxLayout, QLabel, QPushButton, QToolBar, QVBoxLayout, QWidget,
-    QWidgetAction
+    QFrame, QGridLayout, QHBoxLayout, QLabel, QPushButton, QToolBar, QVBoxLayout, QWidget
 )
 
 from services.dialog_service import DialogService as DialogOperations
@@ -124,7 +123,12 @@ class ToolbarComponents:
 
         main_window.smooth_button = QPushButton("Smooth")
         main_window.smooth_button.setToolTip("Smooth Selected Curve")
-        main_window.smooth_button.clicked.connect(lambda: DialogOperations.show_smooth_dialog(main_window))
+        main_window.smooth_button.clicked.connect(lambda: DialogOperations.show_smooth_dialog(
+            main_window,
+            main_window.curve_data,
+            main_window.curve_view.get_selected_indices(),
+            main_window.curve_view.selected_point_idx
+        ))
         main_window.smooth_button.setEnabled(False)
 
         main_window.fill_gaps_button = QPushButton("Fill Gaps")

@@ -23,11 +23,18 @@ from services.visualization_service import VisualizationService as Visualization
 from ui_components import UIComponents
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    pass
 
 
 class ShortcutSignalConnector:
     """Handles keyboard shortcut connections."""
+
+    @staticmethod
+    def _toggle_attribute_and_update(obj: object, attr_name: str) -> None:
+        """Helper method to toggle a boolean attribute and update view."""
+        setattr(obj, attr_name, not getattr(obj, attr_name, False))
+        if hasattr(obj, 'update'):
+            obj.update()
 
     @staticmethod
     def connect_shortcuts(main_window: Any) -> None:
@@ -97,19 +104,19 @@ class ShortcutSignalConnector:
                                        lambda: VisualizationOperations.toggle_grid(
                                            main_window,
                                            not main_window.toggle_grid_button.isChecked()
-                                           if hasattr(main_window, 'toggle_grid_button') else None
+                                           if hasattr(main_window, 'toggle_grid_button') else False
                                        ))
         ShortcutManager.connect_shortcut(main_window, "toggle_velocity",
                                        lambda: VisualizationOperations.toggle_velocity_vectors(
                                            main_window,
                                            not main_window.toggle_vectors_button.isChecked()
-                                           if hasattr(main_window, 'toggle_vectors_button') else None
+                                           if hasattr(main_window, 'toggle_vectors_button') else False
                                        ))
         ShortcutManager.connect_shortcut(main_window, "toggle_frame_numbers",
                                        lambda: VisualizationOperations.toggle_all_frame_numbers(
                                            main_window,
                                            not main_window.toggle_frame_numbers_button.isChecked()
-                                           if hasattr(main_window, 'toggle_frame_numbers_button') else None
+                                           if hasattr(main_window, 'toggle_frame_numbers_button') else False
                                        ))
         ShortcutManager.connect_shortcut(main_window, "toggle_crosshair",
                                        lambda: VisualizationOperations.toggle_crosshair_internal(
@@ -127,15 +134,11 @@ class ShortcutSignalConnector:
 
         # Toggle Y-axis flip
         ShortcutManager.connect_shortcut(main_window, "toggle_y_flip",
-                                       lambda: setattr(main_window.curve_view, 'flip_y_axis',
-                                                     not getattr(main_window.curve_view, 'flip_y_axis', False))
-                                                     or main_window.curve_view.update())
+                                        lambda: ShortcutSignalConnector._toggle_attribute_and_update(main_window.curve_view, 'flip_y_axis'))
 
         # Toggle scale to image
         ShortcutManager.connect_shortcut(main_window, "toggle_scale_to_image",
-                                       lambda: setattr(main_window.curve_view, 'scale_to_image',
-                                                     not getattr(main_window.curve_view, 'scale_to_image', False))
-                                                     or main_window.curve_view.update())
+                                        lambda: ShortcutSignalConnector._toggle_attribute_and_update(main_window.curve_view, 'scale_to_image'))
 
         # Toggle auto-center on selected point
         ShortcutManager.connect_shortcut(

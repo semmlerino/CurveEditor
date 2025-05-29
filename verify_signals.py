@@ -12,9 +12,8 @@ Usage:
     Run this script from within the main window to verify signal connections.
 """
 
-import inspect
 
-from PySide6.QtCore import Signal, QObject
+from PySide6.QtCore import Signal
 
 def verify_signal_connections(main_window):
     """Verify that all expected signals are properly connected.
@@ -53,7 +52,8 @@ def verify_signal_connections(main_window):
             report_lines.append(f"❌ Essential UI element '{element_name}' not found.")
             continue
             
-        element = getattr(main_window, element_name)
+        # Element exists but we don't need to store it in a variable
+        # element = getattr(main_window, element_name)
         
         # For each element, check that expected signals are in the tracking set
         # This is a simplified check since we don't have the actual signal object

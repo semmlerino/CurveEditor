@@ -1,6 +1,11 @@
 # CurveEditor Refactoring Session Summary
 ## Date: 2025-05-28 (Second Session)
 
+**Note**: This session summary has been archived. For current project status, refer to:
+- `README.md` - Project overview
+- `TODO.md` - Current task list
+- `docs/refactoring-history.md` - Complete refactoring history
+
 ### Work Completed:
 1. **Import Organization Fixes** - Fixed imports in 13 additional files:
    - All 6 extracted UI component files (visualization, smoothing, point_edit, status, timeline, toolbar)
@@ -25,3 +30,5 @@
 - Consider running the application to test functionality
 
 ### Commit Hash: 2ee4e92
+
+**Archived Date**: 2025-05-29

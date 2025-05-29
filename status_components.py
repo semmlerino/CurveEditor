@@ -10,10 +10,9 @@ and information labels.
 
 from typing import Any, Optional
 
-from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
-    QComboBox, QGridLayout, QGroupBox, QHBoxLayout, QLabel, QPushButton,
+    QComboBox, QGridLayout, QGroupBox, QLabel, QPushButton,
     QVBoxLayout, QWidget
 )
 

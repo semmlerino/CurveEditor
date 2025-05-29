@@ -198,7 +198,7 @@ class VisualizationService:
             # Log the view state we're preserving
             import logging
             logger = logging.getLogger(__name__)
-            logger.debug(f"VISUALSERVICE: Preserving view state before setting points")
+            logger.debug("VISUALSERVICE: Preserving view state before setting points")
 
             # Handle different naming conventions in different view implementations
             offset_x = getattr(curve_view, 'offset_x', getattr(curve_view, 'x_offset', 0))

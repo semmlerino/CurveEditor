@@ -12,6 +12,7 @@ from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, S
 
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QPixmap, QColor
+from PySide6.QtWidgets import QWidget
 
 PointTuple = Tuple[int, float, float]  # frame, x, y
 PointTupleWithStatus = Tuple[int, float, float, Union[bool, str]]  # frame, x, y, status (bool or str)
@@ -100,8 +101,6 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
     def setVelocityData(self, velocities: Any) -> None: ...
     def toggleVelocityVectors(self, enabled: bool) -> None: ...
 
-
-from PySide6.QtWidgets import QWidget
 
 class MainWindowProtocol(Protocol):
     # For image_service compatibility
@@ -208,7 +207,9 @@ class HistoryContainerProtocol(Protocol):
     point_color: str
     curve_view: CurveViewProtocol
     info_label: Any
-    qwidget: QWidget  # Underlying QWidget for dialogs
+    
+    @property
+    def qwidget(self) -> QWidget: ...  # Underlying QWidget for dialogs
 
 
 class HistoryServiceProtocol(Protocol):

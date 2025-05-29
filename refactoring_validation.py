@@ -25,7 +25,6 @@ def check_view_state_refactoring():
         bool: True if refactoring is complete, False otherwise
     """
     # Import both modules to check for duplicate definitions
-    from services.view_state import ViewState as ViewState1
 
     # Try to import ViewState from models to see if it still exists
     try:

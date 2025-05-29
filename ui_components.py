@@ -22,30 +22,24 @@ This architecture ensures that:
 """
 
 # Standard library imports
-from typing import Optional, Any, cast
+from typing import Any
 
 # Third-party imports
-from PySide6.QtCore import Qt, QSize, QTimer
-from PySide6.QtGui import QFont, QPainter, QPainterPath, QColor, QPaintEvent, QMouseEvent
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel,
-    QPushButton, QSlider, QLineEdit,
-    QGroupBox, QToolBar, QFrame,
-    QGridLayout, QComboBox, QSpinBox, QDoubleSpinBox
+    QPushButton, QSlider
 )
 
 # Local imports
 from enhanced_curve_view import EnhancedCurveView  # type: ignore[attr-defined]
 from point_edit_components import PointEditComponents
-from services.centering_zoom_service import CenteringZoomService  # Use service facade for auto centering
 from services.curve_service import CurveService as CurveViewOperations
-from services.dialog_service import DialogService as DialogOperations
-from services.history_service import HistoryService as HistoryOperations # For undo/redo
 from services.image_service import ImageService as ImageOperations
 from services.visualization_service import VisualizationService  # For visualization operations
 from smoothing_components import SmoothingComponents
 from status_components import StatusComponents
-from timeline_components import TimelineFrameMarker, TimelineComponents
+from timeline_components import TimelineComponents
 from toolbar_components import ToolbarComponents
 from visualization_components import VisualizationComponents
 

@@ -6,9 +6,7 @@ validating both functionality and backward compatibility.
 """
 
 import unittest
-from unittest.mock import Mock, patch
-import math
-from typing import List, Tuple
+from unittest.mock import Mock
 
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
