@@ -388,6 +388,25 @@ class MockMainWindow(MainWindowProtocol):
 
     shortcuts: Any = None
 
+    # Additional attributes that were in the removed duplicate section
+    selected_indices: list[int] = []
+    status_bar_message: Optional[str] = None
+    curve_view: Optional[CurveViewProtocol] = None
+    curve_data: PointsList = []
+
+    def __init__(self,
+                 curve_data: Optional[PointsList] = None,
+                 selected_points: Optional[list[int]] = None,
+                 selected_idx: int = 0) -> None:
+        """Initialize MockMainWindow for testing."""
+        self.curve_view = None  # Will be set later in tests
+        self.curve_data = curve_data or [(1, 100.0, 200.0), (2, 300.0, 400.0), (3, 500.0, 600.0)]
+        self.selected_indices = selected_points or [selected_idx]
+        self.status_bar_message = None
+        # Initialize history properly
+        self.history = []
+        self.history_index = -1
+
     def set_centering_enabled(self, enabled: bool) -> None:
         self.auto_center_enabled = enabled
 
@@ -427,28 +446,6 @@ class MockMainWindow(MainWindowProtocol):
     def setImageSequence(self, filenames: list[str]) -> None:
         """Set the image sequence to display."""
         self.image_filenames = filenames
-
-    """Mock main window for testing."""
-
-    # These attributes are declared as part of the class implementation
-    selected_indices: list[int]
-    status_bar_message: Optional[str]
-
-    def __init__(self, curve_data: Optional[list[tuple[int, float, float]]] = None,
-                 selected_points: Optional[list[int]] = None,
-                 selected_idx: int = 0) -> None:
-        # Initialize with empty curve view that will be set later
-        self.curve_view: CurveViewProtocol = cast(CurveViewProtocol, None)  # Will be set later
-        self.curve_data: PointsList = cast(PointsList, curve_data or [(1, 100.0, 200.0), (2, 300.0, 400.0), (3, 500.0, 600.0)])
-        self.selected_indices = selected_points or [selected_idx]
-        self.status_bar_message = None
-
-    def statusBar(self) -> Any:
-        """Return the status bar."""
-        return self
-
-    def showMessage(self, message: str, timeout: int = 0) -> None:
-        self.status_bar_message = message
 
 
 # Test cases for transform_point function using a more reliable approach
