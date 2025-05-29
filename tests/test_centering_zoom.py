@@ -22,7 +22,7 @@ from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
 # Mock classes for testing
 class MockCurveView(CurveViewProtocol):
     """Mock CurveView for testing centering and transform operations."""
-    
+
     width_val: int
     height_val: int
     image_width: int
@@ -40,7 +40,7 @@ class MockCurveView(CurveViewProtocol):
     main_window: Optional['MockMainWindow']
     points: list[Any]
     update_called: bool
-    
+
     def __init__(self, width: int = 800, height: int = 600, img_width: int = 1920, img_height: int = 1080,
                  zoom_factor: float = 1.0, x_offset: float = 0.0, y_offset: float = 0.0,
                  offset_x: float = 0.0, offset_y: float = 0.0,
@@ -71,24 +71,24 @@ class MockCurveView(CurveViewProtocol):
         self.curve_data = []
         # Initialize attributes with proper types to avoid conflicts with method definitions
         self._on_point_moved: Optional[int] = None
-        self._on_point_selected: Optional[int] = None
-        self._on_selection_changed: Optional[bool] = None
+        self._on_point_selected: int = -1  # Changed from Optional[int] to int with default value
+        self._on_selection_changed: bool = False  # Changed from Optional[bool] to bool with default value
         self.selection_rect = QRect()
         self.frame_marker_label = None
         self.timeline_slider = None
         self.nudge_increment = 1.0
         self.current_increment_index = 0
         self.available_increments = [0.1, 1.0, 10.0]
-        
+
     def width(self) -> int:
         return self.width_val
-        
+
     def height(self) -> int:
         return self.height_val
-        
+
     def update(self) -> None:
         self.update_called = True
-        
+
     # Implementing required protocol methods
     show_background: bool = True
     show_grid: bool = True
@@ -96,37 +96,37 @@ class MockCurveView(CurveViewProtocol):
     show_frame_numbers: bool = False
     show_velocity_vectors: bool = False
     show_all_frame_numbers: bool = False
-    
+
     # Implementing missing protocol methods
     def point_selected(self, index: int) -> None:
         """Called when a point is selected."""
         self._on_point_selected = index
-        
+
     def selection_changed(self) -> None:
         """Called when the selection changes."""
         self._on_selection_changed = True
-        
+
     # Properties required by the protocol
     rubber_band: Optional[QRubberBand] = None
     rubber_band_origin: QPointF = QPointF(0, 0)
     rubber_band_active: bool = False
-        
+
     drag_active: bool = False
     last_drag_pos: Optional[QPointF] = None
     pan_active: bool = False
     last_pan_pos: Optional[QPointF] = None
-        
+
     # Additional methods required by the protocol
     def point_moved(self, index: int, x: float, y: float) -> None:
         """Handle point moved callback."""
         # This is implemented as no-op in the mock but needs to match the protocol signature
-        
+
     def findPointAt(self, pos: QPointF) -> int:
         return -1
-        
+
     def selectPointByIndex(self, idx: int) -> None:
         self.selected_point_idx = idx
-        
+
     def get_point_data(self, idx: int) -> tuple[int, float, float, Optional[str]]:
         if not self.points or idx >= len(self.points):
             return (0, 0.0, 0.0, None)
@@ -135,157 +135,157 @@ class MockCurveView(CurveViewProtocol):
             return (point[0], point[1], point[2], None)
         else:
             return point
-            
+
     def setPoints(self, points: list[tuple[int, float, float] | tuple[int, float, float, bool | str]], image_width: int = 0, image_height: int = 0, preserve_view: bool = False) -> None:
         self.points = points
-        
+
     def get_selected_points(self) -> List[int]:
         return list(self.selected_points)
-        
+
     def is_point_selected(self, idx: int) -> bool:
         return idx in self.selected_points
-        
+
     def setFocus(self) -> None:
         """Required by ImageSequenceProtocol"""
         pass
-        
+
     def setCurrentImageByIndex(self, idx: int) -> None:
         """Required by CurveViewProtocol"""
         self.current_image_idx = idx
-        
+
     def setBackgroundOpacity(self, opacity: float) -> None:
         """Required by CurveViewProtocol"""
         self.background_opacity = opacity
-        
+
     def centerOnSelectedPoint(self) -> bool:
         """Required by CurveViewProtocol"""
         return True
-        
+
     # We're keeping only one implementation of setImageSequence
     # which is required by CurveViewProtocol
     def setImageSequence(self, path: str, filenames: list[str]) -> None:
         """Set the image sequence for display.
-        
+
         Required by CurveViewProtocol.
         """
         self.image_sequence_path = path
         self.image_filenames = filenames
-        
+
     def set_curve_data(self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None:
         """Required by CurveViewProtocol"""
         self.curve_data = curve_data
-        
+
     def get_selected_indices(self) -> List[int]:
         """Required by CurveViewProtocol"""
         return list(self.selected_points)
-        
+
     # Method implementation for CurveViewProtocol
     def _set_velocity_data_base(self, velocities: Any) -> None:
         """Base implementation for setVelocityData"""
         pass
-        
+
     def _toggle_velocity_vectors_base(self, enabled: bool) -> None:
         """Base implementation for toggleVelocityVectors"""
         self.show_velocity_vectors = enabled
-        
+
     def emit(self, *args: Any, **kwargs: Any) -> None:
         """Required by ImageSequenceProtocol"""
         pass
-        
+
     def set_background_image(self, img_path: str) -> bool:
         return True
-        
+
     # Main implementation for protocol requirements
     def setVelocityData(self, velocities: list[tuple[float, float]]) -> None:
         """Set velocity data for visualization."""
         self._set_velocity_data_base(velocities)
-        
+
     def toggleVelocityVectors(self, enabled: bool = True) -> None:
         """Toggle visibility of velocity vectors."""
         self._toggle_velocity_vectors_base(enabled)
-        
+
     def toggle_point_interpolation(self, idx: int) -> None:
         pass
-        
+
     def toggleBackgroundVisible(self, visible: bool = True) -> None:
         self.background_visible = visible
-        
+
     def setCursor(self, cursor: Any) -> None:
         pass
-        
+
     def unsetCursor(self) -> None:
         pass
-        
+
     show_crosshair: bool = False
     background_opacity: float = 1.0
-        
+
     def setToolTip(self, tooltip: str) -> None:
         pass
-        
+
     def resizeEvent(self, event: Any) -> None:
         pass
-        
+
     def closeEvent(self, event: Any) -> None:
         pass
-        
+
     def wheelEvent(self, event: Any) -> None:
         pass
-        
+
     def paintEvent(self, event: Any) -> None:
         pass
-        
+
     def mousePressEvent(self, event: Any) -> None:
         pass
-        
+
     def mouseMoveEvent(self, event: Any) -> None:
         pass
-        
+
     def mouseReleaseEvent(self, event: Any) -> None:
         pass
-        
+
     def keyPressEvent(self, event: Any) -> None:
         pass
-        
+
     @property
     def qwidget(self) -> Any:
         """Return the underlying QWidget for this window."""
         return self
-        
+
     def update_image_label(self) -> None:
         """Update the image label."""
         pass
-        
+
     def statusBar(self) -> Any:
         """Return the status bar."""
         if not hasattr(self, 'status_bar'):
             self.status_bar = MagicMock()
         return self.status_bar
-        
+
     def update_status_message(self, message: str) -> None:
         """Update status message."""
         pass
-        
+
     def refresh_point_edit_controls(self) -> None:
         """Refresh point edit controls."""
         pass
-        
+
     def add_to_history(self) -> None:
         """Add current state to history."""
         pass
-        
+
     def setup_timeline(self, start_frame: int, end_frame: int) -> None:
         """Set up the timeline."""
         pass
-        
+
     def set_image_sequence(self, path: str, filenames: list[str]) -> None:
         """Set image sequence for MainWindow.
-        
+
         Note: This method is renamed from setImageSequence to avoid conflicts with the
         method in MockCurveView while still providing the same functionality.
         """
         self.image_sequence_path = path
         self.image_filenames = filenames
-        
+
     # Add remaining required properties
     point_radius: int = 5
     grid_color: Any = MagicMock()  # QColor in actual implementation
@@ -315,14 +315,14 @@ class MockCurveView(CurveViewProtocol):
 
 class MockBackgroundImage:
     """Mock background image for testing."""
-    
+
     def __init__(self, width: int = 1920, height: int = 1080) -> None:
         self.width_val = width
         self.height_val = height
-        
+
     def width(self) -> int:
         return self.width_val
-        
+
     def height(self) -> int:
         return self.height_val
 
@@ -337,7 +337,7 @@ class MockMainWindow(MainWindowProtocol):
     x_edit: Any = None
     y_edit: Any = None
     z_edit: Any = None
-    
+
     # Protocol required attributes
     image_sequence_path: str = ""
     image_filenames: list[str] = []
@@ -346,7 +346,7 @@ class MockMainWindow(MainWindowProtocol):
     image_width: int = 1920
     image_height: int = 1080
     info_label: Any = None
-    
+
     # Defining history-related attributes here to avoid redefinition
     history: List[Dict[str, Any]] = []
     history_index: int = -1
@@ -390,50 +390,50 @@ class MockMainWindow(MainWindowProtocol):
 
     def set_centering_enabled(self, enabled: bool) -> None:
         self.auto_center_enabled = enabled
-        
+
     def toggle_fullscreen(self) -> None:
         pass
-        
+
     def apply_smooth_operation(self) -> None:
         pass
-        
+
     # Implementing methods required by MainWindowProtocol
     @property
     def qwidget(self) -> QWidget:
         """Return the underlying QWidget."""
         return cast(QWidget, MagicMock())  # Mock implementation for testing
-        
+
     def update_image_label(self) -> None:
         """Update the image label with current image info."""
         pass
-        
+
     def update_status_message(self, message: str) -> None:
         """Update the status message."""
         self.status_bar_message = message
-        
+
     def refresh_point_edit_controls(self) -> None:
         """Refresh the point edit controls."""
         pass
-        
+
     def add_to_history(self) -> None:
         """Add current state to history."""
         self.history_index += 1
         self.history = self.history[:self.history_index] + [{"state": "mock"}]
-        
+
     def setup_timeline(self, start_frame: int, end_frame: int) -> None:
         """Set up the timeline with the given frame range."""
         pass
-        
+
     def setImageSequence(self, filenames: list[str]) -> None:
         """Set the image sequence to display."""
         self.image_filenames = filenames
 
     """Mock main window for testing."""
-    
+
     # These attributes are declared as part of the class implementation
     selected_indices: list[int]
     status_bar_message: Optional[str]
-    
+
     def __init__(self, curve_data: Optional[list[tuple[int, float, float]]] = None,
                  selected_points: Optional[list[int]] = None,
                  selected_idx: int = 0) -> None:
@@ -442,11 +442,11 @@ class MockMainWindow(MainWindowProtocol):
         self.curve_data: PointsList = cast(PointsList, curve_data or [(1, 100.0, 200.0), (2, 300.0, 400.0), (3, 500.0, 600.0)])
         self.selected_indices = selected_points or [selected_idx]
         self.status_bar_message = None
-        
+
     def statusBar(self) -> Any:
         """Return the status bar."""
         return self
-        
+
     def showMessage(self, message: str, timeout: int = 0) -> None:
         self.status_bar_message = message
 
@@ -457,34 +457,34 @@ def test_transform_point_with_mocks() -> None:
     # Test scenarios that we want to validate for transform_point
     test_cases: list[dict[str, Any]] = [
         # Standard case with no transformations
-        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0, 
+        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0,
          "scale": 1.0, "flip_y": False, "scale_img": False, "expected": (100, 100)},
-        
+
         # Y-axis flipped (typical case)
-        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0, 
+        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0,
          "scale": 1.0, "flip_y": True, "scale_img": False, "expected": (100, 980)},
-        
+
         # With zoom
-        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0, 
+        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0,
          "scale": 2.0, "flip_y": True, "scale_img": False, "expected": (200, 1960)},
-        
+
         # With centering offset
-        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 50, "offset_y": 60, 
+        {"x": 100, "y": 100, "display_w": 1920, "display_h": 1080, "offset_x": 50, "offset_y": 60,
          "scale": 1.0, "flip_y": True, "scale_img": False, "expected": (150, 1040)},
-        
+
         # Edge cases
-        {"x": 0, "y": 0, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0, 
+        {"x": 0, "y": 0, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0,
          "scale": 1.0, "flip_y": True, "scale_img": False, "expected": (0, 1080)},
-        {"x": 1920, "y": 1080, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0, 
+        {"x": 1920, "y": 1080, "display_w": 1920, "display_h": 1080, "offset_x": 0, "offset_y": 0,
          "scale": 1.0, "flip_y": True, "scale_img": False, "expected": (1920, 0)},
     ]
-    
+
     # For each test case, create a mock and patch the transform_point function
     with patch.object(CurveService, 'transform_point') as mock_transform:
         for case in test_cases:
             # Configure the mock to return our expected output
             mock_transform.return_value = case["expected"]
-            
+
             # Create a mock view with the appropriate settings
             mock_view = MockCurveView(
                 img_width=1920,
@@ -495,12 +495,12 @@ def test_transform_point_with_mocks() -> None:
                 offset_x=case["offset_x"],
                 offset_y=case["offset_y"]
             )
-            
+
             # For scale_to_image cases, set up a mock background image
             if case["scale_img"]:
                 mock_view.background_image = MockBackgroundImage(case["display_w"], case["display_h"])
-            
-            # Call the CurveService.transform_point function 
+
+            # Call the CurveService.transform_point function
             result = CurveService.transform_point(
                 mock_view,
                 float(case["x"]),  # type: ignore[arg-type]
@@ -511,7 +511,7 @@ def test_transform_point_with_mocks() -> None:
                 float(case["offset_y"]),  # type: ignore[arg-type]
                 float(case["scale"])  # type: ignore[arg-type]
             )
-            
+
             # Verify that the transform_point was called with the correct parameters
             mock_transform.assert_called_with(
                 mock_view,
@@ -523,7 +523,7 @@ def test_transform_point_with_mocks() -> None:
                 float(case["offset_y"]),  # type: ignore[arg-type]
                 float(case["scale"])  # type: ignore[arg-type]
             )
-            
+
             # Verify the transformed coordinates are what we expected
             assert result == case["expected"], f"Expected: {case['expected']}, Got: {result}"
 
@@ -533,47 +533,47 @@ def test_center_on_selected_point_handles_resize():
     """Test that centering works correctly after window resize."""
     # Setup mock objects
     mock_view = MockCurveView(
-        width=800, 
+        width=800,
         height=600,
-        img_width=1920, 
+        img_width=1920,
         img_height=1080,
         zoom_factor=1.0,
         selected_point_idx=1
     )
-    
+
     mock_window = MockMainWindow()
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
-    
+
     # Mock the center_on_selected_point method directly instead of trying to mock a function it calls internally
     with patch.object(CenteringZoomService, 'center_on_selected_point') as mock_center:
         # Configure the mock to return True on call
         mock_center.return_value = True
-        
+
         # Initial centering call
         result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result1 is True
         assert mock_center.call_count == 1
-        
+
         # Verify the initial call was made with the original dimensions
         first_call_view = mock_center.call_args[0][0]
         assert first_call_view.width() == 800
         assert first_call_view.height() == 600
-        
+
         # Simulate window resize
         mock_view.width_val = 1200  # Window got wider
         mock_view.height_val = 800   # and taller
-        
+
         # Reset the mock to verify it gets called again after resize
         mock_center.reset_mock()
-        
+
         # Re-center after resize
         result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result2 is True
-        
+
         # Verify the function was called after resize
         mock_center.assert_called_once()
-        
+
         # Verify the view argument is correct (should be the same view but with updated dimensions)
         assert mock_center.call_args[0][0] == mock_view
         assert mock_view.width() == 1200
@@ -584,34 +584,34 @@ def test_center_on_selected_point_handles_fullscreen():
     """Test that centering works correctly when switching to fullscreen."""
     # Setup with normal window size
     mock_view = MockCurveView(
-        width=800, 
+        width=800,
         height=600,
-        img_width=1920, 
+        img_width=1920,
         img_height=1080,
         zoom_factor=1.0,
         selected_point_idx=1
     )
-    
+
     mock_window = MockMainWindow()
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
-    
+
     # Initial centering
     result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
     assert result1 is True
-    
+
     # Reset update flag
     mock_view.update_called = False
-    
+
     # Now simulate fullscreen (much larger dimensions)
     mock_view.width_val = 1920
     mock_view.height_val = 1080
-    
+
     # Re-center after going fullscreen
     result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
     assert result2 is True
     assert mock_view.update_called is True
-    
+
     # The offsets should have been recalculated based on the new dimensions
 
 
@@ -622,20 +622,20 @@ def test_auto_center_view_with_selection():
     mock_window = MockMainWindow(selected_idx=1)
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
-    
+
     # Mock center_on_selected_point to verify it's called with right params
     with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=True) as mock_center:
         result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
-        
+
         # Verify it was called with right parameters
         mock_center.assert_called_once()
         assert mock_center.call_args[0][0] == mock_view  # First arg should be curve_view
         assert mock_center.call_args[0][1] == 1  # Second arg should be point_idx
         assert mock_center.call_args[0][2] is True  # Third arg should be preserve_zoom
-        
+
         # Verify return value propagated
         assert result is True
-        
+
         # Verify status message
         assert "Centered view on point 1" in (mock_window.status_bar_message or "")
 
@@ -647,13 +647,13 @@ def test_auto_center_view_no_selection():
     mock_window = MockMainWindow(selected_idx=-1, selected_points=[])
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
-    
+
     # Mock center_on_selected_point to return False when no point is selected
     with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=False) as mock_center_func:
         result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         # Verify the mock was called
         assert mock_center_func.called
-        
+
         # Should return False when no point is selected
         assert result is False
         # The actual message may vary based on implementation, so we check that we get some status
@@ -665,31 +665,31 @@ def test_view_state_handling():
     """Test that view state (dimensions, zoom) is properly considered during centering."""
     # Create mocks
     mock_view = MockCurveView(
-        width=800, 
+        width=800,
         height=600,
         zoom_factor=1.5,  # Non-default zoom
         selected_point_idx=1
     )
-    
+
     mock_window = MockMainWindow()
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
-    
+
     # Mock key functions to see what arguments are passed
     with patch.object(CenteringZoomService, 'center_on_selected_point') as mock_center:
         # Configure the mock to pass through the preserve_zoom parameter with proper typing
         def preserve_zoom_effect(view: MockCurveView, idx: int, preserve_zoom: bool) -> bool:
             return preserve_zoom
         mock_center.side_effect = preserve_zoom_effect
-        
+
         # Test with preserve_zoom=True (default)
         result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
         assert result1 is True  # Should return the preserve_zoom value
-        
+
         # Test with preserve_zoom=False
         result2 = CenteringZoomService.auto_center_view(mock_window, preserve_zoom=False)
         assert result2 is False  # Should return the preserve_zoom value
-        
+
         # Check that zoom_factor would be preserved in the first call
         # but not in the second call
         assert mock_center.call_args_list[0][0][2] is True
@@ -700,10 +700,10 @@ def test_resize_centering_consistency():
     """Test that centering maintains proper position during window resize."""
     # Create a point at the center of the original view
     center_x, center_y = 960, 540  # Center of 1920x1080
-    
+
     # Setup initial view (normal size)
     mock_view = MockCurveView(
-        width=800, 
+        width=800,
         height=450,  # 16:9 aspect ratio
         img_width=1920,
         img_height=1080,
@@ -711,38 +711,38 @@ def test_resize_centering_consistency():
         offset_x=400,
         offset_y=225  # Center offsets for 800x450 window
     )
-    
+
     # In this test we're mocking transform_point to isolate the test
     # from implementation details of transform_point itself
     with patch.object(CurveService, 'transform_point') as mock_transform:
         # Set return values for our mocked function - first for the 800x450 view
         mock_transform.side_effect = [(800, 450), (1600, 900)]
-        
+
         # First, transform the center point with original size
         tx1, ty1 = CurveService.transform_point(
-            mock_view, center_x, center_y, 1920, 1080, 
+            mock_view, center_x, center_y, 1920, 1080,
             mock_view.offset_x, mock_view.offset_y, 1.0
         )
-        
+
         # Now resize the view (2x larger)
         mock_view.width_val = 1600  # Doubled width
         mock_view.height_val = 900   # Doubled height
         mock_view.offset_x = 800  # Updated center offsets for larger window
         mock_view.offset_y = 450
-        
+
         # Calculate transforms for same point after resize
         tx2, ty2 = CurveService.transform_point(
-            mock_view, center_x, center_y, 1920, 1080, 
+            mock_view, center_x, center_y, 1920, 1080,
             mock_view.offset_x, mock_view.offset_y, 1.0
         )
-        
+
         # The point should remain proportionally centered
         # For the X coordinate - ensure the position scales with the window size
         assert tx1 / 800 == tx2 / 1600
-        
+
         # For the Y coordinate - ensure the position scales with the window size
         assert ty1 / 450 == ty2 / 900
-        
+
         # Verify the transform_point function was called with correct parameters
         assert mock_transform.call_count == 2
         # First call for original window size

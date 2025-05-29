@@ -57,7 +57,7 @@ from services.file_service import FileService as FileOperations
 from services.history_service import HistoryService
 from services.image_service import ImageService as ImageOperations
 from services.logging_service import LoggingService
-from services.protocols import PointsList, TrackQualityUIProtocol
+from services.protocols import PointsList, TrackQualityUIProtocol, MainWindowProtocol
 from services.settings_service import SettingsService
 from services.unified_transformation_service import UnifiedTransformationService
 from track_quality import TrackQualityUI
@@ -600,11 +600,11 @@ class MainWindow(QMainWindow):
     @property
     def qwidget(self) -> QWidget:
         """Return the underlying QWidget for this window.
-        
+
         This property is required by HistoryContainerProtocol.
         """
         return self
-        
+
     def restore_state(self, state: Any) -> None:
         """Restore application state from history."""
         HistoryService.restore_state(self, state)
@@ -865,10 +865,12 @@ class MainWindow(QMainWindow):
 
     def fill_gap(self, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
         """Delegate gap filling to DialogService using the selected method index.
-        
+
         Implements MainWindowProtocol.fill_gap method signature.
         """
-        DialogService.fill_gap(self, start_frame, end_frame, method_index, preserve_endpoints)
+        # Cast self to MainWindowProtocol to satisfy type checker
+        window_protocol = cast(MainWindowProtocol, self)
+        DialogService.fill_gap(window_protocol, start_frame, end_frame, method_index, preserve_endpoints)
 
     def show_extrapolate_dialog(self):
         DialogService.show_extrapolate_dialog(self)
