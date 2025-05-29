@@ -89,3 +89,5 @@
    - ✅ Created visualization_signal_connector.py (handles visualization controls)
    - TODO: Create remaining connectors (edit, ui, shortcuts)
    - TODO: Refactor signal_registry.py to use new modules
+
+Current commit hash: 0355b10

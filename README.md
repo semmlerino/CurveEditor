@@ -93,36 +93,34 @@ The application follows a service-oriented architecture with these key component
 
 ## Documentation
 
-### Documentation Structure & Consolidation
+### Current Documentation Structure
 
-- **Current & Maintained Documentation:**
-    - `README.md` (this file): Overview, features, installation, navigation
-    - `docs/quick-start.md`: Quick start and usage guide
-    - `docs/api-reference.md`: Service and API reference
-    - `docs/architecture.md`: Architectural overview
-    - `docs/design-decisions.md`: Key design decisions and rationale
-    - `docs/migration-guide.md`: Migration to the unified transformation system
-    - `TODO.md`: Remaining actionable technical debt and cleanup tasks
+All active documentation is maintained in the following locations:
 
-- **Archived/Obsolete Documentation:**
-    - All files previously in the project root related to code review history, refactoring plans, or past process documentation have been moved to `docs/archive/`.
-    - All files in `docs/archive/` are for historical reference only. They may contain outdated or superseded information and are not maintained. For up-to-date information, always refer to the files listed above.
+- **Main Documentation:**
+  - `README.md` (this file): Project overview, installation, and quick start
+  - `TODO.md`: Current tasks and technical debt tracking
+  - `CODE_REVIEW_2025_05_29.md`: Latest comprehensive code review
 
-If you are looking for the latest details or guidance, use the main documentation files above. The archive is only for legacy reference.
+- **Technical Documentation (`docs/`):**
+  - `quick-start.md`: Getting started with the transformation system
+  - `api-reference.md`: Complete service and API documentation
+  - `architecture.md`: System architecture and design patterns
+  - `design-decisions.md`: Key architectural choices and rationale
+  - `migration-guide.md`: Guide for migrating to unified transformation system
+  - `transformation-system.md`: Detailed transformation system documentation
+  - `unified_transformation_system.md`: Unified system implementation details
+  - `refactoring-history.md`: Record of major refactoring efforts
+  - `REFACTORING_STATUS.md`: Current refactoring status and progress
+  - `consolidation-summary.md`: Documentation consolidation overview
 
+- **Archived Documentation (`docs/ObsoleteArchive/`):**
+  - Historical code reviews and refactoring plans
+  - Old session summaries and progress reports
+  - Utility scripts and validation tools
+  - Legacy documentation no longer maintained
 
-### Complete API Reference
-- **[API Documentation](docs/api-reference.md)**: Complete service and class documentation
-- **[Transformation System](docs/transformation-system.md)**: Detailed guide to the unified transformation system
-
-### Developer Guides
-- **[Quick Start Guide](docs/quick-start.md)**: Get up and running with the new transformation system
-- **[Migration Guide](docs/migration-guide.md)**: Upgrading from the old transformation system
-- **[Architecture Guide](docs/architecture.md)**: Understanding the application structure
-
-### Historical Documentation
-- **[Refactoring History](docs/refactoring-history.md)**: Record of code improvements and changes
-- **[Design Decisions](docs/design-decisions.md)**: Important architectural choices and rationale
+**Note:** Always refer to the main and technical documentation for current information. The archive contains historical documents for reference only.
 
 ## Development
 
