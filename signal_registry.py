@@ -17,7 +17,7 @@ Key improvements in this refactored version:
 
 # Standard library imports
 import traceback
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 # Local imports
 from signal_connectors import (
@@ -61,20 +61,34 @@ class SignalRegistry:
         print("CONNECTING ALL APPLICATION SIGNALS")
         print("="*80)
 
+        # Create a wrapper class that has the _connect_signal method
+        # This allows connector classes to use registry._connect_signal() syntax
+        # Also make it callable for connectors that expect a function
+        class RegistryConnector:
+            def _connect_signal(self, main_window: Any, signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
+                return SignalRegistry._connect_signal(main_window, signal, slot, signal_name)
+            
+            # Make the object callable so it works for connector classes using direct function calls
+            def __call__(self, main_window: Any, signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
+                return self._connect_signal(main_window, signal, slot, signal_name)
+        
+        # Create an instance of our wrapper
+        registry_connector = RegistryConnector()
+        
         # Define all signal connection groups to process
         signal_groups = [
             # File operations
-            ("File Operations", lambda mw: FileSignalConnector.connect_signals(mw, cls._connect_signal)),
+            ("File Operations", lambda mw: FileSignalConnector.connect_signals(mw, registry_connector)),
 
             # Edit operations (curve view, point editing, batch edit)
-            ("Edit Operations", lambda mw: EditSignalConnector.connect_signals(mw, cls._connect_signal)),
+            ("Edit Operations", lambda mw: EditSignalConnector.connect_signals(mw, registry_connector)),
 
             # View operations (enhanced view and visualization)
-            ("View Operations", lambda mw: ViewSignalConnector.connect_signals(mw, cls._connect_signal)),
-            ("Visualization", lambda mw: VisualizationSignalConnector.connect_signals(mw, cls._connect_signal)),
+            ("View Operations", lambda mw: ViewSignalConnector.connect_signals(mw, registry_connector)),
+            ("Visualization", lambda mw: VisualizationSignalConnector.connect_signals(mw, registry_connector)),
 
             # UI operations (timeline, dialogs, history, image, analysis)
-            ("UI Operations", lambda mw: UISignalConnector.connect_signals(mw, cls._connect_signal)),
+            ("UI Operations", lambda mw: UISignalConnector.connect_signals(mw, registry_connector)),
 
             # Keyboard shortcuts (handled last after all UI elements are connected)
             ("Keyboard Shortcuts", lambda mw: ShortcutSignalConnector.connect_shortcuts(mw)),

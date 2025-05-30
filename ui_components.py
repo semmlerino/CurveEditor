@@ -382,6 +382,81 @@ class UIComponents:
 
 
     @staticmethod
+    def on_timeline_changed(main_window: Any, value: int) -> None:
+        """Handle timeline slider value changes by delegating to TimelineComponents.
+        
+        Args:
+            main_window: The main application window instance
+            value: The new slider value (frame number)
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.on_timeline_changed(main_window, value)
+        
+    @staticmethod
+    def on_frame_edit_changed(main_window: Any, text: str) -> None:
+        """Handle frame edit text changes by delegating to TimelineComponents.
+        
+        Args:
+            main_window: The main application window instance
+            text: The new text value in the frame edit field
+        """
+        from timeline_components import TimelineComponents
+        # The TimelineComponents method doesn't use the text parameter directly
+        # but expects it to be already set in the frame_edit field
+        TimelineComponents.on_frame_edit_changed(main_window)
+        
+    @staticmethod
+    def go_to_frame(main_window: Any, frame: int) -> None:
+        """Go to a specific frame in the timeline.
+        
+        Args:
+            main_window: The main application window instance
+            frame: The frame number to go to
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.go_to_frame(main_window, frame)
+    
+    @staticmethod
+    def next_frame(main_window: Any) -> None:
+        """Go to the next frame in the timeline.
+        
+        Args:
+            main_window: The main application window instance
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.next_frame(main_window)
+    
+    @staticmethod
+    def prev_frame(main_window: Any) -> None:
+        """Go to the previous frame in the timeline.
+        
+        Args:
+            main_window: The main application window instance
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.prev_frame(main_window)
+    
+    @staticmethod
+    def go_to_first_frame(main_window: Any) -> None:
+        """Go to the first frame in the timeline.
+        
+        Args:
+            main_window: The main application window instance
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.go_to_first_frame(main_window)
+    
+    @staticmethod
+    def go_to_last_frame(main_window: Any) -> None:
+        """Go to the last frame in the timeline.
+        
+        Args:
+            main_window: The main application window instance
+        """
+        from timeline_components import TimelineComponents
+        TimelineComponents.go_to_last_frame(main_window)
+        
+    @staticmethod
     def connect_all_signals(main_window: Any) -> None:
         """Connect all UI signals to their respective slots.
 

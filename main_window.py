@@ -255,6 +255,9 @@ class MainWindow(QMainWindow):
 
         # Load previously used file if it exists
         self.load_previous_file()
+        
+        # Load previously used image sequence if it exists
+        self.load_previous_image_sequence()
 
         # Setup keyboard shortcuts BEFORE connecting signals
         self.shortcuts = {}
@@ -550,11 +553,14 @@ class MainWindow(QMainWindow):
 
     def load_previous_file(self):
         """Load the previously used file and folder if they exist."""
-        FileOperations.load_previous_file(self)
+        from services.file_service import FileService
+        FileService.load_previous_file(self)
 
     def load_previous_image_sequence(self):
         """Load the previously used image sequence if it exists."""
-        FileOperations.load_previous_image_sequence(self)
+        from services.file_service import FileService
+        # Call the actual implementation in FileService
+        FileService.load_previous_image_sequence(self)
 
     # Timeline Operations
     def setup_timeline(self):

@@ -383,6 +383,13 @@ class DialogService:
         return new_data
 
     @staticmethod
+    def show_load_dialog(main_window: MainWindowProtocol) -> None:
+        """Show dialog for loading track data from a file."""
+        # Delegate to the FileService for actual file loading
+        from services.file_service import FileService
+        FileService.load_track_data(main_window)
+
+    @staticmethod
     def show_problem_detection_dialog(
         main_window: MainWindowProtocol,
         problems: Optional[List[Tuple[int, Any, Any, Any]]] = None
