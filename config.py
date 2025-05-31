@@ -15,8 +15,14 @@ def load_config() -> Dict[str, Any]:
     try:
         with open(CONFIG_FILE, 'r') as f:
             return json.load(f)
-    except Exception as e:
-        print(f"Error loading config: {str(e)}")
+    except FileNotFoundError:
+        # Config file doesn't exist, return empty config
+        return {}
+    except json.JSONDecodeError as e:
+        print(f"Invalid JSON in config file: {str(e)}")
+        return {}
+    except IOError as e:
+        print(f"Error reading config file: {str(e)}")
         return {}
 
 def save_config(config: Dict[str, Any]) -> bool:
@@ -25,8 +31,11 @@ def save_config(config: Dict[str, Any]) -> bool:
         with open(CONFIG_FILE, 'w') as f:
             json.dump(config, f, indent=4)
         return True
-    except Exception as e:
-        print(f"Error saving config: {str(e)}")
+    except IOError as e:
+        print(f"Error writing to config file: {str(e)}")
+        return False
+    except json.JSONEncodeError as e:
+        print(f"Error encoding config to JSON: {str(e)}")
         return False
 
 def get_last_file_path() -> str:

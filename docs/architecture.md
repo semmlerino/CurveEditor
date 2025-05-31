@@ -19,7 +19,13 @@ services/
 ├── file_service.py          # File I/O operations
 ├── history_service.py       # Undo/redo functionality
 ├── input_service.py         # User input handling
-└── settings_service.py      # Configuration management
+├── settings_service.py      # Configuration management
+├── analysis_service.py      # Data analysis operations
+├── dialog_service.py        # Dialog management and utilities
+├── image_service.py         # Image sequence handling
+├── logging_service.py       # Centralized logging
+├── enhanced_curve_view_integration.py  # Enhanced view features
+└── transformation_integration.py       # Legacy transformation bridge
 ```
 
 ### 2. Immutable Data Structures
@@ -74,6 +80,26 @@ curve_view_plumbing.py        # Internal connections
 - Rendering configuration
 - Visual properties management
 - Display updates
+
+**AnalysisService**
+- Curve data analysis and metrics
+- Statistical calculations
+- Data quality assessment
+
+**DialogService**
+- Modal dialog management
+- User interaction prompts
+- Dialog result handling
+
+**ImageService**
+- Image sequence loading and management
+- Frame navigation
+- Image format handling
+
+**LoggingService**
+- Centralized application logging
+- Log level configuration
+- Structured log output
 
 ### 3. Models and State
 
