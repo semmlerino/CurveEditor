@@ -1,10 +1,26 @@
 #!/usr/bin/env python
-"""
-Protocols for CurveEditor components.
+"""Protocol definitions for CurveEditor components.
 
 This module defines structural protocols that enforce interface consistency
 across the application. These protocols help ensure type safety while allowing
-flexibility in implementation.
+flexibility in implementation, following the PEP 544 structural subtyping approach.
+
+The protocols define contracts for various components:
+- Image and curve view operations
+- File and dialog services
+- History management
+- Track quality analysis
+
+Example:
+    Using protocols for type hints::
+
+        def process_curve(view: CurveViewProtocol) -> None:
+            view.set_curve_data(points)
+            view.update()
+
+Note:
+    All protocols use @runtime_checkable to allow isinstance() checks at runtime.
+
 """
 from __future__ import annotations
 
@@ -21,6 +37,26 @@ PointsList = List[Union[PointTuple, PointTupleWithStatus]]
 # Image Service Protocols
 @runtime_checkable
 class ImageSequenceProtocol(Protocol):
+    """Protocol for image sequence handling components.
+
+    Defines the interface for components that manage image sequences,
+    including loading, navigation, and display properties.
+
+    Attributes:
+        image_sequence_path: Path to the current image sequence directory.
+        current_image_idx: Index of the currently displayed image.
+        image_filenames: List of image filenames in the sequence.
+        image_width: Width of the current image in pixels.
+        image_height: Height of the current image in pixels.
+        zoom_factor: Current zoom level for image display.
+        offset_x: Horizontal offset for image panning.
+        offset_y: Vertical offset for image panning.
+        selected_point_idx: Index of the currently selected point.
+        background_image: The loaded background image object.
+        scale_to_image: Whether to scale view to image dimensions.
+        image_changed: Signal emitted when the current image changes.
+
+    """
     # Added for image_service compatibility
     image_sequence_path: str
     current_image_idx: int
@@ -43,6 +79,40 @@ class ImageSequenceProtocol(Protocol):
 
 @runtime_checkable
 class CurveViewProtocol(ImageSequenceProtocol, Protocol):
+    """Protocol defining the interface for curve view components.
+
+    Extends ImageSequenceProtocol to provide curve editing functionality,
+    including point manipulation, visualization options, and selection management.
+
+    Attributes:
+        x_offset: Horizontal offset for curve display.
+        y_offset: Vertical offset for curve display.
+        flip_y_axis: Whether to flip the Y-axis (image coordinates vs math coordinates).
+        scale_to_image: Whether to scale curve to image dimensions.
+        background_image: Optional background image for overlay.
+        show_grid: Whether to display the grid overlay.
+        show_velocity_vectors: Whether to display velocity vectors.
+        show_all_frame_numbers: Whether to show frame numbers for all points.
+        show_crosshair: Whether to display crosshair at cursor position.
+        background_opacity: Opacity level for background image (0.0-1.0).
+        point_radius: Radius of point markers in pixels.
+        grid_color: Color of the grid lines.
+        grid_line_width: Width of grid lines in pixels.
+        curve_data: List of curve points with position and status.
+        selected_points: Set of indices for selected points.
+        frame_marker_label: UI label for frame marker display.
+        timeline_slider: UI slider for timeline navigation.
+        points: List of point data.
+        nudge_increment: Current increment for nudging operations.
+        current_increment_index: Index of current nudge increment.
+        available_increments: List of available nudge increment values.
+        main_window: Reference to main window for status updates.
+        selection_rect: Rectangle for area selection.
+        point_selected: Signal emitted when a point is selected.
+        point_moved: Signal emitted when a point is moved.
+        selection_changed: Signal emitted when selection changes.
+
+    """
     # Added for image_service compatibility
     current_image_idx: int
     def setCurrentImageByIndex(self, idx: int) -> None: ...
@@ -58,7 +128,6 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
     offset_y: float
     selected_point_idx: int
     def centerOnSelectedPoint(self) -> bool: ...
-    """Protocol defining the interface for curve view components."""
 
     # Common attributes
     x_offset: float
@@ -103,6 +172,43 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
 
 
 class MainWindowProtocol(Protocol):
+    """Protocol defining the interface for the main application window.
+
+    This protocol ensures consistent interface for components that need to
+    interact with the main window, including UI updates, data management,
+    and application state.
+
+    Attributes:
+        image_sequence_path: Path to the current image sequence.
+        image_filenames: List of loaded image filenames.
+        image_label: UI label for image display.
+        toggle_bg_button: Button for toggling background visibility.
+        default_directory: Default directory for file operations.
+        last_opened_file: Path to the last opened file.
+        image_width: Width of the current image.
+        image_height: Height of the current image.
+        curve_view: The curve view component instance.
+        curve_data: List of curve point data.
+        point_name: Name of the current point set.
+        point_color: Color for point display.
+        status_bar: Application status bar widget.
+        save_button: Save action button.
+        add_point_button: Add point action button.
+        smooth_button: Smooth curve action button.
+        fill_gaps_button: Fill gaps action button.
+        filter_button: Filter action button.
+        detect_problems_button: Problem detection action button.
+        extrapolate_button: Extrapolation action button.
+        timeline_slider: Timeline navigation slider.
+        frame_edit: Frame number input field.
+        go_button: Go to frame button.
+        info_label: Information display label.
+        prev_image_button: Previous image navigation button.
+        next_image_button: Next image navigation button.
+        opacity_slider: Background opacity control slider.
+        track_data_loaded: Whether track data has been loaded.
+
+    """
     # For image_service compatibility
     image_sequence_path: str
     image_filenames: list[str]
@@ -131,6 +237,7 @@ class MainWindowProtocol(Protocol):
     prev_image_button: Any
     next_image_button: Any
     opacity_slider: Any
+    track_data_loaded: bool
 
     @property
     def qwidget(self) -> Any: ...
@@ -208,7 +315,7 @@ class HistoryContainerProtocol(Protocol):
     point_color: str
     curve_view: CurveViewProtocol
     info_label: Any
-    
+
     @property
     def qwidget(self) -> QWidget: ...  # Underlying QWidget for dialogs
 
