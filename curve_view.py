@@ -1,57 +1,216 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""Curve view widget for displaying and editing 2D tracking curves.
 
+This module provides the CurveView widget which is the central component
+for visualizing and editing tracking curves in the 3DE4 Curve Editor.
+It handles curve display, point manipulation, image background display,
+and user interactions.
+
+The widget implements both CurveViewProtocol and ImageSequenceProtocol
+to ensure interface compatibility across the application.
+
+Classes:
+    CurveView: Main widget for curve display and editing.
+
+Example:
+    from curve_view import CurveView
+
+    # Create curve view widget
+    curve_view = CurveView(parent_widget)
+
+    # Set curve data
+    curve_view.set_curve_data(tracking_points)
+
+    # Enable visualization options
+    curve_view.show_grid = True
+    curve_view.show_velocity_vectors = True
+
+Note:
+    This widget uses Qt's painting system for rendering and handles
+    various input events for interactive editing.
+
+"""
 # Standard library imports
 import os
-from typing import Any, Optional, Tuple, List
+from typing import Any, Optional, Tuple, List, Dict, Set, Union, cast
 
 # Third-party imports
-from PySide6.QtCore import Qt, Signal, QPointF
-from PySide6.QtGui import QPainter, QColor, QPen, QPixmap, QPaintEvent, QFont
-from PySide6.QtWidgets import QWidget, QRubberBand
+from PySide6.QtCore import Qt, Signal, QPointF, QRect, QRectF
+from PySide6.QtGui import QPainter, QColor, QPen, QPixmap, QPaintEvent, QFont, QMouseEvent, QWheelEvent
+from PySide6.QtWidgets import (
+    QWidget, QRubberBand, QLabel, QSlider, QApplication, QStyleOption, QStyle
+)
 
 # Local imports
 from keyboard_shortcuts import ShortcutManager
 from services.centering_zoom_service import CenteringZoomService
 from services.image_service import ImageService
-from services.input_service import InputService, CurveViewProtocol  # For type checking only
+from services.input_service import InputService
 from services.logging_service import LoggingService
-from services.protocols import ImageSequenceProtocol, PointsList  # For type checking only
+from services.protocols import (
+    ImageSequenceProtocol,
+    PointsList,
+    CurveViewProtocol,
+    MainWindowProtocol,
+    PointTuple,
+    PointTupleWithStatus
+)
 
 # Configure logger for this module
 logger = LoggingService.get_logger("curve_view")
 
 
-class CurveView(QWidget):  # type: ignore[override]
-    # Implements protocols through type annotations
-    # Type annotations to indicate this class implements the protocols
-    # without inheritance, to avoid metaclass conflicts
-    _dummy: CurveViewProtocol
-    _image_seq_dummy: ImageSequenceProtocol
-    """Widget for displaying and editing the 2D tracking curve."""
+class CurveView(QWidget, CurveViewProtocol):  # type: ignore[override]
+    """Widget for displaying and editing the 2D tracking curve.
 
-    # --- Added for type safety and linting ---
-    show_grid: bool = False
-    show_velocity_vectors: bool = False
-    show_all_frame_numbers: bool = False
-    show_crosshair: bool = False
-    grid_color: QColor = QColor(200, 200, 200)
-    grid_line_width: int = 1
-    # Removed class-level offset_x and offset_y to avoid shadowing instance variables
+    Implements CurveViewProtocol and ImageSequenceProtocol to provide
+    a comprehensive interface for curve visualization and editing. Handles
+    rendering of tracking points, background images, grid overlays, and
+    various visualization options.
 
-    # Using float for protocol compatibility
-    x_offset: float = 0.0
-    y_offset: float = 0.0
-    from PySide6.QtWidgets import QSlider, QLabel
-    timeline_slider: Optional[QSlider] = None
-    frame_marker_label: Optional[QLabel] = None
-    # Use the type from protocols.py for better type compatibility
-    from services.protocols import PointsList
-    curve_data: PointsList = []  # For protocol compatibility
-    point_moved = Signal(int, float, float)  # Signal emitted when a point is moved
-    point_selected = Signal(int)  # Signal emitted when a point is selected
+    Attributes:
+        show_grid: Whether to display grid overlay.
+        show_velocity_vectors: Whether to display velocity vectors.
+        show_all_frame_numbers: Whether to show frame numbers for all points.
+        show_crosshair: Whether to display crosshair at cursor position.
+        grid_color: Color used for grid lines.
+        grid_line_width: Width of grid lines in pixels.
+        background_opacity: Opacity of background image (0.0-1.0).
+        point_radius: Radius of point markers in pixels.
+        nudge_increment: Current increment for nudging operations.
+        current_increment_index: Index in available_increments list.
+        available_increments: List of available nudge increment values.
+        x_offset: Horizontal offset for curve display.
+        y_offset: Vertical offset for curve display.
+        zoom_factor: Current zoom level.
+        offset_x: Horizontal pan offset.
+        offset_y: Vertical pan offset.
+        flip_y_axis: Whether to flip Y-axis (image vs math coordinates).
+        scale_to_image: Whether to scale curve to image dimensions.
+        selected_point_idx: Index of currently selected point.
+        points: List of curve points.
+        selected_points: Set of selected point indices.
+        curve_data: Complete curve data including status.
+        background_image: Optional background image pixmap.
+
+    Signals:
+        point_selected: Emitted when a point is selected (index).
+        point_moved: Emitted when a point is moved (index, x, y).
+        image_changed: Emitted when background image changes (index).
+        selection_changed: Emitted when selection changes (indices).
+
+    Example:
+        curve_view = CurveView()
+        curve_view.set_curve_data(tracking_data)
+        curve_view.show_grid = True
+        curve_view.point_selected.connect(on_point_selected)
+
+    """
+    # Protocol required attributes - defined as instance variables in __init__
+    show_grid: bool
+    show_velocity_vectors: bool
+    show_all_frame_numbers: bool
+    show_crosshair: bool
+    grid_color: QColor
+    grid_line_width: int
+    background_opacity: float
+    point_radius: int
+    nudge_increment: float
+    current_increment_index: int
+    available_increments: List[float]
+
+    # Position and transform
+    x_offset: float
+    y_offset: float
+    zoom_factor: float
+    offset_x: float
+    offset_y: float
+    flip_y_axis: bool
+    scale_to_image: bool
+    selected_point_idx: int
+
+    # Data and state
+    points: PointsList
+    selected_points: Set[int]
+    curve_data: PointsList
+    background_image: Optional[QPixmap]
+
+    # UI elements
+    frame_marker_label: Optional[QLabel]
+    timeline_slider: Optional[QSlider]
+    main_window: Optional[MainWindowProtocol]
+
+    # Selection
+    selection_rect: QRect
+
+    # Signals
+    point_selected = Signal(int)  # point_index
+    point_moved = Signal(int, float, float)  # index, x, y
     image_changed = Signal(int)  # Signal emitted when image changes via keyboard
     selection_changed = Signal(list)  # Signal emitted when selection changes
+
+    # Image sequence properties
+    image_sequence_path: str = ""
+    image_filenames: List[str] = []
+    current_image_idx: int = 0
+    image_width: int = 0
+    image_height: int = 0
+    show_background: bool = True
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        """Initialize the CurveView widget.
+
+        Sets up the widget with default values for all visualization options,
+        initializes data structures, and configures the widget for user interaction.
+
+        Args:
+            parent: Optional parent widget. Defaults to None.
+
+        """
+        super().__init__(parent)
+
+        # Initialize protocol required attributes
+        self.show_grid = False
+        self.show_velocity_vectors = False
+        self.show_all_frame_numbers = False
+        self.show_crosshair = False
+        self.grid_color = QColor(200, 200, 200)
+        self.grid_line_width = 1
+        self.background_opacity = 1.0
+        self.point_radius = 5
+        self.nudge_increment = 1.0
+        self.current_increment_index = 0
+        self.available_increments = [0.1, 0.5, 1.0, 5.0, 10.0]
+
+        # Initialize position and transform
+        self.x_offset = 0.0
+        self.y_offset = 0.0
+        self.zoom_factor = 1.0
+        self.offset_x = 0.0
+        self.offset_y = 0.0
+        self.flip_y_axis = True
+        self.scale_to_image = True
+        self.selected_point_idx = -1
+
+        # Initialize data and state
+        self.points = []
+        self.selected_points = set()
+        self.curve_data = []
+        self.background_image = None
+
+        # Initialize UI elements
+        self.frame_marker_label = None
+        self.timeline_slider = None
+        self.main_window = None
+
+        # Initialize selection
+        self.selection_rect = QRect()
+
+        # Set up the widget
+        self.setFocusPolicy(Qt.StrongFocus)
+        self.setMouseTracking(True)
+        self.setAcceptDrops(True)
 
     # Protocol required properties
     rubber_band: Optional[QRubberBand] = None
@@ -108,24 +267,50 @@ class CurveView(QWidget):  # type: ignore[override]
         ShortcutManager.connect_shortcut(cast(Any, self), cast(Any, "toggle_debug_mode"), cast(Any, self.toggle_debug_mode))
 
     def reset_view_slot(self) -> None:
+        """Reset the view to default state.
+
+        Resets zoom to 1.0 and clears all offsets, returning the view
+        to its initial state. This is typically called via keyboard shortcut.
+
+        """
         self.resetView()
         self.x_offset = 0.0
         self.y_offset = 0.0
         self.update()
 
     def toggle_y_flip(self) -> None:
+        """Toggle Y-axis flipping between image and mathematical coordinates.
+
+        Switches between image coordinates (Y increases downward) and
+        mathematical coordinates (Y increases upward). Updates the view
+        immediately after toggling.
+
+        """
         self.flip_y_axis = not getattr(self, "flip_y_axis", False)
         self.update()
 
     def toggle_scale_to_image(self) -> None:
+        """Toggle whether curve points are scaled to image dimensions.
+
+        When enabled, curve coordinates are interpreted relative to the
+        image dimensions. When disabled, coordinates are used as-is.
+        Updates the view immediately after toggling.
+
+        """
         self.scale_to_image = not getattr(self, "scale_to_image", False)
         self.update()
 
     def toggle_debug_mode(self) -> None:
         """Toggle debug visualization mode.
 
-        This enables detailed visual feedback about the transform system, including
-        origin points, alignment markers, and detailed parameter display.
+        Enables or disables detailed visual feedback about the transform system,
+        including origin points, alignment markers, and detailed parameter display.
+        Logs the current debug state when toggled.
+
+        Side Effects:
+            Updates self.debug_mode flag and triggers view update.
+            Logs debug state information when enabled.
+
         """
         current_mode = getattr(self, "debug_mode", False)
         self.debug_mode = not current_mode

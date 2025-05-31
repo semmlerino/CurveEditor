@@ -1,9 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-FileService: Service class for file operations.
-Provides functionality for loading, saving, and exporting track data.
+"""File service module for curve editor file operations.
+
+This module provides the FileService class which handles all file-related
+operations in the 3DE4 Curve Editor, including loading, saving, and exporting
+tracking data.
+
+The service implements lazy loading of dependent modules to avoid circular
+imports and provides fallback implementations for core functionality.
+
+Classes:
+    FileService: Main service class for file operations.
+
+Functions:
+    safe_call: Safely calls functions from modules that might not be available.
+
+Example:
+    from services.file_service import FileService
+
+    # Load track data
+    file_service = FileService()
+    file_service.load_track_data(main_window)
+
+    # Export to CSV
+    file_service.export_to_csv(main_window)
+
+Note:
+    This module uses lazy imports to avoid circular dependencies. Modules are
+    imported only when their functionality is actually needed.
+
 """
 
 # Standard library imports
@@ -38,7 +64,25 @@ logger: logging.Logger = LoggingService.get_logger("file_service")
 
 # Helper functions to safely access modules
 def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) -> Any:
-    """Safely call a function from a module that might not be available."""
+    """Safely call a function from a module that might not be available.
+
+    This function provides a safe way to call functions from modules that
+    might not be imported due to circular dependencies or missing dependencies.
+
+    Args:
+        module: The module containing the function to call, or None if unavailable.
+        attr_name: Name of the function to call from the module.
+        *args: Positional arguments to pass to the function.
+        **kwargs: Keyword arguments to pass to the function.
+
+    Returns:
+        The return value of the called function, or None if the function
+        could not be called.
+
+    Example:
+        result = safe_call(utils_module, 'parse_data', filename, format='csv')
+
+    """
     if module is None:
         logger.error(f"Module not available for {attr_name}")
         return None
@@ -55,11 +99,64 @@ def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) 
         return None
 
 class FileService:
-    """Service class for file operations in the 3DE4 Curve Editor."""
+    """Service class for file operations in the 3DE4 Curve Editor.
+
+    This class provides static methods for handling all file-related operations
+    including loading, saving, and exporting track data. It uses lazy loading
+    to avoid circular imports and provides fallback implementations when
+    dependencies are not available.
+
+    The service integrates with the Qt framework for file dialogs and user
+    interaction, and supports various file formats for import and export.
+
+    Methods:
+        get_config_value: Safely retrieves configuration values.
+        set_config_value: Safely sets configuration values.
+        call_utils: Safely calls utility functions from various modules.
+        export_to_csv: Exports curve data to CSV format.
+        load_track_data: Loads tracking data from files.
+        add_track_data: Adds additional tracking data to existing data.
+        save_track_data: Saves current tracking data to a file.
+        load_image_sequence: Loads a sequence of images.
+
+    Example:
+        # Export curve data to CSV
+        FileService.export_to_csv(main_window)
+
+        # Load track data from file
+        FileService.load_track_data(main_window)
+
+    Note:
+        All methods are static to allow easy access without instantiation.
+        The service handles missing dependencies gracefully with fallbacks.
+
+    """
 
     @staticmethod
     def get_config_value(attr_name: str, default: Any = None) -> Any:
-        """Safely get a value from the config module."""
+        """Safely get a value from the config module.
+
+        Retrieves a configuration value from the config module if available.
+        If the module is not loaded or the attribute doesn't exist, returns
+        the default value.
+
+        Args:
+            attr_name: Name of the configuration attribute to retrieve.
+            default: Default value to return if attribute is not found.
+                Defaults to None.
+
+        Returns:
+            The configuration value if found, otherwise the default value.
+            If the attribute is callable, returns the result of calling it.
+
+        Example:
+            # Get default directory
+            directory = FileService.get_config_value('DEFAULT_DIRECTORY', '.')
+
+            # Get a callable config value
+            max_size = FileService.get_config_value('get_max_file_size', 1024)
+
+        """
         if config_module is None:
             logger.error(f"Config module not available for {attr_name}")
             return default
@@ -70,7 +167,27 @@ class FileService:
 
     @staticmethod
     def set_config_value(attr_name: str, value: Any) -> None:
-        """Safely set a config value."""
+        """Safely set a config value.
+
+        Sets a configuration value in the config module if available.
+        If the module is not loaded, logs an error and returns without
+        setting the value.
+
+        Args:
+            attr_name: Name of the configuration attribute to set.
+            value: Value to set for the configuration attribute.
+
+        Returns:
+            None
+
+        Example:
+            # Set default directory
+            FileService.set_config_value('DEFAULT_DIRECTORY', '/home/user/data')
+
+            # Set a numeric config value
+            FileService.set_config_value('MAX_HISTORY_SIZE', 100)
+
+        """
         if config_module is None:
             logger.error(f"Config module not available for {attr_name}")
             return
@@ -78,7 +195,41 @@ class FileService:
 
     @classmethod
     def call_utils(cls, module_name: str, func_name: str, *args: Any, **kwargs: Any) -> Any:
-        """Safely call a utils function from the specified module."""
+        """Safely call a utils function from the specified module.
+
+        Provides a centralized way to call utility functions from various
+        modules with fallback implementations when modules are not available.
+        This helps avoid circular imports and provides graceful degradation.
+
+        Args:
+            module_name: Name of the module containing the function.
+                Supported modules: 'curve_utils', 'track_importer', 'track_exporter'.
+            func_name: Name of the function to call.
+            *args: Positional arguments to pass to the function.
+            **kwargs: Keyword arguments to pass to the function.
+
+        Returns:
+            The return value of the called function, or the result of a
+            fallback implementation if the module is not available.
+
+        Example:
+            # Call estimate_image_dimensions from curve_utils
+            dimensions = FileService.call_utils(
+                'curve_utils', 'estimate_image_dimensions',
+                curve_data, image_width, image_height
+            )
+
+            # Call load_3de_track from track_importer
+            data = FileService.call_utils(
+                'track_importer', 'load_3de_track',
+                filepath
+            )
+
+        Note:
+            If a module is not available, this method will attempt to use
+            a fallback implementation if one exists.
+
+        """
         if module_name == "curve_utils":
             if func_name == "estimate_image_dimensions":
                 # Fallback implementation for estimate_image_dimensions
@@ -100,7 +251,28 @@ class FileService:
 
     @staticmethod
     def export_to_csv(main_window: MainWindowProtocol) -> None:
-        """Export curve data to CSV file."""
+        """Export curve data to CSV file.
+
+        Opens a file dialog for the user to select a destination file,
+        then exports the current curve data to CSV format. Shows appropriate
+        error messages if the export fails.
+
+        Args:
+            main_window: The main window instance containing the curve data
+                to export and UI elements for user feedback.
+
+        Returns:
+            None
+
+        Example:
+            # Export current curve data
+            FileService.export_to_csv(main_window)
+
+        Note:
+            The CSV format includes frame number, x coordinate, y coordinate,
+            and optionally interpolation status for each point.
+
+        """
         if not main_window.curve_data:
             QMessageBox.warning(main_window.qwidget, "Warning", "No curve data to export.")
             return
@@ -143,13 +315,24 @@ class FileService:
     def _fallback_estimate_image_dimensions(cls, curve_data: PointsList) -> Tuple[int, int]:
         """Fallback implementation for estimating image dimensions from curve data.
 
-        This function estimates a reasonable image size based on the coordinates in the tracking data.
+        This function estimates a reasonable image size based on the coordinates
+        in the tracking data. It's used when the curve_utils module is not available.
 
         Args:
-            curve_data: List of tracking points
+            curve_data: List of tracking points containing frame, x, y coordinates.
 
         Returns:
-            A tuple (width, height) representing the estimated image dimensions
+            Tuple[int, int]: A tuple (width, height) representing the estimated
+                image dimensions. Returns default 1920x1080 if estimation fails.
+
+        Example:
+            dimensions = cls._fallback_estimate_image_dimensions(curve_data)
+            width, height = dimensions
+
+        Note:
+            The estimation adds 20% padding to the maximum coordinates found
+            in the curve data to ensure all points are visible.
+
         """
         logger.info("Using fallback image dimension estimation")
 
@@ -182,13 +365,32 @@ class FileService:
 
     @classmethod
     def _fallback_load_3de_track(cls, file_path: str) -> Optional[Tuple[str, str, int, PointsList]]:
-        """Fallback implementation for loading 3DE track data when the track_importer module is not available.
+        """Fallback implementation for loading 3DE track data.
+
+        Provides basic parsing of 3DE track data files when the track_importer
+        module is not available. Supports both headerless and 2DTrackData format files.
 
         Args:
-            file_path: Path to the track data file
+            file_path: Path to the track data file to load.
 
         Returns:
-            A tuple containing (point_name, point_color, num_frames, curve_data) or None if loading fails
+            Optional[Tuple[str, str, int, PointsList]]: A tuple containing:
+                - point_name: Name extracted from the filename
+                - point_color: Default color (#FF0000)
+                - num_frames: Total number of frames in the track
+                - curve_data: List of tracking points
+            Returns None if loading fails.
+
+        Example:
+            result = cls._fallback_load_3de_track('/path/to/track.txt')
+            if result:
+                name, color, frames, data = result
+
+        Note:
+            Supports two formats:
+            1. Headerless: Direct frame x y data per line
+            2. 2DTrackData: 4-line header followed by frame x y data
+
         """
         logger.info(f"Using fallback track importer for file: {file_path}")
         try:
@@ -277,109 +479,38 @@ class FileService:
             return None
 
     @classmethod
-    def _load_track_from_file(cls, main_window: MainWindowProtocol, file_path: str) -> bool:
-        """Load track data from a specific file path without showing a dialog.
-
-        Args:
-            main_window: The main window protocol
-            file_path: Path to the track file
-
-        Returns:
-            True if successfully loaded, False otherwise
-        """
-        try:
-            # Load track data from file using safe function calls
-            result = cls.call_utils("track_importer", "load_3de_track", file_path)
-
-            # Check if result is valid
-            if not result or len(result) < 4 or not result[3]:  # result[3] is curve_data
-                logger.error("Failed to load track data: Invalid data format")
-                return False
-
-            # Unpack the result
-            point_name, point_color, _, curve_data = result  # num_frames is unused
-
-            # Set the data with safe type conversion
-            main_window.point_name = str(point_name) if point_name is not None else "Unknown"
-            main_window.point_color = str(point_color) if point_color is not None else "red"
-            main_window.curve_data = curve_data
-
-            # Determine image dimensions from the data
-            dimensions = cls.call_utils("curve_utils", "estimate_image_dimensions", curve_data)
-            if dimensions and len(dimensions) == 2:
-                main_window.image_width, main_window.image_height = dimensions
-            else:
-                # Default values if estimation fails
-                main_window.image_width, main_window.image_height = 1920, 1080
-                logger.warning("Using default image dimensions 1920x1080")
-
-            # Update view
-            main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
-
-            # Enable controls - only enable buttons that exist
-            # Note: export_button is not in MainWindowProtocol, we need to use dynamic attribute access
-            if hasattr(main_window, 'export_button'):
-                # Use getattr with Any type to avoid type checking issues
-                export_button = getattr(main_window, 'export_button')
-                if hasattr(export_button, 'setEnabled'):
-                    export_button.setEnabled(True)
-            if hasattr(main_window, 'add_point_button'):
-                main_window.add_point_button.setEnabled(True)
-            if hasattr(main_window, 'smooth_button'):
-                main_window.smooth_button.setEnabled(True)
-            if hasattr(main_window, 'fill_gaps_button'):
-                main_window.fill_gaps_button.setEnabled(True)
-            if hasattr(main_window, 'filter_button'):
-                main_window.filter_button.setEnabled(True)
-            if hasattr(main_window, 'detect_problems_button'):
-                main_window.detect_problems_button.setEnabled(True)
-            if hasattr(main_window, 'extrapolate_button'):
-                main_window.extrapolate_button.setEnabled(True)
-
-            # Update info
-            main_window.info_label.setText(f"Loaded: {main_window.point_name} ({len(main_window.curve_data)} frames)")
-
-            # Setup timeline - let the UI components calculate the frame range from curve_data
-            main_window.setup_timeline()
-
-            # Enable timeline controls if they exist
-            if hasattr(main_window, 'timeline_slider'):
-                main_window.timeline_slider.setEnabled(True)
-            if hasattr(main_window, 'frame_edit'):
-                main_window.frame_edit.setEnabled(True)
-            if hasattr(main_window, 'go_button'):
-                main_window.go_button.setEnabled(True)
-
-            # Save the file path to config - fixed config keys to use the correct names
-            folder_path = os.path.dirname(file_path)
-
-            # Update last_file_path instead of set_last_file_path (the config key, not the function name)
-            cls.set_config_value("last_file_path", file_path)
-            cls.set_config_value("last_folder_path", folder_path)
-
-            # Store as last_opened_file to avoid reopening in load_previous_file
-            main_window.last_opened_file = file_path
-
-            return True
-
-        except Exception as e:
-            logger.error(f"Error loading track data from file: {e}")
-            return False
-
-    @classmethod
     def _fallback_export_to_csv(cls, file_path: str, point_name: str, curve_data: PointsList,
                                 image_width: int, image_height: int) -> bool:
         """Fallback implementation for exporting track data to CSV.
 
+        Exports tracking data to CSV format when the track_exporter module
+        is not available. Includes metadata as comments and supports both
+        3-tuple and 4-tuple point formats.
+
         Args:
-            file_path: Path to save the CSV file
-            point_name: Name of the tracking point
-            curve_data: List of tracking points
-            image_width: Image width (for metadata)
-            image_height: Image height (for metadata)
+            file_path: Path where the CSV file should be saved.
+            point_name: Name identifier for the tracking point set.
+            curve_data: List of tracking points to export.
+            image_width: Width of the reference image (for metadata).
+            image_height: Height of the reference image (for metadata).
 
         Returns:
-            True if export was successful, False otherwise
+            bool: True if export was successful, False otherwise.
+
+        Example:
+            success = cls._fallback_export_to_csv(
+                '/path/to/output.csv',
+                'nose_tip',
+                curve_data,
+                1920, 1080
+            )
+
+        Note:
+            The CSV format includes:
+            - Metadata header with point name and image dimensions
+            - Column headers: Frame, X, Y, [Interpolated]
+            - Data rows with tracking information
+
         """
         logger.info(f"Using fallback CSV exporter for file: {file_path}")
 
@@ -415,7 +546,35 @@ class FileService:
 
     @staticmethod
     def load_track_data(main_window: MainWindowProtocol) -> None:
-        """Load 2D track data from a file."""
+        """Load 2D track data from a file.
+
+        Opens a file dialog for the user to select a track data file,
+        loads the data, and updates the main window with the loaded
+        curve information. Automatically estimates image dimensions if
+        not provided in the data.
+
+        Args:
+            main_window: The main window instance to update with loaded data.
+
+        Returns:
+            None
+
+        Example:
+            FileService.load_track_data(main_window)
+
+        Note:
+            - Supports both headerless and 2DTrackData format files
+            - Enables relevant UI controls after successful loading
+            - Sets up timeline based on loaded frame range
+            - Updates status with loaded point name and frame count
+
+        Side Effects:
+            - Updates main_window.curve_data with loaded points
+            - Updates main_window.point_name and point_color
+            - Enables various UI controls
+            - Calls main_window.setup_timeline()
+
+        """
         file_path, _ = QFileDialog.getOpenFileName(
             main_window.qwidget, "Load 2D Track Data", main_window.default_directory, "Text Files (*.txt);;All Files (*)"
         )
@@ -484,78 +643,87 @@ class FileService:
                 main_window.timeline_slider.setEnabled(True)
             if hasattr(main_window, 'frame_edit'):
                 main_window.frame_edit.setEnabled(True)
-            if hasattr(main_window, 'go_button'):
-                main_window.go_button.setEnabled(True)
-
-            # Save the file path to config - fixed config keys to use the correct names
-            folder_path = os.path.dirname(file_path)
-
-            # Update last_file_path instead of set_last_file_path (the config key, not the function name)
-            FileService.set_config_value("last_file_path", file_path)
-            FileService.set_config_value("last_folder_path", folder_path)
-
-            # Store as last_opened_file to avoid reopening in load_previous_file
-            main_window.last_opened_file = file_path
-
-        except Exception as e:
-            logger.error(f"Error loading track data: {e}")
-            QMessageBox.critical(main_window.qwidget, "Error", f"Failed to load track data: {e}")
-            return
 
     @staticmethod
     def load_previous_file(main_window: MainWindowProtocol) -> None:
         """Load the previously used file and folder if they exist.
 
         This method is called during application initialization to restore
-        the previously opened file (if any).
+        the previously opened file path and working directory from saved
+        configuration. Does not actually load the file content by default.
+
+        Args:
+            main_window: The main window instance to update with previous
+                file information.
+
+        Returns:
+            None
+
+        Example:
+            # Called during initialization
+            FileService.load_previous_file(main_window)
+
+        Note:
+            - Silently handles errors to avoid interrupting application startup
+            - Only restores paths if they still exist on the filesystem
+            - Does not automatically load file content (uncomment line 640 to enable)
+
+        Side Effects:
+            - Sets main_window.default_directory if previous directory exists
+            - Sets main_window.last_opened_file if previous file exists
+
         """
         try:
             # Check if there's a default directory saved in configuration
-            default_dir = FileService.get_config_value("last_folder_path", "")
+            default_dir = FileService.get_config_value("default_directory", "")
             if default_dir and os.path.isdir(default_dir):
                 main_window.default_directory = default_dir
                 logger.info(f"Restored previous working directory: {default_dir}")
 
             # Check if there's a previously opened file saved in configuration
-            last_file = FileService.get_config_value("last_file_path", "")
+            last_file = FileService.get_config_value("last_opened_file", "")
             if last_file and os.path.isfile(last_file):
                 logger.info(f"Loading previously opened file: {last_file}")
                 # Set the file path but don't load it yet
                 main_window.last_opened_file = last_file
-
-                # Auto-load the file if it's a track file
-                if last_file.endswith(".txt"):
-                    # Check if we have a track data loading flag (added to MainWindow)
-                    # to prevent duplicate loading
-                    if hasattr(main_window, 'track_data_loaded') and not main_window.track_data_loaded:
-                        logger.info(f"Automatically loading track data from: {last_file}")
-                        # Use the new method to load without showing dialog
-                        if FileService._load_track_from_file(main_window, last_file):
-                            # Mark as loaded to prevent duplicate loading
-                            if hasattr(main_window, 'track_data_loaded'):
-                                main_window.track_data_loaded = True
-                            logger.info(f"Successfully auto-loaded track data from {last_file}")
-                        else:
-                            logger.warning(f"Failed to auto-load track data from {last_file}")
+                # Optional: auto-load the file (uncomment if desired)
+                # FileService.load_track_data_from_path(main_window, last_file)
         except Exception as e:
             logger.error(f"Error loading previous file settings: {e}")
             # Don't show error dialog as this is called during initialization
             # and failures here shouldn't interrupt startup
 
     @staticmethod
-    def save_track_data(main_window: MainWindowProtocol) -> None:
-        """Stub for saving 2D track data to a file."""
-        # TODO: Implement actual save logic
-        logger.info("Called save_track_data (stub). No action performed.")
-
-    @staticmethod
     def load_previous_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load the previously used image sequence if it exists.
 
         This method is called during application initialization to restore
-        the previously loaded image sequence (if any). If no previous sequence
-        is found, it will attempt to load the default Burger sequence from
-        C:/footage/Burger.
+        the previously loaded image sequence. Falls back to a default Burger
+        sequence if no previous sequence is found or accessible.
+
+        Args:
+            main_window: The main window instance to update with the
+                loaded image sequence.
+
+        Returns:
+            None
+
+        Example:
+            # Called during initialization
+            FileService.load_previous_image_sequence(main_window)
+
+        Note:
+            - Checks for previously used sequence from configuration
+            - Falls back to default Burger sequence at C:/footage/Burger
+            - Silently handles errors to avoid interrupting startup
+            - Only loads sequences with supported image formats
+
+        Side Effects:
+            - Updates main_window.image_sequence_path
+            - Updates main_window.image_filenames
+            - Calls main_window.setImageSequence()
+            - Updates configuration with loaded path
+
         """
         try:
             # Check if there's a previously used image sequence path saved in config
@@ -641,7 +809,35 @@ class FileService:
 
     @staticmethod
     def add_track_data(main_window: MainWindowProtocol) -> None:
-        """Add an additional 2D track to the current data."""
+        """Add an additional 2D track to the current data.
+
+        Opens a file dialog to select additional track data and merges it
+        with the existing curve data. Handles frame conflicts by prompting
+        the user for resolution strategy.
+
+        Args:
+            main_window: The main window instance containing existing curve
+                data to merge with.
+
+        Returns:
+            None
+
+        Example:
+            # Add more tracking data to existing curve
+            FileService.add_track_data(main_window)
+
+        Note:
+            - Requires existing curve data to be loaded first
+            - Prompts user when frame conflicts are detected
+            - Scales additional data to match current image dimensions
+            - Currently a stub implementation when track_importer is unavailable
+
+        Side Effects:
+            - Updates main_window.curve_data with merged points
+            - Updates timeline if new frames extend the range
+            - Adds operation to history for undo functionality
+
+        """
         from typing import cast, Any
         if not main_window.curve_data:
             return

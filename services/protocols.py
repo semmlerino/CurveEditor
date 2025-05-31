@@ -256,6 +256,15 @@ class ImageProtocol(Protocol):
 
     This protocol is compatible with QPixmap and other image types
     that provide width() and height() methods.
+
+    Methods:
+        width: Returns the width of the image in pixels.
+        height: Returns the height of the image in pixels.
+
+    Example:
+        def process_image(image: ImageProtocol) -> Tuple[int, int]:
+            return image.width(), image.height()
+
     """
 
     def width(self) -> int: ...
@@ -263,7 +272,26 @@ class ImageProtocol(Protocol):
 
 
 class PointDataProtocol(Protocol):
-    """Protocol defining the expected structure of point data."""
+    """Protocol defining the expected structure of point data.
+
+    This protocol defines the standard structure for tracking points
+    in the curve editor, including position and interpolation status.
+
+    Attributes:
+        frame: The frame number where this point exists.
+        x: The x-coordinate of the point.
+        y: The y-coordinate of the point.
+        interpolated: Whether this point was interpolated (default: False).
+
+    Example:
+        class TrackPoint:
+            def __init__(self, frame: int, x: float, y: float):
+                self.frame = frame
+                self.x = x
+                self.y = y
+                self.interpolated = False
+
+    """
 
     frame: int
     x: float
@@ -273,7 +301,24 @@ class PointDataProtocol(Protocol):
 
 # File Service Protocols
 class FileServiceProtocol(Protocol):
-    """Protocol defining the interface for file operations."""
+    """Protocol defining the interface for file operations.
+
+    This protocol ensures consistent file operation interfaces across
+    the application, including import/export and data persistence.
+
+    Methods:
+        export_to_csv: Exports curve data to CSV format.
+        load_track_data: Loads tracking data from a file.
+        add_track_data: Adds additional tracking data to existing data.
+        save_track_data: Saves current tracking data to a file.
+        load_image_sequence: Loads a sequence of images for background display.
+
+    Example:
+        def save_project(file_service: FileServiceProtocol,
+                        main_window: MainWindowProtocol) -> None:
+            file_service.save_track_data(main_window)
+
+    """
 
     def export_to_csv(self, main_window: MainWindowProtocol) -> None: ...
     def load_track_data(self, main_window: MainWindowProtocol) -> None: ...
@@ -284,7 +329,25 @@ class FileServiceProtocol(Protocol):
 
 
 class ImageServiceProtocol(Protocol):
-    """Protocol defining the interface for image operations."""
+    """Protocol defining the interface for image operations.
+
+    This protocol provides a consistent interface for image-related
+    operations including loading, navigation, and sequence management.
+
+    Methods:
+        set_current_image_by_frame: Sets the current image based on frame number.
+        load_current_image: Loads the currently selected image.
+        set_current_image_by_index: Sets the current image by its index.
+        load_image_sequence: Loads a sequence of images from the file system.
+        set_image_sequence: Sets the image sequence with path and filenames.
+
+    Example:
+        def navigate_to_frame(image_service: ImageServiceProtocol,
+                            curve_view: CurveViewProtocol,
+                            frame: int) -> None:
+            image_service.set_current_image_by_frame(curve_view, frame)
+
+    """
 
     def set_current_image_by_frame(self, curve_view: CurveViewProtocol, frame: int) -> None: ...
     def load_current_image(self, curve_view: ImageSequenceProtocol) -> None: ...
@@ -295,7 +358,24 @@ class ImageServiceProtocol(Protocol):
 
 # History Service Protocols
 class HistoryStateProtocol(Protocol):
-    """Protocol defining the structure of a history state."""
+    """Protocol defining the structure of a history state.
+
+    This protocol defines the data structure for storing application
+    state snapshots in the undo/redo history system.
+
+    Attributes:
+        curve_data: List of curve points at this state.
+        point_name: Name identifier for the point set.
+        point_color: Color used to display the points.
+
+    Example:
+        class HistoryState:
+            def __init__(self, data: PointsList, name: str, color: str):
+                self.curve_data = data
+                self.point_name = name
+                self.point_color = color
+
+    """
 
     curve_data: PointsList
     point_name: str
@@ -303,7 +383,31 @@ class HistoryStateProtocol(Protocol):
 
 
 class HistoryContainerProtocol(Protocol):
-    """Protocol defining the interface for a component that contains history."""
+    """Protocol defining the interface for a component that contains history.
+
+    This protocol defines the requirements for components that manage
+    undo/redo history, including state storage and UI elements.
+
+    Attributes:
+        history: List of historical states stored as dictionaries.
+        history_index: Current position in the history list.
+        max_history_size: Maximum number of states to retain.
+        undo_button: UI button for undo action.
+        redo_button: UI button for redo action.
+        curve_data: Current curve point data.
+        point_name: Current point set name.
+        point_color: Current point display color.
+        curve_view: The curve view component for display updates.
+        info_label: UI label for displaying information.
+
+    Properties:
+        qwidget: Returns the underlying QWidget for dialog operations.
+
+    Example:
+        def can_undo(container: HistoryContainerProtocol) -> bool:
+            return container.history_index > 0
+
+    """
 
     history: List[Dict[str, Any]]
     history_index: int
@@ -321,7 +425,25 @@ class HistoryContainerProtocol(Protocol):
 
 
 class HistoryServiceProtocol(Protocol):
-    """Protocol defining the interface for history operations."""
+    """Protocol defining the interface for history operations.
+
+    This protocol provides methods for managing undo/redo functionality,
+    including state capture, restoration, and UI synchronization.
+
+    Methods:
+        add_to_history: Captures current state and adds it to history.
+        update_history_buttons: Updates the enabled state of undo/redo buttons.
+        undo_action: Reverts to the previous state in history.
+        redo_action: Advances to the next state in history.
+        restore_state: Restores the application to a specific saved state.
+
+    Example:
+        def save_checkpoint(history_service: HistoryServiceProtocol,
+                          main_window: HistoryContainerProtocol) -> None:
+            history_service.add_to_history(main_window)
+            history_service.update_history_buttons(main_window)
+
+    """
 
     def add_to_history(self, main_window: HistoryContainerProtocol) -> None: ...
     def update_history_buttons(self, main_window: HistoryContainerProtocol) -> None: ...
@@ -347,7 +469,36 @@ class TrackQualityUIProtocol(MainWindowProtocol):
 
 # Dialog Service Protocols
 class DialogServiceProtocol(Protocol):
-    """Protocol defining the interface for dialog operations."""
+    """Protocol defining the interface for dialog operations.
+
+    This protocol provides methods for displaying various dialogs
+    throughout the application, including smoothing, filtering,
+    gap detection, and other curve editing operations.
+
+    Methods:
+        show_smooth_dialog: Displays smoothing options for selected points.
+        show_filter_dialog: Shows filtering options for curve data.
+        detect_gaps: Identifies gaps in the curve data.
+        show_fill_gaps_dialog: Displays gap filling options.
+        fill_gap: Fills a specific gap using the selected method.
+        show_extrapolate_dialog: Shows extrapolation options.
+        show_shortcuts_dialog: Displays keyboard shortcuts reference.
+        show_offset_dialog: Shows offset adjustment options.
+        show_problem_detection_dialog: Displays detected problems in curve data.
+
+    Example:
+        def smooth_selection(dialog_service: DialogServiceProtocol,
+                           main_window: MainWindowProtocol) -> None:
+            smoothed = dialog_service.show_smooth_dialog(
+                main_window.qwidget,
+                main_window.curve_data,
+                main_window.curve_view.get_selected_indices(),
+                main_window.curve_view.selected_point_idx
+            )
+            if smoothed:
+                main_window.curve_data = smoothed
+
+    """
 
     def show_smooth_dialog(
         self, parent_widget: Any, curve_data: PointsList, selected_indices: List[int],
