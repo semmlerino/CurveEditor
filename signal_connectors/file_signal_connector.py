@@ -35,14 +35,15 @@ class FileSignalConnector:
             main_window: The main application window
             registry: The signal registry for tracking connections
         """
-        # Load button
-        if hasattr(main_window, 'load_button'):
-            registry._connect_signal(
-                main_window,
-                main_window.load_button.clicked,
-                lambda: FileOperations.load_track_data(main_window),
-                "load_button.clicked"
-            )
+        # Load button - REMOVED to avoid duplicate file dialog
+        # The menu bar already connects to FileOperations.load_track_data
+        # if hasattr(main_window, 'load_button'):
+        #     registry._connect_signal(
+        #         main_window,
+        #         main_window.load_button.clicked,
+        #         lambda: FileOperations.load_track_data(main_window),
+        #         "load_button.clicked"
+        #     )
 
         # Save button
         if hasattr(main_window, 'save_button'):

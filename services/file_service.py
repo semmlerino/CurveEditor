@@ -277,6 +277,96 @@ class FileService:
             return None
 
     @classmethod
+    def _load_track_from_file(cls, main_window: MainWindowProtocol, file_path: str) -> bool:
+        """Load track data from a specific file path without showing a dialog.
+
+        Args:
+            main_window: The main window protocol
+            file_path: Path to the track file
+
+        Returns:
+            True if successfully loaded, False otherwise
+        """
+        try:
+            # Load track data from file using safe function calls
+            result = cls.call_utils("track_importer", "load_3de_track", file_path)
+
+            # Check if result is valid
+            if not result or len(result) < 4 or not result[3]:  # result[3] is curve_data
+                logger.error("Failed to load track data: Invalid data format")
+                return False
+
+            # Unpack the result
+            point_name, point_color, _, curve_data = result  # num_frames is unused
+
+            # Set the data with safe type conversion
+            main_window.point_name = str(point_name) if point_name is not None else "Unknown"
+            main_window.point_color = str(point_color) if point_color is not None else "red"
+            main_window.curve_data = curve_data
+
+            # Determine image dimensions from the data
+            dimensions = cls.call_utils("curve_utils", "estimate_image_dimensions", curve_data)
+            if dimensions and len(dimensions) == 2:
+                main_window.image_width, main_window.image_height = dimensions
+            else:
+                # Default values if estimation fails
+                main_window.image_width, main_window.image_height = 1920, 1080
+                logger.warning("Using default image dimensions 1920x1080")
+
+            # Update view
+            main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
+
+            # Enable controls - only enable buttons that exist
+            # Note: export_button is not in MainWindowProtocol, we need to use dynamic attribute access
+            if hasattr(main_window, 'export_button'):
+                # Use getattr with Any type to avoid type checking issues
+                export_button = getattr(main_window, 'export_button')
+                if hasattr(export_button, 'setEnabled'):
+                    export_button.setEnabled(True)
+            if hasattr(main_window, 'add_point_button'):
+                main_window.add_point_button.setEnabled(True)
+            if hasattr(main_window, 'smooth_button'):
+                main_window.smooth_button.setEnabled(True)
+            if hasattr(main_window, 'fill_gaps_button'):
+                main_window.fill_gaps_button.setEnabled(True)
+            if hasattr(main_window, 'filter_button'):
+                main_window.filter_button.setEnabled(True)
+            if hasattr(main_window, 'detect_problems_button'):
+                main_window.detect_problems_button.setEnabled(True)
+            if hasattr(main_window, 'extrapolate_button'):
+                main_window.extrapolate_button.setEnabled(True)
+
+            # Update info
+            main_window.info_label.setText(f"Loaded: {main_window.point_name} ({len(main_window.curve_data)} frames)")
+
+            # Setup timeline - let the UI components calculate the frame range from curve_data
+            main_window.setup_timeline()
+
+            # Enable timeline controls if they exist
+            if hasattr(main_window, 'timeline_slider'):
+                main_window.timeline_slider.setEnabled(True)
+            if hasattr(main_window, 'frame_edit'):
+                main_window.frame_edit.setEnabled(True)
+            if hasattr(main_window, 'go_button'):
+                main_window.go_button.setEnabled(True)
+
+            # Save the file path to config - fixed config keys to use the correct names
+            folder_path = os.path.dirname(file_path)
+
+            # Update last_file_path instead of set_last_file_path (the config key, not the function name)
+            cls.set_config_value("last_file_path", file_path)
+            cls.set_config_value("last_folder_path", folder_path)
+
+            # Store as last_opened_file to avoid reopening in load_previous_file
+            main_window.last_opened_file = file_path
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error loading track data from file: {e}")
+            return False
+
+    @classmethod
     def _fallback_export_to_csv(cls, file_path: str, point_name: str, curve_data: PointsList,
                                 image_width: int, image_height: int) -> bool:
         """Fallback implementation for exporting track data to CSV.
@@ -364,8 +454,12 @@ class FileService:
             main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
 
             # Enable controls - only enable buttons that exist
+            # Note: export_button is not in MainWindowProtocol, we need to use dynamic attribute access
             if hasattr(main_window, 'export_button'):
-                main_window.export_button.setEnabled(True)
+                # Use getattr with Any type to avoid type checking issues
+                export_button = getattr(main_window, 'export_button')
+                if hasattr(export_button, 'setEnabled'):
+                    export_button.setEnabled(True)
             if hasattr(main_window, 'add_point_button'):
                 main_window.add_point_button.setEnabled(True)
             if hasattr(main_window, 'smooth_button'):
@@ -393,10 +487,15 @@ class FileService:
             if hasattr(main_window, 'go_button'):
                 main_window.go_button.setEnabled(True)
 
-            # Save the file path to config
+            # Save the file path to config - fixed config keys to use the correct names
             folder_path = os.path.dirname(file_path)
-            FileService.set_config_value("set_last_file_path", file_path)
-            FileService.set_config_value("set_last_folder_path", folder_path)
+
+            # Update last_file_path instead of set_last_file_path (the config key, not the function name)
+            FileService.set_config_value("last_file_path", file_path)
+            FileService.set_config_value("last_folder_path", folder_path)
+
+            # Store as last_opened_file to avoid reopening in load_previous_file
+            main_window.last_opened_file = file_path
 
         except Exception as e:
             logger.error(f"Error loading track data: {e}")
@@ -412,43 +511,75 @@ class FileService:
         """
         try:
             # Check if there's a default directory saved in configuration
-            default_dir = FileService.get_config_value("default_directory", "")
+            default_dir = FileService.get_config_value("last_folder_path", "")
             if default_dir and os.path.isdir(default_dir):
                 main_window.default_directory = default_dir
                 logger.info(f"Restored previous working directory: {default_dir}")
 
             # Check if there's a previously opened file saved in configuration
-            last_file = FileService.get_config_value("last_opened_file", "")
+            last_file = FileService.get_config_value("last_file_path", "")
             if last_file and os.path.isfile(last_file):
                 logger.info(f"Loading previously opened file: {last_file}")
                 # Set the file path but don't load it yet
                 main_window.last_opened_file = last_file
-                # Optional: auto-load the file (uncomment if desired)
-                # FileService.load_track_data_from_path(main_window, last_file)
+
+                # Auto-load the file if it's a track file
+                if last_file.endswith(".txt"):
+                    # Check if we have a track data loading flag (added to MainWindow)
+                    # to prevent duplicate loading
+                    if hasattr(main_window, 'track_data_loaded') and not main_window.track_data_loaded:
+                        logger.info(f"Automatically loading track data from: {last_file}")
+                        # Use the new method to load without showing dialog
+                        if FileService._load_track_from_file(main_window, last_file):
+                            # Mark as loaded to prevent duplicate loading
+                            if hasattr(main_window, 'track_data_loaded'):
+                                main_window.track_data_loaded = True
+                            logger.info(f"Successfully auto-loaded track data from {last_file}")
+                        else:
+                            logger.warning(f"Failed to auto-load track data from {last_file}")
         except Exception as e:
             logger.error(f"Error loading previous file settings: {e}")
             # Don't show error dialog as this is called during initialization
             # and failures here shouldn't interrupt startup
 
     @staticmethod
+    def save_track_data(main_window: MainWindowProtocol) -> None:
+        """Stub for saving 2D track data to a file."""
+        # TODO: Implement actual save logic
+        logger.info("Called save_track_data (stub). No action performed.")
+
+    @staticmethod
     def load_previous_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load the previously used image sequence if it exists.
 
         This method is called during application initialization to restore
-        the previously loaded image sequence (if any).
+        the previously loaded image sequence (if any). If no previous sequence
+        is found, it will attempt to load the default Burger sequence from
+        C:/footage/Burger.
         """
         try:
             # Check if there's a previously used image sequence path saved in config
             last_image_path = FileService.get_config_value("last_image_sequence_path", "")
+            # Path to default Burger sequence
+            default_burger_path = "C:/footage/Burger"
+
+            # If no previous path or it doesn't exist, try the default Burger sequence
             if not last_image_path or not os.path.isdir(last_image_path):
                 logger.info("No previous image sequence path found or path doesn't exist")
-                return
-
-            logger.info(f"Attempting to load previous image sequence from: {last_image_path}")
+                if os.path.isdir(default_burger_path):
+                    logger.info(f"Attempting to load default Burger sequence from: {default_burger_path}")
+                    last_image_path = default_burger_path
+                    # Save this as the last used path
+                    FileService.set_config_value("last_image_sequence_path", default_burger_path)
+                else:
+                    logger.warning(f"Default Burger sequence path {default_burger_path} not found")
+                    return
+            else:
+                logger.info(f"Attempting to load previous image sequence from: {last_image_path}")
 
             # Look for image files in the directory
-            image_files = []
-            valid_extensions = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr"]
+            image_files: list[str] = []
+            valid_extensions: list[str] = [".jpg", ".jpeg", ".png", ".tif", ".tiff", ".exr"]
 
             try:
                 for file in os.listdir(last_image_path):
@@ -457,10 +588,29 @@ class FileService:
 
                 if not image_files:
                     logger.warning(f"No valid image files found in {last_image_path}")
-                    return
+                    # If no images were found in the previous path, try the default Burger sequence
+                    if last_image_path != default_burger_path and os.path.isdir(default_burger_path):
+                        logger.info(f"Trying default Burger sequence as fallback")
+                        last_image_path = default_burger_path
+                        for file in os.listdir(default_burger_path):
+                            if any(file.lower().endswith(ext) for ext in valid_extensions):
+                                image_files.append(file)
+                        if not image_files:
+                            logger.warning(f"No valid image files found in default path {default_burger_path}")
+                            return
+                        # Update the config with the default path
+                        FileService.set_config_value("last_image_sequence_path", default_burger_path)
+                    else:
+                        return
 
                 # Sort filenames for consistent ordering
                 image_files.sort()
+
+                # Filter for Burger sequence pattern if we're using the default path
+                if last_image_path == default_burger_path:
+                    burger_files: list[str] = [f for f in image_files if f.startswith("Burger.") and f.endswith(".png")]
+                    if burger_files:
+                        image_files = burger_files
 
                 # Set image sequence path and filenames
                 main_window.image_sequence_path = last_image_path
@@ -479,7 +629,7 @@ class FileService:
                     if hasattr(main_window, 'toggle_bg_button') and hasattr(main_window.toggle_bg_button, 'setEnabled'):
                         main_window.toggle_bg_button.setEnabled(True)
 
-                    logger.info(f"Successfully loaded {len(image_files)} images from previous sequence")
+                    logger.info(f"Successfully loaded {len(image_files)} images from sequence at {last_image_path}")
                 else:
                     logger.warning("Curve view not available or missing setImageSequence method")
             except Exception as e:
