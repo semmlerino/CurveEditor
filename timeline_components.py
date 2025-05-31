@@ -8,6 +8,7 @@ This module contains all timeline-related UI components including the timeline s
 frame controls, playback controls, and frame marker visualization.
 """
 
+import logging
 from typing import Optional, Any, Callable
 
 from PySide6.QtCore import Qt, QTimer
@@ -16,6 +17,9 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QLineEdit, QPushButton, QSlider,
     QVBoxLayout, QWidget
 )
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class TimelineFrameMarker(QWidget):
@@ -34,7 +38,7 @@ class TimelineFrameMarker(QWidget):
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Draw the frame marker."""
-        painter = QPainter(self)  # type: ignore[arg-type]
+        painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Calculate marker position
@@ -291,7 +295,7 @@ class TimelineComponents:
         if hasattr(main_window, 'frame_marker'):
             main_window.frame_marker.setPosition(0)  # Start at beginning
 
-        print(f"TimelineComponents: Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
+        logger.info(f"Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
 
     @staticmethod
     def on_timeline_changed(main_window: Any, value: int) -> None:
@@ -537,6 +541,19 @@ class TimelineComponents:
             position = TimelineComponents._calculate_marker_position(min_frame, max_frame, current_frame)
             main_window.frame_marker.setPosition(position)
             main_window.frame_marker.update()
+
+    @staticmethod
+    def handle_timeline_press(main_window: Any, ev: QMouseEvent) -> None:
+        """Handle mouse press on timeline for direct frame selection.
+
+        This is a public interface for timeline press event handling.
+
+        Args:
+            main_window: The main application window instance
+            ev: The mouse event to handle
+        """
+        # Delegate to the internal implementation
+        TimelineComponents._handle_timeline_press(main_window, ev)
 
     @staticmethod
     def _handle_timeline_press(main_window: Any, ev: QMouseEvent) -> None:

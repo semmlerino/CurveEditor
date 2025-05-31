@@ -16,8 +16,13 @@ Key improvements in this refactored version:
 """
 
 # Standard library imports
+import logging
 import traceback
-from typing import TYPE_CHECKING, Any, Callable, Optional
+import typing
+from typing import TYPE_CHECKING, Any, Callable, Optional, List, Tuple
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
 
 # Local imports
 from signal_connectors import (
@@ -28,6 +33,9 @@ from signal_connectors import (
     ViewSignalConnector,
     VisualizationSignalConnector
 )
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -54,7 +62,7 @@ class SignalRegistry:
         """
         # Initialize connection tracking for debugging
         if not hasattr(main_window, 'connected_signals'):
-            main_window.connected_signals = set()  # type: ignore[attr-defined]
+            setattr(main_window, "connected_signals", set())
 
         # Print a header to make the connection process visible in logs
         print("\n" + "="*80)
@@ -64,19 +72,22 @@ class SignalRegistry:
         # Create a wrapper class that has the _connect_signal method
         # This allows connector classes to use registry._connect_signal() syntax
         # Also make it callable for connectors that expect a function
-        class RegistryConnector:
-            def _connect_signal(self, main_window: Any, signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
-                return SignalRegistry._connect_signal(main_window, signal, slot, signal_name)
-            
-            # Make the object callable so it works for connector classes using direct function calls
-            def __call__(self, main_window: Any, signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
-                return self._connect_signal(main_window, signal, slot, signal_name)
-        
-        # Create an instance of our wrapper
+import typing
+
+class RegistryConnector:
+    def _connect_signal(self, main_window: 'MainWindow', signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
+        return SignalRegistry._connect_signal(main_window, signal, slot, signal_name)
+
+    # Make the object callable so it works for connector classes using direct function calls
+    def __call__(self, main_window: 'MainWindow', signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
+        return self._connect_signal(main_window, signal, slot, signal_name)
+
+# ... inside SignalRegistry.connect_all_signals ...
+# Create an instance of our wrapper
         registry_connector = RegistryConnector()
-        
+
         # Define all signal connection groups to process
-        signal_groups = [
+        signal_groups: List[Tuple[str, Callable[['MainWindow'], None]]] = [
             # File operations
             ("File Operations", lambda mw: FileSignalConnector.connect_signals(mw, registry_connector)),
 
@@ -97,23 +108,26 @@ class SignalRegistry:
         # Connect each group with proper error handling
         for group_name, connection_func in signal_groups:
             try:
-                print(f"\nConnecting {group_name} signals...")
+                logger.info(f"Connecting {group_name} signals...")
                 connection_func(main_window)
-                print(f"[OK] Successfully connected {group_name} signals")
+                logger.info(f"Successfully connected {group_name} signals")
             except Exception as e:
-                print(f"[ERROR] Error connecting {group_name} signals: {str(e)}")
-                traceback.print_exc()
-
-        print("\n" + "="*80)
-        print(f"Signal connection complete. {len(main_window.connected_signals if isinstance(main_window.connected_signals, set) else set())} total connections.")  # type: ignore[attr-defined]
-        print("="*80 + "\n")
+                logger.error(f"Error connecting {group_name} signals: {str(e)}")
+                logger.debug(traceback.format_exc())
+            finally:
+                logger.info("-" * 80)
+                # 'connected_signals' is a dynamic attribute, expected to be set[str]
+                connected_signals = typing.cast(set[str], getattr(main_window, "connected_signals", set()))
+                total_connections = len(connected_signals)
+                logger.info(f"Signal connection complete. {total_connections} total connections.")
+                logger.info("=" * 80)
 
     @staticmethod
     def _connect_signal(
-        main_window: Any,
+        main_window: 'MainWindow',
         signal: Any,
         slot: Callable[..., Any],
-        signal_name: str | None = None
+        signal_name: Optional[str] = None
     ) -> bool:
         """Connect a signal to a slot with tracking and error handling.
 
@@ -127,11 +141,11 @@ class SignalRegistry:
             bool: True if connection was successful, False otherwise
         """
         if signal is None:
-            print(f"  [ERROR] Signal '{signal_name}' is None, cannot connect")
+            logger.error(f"Signal '{signal_name}' is None, cannot connect")
             return False
 
         if not hasattr(signal, 'connect'):
-            print(f"  [ERROR] Object '{signal_name}' is not a signal (no connect method)")
+            logger.error(f"Object '{signal_name}' is not a signal (no connect method)")
             return False
 
         # Create a unique identifier for this connection
@@ -139,7 +153,7 @@ class SignalRegistry:
 
         # Check if this connection already exists
         if connection_id in main_window.connected_signals:
-            print(f"  [WARN] Signal '{signal_name}' already connected to this slot, skipping")
+            logger.warning(f"Signal '{signal_name}' already connected to this slot, skipping")
             return True
 
         try:
@@ -150,8 +164,8 @@ class SignalRegistry:
             main_window.connected_signals.add(connection_id)
 
             # Log success
-            print(f"  [OK] Connected: {signal_name or 'signal'}")
+            logger.debug(f"Connected: {signal_name or 'signal'}")
             return True
         except Exception as e:
-            print(f"  [ERROR] Error connecting {signal_name or 'signal'}: {str(e)}")
+            logger.error(f"Error connecting {signal_name or 'signal'}: {str(e)}")
             return False

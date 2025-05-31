@@ -3,7 +3,11 @@
 
 import os
 import re  # Added import for regex support
+import logging
 from typing import List, Dict, Tuple, Optional, Any
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 def get_image_files(directory: str) -> List[str]:
     """Get all image files in a directory."""
@@ -149,7 +153,7 @@ def load_3de_track(file_path: str) -> Tuple[Optional[str], Optional[int], Option
 
         return point_name, point_color, num_frames, curve_data
     except Exception as e:
-        print(f"Error loading track: {str(e)}")
+        logger.error(f"Error loading track: {str(e)}")
         return None, None, None, []
 
 
@@ -174,7 +178,7 @@ def save_3de_track(
 
         return True
     except Exception as e:
-        print(f"Error saving track: {str(e)}")
+        logger.error(f"Error saving track: {str(e)}")
         return False
 
 

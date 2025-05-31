@@ -8,7 +8,11 @@ This module handles all signal connections related to file operations including
 loading, saving, adding, and exporting track data.
 """
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
+    from signal_registry import RegistryConnector
 
 from services.file_service import FileService as FileOperations
 
@@ -17,7 +21,7 @@ class FileSignalConnector:
     """Handles signal connections for file operations."""
 
     @staticmethod
-    def connect_signals(main_window: Any, registry: Any) -> None:
+    def connect_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
         """Connect all file operation related signals.
 
         Args:

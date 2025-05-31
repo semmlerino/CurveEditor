@@ -390,6 +390,20 @@ class DialogService:
         FileService.load_track_data(main_window)
 
     @staticmethod
+    def show_export_dialog(main_window: MainWindowProtocol) -> None:
+        """Show dialog for exporting track data to a file.
+        
+        Args:
+            main_window: The main window instance containing the curve data and UI elements.
+        
+        Note:
+            Delegates to FileService for the actual export functionality.
+        """
+        # Delegate to the FileService for actual file exporting
+        from services.file_service import FileService
+        FileService.export_to_csv(main_window)
+        
+    @staticmethod
     def show_problem_detection_dialog(
         main_window: MainWindowProtocol,
         problems: Optional[List[Tuple[int, Any, Any, Any]]] = None

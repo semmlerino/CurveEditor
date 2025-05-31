@@ -7,7 +7,7 @@ import sys
 import os
 import pytest
 from unittest.mock import MagicMock, patch
-from typing import Any, Dict, List, Optional, cast
+from typing import Any, Dict, List, Optional, Protocol, cast
 from PySide6.QtWidgets import QRubberBand, QWidget
 from PySide6.QtCore import QPointF, QRect
 
@@ -16,7 +16,13 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
-from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
+from services.protocols import CurveViewProtocol, PointsList
+
+# Minimal MainWindowProtocol for type checking in tests
+class MinimalMainWindowProtocol(Protocol):
+    curve_view: Any
+    selected_indices: Any
+    statusBar: Any
 
 
 # Mock classes for testing
@@ -327,7 +333,8 @@ class MockBackgroundImage:
         return self.height_val
 
 
-class MockMainWindow(MainWindowProtocol):
+class MockMainWindow:
+    # Implements MinimalMainWindowProtocol for testing
     auto_center_enabled: bool = False
     connected_signals: set[str] = set()
 
@@ -500,25 +507,25 @@ def test_transform_point_with_mocks() -> None:
             # Call the CurveService.transform_point function
             result = CurveService.transform_point(
                 mock_view,
-                float(case["x"]),  # type: ignore[arg-type]
-                float(case["y"]),  # type: ignore[arg-type]
-                float(case["display_w"]),  # type: ignore[arg-type]
-                float(case["display_h"]),  # type: ignore[arg-type]
-                float(case["offset_x"]),  # type: ignore[arg-type]
-                float(case["offset_y"]),  # type: ignore[arg-type]
-                float(case["scale"])  # type: ignore[arg-type]
+                float(case["x"]),
+                float(case["y"]),
+                float(case["display_w"]),
+                float(case["display_h"]),
+                float(case["offset_x"]),
+                float(case["offset_y"]),
+                float(case["scale"])
             )
 
             # Verify that the transform_point was called with the correct parameters
             mock_transform.assert_called_with(
                 mock_view,
-                float(case["x"]),  # type: ignore[arg-type]
-                float(case["y"]),  # type: ignore[arg-type]
-                float(case["display_w"]),  # type: ignore[arg-type]
-                float(case["display_h"]),  # type: ignore[arg-type]
-                float(case["offset_x"]),  # type: ignore[arg-type]
-                float(case["offset_y"]),  # type: ignore[arg-type]
-                float(case["scale"])  # type: ignore[arg-type]
+                float(case["x"]),
+                float(case["y"]),
+                float(case["display_w"]),
+                float(case["display_h"]),
+                float(case["offset_x"]),
+                float(case["offset_y"]),
+                float(case["scale"])
             )
 
             # Verify the transformed coordinates are what we expected
@@ -548,7 +555,7 @@ def test_center_on_selected_point_handles_resize():
         mock_center.return_value = True
 
         # Initial centering call
-        result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+        result1 = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
         assert result1 is True
         assert mock_center.call_count == 1
 
@@ -565,7 +572,7 @@ def test_center_on_selected_point_handles_resize():
         mock_center.reset_mock()
 
         # Re-center after resize
-        result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+        result2 = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
         assert result2 is True
 
         # Verify the function was called after resize
@@ -594,7 +601,7 @@ def test_center_on_selected_point_handles_fullscreen():
     mock_view.main_window = mock_window
 
     # Initial centering
-    result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+    result1 = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
     assert result1 is True
 
     # Reset update flag
@@ -605,7 +612,7 @@ def test_center_on_selected_point_handles_fullscreen():
     mock_view.height_val = 1080
 
     # Re-center after going fullscreen
-    result2 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+    result2 = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
     assert result2 is True
     assert mock_view.update_called is True
 
@@ -622,7 +629,7 @@ def test_auto_center_view_with_selection():
 
     # Mock center_on_selected_point to verify it's called with right params
     with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=True) as mock_center:
-        result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+        result = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
 
         # Verify it was called with right parameters
         mock_center.assert_called_once()
@@ -647,7 +654,7 @@ def test_auto_center_view_no_selection():
 
     # Mock center_on_selected_point to return False when no point is selected
     with patch.object(CenteringZoomService, 'center_on_selected_point', return_value=False) as mock_center_func:
-        result = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+        result = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
         # Verify the mock was called
         assert mock_center_func.called
 
@@ -680,7 +687,7 @@ def test_view_state_handling():
         mock_center.side_effect = preserve_zoom_effect
 
         # Test with preserve_zoom=True (default)
-        result1 = CenteringZoomService.auto_center_view(mock_window)  # type: ignore
+        result1 = CenteringZoomService.auto_center_view(cast(MinimalMainWindowProtocol, mock_window))
         assert result1 is True  # Should return the preserve_zoom value
 
         # Test with preserve_zoom=False

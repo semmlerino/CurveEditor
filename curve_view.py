@@ -61,7 +61,7 @@ from services.protocols import (
 logger = LoggingService.get_logger("curve_view")
 
 
-class CurveView(QWidget, CurveViewProtocol):  # type: ignore[override]
+class CurveView(QWidget):  # Implements CurveViewProtocol for type checking
     """Widget for displaying and editing the 2D tracking curve.
 
     Implements CurveViewProtocol and ImageSequenceProtocol to provide
@@ -199,6 +199,9 @@ class CurveView(QWidget, CurveViewProtocol):  # type: ignore[override]
         self.curve_data = []
         self.background_image = None
 
+        # Initialize shortcuts dictionary for keyboard shortcuts
+        self.shortcuts = {}
+
         # Initialize UI elements
         self.frame_marker_label = None
         self.timeline_slider = None
@@ -247,6 +250,9 @@ class CurveView(QWidget, CurveViewProtocol):  # type: ignore[override]
         self.image_sequence_path: str = ""
         self.current_image_idx: int = 0
         self.scale_to_image: bool = True
+
+        # Initialize shortcuts dictionary for keyboard shortcuts
+        self.shortcuts = {}
 
         # Debug visualization attributes
         self.debug_mode: bool = True  # Enable debug visuals by default to help diagnose issues

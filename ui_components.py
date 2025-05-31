@@ -22,7 +22,14 @@ This architecture ensures that:
 """
 
 # Standard library imports
-from typing import Any
+import logging
+from typing import Any, Protocol, cast
+
+# Configure logger
+logger = logging.getLogger(__name__)
+
+class CurveViewWithTimelineProtocol(Protocol):
+    def updateTimelineForImage(self, index: int) -> None: ...
 
 # Third-party imports
 from PySide6.QtCore import Qt
@@ -32,7 +39,7 @@ from PySide6.QtWidgets import (
 )
 
 # Local imports
-from enhanced_curve_view import EnhancedCurveView  # type: ignore[attr-defined]
+from enhanced_curve_view import EnhancedCurveView
 from point_edit_components import PointEditComponents
 from services.curve_service import CurveService as CurveViewOperations
 from services.image_service import ImageService as ImageOperations
@@ -61,6 +68,81 @@ class UIComponents:
     All methods are static and take a MainWindow instance as the first parameter.
     This design allows for separation of UI component management from application logic.
     """
+
+    @staticmethod
+    def setup_main_ui(main_window: Any) -> None:
+        """Set up the main UI layout for the application.
+
+        This method creates the main layout structure with:
+        - Toolbar at the top
+        - Splitter containing curve view and bottom UI
+        - Timeline and controls in the bottom section
+        """
+        from PySide6.QtWidgets import QWidget, QVBoxLayout, QSplitter, QStatusBar
+
+        # Main widget and layout
+        main_widget = QWidget()
+        main_layout = QVBoxLayout(main_widget)
+
+        # Create toolbar
+        toolbar_widget = UIComponents.create_toolbar(main_window)
+        main_layout.addWidget(toolbar_widget)
+
+        # Get the curve view and timeline components separately
+        curve_view_container, timeline_widget = UIComponents.create_view_and_timeline_separated(main_window)
+
+        # Create control panel
+        controls_widget = UIComponents.create_control_panel(main_window)
+
+        # Create splitter for curve view and bottom UI
+        splitter = QSplitter(Qt.Orientation.Vertical)
+
+        # Make the splitter handle more visible
+        splitter.setHandleWidth(4)
+        splitter.setStyleSheet("""
+            QSplitter::handle {
+                background-color: #c0c0c0;
+                border: 1px solid #808080;
+                border-radius: 1px;
+            }
+            QSplitter::handle:hover {
+                background-color: #a0a0a0;
+            }
+        """)
+
+        # Add curve view to top of splitter
+        curve_view_container.setMinimumHeight(200)
+        splitter.addWidget(curve_view_container)
+
+        # Create a container for bottom UI (timeline + controls)
+        bottom_container = QWidget()
+        bottom_layout = QVBoxLayout(bottom_container)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(0)
+
+        # Add timeline to bottom container
+        bottom_layout.addWidget(timeline_widget)
+
+        # Add controls to bottom container
+        controls_widget.setMinimumHeight(120)
+        bottom_layout.addWidget(controls_widget)
+
+        # Add the bottom container to the splitter
+        bottom_container.setMinimumHeight(200)
+        splitter.addWidget(bottom_container)
+
+        # Set relative sizes with more space for the top view by default
+        splitter.setSizes([700, 300])
+
+        # Store reference to splitter
+        main_window.main_splitter = splitter
+
+        main_layout.addWidget(splitter)
+        main_window.setCentralWidget(main_widget)
+
+        # Set up status bar
+        main_window.setStatusBar(QStatusBar())
+        main_window.statusBar().showMessage("Ready")
 
     @staticmethod
     def create_toolbar(main_window: Any) -> QWidget:
@@ -169,7 +251,7 @@ class UIComponents:
         timeline_controls_widget = TimelineComponents.create_timeline_widget(
             main_window=main_window,
             on_timeline_changed=TimelineComponents.on_timeline_changed,
-            on_timeline_press=lambda mw, ev: TimelineComponents._handle_timeline_press(mw, ev),
+            on_timeline_press=lambda mw, ev: TimelineComponents.handle_timeline_press(mw, ev),
             toggle_playback=TimelineComponents.toggle_playback,
             prev_frame=TimelineComponents.prev_frame,
             next_frame=TimelineComponents.next_frame,
@@ -320,7 +402,8 @@ class UIComponents:
 
                 # Attach the wrapper method to the curve view for backward compatibility
                 # Assign the wrapper method to the curve view for backward compatibility
-                main_window.curve_view.updateTimelineForImage = update_timeline_for_image  # type: ignore[attr-defined]
+                main_window.curve_view = cast(CurveViewWithTimelineProtocol, main_window.curve_view)
+                main_window.curve_view.updateTimelineForImage = update_timeline_for_image
 
                 return True
         except Exception:
@@ -373,7 +456,7 @@ class UIComponents:
         if hasattr(main_window, 'frame_marker'):
             main_window.frame_marker.setPosition(0)  # Start at beginning
 
-        print(f"UIComponents: Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
+        logger.info(f"Timeline setup complete with {frame_count} discrete frames from {min_frame} to {max_frame}")
 
 
 
@@ -384,18 +467,18 @@ class UIComponents:
     @staticmethod
     def on_timeline_changed(main_window: Any, value: int) -> None:
         """Handle timeline slider value changes by delegating to TimelineComponents.
-        
+
         Args:
             main_window: The main application window instance
             value: The new slider value (frame number)
         """
         from timeline_components import TimelineComponents
         TimelineComponents.on_timeline_changed(main_window, value)
-        
+
     @staticmethod
     def on_frame_edit_changed(main_window: Any, text: str) -> None:
         """Handle frame edit text changes by delegating to TimelineComponents.
-        
+
         Args:
             main_window: The main application window instance
             text: The new text value in the frame edit field
@@ -404,58 +487,58 @@ class UIComponents:
         # The TimelineComponents method doesn't use the text parameter directly
         # but expects it to be already set in the frame_edit field
         TimelineComponents.on_frame_edit_changed(main_window)
-        
+
     @staticmethod
     def go_to_frame(main_window: Any, frame: int) -> None:
         """Go to a specific frame in the timeline.
-        
+
         Args:
             main_window: The main application window instance
             frame: The frame number to go to
         """
         from timeline_components import TimelineComponents
         TimelineComponents.go_to_frame(main_window, frame)
-    
+
     @staticmethod
     def next_frame(main_window: Any) -> None:
         """Go to the next frame in the timeline.
-        
+
         Args:
             main_window: The main application window instance
         """
         from timeline_components import TimelineComponents
         TimelineComponents.next_frame(main_window)
-    
+
     @staticmethod
     def prev_frame(main_window: Any) -> None:
         """Go to the previous frame in the timeline.
-        
+
         Args:
             main_window: The main application window instance
         """
         from timeline_components import TimelineComponents
         TimelineComponents.prev_frame(main_window)
-    
+
     @staticmethod
     def go_to_first_frame(main_window: Any) -> None:
         """Go to the first frame in the timeline.
-        
+
         Args:
             main_window: The main application window instance
         """
         from timeline_components import TimelineComponents
         TimelineComponents.go_to_first_frame(main_window)
-    
+
     @staticmethod
     def go_to_last_frame(main_window: Any) -> None:
         """Go to the last frame in the timeline.
-        
+
         Args:
             main_window: The main application window instance
         """
         from timeline_components import TimelineComponents
         TimelineComponents.go_to_last_frame(main_window)
-        
+
     @staticmethod
     def connect_all_signals(main_window: Any) -> None:
         """Connect all UI signals to their respective slots.
@@ -468,4 +551,4 @@ class UIComponents:
         """
         # Use the SignalRegistry to handle connections
         from signal_registry import SignalRegistry
-        SignalRegistry.connect_all_signals(main_window)  # type: ignore[attr-defined]
+        SignalRegistry.connect_all_signals(main_window)  # main_window is dynamically extended at runtime, safe for production

@@ -11,20 +11,24 @@ This module handles signal connections for editing operations including:
 """
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any, Callable
+import logging
+from typing import Any, Callable, TYPE_CHECKING
 
 # Local imports
 from services.curve_service import CurveService as CurveViewOperations
 
 if TYPE_CHECKING:
-    pass
+    from main_window import MainWindow
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class EditSignalConnector:
     """Handles signal connections for editing operations."""
 
     @staticmethod
-    def connect_signals(main_window: Any, connect_signal_func: Callable) -> None:
+    def connect_signals(main_window: 'MainWindow', connect_signal_func: Callable[..., Any]) -> None:
         """Connect all edit-related signals.
 
         Args:
@@ -36,7 +40,7 @@ class EditSignalConnector:
         EditSignalConnector._connect_batch_edit_signals(main_window, connect_signal_func)
 
     @staticmethod
-    def _connect_curve_view_signals(main_window: Any, connect_signal: Callable) -> None:
+    def _connect_curve_view_signals(main_window: 'MainWindow', connect_signal: Callable[[object, object, Callable[..., object], str], None]) -> None:
         """Connect signals from the curve view widget.
 
         Args:
@@ -44,20 +48,21 @@ class EditSignalConnector:
             connect_signal: Function to connect signals
         """
         if not hasattr(main_window, 'curve_view'):
-            print("  [WARN] No curve_view found, skipping curve view signals")
+            logger.warning("No curve_view found, skipping curve view signals")
             return
 
         cv = main_window.curve_view
 
         # Define all curve view signals to connect
-        connections: list[tuple[Any, Callable[[int], None] | Callable[[int, float, float], None], str]] = [
-            (getattr(cv, 'point_selected', None),
-             lambda idx: CurveViewOperations.on_point_selected(cv, main_window, int(idx)),
-             "curve_view.point_selected"),
+        def on_point_selected(idx: int) -> None:
+            CurveViewOperations.on_point_selected(cv, main_window, idx)
 
-            (getattr(cv, 'point_moved', None),
-             lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, int(idx), float(x), float(y)),
-             "curve_view.point_moved"),
+        def on_point_moved(idx: int, x: float, y: float) -> None:
+            CurveViewOperations.on_point_moved(cv, main_window, idx, x, y)
+
+        connections: list[tuple[object, Callable[..., object], str]] = [
+            (getattr(cv, 'point_selected', None), on_point_selected, "curve_view.point_selected"),
+            (getattr(cv, 'point_moved', None), on_point_moved, "curve_view.point_moved"),
         ]
 
         # Connect each signal
@@ -65,7 +70,7 @@ class EditSignalConnector:
             connect_signal(main_window, signal, slot, name)
 
     @staticmethod
-    def _connect_point_editing_signals(main_window: Any, connect_signal: Callable) -> None:
+    def _connect_point_editing_signals(main_window: 'MainWindow', connect_signal: Callable[[object, object, Callable[..., object], str], None]) -> None:
         """Connect signals for point editing controls.
 
         Args:
@@ -86,7 +91,7 @@ class EditSignalConnector:
             connect_signal(
                 main_window,
                 main_window.point_size_spin.valueChanged,
-                lambda value: CurveViewOperations.set_point_size(main_window.curve_view, main_window, float(value)),
+                lambda value: CurveViewOperations.set_point_size(main_window.curve_view, main_window, float(value)),  # type: ignore[arg-type]
                 "point_size_spin.valueChanged"
             )
 
@@ -107,7 +112,7 @@ class EditSignalConnector:
             )
 
     @staticmethod
-    def _connect_batch_edit_signals(main_window: Any, connect_signal: Callable) -> None:
+    def _connect_batch_edit_signals(main_window: 'MainWindow', connect_signal: Callable[[object, object, Callable[..., object], str], None]) -> None:
         """Connect signals for batch editing operations.
 
         Args:

@@ -99,26 +99,7 @@ All active documentation is maintained in the following locations:
 
 - **Main Documentation:**
   - `README.md` (this file): Project overview, installation, and quick start
-  - `TODO.md`: Current tasks and technical debt tracking
-  - `CODE_REVIEW_2025_05_29.md`: Latest comprehensive code review
-
-- **Technical Documentation (`docs/`):**
-  - `quick-start.md`: Getting started with the transformation system
-  - `api-reference.md`: Complete service and API documentation
-  - `architecture.md`: System architecture and design patterns
-  - `design-decisions.md`: Key architectural choices and rationale
-  - `migration-guide.md`: Guide for migrating to unified transformation system
-  - `transformation-system.md`: Detailed transformation system documentation
-  - `unified_transformation_system.md`: Unified system implementation details
-  - `refactoring-history.md`: Record of major refactoring efforts
-  - `REFACTORING_STATUS.md`: Current refactoring status and progress
-  - `consolidation-summary.md`: Documentation consolidation overview
-
-- **Archived Documentation (`docs/ObsoleteArchive/`):**
-  - Historical code reviews and refactoring plans
-  - Old session summaries and progress reports
-  - Utility scripts and validation tools
-  - Legacy documentation no longer maintained
+ 
 
 **Note:** Always refer to the main and technical documentation for current information. The archive contains historical documents for reference only.
 
@@ -172,7 +153,6 @@ python -m flake8 .
 - ✅ **Dependency Management**: Added comprehensive `requirements.txt`
 - ✅ **Type Safety**: Improved type annotations with specific widget types (QSlider, QLabel)
 - ✅ **Code Quality**: Cleaned up TODO items and improved documentation
-- ✅ **Score Improvement**: Code quality score improved from 8.5/10 to 9.5/10
 
 **Performance Notes**
 

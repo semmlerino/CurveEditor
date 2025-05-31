@@ -8,16 +8,24 @@ This module handles all signal connections related to the curve view widget
 including point selection, movement, and view manipulation.
 """
 
-from typing import Any, Callable
+import logging
+from typing import Any, Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
+    from signal_registry import RegistryConnector
 
 from services.curve_service import CurveService as CurveViewOperations
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class ViewSignalConnector:
     """Handles signal connections for curve view operations."""
 
     @staticmethod
-    def connect_signals(main_window: Any, registry: Any) -> None:
+    def connect_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
         """Connect all curve view related signals.
 
         Args:
@@ -28,7 +36,7 @@ class ViewSignalConnector:
         ViewSignalConnector._connect_point_editing_signals(main_window, registry)
 
     @staticmethod
-    def _connect_curve_view_signals(main_window: Any, registry: Any) -> None:
+    def _connect_curve_view_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
         """Connect signals from the curve view widget.
 
         Args:
@@ -36,20 +44,21 @@ class ViewSignalConnector:
             registry: The signal registry for tracking connections
         """
         if not hasattr(main_window, 'curve_view'):
-            print("  [WARN] No curve_view found, skipping curve view signals")
+            logger.warning("No curve_view found, skipping curve view signals")
             return
 
         cv = main_window.curve_view
 
         # Define all curve view signals to connect
-        connections: list[tuple[Any, Callable[[int], None] | Callable[[int, float, float], None], str]] = [
-            (getattr(cv, 'point_selected', None),
-             lambda idx: CurveViewOperations.on_point_selected(cv, main_window, int(idx)),
-             "curve_view.point_selected"),
+        def on_point_selected(idx: int) -> None:
+            CurveViewOperations.on_point_selected(cv, main_window, idx)
 
-            (getattr(cv, 'point_moved', None),
-             lambda idx, x, y: CurveViewOperations.on_point_moved(main_window, int(idx), float(x), float(y)),
-             "curve_view.point_moved"),
+        def on_point_moved(idx: int, x: float, y: float) -> None:
+            CurveViewOperations.on_point_moved(main_window, idx, x, y)
+
+        connections: list[tuple[Any, Callable[..., Any], str]] = [
+            (getattr(cv, 'point_selected', None), on_point_selected, "curve_view.point_selected"),
+            (getattr(cv, 'point_moved', None), on_point_moved, "curve_view.point_moved"),
         ]
 
         # Connect each signal
@@ -57,7 +66,7 @@ class ViewSignalConnector:
             registry._connect_signal(main_window, signal, slot, name)
 
     @staticmethod
-    def _connect_point_editing_signals(main_window: Any, registry: Any) -> None:
+    def _connect_point_editing_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
         """Connect signals for point editing controls.
 
         Args:
@@ -75,10 +84,13 @@ class ViewSignalConnector:
 
         # Enhanced point size control
         if hasattr(main_window, 'point_size_spin'):
+            def on_point_size_changed(value: float) -> None:
+                CurveViewOperations.set_point_size(main_window.curve_view, main_window, float(value))
+
             registry._connect_signal(
                 main_window,
-                main_window.point_size_spin.valueChanged,
-                lambda value: CurveViewOperations.set_point_size(main_window.curve_view, main_window, float(value)),
+                main_window.point_size_spin.valueChanged,  # type: ignore[attr-defined]
+                on_point_size_changed,
                 "point_size_spin.valueChanged"
             )
 
@@ -89,11 +101,11 @@ class ViewSignalConnector:
                 main_window.x_edit.returnPressed,
                 lambda: CurveViewOperations.update_point_from_edit(main_window),
                 "x_edit.returnPressed"
-            )
+            )  # type: ignore[attr-defined]
 
             registry._connect_signal(
                 main_window,
                 main_window.y_edit.returnPressed,
                 lambda: CurveViewOperations.update_point_from_edit(main_window),
                 "y_edit.returnPressed"
-            )
+            )  # type: ignore[attr-defined]

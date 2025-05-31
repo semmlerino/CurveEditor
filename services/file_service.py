@@ -643,6 +643,9 @@ class FileService:
                 main_window.timeline_slider.setEnabled(True)
             if hasattr(main_window, 'frame_edit'):
                 main_window.frame_edit.setEnabled(True)
+        except Exception as e:
+            logger.exception(f"Failed to load track data: {e}")
+            QMessageBox.critical(main_window.qwidget, "Error", f"Failed to load track data: {e}")
 
     @staticmethod
     def load_previous_file(main_window: MainWindowProtocol) -> None:

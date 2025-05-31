@@ -42,7 +42,6 @@ def export_to_csv(file_path: str, curve_data: List[Tuple[int, float, float]], in
         return True
     except Exception as e:
         logger.error(f"Error exporting to CSV: {str(e)}")
-        print(f"Error exporting to CSV: {str(e)}")
         return False
 
 
@@ -69,9 +68,6 @@ def export_to_excel(file_path: str, curve_data: List[Tuple[int, float, float]], 
     except ImportError:
         logger.warning("xlsxwriter module not found. Excel export functionality is disabled.")
         logger.info("To enable Excel export, install xlsxwriter: pip install xlsxwriter")
-        print("\nExcel export is not available. The xlsxwriter module is not installed.")
-        print("You can install it with: pip install xlsxwriter")
-        print("Alternatively, use CSV export which doesn't require additional dependencies.")
         return False
 
     try:
@@ -95,5 +91,4 @@ def export_to_excel(file_path: str, curve_data: List[Tuple[int, float, float]], 
         return True
     except Exception as e:
         logger.error(f"Error exporting to Excel: {str(e)}")
-        print(f"Error exporting to Excel: {str(e)}")
         return False

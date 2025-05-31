@@ -9,6 +9,7 @@ It organizes shortcuts by functional area for better maintainability.
 """
 
 # Standard library imports
+import logging
 from typing import TYPE_CHECKING, Any
 
 # Local imports
@@ -16,11 +17,14 @@ from keyboard_shortcuts import ShortcutManager
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.curve_service import CurveService as CurveViewOperations
 from services.dialog_service import DialogService
-from services.file_service import FileService as FileOperations
+from services.file_service import FileService
 from services.history_service import HistoryService as HistoryOperations
 from services.image_service import ImageService as ImageOperations
 from services.visualization_service import VisualizationService as VisualizationOperations
 from ui_components import UIComponents
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     pass
@@ -49,19 +53,18 @@ class ShortcutSignalConnector:
         ShortcutSignalConnector._connect_timeline_shortcuts(main_window)
         ShortcutSignalConnector._connect_tool_shortcuts(main_window)
 
-        print("  [OK] Connected keyboard shortcuts")
+        logger.info("Connected keyboard shortcuts")
 
     @staticmethod
     def _connect_file_shortcuts(main_window: Any) -> None:
         """Connect file operation shortcuts."""
         ShortcutManager.connect_shortcut(main_window, "load",
-                                       lambda: FileOperations.load_track_data(main_window))
+                                       lambda: FileService.load_track_data(main_window))
         ShortcutManager.connect_shortcut(main_window, "save",
-                                       lambda: FileOperations.save_track_data(main_window))
+                                       lambda: FileService.save_track_data(main_window))
         ShortcutManager.connect_shortcut(main_window, "add",
-                                       lambda: FileOperations.add_track_data(main_window))
-        ShortcutManager.connect_shortcut(main_window, "export_csv",
-                                       lambda: FileOperations.export_to_csv(main_window))
+                                       lambda: FileService.add_track_data(main_window))
+        # CSV export functionality has been removed
 
     @staticmethod
     def _connect_edit_shortcuts(main_window: Any) -> None:

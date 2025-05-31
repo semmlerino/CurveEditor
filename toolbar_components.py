@@ -40,11 +40,11 @@ class ToolbarComponents:
 
         file_label = QLabel("File")
         file_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        file_font = QFont("Arial")  # type: ignore[arg-type]
+        file_font = QFont("Arial")
         file_font.setPointSize(8)
         file_font.setWeight(QFont.Weight.Bold)
         file_label.setFont(file_font)
-        file_layout.addWidget(file_label)  # type: ignore[arg-type]
+        file_layout.addWidget(file_label)
 
         # Create grouped buttons
         file_buttons = QHBoxLayout()
@@ -69,11 +69,11 @@ class ToolbarComponents:
 
         view_label = QLabel("View")
         view_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        view_font = QFont("Arial")  # type: ignore[arg-type]
+        view_font = QFont("Arial")
         view_font.setPointSize(8)
         view_font.setWeight(QFont.Weight.Bold)
         view_label.setFont(view_font)
-        view_layout.addWidget(view_label)  # type: ignore[arg-type]
+        view_layout.addWidget(view_label)
 
         view_buttons = QGridLayout()
 
@@ -113,11 +113,11 @@ class ToolbarComponents:
 
         curve_label = QLabel("Curve Operations")
         curve_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        curve_font = QFont("Arial")  # type: ignore[arg-type]
+        curve_font = QFont("Arial")
         curve_font.setPointSize(8)
         curve_font.setWeight(QFont.Weight.Bold)
         curve_label.setFont(curve_font)
-        curve_layout.addWidget(curve_label)  # type: ignore[arg-type]
+        curve_layout.addWidget(curve_label)
 
         curve_buttons = QGridLayout()
 
@@ -161,11 +161,11 @@ class ToolbarComponents:
 
         history_label = QLabel("History & Analysis")
         history_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        history_font = QFont("Arial")  # type: ignore[arg-type]
+        history_font = QFont("Arial")
         history_font.setPointSize(8)
         history_font.setWeight(QFont.Weight.Bold)
         history_label.setFont(history_font)
-        history_layout.addWidget(history_label)  # type: ignore[arg-type]
+        history_layout.addWidget(history_label)
 
         history_buttons = QHBoxLayout()
 

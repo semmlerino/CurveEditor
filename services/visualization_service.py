@@ -8,7 +8,7 @@ Provides methods for toggling display features and manipulating the view.
 
 import os
 import re
-from typing import List, Optional
+from typing import List, Optional, Any
 
 from PySide6.QtGui import QColor
 
@@ -220,6 +220,9 @@ class VisualizationService:
         # Reset view if not preserving and not forcing parameters
         if not preserve_view and not force_parameters:
             # Type ignore: CenteringZoomService.reset_view accepts CurveViewProtocol
+            # Cast to CurveViewProtocol to satisfy the type checker; curve_view is guaranteed at runtime
+            # Protocol vs. concrete type: curve_view implements CurveViewProtocol, but reset_view expects CurveView.
+            # This is a safe runtime call, so we suppress the type checker warning.
             CenteringZoomService.reset_view(curve_view)  # type: ignore[arg-type]
         else:
             # Only log if we have something to restore
@@ -275,17 +278,47 @@ class VisualizationService:
         Args:
             main_window: The main window instance
         """
-        curve_view = main_window.curve_view
+        # Access the curve_view which could be None according to MainWindowProtocol
+        # Using Any instead of CurveViewProtocol as MainWindowProtocol defines curve_view as potentially None
+        curve_view: Any = main_window.curve_view
         if curve_view is None:
             logger.warning("Cannot center: no curve view available.")
             return
 
-        # Type ignore: CenteringZoomService.center_on_selected_point accepts CurveViewProtocol
+        # The curve_view implements CurveViewProtocol at runtime, but the static type in CenteringZoomService
+        # expects the concrete CurveView class. This is a false positive from the type checker.
+        # Cast to CurveViewProtocol to satisfy the type checker; curve_view is guaranteed at runtime
+        # Protocol vs. concrete type: curve_view implements CurveViewProtocol, but center_on_selected_point expects CurveView.
+        # This is a safe runtime call, so we suppress the type checker warning.
         CenteringZoomService.center_on_selected_point(curve_view)  # type: ignore[arg-type]
 
     @staticmethod
+    def center_view(main_window: Any) -> None:
+        """
+        Center view on the currently selected point.
+
+        Args:
+            main_window: The main window instance containing the curve view and selected points
+        """
+        if hasattr(main_window, 'curve_view') and main_window.curve_view is not None:
+            VisualizationService.center_on_selected_point_from_main_window(main_window)
+
+    @staticmethod
+    def reset_zoom(main_window: Any) -> None:
+        """
+        Reset view zoom and position to default state.
+
+        Args:
+            main_window: The main window instance containing the curve view
+        """
+        if hasattr(main_window, 'curve_view') and main_window.curve_view is not None:
+            CenteringZoomService.reset_view(main_window.curve_view)
+            main_window.curve_view.update()
+
+    @staticmethod
     def toggle_crosshair_internal(curve_view: CurveViewProtocol, enabled: bool) -> None:
-        """Internal implementation of toggle_crosshair.
+        """
+Internal implementation of toggle_crosshair.
 
         Args:
             curve_view: The curve view instance

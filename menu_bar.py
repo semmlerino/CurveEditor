@@ -15,11 +15,11 @@ from services.dialog_service import DialogService
 from services.file_service import FileService as FileOperations
 from services.history_service import HistoryService as HistoryOperations
 from services.image_service import ImageService as ImageOperations
+from services.protocols import MainWindowProtocol, HistoryContainerProtocol
 from services.visualization_service import VisualizationService as VisualizationOperations
 
 if TYPE_CHECKING:
     from main_window import MainWindow
-    from services.protocols import MainWindowProtocol, HistoryContainerProtocol
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""

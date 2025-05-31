@@ -8,7 +8,11 @@ This module handles all signal connections related to visualization controls
 including grid, vectors, frame numbers, and view manipulation.
 """
 
-from typing import Any
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
+    from signal_registry import RegistryConnector
 
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.curve_service import CurveService as CurveViewOperations
@@ -19,7 +23,7 @@ class VisualizationSignalConnector:
     """Handles signal connections for visualization operations."""
 
     @staticmethod
-    def connect_signals(main_window: Any, registry: Any) -> None:
+    def connect_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
         """Connect all visualization related signals.
 
         Args:

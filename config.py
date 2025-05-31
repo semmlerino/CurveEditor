@@ -3,7 +3,11 @@
 
 import json
 import os
+import logging
 from typing import Dict, Any
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app_config.json')
 
@@ -19,10 +23,10 @@ def load_config() -> Dict[str, Any]:
         # Config file doesn't exist, return empty config
         return {}
     except json.JSONDecodeError as e:
-        print(f"Invalid JSON in config file: {str(e)}")
+        logger.error(f"Invalid JSON in config file: {str(e)}")
         return {}
     except IOError as e:
-        print(f"Error reading config file: {str(e)}")
+        logger.error(f"Error reading config file: {str(e)}")
         return {}
 
 def save_config(config: Dict[str, Any]) -> bool:
@@ -32,10 +36,10 @@ def save_config(config: Dict[str, Any]) -> bool:
             json.dump(config, f, indent=4)
         return True
     except IOError as e:
-        print(f"Error writing to config file: {str(e)}")
+        logger.error(f"Error writing to config file: {str(e)}")
         return False
     except json.JSONEncodeError as e:
-        print(f"Error encoding config to JSON: {str(e)}")
+        logger.error(f"Error encoding config to JSON: {str(e)}")
         return False
 
 def get_last_file_path() -> str:

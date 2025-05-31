@@ -13,7 +13,11 @@ This module handles signal connections for various UI operations including:
 """
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any, Callable
+from typing import Any, Callable, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from main_window import MainWindow
+    from signal_registry import RegistryConnector
 
 # Local imports
 from services.dialog_service import DialogService
@@ -30,7 +34,7 @@ class UISignalConnector:
     """Handles signal connections for UI operations."""
 
     @staticmethod
-    def connect_signals(main_window: Any, connect_signal_func: Callable) -> None:
+    def connect_signals(main_window: 'MainWindow', connect_signal_func: 'RegistryConnector') -> None:
         """Connect all UI-related signals.
 
         Args:
