@@ -20,20 +20,20 @@ DEFAULT_CONFIG_PATH = os.path.join(
 
 # Default logging levels per module
 DEFAULT_CONFIG = {
-    "global": "DEBUG",
-    "curve_view": "DEBUG",
-    "main_window": "DEBUG",
+    "global": "INFO",
+    "curve_view": "INFO",
+    "main_window": "INFO",
     "services": {
-        "curve_service": "DEBUG",
-        "image_service": "DEBUG",
-        "file_service": "DEBUG",
-        "dialog_service": "DEBUG",
-        "analysis_service": "DEBUG",
-        "visualization_service": "DEBUG",
-        "centering_zoom_service": "DEBUG",
-        "settings_service": "DEBUG",
-        "history_service": "DEBUG",
-        "input_service": "DEBUG"
+        "curve_service": "INFO",
+        "image_service": "INFO",
+        "file_service": "INFO",
+        "dialog_service": "INFO",
+        "analysis_service": "INFO",
+        "visualization_service": "INFO",
+        "centering_zoom_service": "INFO",
+        "settings_service": "INFO",
+        "history_service": "INFO",
+        "input_service": "INFO"
     }
 }
 
@@ -68,36 +68,21 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
         return DEFAULT_CONFIG
 
 
+
 def apply_config(config: Dict[str, Any]) -> None:
-    """Apply the logging configuration to the application."""
-    # Initialize the root logger with global level
-    global_level = get_level(config.get("global", "INFO"))
-    logger = LoggingService.setup_logging(level=global_level)
+    """Apply the logging configuration to the application.
 
-    # Apply specific module levels
-    for module, level in config.items():
-        if module == "global":
-            continue
+    This function is deprecated. Configuration is now applied directly
+    in main.py through LoggingService.set_module_level().
 
-        if isinstance(level, dict):
-            # Handle nested configurations (e.g., services)
-            module_dict: Dict[str, Any] = level  # Explicit type annotation
-            for submodule_key, sublevel_value in module_dict.items():
-                # We can skip type check for submodule_key as it's always a string in dict keys
-                # We only need to type-check the sublevel value
-                if not isinstance(sublevel_value, str):
-                    continue
+    Args:
+        config: Configuration dictionary
 
-                # Create logger for submodule
-                module_logger = LoggingService.get_logger(f"{module}.{submodule_key}")
-                module_logger.setLevel(get_level(sublevel_value))
-        else:
-            # Handle flat configurations
-            module_logger = LoggingService.get_logger(module)
-            if isinstance(level, str):
-                module_logger.setLevel(get_level(level))
-
-    logger.info(f"Logging configuration applied: global level={logging.getLevelName(global_level)}")
+    Note:
+        This function is kept for backward compatibility but does nothing.
+        Remove calls to this function and apply configuration directly.
+    """
+    pass  # Configuration is now handled in main.py
 
 
 def update_config(module: str, level: str, config_path: Optional[str] = None) -> None:

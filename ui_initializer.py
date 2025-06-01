@@ -7,19 +7,20 @@ This module handles the initialization of UI components for the MainWindow,
 helping to reduce the size of the MainWindow class.
 """
 
-import logging
 from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QLabel, QPushButton, QStatusBar, QSlider, QLineEdit,
-    QAction, QSpinBox
+    QSpinBox
 )
 from PySide6.QtGui import QAction
+
+from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
     from main_window import MainWindow
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("ui_initializer")
 
 
 class UIInitializer:

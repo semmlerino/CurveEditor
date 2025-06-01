@@ -23,8 +23,7 @@ Example:
     file_service = FileService()
     file_service.load_track_data(main_window)
 
-    # Export to CSV
-    file_service.export_to_csv(main_window)
+
 
 Note:
     This module uses lazy imports to avoid circular dependencies. Modules are
@@ -113,7 +112,7 @@ class FileService:
         get_config_value: Safely retrieves configuration values.
         set_config_value: Safely sets configuration values.
         call_utils: Safely calls utility functions from various modules.
-        export_to_csv: Exports curve data to CSV format.
+
         load_track_data: Loads tracking data from files.
         add_track_data: Adds additional tracking data to existing data.
         save_track_data: Saves current tracking data to a file.
@@ -241,75 +240,11 @@ class FileService:
                 return cls._fallback_load_3de_track(*args, **kwargs)
             return safe_call(track_importer_module, func_name, *args, **kwargs)
         elif module_name == "track_exporter":
-            if func_name == "export_to_csv":
-                # If the module is not available, provide a fallback implementation
-                return cls._fallback_export_to_csv(*args, **kwargs)
+
             return safe_call(track_exporter_module, func_name, *args, **kwargs)
         else:
             logger.error(f"Unknown or unavailable module: {module_name}")
             return None
-
-    @staticmethod
-    def export_to_csv(main_window: MainWindowProtocol) -> None:
-        """Export curve data to CSV file.
-
-        Opens a file dialog for the user to select a destination file,
-        then exports the current curve data to CSV format. Shows appropriate
-        error messages if the export fails.
-
-        Args:
-            main_window: The main window instance containing the curve data
-                to export and UI elements for user feedback.
-
-        Returns:
-            None
-
-        Example:
-            # Export current curve data
-            FileService.export_to_csv(main_window)
-
-        Note:
-            The CSV format includes frame number, x coordinate, y coordinate,
-            and optionally interpolation status for each point.
-
-        """
-        if not main_window.curve_data:
-            QMessageBox.warning(main_window.qwidget, "Warning", "No curve data to export.")
-            return
-
-        file_path, _ = QFileDialog.getSaveFileName(
-            main_window.qwidget, "Export to CSV", main_window.default_directory, "CSV Files (*.csv);;All Files (*)"
-        )
-
-        if not file_path:
-            return
-
-        # Ensure file has .csv extension
-        if not file_path.lower().endswith(".csv"):
-            file_path += ".csv"
-
-        try:
-            # Export data to CSV using safe function calling
-            success = FileService.call_utils(
-                "track_exporter",
-                "export_to_csv",
-                file_path,
-                main_window.point_name,
-                main_window.curve_data,
-                main_window.image_width,
-                main_window.image_height
-            )
-
-            if success:
-                QMessageBox.information(main_window.qwidget, "Success", f"Data exported to {file_path}")
-                # Save the directory path to config
-                folder_path = os.path.dirname(file_path)
-                FileService.set_config_value("set_last_folder_path", folder_path)
-            else:
-                QMessageBox.critical(main_window.qwidget, "Error", f"Failed to export data to {file_path}")
-        except Exception as e:
-            logger.error(f"Error exporting to CSV: {e}")
-            QMessageBox.critical(main_window.qwidget, "Error", f"Error exporting data: {str(e)}")
 
     @classmethod
     def _fallback_estimate_image_dimensions(cls, curve_data: PointsList) -> Tuple[int, int]:
@@ -477,72 +412,6 @@ class FileService:
         except Exception as e:
             logger.error(f"Error in fallback track importer: {e}")
             return None
-
-    @classmethod
-    def _fallback_export_to_csv(cls, file_path: str, point_name: str, curve_data: PointsList,
-                                image_width: int, image_height: int) -> bool:
-        """Fallback implementation for exporting track data to CSV.
-
-        Exports tracking data to CSV format when the track_exporter module
-        is not available. Includes metadata as comments and supports both
-        3-tuple and 4-tuple point formats.
-
-        Args:
-            file_path: Path where the CSV file should be saved.
-            point_name: Name identifier for the tracking point set.
-            curve_data: List of tracking points to export.
-            image_width: Width of the reference image (for metadata).
-            image_height: Height of the reference image (for metadata).
-
-        Returns:
-            bool: True if export was successful, False otherwise.
-
-        Example:
-            success = cls._fallback_export_to_csv(
-                '/path/to/output.csv',
-                'nose_tip',
-                curve_data,
-                1920, 1080
-            )
-
-        Note:
-            The CSV format includes:
-            - Metadata header with point name and image dimensions
-            - Column headers: Frame, X, Y, [Interpolated]
-            - Data rows with tracking information
-
-        """
-        logger.info(f"Using fallback CSV exporter for file: {file_path}")
-
-        if not curve_data:
-            logger.warning("No curve data to export")
-            return False
-
-        try:
-            with open(file_path, 'w') as f:
-                # Write metadata as comments
-                f.write(f"# Point Name: {point_name}\n")
-                f.write(f"# Image Dimensions: {image_width} x {image_height}\n")
-                f.write(f"# Number of Points: {len(curve_data)}\n")
-                f.write("#\n")
-
-                # Write header
-                f.write("Frame,X,Y,Status\n")
-
-                # Write data
-                for point in sorted(curve_data, key=lambda p: int(p[0])):
-                    frame = point[0]
-                    x = point[1]
-                    y = point[2]
-                    status = point[3] if len(point) > 3 else "valid"
-                    f.write(f"{frame},{x},{y},{status}\n")
-
-            logger.info(f"Successfully exported {len(curve_data)} points to CSV: {file_path}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error in fallback CSV export: {e}")
-            return False
 
     @staticmethod
     def load_track_data(main_window: MainWindowProtocol) -> None:

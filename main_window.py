@@ -18,7 +18,7 @@ Key architecture components:
 """
 
 # Standard library imports
-import logging
+
 import sys
 from typing import Any, Optional, cast
 
@@ -58,6 +58,33 @@ class MainWindow(QMainWindow):
     _protocol_type: TrackQualityUIProtocol
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
+        # Explicit UI attributes for linting/type checking
+        self.image_label: Any = None
+        self.status_bar: Any = None
+        self.save_button: Any = None
+        self.add_point_button: Any = None
+        self.smooth_button: Any = None
+        self.fill_gaps_button: Any = None
+        self.filter_button: Any = None
+        self.detect_problems_button: Any = None
+        self.extrapolate_button: Any = None
+        self.timeline_slider: Any = None
+        self.frame_edit: Any = None
+        self.go_button: Any = None
+        self.info_label: Any = None
+        self.prev_image_button: Any = None
+        self.next_image_button: Any = None
+        self.opacity_slider: Any = None
+        self.undo_button: Any = None
+        self.redo_button: Any = None
+        self.toggle_bg_button: Any = None
+        self.update_point_button: Any = None
+        self.type_edit: Any = None
+        self.point_size_spin: Any = None
+        self.x_edit: Any = None
+        self.y_edit: Any = None
+        # Add other UI attributes as needed for protocol/linting
+
         super().__init__(parent)
 
         # Initialize application state
@@ -139,7 +166,7 @@ class MainWindow(QMainWindow):
         self.selected_indices = self.state.selected_indices
         self.current_frame = self.state.current_frame
         self.auto_center_enabled = self.state.auto_center_enabled
-        self._track_data_loaded = self.state._track_data_loaded
+        self.track_data_loaded = self.state.track_data_loaded
 
     def _sync_state_from_attributes(self):
         """Sync state from attributes (for backward compatibility)."""
@@ -148,6 +175,13 @@ class MainWindow(QMainWindow):
         self.state.image_filenames = self.image_filenames
         self.state.track_data_loaded = self.track_data_loaded
         self.state.auto_center_enabled = self.auto_center_enabled
+
+    def on_image_changed(self, index: int) -> None:
+        """Slot called when the image is changed in the UI."""
+        # You can expand this logic as needed
+        print(f"Image changed to index: {index}")
+        if hasattr(self, 'update_image_label'):
+            self.update_image_label()
 
     def _setup_transformation_system(self):
         """Initialize the unified transformation system."""

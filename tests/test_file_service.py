@@ -9,17 +9,16 @@ which handles file operations such as loading, saving, and exporting track data.
 import os
 import sys
 import tempfile
-from typing import List, Tuple, Any, Optional, cast
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
-from PySide6.QtWidgets import QMessageBox, QFileDialog
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from services.file_service import FileService
-from services.protocols import MainWindowProtocol, PointsList
+from services.protocols import PointsList
 
 
 class MockMainWindow:
@@ -49,10 +48,10 @@ def main_window() -> MockMainWindow:
 def sample_curve_data() -> PointsList:
     """Create sample curve data for testing."""
     return [
-        (1, 100.0, 200.0, 0.8),
-        (2, 105.0, 205.0, 0.9),
-        (3, 110.0, 210.0, 0.85),
-        (4, 115.0, 215.0, 0.95),
+        (1, 100.0, 200.0, "0.8"),  # Using string status to match PointTupleWithStatus type
+        (2, 105.0, 205.0, "0.9"),
+        (3, 110.0, 210.0, "0.85"),
+        (4, 115.0, 215.0, "0.95"),
     ]
 
 
@@ -97,53 +96,13 @@ class TestFileService:
         # Max Y value is 400, with padding it should be larger
         assert height >= 400
 
-    def test_export_to_csv_no_data(self, main_window: MockMainWindow) -> None:
-        """Test export_to_csv with no curve data."""
-        with patch('services.file_service.QMessageBox.warning') as mock_warning:
-            FileService.export_to_csv(main_window)
-            mock_warning.assert_called_once()
-
-    def test_export_to_csv_user_cancels(self, main_window: MockMainWindow, sample_curve_data: PointsList) -> None:
-        """Test export_to_csv when user cancels the file dialog."""
-        main_window.curve_data = sample_curve_data
-        
-        with patch('services.file_service.QFileDialog.getSaveFileName', return_value=("", "")):
-            FileService.export_to_csv(main_window)
-            # No assertions needed, just verifying it doesn't raise exceptions
-
-    def test_fallback_export_to_csv(self, main_window: MockMainWindow, sample_curve_data: PointsList) -> None:
-        """Test the fallback CSV export implementation."""
-        with tempfile.NamedTemporaryFile(suffix='.csv', delete=False) as temp_file:
-            temp_path = temp_file.name
-        
-        try:
-            result = FileService._fallback_export_to_csv(
-                temp_path, 
-                "test_point", 
-                sample_curve_data,
-                main_window.image_width, 
-                main_window.image_height
-            )
-            
-            assert result is True
-            
-            # Verify file exists and has content
-            assert os.path.exists(temp_path)
-            with open(temp_path, 'r') as f:
-                content = f.read()
-                assert "test_point" in content
-                assert "1" in content  # Frame number
-                assert "100.0" in content  # X coordinate
-        finally:
-            # Clean up
-            if os.path.exists(temp_path):
-                os.unlink(temp_path)
+    # CSV export tests have been removed as the functionality is no longer needed
 
     def test_load_track_data_user_cancels(self, main_window: MockMainWindow) -> None:
         """Test load_track_data when user cancels the file dialog."""
         with patch('services.file_service.QFileDialog.getOpenFileName', return_value=("", "")):
             FileService.load_track_data(main_window)
-            # Just verify it doesn't raise exceptions
+            # Just verify it returns without exceptions
 
     def test_fallback_load_3de_track_invalid_file(self) -> None:
         """Test the fallback 3DE track loader with an invalid file."""

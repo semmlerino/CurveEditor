@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from main_window import MainWindow
     from signal_registry import RegistryConnector
 
-from services.file_service import FileService as FileOperations
+from services.file_service import FileService
 
 
 class FileSignalConnector:
@@ -45,7 +45,7 @@ class FileSignalConnector:
         #     registry._connect_signal(
         #         main_window,
         #         main_window.load_button.clicked,
-        #         lambda: FileOperations.load_track_data(main_window),
+        #         lambda: FileService.load_track_data(main_window),
         #         "load_button.clicked"
         #     )
 
@@ -54,7 +54,7 @@ class FileSignalConnector:
             registry._connect_signal(
                 main_window,
                 main_window.save_button.clicked,
-                lambda: FileOperations.save_track_data(main_window),
+                lambda: FileService.save_track_data(main_window),
                 "save_button.clicked"
             )
 
@@ -63,7 +63,7 @@ class FileSignalConnector:
             registry._connect_signal(
                 main_window,
                 main_window.add_point_button.clicked,
-                lambda: FileOperations.add_track_data(main_window),
+                lambda: FileService.add_track_data(main_window),
                 "add_point_button.clicked"
             )
 
@@ -75,11 +75,5 @@ class FileSignalConnector:
             main_window: The main application window
             registry: The signal registry for tracking connections
         """
-        # Export CSV button
-        if hasattr(main_window, 'export_csv_button'):
-            registry._connect_signal(
-                main_window,
-                main_window.export_csv_button.clicked,
-                lambda: FileOperations.export_to_csv(main_window),
-                "export_csv_button.clicked"
-            )
+        # Export signals will be connected here if needed in the future
+        pass
