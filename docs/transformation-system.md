@@ -294,8 +294,9 @@ data_y = ((screen_y / image_scale_adjustment - center_offset_y - pan_offset_y - 
 Enable comprehensive logging to trace transformation behavior:
 
 ```python
-import logging
-logging.getLogger('unified_transform').setLevel(logging.DEBUG)
+from services.logging_service import LoggingService
+logger = LoggingService.get_logger('unified_transform')
+logger.setLevel(logging.DEBUG)
 ```
 
 Check transformation parameters:

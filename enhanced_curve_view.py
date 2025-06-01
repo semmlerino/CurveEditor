@@ -20,9 +20,9 @@ from services.centering_zoom_service import CenteringZoomService as ZoomOperatio
 from services.curve_service import CurveService as CurveViewOperations
 from services.image_service import ImageService
 from services.input_service import InputService, CurveViewProtocol  # Import for type checking
-import logging
+from services.logging_service import LoggingService
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("enhanced_curve_view")
 
 
 class EnhancedCurveView(QWidget):

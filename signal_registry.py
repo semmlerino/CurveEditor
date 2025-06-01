@@ -16,7 +16,6 @@ Key improvements in this refactored version:
 """
 
 # Standard library imports
-import logging
 import traceback
 import typing
 from typing import TYPE_CHECKING, Any, Callable, Optional, List, Tuple
@@ -25,6 +24,7 @@ if TYPE_CHECKING:
     from main_window import MainWindow
 
 # Local imports
+from services.logging_service import LoggingService
 from signal_connectors import (
     EditSignalConnector,
     FileSignalConnector,
@@ -35,7 +35,7 @@ from signal_connectors import (
 )
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("signal_registry")
 
 if TYPE_CHECKING:
     pass

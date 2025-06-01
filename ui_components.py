@@ -22,11 +22,11 @@ This architecture ensures that:
 """
 
 # Standard library imports
-import logging
 from typing import Any, Protocol, cast
 
 # Configure logger
-logger = logging.getLogger(__name__)
+from services.logging_service import LoggingService
+logger = LoggingService.get_logger("ui_components")
 
 class CurveViewWithTimelineProtocol(Protocol):
     def updateTimelineForImage(self, index: int) -> None: ...

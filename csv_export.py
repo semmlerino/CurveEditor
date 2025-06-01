@@ -7,9 +7,9 @@ The Excel export functionality requires the optional xlsxwriter dependency.
 """
 
 from typing import List, Tuple
-import logging
+from services.logging_service import LoggingService
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("csv_export")
 
 
 def export_to_csv(file_path: str, curve_data: List[Tuple[int, float, float]], include_header: bool = True, delimiter: str = ',') -> bool:

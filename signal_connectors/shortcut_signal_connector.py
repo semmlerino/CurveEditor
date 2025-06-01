@@ -9,7 +9,6 @@ It organizes shortcuts by functional area for better maintainability.
 """
 
 # Standard library imports
-import logging
 from typing import TYPE_CHECKING, Any
 
 # Local imports
@@ -20,11 +19,12 @@ from services.dialog_service import DialogService
 from services.file_service import FileService
 from services.history_service import HistoryService as HistoryOperations
 from services.image_service import ImageService as ImageOperations
+from services.logging_service import LoggingService
 from services.visualization_service import VisualizationService as VisualizationOperations
 from ui_components import UIComponents
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("shortcut_signal_connector")
 
 if TYPE_CHECKING:
     pass

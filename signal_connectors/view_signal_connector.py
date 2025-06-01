@@ -8,7 +8,6 @@ This module handles all signal connections related to the curve view widget
 including point selection, movement, and view manipulation.
 """
 
-import logging
 from typing import Any, Callable, TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -16,9 +15,10 @@ if TYPE_CHECKING:
     from signal_registry import RegistryConnector
 
 from services.curve_service import CurveService as CurveViewOperations
+from services.logging_service import LoggingService
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("view_signal_connector")
 
 
 class ViewSignalConnector:

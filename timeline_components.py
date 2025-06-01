@@ -8,7 +8,6 @@ This module contains all timeline-related UI components including the timeline s
 frame controls, playback controls, and frame marker visualization.
 """
 
-import logging
 from typing import Optional, Any, Callable
 
 from PySide6.QtCore import Qt, QTimer
@@ -18,8 +17,10 @@ from PySide6.QtWidgets import (
     QVBoxLayout, QWidget
 )
 
+from services.logging_service import LoggingService
+
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("timeline_components")
 
 
 class TimelineFrameMarker(QWidget):

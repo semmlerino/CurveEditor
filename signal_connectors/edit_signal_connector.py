@@ -11,17 +11,17 @@ This module handles signal connections for editing operations including:
 """
 
 # Standard library imports
-import logging
 from typing import Any, Callable, TYPE_CHECKING
 
 # Local imports
 from services.curve_service import CurveService as CurveViewOperations
+from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
     from main_window import MainWindow
 
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("edit_signal_connector")
 
 
 class EditSignalConnector:

@@ -9,11 +9,11 @@ and improve separation of concerns.
 """
 
 import os
-import logging
 from typing import List, Dict, Any, Optional
 from services.protocols import PointsList
+from services.logging_service import LoggingService
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("application_state")
 
 # Constants
 DEFAULT_POINT_COLOR = "#FF0000"  # Default red color for points
