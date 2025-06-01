@@ -67,6 +67,10 @@ class LoggingService:
                 if log_dir:
                     os.makedirs(log_dir, exist_ok=True)
 
+                # Debug: Print to console to verify path
+                if console_output:
+                    print(f"[LoggingService] Creating log file: {log_file}")
+
                 # Create file handler with explicit error handling
                 file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
                 file_handler.setLevel(level)
@@ -76,16 +80,26 @@ class LoggingService:
                 cls._log_file = log_file
                 cls._file_handler = file_handler
 
-                # Write initial message and flush immediately
+                # Write initial message to verify file creation
                 logger.info(f"Logging initialized - Level: {logging.getLevelName(level)}, File: {log_file}")
-                file_handler.flush()  # Force flush to ensure file is written
+
+                # Force flush to ensure file is written immediately
+                file_handler.flush()
+
+                # Verify file was created
+                if os.path.exists(log_file):
+                    if console_output:
+                        print(f"[LoggingService] ✓ Log file created successfully: {log_file}")
+                else:
+                    if console_output:
+                        print(f"[LoggingService] ✗ Warning: Log file not created: {log_file}")
 
             except Exception as e:
                 # Print error to stderr for visibility
                 import traceback
                 print(f"ERROR: Failed to set up file logging: {e}", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
-                if console_output:
+                if console_output and logger.handlers:  # Only log if we have console handler
                     logger.error(f"Failed to set up file logging: {e}")
 
         cls._initialized = True

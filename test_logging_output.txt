@@ -1,0 +1,9 @@
+TESTING LOGGING FUNCTIONALITY
+=============================
+
+Running: python test_logging.py
+
+This will test if the logging system can create log files correctly.
+We'll need to check if logs are being written to the expected location.
+
+Next step: Running a simple test to create a log file directly with logging module.
