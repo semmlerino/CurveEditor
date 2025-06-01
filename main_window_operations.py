@@ -7,7 +7,6 @@ This module contains operation methods that were previously in MainWindow,
 helping to reduce the size of the MainWindow class by extracting business logic.
 """
 
-import logging
 from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import QTimer
@@ -21,6 +20,7 @@ from services.curve_service import CurveService as CurveViewOperations
 from services.analysis_service import AnalysisService as CurveDataOperations
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.unified_transformation_service import UnifiedTransformationService
+from services.logging_service import LoggingService
 from track_quality import TrackQualityUI
 from ui_components import UIComponents
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
     from main_window import MainWindow
     from typing import List
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("main_window_operations")
 
 
 class MainWindowOperations:

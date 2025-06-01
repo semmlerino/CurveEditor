@@ -7,7 +7,6 @@ This module contains the smoothing-related operations that were previously
 in MainWindow, helping to reduce the MainWindow class size.
 """
 
-import logging
 from typing import TYPE_CHECKING
 from PySide6.QtWidgets import QMessageBox
 from PySide6.QtCore import QTimer
@@ -15,11 +14,12 @@ from PySide6.QtCore import QTimer
 from services.analysis_service import AnalysisService as CurveDataOperations
 from services.dialog_service import DialogService
 from services.unified_transformation_service import UnifiedTransformationService
+from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
     from main_window import MainWindow
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("main_window_smoothing")
 
 
 class SmoothingOperations:

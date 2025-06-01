@@ -8,7 +8,6 @@ This module provides standardized error handling mechanisms to ensure consistent
 user experience and proper error reporting throughout the application.
 """
 
-import logging
 import traceback
 from typing import Any, Callable, Optional, TypeVar, Type, Union
 from unittest.mock import MagicMock, Mock
@@ -16,13 +15,14 @@ from unittest.mock import MagicMock, Mock
 from PySide6.QtWidgets import QMessageBox, QWidget
 
 from exceptions import CurveEditorError, RecoveryError
+from services.logging_service import LoggingService
 
 T = TypeVar("T")
 
 # Configure module logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("error_handling")
 
-def safe_operation(operation_name: Optional[str] = None, record_history: bool = True, 
+def safe_operation(operation_name: Optional[str] = None, record_history: bool = True,
                    expected_errors: Optional[list[Type[Exception]]] = None,
                    recovery_action: Optional[Callable[..., Any]] = None) -> Callable[[Callable[..., T]], Callable[..., Optional[T]]]:
     """Decorator for safely executing operations with standardized error handling.
@@ -49,13 +49,13 @@ def safe_operation(operation_name: Optional[str] = None, record_history: bool = 
         def wrapper(main_window: Any, *args: Any, **kwargs: Any) -> Optional[T]:
             op_name = operation_name or func.__name__.replace('_', ' ').title()
             logger.debug(f"Executing operation: {op_name}")
-            
+
             # Default to CurveEditorError if no specific errors are provided
             errors_to_catch = expected_errors or [CurveEditorError, Exception]
-            
+
             try:
                 result = func(main_window, *args, **kwargs)
-                
+
                 # Show success in status bar if appropriate
                 if hasattr(main_window, 'statusBar'):
                     main_window.statusBar().showMessage(f"{op_name} completed successfully", 2000)
@@ -66,7 +66,7 @@ def safe_operation(operation_name: Optional[str] = None, record_history: bool = 
                     main_window.add_to_history()
 
                 return result
-                
+
             except tuple(errors_to_catch) as e:
                 error_details = traceback.format_exc()
                 logger.error(f"Error in {op_name}: {str(e)}\n{error_details}")
@@ -79,13 +79,13 @@ def safe_operation(operation_name: Optional[str] = None, record_history: bool = 
                 # Verify main_window is a valid widget by checking for certain attributes
                 try:
                     if hasattr(main_window, 'isVisible') and not isinstance(main_window, (MagicMock, Mock)):
-                        show_error(main_window, f"Error in {op_name}", 
-                                  f"An error occurred during {op_name}:\n{str(e)}", 
+                        show_error(main_window, f"Error in {op_name}",
+                                  f"An error occurred during {op_name}:\n{str(e)}",
                                   error_details)
                 except Exception as dialog_error:
                     # Log error creating dialog but don't crash
                     logger.error(f"Error displaying error dialog: {dialog_error}")
-                
+
                 # Attempt recovery if a recovery action is provided
                 if recovery_action is not None:
                     try:
@@ -96,12 +96,12 @@ def safe_operation(operation_name: Optional[str] = None, record_history: bool = 
                     except Exception as recovery_error:
                         logger.error(f"Recovery for '{op_name}' failed: {str(recovery_error)}")
                         # Wrap in RecoveryError to provide context
-                        raise RecoveryError(f"Recovery failed for {op_name}", 
-                                           f"Original error: {str(e)}\nRecovery error: {str(recovery_error)}", 
+                        raise RecoveryError(f"Recovery failed for {op_name}",
+                                           f"Original error: {str(e)}\nRecovery error: {str(recovery_error)}",
                                            original_error=e) from recovery_error
-                
+
                 return None
-                
+
         return wrapper
     return decorator
 

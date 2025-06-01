@@ -3,11 +3,12 @@
 
 import json
 import os
-import logging
 from typing import Dict, Any
 
+from services.logging_service import LoggingService
+
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("config")
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'app_config.json')
 

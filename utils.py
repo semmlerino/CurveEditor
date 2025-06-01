@@ -3,11 +3,12 @@
 
 import os
 import re  # Added import for regex support
-import logging
 from typing import List, Dict, Tuple, Optional, Any
 
+from services.logging_service import LoggingService
+
 # Configure logger
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("utils")
 
 def get_image_files(directory: str) -> List[str]:
     """Get all image files in a directory."""

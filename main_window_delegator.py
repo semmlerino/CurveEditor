@@ -7,16 +7,16 @@ This module provides a delegator class that handles all method delegations
 for MainWindow, keeping the MainWindow class small and focused.
 """
 
-import logging
 from typing import TYPE_CHECKING, Any, List
 
 from main_window_operations import MainWindowOperations
 from main_window_smoothing import SmoothingOperations
+from services.logging_service import LoggingService
 
 if TYPE_CHECKING:
     from main_window import MainWindow
 
-logger = logging.getLogger(__name__)
+logger = LoggingService.get_logger("main_window_delegator")
 
 
 class MainWindowDelegator:
