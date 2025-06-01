@@ -72,27 +72,36 @@ class LoggingService:
                     print(f"[LoggingService] Creating log file: {log_file}")
 
                 # Create file handler with explicit error handling
-                file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+                # Use absolute path to ensure proper file creation
+                abs_log_file = os.path.abspath(log_file)
+                file_handler = logging.FileHandler(abs_log_file, mode='a', encoding='utf-8')
                 file_handler.setLevel(level)
                 file_handler.setFormatter(file_formatter)
                 logger.addHandler(file_handler)
 
-                cls._log_file = log_file
+                cls._log_file = abs_log_file
                 cls._file_handler = file_handler
 
                 # Write initial message to verify file creation
-                logger.info(f"Logging initialized - Level: {logging.getLevelName(level)}, File: {log_file}")
+                logger.info(f"Logging initialized - Level: {logging.getLevelName(level)}, File: {abs_log_file}")
 
-                # Force flush to ensure file is written immediately
+                # Force handler to write immediately
                 file_handler.flush()
 
+                # Also flush at OS level to ensure file is written
+                if hasattr(file_handler.stream, 'fileno'):
+                    try:
+                        os.fsync(file_handler.stream.fileno())
+                    except (OSError, AttributeError):
+                        pass  # Not all streams support fsync
+
                 # Verify file was created
-                if os.path.exists(log_file):
+                if os.path.exists(abs_log_file):
                     if console_output:
-                        print(f"[LoggingService] ✓ Log file created successfully: {log_file}")
+                        print(f"[LoggingService] ✓ Log file created successfully: {abs_log_file}")
                 else:
                     if console_output:
-                        print(f"[LoggingService] ✗ Warning: Log file not created: {log_file}")
+                        print(f"[LoggingService] ✗ Warning: Log file not created: {abs_log_file}")
 
             except Exception as e:
                 # Print error to stderr for visibility
@@ -197,3 +206,17 @@ class LoggingService:
         cls._initialized = False
         cls._root_logger = None
         cls._log_file = None
+
+    @classmethod
+    def force_flush(cls) -> None:
+        """Force flush all handlers to ensure logs are written."""
+        if cls._file_handler:
+            cls._file_handler.flush()
+            # Also flush at OS level
+            if hasattr(cls._file_handler.stream, 'fileno'):
+                try:
+                    os.fsync(cls._file_handler.stream.fileno())
+                except (OSError, AttributeError):
+                    pass
+        if cls._console_handler:
+            cls._console_handler.flush()
