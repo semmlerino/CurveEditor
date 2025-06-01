@@ -1,8 +1,7 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 """
-Logging service for the CurveEditor application.
-
-This module provides a central logging system to replace debug print statements
-with configurable logging across the application.
+Fix the LoggingService to ensure log files are properly created.
 """
 
 import logging
@@ -68,7 +67,7 @@ class LoggingService:
                 if log_dir:
                     os.makedirs(log_dir, exist_ok=True)
 
-                # Create file handler
+                # Create file handler with explicit error handling
                 file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
                 file_handler.setLevel(level)
                 file_handler.setFormatter(file_formatter)
@@ -77,10 +76,15 @@ class LoggingService:
                 cls._log_file = log_file
                 cls._file_handler = file_handler
 
-                # Write initial message
+                # Write initial message and flush immediately
                 logger.info(f"Logging initialized - Level: {logging.getLevelName(level)}, File: {log_file}")
+                file_handler.flush()  # Force flush to ensure file is written
 
             except Exception as e:
+                # Print error to stderr for visibility
+                import traceback
+                print(f"ERROR: Failed to set up file logging: {e}", file=sys.stderr)
+                traceback.print_exc(file=sys.stderr)
                 if console_output:
                     logger.error(f"Failed to set up file logging: {e}")
 
@@ -103,7 +107,13 @@ class LoggingService:
             cls.setup_logging()
 
         # Create child logger under curve_editor namespace
-        return logging.getLogger(f'curve_editor.{name}')
+        child_logger = logging.getLogger(f'curve_editor.{name}')
+
+        # IMPORTANT: Ensure child loggers propagate to parent
+        # This is critical for log messages to reach the file handler
+        child_logger.propagate = True
+
+        return child_logger
 
     @classmethod
     def set_level(cls, level: int) -> None:
@@ -163,9 +173,11 @@ class LoggingService:
     def close(cls) -> None:
         """Close all handlers and clean up."""
         if cls._file_handler:
+            cls._file_handler.flush()  # Flush before closing
             cls._file_handler.close()
             cls._file_handler = None
         if cls._console_handler:
+            cls._console_handler.flush()  # Flush before closing
             cls._console_handler.close()
             cls._console_handler = None
         cls._initialized = False
