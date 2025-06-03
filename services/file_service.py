@@ -93,8 +93,18 @@ def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) 
 
     try:
         return func(*args, **kwargs)
+    except AttributeError as e:
+        logger.error(f"Function {attr_name} not callable: {e}")
+        return None
+    except TypeError as e:
+        logger.error(f"Invalid arguments for {attr_name}: {e}")
+        return None
+    except ImportError as e:
+        logger.error(f"Import error in {attr_name}: {e}")
+        return None
     except Exception as e:
-        logger.error(f"Error calling {attr_name}: {e}")
+        # Keep a generic fallback for unexpected errors
+        logger.error(f"Unexpected error calling {attr_name}: {e.__class__.__name__}: {e}")
         return None
 
 class FileService:

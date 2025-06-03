@@ -109,8 +109,15 @@ class ImageService:
                 # Emit the image_changed signal
                 logger.debug(f"Emitting image_changed signal for idx={curve_view.current_image_idx}")
                 curve_view.image_changed.emit(curve_view.current_image_idx)
+        except FileNotFoundError as e:
+            logger.error(f"Image file not found: {str(e)}")
+            curve_view.background_image = None
+        except (IOError, OSError) as e:
+            logger.error(f"Error reading image file: {str(e)}")
+            curve_view.background_image = None
         except Exception as e:
-            logger.error(f"Error loading image: {str(e)}")
+            # Keep generic fallback for unexpected errors
+            logger.error(f"Unexpected error loading image: {e.__class__.__name__}: {str(e)}")
             curve_view.background_image = None
 
     @staticmethod
@@ -159,7 +166,8 @@ class ImageService:
                     try:
                         result = center_fn(preserve_zoom=True)
                         success = bool(result)
-                    except Exception:
+                    except (TypeError, AttributeError) as e:
+                        logger.debug(f"centerOnSelectedPoint with preserve_zoom failed: {e}")
                         success = False
                 if success:
                     logger.debug(f"Successfully centered on point {getattr(curve_view, 'selected_point_idx', '?')}")
@@ -446,9 +454,9 @@ class ImageService:
     @staticmethod
     def load_previous_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load the previously used image sequence from settings.
-        
+
         If no previous sequence is found, attempts to load the default burger sequence.
-        
+
         Args:
             main_window: The main window instance
         """
@@ -457,13 +465,13 @@ class ImageService:
         if curve_view is None:
             logger.error("Cannot load previous image sequence: curve_view not found")
             return
-            
+
         # Try to load from settings
         from services.settings_service import SettingsService
-        
+
         # Get previous image path from settings
         image_path = SettingsService.get_setting("last_image_path", "", str)
-        
+
         if image_path and os.path.isdir(image_path):
             logger.info(f"Loading previous image sequence from: {image_path}")
             # Load all image files from the directory
@@ -471,14 +479,14 @@ class ImageService:
             for filename in os.listdir(image_path):
                 filename_str: str = str(filename)  # Ensure we have a string
                 file_path: str = os.path.join(image_path, filename_str)
-                if (os.path.isfile(file_path) and 
+                if (os.path.isfile(file_path) and
                     any(filename_str.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".bmp", ".tif", ".tiff"])):
                     image_files.append(filename_str)
-            
+
             if image_files:
                 # Sort files to ensure correct sequence order
                 image_files.sort()
-                
+
                 # Configure curve view to use the image sequence
                 if hasattr(main_window, 'curve_view'):
                     ImageService.set_image_sequence(main_window.curve_view, image_path, image_files)  # type: ignore[arg-type]
@@ -490,11 +498,11 @@ class ImageService:
         else:
             # Try to load default burger sequence
             ImageService._load_default_burger_sequence(main_window)
-            
+
     @staticmethod
     def _load_default_burger_sequence(main_window: MainWindowProtocol) -> None:
         """Load the default sample image sequence from the footage folder.
-        
+
         Args:
             main_window: The main window instance
         """
@@ -503,10 +511,10 @@ class ImageService:
         if curve_view is None:
             logger.error("Cannot load sample footage: curve_view not found")
             return
-            
+
         # Try to find the sample data directory in the footage/Burger folder
         default_path: str = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "footage", "Burger")
-        
+
         if os.path.isdir(default_path):
             logger.info(f"Loading sample footage from: {default_path}")
             # Find image files in the burger directory
@@ -514,21 +522,21 @@ class ImageService:
             for filename in os.listdir(default_path):
                 filename_str: str = str(filename)  # Ensure we have a string
                 file_path: str = os.path.join(default_path, filename_str)
-                if (os.path.isfile(file_path) and 
+                if (os.path.isfile(file_path) and
                     any(filename_str.lower().endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".bmp"])):
                     image_files.append(filename_str)
-            
+
             if image_files:
                 # Sort files to ensure correct sequence order
                 image_files.sort()
-                
+
                 # Set the image sequence
                 ImageService.set_image_sequence(curve_view, default_path, image_files)  # type: ignore[arg-type]
-                
+
                 # Save this path as the last used path
                 from services.settings_service import SettingsService
                 SettingsService.set_setting("last_image_path", default_path)
-                
+
                 logger.info(f"Loaded {len(image_files)} images from sample footage directory")
             else:
                 logger.warning(f"No image files found in sample footage directory: {default_path}")

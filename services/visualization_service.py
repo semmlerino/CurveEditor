@@ -146,8 +146,13 @@ class VisualizationService:
                             curve_view.update()
                             logger.debug(f"Updated selected point to {i}")
                         break
+        except AttributeError as e:
+            logger.error(f"Missing attribute in curve_view: {str(e)}")
+        except (IndexError, ValueError) as e:
+            logger.error(f"Error processing frame data: {str(e)}")
         except Exception as e:
-            logger.error(f"Error updating timeline: {str(e)}")
+            # Log unexpected errors with class name for debugging
+            logger.error(f"Unexpected error updating timeline: {e.__class__.__name__}: {str(e)}")
 
     @staticmethod
     def update_frame_marker_position(curve_view: CurveViewProtocol, frame: int) -> None:
