@@ -2,14 +2,14 @@
 
 import copy
 import math
-from typing import List, Tuple, Optional, Dict, TypeVar, Protocol, Any, Sequence
+from typing import List, Tuple, Optional, Dict, TypeVar, Protocol, Sequence
 
 from services.logging_service import LoggingService
-from services.protocols import PointsList
+from core.protocols import PointsList
 
 logger = LoggingService.get_logger("analysis_service")
 
-# Type annotations for scipy will be handled with Any to avoid import errors
+# Type annotations for scipy will be handled with Union types to avoid import errors
 
 
 class CurveProcessor(Protocol):
@@ -19,7 +19,7 @@ class CurveProcessor(Protocol):
         """Get the processed curve data"""
         ...
 
-    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Optional[object] = None) -> None:
         """Apply moving average smoothing"""
         ...
 
@@ -38,7 +38,7 @@ class ConcreteCurveProcessor:
         """Get the processed curve data"""
         return self.data
 
-    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Optional[object] = None) -> None:
         """Apply moving average smoothing to x and y coordinates.
 
         This implementation applies a proper moving average filter where each point
@@ -242,14 +242,14 @@ class AnalysisService:
         # Find outliers
         outliers: List[int] = []
 
-        # Check first point
-        if velocities[0] > threshold:
-            outliers.append(0)
+        # Check first point (velocity from point 0 to 1)
+        if velocities[0] >= threshold:
+            outliers.append(1)  # Point 1 is the destination of the high velocity
 
-        # Check middle points
+        # Check middle points (velocity from point i to i+1)
         for i in range(1, len(velocities)):
-            if velocities[i] > threshold:
-                outliers.append(i)
+            if velocities[i] >= threshold:
+                outliers.append(i + 1)  # Point i+1 is the destination of the high velocity
 
         return outliers
 
@@ -301,7 +301,7 @@ class AnalysisService:
         """
         return self.data
 
-    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Any = None) -> None:
+    def smooth_moving_average(self, indices: Sequence[int], window_size: int, real_view: Optional[object] = None) -> None:
         """
         Apply moving average smoothing to specified points
 
@@ -578,8 +578,8 @@ class AnalysisService:
                 return
 
             # Find context points for better spline (include neighboring points)
-            # Use Any type to accommodate both tuple types
-            context_points: List[Any] = []
+            # Use Union type to accommodate both tuple types
+            context_points: List[Tuple[int, float, float]] = []
 
             # Get points within a window around the gap for better spline fitting
             window_size = 2  # Points before and after the gap
@@ -648,7 +648,7 @@ class AnalysisService:
         for i, point in enumerate(self.data):
             frame = point[0]
             if frame not in seen_frames:
-                seen_frames[frame] = i
+                seen_frames[frame] = len(unique_data)  # Store index in unique_data, not original data
                 unique_data.append(point)
             else:
                 removed += 1

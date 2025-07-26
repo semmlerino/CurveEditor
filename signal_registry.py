@@ -18,7 +18,8 @@ Key improvements in this refactored version:
 # Standard library imports
 import traceback
 import typing
-from typing import TYPE_CHECKING, Any, Callable, Optional, List, Tuple
+from typing import TYPE_CHECKING, Callable, Optional, List, Tuple
+from PySide6.QtCore import Signal
 
 if TYPE_CHECKING:
     from main_window import MainWindow
@@ -41,6 +42,17 @@ if TYPE_CHECKING:
     pass
 
 
+class RegistryConnector:
+    """Helper class for signal registry connections."""
+    
+    def _connect_signal(self, main_window: 'MainWindow', signal: Signal, slot: Callable[..., None], signal_name: Optional[str] = None) -> bool:
+        return SignalRegistry._connect_signal(main_window, signal, slot, signal_name)
+
+    # Make the object callable so it works for connector classes using direct function calls
+    def __call__(self, main_window: 'MainWindow', signal: Signal, slot: Callable[..., None], signal_name: Optional[str] = None) -> bool:
+        return self._connect_signal(main_window, signal, slot, signal_name)
+
+
 class SignalRegistry:
     """Centralized registry for managing signal connections.
 
@@ -50,7 +62,7 @@ class SignalRegistry:
     """
 
     @classmethod
-    def connect_all_signals(cls, main_window: Any) -> None:
+    def connect_all_signals(cls, main_window: 'MainWindow') -> None:
         """Connect all signals throughout the application.
 
         Args:
@@ -69,21 +81,7 @@ class SignalRegistry:
         print("CONNECTING ALL APPLICATION SIGNALS")
         print("="*80)
 
-        # Create a wrapper class that has the _connect_signal method
-        # This allows connector classes to use registry._connect_signal() syntax
-        # Also make it callable for connectors that expect a function
-import typing
-
-class RegistryConnector:
-    def _connect_signal(self, main_window: 'MainWindow', signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
-        return SignalRegistry._connect_signal(main_window, signal, slot, signal_name)
-
-    # Make the object callable so it works for connector classes using direct function calls
-    def __call__(self, main_window: 'MainWindow', signal: Any, slot: Callable[..., Any], signal_name: Optional[str] = None) -> bool:
-        return self._connect_signal(main_window, signal, slot, signal_name)
-
-# ... inside SignalRegistry.connect_all_signals ...
-# Create an instance of our wrapper
+        # Create an instance of our wrapper
         registry_connector = RegistryConnector()
 
         # Define all signal connection groups to process
@@ -125,8 +123,8 @@ class RegistryConnector:
     @staticmethod
     def _connect_signal(
         main_window: 'MainWindow',
-        signal: Any,
-        slot: Callable[..., Any],
+        signal: Signal,
+        slot: Callable[..., None],
         signal_name: Optional[str] = None
     ) -> bool:
         """Connect a signal to a slot with tracking and error handling.
