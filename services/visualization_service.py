@@ -14,7 +14,7 @@ from PySide6.QtGui import QColor
 
 from services.centering_zoom_service import CenteringZoomService
 from services.logging_service import LoggingService
-from services.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
+from core.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
 
 logger = LoggingService.get_logger("visualization_service")
 
@@ -37,9 +37,12 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def toggle_velocity_vectors(curve_view: CurveViewProtocol, enabled: bool) -> None:
+    def toggle_velocity_vectors(curve_view: CurveViewProtocol, enabled: Optional[bool] = None) -> None:
         """Toggle velocity vector display."""
-        curve_view.show_velocity_vectors = enabled
+        if enabled is None:
+            curve_view.show_velocity_vectors = not getattr(curve_view, 'show_velocity_vectors', False)
+        else:
+            curve_view.show_velocity_vectors = enabled
         curve_view.update()
 
     @staticmethod
@@ -49,9 +52,12 @@ class VisualizationService:
         curve_view.update()
 
     @staticmethod
-    def toggle_crosshair(curve_view: CurveViewProtocol, enabled: bool) -> None:
+    def toggle_crosshair(curve_view: CurveViewProtocol, enabled: Optional[bool] = None) -> None:
         """Toggle crosshair visibility."""
-        curve_view.show_crosshair = enabled
+        if enabled is None:
+            curve_view.show_crosshair = not getattr(curve_view, 'show_crosshair', False)
+        else:
+            curve_view.show_crosshair = enabled
         curve_view.update()
 
     @staticmethod
@@ -201,8 +207,6 @@ class VisualizationService:
         view_state = None
         if preserve_view:
             # Log the view state we're preserving
-            import logging
-            logger = logging.getLogger(__name__)
             logger.debug("VISUALSERVICE: Preserving view state before setting points")
 
             # Handle different naming conventions in different view implementations
@@ -231,9 +235,6 @@ class VisualizationService:
             CenteringZoomService.reset_view(curve_view)  # type: ignore[arg-type]
         else:
             # Only log if we have something to restore
-            import logging
-            logger = logging.getLogger(__name__)
-
             if view_state:
                 logger.debug(f"VISUALSERVICE: Restoring view state after setting points: {view_state}")
 
@@ -330,3 +331,51 @@ Internal implementation of toggle_crosshair.
             enabled: Whether to enable or disable the crosshair
         """
         VisualizationService.toggle_crosshair(curve_view, enabled)
+    
+    @staticmethod
+    def toggle_grid_from_main_window(main_window: Any) -> None:
+        """
+        Toggle grid visibility from main window.
+        
+        Args:
+            main_window: The main window instance
+        """
+        if hasattr(main_window, 'curve_view') and main_window.curve_view is not None:
+            # Toggle the state
+            current_state = getattr(main_window.curve_view, 'show_grid', False)
+            new_state = not current_state
+            main_window.curve_view.show_grid = new_state
+            main_window.curve_view.update()
+            
+            # Update button state if available
+            if hasattr(main_window, 'toggle_grid_view_button'):
+                main_window.toggle_grid_view_button.setChecked(new_state)
+                # Update button text to show state
+                if new_state:
+                    main_window.toggle_grid_view_button.setText("☷ Grid ✓")
+                else:
+                    main_window.toggle_grid_view_button.setText("☷ Grid")
+    
+    @staticmethod
+    def toggle_background_from_main_window(main_window: Any) -> None:
+        """
+        Toggle background visibility from main window.
+        
+        Args:
+            main_window: The main window instance
+        """
+        if hasattr(main_window, 'curve_view') and main_window.curve_view is not None:
+            # Toggle the state
+            current_state = getattr(main_window.curve_view, 'show_background', False)
+            new_state = not current_state
+            main_window.curve_view.show_background = new_state
+            main_window.curve_view.update()
+            
+            # Update button state if available
+            if hasattr(main_window, 'toggle_background_button'):
+                main_window.toggle_background_button.setChecked(new_state)
+                # Update button text to show state
+                if new_state:
+                    main_window.toggle_background_button.setText("🎨 Background ✓")
+                else:
+                    main_window.toggle_background_button.setText("🎨 Background")

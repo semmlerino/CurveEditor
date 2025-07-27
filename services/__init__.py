@@ -24,8 +24,9 @@ from services.image_service import ImageService
 from services.input_service import InputService
 from services.logging_service import LoggingService
 from services.models import Point, PointsCollection
-from services.protocols import PointsList
+from core.protocols import PointsList
 from services.settings_service import SettingsService
+from services.status_manager import StatusManager
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
 from services.view_state import ViewState
@@ -39,7 +40,7 @@ __all__ = [
     # Core services
     'AnalysisService', 'CurveService', 'DialogService', 'FileService',
     'HistoryService', 'ImageService', 'InputService', 'LoggingService',
-    'SettingsService', 'VisualizationService', 'TrackQualityAnalysisService',
+    'SettingsService', 'StatusManager', 'VisualizationService', 'TrackQualityAnalysisService',
 
     # Unified transformation system
     'Transform', 'UnifiedTransformationService',

@@ -14,7 +14,7 @@ This service handles:
 import copy
 from typing import Dict, Any
 
-from services.protocols import HistoryContainerProtocol
+from core.protocols import HistoryContainerProtocol
 
 class HistoryService:
     """Service for managing application history stack and undo/redo operations."""
@@ -80,6 +80,17 @@ class HistoryService:
         HistoryService.update_history_buttons(main_window)
 
     @staticmethod
+    def undo(main_window: HistoryContainerProtocol) -> None:
+        """Undo the last action by moving back in history.
+        
+        Alias for undo_action to maintain API compatibility.
+
+        Args:
+            main_window: The main application window
+        """
+        HistoryService.undo_action(main_window)
+
+    @staticmethod
     def redo_action(main_window: HistoryContainerProtocol) -> None:
         """Redo the previously undone action by moving forward in history.
 
@@ -92,6 +103,17 @@ class HistoryService:
         main_window.history_index += 1
         HistoryService.restore_state(main_window, main_window.history[main_window.history_index])
         HistoryService.update_history_buttons(main_window)
+
+    @staticmethod
+    def redo(main_window: HistoryContainerProtocol) -> None:
+        """Redo the previously undone action by moving forward in history.
+        
+        Alias for redo_action to maintain API compatibility.
+
+        Args:
+            main_window: The main application window
+        """
+        HistoryService.redo_action(main_window)
 
     @staticmethod
     def restore_state(main_window: HistoryContainerProtocol, state: Dict[str, Any]) -> None:

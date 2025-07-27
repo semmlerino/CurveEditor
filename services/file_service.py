@@ -35,14 +35,14 @@ Note:
 import logging
 import os
 from types import ModuleType
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, cast
 
 # Third-party imports
 from PySide6.QtWidgets import QMessageBox, QFileDialog
 
 # Local imports
 from services.logging_service import LoggingService
-from services.protocols import MainWindowProtocol, PointsList
+from core.protocols import MainWindowProtocol, PointsList
 
 # Safe module imports with fallbacks
 # We'll define utility functions that provide safe access to modules that might not be available
@@ -455,7 +455,11 @@ class FileService:
 
         """
         file_path, _ = QFileDialog.getOpenFileName(
-            main_window.qwidget, "Load 2D Track Data", main_window.default_directory, "Text Files (*.txt);;All Files (*)"
+            main_window.qwidget, 
+            "Load 2D Track Data", 
+            main_window.default_directory, 
+            "Text Files (*.txt);;All Files (*)",
+            ""  # selectedFilter parameter
         )
 
         if not file_path:
@@ -478,6 +482,8 @@ class FileService:
             main_window.point_name = str(point_name) if point_name is not None else "Unknown"
             main_window.point_color = str(point_color) if point_color is not None else "red"
             main_window.curve_data = curve_data
+            main_window.track_data_loaded = True
+            main_window.last_opened_file = file_path
 
             # Determine image dimensions from the data
             dimensions = FileService.call_utils("curve_utils", "estimate_image_dimensions", curve_data)
@@ -511,8 +517,9 @@ class FileService:
             if hasattr(main_window, 'extrapolate_button'):
                 main_window.extrapolate_button.setEnabled(True)
 
-            # Update info
-            main_window.info_label.setText(f"Loaded: {main_window.point_name} ({len(main_window.curve_data)} frames)")
+            # Update status using centralized StatusManager
+            from services.status_manager import StatusManager
+            StatusManager.on_curve_data_loaded(main_window)
 
             # Setup timeline - let the UI components calculate the frame range from curve_data
             main_window.setup_timeline()
@@ -640,7 +647,7 @@ class FileService:
                     logger.warning(f"No valid image files found in {last_image_path}")
                     # If no images were found in the previous path, try the default Burger sequence
                     if last_image_path != default_burger_path and os.path.isdir(default_burger_path):
-                        logger.info(f"Trying default Burger sequence as fallback")
+                        logger.info("Trying default Burger sequence as fallback")
                         last_image_path = default_burger_path
                         for file in os.listdir(default_burger_path):
                             if any(file.lower().endswith(ext) for ext in valid_extensions):
@@ -720,7 +727,6 @@ class FileService:
             - Adds operation to history for undo functionality
 
         """
-        from typing import cast, Any
         if not main_window.curve_data:
             return
 
@@ -796,8 +802,83 @@ class FileService:
             ]
             main_window.curve_data = merged_points
 
+            # Update status using centralized StatusManager
+            from services.status_manager import StatusManager
+            StatusManager.on_curve_data_loaded(main_window)
+
             main_window.add_to_history()
 
         except Exception as e:
             logger.error(f"Error adding track data: {e}")
             return
+
+    @staticmethod
+    def save_track_data(main_window: MainWindowProtocol) -> None:
+        """Save current track data to a file.
+
+        Opens a file dialog for the user to select where to save the track data,
+        then writes the current curve data to the selected file.
+
+        Args:
+            main_window: The main window instance containing the curve data to save.
+
+        Returns:
+            None
+
+        Example:
+            FileService.save_track_data(main_window)
+
+        Note:
+            - Requires existing curve data to be loaded first
+            - Saves in 3DE track data format
+            - Updates last_opened_file path after successful save
+
+        Side Effects:
+            - Creates or overwrites the selected file
+            - Updates main_window.last_opened_file
+        """
+        if not main_window.curve_data:
+            QMessageBox.warning(
+                main_window.qwidget, 
+                "No Data", 
+                "No track data to save. Please load or create track data first."
+            )
+            return
+
+        file_path, _ = QFileDialog.getSaveFileName(
+            main_window.qwidget,
+            "Save Track Data",
+            main_window.default_directory,
+            "Text Files (*.txt);;3DE Files (*.3de);;All Files (*)",
+            ""  # selectedFilter parameter
+        )
+
+        if not file_path:
+            return
+
+        try:
+            with open(file_path, 'w') as f:
+                # Write header comment
+                f.write(f"# 3DE Track Data\n")
+                f.write(f"# Point: {main_window.point_name}\n")
+                
+                # Write track data
+                for point in main_window.curve_data:
+                    if len(point) >= 3:
+                        f.write(f"{point[0]} {point[1]:.6f} {point[2]:.6f}\n")
+                    
+            # Update last opened file
+            main_window.last_opened_file = file_path
+            
+            # Update config if available
+            FileService.set_config_value("last_opened_file", file_path)
+            
+            logger.info(f"Successfully saved {len(main_window.curve_data)} points to {file_path}")
+            
+        except Exception as e:
+            logger.error(f"Error saving track data: {e}")
+            QMessageBox.critical(
+                main_window.qwidget, 
+                "Error", 
+                f"Failed to save track data: {e}"
+            )

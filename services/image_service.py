@@ -7,14 +7,16 @@ Provides functionality for loading and manipulating image sequences.
 """
 
 import os
-from typing import List, Tuple, Optional, cast
+from typing import List, Tuple, Optional, cast, Any
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QMessageBox, QFileDialog
+from PySide6.QtWidgets import QMessageBox, QFileDialog, QApplication
 
 import config
 from services.logging_service import LoggingService
-from services.protocols import CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol
+from services.settings_service import SettingsService
+from core.protocols import CurveViewProtocol, ImageSequenceProtocol, MainWindowProtocol
 
 # Configure logger for this module
 logger = LoggingService.get_logger("image_service")
@@ -109,16 +111,37 @@ class ImageService:
                 # Emit the image_changed signal
                 logger.debug(f"Emitting image_changed signal for idx={curve_view.current_image_idx}")
                 curve_view.image_changed.emit(curve_view.current_image_idx)
+                
+                # Update status using centralized StatusManager
+                if hasattr(curve_view, 'main_window') and curve_view.main_window:
+                    from services.status_manager import StatusManager
+                    StatusManager.on_image_data_loaded(curve_view.main_window)
+                
+                # Mark that we need to fit content (will happen on next paint)
+                if hasattr(curve_view, '_needs_initial_fit'):
+                    curve_view._needs_initial_fit = True
         except FileNotFoundError as e:
             logger.error(f"Image file not found: {str(e)}")
             curve_view.background_image = None
+            # Update status when image loading fails
+            if hasattr(curve_view, 'main_window') and curve_view.main_window:
+                from services.status_manager import StatusManager
+                StatusManager.update_status(curve_view.main_window)
         except (IOError, OSError) as e:
             logger.error(f"Error reading image file: {str(e)}")
             curve_view.background_image = None
+            # Update status when image loading fails
+            if hasattr(curve_view, 'main_window') and curve_view.main_window:
+                from services.status_manager import StatusManager
+                StatusManager.update_status(curve_view.main_window)
         except Exception as e:
             # Keep generic fallback for unexpected errors
             logger.error(f"Unexpected error loading image: {e.__class__.__name__}: {str(e)}")
             curve_view.background_image = None
+            # Update status when image loading fails
+            if hasattr(curve_view, 'main_window') and curve_view.main_window:
+                from services.status_manager import StatusManager
+                StatusManager.update_status(curve_view.main_window)
 
     @staticmethod
     def set_current_image_by_index(curve_view: ImageSequenceProtocol, idx: int) -> None:
@@ -138,7 +161,6 @@ class ImageService:
         ImageService.load_current_image(curve_view)
 
         # After changing the image, center on the selected point using our improved function
-        from typing import Any, Tuple, Optional
         point: Optional[Tuple[float, float, float]] = None
         center_pos: Optional[Tuple[float, float]] = None
         curve_data: Any = None
@@ -181,7 +203,6 @@ class ImageService:
             set_focus_fn = getattr(curve_view, 'setFocus', None)
             if callable(set_focus_fn):
                 set_focus_fn()
-        from services.protocols import CurveViewProtocol
         if isinstance(curve_view, CurveViewProtocol):
             update_fn = getattr(curve_view, 'update', None)
             if callable(update_fn):
@@ -193,51 +214,34 @@ class ImageService:
     @staticmethod
     def load_image_sequence(main_window: MainWindowProtocol) -> None:
         """Load an image sequence to use as background."""
-        # Open file dialog to select the first image in a sequence
+        # Open dialog to select directory containing image sequence
         options = QFileDialog.Option.DontUseNativeDialog
 
-        file_path, _ = QFileDialog.getOpenFileName(
+        directory = QFileDialog.getExistingDirectory(
             main_window.qwidget if hasattr(main_window, 'qwidget') else None,
-            "Select First Image in Sequence",
+            "Select Directory Containing Image Sequence",
             main_window.default_directory,
-            "Image Files (*.jpg *.jpeg *.png *.tif *.tiff *.exr)",
-            "",
             options
         )
 
-        if not file_path:
+        if not directory:
             return  # User canceled
 
-        # Get the directory and base filename
-        directory = os.path.dirname(file_path)
-        filename = os.path.basename(file_path)
         config.set_last_folder_path(directory)
-
-        # Save the image sequence path to config
         config.set_last_image_sequence_path(directory)
 
-        # Try to determine the frame number format
-        # Look for patterns like name.1234.ext or name_1234.ext
-        base_name, frame_num, ext = ImageService._parse_filename(filename)
-        if frame_num is None or base_name is None or not ext:
-            QMessageBox.warning(
-                main_window.qwidget if hasattr(main_window, 'qwidget') else None,
-                "Invalid Filename",
-                "Could not determine frame number format from filename.",
-            )
-            return
-
-        # Find all matching files in the directory
+        # Find all image files in the directory
         main_window.image_sequence_path = directory
         main_window.image_filenames = []
 
         # List all files in the directory
         all_files = os.listdir(directory)
+        valid_extensions = ['.jpg', '.jpeg', '.png', '.tif', '.tiff', '.exr']
 
-        # Filter for files that match our pattern
+        # Filter for valid image files
         for file in all_files:
-            # Check if this file matches our pattern (either name.X.ext or name_X.ext)
-            if (file.startswith(base_name) and file.endswith(ext)):
+            file_lower = file.lower()
+            if any(file_lower.endswith(ext) for ext in valid_extensions):
                 main_window.image_filenames.append(file)
 
         # Sort the filenames (they should sort naturally by frame number)
@@ -252,8 +256,6 @@ class ImageService:
             return
 
         # Set the image sequence in the curve view
-        from PySide6.QtCore import Qt
-        from PySide6.QtWidgets import QApplication
         QApplication.setOverrideCursor(Qt.CursorShape.WaitCursor)
 
         # Configure curve view to use the image sequence
@@ -273,7 +275,8 @@ class ImageService:
         QMessageBox.information(
             main_window.qwidget if hasattr(main_window, 'qwidget') else None,
             "Image Sequence Loaded",
-            f"Loaded {len(main_window.image_filenames)} images from sequence."
+            f"Loaded {len(main_window.image_filenames)} images from sequence.",
+            QMessageBox.StandardButton.Ok
         )
 
     @staticmethod
@@ -323,7 +326,6 @@ class ImageService:
     @staticmethod
     def next_image(main_window: MainWindowProtocol) -> None:
         """Show the next image in the sequence."""
-        from typing import Any, Optional  # Ensure imports
         curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
         if curve_view is None:
             return
@@ -336,12 +338,14 @@ class ImageService:
         cv = cast(CurveViewProtocol, curve_view)
         if cv.current_image_idx >= len(main_window.image_filenames) - 1:
             return
-        cv.setCurrentImageByIndex(cv.current_image_idx + 1)
+        new_idx = cv.current_image_idx + 1
+        cv.setCurrentImageByIndex(new_idx)
+        # Update main window current_frame to match
+        main_window.current_frame = new_idx
 
     @staticmethod
     def previous_image(main_window: MainWindowProtocol) -> None:
         """Show the previous image in the sequence."""
-        from typing import Any, Optional
         curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
         if curve_view is None:
             return
@@ -354,12 +358,42 @@ class ImageService:
         cv = cast(CurveViewProtocol, curve_view)
         if cv.current_image_idx <= 0:
             return
-        cv.setCurrentImageByIndex(cv.current_image_idx - 1)
+        new_idx = cv.current_image_idx - 1
+        cv.setCurrentImageByIndex(new_idx)
+        # Update main window current_frame to match
+        main_window.current_frame = new_idx
+
+    @staticmethod
+    def prev_image(main_window: MainWindowProtocol) -> None:
+        """Alias for previous_image to maintain API compatibility."""
+        ImageService.previous_image(main_window)
+
+    @staticmethod
+    def go_to_frame(main_window: MainWindowProtocol, frame: int) -> None:
+        """Go to a specific frame in the image sequence.
+        
+        Args:
+            main_window: The main window instance
+            frame: Target frame number (will be clamped to valid range)
+        """
+        if not hasattr(main_window, 'image_filenames') or not main_window.image_filenames:
+            return
+            
+        # Clamp frame to valid range
+        max_frame = len(main_window.image_filenames) - 1
+        clamped_frame = max(0, min(max_frame, frame))
+        
+        # Update current frame
+        main_window.current_frame = clamped_frame
+        
+        # Set image by index if curve_view exists
+        curve_view = getattr(main_window, 'curve_view', None)
+        if curve_view and hasattr(curve_view, 'setCurrentImageByIndex'):
+            curve_view.setCurrentImageByIndex(clamped_frame)
 
     @staticmethod
     def toggle_background_visible(main_window: MainWindowProtocol) -> None:
         """Toggle the visibility of the background image."""
-        from typing import Any, Optional
         curve_view: Optional[Any] = getattr(main_window, 'curve_view', None)
         if curve_view is None:
             return
@@ -413,6 +447,9 @@ class ImageService:
         curve_view.image_filenames = filenames
         curve_view.current_image_idx = 0 if filenames else -1
         ImageService.load_current_image(curve_view)
+        # Mark that we need to fit content (will happen on next paint)
+        if hasattr(curve_view, '_needs_initial_fit'):
+            curve_view._needs_initial_fit = True
         curve_view.update()
 
     def set_image_sequence_instance(self, curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None:
@@ -467,8 +504,6 @@ class ImageService:
             return
 
         # Try to load from settings
-        from services.settings_service import SettingsService
-
         # Get previous image path from settings
         image_path = SettingsService.get_setting("last_image_path", "", str)
 
@@ -534,7 +569,6 @@ class ImageService:
                 ImageService.set_image_sequence(curve_view, default_path, image_files)  # type: ignore[arg-type]
 
                 # Save this path as the last used path
-                from services.settings_service import SettingsService
                 SettingsService.set_setting("last_image_path", default_path)
 
                 logger.info(f"Loaded {len(image_files)} images from sample footage directory")
