@@ -4,8 +4,36 @@
 """
 Info rendering component for CurveView.
 
-This module contains the InfoRenderer class responsible for rendering
-information overlays including view stats, image info, and debug information.
+Architecture Component: InfoRenderer
+This module implements the information overlay rendering component that handles
+all text-based information display within the new rendering architecture.
+
+Responsibilities:
+- View statistics display (zoom level, point counts, selection info)
+- Image sequence information (current image, dimensions, file path)
+- Debug information overlays (coordinate system, transformation parameters)
+- Performance metrics and rendering statistics
+- Error and status message display
+
+Information Categories:
+1. View State: Current zoom, pan offset, transformation mode
+2. Data Statistics: Total points, selected points, interpolated points
+3. Image Information: Current frame, image dimensions, sequence path
+4. Debug Overlays: Coordinate grids, transformation bounds, performance timers
+
+Key Design Decisions:
+- Consolidated all text rendering into a single component for consistency
+- Uses UIScaling fonts for responsive text sizing across different DPI settings
+- Implements layered information display with priority-based visibility
+- Maintains debug information separate from user-facing status information
+- Preserves all original information display behavior from monolithic implementation
+
+Integration Points:
+- Independent of coordinate transformations (renders in screen space)
+- Uses CurveViewProtocol for accessing view state and data statistics
+- Integrates with ImageService for current image information
+- Coordinates with UIScaling for theme-aware colors and responsive typography
+- Works alongside other renderers without coordinate system conflicts
 """
 
 import os
@@ -16,6 +44,7 @@ from PySide6.QtGui import QPainter, QColor, QPen
 from ui_scaling import UIScaling
 from services.logging_service import LoggingService
 from services.image_service import ImageService
+from core.protocols.protocols import CurveViewProtocol
 
 if TYPE_CHECKING:
     from core.protocols import PointsList
@@ -32,7 +61,7 @@ class InfoRenderer:
     to the original paintEvent info rendering logic.
     """
     
-    def render_info(self, painter: QPainter, curve_view: 'CurveViewProtocol') -> None:
+    def render_info(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """
         Render all information overlays.
         
@@ -129,22 +158,4 @@ class InfoRenderer:
         painter.drawText(10, 80, shortcuts)
 
 
-# Protocol for type checking
-try:
-    from typing import Protocol
-    from PySide6.QtGui import QPixmap
-    
-    class CurveViewProtocol(Protocol):
-        points: 'PointsList'
-        selected_points: Set[int]
-        zoom_factor: float
-        background_image: QPixmap
-        debug_mode: bool
-        flip_y_axis: bool
-        scale_to_image: bool
-        image_width: int
-        image_height: int
-        
-except ImportError:
-    # Fallback for older Python versions
-    CurveViewProtocol = object
+# Protocol is already imported from core.protocols.protocols

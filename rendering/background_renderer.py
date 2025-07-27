@@ -4,20 +4,41 @@
 """
 Background rendering component for CurveView.
 
-This module contains the BackgroundRenderer class responsible for rendering
-background images with proper transformation and debug visualization.
+Architecture Component: BackgroundRenderer
+This module implements one of the four specialized rendering components that 
+replaced the monolithic paintEvent method. The BackgroundRenderer is responsible
+for all background image rendering operations.
+
+Responsibilities:
+- Background image rendering with proper coordinate transformations
+- Image scaling and positioning calculations  
+- Debug visualization overlays (image bounds, coordinate origins)
+- Background image opacity and visibility handling
+- Integration with the unified transformation system
+
+Key Design Decisions:
+- Separated from point and info rendering for clear responsibility boundaries
+- Uses immutable transform objects for consistent coordinate mapping
+- Maintains debug visualization capabilities for development and troubleshooting
+- Handles edge cases like missing images and invalid transformations gracefully
+
+Integration Points:
+- Receives transform object from CurveRenderer for coordinate calculations
+- Uses CurveViewProtocol interface for accessing view properties
+- Integrates with UIScaling for theme-aware colors and DPI handling
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QPainter, QColor, QPen, QPixmap
 from PySide6.QtCore import Qt
 
 from ui_scaling import UIScaling
 from services.logging_service import LoggingService
+from core.protocols.protocols import CurveViewProtocol
 
 if TYPE_CHECKING:
-    from services.unified_transform import Transform
+    pass
 
 logger = LoggingService.get_logger("background_renderer")
 
@@ -31,8 +52,8 @@ class BackgroundRenderer:
     functionality to the original paintEvent background rendering logic.
     """
     
-    def render_background(self, painter: QPainter, transform: 'Transform', 
-                         curve_view: 'CurveViewProtocol') -> None:
+    def render_background(self, painter: QPainter, transform: Any, 
+                         curve_view: CurveViewProtocol) -> None:
         """
         Render background image with transformation and debug overlays.
         
@@ -108,7 +129,7 @@ class BackgroundRenderer:
             painter.drawText(10, 180, f"Image Scale: ({image_scale_x:.2f}, {image_scale_y:.2f}), Scale to Image: OFF")
 
     def _render_debug_info(self, painter: QPainter, curve_view: 'CurveViewProtocol', 
-                          params: dict, img_x: float, img_y: float, 
+                          params: dict[str, Any], img_x: float, img_y: float, 
                           scaled_width: float, scaled_height: float,
                           origin_x: float, origin_y: float,
                           origin_no_scale_x: float, origin_no_scale_y: float) -> None:
@@ -224,22 +245,4 @@ class BackgroundRenderer:
                     pass
 
 
-# Protocol for type checking
-try:
-    from typing import Protocol
-    
-    class CurveViewProtocol(Protocol):
-        show_background: bool
-        background_image: Optional[QPixmap]
-        background_opacity: float
-        debug_mode: bool
-        x_offset: float
-        y_offset: float
-        image_width: int
-        image_height: int
-        
-        def hasFocus(self) -> bool: ...
-        
-except ImportError:
-    # Fallback for older Python versions
-    CurveViewProtocol = object
+# Protocol is already imported from core.protocols.protocols

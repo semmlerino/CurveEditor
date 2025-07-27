@@ -4,21 +4,49 @@
 """
 Point rendering component for CurveView.
 
-This module contains the PointRenderer class responsible for rendering
-curve points with proper transformation, selection highlighting, and labels.
+Architecture Component: PointRenderer  
+This module implements the core point rendering component that handles all
+curve point visualization within the new rendering architecture.
+
+Responsibilities:
+- Curve point rendering with coordinate transformation
+- Selection highlighting (primary and secondary selection states)
+- Point type visualization (normal vs interpolated points)
+- Frame number labels and point information overlays
+- Point clustering and visibility optimization
+- Integration with curve data structures and selection system
+
+Rendering Pipeline:
+1. Point coordinate transformation (data space → screen space)
+2. Point filtering and clustering based on screen proximity
+3. Point type classification (normal, interpolated, selected)
+4. Rendering in layers: normal points → interpolated → selected → labels
+
+Key Design Decisions:
+- Separated rendering logic into specialized private methods for maintainability
+- Uses color constants from ui_constants for consistent theming
+- Implements point clustering to avoid visual overlap at high zoom levels
+- Maintains selection state visualization separate from base point rendering
+- Preserves all original visual styling and behavior from monolithic implementation
+
+Integration Points:
+- Receives coordinate transforms from UnifiedTransformationService
+- Uses CurveViewProtocol for accessing point data and selection state
+- Integrates with UIScaling for responsive font sizing and DPI handling
+- Coordinates with InfoRenderer for comprehensive point information display
 """
 
-from typing import List, Set, Tuple, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QPainter, QColor, QPen
 
 from ui_scaling import UIScaling
 from services.logging_service import LoggingService
+from core.protocols.protocols import CurveViewProtocol, PointsList
 import ui_constants
 
 if TYPE_CHECKING:
     from services.unified_transform import Transform
-    from core.protocols import PointsList
 
 logger = LoggingService.get_logger("point_renderer")
 
@@ -32,8 +60,8 @@ class PointRenderer:
     Maintains identical functionality to the original paintEvent point rendering logic.
     """
     
-    def render_points(self, painter: QPainter, transform: 'Transform', 
-                     curve_view: 'CurveViewProtocol') -> None:
+    def render_points(self, painter: QPainter, transform: Any, 
+                     curve_view: CurveViewProtocol) -> None:
         """
         Render all curve points with transformation and styling.
         
@@ -66,7 +94,7 @@ class PointRenderer:
             # Draw labels for selected points and every 10th point
             self._render_point_labels(painter, i, frame, tx, ty, point, curve_view.selected_points)
     
-    def _transform_points(self, points: 'PointsList', transform: 'Transform') -> List[Tuple[int, int, float, float, Union[Tuple[int, float, float], Tuple[int, float, float, bool]], bool]]:
+    def _transform_points(self, points: 'PointsList', transform: 'Transform') -> list[tuple[int, int, float, float, tuple[int, float, float] | tuple[int, float, float, bool], bool]]:
         """
         Transform all points from data coordinates to screen coordinates.
         
@@ -88,7 +116,9 @@ class PointRenderer:
             if len(point) == 3:
                 frame, x, y = point
             elif len(point) == 4:
-                frame, x, y, is_interpolated = point  # type: ignore
+                frame, x, y, status = point  # type: ignore
+                # Convert status to boolean - consider anything truthy as interpolated
+                is_interpolated = bool(status) if not isinstance(status, str) else status == "interpolated"
             else:
                 continue
                 
@@ -150,8 +180,8 @@ class PointRenderer:
         painter.drawPoint(int(tx), int(ty))
     
     def _render_point_labels(self, painter: QPainter, point_index: int, frame: int,
-                           tx: float, ty: float, point: Union[Tuple[int, float, float], Tuple[int, float, float, bool]],
-                           selected_points: Set[int]) -> None:
+                           tx: float, ty: float, point: tuple[int, float, float] | tuple[int, float, float, bool],
+                           selected_points: set[int]) -> None:
         """
         Render frame numbers and type information for points.
         
@@ -185,15 +215,4 @@ class PointRenderer:
             painter.drawText(int(tx) + 10, int(ty) - 10, str(frame))
 
 
-# Protocol for type checking
-try:
-    from typing import Protocol
-    
-    class CurveViewProtocol(Protocol):
-        points: 'PointsList'
-        selected_points: Set[int]
-        selected_point_idx: int
-        
-except ImportError:
-    # Fallback for older Python versions
-    CurveViewProtocol = object
+# Protocol is already imported from core.protocols.protocols
