@@ -7,8 +7,7 @@ Fix the LoggingService to ensure log files are properly created.
 import logging
 import os
 import sys
-from typing import Optional, Dict, Any
-from datetime import datetime
+from typing import Optional
 
 
 class LoggingService:

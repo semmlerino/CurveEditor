@@ -14,36 +14,18 @@ Key features:
 """
 
 from contextlib import contextmanager
-from typing import Dict, List, Tuple, Any, Optional, Protocol, Generator
+import threading
+from typing import Dict, List, Tuple, Any, Optional, Generator
 
 from PySide6.QtCore import QPointF
 
+from core.protocols import CurveViewProtocol
 from services.logging_service import LoggingService
 from services.unified_transform import Transform
 from services.view_state import ViewState
+from services.centering_zoom_service import CenteringZoomService
 
 logger = LoggingService.get_logger("unified_transformation_service")
-
-
-class CurveViewProtocol(Protocol):
-    """Protocol defining the interface expected from curve view objects."""
-
-    def width(self) -> int: ...
-    def height(self) -> int: ...
-    def update(self) -> None: ...
-
-    # Optional attributes that may be present
-    zoom_factor: Optional[float]
-    offset_x: Optional[float]
-    offset_y: Optional[float]
-    flip_y_axis: Optional[bool]
-    scale_to_image: Optional[bool]
-    x_offset: Optional[float]  # manual x offset
-    y_offset: Optional[float]  # manual y offset
-    background_image: Any
-    image_width: Optional[int]
-    image_height: Optional[int]
-    points: List[Tuple[int, float, float]]  # Frame number, x, y coordinates
 
 
 class UnifiedTransformationService:
@@ -62,10 +44,12 @@ class UnifiedTransformationService:
     # Transform cache for performance optimization
     _transform_cache: Dict[int, Transform] = {}
     _max_cache_size: int = 20
+    _cache_lock = threading.RLock()  # Reentrant lock for main cache
 
     # Stable transform cache for maintaining consistency across operations
     _stable_transform_cache: Dict[int, Transform] = {}
     _stable_cache_size: int = 10
+    _stable_cache_lock = threading.RLock()  # Reentrant lock for stable cache
 
     @staticmethod
     def from_view_state(view_state: ViewState) -> Transform:
@@ -78,11 +62,12 @@ class UnifiedTransformationService:
         Returns:
             A Transform object ready for coordinate transformations
         """
-        # Check cache first
+        # Check cache first (thread-safe)
         cache_key = hash(tuple(view_state.to_dict().items()))
-        if cache_key in UnifiedTransformationService._transform_cache:
-            logger.debug("Using cached transform from view state")
-            return UnifiedTransformationService._transform_cache[cache_key]
+        with UnifiedTransformationService._cache_lock:
+            if cache_key in UnifiedTransformationService._transform_cache:
+                logger.debug("Using cached transform from view state")
+                return UnifiedTransformationService._transform_cache[cache_key]
 
         # Calculate main scale factor
         scale_x = view_state.widget_width / max(1, view_state.display_width)
@@ -90,7 +75,6 @@ class UnifiedTransformationService:
         scale = min(scale_x, scale_y) * view_state.zoom_factor
 
         # Calculate centering offsets using existing service
-        from services.centering_zoom_service import CenteringZoomService
         center_x, center_y = CenteringZoomService.calculate_centering_offsets(
             view_state.widget_width,
             view_state.widget_height,
@@ -125,15 +109,16 @@ class UnifiedTransformationService:
             scale_to_image=view_state.scale_to_image
         )
 
-        # Cache the result
-        UnifiedTransformationService._transform_cache[cache_key] = transform
-        UnifiedTransformationService._manage_cache_size()
+        # Cache the result (thread-safe)
+        with UnifiedTransformationService._cache_lock:
+            UnifiedTransformationService._transform_cache[cache_key] = transform
+            UnifiedTransformationService._manage_cache_size()
 
         logger.debug(f"Created transform: scale={scale:.4f}, offset=({center_x:.1f}, {center_y:.1f})")
         return transform
 
     @staticmethod
-    def from_curve_view(curve_view: Any) -> Transform:
+    def from_curve_view(curve_view: CurveViewProtocol) -> Transform:
         """
         Create a Transform directly from a curve view instance.
 
@@ -191,7 +176,7 @@ class UnifiedTransformationService:
         return [QPointF(*transform.apply(p[1], p[2])) for p in points]
 
     @staticmethod
-    def get_stable_transform(curve_view: Any) -> Transform:
+    def get_stable_transform(curve_view: CurveViewProtocol) -> Transform:
         """
         Get a stable transform for a curve view that won't change between calls.
 
@@ -215,27 +200,29 @@ class UnifiedTransformationService:
         ]
         cache_key = hash(tuple(key_parts))
 
-        # Check if we already have a transform for this configuration
-        if cache_key in UnifiedTransformationService._stable_transform_cache:
-            logger.debug("Using cached stable transform")
-            return UnifiedTransformationService._stable_transform_cache[cache_key]
+        # Check if we already have a transform for this configuration (thread-safe)
+        with UnifiedTransformationService._stable_cache_lock:
+            if cache_key in UnifiedTransformationService._stable_transform_cache:
+                logger.debug("Using cached stable transform")
+                return UnifiedTransformationService._stable_transform_cache[cache_key]
 
-        # Create a new transform and cache it
+        # Create a new transform and cache it (thread-safe)
         transform = UnifiedTransformationService.from_curve_view(curve_view)
-        UnifiedTransformationService._stable_transform_cache[cache_key] = transform
+        with UnifiedTransformationService._stable_cache_lock:
+            UnifiedTransformationService._stable_transform_cache[cache_key] = transform
 
-        # Manage cache size to prevent memory issues
-        if len(UnifiedTransformationService._stable_transform_cache) > UnifiedTransformationService._stable_cache_size:
-            # Remove oldest entry (by key order)
-            oldest_key = next(iter(UnifiedTransformationService._stable_transform_cache))
-            del UnifiedTransformationService._stable_transform_cache[oldest_key]
-            logger.debug("Removed oldest stable transform from cache")
+            # Manage cache size to prevent memory issues
+            if len(UnifiedTransformationService._stable_transform_cache) > UnifiedTransformationService._stable_cache_size:
+                # Remove oldest entry (by key order)
+                oldest_key = next(iter(UnifiedTransformationService._stable_transform_cache))
+                del UnifiedTransformationService._stable_transform_cache[oldest_key]
+                logger.debug("Removed oldest stable transform from cache")
 
         logger.debug(f"Created new stable transform for curve view {id(curve_view)}")
         return transform
 
     @staticmethod
-    def create_stable_transform(curve_view: Any) -> Transform:
+    def create_stable_transform(curve_view: CurveViewProtocol) -> Transform:
         """
         Create a stable transform for operations that modify data.
 
@@ -339,7 +326,7 @@ class UnifiedTransformationService:
 
     @staticmethod
     @contextmanager
-    def stable_transformation_context(curve_view: Any) -> Generator[Transform, None, None]:
+    def stable_transformation_context(curve_view: CurveViewProtocol) -> Generator[Transform, None, None]:
         """
         Context manager that ensures stable transformations during operations.
 
@@ -453,7 +440,10 @@ class UnifiedTransformationService:
 
     @staticmethod
     def _manage_cache_size() -> None:
-        """Manage the transform cache size to prevent memory growth."""
+        """Manage the transform cache size to prevent memory growth.
+        
+        Note: This method should be called from within a lock context.
+        """
         if len(UnifiedTransformationService._transform_cache) >= UnifiedTransformationService._max_cache_size:
             # Remove the oldest entry (first one added)
             if UnifiedTransformationService._transform_cache:
@@ -463,28 +453,36 @@ class UnifiedTransformationService:
 
     @staticmethod
     def clear_cache() -> None:
-        """Clear the transform cache."""
-        UnifiedTransformationService._transform_cache.clear()
+        """Clear the transform cache (thread-safe)."""
+        with UnifiedTransformationService._cache_lock:
+            UnifiedTransformationService._transform_cache.clear()
         logger.debug("Transform cache cleared")
 
     @staticmethod
     def get_cache_stats() -> Dict[str, int]:
-        """Get cache statistics for monitoring."""
+        """Get cache statistics for monitoring (thread-safe)."""
+        with UnifiedTransformationService._cache_lock:
+            cache_size = len(UnifiedTransformationService._transform_cache)
+        
+        with UnifiedTransformationService._stable_cache_lock:
+            stable_cache_size = len(UnifiedTransformationService._stable_transform_cache)
+        
         return {
-            'cache_size': len(UnifiedTransformationService._transform_cache),
+            'cache_size': cache_size,
             'max_cache_size': UnifiedTransformationService._max_cache_size,
-            'stable_cache_size': len(UnifiedTransformationService._stable_transform_cache),
+            'stable_cache_size': stable_cache_size,
             'stable_cache_max_size': UnifiedTransformationService._stable_cache_size
         }
 
     @staticmethod
     def clear_stable_transforms() -> None:
-        """Clear the stable transform cache."""
-        UnifiedTransformationService._stable_transform_cache.clear()
+        """Clear the stable transform cache (thread-safe)."""
+        with UnifiedTransformationService._stable_cache_lock:
+            UnifiedTransformationService._stable_transform_cache.clear()
 
     # Backward compatibility methods
     @staticmethod
-    def transform_point_to_widget(curve_view: Any,
+    def transform_point_to_widget(curve_view: CurveViewProtocol,
                                  x: float, y: float,
                                  display_width: Optional[float] = None,
                                  display_height: Optional[float] = None,

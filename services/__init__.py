@@ -33,6 +33,14 @@ from services.view_state import ViewState
 from services.visualization_service import VisualizationService
 from track_quality import TrackQualityAnalysisService
 
+# New specialized analysis services
+from services.geometry_service import GeometryService
+from services.problem_detection_service import ProblemDetectionService
+from services.smoothing_service import SmoothingService
+from services.filtering_service import FilteringService
+from services.gap_filling_service import GapFillingService
+from services.extrapolation_service import ExtrapolationService
+
 __all__ = [
     # Core models and protocols
     'Point', 'ViewState', 'PointsCollection', 'PointsList',
@@ -41,6 +49,10 @@ __all__ = [
     'AnalysisService', 'CurveService', 'DialogService', 'FileService',
     'HistoryService', 'ImageService', 'InputService', 'LoggingService',
     'SettingsService', 'StatusManager', 'VisualizationService', 'TrackQualityAnalysisService',
+    
+    # Specialized analysis services
+    'GeometryService', 'ProblemDetectionService', 'SmoothingService',
+    'FilteringService', 'GapFillingService', 'ExtrapolationService',
 
     # Unified transformation system
     'Transform', 'UnifiedTransformationService',

@@ -12,12 +12,13 @@ from typing import Any, TYPE_CHECKING
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent
 
+from core.protocols import MainWindowProtocol
 from services.logging_service import LoggingService
 
 logger = LoggingService.get_logger("settings_service")
 
 if TYPE_CHECKING:
-    from main_window import MainWindow
+    pass
 
 class SettingsService:
     """Service for managing application settings."""
@@ -34,7 +35,7 @@ class SettingsService:
     KEY_AUTO_CENTER = "view/autoCenterOnFrameChange"
 
     @staticmethod
-    def load_settings(main_window: 'MainWindow') -> None:
+    def load_settings(main_window: MainWindowProtocol) -> None:
         """
         Load application settings.
 
@@ -73,7 +74,7 @@ class SettingsService:
             # Use defaults if settings can't be loaded
 
     @staticmethod
-    def save_settings(main_window: 'MainWindow') -> None:
+    def save_settings(main_window: MainWindowProtocol) -> None:
         """
         Save application settings on exit.
 
@@ -103,7 +104,7 @@ class SettingsService:
             logger.error(f"Error saving settings: {e}")
 
     @staticmethod
-    def handle_close_event(main_window: 'MainWindow', event: QCloseEvent) -> None:
+    def handle_close_event(main_window: MainWindowProtocol, event: QCloseEvent) -> None:
         """
         Handle window close event.
 
