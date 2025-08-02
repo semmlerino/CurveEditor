@@ -118,26 +118,6 @@ class TestCurveService(unittest.TestCase):
             # Verify the mock was called with expected arguments
             mock_select.assert_called_once_with(self.mock_curve_view, self.mock_main_window, selection_rect)
 
-    @patch("services.centering_zoom_service.CenteringZoomService.calculate_centering_offsets")
-    def test_transform_point(self, mock_calculate_offsets: MagicMock):
-        """Test transforming a point from data coordinates to widget coordinates."""
-        # Arrange
-        mock_calculate_offsets.return_value = (10, 10)  # Mock offset calculation
-
-        # Ensure the mock curve view doesn't have background_image or flip_y_axis properties
-        # to match the simplest case in the transform_point method
-        self.mock_curve_view.background_image = None
-        self.mock_curve_view.flip_y_axis = False
-        self.mock_curve_view.scale_to_image = False
-
-        # Act
-        tx, ty = CurveService.transform_point(self.mock_curve_view, 100, 200, 1920, 1080, 10, 10, 0.5)
-
-        # Assert
-        # Expected calculation: base_x + (x * scale) = 10 + (100 * 0.5) = 60
-        # Expected calculation: base_y + (y * scale) = 10 + (200 * 0.5) = 110
-        self.assertEqual(tx, 60)
-        self.assertEqual(ty, 110)
 
     def test_update_point_position(self):
         """Test updating a point's position."""

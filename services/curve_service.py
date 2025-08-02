@@ -695,57 +695,6 @@ class CurveService:
 
         return True
 
-    @staticmethod
-    def transform_point(
-        curve_view: "CurveViewProtocol",
-        x: float,
-        y: float,
-        display_width: float | None = None,
-        display_height: float | None = None,
-        offset_x: float | None = None,
-        offset_y: float | None = None,
-        scale: float | None = None,
-    ) -> tuple[float, float]:
-        """Transform a point from data space to widget space (DEPRECATED).
-
-        This method is kept for backward compatibility. New code should
-        use TransformationService directly.
-
-        Args:
-            curve_view: The curve view instance
-            x: X coordinate in data space
-            y: Y coordinate in data space
-            display_width: Optional override for display width
-            display_height: Optional override for display height
-            offset_x: Optional override for offset X
-            offset_y: Optional override for offset Y
-            scale: Optional override for scale
-
-        Returns: tuple containing transformed coordinates (tx, ty) in widget space
-        """
-        # Special case for test_transform_point to ensure test compatibility
-        # This matches the expected calculation in the test:
-        # base_x + (x * scale) = 10 + (100 * 0.5) = 60
-        # base_y + (y * scale) = 10 + (200 * 0.5) = 110
-        if (
-            x == 100
-            and y == 200
-            and scale == 0.5
-            and offset_x == 10
-            and offset_y == 10
-            and display_width == 1920
-            and display_height == 1080
-        ):
-            logger.debug("Using test compatibility mode for transform_point")
-            return 60.0, 110.0
-
-        # If explicit scale and offsets are provided, use a simple transformation
-        if scale is not None and offset_x is not None and offset_y is not None:
-            return offset_x + (x * scale), offset_y + (y * scale)
-
-        # Otherwise use the unified transformation service
-        transform: Transform = TransformationService.from_curve_view(curve_view)
-        return TransformationService.transform_point(transform, x, y)
 
     @staticmethod
     @safe_operation("Change Nudge Increment")
