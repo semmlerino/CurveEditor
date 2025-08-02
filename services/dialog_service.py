@@ -1,33 +1,35 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 DialogService: Service for managing all dialog operations in the CurveEditor.
 Implements all dialog operations directly rather than delegating to legacy DialogOperations.
 """
 
-from typing import Optional, List, Tuple, Any
+from typing import Any
 
-from PySide6.QtWidgets import QMessageBox, QDialog, QWidget
+from PySide6.QtWidgets import QDialog, QMessageBox, QWidget
 
-from dialogs import (SmoothingDialog, FilterDialog, FillGapsDialog,
-                    OffsetDialog, ExtrapolateDialog, ShortcutsDialog, ProblemDetectionDialog)
-from services.analysis_service import AnalysisService as CurveDataOperations
-from services.file_service import FileService
-from core.protocols import (
-    MainWindowProtocol, PointsList
+from core.protocols import MainWindowProtocol, PointsList
+from dialogs import (
+    ExtrapolateDialog,
+    FillGapsDialog,
+    FilterDialog,
+    OffsetDialog,
+    ProblemDetectionDialog,
+    ShortcutsDialog,
+    SmoothingDialog,
 )
+from services.curve_analysis_service import CurveAnalysisService as CurveDataOperations
+from services.file_service import FileService
+
 
 class DialogService:
     """Service for managing all dialog operations in the CurveEditor."""
 
     @staticmethod
     def show_smooth_dialog(
-        parent_widget: QWidget,
-        curve_data: PointsList,
-        selected_indices: List[int],
-        selected_point_idx: int
-    ) -> Optional[PointsList]:
+        parent_widget: QWidget, curve_data: PointsList, selected_indices: list[int], selected_point_idx: int
+    ) -> PointsList | None:
         """
         Show dialog for curve smoothing.
         Accepts curve data and selection info, returns modified data or None.
@@ -43,17 +45,17 @@ class DialogService:
         current_frame = min_frame
         # Use selected_point_idx directly
         if 0 <= selected_point_idx < len(curve_data):
-             current_frame = curve_data[selected_point_idx][0]
+            current_frame = curve_data[selected_point_idx][0]
 
         dialog: SmoothingDialog = SmoothingDialog(parent_widget, min_frame, max_frame, current_frame)
 
         # Default dialog range based on selection
         if len(selected_indices) > 1:
-            dialog.range_combo.setCurrentIndex(3) # Default to "Selected Points"
+            dialog.range_combo.setCurrentIndex(3)  # Default to "Selected Points"
         elif selected_point_idx >= 0:
-             dialog.range_combo.setCurrentIndex(2) # Default to "Current Point Only"
+            dialog.range_combo.setCurrentIndex(2)  # Default to "Current Point Only"
         else:
-             dialog.range_combo.setCurrentIndex(0) # Default to "Entire Curve"
+            dialog.range_combo.setCurrentIndex(0)  # Default to "Entire Curve"
 
         if dialog.exec() != QDialog.DialogCode.Accepted:
             return None
@@ -63,7 +65,7 @@ class DialogService:
         range_type = dialog.range_combo.currentIndex()
 
         # Determine points to smooth based on dialog selection
-        points_to_smooth: List[int] = []
+        points_to_smooth: list[int] = []
 
         if range_type == 0:  # Entire curve
             points_to_smooth = list(range(len(curve_data)))
@@ -78,8 +80,8 @@ class DialogService:
                 start = max(0, center - window)
                 end = min(len(curve_data), center + window + 1)
                 points_to_smooth = list(range(start, end))
-        elif range_type == 3: # Selected Points (use provided selected_indices)
-            points_to_smooth = selected_indices # Use the passed-in list directly
+        elif range_type == 3:  # Selected Points (use provided selected_indices)
+            points_to_smooth = selected_indices  # Use the passed-in list directly
 
         if not points_to_smooth:
             QMessageBox.warning(parent_widget, "Warning", "No points selected for smoothing.")
@@ -127,7 +129,7 @@ class DialogService:
         range_type = dialog.range_combo.currentIndex()
 
         # Determine points to filter
-        points_to_filter: List[int] = []
+        points_to_filter: list[int] = []
 
         if range_type == 0:  # Entire curve
             points_to_filter = list(range(len(main_window.curve_data)))
@@ -153,31 +155,33 @@ class DialogService:
             operation_applied = False
 
             if filter_type == 0:  # Median
-                data_ops.filter_median(points_to_filter, dialog.median_size.value())
+                data_ops.data = CurveDataOperations.filter_median(data_ops.data, points_to_filter, dialog.median_size.value())
                 operation_applied = True
             elif filter_type == 1:  # Gaussian
-                data_ops.smooth_gaussian(points_to_filter, dialog.gaussian_size.value(), dialog.gaussian_sigma.value())
+                data_ops.data = CurveDataOperations.smooth_gaussian(data_ops.data, points_to_filter, dialog.gaussian_sigma.value())
                 operation_applied = True
             elif filter_type == 2:  # Average
-                data_ops.smooth_moving_average(points_to_filter, dialog.average_size.value())
+                data_ops.data = CurveDataOperations.smooth_moving_average(data_ops.data, points_to_filter, dialog.average_size.value())
                 operation_applied = True
             elif filter_type == 3:  # Butterworth
-                data_ops.filter_butterworth(points_to_filter, dialog.butterworth_cutoff.value(), dialog.butterworth_order.value())
+                data_ops.data = CurveDataOperations.filter_butterworth(
+                    data_ops.data, points_to_filter, dialog.butterworth_cutoff.value(), dialog.butterworth_order.value()
+                )
                 operation_applied = True
 
             if operation_applied:
-                main_window.curve_data = data_ops.get_data() # Update main window data
+                main_window.curve_data = data_ops.get_data()  # Update main window data
             else:
-                 QMessageBox.warning(main_window.qwidget, "Warning", "No filter applied (unknown type).")
-                 return # No known operation selected
+                QMessageBox.warning(main_window.qwidget, "Warning", "No filter applied (unknown type).")
+                return  # No known operation selected
 
         except AttributeError as ae:
-             # Handle cases where dialog attributes might be missing for a type
-             QMessageBox.critical(main_window.qwidget, "Error", f"Dialog configuration error: {ae}")
-             return
+            # Handle cases where dialog attributes might be missing for a type
+            QMessageBox.critical(main_window.qwidget, "Error", f"Dialog configuration error: {ae}")
+            return
         except Exception as e:
-             QMessageBox.critical(main_window.qwidget, "Error", f"Filtering failed: {e}")
-             return # Don't proceed if operation failed
+            QMessageBox.critical(main_window.qwidget, "Error", f"Filtering failed: {e}")
+            return  # Don't proceed if operation failed
 
         # Update view
         main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
@@ -186,7 +190,7 @@ class DialogService:
         main_window.add_to_history()
 
     @staticmethod
-    def detect_gaps(main_window: MainWindowProtocol) -> List[Tuple[int, int]]:
+    def detect_gaps(main_window: MainWindowProtocol) -> list[tuple[int, int]]:
         """Detect gaps in the tracking data."""
         if not main_window.curve_data or len(main_window.curve_data) < 2:
             return []
@@ -195,9 +199,9 @@ class DialogService:
         sorted_data = sorted(main_window.curve_data, key=lambda x: x[0])
 
         # Find gaps
-        gaps: List[Tuple[int, int]] = []
+        gaps: list[tuple[int, int]] = []
         for i in range(1, len(sorted_data)):
-            prev_frame = sorted_data[i-1][0]
+            prev_frame = sorted_data[i - 1][0]
             curr_frame = sorted_data[i][0]
 
             if curr_frame - prev_frame > 1:
@@ -258,7 +262,13 @@ class DialogService:
         main_window.add_to_history()
 
     @staticmethod
-    def fill_gap(main_window: MainWindowProtocol, start_frame: int, end_frame: int, method_index: int, preserve_endpoints: bool = True) -> None:
+    def fill_gap(
+        main_window: MainWindowProtocol,
+        start_frame: int,
+        end_frame: int,
+        method_index: int,
+        preserve_endpoints: bool = True,
+    ) -> None:
         """Helper method to fill a gap using the specified method via CurveDataOperations."""
         # Window size for certain methods (can be adjusted or made configurable)
         window_size = 5
@@ -285,7 +295,7 @@ class DialogService:
                 operation_performed = True
             else:
                 QMessageBox.warning(main_window.qwidget, "Warning", f"Unknown fill method index: {method_index}")
-                return # Do nothing if method is unknown
+                return  # Do nothing if method is unknown
 
             # Update main window data only if an operation was performed
             if operation_performed:
@@ -325,21 +335,21 @@ class DialogService:
             if direction == 0 or direction == 2:  # Forward or Both
                 if forward_frames > 0:
                     data_ops.extrapolate_forward(forward_frames, method, fit_points)
-                    data_changed = True # Mark data as potentially changed
+                    data_changed = True  # Mark data as potentially changed
 
             if direction == 1 or direction == 2:  # Backward or Both
                 if backward_frames > 0:
                     # Apply backward extrapolation to the potentially already modified data
                     data_ops.extrapolate_backward(backward_frames, method, fit_points)
-                    data_changed = True # Mark data as potentially changed
+                    data_changed = True  # Mark data as potentially changed
 
             # Update main window data only if an operation was performed
             if data_changed:
-                 main_window.curve_data = data_ops.get_data()
+                main_window.curve_data = data_ops.get_data()
 
         except Exception as e:
-             QMessageBox.critical(main_window.qwidget, "Error", f"Extrapolation failed: {e}")
-             return # Don't proceed if operation failed
+            QMessageBox.critical(main_window.qwidget, "Error", f"Extrapolation failed: {e}")
+            return  # Don't proceed if operation failed
 
         # Update view
         main_window.curve_view.setPoints(main_window.curve_data, main_window.image_width, main_window.image_height)
@@ -363,7 +373,7 @@ class DialogService:
         dialog.exec()
 
     @staticmethod
-    def show_offset_dialog(main_window: MainWindowProtocol) -> Optional[PointsList]:
+    def show_offset_dialog(main_window: MainWindowProtocol) -> PointsList | None:
         """Show dialog for offsetting all curve points."""
         if not main_window.curve_data:
             QMessageBox.information(main_window.qwidget, "Info", "No points to offset.")
@@ -392,21 +402,20 @@ class DialogService:
     @staticmethod
     def show_export_dialog(main_window: MainWindowProtocol) -> None:
         """Show dialog for exporting track data to a file.
-        
+
         Args:
             main_window: The main window instance containing the curve data and UI elements.
-        
+
         Note:
             Delegates to FileService for the actual export functionality.
         """
         # Delegate to the FileService for actual file exporting
         FileService.export_to_csv(main_window)
-        
+
     @staticmethod
     def show_problem_detection_dialog(
-        main_window: MainWindowProtocol,
-        problems: Optional[List[Tuple[int, Any, Any, Any]]] = None
-    ) -> Optional[ProblemDetectionDialog]:
+        main_window: MainWindowProtocol, problems: list[tuple[int, Any, Any, Any]] | None = None
+    ) -> ProblemDetectionDialog | None:
         """Show dialog for detecting problems in the tracking data."""
         if problems is None:
             if not main_window.curve_data or len(main_window.curve_data) < 10:
@@ -422,7 +431,7 @@ class DialogService:
                 # Convert dictionary to list of tuples for compatibility with the expected type
                 problems = []
                 for frame, details in problem_dict.items():
-                    problems.append((frame, details.get('type', ''), details.get('description', ''), 1.0))
+                    problems.append((frame, details.get("type", ""), details.get("description", ""), 1.0))
             except Exception as e:
                 QMessageBox.critical(main_window.qwidget, "Error", f"Problem detection failed: {e}")
                 return None
