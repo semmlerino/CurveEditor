@@ -328,79 +328,7 @@ class TransformationService:
             logger.error(f"Failed to center on point {point_idx}: {e}")
             return False
 
-    @staticmethod
-    def pan_view(curve_view: CurveViewProtocol, dx: float, dy: float) -> None:
-        """
-        Pan the view by the specified offsets.
 
-        Args:
-            curve_view: CurveView instance
-            dx: X offset to pan by
-            dy: Y offset to pan by
-        """
-        try:
-            current_offset_x = getattr(curve_view, "offset_x", 0.0)
-            current_offset_y = getattr(curve_view, "offset_y", 0.0)
-
-            setattr(curve_view, "offset_x", current_offset_x + dx)
-            setattr(curve_view, "offset_y", current_offset_y + dy)
-
-            curve_view.update()
-            logger.debug(f"Panned view by ({dx:.2f}, {dy:.2f})")
-
-        except Exception as e:
-            logger.error(f"Failed to pan view: {e}")
-
-    @staticmethod
-    def center_on_selected_point(
-        curve_view: CurveViewProtocol | None, point_idx: int = -1, preserve_zoom: bool = True
-    ) -> bool:
-        """
-        Center the view on the selected point.
-
-        Args:
-            curve_view: CurveView instance
-            point_idx: Point index to center on (-1 for current selection)
-            preserve_zoom: Whether to preserve current zoom level
-
-        Returns:
-            True if centering was successful
-        """
-        if not curve_view:
-            return False
-
-        try:
-            # Determine point index to center on
-            if point_idx == -1:
-                point_idx = getattr(curve_view, "selected_point_idx", -1)
-
-            if point_idx == -1:
-                # Try to get from selected_points set
-                selected_points = getattr(curve_view, "selected_points", set())
-                if selected_points:
-                    point_idx = min(selected_points)
-
-            if point_idx == -1:
-                logger.warning("No point selected for centering")
-                # Update status message about failure
-                main_window = getattr(curve_view, "main_window", None)
-                if main_window and hasattr(main_window, "update_status_message"):
-                    main_window.update_status_message("Centering failed: No point selected")
-                curve_view.update()
-                return False
-
-            result = TransformationService.center_on_point(curve_view, point_idx)
-
-            # Handle preserve_zoom parameter
-            if result and not preserve_zoom:
-                setattr(curve_view, "zoom_factor", 1.0)
-                curve_view.update()
-
-            return result
-
-        except Exception as e:
-            logger.error(f"Failed to center on selected point: {e}")
-            return False
 
     @staticmethod
     def zoom_to_fit(curve_view: CurveViewProtocol) -> None:
@@ -642,47 +570,6 @@ class TransformationService:
             logger.error(f"Failed to toggle auto center: {e}")
             return False
 
-    @staticmethod
-    def reset_view(curve_view: CurveViewProtocol) -> None:
-        """
-        Reset the view to default zoom, position, and transformation parameters.
-
-        Args:
-            curve_view: CurveView instance to reset
-        """
-        try:
-            # Reset zoom to default
-            setattr(curve_view, "zoom_factor", 1.0)
-
-            # Reset all offsets to zero
-            setattr(curve_view, "center_offset_x", 0.0)
-            setattr(curve_view, "center_offset_y", 0.0)
-            setattr(curve_view, "offset_x", 0.0)
-            setattr(curve_view, "offset_y", 0.0)
-            setattr(curve_view, "pan_offset_x", 0.0)
-            setattr(curve_view, "pan_offset_y", 0.0)
-            setattr(curve_view, "manual_offset_x", 0.0)
-            setattr(curve_view, "manual_offset_y", 0.0)
-            setattr(curve_view, "x_offset", 0.0)
-            setattr(curve_view, "y_offset", 0.0)
-
-            # Reset transformation flags to defaults
-            setattr(curve_view, "flip_y_axis", True)
-            setattr(curve_view, "scale_to_image", True)
-
-            # Clear any cached transforms for this view
-            curve_view_id = id(curve_view)
-            with TransformationService._stable_cache_lock:
-                if curve_view_id in TransformationService._stable_transform_cache:
-                    del TransformationService._stable_transform_cache[curve_view_id]
-
-            # Trigger a repaint
-            curve_view.update()
-
-            logger.info("View reset to default settings")
-
-        except Exception as e:
-            logger.error(f"Failed to reset view: {e}")
 
     # =============================================================================
     # CACHE MANAGEMENT
