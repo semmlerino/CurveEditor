@@ -5,24 +5,20 @@ Pytest tests for error_handling.py
 """
 
 import pytest
+
 from utils.error_handling import safe_operation, show_error
+from tests.conftest import BaseMockMainWindow
 
 
-class MockMainWindow:
+class MockMainWindow(BaseMockMainWindow):
     def __init__(self):
-        self.history_added = False
+        super().__init__()
         self.last_message = None
         self.timeout = 0
-
-    def statusBar(self):
-        return self
 
     def showMessage(self, message, timeout=0):
         self.last_message = message
         self.timeout = timeout
-
-    def add_to_history(self):
-        self.history_added = True
 
 
 @pytest.fixture

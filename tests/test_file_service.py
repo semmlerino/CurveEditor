@@ -16,24 +16,18 @@ import pytest
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.file_service import FileService
 from core.protocols import PointsList
+from services.file_service import FileService
+from tests.conftest import BaseMockMainWindow
 
 
-class MockMainWindow:
-    """Mock implementation of MainWindowProtocol for testing."""
+class MockMainWindow(BaseMockMainWindow):
+    """Mock implementation of MainWindowProtocol for testing file operations."""
 
     def __init__(self) -> None:
-        self.curve_data: PointsList = []
-        self.image_width: int = 1920
-        self.image_height: int = 1080
-        self.default_directory: str = os.path.expanduser("~")
-        self.qwidget = MagicMock()
-        self.history_added = False
-
-    def add_to_history(self) -> None:
-        """Mock implementation of add_to_history."""
-        self.history_added = True
+        super().__init__()
+        # File service specific overrides
+        self.default_directory = os.path.expanduser("~")
 
 
 # Test fixtures

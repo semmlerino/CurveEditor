@@ -5,7 +5,7 @@ This ensures proper behavior during window resizing and fullscreen mode.
 
 import os
 import sys
-from typing import Any, Optional, Protocol, cast
+from typing import Any, Protocol, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -15,9 +15,10 @@ from PySide6.QtWidgets import QRubberBand, QWidget
 # Add the parent directory to the path to import modules correctly
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from core.protocols import CurveViewProtocol, PointsList
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
-from core.protocols import CurveViewProtocol, PointsList
+from tests.conftest import ProtocolCompliantMockCurveView, BaseMockMainWindow
 
 
 # Minimal MainWindowProtocol for type checking in tests
@@ -27,315 +28,29 @@ class MinimalMainWindowProtocol(Protocol):
     statusBar: Any
 
 
-# Mock classes for testing
-class MockCurveView(CurveViewProtocol):
-    """Mock CurveView for testing centering and transform operations."""
-
-    width_val: int
-    height_val: int
-    image_width: int
-    image_height: int
-    zoom_factor: float
-    x_offset: float
-    y_offset: float
-    offset_x: float
-    offset_y: float
-    flip_y_axis: bool
-    scale_to_image: bool
-    selected_point_idx: int
-    selected_points: set[int]
-    background_image: Any
-    main_window: Optional["MockMainWindow"]
-    points: list[Any]
-    update_called: bool
-
-    def __init__(
-        self,
-        width: int = 800,
-        height: int = 600,
-        img_width: int = 1920,
-        img_height: int = 1080,
-        zoom_factor: float = 1.0,
-        x_offset: float = 0.0,
-        y_offset: float = 0.0,
-        offset_x: float = 0.0,
-        offset_y: float = 0.0,
-        flip_y_axis: bool = True,
-        scale_to_image: bool = False,
-        selected_point_idx: int = 0,
-        selected_points: set[int] | None = None,
-    ):
-        self.width_val = width
-        self.height_val = height
-        self.image_width = img_width
-        self.image_height = img_height
-        self.zoom_factor = zoom_factor
-        self.x_offset = x_offset  # Manual pan offset
-        self.y_offset = y_offset  # Manual pan offset
-        self.offset_x = offset_x  # Calculated centering offset
-        self.offset_y = offset_y  # Calculated centering offset
-        self.flip_y_axis = flip_y_axis
-        self.scale_to_image = scale_to_image
-        self.selected_point_idx = selected_point_idx
-        self.selected_points = selected_points or {0}
-        self.background_image = MagicMock() if scale_to_image else None
-        self.main_window = None
-        self.points = []
-        self.update_called = False
-        self.image_sequence_path = ""
-        self.current_image_idx = -1
-        self.image_filenames = []
-        self.show_background = True
-        self.image_changed = None
-        self.curve_data = []
-        # Initialize attributes with proper types to avoid conflicts with method definitions
-        self._on_point_moved: int | None = None
-        self._on_point_selected: int = -1  # Changed from Optional[int] to int with default value
-        self._on_selection_changed: bool = False  # Changed from Optional[bool] to bool with default value
-        self.selection_rect = QRect()
-        self.frame_marker_label = None
-        self.timeline_slider = None
-        self.nudge_increment = 1.0
-        self.current_increment_index = 0
-        self.available_increments = [0.1, 1.0, 10.0]
-
-    def width(self) -> int:
-        return self.width_val
-
-    def height(self) -> int:
-        return self.height_val
-
-    def update(self) -> None:
-        self.update_called = True
-
-    # Implementing required protocol methods
-    show_background: bool = True
-    show_grid: bool = True
-    show_vectors: bool = False
-    show_frame_numbers: bool = False
-    show_velocity_vectors: bool = False
-    show_all_frame_numbers: bool = False
-
-    # Implementing missing protocol methods
-    def point_selected(self, index: int) -> None:
-        """Called when a point is selected."""
-        self._on_point_selected = index
-
-    def selection_changed(self) -> None:
-        """Called when the selection changes."""
-        self._on_selection_changed = True
-
-    # Properties required by the protocol
-    rubber_band: QRubberBand | None = None
-    rubber_band_origin: QPointF = QPointF(0, 0)
-    rubber_band_active: bool = False
-
-    drag_active: bool = False
-    last_drag_pos: QPointF | None = None
-    pan_active: bool = False
-    last_pan_pos: QPointF | None = None
-
-    # Additional methods required by the protocol
-    def point_moved(self, index: int, x: float, y: float) -> None:
-        """Handle point moved callback."""
-        # This is implemented as no-op in the mock but needs to match the protocol signature
-
-    def findPointAt(self, pos: QPointF) -> int:
-        return -1
-
-    def selectPointByIndex(self, idx: int) -> None:
-        self.selected_point_idx = idx
-
-    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
-        if not self.points or idx >= len(self.points):
-            return (0, 0.0, 0.0, None)
-        point = self.points[idx]
-        if len(point) == 3:
-            return (point[0], point[1], point[2], None)
-        else:
-            return point
-
-    def setPoints(
-        self,
-        points: list[tuple[int, float, float] | tuple[int, float, float, bool | str]],
-        image_width: int = 0,
-        image_height: int = 0,
-        preserve_view: bool = False,
-    ) -> None:
-        self.points = points
-
-    def get_selected_points(self) -> list[int]:
-        return list(self.selected_points)
-
-    def is_point_selected(self, idx: int) -> bool:
-        return idx in self.selected_points
-
-    def setFocus(self) -> None:
-        """Required by ImageSequenceProtocol"""
-        pass
-
-    def setCurrentImageByIndex(self, idx: int) -> None:
-        """Required by CurveViewProtocol"""
-        self.current_image_idx = idx
-
-    def setBackgroundOpacity(self, opacity: float) -> None:
-        """Required by CurveViewProtocol"""
-        self.background_opacity = opacity
-
-    def centerOnSelectedPoint(self) -> bool:
-        """Required by CurveViewProtocol"""
-        return True
-
-    # We're keeping only one implementation of setImageSequence
-    # which is required by CurveViewProtocol
-    def setImageSequence(self, path: str, filenames: list[str]) -> None:
-        """Set the image sequence for display.
-
-        Required by CurveViewProtocol.
-        """
-        self.image_sequence_path = path
-        self.image_filenames = filenames
-
-    def set_curve_data(self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None:
-        """Required by CurveViewProtocol"""
-        self.curve_data = curve_data
-
-    def get_selected_indices(self) -> list[int]:
-        """Required by CurveViewProtocol"""
-        return list(self.selected_points)
-
-    # Method implementation for CurveViewProtocol
-    def _set_velocity_data_base(self, velocities: Any) -> None:
-        """Base implementation for setVelocityData"""
-        pass
-
-    def _toggle_velocity_vectors_base(self, enabled: bool) -> None:
-        """Base implementation for toggleVelocityVectors"""
-        self.show_velocity_vectors = enabled
-
-    def emit(self, *args: Any, **kwargs: Any) -> None:
-        """Required by ImageSequenceProtocol"""
-        pass
-
-    def set_background_image(self, img_path: str) -> bool:
-        return True
-
-    # Main implementation for protocol requirements
-    def setVelocityData(self, velocities: list[tuple[float, float]]) -> None:
-        """Set velocity data for visualization."""
-        self._set_velocity_data_base(velocities)
-
-    def toggleVelocityVectors(self, enabled: bool = True) -> None:
-        """Toggle visibility of velocity vectors."""
-        self._toggle_velocity_vectors_base(enabled)
-
-    def toggle_point_interpolation(self, idx: int) -> None:
-        pass
-
-    def toggleBackgroundVisible(self, visible: bool = True) -> None:
-        self.background_visible = visible
-
-    def setCursor(self, cursor: Any) -> None:
-        pass
-
-    def unsetCursor(self) -> None:
-        pass
-
-    show_crosshair: bool = False
-    background_opacity: float = 1.0
-
-    def setToolTip(self, tooltip: str) -> None:
-        pass
-
-    def resizeEvent(self, event: Any) -> None:
-        pass
-
-    def closeEvent(self, event: Any) -> None:
-        pass
-
-    def wheelEvent(self, event: Any) -> None:
-        pass
-
-    def paintEvent(self, event: Any) -> None:
-        pass
-
-    def mousePressEvent(self, event: Any) -> None:
-        pass
-
-    def mouseMoveEvent(self, event: Any) -> None:
-        pass
-
-    def mouseReleaseEvent(self, event: Any) -> None:
-        pass
-
-    def keyPressEvent(self, event: Any) -> None:
-        pass
-
-    @property
-    def qwidget(self) -> Any:
-        """Return the underlying QWidget for this window."""
-        return self
-
-    def update_image_label(self) -> None:
-        """Update the image label."""
-        pass
-
-    def statusBar(self) -> Any:
-        """Return the status bar."""
-        if not hasattr(self, "status_bar"):
-            self.status_bar = MagicMock()
-        return self.status_bar
-
-    def update_status_message(self, message: str) -> None:
-        """Update status message."""
-        pass
-
-    def refresh_point_edit_controls(self) -> None:
-        """Refresh point edit controls."""
-        pass
-
-    def add_to_history(self) -> None:
-        """Add current state to history."""
-        pass
-
-    def setup_timeline(self, start_frame: int, end_frame: int) -> None:
-        """Set up the timeline."""
-        pass
-
-    def set_image_sequence(self, path: str, filenames: list[str]) -> None:
-        """Set image sequence for MainWindow.
-
-        Note: This method is renamed from setImageSequence to avoid conflicts with the
-        method in MockCurveView while still providing the same functionality.
-        """
-        self.image_sequence_path = path
-        self.image_filenames = filenames
-
-    # Add remaining required properties
-    point_radius: int = 5
-    grid_color: Any = MagicMock()  # QColor in actual implementation
-    velocity_data: dict[int, dict[str, float]] = {}
-    info_label: Any = MagicMock()  # QColor in actual implementation
-    point_color: Any = MagicMock()  # QColor in actual implementation
-    selected_point_color: Any = MagicMock()  # QColor in actual implementation
-    interpolated_point_color: Any = MagicMock()  # QColor in actual implementation
-    selected_interpolated_point_color: Any = MagicMock()  # QColor in actual implementation
-    frame_number_color: Any = MagicMock()  # QColor in actual implementation
-    grid_line_width: int = 1
-    curve_data: Any = []
-    line_pen: Any = MagicMock()  # QPen in actual implementation
-    selected_line_pen: Any = MagicMock()  # QPen in actual implementation
-    point_pen: Any = MagicMock()  # QPen in actual implementation
-    selected_point_pen: Any = MagicMock()  # QPen in actual implementation
-    interpolated_point_pen: Any = MagicMock()  # QPen in actual implementation
-    selected_interpolated_point_pen: Any = MagicMock()  # QPen in actual implementation
-    crosshair_pen: Any = MagicMock()  # QPen in actual implementation
-    frame_marker_label: Any = MagicMock()
-    timeline_slider: Any = MagicMock()
-    grid_visible: bool = True
-    background_visible: bool = True
-    current_frame: int = 0
-    point_status_callback: Any = MagicMock()
+# Extended mock classes for test-specific needs
+class MockCurveView(ProtocolCompliantMockCurveView):
+    """Mock CurveView for testing centering and transform operations.
+    
+    This extends the shared ProtocolCompliantMockCurveView with test-specific customizations.
+    """
+    
+    def __init__(self, **kwargs):
+        # Extract test-specific parameters
+        self.x_offset = kwargs.pop('x_offset', 0.0)  # Manual pan offset
+        self.y_offset = kwargs.pop('y_offset', 0.0)  # Manual pan offset
+        
+        # Call parent constructor with remaining kwargs
+        super().__init__(**kwargs)
+        
+        # Override parent settings for test-specific needs
+        if 'selected_point_idx' in kwargs:
+            self.selected_point_idx = kwargs['selected_point_idx']
+            self.selected_points = {kwargs['selected_point_idx']}
+        
+        # Ensure these test-specific attributes exist
+        self.show_vectors = False
+        self.show_frame_numbers = False
 
 
 class MockBackgroundImage:
@@ -352,136 +67,47 @@ class MockBackgroundImage:
         return self.height_val
 
 
-class MockMainWindow:
-    # Implements MinimalMainWindowProtocol for testing
-    auto_center_enabled: bool = False
-    connected_signals: set[str] = set()
-
-    # UI elements
-    update_point_button: Any = None
-    point_size_spin: Any = None
-    x_edit: Any = None
-    y_edit: Any = None
-    z_edit: Any = None
-
-    # Protocol required attributes
-    image_sequence_path: str = ""
-    image_filenames: list[str] = []
-    image_label: Any = None
-    default_directory: str = ""
-    image_width: int = 1920
-    image_height: int = 1080
-    info_label: Any = None
-
-    # Defining history-related attributes here to avoid redefinition
-    history: list[dict[str, Any]] = []
-    history_index: int = -1
-    max_history_size: int = 20
-    point_name: str = "Default"
-    point_color: str = "#FF0000"
-    status_bar: Any = None
-    save_button: Any = None
-    add_point_button: Any = None
-    timeline_slider: Any = None
-    frame_edit: Any = None
-    go_button: Any = None
-    next_frame_button: Any = None
-    prev_frame_button: Any = None
-    first_frame_button: Any = None
-    last_frame_button: Any = None
-    play_button: Any = None
-    scale_button: Any = None
-    batch_edit_ui: Any = None
-    offset_button: Any = None
-    rotate_button: Any = None
-    smooth_batch_button: Any = None
-    select_all_button: Any = None
-    smooth_button: Any = None
-    filter_button: Any = None
-    fill_gaps_button: Any = None
-    extrapolate_button: Any = None
-    detect_problems_button: Any = None
-    shortcuts_button: Any = None
-    undo_button: Any = None
-    redo_button: Any = None
-    toggle_bg_button: Any = None
-    opacity_slider: Any = None
-    load_images_button: Any = None
-    next_image_button: Any = None
-    prev_image_button: Any = None
-    analyze_button: Any = None
-    quality_ui: Any = None
-
-    shortcuts: Any = None
-
-    # Additional attributes that were in the removed duplicate section
-    selected_indices: list[int] = []
-    status_bar_message: str | None = None
-    curve_view: CurveViewProtocol | None = None
-    curve_data: PointsList = []
-
-    def __init__(
-        self, curve_data: PointsList | None = None, selected_points: list[int] | None = None, selected_idx: int = 0
-    ) -> None:
-        """Initialize MockMainWindow for testing."""
-        self.curve_view = None  # Will be set later in tests
-        self.curve_data = curve_data or [(1, 100.0, 200.0), (2, 300.0, 400.0), (3, 500.0, 600.0)]
-        self.selected_indices = selected_points or [selected_idx]
-        self.status_bar_message = None
-        # Initialize history properly
-        self.history = []
-        self.history_index = -1
-
+class MockMainWindow(BaseMockMainWindow):
+    """Mock MainWindow for testing centering and transform operations.
+    
+    This extends the shared BaseMockMainWindow with test-specific features.
+    """
+    
+    def __init__(self, **kwargs):
+        # Extract test-specific parameters
+        selected_idx = kwargs.pop('selected_idx', 0)
+        selected_points = kwargs.pop('selected_points', None)
+        
+        # Convert selected_idx to selected_indices if needed
+        if selected_points is None and 'selected_indices' not in kwargs:
+            kwargs['selected_indices'] = [selected_idx]
+        elif selected_points is not None:
+            kwargs['selected_indices'] = selected_points
+        
+        # Call parent constructor
+        super().__init__(**kwargs)
+        
+        # Test-specific attributes
+        self.auto_center_enabled = False
+        self.connected_signals = set()
+        self.max_history_size = 20
+        self.point_name = "Default"
+        self.point_color = "#FF0000"
+    
     def set_centering_enabled(self, enabled: bool) -> None:
         self.auto_center_enabled = enabled
-
+    
     def toggle_fullscreen(self) -> None:
         pass
-
+    
     def apply_smooth_operation(self) -> None:
         pass
-
-    # Implementing methods required by MainWindowProtocol
+    
     @property
     def qwidget(self) -> QWidget:
         """Return the underlying QWidget."""
-        return cast(QWidget, MagicMock())  # Mock implementation for testing
-
-    def update_image_label(self) -> None:
-        """Update the image label with current image info."""
-        pass
-
-    def update_status_message(self, message: str) -> None:
-        """Update the status message."""
-        self.status_bar_message = message
-
-    def statusBar(self):
-        """Return a mock status bar object for Qt compatibility."""
-
-        # Create a simple mock status bar that captures messages
-        class MockStatusBar:
-            def __init__(self, main_window):
-                self.main_window = main_window
-
-            def showMessage(self, message: str, timeout: int = 0) -> None:
-                # Store the message in the main window for test verification
-                self.main_window.status_bar_message = message
-
-        return MockStatusBar(self)
-
-    def refresh_point_edit_controls(self) -> None:
-        """Refresh the point edit controls."""
-        pass
-
-    def add_to_history(self) -> None:
-        """Add current state to history."""
-        self.history_index += 1
-        self.history = self.history[: self.history_index] + [{"state": "mock"}]
-
-    def setup_timeline(self, start_frame: int, end_frame: int) -> None:
-        """Set up the timeline with the given frame range."""
-        pass
-
+        return cast(QWidget, MagicMock())
+    
     def setImageSequence(self, filenames: list[str]) -> None:
         """Set the image sequence to display."""
         self.image_filenames = filenames
@@ -726,7 +352,7 @@ def test_auto_center_view_no_selection():
     """Test that auto_center_view handles the case with no selection."""
     # Setup with no selected point
     mock_view = MockCurveView(selected_point_idx=-1, selected_points=set())
-    mock_window = MockMainWindow(selected_idx=-1, selected_points=[])
+    mock_window = MockMainWindow(selected_idx=-1, selected_indices=[])
     mock_window.curve_view = mock_view
     mock_view.main_window = mock_window
 
