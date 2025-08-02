@@ -5,7 +5,7 @@ import os
 import sys
 from datetime import datetime
 
-import logging_config
+from config import logging_config
 from PySide6.QtWidgets import QApplication
 
 from services.logging_service import LoggingService
