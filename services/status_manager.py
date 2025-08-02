@@ -128,11 +128,7 @@ class StatusManager:
         Returns:
             bool: True if valid curve data is loaded
         """
-        return bool(
-            hasattr(main_window, "curve_data")
-            and main_window.curve_data
-            and len(main_window.curve_data) > 0
-        )
+        return bool(hasattr(main_window, "curve_data") and main_window.curve_data and len(main_window.curve_data) > 0)
 
     @staticmethod
     def _has_image_data(main_window: MainWindowProtocol) -> bool:

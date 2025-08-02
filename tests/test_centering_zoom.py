@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
-from services.protocols import CurveViewProtocol, PointsList
+from core.protocols import CurveViewProtocol, PointsList
 
 
 # Minimal MainWindowProtocol for type checking in tests

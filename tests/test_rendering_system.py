@@ -15,10 +15,10 @@ import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from data.curve_view import CurveView
 from PySide6.QtCore import QRect
 from PySide6.QtGui import QPaintEvent
 
+from data.curve_view import CurveView
 from rendering.background_renderer import BackgroundRenderer
 from rendering.curve_renderer import CurveRenderer
 from rendering.info_renderer import InfoRenderer

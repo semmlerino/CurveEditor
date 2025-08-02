@@ -9,7 +9,7 @@ from unittest.mock import MagicMock, patch
 from PySide6.QtGui import QColor
 
 from services.centering_zoom_service import CenteringZoomService
-from services.protocols import PointsList
+from core.protocols import PointsList
 from services.visualization_service import VisualizationService, logger
 
 

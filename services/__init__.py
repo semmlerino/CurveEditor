@@ -15,6 +15,7 @@ import inspect
 from typing import Any, Protocol, TypeVar, cast
 
 from core.protocols import PointsList
+
 # AnalysisService removed - using CurveAnalysisService directly
 from services.curve_service import CurveService
 from services.dialog_service import DialogService
@@ -29,10 +30,10 @@ from services.models import Point, PointsCollection
 from services.settings_service import SettingsService
 from services.status_manager import StatusManager
 from services.unified_transform import Transform
+
 # UnifiedTransformationService removed - using TransformationService directly
 from services.view_state import ViewState
 from services.visualization_service import VisualizationService
-from track_quality import TrackQualityAnalysisService
 
 __all__ = [
     # Core models and protocols

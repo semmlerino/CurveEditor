@@ -275,6 +275,7 @@ class ImageService:
 
         # Update status to reflect loaded images
         from services.status_manager import StatusManager
+
         StatusManager.update_status(main_window)
 
         # Show a success message

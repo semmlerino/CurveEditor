@@ -5,8 +5,7 @@ Pytest tests for error_handling.py
 """
 
 import pytest
-
-from error_handling import safe_operation, show_error
+from utils.error_handling import safe_operation, show_error
 
 
 class MockMainWindow:

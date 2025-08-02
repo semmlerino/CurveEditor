@@ -137,6 +137,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 # Common fixture types used across tests
 try:
     from data.curve_view import CurveView
+
     PointsList = list[tuple[int, float, float]]
 except ImportError:
     PointsList = list
@@ -146,6 +147,7 @@ except ImportError:
 def curve_view(qapp) -> "CurveView":
     """Create a CurveView instance for testing."""
     from data.curve_view import CurveView
+
     return CurveView()
 
 
@@ -159,6 +161,10 @@ def sample_points() -> PointsList:
 def large_sample_points() -> PointsList:
     """Larger sample point data for testing."""
     return [
-        (1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0),
-        (4, 250.0, 350.0), (5, 300.0, 400.0), (6, 350.0, 450.0)
+        (1, 100.0, 200.0),
+        (2, 150.0, 250.0),
+        (3, 200.0, 300.0),
+        (4, 250.0, 350.0),
+        (5, 300.0, 400.0),
+        (6, 350.0, 450.0),
     ]

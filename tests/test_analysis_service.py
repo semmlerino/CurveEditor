@@ -7,8 +7,8 @@ from typing import cast
 
 import numpy as np
 
-from services.curve_analysis_service import CurveAnalysisService as AnalysisService
 from core.protocols.protocols import PointsList
+from services.curve_analysis_service import CurveAnalysisService as AnalysisService
 
 
 class TestAnalysisService(unittest.TestCase):
@@ -53,7 +53,9 @@ class TestAnalysisService(unittest.TestCase):
         original_centroid_y = original_y_sum / len(indices_to_smooth)
 
         # Act
-        self.analysis_service.data = AnalysisService.smooth_moving_average(self.analysis_service.data, indices_to_smooth, window_size)
+        self.analysis_service.data = AnalysisService.smooth_moving_average(
+            self.analysis_service.data, indices_to_smooth, window_size
+        )
         smoothed_data = self.analysis_service.get_data()
 
         # Assert
@@ -230,7 +232,9 @@ class TestAnalysisService(unittest.TestCase):
             self.assertIsInstance(frame, int)
             self.assertIn("type", issue_data)
             # Check for either 'description' or specific issue type keys
-            self.assertTrue("description" in issue_data or any(key in issue_data for key in ["jitter", "jump", "outlier"]))
+            self.assertTrue(
+                "description" in issue_data or any(key in issue_data for key in ["jitter", "jump", "outlier"])
+            )
 
 
 if __name__ == "__main__":
