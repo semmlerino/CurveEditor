@@ -245,8 +245,8 @@ class CurveAnalysisService:
         problems = {}
 
         # Define thresholds
-        JITTER_THRESHOLD = 0.5  # Very small movement
-        JUMP_THRESHOLD = 10.0  # Large sudden movement
+        jitter_threshold = 0.5  # Very small movement
+        jump_threshold = 10.0  # Large sudden movement
 
         for i in range(1, len(sorted_data)):
             prev_point = sorted_data[i - 1]
@@ -265,11 +265,11 @@ class CurveAnalysisService:
             dy = abs(curr_point[2] - prev_point[2])
             distance = math.sqrt(dx * dx + dy * dy)
 
-            if distance < JITTER_THRESHOLD:
+            if distance < jitter_threshold:
                 problems[frame] = problems.get(frame, {})
                 problems[frame]["type"] = "jitter"
                 problems[frame]["jitter"] = f"Very small movement: {distance:.3f}"
-            elif distance > JUMP_THRESHOLD:
+            elif distance > jump_threshold:
                 problems[frame] = problems.get(frame, {})
                 problems[frame]["type"] = "jump"
                 problems[frame]["jump"] = f"Large jump: {distance:.3f}"

@@ -215,7 +215,6 @@ class TestAnalysisService(unittest.TestCase):
 
         # Cast the data to ensure type compatibility
         points_list: PointsList = cast(PointsList, problem_data)
-        analysis = AnalysisService(points_list)
 
         # Act
         problems = AnalysisService.detect_problems(points_list)

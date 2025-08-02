@@ -1,7 +1,7 @@
 # services/curve_service.py
 
 # Standard library imports
-from typing import TYPE_CHECKING, Any, Union, cast, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 # Third-party imports
 from PySide6.QtCore import QRect
@@ -27,8 +27,8 @@ logger = LoggingService.get_logger("curve_service")
 # Type definitions for curve points (merged from curve_utils.py)
 Point3 = tuple[int, float, float]
 Point4 = tuple[int, float, float, str | bool]
-PointType = Union[Point3, Point4]
-StatusType = Union[str, bool]
+PointType = Point3 | Point4
+StatusType = str | bool
 
 
 # Utility functions for curve operations (merged from curve_utils.py)
@@ -694,7 +694,6 @@ class CurveService:
         CurveService.update_point_info(main_window, idx, x, y)
 
         return True
-
 
     @staticmethod
     @safe_operation("Change Nudge Increment")

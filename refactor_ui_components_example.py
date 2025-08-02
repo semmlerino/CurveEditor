@@ -7,25 +7,32 @@ This file demonstrates how to refactor the duplicate layout patterns
 found in ui_components.py to use the new LayoutFactory utility.
 """
 
+from PySide6.QtWidgets import QGroupBox, QLineEdit, QPushButton, QWidget
+
+from ui_utils import LayoutFactory
+
+# Example 1: Zero-margin layout
 # BEFORE (Lines 100-103 from ui_components.py):
 # main_layout = QVBoxLayout(main_widget)
 # main_layout.setContentsMargins(0, 0, 0, 0)
 # main_layout.setSpacing(0)
 
 # AFTER:
-from ui_utils import LayoutFactory
-
-# Using LayoutFactory for zero-margin layout
+# Assuming main_widget is a QWidget instance
+main_widget = QWidget()  # Example widget
 main_layout = LayoutFactory.create_basic_layout(main_widget, "vertical", spacing="none", zero_margins=True)
 
+# Example 2: Layout with spacing
 # BEFORE (Lines 150-152):
 # bottom_layout = QVBoxLayout(bottom_container)
 # bottom_layout.setContentsMargins(0, 0, 0, 0)
 # bottom_layout.setSpacing(UIScaling.get_spacing("xs"))
 
 # AFTER:
+bottom_container = QWidget()  # Example widget
 bottom_layout = LayoutFactory.create_basic_layout(bottom_container, "vertical", spacing="xs", zero_margins=True)
 
+# Example 3: Container with standard margins
 # BEFORE (Lines 457-459 for container with standard margins):
 # container_layout = QVBoxLayout(container)
 # margin = UIScaling.get_spacing("s")
@@ -33,8 +40,10 @@ bottom_layout = LayoutFactory.create_basic_layout(bottom_container, "vertical", 
 # container_layout.setSpacing(UIScaling.get_spacing("s"))
 
 # AFTER:
+container = QWidget()  # Example widget
 container_layout = LayoutFactory.create_container_layout(container, "vertical", spacing="s", standard_margins=True)
 
+# Example 4: Button group
 # BEFORE (Button group pattern from toolbar_components.py):
 # button_layout = QHBoxLayout()
 # button_layout.setSpacing(UIScaling.get_spacing("s"))
@@ -43,10 +52,13 @@ container_layout = LayoutFactory.create_container_layout(container, "vertical", 
 # button_layout.addStretch()
 
 # AFTER:
+button1 = QPushButton("Button 1")  # Example buttons
+button2 = QPushButton("Button 2")
 button_container, button_layout = LayoutFactory.create_button_group_layout(
     [button1, button2], spacing="s", add_stretch=True
 )
 
+# Example 5: Grid with label-widget pairs
 # BEFORE (Grid with labels pattern):
 # grid_layout = QGridLayout(group)
 # grid_layout.addWidget(QLabel("Label1:"), 0, 0)
@@ -55,6 +67,9 @@ button_container, button_layout = LayoutFactory.create_button_group_layout(
 # grid_layout.addWidget(widget2, 1, 1)
 
 # AFTER:
+group = QGroupBox("Settings")  # Example group box
+widget1 = QLineEdit()  # Example widgets
+widget2 = QLineEdit()
 grid_layout = LayoutFactory.create_grid_with_labels(
     [("Label1:", widget1), ("Label2:", widget2)], parent=group, spacing="s", margins="s"
 )

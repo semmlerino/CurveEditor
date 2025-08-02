@@ -7,9 +7,13 @@ proper Qt application initialization for tests that require Qt components.
 """
 
 from collections.abc import Generator
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QPointF, QRect
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import QApplication, QRubberBand
 
 # Global variable to track QApplication instance
 _qapp_instance: QApplication | None = None
@@ -174,20 +178,14 @@ def large_sample_points() -> PointsList:
 # Shared Mock Classes for Testing
 # =============================================================================
 
-from typing import Any, Optional
-from unittest.mock import MagicMock
-from PySide6.QtCore import QPointF, QRect
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QRubberBand, QWidget
-
 
 class BaseMockCurveView:
     """Base mock CurveView with common attributes and methods for testing.
-    
+
     This class provides the minimal common functionality needed by most tests.
     Specific test files can inherit and extend this for their needs.
     """
-    
+
     def __init__(
         self,
         width: int = 800,
@@ -204,20 +202,20 @@ class BaseMockCurveView:
         self.height_val = height
         self.image_width = img_width
         self.image_height = img_height
-        
+
         # Transformation state
         self.zoom_factor = zoom_factor
         self.offset_x = offset_x
         self.offset_y = offset_y
         self.x_offset = 0.0  # Manual pan offset
         self.y_offset = 0.0  # Manual pan offset
-        
+
         # Data and selection
         self.points = []
         self.curve_data = []
         self.selected_points = selected_points or set()
         self.selected_point_idx = min(selected_points) if selected_points else -1
-        
+
         # Display flags
         self.show_background = True
         self.show_grid = False
@@ -226,29 +224,29 @@ class BaseMockCurveView:
         self.show_crosshair = False
         self.background_visible = True
         self.grid_visible = True
-        
+
         # UI state
         self.update_called = False
         self.background_opacity = 1.0
         self.point_radius = 5
         self.grid_line_width = 1
         self.grid_color = QColor(100, 100, 100)
-        
+
         # Mock UI components
         self.frame_marker_label = MagicMock()
         self.timeline_slider = MagicMock()
         self.timeline_slider.minimum.return_value = 1
         self.timeline_slider.maximum.return_value = 100
-    
+
     def width(self) -> int:
         return self.width_val
-    
+
     def height(self) -> int:
         return self.height_val
-    
+
     def update(self) -> None:
         self.update_called = True
-    
+
     def setPoints(
         self,
         points: list[tuple[int, float, float] | tuple[int, float, float, bool | str]],
@@ -261,17 +259,17 @@ class BaseMockCurveView:
             self.image_width = image_width
         if image_height:
             self.image_height = image_height
-    
+
     def get_selected_points(self) -> list[int]:
         return list(self.selected_points)
-    
+
     def is_point_selected(self, idx: int) -> bool:
         return idx in self.selected_points
-    
+
     def selectPointByIndex(self, idx: int) -> None:
         self.selected_point_idx = idx
         self.selected_points = {idx}
-    
+
     def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
         if not self.points or idx >= len(self.points):
             return (0, 0.0, 0.0, None)
@@ -284,47 +282,47 @@ class BaseMockCurveView:
 
 class ProtocolCompliantMockCurveView(BaseMockCurveView):
     """Mock CurveView that fully implements CurveViewProtocol.
-    
+
     Use this when tests require full protocol compliance.
     """
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        
+
         # Additional protocol requirements
-        self.flip_y_axis = kwargs.get('flip_y_axis', True)
-        self.scale_to_image = kwargs.get('scale_to_image', False)
+        self.flip_y_axis = kwargs.get("flip_y_axis", True)
+        self.scale_to_image = kwargs.get("scale_to_image", False)
         self.background_image = MagicMock() if self.scale_to_image else None
         self.main_window = None
-        
+
         # Image sequence
         self.image_sequence_path = ""
         self.current_image_idx = -1
         self.image_filenames = []
         self.image_changed = None
-        
+
         # Rubber band selection
         self.rubber_band: QRubberBand | None = None
         self.rubber_band_origin: QPointF = QPointF(0, 0)
         self.rubber_band_active: bool = False
-        
+
         # Drag/pan state
         self.drag_active: bool = False
         self.last_drag_pos: QPointF | None = None
         self.pan_active: bool = False
         self.last_pan_pos: QPointF | None = None
-        
+
         # Additional UI elements
         self.nudge_increment = 1.0
         self.current_increment_index = 0
         self.available_increments = [0.1, 1.0, 10.0]
         self.selection_rect = QRect()
-        
+
         # Callbacks
         self._on_point_moved: int | None = None
         self._on_point_selected: int = -1
         self._on_selection_changed: bool = False
-        
+
         # Colors and pens
         self.point_color = MagicMock()
         self.selected_point_color = MagicMock()
@@ -338,214 +336,229 @@ class ProtocolCompliantMockCurveView(BaseMockCurveView):
         self.interpolated_point_pen = MagicMock()
         self.selected_interpolated_point_pen = MagicMock()
         self.crosshair_pen = MagicMock()
-        
+
         # Additional state
         self.velocity_data: dict[int, dict[str, float]] = {}
         self.info_label = MagicMock()
         self.current_frame = 0
         self.point_status_callback = MagicMock()
-    
+
     # Protocol required methods
     def point_selected(self, index: int) -> None:
         self._on_point_selected = index
-    
+
     def selection_changed(self) -> None:
         self._on_selection_changed = True
-    
+
     def point_moved(self, index: int, x: float, y: float) -> None:
         pass
-    
+
     def findPointAt(self, pos: QPointF) -> int:
         return -1
-    
+
     def setFocus(self) -> None:
         pass
-    
+
     def setCurrentImageByIndex(self, idx: int) -> None:
         self.current_image_idx = idx
-    
+
     def setBackgroundOpacity(self, opacity: float) -> None:
         self.background_opacity = opacity
-    
+
     def centerOnSelectedPoint(self) -> bool:
         return True
-    
+
     def setImageSequence(self, path: str, filenames: list[str]) -> None:
         self.image_sequence_path = path
         self.image_filenames = filenames
-    
+
     def set_curve_data(self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, bool | str]]) -> None:
         self.curve_data = curve_data
-    
+
     def get_selected_indices(self) -> list[int]:
         return list(self.selected_points)
-    
+
     def setVelocityData(self, velocities: list[tuple[float, float]]) -> None:
         pass
-    
+
     def toggleVelocityVectors(self, enabled: bool = True) -> None:
         self.show_velocity_vectors = enabled
-    
+
     def toggle_point_interpolation(self, idx: int) -> None:
         pass
-    
+
     def toggleBackgroundVisible(self, visible: bool = True) -> None:
         self.background_visible = visible
-    
+
     def setCursor(self, cursor: Any) -> None:
         pass
-    
+
     def unsetCursor(self) -> None:
         pass
-    
+
     def setToolTip(self, tooltip: str) -> None:
         pass
-    
+
     def set_background_image(self, img_path: str) -> bool:
         return True
-    
+
     # Qt event handlers
     def resizeEvent(self, event: Any) -> None:
         pass
-    
+
     def closeEvent(self, event: Any) -> None:
         pass
-    
+
     def wheelEvent(self, event: Any) -> None:
         pass
-    
+
     def paintEvent(self, event: Any) -> None:
         pass
-    
+
     def mousePressEvent(self, event: Any) -> None:
         pass
-    
+
     def mouseMoveEvent(self, event: Any) -> None:
         pass
-    
+
     def mouseReleaseEvent(self, event: Any) -> None:
         pass
-    
+
     def keyPressEvent(self, event: Any) -> None:
         pass
-    
+
     @property
     def qwidget(self) -> Any:
         return self
-    
+
     def update_image_label(self) -> None:
         pass
-    
+
     def statusBar(self) -> Any:
         if not hasattr(self, "status_bar"):
             self.status_bar = MagicMock()
         return self.status_bar
-    
+
     def update_status_message(self, message: str) -> None:
         pass
-    
+
     def refresh_point_edit_controls(self) -> None:
         pass
-    
+
     def add_to_history(self) -> None:
         pass
-    
+
     def setup_timeline(self, start_frame: int, end_frame: int) -> None:
         pass
-    
+
     def emit(self, *args: Any, **kwargs: Any) -> None:
         pass
 
 
 class BaseMockMainWindow:
     """Base mock MainWindow with common attributes for testing."""
-    
-    def __init__(
-        self,
-        curve_data: PointsList | None = None,
-        selected_indices: list[int] | None = None
-    ):
+
+    def __init__(self, curve_data: PointsList | None = None, selected_indices: list[int] | None = None):
         # Core data
         self.curve_data = curve_data or [(1, 100.0, 200.0), (2, 300.0, 400.0), (3, 500.0, 600.0)]
         self.selected_indices = selected_indices or []
-        
+
         # UI references
         self.curve_view = None
         self.qwidget = MagicMock()
-        
+
         # State tracking
         self.history_added = False
         self.status_bar_message = None
         self.history = []
         self.history_index = -1
-        
+
         # Image data
         self.image_width = 1920
         self.image_height = 1080
         self.default_directory = ""
         self.image_sequence_path = ""
         self.image_filenames = []
-    
+
     def add_to_history(self) -> None:
         self.history_added = True
         self.history_index += 1
         self.history = self.history[: self.history_index] + [{"state": "mock"}]
-    
+
     def statusBar(self):
         """Return a mock status bar object."""
+
         class MockStatusBar:
             def __init__(self, main_window):
                 self.main_window = main_window
-            
+
             def showMessage(self, message: str, timeout: int = 0) -> None:
                 self.main_window.status_bar_message = message
-        
+
         return MockStatusBar(self)
-    
+
     def update_status_message(self, message: str) -> None:
         self.status_bar_message = message
-    
+
     def update_image_label(self) -> None:
         pass
-    
+
     def refresh_point_edit_controls(self) -> None:
         pass
-    
+
     def setup_timeline(self, start_frame: int, end_frame: int) -> None:
         pass
 
 
 class LazyUIMockMainWindow(BaseMockMainWindow):
     """Mock MainWindow with lazy UI component creation (inspired by test_main_window_clean.py)."""
-    
+
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._mock_cache = {}
-        
+
         # Define which attributes should be buttons with 'clicked' signal
         self._button_attrs = {
-            'save_button', 'add_point_button', 'update_point_button',
-            'next_frame_button', 'prev_frame_button', 'first_frame_button',
-            'last_frame_button', 'play_button', 'scale_button', 'offset_button',
-            'rotate_button', 'smooth_batch_button', 'select_all_button',
-            'smooth_button', 'filter_button', 'fill_gaps_button',
-            'extrapolate_button', 'detect_problems_button', 'shortcuts_button',
-            'undo_button', 'redo_button', 'toggle_bg_button',
-            'load_images_button', 'next_image_button', 'prev_image_button',
-            'analyze_button', 'go_button'
+            "save_button",
+            "add_point_button",
+            "update_point_button",
+            "next_frame_button",
+            "prev_frame_button",
+            "first_frame_button",
+            "last_frame_button",
+            "play_button",
+            "scale_button",
+            "offset_button",
+            "rotate_button",
+            "smooth_batch_button",
+            "select_all_button",
+            "smooth_button",
+            "filter_button",
+            "fill_gaps_button",
+            "extrapolate_button",
+            "detect_problems_button",
+            "shortcuts_button",
+            "undo_button",
+            "redo_button",
+            "toggle_bg_button",
+            "load_images_button",
+            "next_image_button",
+            "prev_image_button",
+            "analyze_button",
+            "go_button",
         }
-        
+
         # Define attributes that need specific mock behaviors
         self._special_attrs = {
-            'point_size_spin': lambda: MagicMock(value=MagicMock(return_value=5)),
-            'x_edit': lambda: MagicMock(text=MagicMock(return_value="0.0")),
-            'y_edit': lambda: MagicMock(text=MagicMock(return_value="0.0")), 
-            'z_edit': lambda: MagicMock(text=MagicMock(return_value="0.0")),
-            'frame_edit': lambda: MagicMock(text=MagicMock(return_value="1")),
-            'timeline_slider': lambda: MagicMock(value=MagicMock(return_value=1)),
-            'opacity_slider': lambda: MagicMock(value=MagicMock(return_value=100))
+            "point_size_spin": lambda: MagicMock(value=MagicMock(return_value=5)),
+            "x_edit": lambda: MagicMock(text=MagicMock(return_value="0.0")),
+            "y_edit": lambda: MagicMock(text=MagicMock(return_value="0.0")),
+            "z_edit": lambda: MagicMock(text=MagicMock(return_value="0.0")),
+            "frame_edit": lambda: MagicMock(text=MagicMock(return_value="1")),
+            "timeline_slider": lambda: MagicMock(value=MagicMock(return_value=1)),
+            "opacity_slider": lambda: MagicMock(value=MagicMock(return_value=100)),
         }
-    
+
     def __getattr__(self, name: str) -> Any:
         """Lazy creation of UI components."""
         if name not in self._mock_cache:
@@ -560,7 +573,7 @@ class LazyUIMockMainWindow(BaseMockMainWindow):
             else:
                 # Create generic mock
                 self._mock_cache[name] = MagicMock()
-        
+
         return self._mock_cache[name]
 
 
@@ -593,8 +606,7 @@ def mock_main_window():
 def mock_main_window_with_data():
     """Create a mock main window with sample curve data."""
     return BaseMockMainWindow(
-        curve_data=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)],
-        selected_indices=[1]
+        curve_data=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)], selected_indices=[1]
     )
 
 
