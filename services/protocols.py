@@ -22,17 +22,19 @@ Note:
     All protocols use @runtime_checkable to allow isinstance() checks at runtime.
 
 """
+
 from __future__ import annotations
 
-from typing import Protocol, Optional, Any, Tuple, List, Dict, Union, TypeVar, Set, runtime_checkable
+from typing import Any, Protocol, TypeVar, runtime_checkable
 
 from PySide6.QtCore import QRect
-from PySide6.QtGui import QPixmap, QColor
+from PySide6.QtGui import QColor, QPixmap
 from PySide6.QtWidgets import QWidget
 
-PointTuple = Tuple[int, float, float]  # frame, x, y
-PointTupleWithStatus = Tuple[int, float, float, Union[bool, str]]  # frame, x, y, status (bool or str)
-PointsList = List[Union[PointTuple, PointTupleWithStatus]]
+PointTuple = tuple[int, float, float]  # frame, x, y
+PointTupleWithStatus = tuple[int, float, float, bool | str]  # frame, x, y, status (bool or str)
+PointsList = list[PointTuple | PointTupleWithStatus]
+
 
 # Image Service Protocols
 @runtime_checkable
@@ -45,7 +47,7 @@ class ImageSequenceProtocol(Protocol):
     Attributes:
         image_sequence_path: Path to the current image sequence directory.
         current_image_idx: Index of the currently displayed image.
-        image_filenames: List of image filenames in the sequence.
+        image_filenames: list of image filenames in the sequence.
         image_width: Width of the current image in pixels.
         image_height: Height of the current image in pixels.
         zoom_factor: Current zoom level for image display.
@@ -57,6 +59,7 @@ class ImageSequenceProtocol(Protocol):
         image_changed: Signal emitted when the current image changes.
 
     """
+
     # Added for image_service compatibility
     image_sequence_path: str
     current_image_idx: int
@@ -67,15 +70,19 @@ class ImageSequenceProtocol(Protocol):
     offset_x: float
     offset_y: float
     selected_point_idx: int
+
     def setFocus(self) -> None: ...
     def setCurrentImageByIndex(self, idx: int) -> None: ...
     def centerOnSelectedPoint(self) -> bool: ...
     def setImageSequence(self, path: str, filenames: list[str]) -> None: ...
+
     background_image: Any
     scale_to_image: bool
     image_changed: Any
+
     def emit(self, *args: Any, **kwargs: Any) -> None: ...
     def update(self) -> None: ...
+
 
 @runtime_checkable
 class CurveViewProtocol(ImageSequenceProtocol, Protocol):
@@ -98,14 +105,14 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
         point_radius: Radius of point markers in pixels.
         grid_color: Color of the grid lines.
         grid_line_width: Width of grid lines in pixels.
-        curve_data: List of curve points with position and status.
-        selected_points: Set of indices for selected points.
+        curve_data: list of curve points with position and status.
+        selected_points: set of indices for selected points.
         frame_marker_label: UI label for frame marker display.
         timeline_slider: UI slider for timeline navigation.
-        points: List of point data.
+        points: list of point data.
         nudge_increment: Current increment for nudging operations.
         current_increment_index: Index of current nudge increment.
-        available_increments: List of available nudge increment values.
+        available_increments: list of available nudge increment values.
         main_window: Reference to main window for status updates.
         selection_rect: Rectangle for area selection.
         point_selected: Signal emitted when a point is selected.
@@ -113,12 +120,15 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
         selection_changed: Signal emitted when selection changes.
 
     """
+
     # Added for image_service compatibility
     current_image_idx: int
+
     def setCurrentImageByIndex(self, idx: int) -> None: ...
     def setImageSequence(self, path: str, filenames: list[str]) -> None: ...
     def toggleBackgroundVisible(self, visible: bool) -> None: ...
     def setBackgroundOpacity(self, opacity: float) -> None: ...
+
     image_filenames: list[str]
     show_background: bool
     image_width: int
@@ -127,6 +137,7 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
     offset_x: float
     offset_y: float
     selected_point_idx: int
+
     def centerOnSelectedPoint(self) -> bool: ...
 
     # Common attributes
@@ -134,7 +145,7 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
     y_offset: float
     flip_y_axis: bool
     scale_to_image: bool
-    background_image: Optional[QPixmap]  # Changed from Any to QPixmap
+    background_image: QPixmap | None  # Changed from Any to QPixmap
 
     # Visualization attributes (added for type safety)
     show_grid: bool
@@ -148,13 +159,13 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
 
     # Data and selection
     curve_data: PointsList
-    selected_points: Set[int]
+    selected_points: set[int]
     frame_marker_label: Any
     timeline_slider: Any
     points: PointsList  # Specific point data list
     nudge_increment: float
     current_increment_index: int
-    available_increments: List[float]
+    available_increments: list[float]
     main_window: Any  # Reference to main window for status updates
     # Selection rectangle
     selection_rect: QRect  # Properly typed as QRect
@@ -162,11 +173,14 @@ class CurveViewProtocol(ImageSequenceProtocol, Protocol):
     point_selected: Any  # Signal
     point_moved: Any  # Signal
     selection_changed: Any  # Signal
+
     # Points manipulation
     def set_curve_data(self, curve_data: PointsList) -> None: ...
-    def get_selected_indices(self) -> List[int]: ...
-    def setPoints(self, points: PointsList, image_width: int = 0, image_height: int = 0, preserve_view: bool = False) -> None: ...
-    def get_selected_points(self) -> List[int]: ...
+    def get_selected_indices(self) -> list[int]: ...
+    def setPoints(
+        self, points: PointsList, image_width: int = 0, image_height: int = 0, preserve_view: bool = False
+    ) -> None: ...
+    def get_selected_points(self) -> list[int]: ...
     def setVelocityData(self, velocities: Any) -> None: ...
     def toggleVelocityVectors(self, enabled: bool) -> None: ...
 
@@ -180,7 +194,7 @@ class MainWindowProtocol(Protocol):
 
     Attributes:
         image_sequence_path: Path to the current image sequence.
-        image_filenames: List of loaded image filenames.
+        image_filenames: list of loaded image filenames.
         image_label: UI label for image display.
         toggle_bg_button: Button for toggling background visibility.
         default_directory: Default directory for file operations.
@@ -188,7 +202,7 @@ class MainWindowProtocol(Protocol):
         image_width: Width of the current image.
         image_height: Height of the current image.
         curve_view: The curve view component instance.
-        curve_data: List of curve point data.
+        curve_data: list of curve point data.
         point_name: Name of the current point set.
         point_color: Color for point display.
         status_bar: Application status bar widget.
@@ -209,6 +223,7 @@ class MainWindowProtocol(Protocol):
         track_data_loaded: Whether track data has been loaded.
 
     """
+
     # For image_service compatibility
     image_sequence_path: str
     image_filenames: list[str]
@@ -250,7 +265,6 @@ class MainWindowProtocol(Protocol):
     def setImageSequence(self, filenames: list[str]) -> None: ...
 
 
-
 class ImageProtocol(Protocol):
     """Protocol defining the interface for image objects.
 
@@ -262,7 +276,7 @@ class ImageProtocol(Protocol):
         height: Returns the height of the image in pixels.
 
     Example:
-        def process_image(image: ImageProtocol) -> Tuple[int, int]:
+        def process_image(image: ImageProtocol) -> tuple[int, int]:
             return image.width(), image.height()
 
     """
@@ -327,7 +341,6 @@ class FileServiceProtocol(Protocol):
     def load_image_sequence(self, main_window: MainWindowProtocol) -> None: ...
 
 
-
 class ImageServiceProtocol(Protocol):
     """Protocol defining the interface for image operations.
 
@@ -353,7 +366,7 @@ class ImageServiceProtocol(Protocol):
     def load_current_image(self, curve_view: ImageSequenceProtocol) -> None: ...
     def set_current_image_by_index(self, curve_view: ImageSequenceProtocol, idx: int) -> None: ...
     def load_image_sequence(self, main_window: MainWindowProtocol) -> None: ...
-    def set_image_sequence(self, curve_view: ImageSequenceProtocol, path: str, filenames: List[str]) -> None: ...
+    def set_image_sequence(self, curve_view: ImageSequenceProtocol, path: str, filenames: list[str]) -> None: ...
 
 
 # History Service Protocols
@@ -364,7 +377,7 @@ class HistoryStateProtocol(Protocol):
     state snapshots in the undo/redo history system.
 
     Attributes:
-        curve_data: List of curve points at this state.
+        curve_data: list of curve points at this state.
         point_name: Name identifier for the point set.
         point_color: Color used to display the points.
 
@@ -389,7 +402,7 @@ class HistoryContainerProtocol(Protocol):
     undo/redo history, including state storage and UI elements.
 
     Attributes:
-        history: List of historical states stored as dictionaries.
+        history: list of historical states stored as dictionaries.
         history_index: Current position in the history list.
         max_history_size: Maximum number of states to retain.
         undo_button: UI button for undo action.
@@ -409,7 +422,7 @@ class HistoryContainerProtocol(Protocol):
 
     """
 
-    history: List[Dict[str, Any]]
+    history: list[dict[str, Any]]
     history_index: int
     max_history_size: int
     undo_button: Any
@@ -449,7 +462,7 @@ class HistoryServiceProtocol(Protocol):
     def update_history_buttons(self, main_window: HistoryContainerProtocol) -> None: ...
     def undo_action(self, main_window: HistoryContainerProtocol) -> None: ...
     def redo_action(self, main_window: HistoryContainerProtocol) -> None: ...
-    def restore_state(self, main_window: HistoryContainerProtocol, state: Dict[str, Any]) -> None: ...
+    def restore_state(self, main_window: HistoryContainerProtocol, state: dict[str, Any]) -> None: ...
 
 
 # Track Quality Protocols
@@ -466,6 +479,7 @@ class TrackQualityUIProtocol(MainWindowProtocol):
     coverage_label: Any
     analyze_button: Any
     toggle_vectors_button: Any
+
 
 # Dialog Service Protocols
 class DialogServiceProtocol(Protocol):
@@ -501,22 +515,27 @@ class DialogServiceProtocol(Protocol):
     """
 
     def show_smooth_dialog(
-        self, parent_widget: Any, curve_data: PointsList, selected_indices: List[int],
-        selected_point_idx: int
-    ) -> Optional[PointsList]: ...
+        self, parent_widget: Any, curve_data: PointsList, selected_indices: list[int], selected_point_idx: int
+    ) -> PointsList | None: ...
 
     def show_filter_dialog(self, main_window: MainWindowProtocol) -> None: ...
-    def detect_gaps(self, main_window: MainWindowProtocol) -> List[Tuple[int, int]]: ...
+    def detect_gaps(self, main_window: MainWindowProtocol) -> list[tuple[int, int]]: ...
     def show_fill_gaps_dialog(self, main_window: MainWindowProtocol) -> None: ...
-    def fill_gap(self, main_window: MainWindowProtocol, start_frame: int, end_frame: int,
-                method_index: int, preserve_endpoints: bool) -> None: ...
+    def fill_gap(
+        self,
+        main_window: MainWindowProtocol,
+        start_frame: int,
+        end_frame: int,
+        method_index: int,
+        preserve_endpoints: bool,
+    ) -> None: ...
     def show_extrapolate_dialog(self, main_window: MainWindowProtocol) -> None: ...
     def show_shortcuts_dialog(self, main_window: MainWindowProtocol) -> None: ...
-    def show_offset_dialog(self, main_window: MainWindowProtocol) -> Optional[PointsList]: ...
+    def show_offset_dialog(self, main_window: MainWindowProtocol) -> PointsList | None: ...
     def show_problem_detection_dialog(
-        self, main_window: MainWindowProtocol, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None
-    ) -> Optional[Any]: ...
+        self, main_window: MainWindowProtocol, problems: list[tuple[int, Any, Any, Any]] | None = None
+    ) -> Any | None: ...
 
 
 # Generic type for service method return values
-T = TypeVar('T')
+T = TypeVar("T")

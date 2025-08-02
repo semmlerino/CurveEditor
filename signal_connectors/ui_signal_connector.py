@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 UI Signal Connector for 3DE4 Curve Editor.
@@ -13,18 +12,19 @@ This module handles signal connections for various UI operations including:
 """
 
 # Standard library imports
-from typing import Any, Callable, TYPE_CHECKING
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from main_window import MainWindow
     from signal_registry import RegistryConnector
 
 # Local imports
+from components.ui_components import UIComponents
+from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.dialog_service import DialogService
 from services.history_service import HistoryService as HistoryOperations
 from services.image_service import ImageService as ImageOperations
-from services.centering_zoom_service import CenteringZoomService as ZoomOperations
-from ui_components import UIComponents
 
 if TYPE_CHECKING:
     pass
@@ -34,7 +34,7 @@ class UISignalConnector:
     """Handles signal connections for UI operations."""
 
     @staticmethod
-    def connect_signals(main_window: 'MainWindow', connect_signal_func: 'RegistryConnector') -> None:
+    def connect_signals(main_window: "MainWindow", connect_signal_func: "RegistryConnector") -> None:
         """Connect all UI-related signals.
 
         Args:
@@ -56,71 +56,71 @@ class UISignalConnector:
             connect_signal: Function to connect signals
         """
         # Timeline slider
-        if hasattr(main_window, 'timeline_slider'):
+        if hasattr(main_window, "timeline_slider"):
             connect_signal(
                 main_window,
                 main_window.timeline_slider.valueChanged,
                 lambda frame: UIComponents.on_timeline_changed(main_window, int(frame)),
-                "timeline_slider.valueChanged"
+                "timeline_slider.valueChanged",
             )
 
         # Frame edit field
-        if hasattr(main_window, 'frame_edit'):
+        if hasattr(main_window, "frame_edit"):
             connect_signal(
                 main_window,
                 main_window.frame_edit.textChanged,
                 lambda text: UIComponents.on_frame_edit_changed(main_window, text),
-                "frame_edit.textChanged"
+                "frame_edit.textChanged",
             )
 
         # Go button
-        if hasattr(main_window, 'go_button'):
+        if hasattr(main_window, "go_button"):
             connect_signal(
                 main_window,
                 main_window.go_button.clicked,
                 lambda: UIComponents.go_to_frame(main_window),
-                "go_button.clicked"
+                "go_button.clicked",
             )
 
         # Frame navigation buttons
-        if hasattr(main_window, 'next_frame_button'):
+        if hasattr(main_window, "next_frame_button"):
             connect_signal(
                 main_window,
                 main_window.next_frame_button.clicked,
                 lambda: UIComponents.next_frame(main_window),
-                "next_frame_button.clicked"
+                "next_frame_button.clicked",
             )
 
-        if hasattr(main_window, 'prev_frame_button'):
+        if hasattr(main_window, "prev_frame_button"):
             connect_signal(
                 main_window,
                 main_window.prev_frame_button.clicked,
                 lambda: UIComponents.prev_frame(main_window),
-                "prev_frame_button.clicked"
+                "prev_frame_button.clicked",
             )
 
-        if hasattr(main_window, 'first_frame_button'):
+        if hasattr(main_window, "first_frame_button"):
             connect_signal(
                 main_window,
                 main_window.first_frame_button.clicked,
                 lambda: UIComponents.go_to_first_frame(main_window),
-                "first_frame_button.clicked"
+                "first_frame_button.clicked",
             )
 
-        if hasattr(main_window, 'last_frame_button'):
+        if hasattr(main_window, "last_frame_button"):
             connect_signal(
                 main_window,
                 main_window.last_frame_button.clicked,
                 lambda: UIComponents.go_to_last_frame(main_window),
-                "last_frame_button.clicked"
+                "last_frame_button.clicked",
             )
 
-        if hasattr(main_window, 'play_button'):
+        if hasattr(main_window, "play_button"):
             connect_signal(
                 main_window,
                 main_window.play_button.clicked,
                 lambda: UIComponents.toggle_playback(main_window),
-                "play_button.clicked"
+                "play_button.clicked",
             )
 
     @staticmethod
@@ -132,52 +132,52 @@ class UISignalConnector:
             connect_signal: Function to connect signals
         """
         # Tool dialog buttons
-        if hasattr(main_window, 'smooth_button'):
+        if hasattr(main_window, "smooth_button"):
             connect_signal(
                 main_window,
                 main_window.smooth_button.clicked,
                 main_window.apply_smooth_operation,  # Connect to MainWindow method
-                "smooth_button.clicked"
+                "smooth_button.clicked",
             )
 
-        if hasattr(main_window, 'filter_button'):
+        if hasattr(main_window, "filter_button"):
             connect_signal(
                 main_window,
                 main_window.filter_button.clicked,
                 lambda: DialogService.show_filter_dialog(main_window),
-                "filter_button.clicked"
+                "filter_button.clicked",
             )
 
-        if hasattr(main_window, 'fill_gaps_button'):
+        if hasattr(main_window, "fill_gaps_button"):
             connect_signal(
                 main_window,
                 main_window.fill_gaps_button.clicked,
                 lambda: DialogService.show_fill_gaps_dialog(main_window),
-                "fill_gaps_button.clicked"
+                "fill_gaps_button.clicked",
             )
 
-        if hasattr(main_window, 'extrapolate_button'):
+        if hasattr(main_window, "extrapolate_button"):
             connect_signal(
                 main_window,
                 main_window.extrapolate_button.clicked,
                 lambda: DialogService.show_extrapolate_dialog(main_window),
-                "extrapolate_button.clicked"
+                "extrapolate_button.clicked",
             )
 
-        if hasattr(main_window, 'detect_problems_button'):
+        if hasattr(main_window, "detect_problems_button"):
             connect_signal(
                 main_window,
                 main_window.detect_problems_button.clicked,
                 lambda: print("Problem detection temporarily disabled."),
-                "detect_problems_button.clicked"
+                "detect_problems_button.clicked",
             )
 
-        if hasattr(main_window, 'shortcuts_button'):
+        if hasattr(main_window, "shortcuts_button"):
             connect_signal(
                 main_window,
                 main_window.shortcuts_button.clicked,
                 lambda: DialogService.show_shortcuts_dialog(main_window),
-                "shortcuts_button.clicked"
+                "shortcuts_button.clicked",
             )
 
     @staticmethod
@@ -189,20 +189,20 @@ class UISignalConnector:
             connect_signal: Function to connect signals
         """
         # History buttons
-        if hasattr(main_window, 'undo_button'):
+        if hasattr(main_window, "undo_button"):
             connect_signal(
                 main_window,
                 main_window.undo_button.clicked,
                 lambda: HistoryOperations.undo_action(main_window),
-                "undo_button.clicked"
+                "undo_button.clicked",
             )
 
-        if hasattr(main_window, 'redo_button'):
+        if hasattr(main_window, "redo_button"):
             connect_signal(
                 main_window,
                 main_window.redo_button.clicked,
                 lambda: HistoryOperations.redo_action(main_window),
-                "redo_button.clicked"
+                "redo_button.clicked",
             )
 
     @staticmethod
@@ -214,55 +214,55 @@ class UISignalConnector:
             connect_signal: Function to connect signals
         """
         # Background toggle button
-        if hasattr(main_window, 'toggle_bg_button'):
+        if hasattr(main_window, "toggle_bg_button"):
             connect_signal(
                 main_window,
                 main_window.toggle_bg_button.clicked,
                 lambda: ImageOperations.toggle_background(main_window),
-                "toggle_bg_button.clicked"
+                "toggle_bg_button.clicked",
             )
 
         # Opacity slider
-        if hasattr(main_window, 'opacity_slider'):
+        if hasattr(main_window, "opacity_slider"):
             connect_signal(
                 main_window,
                 main_window.opacity_slider.valueChanged,
                 lambda value: ImageOperations.update_background_opacity(main_window, int(value)),
-                "opacity_slider.valueChanged"
+                "opacity_slider.valueChanged",
             )
 
         # Image navigation buttons
-        if hasattr(main_window, 'load_images_button'):
+        if hasattr(main_window, "load_images_button"):
             connect_signal(
                 main_window,
                 main_window.load_images_button.clicked,
                 lambda: ImageOperations.load_background_images(main_window),
-                "load_images_button.clicked"
+                "load_images_button.clicked",
             )
 
-        if hasattr(main_window, 'next_image_button'):
+        if hasattr(main_window, "next_image_button"):
             connect_signal(
                 main_window,
                 main_window.next_image_button.clicked,
                 lambda: ImageOperations.next_background_image(main_window),
-                "next_image_button.clicked"
+                "next_image_button.clicked",
             )
 
-        if hasattr(main_window, 'prev_image_button'):
+        if hasattr(main_window, "prev_image_button"):
             connect_signal(
                 main_window,
                 main_window.prev_image_button.clicked,
                 lambda: ImageOperations.previous_background_image(main_window),
-                "prev_image_button.clicked"
+                "prev_image_button.clicked",
             )
 
         # Centering toggle
-        if hasattr(main_window, 'centering_toggle'):
+        if hasattr(main_window, "centering_toggle"):
             connect_signal(
                 main_window,
                 main_window.centering_toggle.toggled,
                 lambda checked: ZoomOperations.auto_center_view(main_window) if bool(checked) else None,
-                "centering_toggle.toggled"
+                "centering_toggle.toggled",
             )
 
     @staticmethod
@@ -274,10 +274,12 @@ class UISignalConnector:
             connect_signal: Function to connect signals
         """
         # Track quality analysis
-        if hasattr(main_window, 'analyze_button'):
+        if hasattr(main_window, "analyze_button"):
             connect_signal(
                 main_window,
                 main_window.analyze_button.clicked,
-                lambda: main_window.quality_ui.analyze_track_quality(main_window) if hasattr(main_window, 'quality_ui') else None,
-                "analyze_button.clicked"
+                lambda: main_window.quality_ui.analyze_track_quality(main_window)
+                if hasattr(main_window, "quality_ui")
+                else None,
+                "analyze_button.clicked",
             )

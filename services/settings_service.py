@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 SettingsService: Manages application settings including saving and loading window state,
@@ -7,7 +6,7 @@ preferences, and other configuration data.
 """
 
 import os
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QSettings
 from PySide6.QtGui import QCloseEvent
@@ -19,6 +18,7 @@ logger = LoggingService.get_logger("settings_service")
 
 if TYPE_CHECKING:
     pass
+
 
 class SettingsService:
     """Service for managing application settings."""
@@ -47,11 +47,11 @@ class SettingsService:
 
             # Window geometry and state
             geometry = settings.value(SettingsService.KEY_GEOMETRY, b"", type=bytes)
-            if isinstance(geometry, (bytes, bytearray, memoryview)) and geometry:
+            if isinstance(geometry, bytes | bytearray | memoryview) and geometry:
                 main_window.restoreGeometry(geometry)
 
             window_state = settings.value(SettingsService.KEY_WINDOW_STATE, b"", type=bytes)
-            if isinstance(window_state, (bytes, bytearray, memoryview)) and window_state:
+            if isinstance(window_state, bytes | bytearray | memoryview) and window_state:
                 main_window.restoreState(window_state)
 
             # Last used directory
@@ -65,9 +65,7 @@ class SettingsService:
                 main_window.max_history_size = history_size
 
             # Auto-center toggle state
-            main_window.auto_center_enabled = bool(settings.value(
-                SettingsService.KEY_AUTO_CENTER, False, type=bool
-            ))
+            main_window.auto_center_enabled = bool(settings.value(SettingsService.KEY_AUTO_CENTER, False, type=bool))
 
         except Exception as e:
             logger.error(f"Error loading settings: {e}")
@@ -95,10 +93,7 @@ class SettingsService:
             settings.setValue(SettingsService.KEY_HISTORY_SIZE, main_window.max_history_size)
 
             # Auto-center toggle state
-            settings.setValue(
-                SettingsService.KEY_AUTO_CENTER,
-                getattr(main_window, 'auto_center_enabled', False)
-            )
+            settings.setValue(SettingsService.KEY_AUTO_CENTER, getattr(main_window, "auto_center_enabled", False))
 
         except Exception as e:
             logger.error(f"Error saving settings: {e}")
@@ -125,7 +120,7 @@ class SettingsService:
         Args:
             key: The settings key
             default_value: Default value if the key doesn't exist
-            value_type: Type to convert the value to
+            value_type: type to convert the value to
 
         Returns:
             The setting value or default if not found

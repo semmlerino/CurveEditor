@@ -19,7 +19,7 @@ from dialogs import (
     ShortcutsDialog,
     SmoothingDialog,
 )
-from services.curve_analysis_service import CurveAnalysisService as CurveDataOperations
+from services.curve_analysis_service import CurveAnalysisService
 from services.file_service import FileService
 
 
@@ -89,8 +89,8 @@ class DialogService:
 
         # Apply the selected smoothing method
         try:
-            # CurveDataOperations constructor makes its own copy. Pass the original data.
-            data_ops: CurveDataOperations = CurveDataOperations(curve_data)
+            # CurveAnalysisService constructor makes its own copy. Pass the original data.
+            data_ops: CurveAnalysisService = CurveAnalysisService(curve_data)
 
             window_size = dialog.window_spin.value()
 
@@ -149,22 +149,28 @@ class DialogService:
             QMessageBox.warning(main_window.qwidget, "Warning", "No points to filter.")
             return
 
-        # Apply the selected filter using CurveDataOperations
+        # Apply the selected filter using CurveAnalysisService
         try:
-            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveAnalysisService = CurveAnalysisService(main_window.curve_data)
             operation_applied = False
 
             if filter_type == 0:  # Median
-                data_ops.data = CurveDataOperations.filter_median(data_ops.data, points_to_filter, dialog.median_size.value())
+                data_ops.data = CurveAnalysisService.filter_median(
+                    data_ops.data, points_to_filter, dialog.median_size.value()
+                )
                 operation_applied = True
             elif filter_type == 1:  # Gaussian
-                data_ops.data = CurveDataOperations.smooth_gaussian(data_ops.data, points_to_filter, dialog.gaussian_sigma.value())
+                data_ops.data = CurveAnalysisService.smooth_gaussian(
+                    data_ops.data, points_to_filter, dialog.gaussian_sigma.value()
+                )
                 operation_applied = True
             elif filter_type == 2:  # Average
-                data_ops.data = CurveDataOperations.smooth_moving_average(data_ops.data, points_to_filter, dialog.average_size.value())
+                data_ops.data = CurveAnalysisService.smooth_moving_average(
+                    data_ops.data, points_to_filter, dialog.average_size.value()
+                )
                 operation_applied = True
             elif filter_type == 3:  # Butterworth
-                data_ops.data = CurveDataOperations.filter_butterworth(
+                data_ops.data = CurveAnalysisService.filter_butterworth(
                     data_ops.data, points_to_filter, dialog.butterworth_cutoff.value(), dialog.butterworth_order.value()
                 )
                 operation_applied = True
@@ -269,13 +275,13 @@ class DialogService:
         method_index: int,
         preserve_endpoints: bool = True,
     ) -> None:
-        """Helper method to fill a gap using the specified method via CurveDataOperations."""
+        """Helper method to fill a gap using the specified method via CurveAnalysisService."""
         # Window size for certain methods (can be adjusted or made configurable)
         window_size = 5
 
         try:
             # Instantiate with the current data
-            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveAnalysisService = CurveAnalysisService(main_window.curve_data)
             operation_performed = False
 
             if method_index == 0:  # Linear
@@ -329,7 +335,7 @@ class DialogService:
         # Apply extrapolation based on direction
         try:
             # Instantiate with current data
-            data_ops: CurveDataOperations = CurveDataOperations(main_window.curve_data)
+            data_ops: CurveAnalysisService = CurveAnalysisService(main_window.curve_data)
             data_changed = False
 
             if direction == 0 or direction == 2:  # Forward or Both
@@ -383,7 +389,7 @@ class DialogService:
             return None
         dx = dialog.offset_x
         dy = dialog.offset_y
-        data_ops = CurveDataOperations(main_window.curve_data)
+        data_ops = CurveAnalysisService(main_window.curve_data)
         indices = list(range(len(main_window.curve_data)))
         data_ops.offset_points(indices, dx, dy)
         new_data = data_ops.get_data()
@@ -425,7 +431,7 @@ class DialogService:
             # Detect problems using AnalysisService
             try:
                 # Create an instance of AnalysisService with the curve data
-                analysis_service = CurveDataOperations(main_window.curve_data)
+                analysis_service = CurveAnalysisService(main_window.curve_data)
                 problem_dict = analysis_service.detect_problems()
 
                 # Convert dictionary to list of tuples for compatibility with the expected type

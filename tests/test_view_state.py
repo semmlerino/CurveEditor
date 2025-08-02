@@ -14,7 +14,7 @@ from unittest.mock import MagicMock
 import pytest
 
 # Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from services.view_state import ViewState
 
@@ -25,12 +25,7 @@ class TestViewState:
     @pytest.fixture
     def default_view_state(self) -> ViewState:
         """Create a default ViewState for testing."""
-        return ViewState(
-            display_width=1920,
-            display_height=1080,
-            widget_width=800,
-            widget_height=600
-        )
+        return ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
 
     def test_view_state_initialization(self, default_view_state: ViewState) -> None:
         """Test ViewState initialization with default values."""
@@ -39,7 +34,7 @@ class TestViewState:
         assert default_view_state.display_height == 1080
         assert default_view_state.widget_width == 800
         assert default_view_state.widget_height == 600
-        
+
         # Check default values
         assert default_view_state.zoom_factor == 1.0
         assert default_view_state.offset_x == 0.0
@@ -56,24 +51,21 @@ class TestViewState:
         """Test creating a new ViewState with updated values."""
         # Update a few parameters
         updated_state = default_view_state.with_updates(
-            zoom_factor=2.0,
-            offset_x=100.0,
-            offset_y=50.0,
-            scale_to_image=False
+            zoom_factor=2.0, offset_x=100.0, offset_y=50.0, scale_to_image=False
         )
-        
+
         # Check that updated values are changed
         assert updated_state.zoom_factor == 2.0
         assert updated_state.offset_x == 100.0
         assert updated_state.offset_y == 50.0
         assert updated_state.scale_to_image is False
-        
+
         # Check that original values are unchanged (immutability)
         assert default_view_state.zoom_factor == 1.0
         assert default_view_state.offset_x == 0.0
         assert default_view_state.offset_y == 0.0
         assert default_view_state.scale_to_image is True
-        
+
         # Check that other parameters are unchanged in the updated state
         assert updated_state.display_width == default_view_state.display_width
         assert updated_state.display_height == default_view_state.display_height
@@ -83,7 +75,7 @@ class TestViewState:
     def test_to_dict(self, default_view_state: ViewState) -> None:
         """Test converting ViewState to a dictionary."""
         state_dict = default_view_state.to_dict()
-        
+
         # Check dictionary values
         assert state_dict["display_dimensions"] == (1920, 1080)
         assert state_dict["widget_dimensions"] == (800, 600)
@@ -111,10 +103,10 @@ class TestViewState:
         mock_curve_view.x_offset = 10.0
         mock_curve_view.y_offset = 15.0
         mock_curve_view.background_image = None
-        
+
         # Create ViewState from mock CurveView
         view_state = ViewState.from_curve_view(mock_curve_view)
-        
+
         # Check values are correctly extracted
         assert view_state.display_width == 1920
         assert view_state.display_height == 1080
@@ -139,16 +131,16 @@ class TestViewState:
         mock_curve_view.height.return_value = 600
         mock_curve_view.image_width = 1920
         mock_curve_view.image_height = 1080
-        
+
         # Create a mock background image
         mock_background = MagicMock()
         mock_background.width.return_value = 2560
         mock_background.height.return_value = 1440
         mock_curve_view.background_image = mock_background
-        
+
         # Create ViewState from mock CurveView
         view_state = ViewState.from_curve_view(mock_curve_view)
-        
+
         # Check that display dimensions match background image dimensions
         assert view_state.display_width == 2560
         assert view_state.display_height == 1440

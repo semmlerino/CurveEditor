@@ -4,3 +4,11 @@ __pycache__/
 .windsurfrules
 .gitignore
 CurveEditor.concat
+
+# Ignore obsolete and archive directories that contain historical/outdated code
+docs/ObsoleteArchive/
+docs/archive_2025_01_28/
+**/archive/
+**/obsolete/
+**/Archive/
+**/Obsolete/

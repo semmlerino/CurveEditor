@@ -732,4 +732,3 @@ class ConcreteCurveProcessor:
     def extrapolate_backward(self, num_frames: int, method: int, fit_points: int) -> None:
         """Extrapolate curve backward."""
         self.data = CurveAnalysisService.extrapolate_backward(self.data, num_frames, method, fit_points)
-

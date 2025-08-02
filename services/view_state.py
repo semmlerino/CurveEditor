@@ -8,7 +8,8 @@ enabling consistent coordinate transformations.
 """
 
 from dataclasses import dataclass
-from typing import Optional, Any, Dict
+from typing import Any
+
 
 @dataclass(frozen=True)
 class ViewState:
@@ -57,13 +58,13 @@ class ViewState:
     manual_y_offset: float = 0.0
 
     # Background image reference (optional)
-    background_image: Optional[Any] = None
+    background_image: Any | None = None
 
     # Original data dimensions for scaling
     image_width: int = 1920
     image_height: int = 1080
 
-    def with_updates(self, **kwargs: Any) -> 'ViewState':
+    def with_updates(self, **kwargs: Any) -> "ViewState":
         """
         Create a new ViewState with updated values.
 
@@ -81,7 +82,7 @@ class ViewState:
         """
         return ViewState(**{**self.__dict__, **kwargs})
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """
         Convert the ViewState to a dictionary.
 
@@ -97,11 +98,11 @@ class ViewState:
             "scale_to_image": self.scale_to_image,
             "flip_y_axis": self.flip_y_axis,
             "manual_offset": (self.manual_x_offset, self.manual_y_offset),
-            "has_background_image": self.background_image is not None
+            "has_background_image": self.background_image is not None,
         }
 
     @classmethod
-    def from_curve_view(cls, curve_view: Any) -> 'ViewState':
+    def from_curve_view(cls, curve_view: Any) -> "ViewState":
         """
         Create a ViewState from a CurveView instance.
 
@@ -119,15 +120,15 @@ class ViewState:
         widget_height = curve_view.height()
 
         # Get original data dimensions
-        image_width = getattr(curve_view, 'image_width', 1920)
-        image_height = getattr(curve_view, 'image_height', 1080)
+        image_width = getattr(curve_view, "image_width", 1920)
+        image_height = getattr(curve_view, "image_height", 1080)
 
         # Get display dimensions (initially same as image dimensions)
         display_width = image_width
         display_height = image_height
 
         # Check for background image dimensions
-        background_image = getattr(curve_view, 'background_image', None)
+        background_image = getattr(curve_view, "background_image", None)
         if background_image:
             display_width = background_image.width()
             display_height = background_image.height()
@@ -138,14 +139,14 @@ class ViewState:
             display_height=display_height,
             widget_width=widget_width,
             widget_height=widget_height,
-            zoom_factor=getattr(curve_view, 'zoom_factor', 1.0),
-            offset_x=getattr(curve_view, 'offset_x', 0.0),
-            offset_y=getattr(curve_view, 'offset_y', 0.0),
-            scale_to_image=getattr(curve_view, 'scale_to_image', True),
-            flip_y_axis=getattr(curve_view, 'flip_y_axis', False),
-            manual_x_offset=getattr(curve_view, 'x_offset', 0.0),  # Manual offset in CurveView is in x_offset
-            manual_y_offset=getattr(curve_view, 'y_offset', 0.0),  # Manual offset in CurveView is in y_offset
+            zoom_factor=getattr(curve_view, "zoom_factor", 1.0),
+            offset_x=getattr(curve_view, "offset_x", 0.0),
+            offset_y=getattr(curve_view, "offset_y", 0.0),
+            scale_to_image=getattr(curve_view, "scale_to_image", True),
+            flip_y_axis=getattr(curve_view, "flip_y_axis", False),
+            manual_x_offset=getattr(curve_view, "x_offset", 0.0),  # Manual offset in CurveView is in x_offset
+            manual_y_offset=getattr(curve_view, "y_offset", 0.0),  # Manual offset in CurveView is in y_offset
             background_image=background_image,
             image_width=image_width,
-            image_height=image_height
+            image_height=image_height,
         )

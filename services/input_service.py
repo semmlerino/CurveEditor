@@ -1,30 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 InputService: centralized handling for mouse, wheel, key, and context menu events.
 """
-from typing import Protocol, Optional, Tuple, cast, Any
 
-from PySide6.QtCore import Qt, QPointF, QSize, QRect, QObject
-from PySide6.QtGui import QAction, QMouseEvent, QWheelEvent, QKeyEvent
+from typing import Any, Protocol, cast
+
+from PySide6.QtCore import QObject, QPointF, QRect, QSize, Qt
+from PySide6.QtGui import QAction, QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QMenu, QRubberBand, QWidget
 
 from services.centering_zoom_service import CenteringZoomService
 from services.curve_service import CurveService
 from services.visualization_service import VisualizationService
 
+
 class CurveViewProtocol(Protocol):
     """Protocol defining the interface expected by InputService for curve views."""
+
     # Required properties
     selected_point_idx: int
-    rubber_band: Optional[QRubberBand]
+    rubber_band: QRubberBand | None
     rubber_band_origin: QPointF
     rubber_band_active: bool
     drag_active: bool
-    last_drag_pos: Optional[QPointF]
+    last_drag_pos: QPointF | None
     pan_active: bool
-    last_pan_pos: Optional[QPointF]
+    last_pan_pos: QPointF | None
     zoom_factor: float
     x_offset: float
     y_offset: float
@@ -34,14 +36,14 @@ class CurveViewProtocol(Protocol):
     show_velocity_vectors: bool
     show_all_frame_numbers: bool
     show_background: bool
-    
+
     # Required signals
     point_moved: Any  # Using Any for Signal to avoid circular imports
-    
+
     # Required methods
     def findPointAt(self, pos: QPointF) -> int: ...
     def selectPointByIndex(self, idx: int) -> None: ...
-    def get_point_data(self, idx: int) -> Tuple[int, float, float, Optional[str]]: ...
+    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]: ...
     def toggle_point_interpolation(self, idx: int) -> None: ...
     def toggleBackgroundVisible(self, visible: bool) -> None: ...
     def update(self) -> None: ...
@@ -59,20 +61,20 @@ class InputService:
             if event.modifiers() & Qt.AltModifier:  # type: ignore[attr-defined]
                 # Start rectangle selection
                 # Initialize rubber band attributes if they don't exist
-                if not hasattr(view, 'rubber_band') or getattr(view, 'rubber_band', None) is None:
-                    setattr(view, 'rubber_band', QRubberBand(QRubberBand.Rectangle, cast(QWidget, view)))  # type: ignore[attr-defined]
-                if not hasattr(view, 'rubber_band_origin'):
-                    setattr(view, 'rubber_band_origin', QPointF())
-                if not hasattr(view, 'rubber_band_active'):
-                    setattr(view, 'rubber_band_active', False)
-                    
+                if not hasattr(view, "rubber_band") or getattr(view, "rubber_band", None) is None:
+                    setattr(view, "rubber_band", QRubberBand(QRubberBand.Rectangle, cast(QWidget, view)))  # type: ignore[attr-defined]
+                if not hasattr(view, "rubber_band_origin"):
+                    setattr(view, "rubber_band_origin", QPointF())
+                if not hasattr(view, "rubber_band_active"):
+                    setattr(view, "rubber_band_active", False)
+
                 # Set the origin point for the rubber band
-                setattr(view, 'rubber_band_origin', event.position())
-                rubber_band = getattr(view, 'rubber_band')
+                setattr(view, "rubber_band_origin", event.position())
+                rubber_band = getattr(view, "rubber_band")
                 if rubber_band:
-                    rubber_band.setGeometry(QRect(getattr(view, 'rubber_band_origin').toPoint(), QSize()))
+                    rubber_band.setGeometry(QRect(getattr(view, "rubber_band_origin").toPoint(), QSize()))
                     rubber_band.show()
-                setattr(view, 'rubber_band_active', True)
+                setattr(view, "rubber_band_active", True)
                 # Prevent single point selection/drag when starting rubber band
                 view.drag_active = False
                 view.last_drag_pos = None
@@ -99,12 +101,18 @@ class InputService:
         current_pos = event.position()
 
         # Handle rubber band selection - both direct attribute access (for tests) and getattr (for runtime)
-        rubber_band_active = getattr(view, 'rubber_band_active', False) if hasattr(view, 'rubber_band_active') else view.rubber_band_active
-        rubber_band = getattr(view, 'rubber_band', None) if hasattr(view, 'rubber_band') else view.rubber_band
+        rubber_band_active = (
+            getattr(view, "rubber_band_active", False)
+            if hasattr(view, "rubber_band_active")
+            else view.rubber_band_active
+        )
+        rubber_band = getattr(view, "rubber_band", None) if hasattr(view, "rubber_band") else view.rubber_band
         if rubber_band_active and rubber_band:
             # Calculate selection rectangle
             # Get rubber_band_origin - handle both direct access and getattr
-            rubber_band_origin = getattr(view, 'rubber_band_origin') if hasattr(view, 'rubber_band_origin') else view.rubber_band_origin
+            rubber_band_origin = (
+                getattr(view, "rubber_band_origin") if hasattr(view, "rubber_band_origin") else view.rubber_band_origin
+            )
             selection_rect = QRect(rubber_band_origin.toPoint(), current_pos.toPoint()).normalized()
             # Update rubber band geometry
             rubber_band.setGeometry(selection_rect)
@@ -141,24 +149,28 @@ class InputService:
     def handle_mouse_release(view: CurveViewProtocol, event: QMouseEvent) -> None:  # type: ignore[misc]
         """Handle mouse release events to finalize dragging, panning, or rectangle selection."""
         # Check for rubber band selection - support both direct access and getattr
-        rubber_band_active = getattr(view, 'rubber_band_active', False) if hasattr(view, 'rubber_band_active') else view.rubber_band_active
+        rubber_band_active = (
+            getattr(view, "rubber_band_active", False)
+            if hasattr(view, "rubber_band_active")
+            else view.rubber_band_active
+        )
         if rubber_band_active:
             # Selection rectangle has been completed
-            rubber_band = getattr(view, 'rubber_band', None) if hasattr(view, 'rubber_band') else view.rubber_band
+            rubber_band = getattr(view, "rubber_band", None) if hasattr(view, "rubber_band") else view.rubber_band
             if rubber_band:
                 rubber_band.hide()
-                
+
             # Support both direct attribute setting and setattr based on what the view supports
-            if hasattr(view, 'rubber_band_active'):
-                setattr(view, 'rubber_band_active', False)
-                setattr(view, 'rubber_band', None)
+            if hasattr(view, "rubber_band_active"):
+                setattr(view, "rubber_band_active", False)
+                setattr(view, "rubber_band", None)
             else:
                 view.rubber_band_active = False
                 view.rubber_band = None
-            
+
             # Add to history after completing a rubber band selection
             view.main_window.add_to_history()
-                
+
             # Note: We're not doing selection here since it's already done in move event
 
         elif view.drag_active and view.selected_point_idx >= 0:
@@ -216,23 +228,31 @@ class InputService:
                     select_act = QAction("Select this point", cast(QObject, view))
                     select_act.triggered.connect(lambda: view.selectPointByIndex(idx))
                     menu.addAction(select_act)
-                is_interp = len(info) > 3 and info[3] == 'interpolated'
+                is_interp = len(info) > 3 and info[3] == "interpolated"
                 toggle_text = "Restore to normal point" if is_interp else "Mark as interpolated"
                 togg_act = QAction(toggle_text, cast(QObject, view))
                 togg_act.triggered.connect(lambda: view.toggle_point_interpolation(idx))
                 menu.addAction(togg_act)
                 menu.addSeparator()
         # Visualization toggles
-        grid_act = QAction('Show Grid' if not view.show_grid else 'Hide Grid', cast(QObject, view))
+        grid_act = QAction("Show Grid" if not view.show_grid else "Hide Grid", cast(QObject, view))
         grid_act.triggered.connect(lambda: VisualizationService.toggle_grid(view.main_window, not view.show_grid))
         menu.addAction(grid_act)
-        vel_act = QAction('Show Velocity Vectors' if not view.show_velocity_vectors else 'Hide Velocity Vectors', cast(QObject, view))
-        vel_act.triggered.connect(lambda: VisualizationService.toggle_velocity_vectors(view.main_window, not view.show_velocity_vectors))
+        vel_act = QAction(
+            "Show Velocity Vectors" if not view.show_velocity_vectors else "Hide Velocity Vectors", cast(QObject, view)
+        )
+        vel_act.triggered.connect(
+            lambda: VisualizationService.toggle_velocity_vectors(view.main_window, not view.show_velocity_vectors)
+        )
         menu.addAction(vel_act)
-        frames_act = QAction('Show Frame Numbers' if not view.show_all_frame_numbers else 'Hide Frame Numbers', cast(QObject, view))
-        frames_act.triggered.connect(lambda: VisualizationService.toggle_all_frame_numbers(view.main_window, not view.show_all_frame_numbers))
+        frames_act = QAction(
+            "Show Frame Numbers" if not view.show_all_frame_numbers else "Hide Frame Numbers", cast(QObject, view)
+        )
+        frames_act.triggered.connect(
+            lambda: VisualizationService.toggle_all_frame_numbers(view.main_window, not view.show_all_frame_numbers)
+        )
         menu.addAction(frames_act)
-        bg_act = QAction('Show Background' if not view.show_background else 'Hide Background', cast(QObject, view))
+        bg_act = QAction("Show Background" if not view.show_background else "Hide Background", cast(QObject, view))
         bg_act.triggered.connect(lambda: view.toggleBackgroundVisible(not view.show_background))
         menu.addAction(bg_act)
         menu.exec_(event.globalPos())

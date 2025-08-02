@@ -4,24 +4,29 @@ from unittest.mock import MagicMock, patch
 # or if we want to control their behavior precisely.
 # For simplicity, we'll use MagicMock for complex Qt objects where needed.
 # Assume QRect, QPointF, Qt are available or mocked appropriately.
-
 # Mock the actual services/classes being tested or depended upon
 from services.input_service import InputService
+
 # Mock dependencies that InputService interacts with
 CurveService = MagicMock()
 # Mock Qt classes used
 QRect = MagicMock()
-QPointF = MagicMock(return_value=MagicMock(x=MagicMock(return_value=10), y=MagicMock(return_value=20), toPoint=MagicMock(return_value=(10, 20)))) # Simple mock for position/point
+QPointF = MagicMock(
+    return_value=MagicMock(
+        x=MagicMock(return_value=10), y=MagicMock(return_value=20), toPoint=MagicMock(return_value=(10, 20))
+    )
+)  # Simple mock for position/point
 Qt = MagicMock()
 Qt.LeftButton = 1
-Qt.MiddleButton = 2 # Example value
-Qt.AltModifier = 0x08000000 # Example value
+Qt.MiddleButton = 2  # Example value
+Qt.AltModifier = 0x08000000  # Example value
+
 
 # Patch the dependencies directly in the service's namespace if necessary
-@patch('services.input_service.CurveService', CurveService)
-@patch('services.input_service.QRect', QRect)
-@patch('services.input_service.QPointF', QPointF)
-@patch('services.input_service.Qt', Qt)
+@patch("services.input_service.CurveService", CurveService)
+@patch("services.input_service.QRect", QRect)
+@patch("services.input_service.QPointF", QPointF)
+@patch("services.input_service.Qt", Qt)
 def test_handle_mouse_move_rubber_band_active():
     """
     Test handle_mouse_move when rubber band selection is active.
@@ -39,7 +44,7 @@ def test_handle_mouse_move_rubber_band_active():
     mock_view.rubber_band_active = True
     mock_view.rubber_band = mock_rubber_band
     mock_view.rubber_band_origin = mock_origin
-    mock_view.main_window = MagicMock() # Add main_window mock
+    mock_view.main_window = MagicMock()  # Add main_window mock
 
     # Mock the QRect calculation result
     mock_selection_rect = MagicMock()
@@ -59,8 +64,9 @@ def test_handle_mouse_move_rubber_band_active():
     # 3. Point selection was called in real-time
     CurveService.select_points_in_rect.assert_called_once_with(mock_view, mock_view.main_window, mock_selection_rect)
 
-@patch('services.input_service.CurveService', CurveService)
-@patch('services.input_service.Qt', Qt)
+
+@patch("services.input_service.CurveService", CurveService)
+@patch("services.input_service.Qt", Qt)
 def test_handle_mouse_release_rubber_band_finalize():
     """
     Test handle_mouse_release finalizing rubber band selection.
@@ -81,7 +87,6 @@ def test_handle_mouse_release_rubber_band_finalize():
     CurveService.reset_mock()
     mock_main_window.add_to_history.reset_mock()
 
-
     # Act
     InputService.handle_mouse_release(mock_view, mock_event)
 
@@ -95,6 +100,7 @@ def test_handle_mouse_release_rubber_band_finalize():
     mock_main_window.add_to_history.assert_called_once()
     # 4. Point selection was NOT called again on release
     CurveService.select_points_in_rect.assert_not_called()
+
 
 # Add more tests for other scenarios in InputService if needed
 # (e.g., mouse press, drag, pan, context menu)

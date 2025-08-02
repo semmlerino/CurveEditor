@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Fix the LoggingService to ensure log files are properly created.
 """
@@ -7,7 +6,6 @@ Fix the LoggingService to ensure log files are properly created.
 import logging
 import os
 import sys
-from typing import Optional
 
 
 class LoggingService:
@@ -15,14 +13,15 @@ class LoggingService:
 
     # Class variables to track initialization and state
     _initialized: bool = False
-    _root_logger: Optional[logging.Logger] = None
-    _log_file: Optional[str] = None
-    _file_handler: Optional[logging.FileHandler] = None
-    _console_handler: Optional[logging.StreamHandler] = None
+    _root_logger: logging.Logger | None = None
+    _log_file: str | None = None
+    _file_handler: logging.FileHandler | None = None
+    _console_handler: logging.StreamHandler | None = None
 
     @classmethod
-    def setup_logging(cls, level=logging.INFO, log_file: Optional[str] = None,
-                     console_output: bool = True) -> logging.Logger:
+    def setup_logging(
+        cls, level=logging.INFO, log_file: str | None = None, console_output: bool = True
+    ) -> logging.Logger:
         """Set up and configure logging for the application.
 
         Args:
@@ -38,17 +37,16 @@ class LoggingService:
             return cls._root_logger
 
         # Get the curve_editor logger (not root to avoid conflicts)
-        logger = logging.getLogger('curve_editor')
+        logger = logging.getLogger("curve_editor")
         logger.setLevel(level)
         logger.handlers.clear()  # Clear any existing handlers
         logger.propagate = False  # Don't propagate to root logger
 
         # Create formatters
         file_formatter = logging.Formatter(
-            '%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
-        console_formatter = logging.Formatter('[%(levelname)s] %(name)s: %(message)s')
+        console_formatter = logging.Formatter("[%(levelname)s] %(name)s: %(message)s")
 
         # Set up console logging
         if console_output:
@@ -73,7 +71,7 @@ class LoggingService:
                 # Create file handler with explicit error handling
                 # Use absolute path to ensure proper file creation
                 abs_log_file = os.path.abspath(log_file)
-                file_handler = logging.FileHandler(abs_log_file, mode='a', encoding='utf-8')
+                file_handler = logging.FileHandler(abs_log_file, mode="a", encoding="utf-8")
                 file_handler.setLevel(level)
                 file_handler.setFormatter(file_formatter)
                 logger.addHandler(file_handler)
@@ -88,7 +86,7 @@ class LoggingService:
                 file_handler.flush()
 
                 # Also flush at OS level to ensure file is written
-                if hasattr(file_handler.stream, 'fileno'):
+                if hasattr(file_handler.stream, "fileno"):
                     try:
                         os.fsync(file_handler.stream.fileno())
                     except (OSError, AttributeError):
@@ -105,6 +103,7 @@ class LoggingService:
             except Exception as e:
                 # Print error to stderr for visibility
                 import traceback
+
                 print(f"ERROR: Failed to set up file logging: {e}", file=sys.stderr)
                 traceback.print_exc(file=sys.stderr)
                 if console_output and logger.handlers:  # Only log if we have console handler
@@ -129,7 +128,7 @@ class LoggingService:
             cls.setup_logging()
 
         # Create child logger under curve_editor namespace
-        child_logger = logging.getLogger(f'curve_editor.{name}')
+        child_logger = logging.getLogger(f"curve_editor.{name}")
 
         # IMPORTANT: Ensure child loggers propagate to parent
         # This is critical for log messages to reach the file handler
@@ -153,7 +152,7 @@ class LoggingService:
                 cls._console_handler.setLevel(level)
 
     @classmethod
-    def get_log_file(cls) -> Optional[str]:
+    def get_log_file(cls) -> str | None:
         """Get the current log file path.
 
         Returns:
@@ -173,9 +172,9 @@ class LoggingService:
         logger.setLevel(level)
 
     @classmethod
-    def configure_logging(cls, level: int = logging.INFO,
-                          log_file: Optional[str] = None,
-                          console_output: bool = True) -> logging.Logger:
+    def configure_logging(
+        cls, level: int = logging.INFO, log_file: str | None = None, console_output: bool = True
+    ) -> logging.Logger:
         """Compatibility wrapper for legacy calls expecting `configure_logging`.
 
         Delegates to :py:meth:`setup_logging` so that existing code and unit tests
@@ -212,7 +211,7 @@ class LoggingService:
         if cls._file_handler:
             cls._file_handler.flush()
             # Also flush at OS level
-            if hasattr(cls._file_handler.stream, 'fileno'):
+            if hasattr(cls._file_handler.stream, "fileno"):
                 try:
                     os.fsync(cls._file_handler.stream.fileno())
                 except (OSError, AttributeError):

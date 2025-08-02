@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 File operations signal connector for CurveEditor.
@@ -8,7 +7,7 @@ This module handles all signal connections related to file operations including
 loading, saving, adding, and exporting track data.
 """
 
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from main_window import MainWindow
@@ -21,7 +20,7 @@ class FileSignalConnector:
     """Handles signal connections for file operations."""
 
     @staticmethod
-    def connect_signals(main_window: 'MainWindow', registry: 'RegistryConnector') -> None:
+    def connect_signals(main_window: "MainWindow", registry: "RegistryConnector") -> None:
         """Connect all file operation related signals.
 
         Args:
@@ -50,21 +49,21 @@ class FileSignalConnector:
         #     )
 
         # Save button
-        if hasattr(main_window, 'save_button'):
+        if hasattr(main_window, "save_button"):
             registry._connect_signal(
                 main_window,
                 main_window.save_button.clicked,
                 lambda: FileService.save_track_data(main_window),
-                "save_button.clicked"
+                "save_button.clicked",
             )
 
         # Add point button (file operation related)
-        if hasattr(main_window, 'add_point_button'):
+        if hasattr(main_window, "add_point_button"):
             registry._connect_signal(
                 main_window,
                 main_window.add_point_button.clicked,
                 lambda: FileService.add_track_data(main_window),
-                "add_point_button.clicked"
+                "add_point_button.clicked",
             )
 
     @staticmethod

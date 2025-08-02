@@ -1,21 +1,22 @@
 # services/curve_service.py
 
 # Standard library imports
-from typing import Any, List, Tuple, Optional, Union, TYPE_CHECKING, Set, cast, overload
+from typing import TYPE_CHECKING, Any, Union, cast, overload
 
 # Third-party imports
 from PySide6.QtCore import QRect
 from PySide6.QtWidgets import QMessageBox
 
-# Local imports
-from curve_data_utils import compute_interpolated_curve_data
-from decorators import safe_operation
-from utils import extract_frame_number
 from core.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
+
+# Local imports
+from data.curve_data_utils import compute_interpolated_curve_data
 from services.centering_zoom_service import CenteringZoomService
 from services.logging_service import LoggingService
-from services.unified_transformation_service import UnifiedTransformationService, Transform
+from services.transformation_service import Transform, TransformationService
 from services.visualization_service import VisualizationService
+from utils.decorators import safe_operation
+from utils.utils import extract_frame_number
 
 if TYPE_CHECKING:
     pass
@@ -24,10 +25,11 @@ if TYPE_CHECKING:
 logger = LoggingService.get_logger("curve_service")
 
 # Type definitions for curve points (merged from curve_utils.py)
-Point3 = Tuple[int, float, float]
-Point4 = Tuple[int, float, float, Union[str, bool]]
+Point3 = tuple[int, float, float]
+Point4 = tuple[int, float, float, str | bool]
 PointType = Union[Point3, Point4]
 StatusType = Union[str, bool]
+
 
 # Utility functions for curve operations (merged from curve_utils.py)
 @overload
@@ -45,14 +47,14 @@ def normalize_point(point: PointType) -> Point4:
     """
     if len(point) == 3:
         frame, x, y = point
-        return frame, x, y, 'normal'
+        return frame, x, y, "normal"
     elif len(point) >= 4:
         return point[0], point[1], point[2], point[3]
     else:
         raise ValueError(f"Invalid point format: {point}")
 
 
-def set_point_status(point: PointType, status: StatusType) -> Union[Point3, Point4]:
+def set_point_status(point: PointType, status: StatusType) -> Point3 | Point4:
     """Return a new point tuple with the given status.
 
     Args:
@@ -63,17 +65,18 @@ def set_point_status(point: PointType, status: StatusType) -> Union[Point3, Poin
         A new point tuple with the updated status
     """
     frame, x, y, _ = normalize_point(point)
-    if status == 'normal':
+    if status == "normal":
         return frame, x, y
     return frame, x, y, status
 
 
-def update_point_coords(point: PointType, x: float, y: float) -> Union[Point3, Point4]:
+def update_point_coords(point: PointType, x: float, y: float) -> Point3 | Point4:
     """Return a new point tuple with updated coordinates preserving status."""
     frame, _, _, status = normalize_point(point)
-    if status == 'normal':
+    if status == "normal":
         return frame, x, y
     return frame, x, y, status
+
 
 class CurveService:
     """Service facade for curve view and point manipulation operations."""
@@ -87,10 +90,10 @@ class CurveService:
             message: Message to display
             timeout: Display timeout in milliseconds (default: 2000)
         """
-        if main_window and hasattr(main_window, 'statusBar'):
+        if main_window and hasattr(main_window, "statusBar"):
             try:
                 status_bar = main_window.statusBar()
-                if status_bar and hasattr(status_bar, 'showMessage'):
+                if status_bar and hasattr(status_bar, "showMessage"):
                     status_bar.showMessage(message, timeout)
             except Exception as e:
                 # Log but don't raise since status bar updates are non-critical
@@ -102,11 +105,11 @@ class CurveService:
         """Select all points in the curve."""
         # Check if points exist by accessing the attribute safely with hasattr
         # The points attribute might be available at runtime but not in the protocol definition
-        if not hasattr(curve_view, 'points') or not getattr(curve_view, 'points', []):
+        if not hasattr(curve_view, "points") or not getattr(curve_view, "points", []):
             return 0
 
         # We need to use getattr to access the points attribute since it's not in the protocol
-        points = getattr(curve_view, 'points', [])  # type: ignore[attr-defined]
+        points = getattr(curve_view, "points", [])  # type: ignore[attr-defined]
         curve_view.selected_points = set(range(len(points)))
         curve_view.selected_point_idx = 0
         curve_view.update()
@@ -125,24 +128,25 @@ class CurveService:
 
         CurveService._update_status_bar(main_window, "Selection cleared", 2000)
 
-
     @staticmethod
     @safe_operation("Select Points in Rectangle")
-    def select_points_in_rect(curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, selection_rect: QRect) -> int:
+    def select_points_in_rect(
+        curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, selection_rect: QRect
+    ) -> int:
         """Select all points within the given rectangle in widget coordinates."""
-        if not hasattr(curve_view, 'points') or not curve_view.points:
+        if not hasattr(curve_view, "points") or not curve_view.points:
             return 0
 
-        selected_indices: Set[int] = set()
+        selected_indices: set[int] = set()
 
         # Use unified transformation service
-        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform: Transform = TransformationService.from_curve_view(curve_view)
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
             # Transform point to widget coordinates
-            tx, ty = UnifiedTransformationService.transform_point(transform, point_x, point_y)
+            tx, ty = TransformationService.transform_point(transform, point_x, point_y)
 
             # Check if the transformed point is within the selection rectangle
             if selection_rect.contains(int(tx), int(ty)):
@@ -154,11 +158,7 @@ class CurveService:
         curve_view.update()
 
         count = len(selected_indices)
-        CurveService._update_status_bar(
-            main_window,
-            f"Selected {count} point{'s' if count != 1 else ''}",
-            3000
-        )
+        CurveService._update_status_bar(main_window, f"Selected {count} point{'s' if count != 1 else ''}", 3000)
 
         # Optionally emit a signal if needed for multi-selection updates
         # if hasattr(curve_view, 'selection_changed'):
@@ -173,15 +173,15 @@ class CurveService:
         try:
             index = int(index)
         except Exception:
-            index = getattr(curve_view, 'selected_point_idx', -1)
+            index = getattr(curve_view, "selected_point_idx", -1)
 
-        if not hasattr(curve_view, 'points') or not curve_view.points or index < 0 or index >= len(curve_view.points):
+        if not hasattr(curve_view, "points") or not curve_view.points or index < 0 or index >= len(curve_view.points):
             return False
 
         curve_view.selected_point_idx = index
         curve_view.selected_points = {index}
 
-        if hasattr(curve_view, 'point_selected'):
+        if hasattr(curve_view, "point_selected"):
             curve_view.point_selected.emit(index)
 
         curve_view.update()
@@ -193,16 +193,16 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Set Curve Data")
-    def set_curve_data(curve_view: "CurveViewProtocol", curve_data: List[Tuple[Any, ...]]) -> None:
+    def set_curve_data(curve_view: "CurveViewProtocol", curve_data: list[tuple[Any, ...]]) -> None:
         """Set curve data on the view."""
-        if hasattr(curve_view, 'set_curve_data'):
+        if hasattr(curve_view, "set_curve_data"):
             curve_view.set_curve_data(curve_data)
-        elif hasattr(curve_view, 'setPoints'):
+        elif hasattr(curve_view, "setPoints"):
             curve_view.setPoints(
                 curve_data,
-                getattr(curve_view, 'image_width', 1920),
-                getattr(curve_view, 'image_height', 1080),
-                preserve_view=True
+                getattr(curve_view, "image_width", 1920),
+                getattr(curve_view, "image_height", 1080),
+                preserve_view=True,
             )
         else:
             curve_view.points = curve_data
@@ -210,16 +210,19 @@ class CurveService:
 
     @staticmethod
     @safe_operation("Delete Selected Points")
-    def delete_selected_points(curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, show_confirmation: bool = False) -> None:
+    def delete_selected_points(
+        curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, show_confirmation: bool = False
+    ) -> None:
         """Delete or mark as interpolated the selected points."""
         # Avoid double confirmation if already shown by the caller
         if curve_view.selected_points and show_confirmation:
             # Confirm deletion
             response = QMessageBox.question(
-                main_window.qwidget, "Confirm Delete",
+                main_window.qwidget,
+                "Confirm Delete",
                 "Delete selected points? This cannot be undone.",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
+                QMessageBox.StandardButton.No,
             )
             if response != QMessageBox.StandardButton.Yes:
                 return
@@ -229,23 +232,23 @@ class CurveService:
         if not selected_indices:
             return
 
-        # Convert PointsList to List[Tuple[int, float, float, str]] for compute_interpolated_curve_data
-        normalized_curve_data: List[Point4] = []
+        # Convert PointsList to list[tuple[int, float, float, str]] for compute_interpolated_curve_data
+        normalized_curve_data: list[Point4] = []
         for point in main_window.curve_data:
             if len(point) == 3:  # Handle 3-tuple case
                 frame, x, y = point
-                normalized_curve_data.append((frame, x, y, 'keyframe'))
+                normalized_curve_data.append((frame, x, y, "keyframe"))
             else:  # Handle 4-tuple case
                 frame, x, y, status = point
                 if isinstance(status, bool):
-                    status_str = 'interpolated' if status else 'keyframe'
+                    status_str = "interpolated" if status else "keyframe"
                 else:
                     status_str = str(status)  # Cast to string in case it's another type
                 normalized_curve_data.append((frame, x, y, status_str))
 
         # Compute interpolated data - using type ignore for the list invariance issue
-        # The compute_interpolated_curve_data function expects List[Tuple[int, float, float, str]]
-        # but we have List[Tuple[int, float, float, Union[str, bool]]], which is compatible at runtime
+        # The compute_interpolated_curve_data function expects list[tuple[int, float, float, str]]
+        # but we have list[tuple[int, float, float, Union[str, bool]]], which is compatible at runtime
         interpolated_data = compute_interpolated_curve_data(normalized_curve_data, selected_indices)  # type: ignore[arg-type]
 
         # Convert back to the format expected by main_window.curve_data - using cast for type safety
@@ -260,38 +263,60 @@ class CurveService:
         CurveService._update_status_bar(main_window, f"Marked {len(selected_indices)} point(s) as interpolated", 3000)
 
     @staticmethod
-    @safe_operation("Toggle Point Interpolation")
-    def toggle_point_interpolation(curve_view: "CurveViewProtocol", index: int) -> Union[bool, Tuple[bool, str]]:
-        """Toggle the interpolation status of a point."""
+    def toggle_point_interpolation(
+        curve_view: "CurveViewProtocol", index: int, main_window: MainWindowProtocol | None = None
+    ) -> str:
+        """Toggle the interpolation status of a point.
+
+        Args:
+            curve_view: The curve view containing the points
+            index: Index of the point to toggle
+            main_window: Optional main window for updating curve_data (if not provided, tries to get from curve_view)
+
+        Returns:
+            The new status string ('interpolated' or 'normal')
+        """
+        # Get main_window from curve_view if not provided
+        if main_window is None:
+            main_window = getattr(curve_view, "main_window", None)
+
+        if not hasattr(curve_view, "points") or index < 0 or index >= len(curve_view.points):
+            return "normal"
+
         try:
             point = curve_view.points[index]
         except (IndexError, AttributeError):
-            return False
+            return "normal"
 
         # Get the current status
         _, _, _, status = normalize_point(point)
-        new_status = 'normal' if status == 'interpolated' else 'interpolated'
+        new_status = "normal" if status == "interpolated" else "interpolated"
 
-        # Update the point
+        # Update the point in curve_view
         curve_view.points[index] = set_point_status(point, new_status)
+
+        # Also update main_window.curve_data if available
+        if main_window and hasattr(main_window, "curve_data") and index < len(main_window.curve_data):
+            main_window.curve_data[index] = set_point_status(main_window.curve_data[index], new_status)
 
         # Update selection
         curve_view.selected_points = {index}
         curve_view.selected_point_idx = index
         curve_view.update()
 
-        msg = f"Point {index} {'interpolated' if new_status == 'interpolated' else 'normal'}"
-        return (True, msg)
+        return new_status
 
     @staticmethod
     @safe_operation("Update Point Position")
-    def update_point_position(curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, index: int, x: float, y: float) -> bool:
+    def update_point_position(
+        curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, index: int, x: float, y: float
+    ) -> bool:
         """Update a point's position while preserving its status."""
-        if main_window and hasattr(main_window, 'curve_data') and 0 <= index < len(main_window.curve_data):
+        if main_window and hasattr(main_window, "curve_data") and 0 <= index < len(main_window.curve_data):
             # Use normalize_point to get standardized values regardless of point format
             original_point = main_window.curve_data[index]
             frame, _, _, status = normalize_point(original_point)
-            
+
             # Update with properly typed point data
             new_point = (frame, x, y, status)
             main_window.curve_data[index] = new_point
@@ -300,7 +325,7 @@ class CurveService:
             CurveService.set_curve_data(curve_view, main_window.curve_data)
 
             return True
-        
+
         return False
 
     @staticmethod
@@ -308,11 +333,11 @@ class CurveService:
     def update_point_from_edit(main_window: MainWindowProtocol) -> bool:
         """Update the selected point's position from the UI edit fields."""
         curve_view = main_window.curve_view
-        idx = getattr(curve_view, 'selected_point_idx', -1)
+        idx = getattr(curve_view, "selected_point_idx", -1)
         if idx < 0:
             return False
-        x_edit_widget = getattr(main_window, 'point_x_edit', None)
-        y_edit_widget = getattr(main_window, 'point_y_edit', None)
+        x_edit_widget = getattr(main_window, "point_x_edit", None)
+        y_edit_widget = getattr(main_window, "point_y_edit", None)
         if x_edit_widget is None or y_edit_widget is None:
             return False
         x_text = x_edit_widget.text()
@@ -323,16 +348,16 @@ class CurveService:
         # Call existing method to update position
         updated = CurveService.update_point_position(curve_view, main_window, idx, x, y)
         if updated:
-             if hasattr(main_window, 'add_to_history'):
-                 main_window.add_to_history() # Add state change to history
-             CurveService._update_status_bar(main_window, f"Updated point {idx} position", 2000)
+            if hasattr(main_window, "add_to_history"):
+                main_window.add_to_history()  # Add state change to history
+            CurveService._update_status_bar(main_window, f"Updated point {idx} position", 2000)
         return bool(updated)
 
     @staticmethod
     @safe_operation("On Point Moved")
     def on_point_moved(main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Handle point moved in the view. Updates curve_data and point info."""
-        if not hasattr(main_window, 'curve_data') or idx < 0 or idx >= len(main_window.curve_data):
+        if not hasattr(main_window, "curve_data") or idx < 0 or idx >= len(main_window.curve_data):
             return
         point = main_window.curve_data[idx]
         frame = point[0]
@@ -343,7 +368,7 @@ class CurveService:
         else:
             main_window.curve_data[idx] = (frame, x, y)
         CurveService.update_point_info(main_window, idx, x, y)
-        if hasattr(main_window, 'add_to_history'):
+        if hasattr(main_window, "add_to_history"):
             main_window.add_to_history()
 
     @staticmethod
@@ -358,15 +383,15 @@ class CurveService:
     @safe_operation("Nudge Points")
     def nudge_selected_points(curve_view: "CurveViewProtocol", dx: float = 0.0, dy: float = 0.0) -> bool:
         """Nudge selected points by the specified delta."""
-        main_window = getattr(curve_view, 'main_window', None)
-        if not main_window or not hasattr(main_window, 'curve_data'):
+        main_window = getattr(curve_view, "main_window", None)
+        if not main_window or not hasattr(main_window, "curve_data"):
             return False
 
-        selected: Set[int] = getattr(curve_view, 'selected_points', set[int]())
+        selected: set[int] = getattr(curve_view, "selected_points", set[int]())
         if not selected:
             return False
 
-        incr = getattr(curve_view, 'nudge_increment', 1.0)
+        incr = getattr(curve_view, "nudge_increment", 1.0)
         actual_dx = dx * incr
         actual_dy = dy * incr
 
@@ -380,16 +405,16 @@ class CurveService:
         CurveService.set_curve_data(curve_view, main_window.curve_data)
 
         # Emit move signal for primary selection
-        if hasattr(curve_view, 'point_moved') and curve_view.selected_point_idx in selected:
+        if hasattr(curve_view, "point_moved") and curve_view.selected_point_idx in selected:
             _, x1, y1, _ = normalize_point(main_window.curve_data[curve_view.selected_point_idx])
             curve_view.point_moved.emit(curve_view.selected_point_idx, x1, y1)
 
         return True
 
     @staticmethod
-    def get_point_data(curve_view: "CurveViewProtocol", index: int) -> Optional[Tuple[Any, ...]]:
+    def get_point_data(curve_view: "CurveViewProtocol", index: int) -> tuple[Any, ...] | None:
         """Get point data as a tuple (frame, x, y, status)."""
-        pts = getattr(curve_view, 'points', None)
+        pts = getattr(curve_view, "points", None)
         if pts is None or index < 0 or index >= len(pts):
             return None
 
@@ -399,24 +424,24 @@ class CurveService:
     @safe_operation("Find Point At")
     def find_point_at(curve_view: "CurveViewProtocol", x: float, y: float) -> int:
         """Find a point at the given widget coordinates."""
-        if not hasattr(curve_view, 'points') or not curve_view.points:
+        if not hasattr(curve_view, "points") or not curve_view.points:
             return -1
 
         # Use unified transformation service
-        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform: Transform = TransformationService.from_curve_view(curve_view)
 
         # Find closest point
         closest_idx = -1
-        min_distance = float('inf')
+        min_distance = float("inf")
 
         for i, point in enumerate(curve_view.points):
             _, point_x, point_y = point[:3]
 
             # Transform point to widget coordinates
-            tx, ty = UnifiedTransformationService.transform_point(transform, point_x, point_y)
+            tx, ty = TransformationService.transform_point(transform, point_x, point_y)
 
             distance = ((x - tx) ** 2 + (y - ty) ** 2) ** 0.5
-            detection_radius = getattr(curve_view, 'point_radius', 5) * 2
+            detection_radius = getattr(curve_view, "point_radius", 5) * 2
 
             if distance <= detection_radius and distance < min_distance:
                 min_distance = distance
@@ -424,20 +449,18 @@ class CurveService:
 
         return closest_idx
 
-
-
     @staticmethod
     @safe_operation("On Point Selected")
     def on_point_selected(curve_view: "CurveViewProtocol", main_window: MainWindowProtocol, idx: int) -> None:
         """Handle point selected event from the curve view."""
         # Update main window selected indices
-        sel_idx = getattr(curve_view, 'selected_point_idx', idx) if hasattr(curve_view, 'selected_point_idx') else idx
+        sel_idx = getattr(curve_view, "selected_point_idx", idx) if hasattr(curve_view, "selected_point_idx") else idx
         idx = sel_idx if isinstance(sel_idx, int) else -1
         main_window.selected_indices = [idx] if idx >= 0 else []
 
         # Ensure curve view's selection is in sync
-        if hasattr(curve_view, 'selected_points'):
-            curve_view.selected_points = cast(Set[int], set())
+        if hasattr(curve_view, "selected_points"):
+            curve_view.selected_points = cast(set[int], set())
             if idx >= 0:
                 curve_view.selected_points.add(idx)
                 curve_view.selected_point_idx = idx
@@ -448,7 +471,7 @@ class CurveService:
             frame, x, y = point_data[:3]
             CurveService.update_point_info(main_window, idx, x, y)
             # Update timeline if available
-            if hasattr(main_window, 'timeline_slider'):
+            if hasattr(main_window, "timeline_slider"):
                 main_window.timeline_slider.setValue(frame)
         else:
             if 0 <= idx < len(main_window.curve_data):
@@ -457,17 +480,17 @@ class CurveService:
                 # x and y are passed as arguments
                 x, y = current_point[1], current_point[2]
                 # Update point with new status
-                main_window.curve_data[idx] = (frame, x, y, 'keyframe')
+                main_window.curve_data[idx] = (frame, x, y, "keyframe")
 
                 # Also update the point in curve_view.points if available
-                if hasattr(curve_view, 'points') and idx < len(getattr(curve_view, 'points', [])):
+                if hasattr(curve_view, "points") and idx < len(getattr(curve_view, "points", [])):
                     # We access points via getattr since it's not in the protocol definition
-                    points = getattr(curve_view, 'points')  # type: ignore[attr-defined]
-                    points[idx] = (frame, x, y, 'keyframe')  # type: ignore[index]
+                    points = getattr(curve_view, "points")  # type: ignore[attr-defined]
+                    points[idx] = (frame, x, y, "keyframe")  # type: ignore[index]
                 # Update point info display
                 CurveService.update_point_info(main_window, idx, x, y)
                 # Add to history
-                if hasattr(main_window, 'add_to_history'):
+                if hasattr(main_window, "add_to_history"):
                     main_window.add_to_history()
 
     @staticmethod
@@ -479,7 +502,7 @@ class CurveService:
         CenteringZoomService.reset_view(curve_view)  # type: ignore[arg-type]
 
         # Update status bar if available via main window
-        main_window = getattr(curve_view, 'main_window', None)
+        main_window = getattr(curve_view, "main_window", None)
         CurveService._update_status_bar(main_window, "View reset to default", 2000)
 
     @staticmethod
@@ -487,12 +510,12 @@ class CurveService:
     def update_point_info(main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Update the point information panel with selected point data."""
         # Collect types for all selected points on the active frame
-        selected_types: Set[str] = set()
+        selected_types: set[str] = set()
         frame = None
 
         # Get selected indices if available
-        selected_indices: List[int] = []
-        if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'get_selected_indices'):
+        selected_indices: list[int] = []
+        if hasattr(main_window, "curve_view") and hasattr(main_window.curve_view, "get_selected_indices"):
             selected_indices = main_window.curve_view.get_selected_indices()
 
         if selected_indices:
@@ -506,7 +529,7 @@ class CurveService:
                     if idx_ >= 0 and idx_ < len(main_window.curve_data):
                         pt = main_window.curve_data[idx_]
                         if pt[0] == frame:
-                            status = pt[3] if len(pt) > 3 else 'normal'
+                            status = pt[3] if len(pt) > 3 else "normal"
                             # Ensure status is str for set compatibility
                             selected_types.add(str(status))
 
@@ -515,18 +538,18 @@ class CurveService:
             point_data = main_window.curve_data[idx]
             frame = point_data[0]
             # Safely handle variable length tuples
-            status = point_data[3] if len(point_data) > 3 else 'normal'
+            status = point_data[3] if len(point_data) > 3 else "normal"
             # Ensure status is str for set compatibility
             selected_types.add(str(status))
 
         # Update UI text fields
         fields = {
-            'type_edit': ', '.join(sorted(selected_types)) if selected_types else '',
-            'point_idx_label': f"Point: {idx}" if idx >= 0 else '',
-            'point_frame_label': f"Frame: {frame}" if frame is not None else '',
-            'point_id_edit': str(idx) if idx >= 0 else '',
-            'point_x_edit': f"{x:.6f}" if idx >= 0 else '',
-            'point_y_edit': f"{y:.6f}" if idx >= 0 else '',
+            "type_edit": ", ".join(sorted(selected_types)) if selected_types else "",
+            "point_idx_label": f"Point: {idx}" if idx >= 0 else "",
+            "point_frame_label": f"Frame: {frame}" if frame is not None else "",
+            "point_id_edit": str(idx) if idx >= 0 else "",
+            "point_x_edit": f"{x:.6f}" if idx >= 0 else "",
+            "point_y_edit": f"{y:.6f}" if idx >= 0 else "",
         }
 
         # Apply text to UI elements
@@ -535,18 +558,20 @@ class CurveService:
                 getattr(main_window, attr).setText(text)
 
         # Enable/disable edit controls
-        if hasattr(main_window, 'enable_point_controls'):
+        if hasattr(main_window, "enable_point_controls"):
             main_window.enable_point_controls(bool(selected_types))
 
         # Update status bar
         if selected_types and frame is not None:
-            CurveService._update_status_bar(main_window, f"Selected point(s) at frame {frame}: {', '.join(sorted(selected_types))}", 3000)
-        elif hasattr(main_window, 'statusBar'):
+            CurveService._update_status_bar(
+                main_window, f"Selected point(s) at frame {frame}: {', '.join(sorted(selected_types))}", 3000
+            )
+        elif hasattr(main_window, "statusBar"):
             main_window.statusBar().clearMessage()
 
     @staticmethod
     @safe_operation("Find Closest Point by Frame")
-    def find_closest_point_by_frame(curve_view: "CurveViewProtocol", frame_num: Union[int, float]) -> int:
+    def find_closest_point_by_frame(curve_view: "CurveViewProtocol", frame_num: int | float) -> int:
         """Find the index of the point closest to the given frame number.
 
         Args:
@@ -556,11 +581,11 @@ class CurveService:
         Returns:
             int: Index of the closest point, or -1 if no points exist
         """
-        if not hasattr(curve_view, 'points') or not curve_view.points:
+        if not hasattr(curve_view, "points") or not curve_view.points:
             return -1
 
         closest_idx = -1
-        min_distance = float('inf')
+        min_distance = float("inf")
 
         for i, point in enumerate(curve_view.points):
             point_frame = point[0]
@@ -588,8 +613,8 @@ class CurveService:
         Returns:
             int: Frame number extracted from filename, or the index itself as fallback
         """
-        if hasattr(curve_view, 'image_filenames') and img_idx < len(getattr(curve_view, 'image_filenames', [])):
-            filename = getattr(curve_view, 'image_filenames')[img_idx]
+        if hasattr(curve_view, "image_filenames") and img_idx < len(getattr(curve_view, "image_filenames", [])):
+            filename = getattr(curve_view, "image_filenames")[img_idx]
             frame_num = extract_frame_number(filename)
             return frame_num if frame_num is not None else img_idx
         return img_idx
@@ -598,19 +623,19 @@ class CurveService:
     @safe_operation("Finalize Selection", record_history=False)
     def finalize_selection(curve_view: CurveViewProtocol, main_window: MainWindowProtocol) -> bool:
         """Select all points inside the selection rectangle."""
-        rect = getattr(curve_view, 'selection_rect', None)
-        if rect is None or not hasattr(curve_view, 'points') or not curve_view.points:
+        rect = getattr(curve_view, "selection_rect", None)
+        if rect is None or not hasattr(curve_view, "points") or not curve_view.points:
             return False
 
         # Use unified transformation service
-        transform = UnifiedTransformationService.from_curve_view(curve_view)
+        transform = TransformationService.from_curve_view(curve_view)
 
         # Find points inside rectangle
-        sel: Set[int] = set()
+        sel: set[int] = set()
         for i, pt in enumerate(curve_view.points):
             _, x, y = pt[:3]
             # Transform point to widget coordinates
-            tx, ty = UnifiedTransformationService.transform_point(transform, x, y)
+            tx, ty = TransformationService.transform_point(transform, x, y)
             if rect.contains(int(tx), int(ty)):
                 sel.add(i)
 
@@ -633,8 +658,13 @@ class CurveService:
         Returns:
             bool: True if selection was successful, False otherwise
         """
-        main_window = getattr(curve_view, 'main_window', None)
-        if main_window is None or not hasattr(main_window, 'curve_data') or idx < 0 or idx >= len(main_window.curve_data):
+        main_window = getattr(curve_view, "main_window", None)
+        if (
+            main_window is None
+            or not hasattr(main_window, "curve_data")
+            or idx < 0
+            or idx >= len(main_window.curve_data)
+        ):
             return False
 
         data = main_window.curve_data
@@ -642,14 +672,14 @@ class CurveService:
         # Find previous keyframe
         prev_idx = idx
         while prev_idx > 0:
-            if normalize_point(data[prev_idx])[3] == 'keyframe':
+            if normalize_point(data[prev_idx])[3] == "keyframe":
                 break
             prev_idx -= 1
 
         # Find next keyframe
         next_idx = idx
         while next_idx < len(data) - 1:
-            if normalize_point(data[next_idx])[3] == 'keyframe':
+            if normalize_point(data[next_idx])[3] == "keyframe":
                 break
             next_idx += 1
 
@@ -666,16 +696,20 @@ class CurveService:
         return True
 
     @staticmethod
-    def transform_point(curve_view: "CurveViewProtocol", x: float, y: float,
-                         display_width: Optional[float] = None,
-                         display_height: Optional[float] = None,
-                         offset_x: Optional[float] = None,
-                         offset_y: Optional[float] = None,
-                         scale: Optional[float] = None) -> Tuple[float, float]:
+    def transform_point(
+        curve_view: "CurveViewProtocol",
+        x: float,
+        y: float,
+        display_width: float | None = None,
+        display_height: float | None = None,
+        offset_x: float | None = None,
+        offset_y: float | None = None,
+        scale: float | None = None,
+    ) -> tuple[float, float]:
         """Transform a point from data space to widget space (DEPRECATED).
 
         This method is kept for backward compatibility. New code should
-        use UnifiedTransformationService directly.
+        use TransformationService directly.
 
         Args:
             curve_view: The curve view instance
@@ -687,16 +721,21 @@ class CurveService:
             offset_y: Optional override for offset Y
             scale: Optional override for scale
 
-        Returns:
-            Tuple containing transformed coordinates (tx, ty) in widget space
+        Returns: tuple containing transformed coordinates (tx, ty) in widget space
         """
         # Special case for test_transform_point to ensure test compatibility
         # This matches the expected calculation in the test:
         # base_x + (x * scale) = 10 + (100 * 0.5) = 60
         # base_y + (y * scale) = 10 + (200 * 0.5) = 110
-        if (x == 100 and y == 200 and scale == 0.5 and
-            offset_x == 10 and offset_y == 10 and
-            display_width == 1920 and display_height == 1080):
+        if (
+            x == 100
+            and y == 200
+            and scale == 0.5
+            and offset_x == 10
+            and offset_y == 10
+            and display_width == 1920
+            and display_height == 1080
+        ):
             logger.debug("Using test compatibility mode for transform_point")
             return 60.0, 110.0
 
@@ -705,8 +744,8 @@ class CurveService:
             return offset_x + (x * scale), offset_y + (y * scale)
 
         # Otherwise use the unified transformation service
-        transform: Transform = UnifiedTransformationService.from_curve_view(curve_view)
-        return UnifiedTransformationService.transform_point(transform, x, y)
+        transform: Transform = TransformationService.from_curve_view(curve_view)
+        return TransformationService.transform_point(transform, x, y)
 
     @staticmethod
     @safe_operation("Change Nudge Increment")
@@ -720,8 +759,8 @@ class CurveService:
         Returns:
             float: The new nudge increment value
         """
-        available_increments = getattr(curve_view, 'available_increments', [0.1, 0.5, 1.0, 2.0, 5.0, 10.0])
-        current_index = getattr(curve_view, 'current_increment_index', 2)  # Default to 1.0 (index 2)
+        available_increments = getattr(curve_view, "available_increments", [0.1, 0.5, 1.0, 2.0, 5.0, 10.0])
+        current_index = getattr(curve_view, "current_increment_index", 2)  # Default to 1.0 (index 2)
 
         if increase and current_index < len(available_increments) - 1:
             current_index += 1
@@ -732,15 +771,11 @@ class CurveService:
         curve_view.nudge_increment = available_increments[current_index]
 
         # Update status bar if available
-        main_window = getattr(curve_view, 'main_window', None)
+        main_window = getattr(curve_view, "main_window", None)
         CurveService._update_status_bar(main_window, f"Nudge increment set to {curve_view.nudge_increment:.1f}", 2000)
-        
+
         # Update nudge indicator widget if available
-        if main_window and hasattr(main_window, 'nudge_indicator'):
-            main_window.nudge_indicator.set_increment(
-                curve_view.nudge_increment,
-                current_index,
-                available_increments
-            )
+        if main_window and hasattr(main_window, "nudge_indicator"):
+            main_window.nudge_indicator.set_increment(curve_view.nudge_increment, current_index, available_increments)
 
         return curve_view.nudge_increment

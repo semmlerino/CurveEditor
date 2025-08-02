@@ -1,12 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Pytest tests for error_handling.py
 """
 
 import pytest
+
 from error_handling import safe_operation, show_error
+
 
 class MockMainWindow:
     def __init__(self):
@@ -24,10 +25,12 @@ class MockMainWindow:
     def add_to_history(self):
         self.history_added = True
 
+
 @pytest.fixture
 def main_window():
     """Fixture that provides a mock main window."""
     return MockMainWindow()
+
 
 def test_safe_operation_with_history(main_window):
     """Test that safe_operation records history when specified."""
@@ -43,6 +46,7 @@ def test_safe_operation_with_history(main_window):
     assert main_window.history_added is True
     assert "completed successfully" in main_window.last_message
 
+
 def test_safe_operation_without_history(main_window):
     """Test that safe_operation doesn't record history when specified."""
 
@@ -56,6 +60,7 @@ def test_safe_operation_without_history(main_window):
     assert result is True
     assert main_window.history_added is False
     assert "completed successfully" in main_window.last_message
+
 
 def test_safe_operation_with_exception(main_window, monkeypatch):
     """Test that safe_operation handles exceptions properly."""
@@ -78,6 +83,7 @@ def test_safe_operation_with_exception(main_window, monkeypatch):
     assert result is None
     assert main_window.history_added is False
     assert "Error" in main_window.last_message
+
 
 def test_show_error(monkeypatch):
     """Test the show_error function."""

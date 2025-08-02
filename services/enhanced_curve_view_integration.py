@@ -6,10 +6,10 @@ with CurveView components. It provides examples of best practices and shows
 how existing paintEvent methods can be updated to use the consolidated system.
 """
 
-from typing import List, Any, Optional, Dict, Set
+from typing import Any
 
 from PySide6.QtCore import QRectF
-from PySide6.QtGui import QPainter, QPen, QBrush, QColor
+from PySide6.QtGui import QBrush, QColor, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from services.logging_service import LoggingService
@@ -26,12 +26,12 @@ class UnifiedTransformCurveView(QWidget):
     transformation system with Qt widgets and paintEvent handling.
     """
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         # Curve data and view state
-        self.points: List[Any] = []
-        self.selected_points: Set[int] = set()
+        self.points: list[Any] = []
+        self.selected_points: set[int] = set()
         self.selected_point_idx: int = -1
 
         # View configuration
@@ -96,13 +96,13 @@ class UnifiedTransformCurveView(QWidget):
         img_x, img_y = transform.apply_for_image_position()
 
         # Calculate scaled image size
-        scale = transform.get_parameters()['scale']
+        scale = transform.get_parameters()["scale"]
 
         # Apply image scaling if enabled
         params = transform.get_parameters()
-        if params['scale_to_image']:
-            image_scale_x = params['image_scale_x']
-            image_scale_y = params['image_scale_y']
+        if params["scale_to_image"]:
+            image_scale_x = params["image_scale_x"]
+            image_scale_y = params["image_scale_y"]
             scaled_width = self.background_image.width() * scale * image_scale_x
             scaled_height = self.background_image.height() * scale * image_scale_y
         else:
@@ -114,8 +114,9 @@ class UnifiedTransformCurveView(QWidget):
         source_rect = QRectF(self.background_image.rect())
         painter.drawImage(target_rect, self.background_image, source_rect)
 
-        logger.debug(f"Background image drawn at ({img_x:.1f}, {img_y:.1f}) "
-                    f"with size ({scaled_width:.1f}, {scaled_height:.1f})")
+        logger.debug(
+            f"Background image drawn at ({img_x:.1f}, {img_y:.1f}) with size ({scaled_width:.1f}, {scaled_height:.1f})"
+        )
 
     def _draw_curve(self, painter: QPainter, transform: Any) -> None:
         """Draw the curve using efficient batch transformation."""
@@ -123,9 +124,7 @@ class UnifiedTransformCurveView(QWidget):
             return
 
         # Transform all points at once for efficiency
-        transformed_points = UnifiedTransformationService.transform_points_qt(
-            transform, self.points
-        )
+        transformed_points = UnifiedTransformationService.transform_points_qt(transform, self.points)
 
         # Set up curve appearance
         curve_pen = QPen(QColor(100, 150, 255), 2)
@@ -190,12 +189,10 @@ class UnifiedTransformCurveView(QWidget):
             # Draw small cross at origin
             cross_size = 10
             painter.drawLine(
-                origin_screen.x() - cross_size, origin_screen.y(),
-                origin_screen.x() + cross_size, origin_screen.y()
+                origin_screen.x() - cross_size, origin_screen.y(), origin_screen.x() + cross_size, origin_screen.y()
             )
             painter.drawLine(
-                origin_screen.x(), origin_screen.y() - cross_size,
-                origin_screen.x(), origin_screen.y() + cross_size
+                origin_screen.x(), origin_screen.y() - cross_size, origin_screen.x(), origin_screen.y() + cross_size
             )
 
     def mousePressEvent(self, event: Any) -> None:
@@ -212,14 +209,14 @@ class UnifiedTransformCurveView(QWidget):
 
         # Find the closest point
         closest_idx = -1
-        min_distance = float('inf')
+        min_distance = float("inf")
 
         for i, point in enumerate(self.points):
             # Calculate distance in screen space for consistent selection
             point_screen = transform.apply(point[1], point[2])
             dx = point_screen[0] - screen_pos[0]
             dy = point_screen[1] - screen_pos[1]
-            distance = (dx*dx + dy*dy) ** 0.5
+            distance = (dx * dx + dy * dy) ** 0.5
 
             if distance < min_distance and distance < 10:  # 10 pixel selection radius
                 min_distance = distance
@@ -268,7 +265,7 @@ class UnifiedTransformCurveView(QWidget):
                     new_pos: tuple[float, float] = stable_transform.apply(drift_point[1], drift_point[2])
                     dx: float = float(new_pos[0] - original_pos[0])
                     dy: float = float(new_pos[1] - original_pos[1])
-                    drift: float = float((dx*dx + dy*dy) ** 0.5)
+                    drift: float = float((dx * dx + dy * dy) ** 0.5)
                     max_drift = max(float(max_drift), float(drift))  # Update existing variable, don't redefine
 
             if max_drift > 1.0:
@@ -297,8 +294,8 @@ class UnifiedTransformCurveView(QWidget):
                 next_point = self.points[i + 1]
 
                 # Weighted average
-                new_x = (prev_point[1] + point[1] * (1/factor - 2) + next_point[1]) / (1/factor)
-                new_y = (prev_point[2] + point[2] * (1/factor - 2) + next_point[2]) / (1/factor)
+                new_x = (prev_point[1] + point[1] * (1 / factor - 2) + next_point[1]) / (1 / factor)
+                new_y = (prev_point[2] + point[2] * (1 / factor - 2) + next_point[2]) / (1 / factor)
 
                 # Preserve other point data
                 smoothed_point = (point[0], new_x, new_y) + point[3:]
@@ -306,7 +303,7 @@ class UnifiedTransformCurveView(QWidget):
 
         self.points = smoothed_points
 
-    def set_curve_data(self, points: List[Any]) -> None:
+    def set_curve_data(self, points: list[Any]) -> None:
         """Set new curve data and update the view."""
         self.points = points
         self.selected_points.clear()
@@ -315,22 +312,23 @@ class UnifiedTransformCurveView(QWidget):
 
         logger.info(f"Curve data updated with {len(points)} points")
 
-    def get_transform_info(self) -> Dict[str, Any]:
+    def get_transform_info(self) -> dict[str, Any]:
         """Get information about the current transform for debugging."""
         transform = UnifiedTransformationService.from_curve_view(self)
         params = transform.get_parameters()
 
         return {
-            'transform_parameters': params,
-            'cache_stats': UnifiedTransformationService.get_cache_stats(),
-            'point_count': len(self.points),
-            'selected_count': len(self.selected_points)
+            "transform_parameters": params,
+            "cache_stats": UnifiedTransformationService.get_cache_stats(),
+            "point_count": len(self.points),
+            "selected_count": len(self.selected_points),
         }
 
 
 # Factory function for creating enhanced curve views
-def create_enhanced_curve_view(parent: Optional[QWidget] = None,
-                              initial_points: Optional[List[Any]] = None) -> UnifiedTransformCurveView:
+def create_enhanced_curve_view(
+    parent: QWidget | None = None, initial_points: list[Any] | None = None
+) -> UnifiedTransformCurveView:
     """
     Factory function for creating enhanced curve views with the unified system.
 
@@ -384,7 +382,7 @@ def migrate_paint_event_example() -> None:
 
 
 # Utility functions for integration
-def convert_legacy_curve_view(legacy_view: Any, enhanced_parent: Optional[QWidget] = None) -> UnifiedTransformCurveView:
+def convert_legacy_curve_view(legacy_view: Any, enhanced_parent: QWidget | None = None) -> UnifiedTransformCurveView:
     """
     Convert a legacy curve view to use the enhanced unified system.
 
@@ -398,24 +396,24 @@ def convert_legacy_curve_view(legacy_view: Any, enhanced_parent: Optional[QWidge
     enhanced_view = UnifiedTransformCurveView(enhanced_parent)
 
     # Migrate configuration
-    if hasattr(legacy_view, 'zoom_factor'):
+    if hasattr(legacy_view, "zoom_factor"):
         enhanced_view.zoom_factor = legacy_view.zoom_factor
-    if hasattr(legacy_view, 'offset_x'):
+    if hasattr(legacy_view, "offset_x"):
         enhanced_view.offset_x = legacy_view.offset_x
-    if hasattr(legacy_view, 'offset_y'):
+    if hasattr(legacy_view, "offset_y"):
         enhanced_view.offset_y = legacy_view.offset_y
-    if hasattr(legacy_view, 'points'):
+    if hasattr(legacy_view, "points"):
         enhanced_view.set_curve_data(legacy_view.points)
 
     # Migrate additional properties
     property_mappings = {
-        'flip_y_axis': 'flip_y_axis',
-        'scale_to_image': 'scale_to_image',
-        'background_image': 'background_image',
-        'image_width': 'image_width',
-        'image_height': 'image_height',
-        'selected_points': 'selected_points',
-        'selected_point_idx': 'selected_point_idx'
+        "flip_y_axis": "flip_y_axis",
+        "scale_to_image": "scale_to_image",
+        "background_image": "background_image",
+        "image_width": "image_width",
+        "image_height": "image_height",
+        "selected_points": "selected_points",
+        "selected_point_idx": "selected_point_idx",
     }
 
     for legacy_prop, enhanced_prop in property_mappings.items():

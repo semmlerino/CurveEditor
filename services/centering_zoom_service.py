@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 CenteringZoomService: Manages view centering and zoom operations.
 Provides methods for zooming, centering, and handling view transformations.
 """
 
-from typing import Tuple, Optional, TYPE_CHECKING, List
+from typing import TYPE_CHECKING
 
 from core.protocols import CurveViewProtocol, MainWindowProtocol
 from services.logging_service import LoggingService
@@ -16,6 +15,7 @@ logger = LoggingService.get_logger("centering_zoom_service")
 if TYPE_CHECKING:
     from PySide6.QtGui import QWheelEvent
 
+
 class CenteringZoomService:
     """Service for managing centering and zoom operations.
 
@@ -23,16 +23,16 @@ class CenteringZoomService:
     The CurveView class may have these attributes that are accessed dynamically:
     - main_window: Reference to the application's main window
     - selected_point_idx: Currently selected point index
-    - selected_points: Set of selected point indices
+    - selected_points: set of selected point indices
     - background_image: Current background image, if any
     - offset_x, offset_y: View offsets
     - zoom_factor: Current zoom level
     - width, height: Widget dimensions
 
     The main_window may have these attributes:
-    - curve_data: List of point data
+    - curve_data: list of point data
     - auto_center_enabled: Whether auto-centering is enabled
-    - selected_indices: List of selected point indices
+    - selected_indices: list of selected point indices
     - statusBar: Method to access status bar
     - curve_view: Reference to the CurveView instance
 
@@ -47,8 +47,8 @@ class CenteringZoomService:
         display_width: float,
         display_height: float,
         offset_x: float = 0,
-        offset_y: float = 0
-    ) -> Tuple[float, float]:
+        offset_y: float = 0,
+    ) -> tuple[float, float]:
         """Calculate centering offsets for a view.
 
         Args:
@@ -60,7 +60,7 @@ class CenteringZoomService:
             offset_y: Additional Y offset (default 0)
 
         Returns:
-            Tuple[float, float]: Centering offsets to apply (offset_x, offset_y)
+            tuple[float, float]: Centering offsets to apply (offset_x, offset_y)
         """
         # Make sure we're dealing with non-zero dimensions to avoid division errors
         if widget_width <= 0 or widget_height <= 0 or display_width <= 0 or display_height <= 0:
@@ -104,8 +104,8 @@ class CenteringZoomService:
         """
         # Update the view offsets
         # Cast to int to fix type errors (CurveView expects integer offsets)
-        current_x = getattr(curve_view, 'offset_x', 0)
-        current_y = getattr(curve_view, 'offset_y', 0)
+        current_x = getattr(curve_view, "offset_x", 0)
+        current_y = getattr(curve_view, "offset_y", 0)
         curve_view.offset_x = int(current_x + dx)
         curve_view.offset_y = int(current_y + dy)
 
@@ -113,7 +113,9 @@ class CenteringZoomService:
         curve_view.update()
 
     @staticmethod
-    def center_on_selected_point(curve_view: Optional[CurveViewProtocol], point_idx: int = -1, preserve_zoom: bool = True) -> bool:
+    def center_on_selected_point(
+        curve_view: CurveViewProtocol | None, point_idx: int = -1, preserve_zoom: bool = True
+    ) -> bool:
         """Center the view on the specified point index.
 
         If no index is provided, uses the currently selected point.
@@ -129,21 +131,21 @@ class CenteringZoomService:
         # Check if curve_view is None first to avoid AttributeError
         if curve_view is None:
             return False
-        
+
         # Get the target point index
         idx: int = point_idx if point_idx >= 0 else getattr(curve_view, "selected_point_idx", -1)
 
         # The following attributes are accessed dynamically on curve_view.
         # We use getattr with a default value of None to avoid AttributeError
-        main_window = getattr(curve_view, 'main_window', None)  # type: ignore[attr-defined]
+        main_window = getattr(curve_view, "main_window", None)  # type: ignore[attr-defined]
         if idx < 0 or main_window is None or not getattr(main_window, "curve_data", None):
             # Even if we can't center, ensure we update the view for test consistency
             curve_view.update()
             return False
 
         try:
-            main_window = getattr(curve_view, 'main_window', None)  # type: ignore[attr-defined]
-            curve_data = getattr(main_window, 'curve_data', []) if main_window else []
+            main_window = getattr(curve_view, "main_window", None)  # type: ignore[attr-defined]
+            curve_data = getattr(main_window, "curve_data", []) if main_window else []
 
             if idx < len(curve_data):
                 # Get the point coordinates
@@ -244,7 +246,9 @@ class CenteringZoomService:
                 if getattr(curve_view, "debug_mode", False):
                     logger.debug(f"Centering on point ({x}, {y}) with zoom {scale:.2f}")
                     logger.debug(f"Widget size: {widget_width}x{widget_height}")
-                    logger.debug(f"Content size: {display_width}x{display_height} → {total_width:.1f}x{total_height:.1f}")
+                    logger.debug(
+                        f"Content size: {display_width}x{display_height} → {total_width:.1f}x{total_height:.1f}"
+                    )
                     logger.debug(f"Base offset: ({base_x:.1f}, {base_y:.1f})")
                     logger.debug(f"Applied offset: ({curve_view.offset_x}, {curve_view.offset_y})")
 
@@ -265,7 +269,7 @@ class CenteringZoomService:
             curve_view: The curve view instance
         """
         # Get the points from the curve view
-        points = getattr(curve_view, 'points', [])
+        points = getattr(curve_view, "points", [])
         if not points:
             # No points to fit, just reset the view
             CenteringZoomService.reset_view(curve_view)
@@ -328,15 +332,15 @@ class CenteringZoomService:
             bool: The new auto-center state (True if enabled, False if disabled)
         """
         # Get the current auto-center state with a default of False
-        current_state = getattr(curve_view, 'auto_center_enabled', False)
+        current_state = getattr(curve_view, "auto_center_enabled", False)
 
         # Toggle the state
         new_state = not current_state
         # Use setattr instead of direct assignment to avoid linting issues
-        setattr(curve_view, 'auto_center_enabled', new_state)
+        setattr(curve_view, "auto_center_enabled", new_state)
 
         # If auto-center is now enabled, center the view immediately
-        if new_state and hasattr(curve_view, 'selected_point_idx'):
+        if new_state and hasattr(curve_view, "selected_point_idx"):
             CenteringZoomService.center_on_selected_point(curve_view)
 
         return new_state
@@ -347,13 +351,9 @@ class CenteringZoomService:
         selected_points = getattr(curve_view, "selected_points", None)
         points = getattr(curve_view, "points", None)
 
-        if (
-            selected_points is not None
-            and points is not None
-            and len(selected_points) > 1
-        ):
-            xs: List[float] = []
-            ys: List[float] = []
+        if selected_points is not None and points is not None and len(selected_points) > 1:
+            xs: list[float] = []
+            ys: list[float] = []
             for idx in selected_points:
                 if 0 <= idx < len(points):
                     pt = points[idx]
@@ -439,7 +439,7 @@ class CenteringZoomService:
         return False
 
     @staticmethod
-    def handle_wheel_event(curve_view: CurveViewProtocol, event: 'QWheelEvent') -> None:
+    def handle_wheel_event(curve_view: CurveViewProtocol, event: "QWheelEvent") -> None:
         """Handle mouse wheel events for zooming.
 
         Args:
@@ -447,7 +447,7 @@ class CenteringZoomService:
             event: The wheel event containing position and delta information
         """
         # Prevent jumpy zoom immediately after fit_selection
-        if hasattr(curve_view, 'last_action_was_fit') and getattr(curve_view, 'last_action_was_fit', False):
+        if hasattr(curve_view, "last_action_was_fit") and getattr(curve_view, "last_action_was_fit", False):
             curve_view.last_action_was_fit = False  # type: ignore[attr-defined]
             return
 
@@ -474,12 +474,14 @@ class CenteringZoomService:
 
         # Temporarily clear multi-selection to avoid special case handling
         temp_selected = None
-        if hasattr(curve_view, 'selected_points') and len(curve_view.selected_points) > 1:
+        if hasattr(curve_view, "selected_points") and len(curve_view.selected_points) > 1:
             temp_selected = curve_view.selected_points.copy()
-            curve_view.selected_points = {curve_view.selected_point_idx} if getattr(curve_view, 'selected_point_idx', -1) >= 0 else set()
+            curve_view.selected_points = (
+                {curve_view.selected_point_idx} if getattr(curve_view, "selected_point_idx", -1) >= 0 else set()
+            )
 
         # Perform zoom via centralized method, respecting auto-center setting
-        if hasattr(curve_view, 'main_window') and getattr(curve_view.main_window, 'auto_center_enabled', False):
+        if hasattr(curve_view, "main_window") and getattr(curve_view.main_window, "auto_center_enabled", False):
             # Auto-centering on: zoom relative to selected point
             CenteringZoomService.zoom_view(curve_view, factor)
         else:
@@ -500,7 +502,7 @@ class CenteringZoomService:
             factor: Zoom factor, default 1.2 (20% zoom in)
         """
         # Multiply current zoom by the factor
-        current_zoom = getattr(curve_view, 'zoom_factor', 1.0)
+        current_zoom = getattr(curve_view, "zoom_factor", 1.0)
         curve_view.zoom_factor = current_zoom * factor
 
         # Update the view
@@ -515,7 +517,7 @@ class CenteringZoomService:
             factor: Zoom factor, default 0.8 (20% zoom out)
         """
         # Multiply current zoom by the factor
-        current_zoom = getattr(curve_view, 'zoom_factor', 1.0)
+        current_zoom = getattr(curve_view, "zoom_factor", 1.0)
         curve_view.zoom_factor = current_zoom * factor
 
         # Update the view
@@ -527,7 +529,7 @@ class CenteringZoomService:
         curve_view.zoom_factor = 1.0
 
         # Reset all offset attributes
-        for attr in ['x_offset', 'y_offset', 'offset_x', 'offset_y']:
+        for attr in ["x_offset", "y_offset", "offset_x", "offset_y"]:
             if hasattr(curve_view, attr):
                 setattr(curve_view, attr, 0)
 
@@ -558,7 +560,9 @@ class CenteringZoomService:
         CenteringZoomService.zoom_view(curve_view, factor, x, y)
 
     @staticmethod
-    def zoom_view(curve_view: CurveViewProtocol, factor: float, mouse_x: Optional[float] = None, mouse_y: Optional[float] = None) -> None:
+    def zoom_view(
+        curve_view: CurveViewProtocol, factor: float, mouse_x: float | None = None, mouse_y: float | None = None
+    ) -> None:
         """Zoom the view while keeping the mouse position fixed.
 
         Args:
@@ -598,22 +602,24 @@ class CenteringZoomService:
             curve_view.offset_x = int(offset_x - dx * zoom_ratio)
             curve_view.offset_y = int(offset_y - dy * zoom_ratio)
         # If no mouse position and auto-center is enabled, recenter on selected point
-        elif hasattr(curve_view, 'main_window'):  # type: ignore[attr-defined]
+        elif hasattr(curve_view, "main_window"):  # type: ignore[attr-defined]
             # Type checking doesn't know about dynamically accessed attributes
             # so we need to use getattr() to access them safely and add type ignores
-            curve_view_main_window = getattr(curve_view, 'main_window', None)  # type: ignore[attr-defined]
+            curve_view_main_window = getattr(curve_view, "main_window", None)  # type: ignore[attr-defined]
             auto_center_enabled = False
             if curve_view_main_window is not None:
-                auto_center_enabled = bool(getattr(curve_view_main_window, 'auto_center_enabled', False))
+                auto_center_enabled = bool(getattr(curve_view_main_window, "auto_center_enabled", False))
 
             # Check if we have a valid selection index
-            selected_point_idx = getattr(curve_view, 'selected_point_idx', -1)  # type: ignore[attr-defined]
+            selected_point_idx = getattr(curve_view, "selected_point_idx", -1)  # type: ignore[attr-defined]
             has_selection = selected_point_idx >= 0
 
             if curve_view_main_window is not None and auto_center_enabled and has_selection:
                 # Re-center on the selected point after zooming
                 # This is critical for maintaining centering during resize/fullscreen
-                CenteringZoomService.center_on_selected_point(curve_view, curve_view.selected_point_idx, preserve_zoom=True)
+                CenteringZoomService.center_on_selected_point(
+                    curve_view, curve_view.selected_point_idx, preserve_zoom=True
+                )
 
         # Reset the fit flag if it exists
         if hasattr(curve_view, "last_action_was_fit"):
@@ -639,19 +645,19 @@ class CenteringZoomService:
             bool: True if centering was successful, False otherwise
         """
         # Get curve view from main window (dynamically accessed attribute)
-        curve_view = getattr(main_window, 'curve_view', None)  # type: ignore[attr-defined]
+        curve_view = getattr(main_window, "curve_view", None)  # type: ignore[attr-defined]
         if not curve_view:
             return False
 
         # Detect selection index from multiple possible sources
-        selected_points = getattr(curve_view, 'selected_points', None)
+        selected_points = getattr(curve_view, "selected_points", None)
         idx: int
         if selected_points:
             # Use first selected point from set if available
             idx = int(list(selected_points)[0])
-        elif getattr(main_window, 'selected_indices', None):  # type: ignore[attr-defined]
+        elif getattr(main_window, "selected_indices", None):  # type: ignore[attr-defined]
             # Fallback to main window's selection indices (dynamically accessed attribute)
-            indices = getattr(main_window, 'selected_indices', [])  # type: ignore[attr-defined]
+            indices = getattr(main_window, "selected_indices", [])  # type: ignore[attr-defined]
             idx = int(indices[0]) if indices else -1
         else:
             # No selection found
@@ -665,18 +671,18 @@ class CenteringZoomService:
             # Attempt to show status message - this is completely optional so wrap in try/except
             if success:
                 # The statusBar() method might not exist, so use a safe approach with getattr
-                status_bar_fn = getattr(main_window, 'statusBar', None)  # type: ignore[attr-defined]
+                status_bar_fn = getattr(main_window, "statusBar", None)  # type: ignore[attr-defined]
                 if callable(status_bar_fn):
                     status_bar = status_bar_fn()
                     # showMessage is a common Qt status bar method
-                    if hasattr(status_bar, 'showMessage'):
+                    if hasattr(status_bar, "showMessage"):
                         status_bar.showMessage(f"Centered view on point {idx}", 2000)  # type: ignore[attr-defined]
             else:
                 # Same approach for the failure case
-                status_bar_fn = getattr(main_window, 'statusBar', None)  # type: ignore[attr-defined]
+                status_bar_fn = getattr(main_window, "statusBar", None)  # type: ignore[attr-defined]
                 if callable(status_bar_fn):
                     status_bar = status_bar_fn()
-                    if hasattr(status_bar, 'showMessage'):
+                    if hasattr(status_bar, "showMessage"):
                         status_bar.showMessage("Centering failed", 2000)  # type: ignore[attr-defined]
         except Exception:
             # If anything goes wrong with status messages, just ignore it

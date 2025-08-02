@@ -1,21 +1,32 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 # mypy: disable-error-code=annotation-unchecked
 
-from typing import Optional, Any, List, Tuple
+from typing import Any
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QCheckBox, QComboBox, QDialog, QDoubleSpinBox, QGroupBox, QHBoxLayout,
-    QLabel, QPushButton, QSlider, QSpinBox, QVBoxLayout, QWidget
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QGroupBox,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QVBoxLayout,
+    QWidget,
 )
 
 
 class SmoothingDialog(QDialog):
     """Dialog for curve smoothing options."""
 
-    def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0) -> None:
-        super(SmoothingDialog, self).__init__(parent)
+    def __init__(
+        self, parent: QWidget | None = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0
+    ) -> None:
+        super().__init__(parent)
         self.setWindowTitle("Smooth Curve")
         self.resize(400, 300)
 
@@ -117,8 +128,10 @@ class SmoothingDialog(QDialog):
 class FilterDialog(QDialog):
     """Dialog for applying different filters to the curve data."""
 
-    def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0) -> None:
-        super(FilterDialog, self).__init__(parent)
+    def __init__(
+        self, parent: QWidget | None = None, min_frame: int = 0, max_frame: int = 100, current_frame: int = 0
+    ) -> None:
+        super().__init__(parent)
         self.setWindowTitle("Apply Filter")
         self.resize(400, 300)
 
@@ -183,10 +196,10 @@ class FilterDialog(QDialog):
         self.on_range_changed(0)
 
         # Generic accessor for window size - adds compatibility with existing code
-        self.window_size_spin: Optional[QSpinBox] = self.median_size
-        self.sigma_spin: Optional[QDoubleSpinBox] = None
-        self.cutoff_spin: Optional[QDoubleSpinBox] = None
-        self.order_spin: Optional[QSpinBox] = None
+        self.window_size_spin: QSpinBox | None = self.median_size
+        self.sigma_spin: QDoubleSpinBox | None = None
+        self.cutoff_spin: QDoubleSpinBox | None = None
+        self.order_spin: QSpinBox | None = None
 
     def create_param_widgets(self) -> None:
         """Create all parameter widgets for different filters."""
@@ -309,8 +322,8 @@ class FilterDialog(QDialog):
 class FillGapsDialog(QDialog):
     """Dialog for filling gaps in the tracking data."""
 
-    def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100):
-        super(FillGapsDialog, self).__init__(parent)
+    def __init__(self, parent: QWidget | None = None, min_frame: int = 0, max_frame: int = 100):
+        super().__init__(parent)
         self.setWindowTitle("Fill Gaps")
         self.resize(450, 300)
 
@@ -351,13 +364,15 @@ class FillGapsDialog(QDialog):
         method_group = QGroupBox("Fill Method")
         method_layout = QVBoxLayout(method_group)
         self.method_combo = QComboBox()
-        self.method_combo.addItems([
-            "Linear Interpolation",
-            "Cubic Spline",
-            "Constant Velocity",
-            "Accelerated Motion",
-            "Neighboring Frames Average"
-        ])
+        self.method_combo.addItems(
+            [
+                "Linear Interpolation",
+                "Cubic Spline",
+                "Constant Velocity",
+                "Accelerated Motion",
+                "Neighboring Frames Average",
+            ]
+        )
         method_layout.addWidget(self.method_combo)
 
         # Parameter UI based on method
@@ -486,8 +501,8 @@ class FillGapsDialog(QDialog):
 class ExtrapolateDialog(QDialog):
     """Dialog for extrapolating curve data beyond the existing frames."""
 
-    def __init__(self, parent: Optional[QWidget] = None, min_frame: int = 0, max_frame: int = 100):
-        super(ExtrapolateDialog, self).__init__(parent)
+    def __init__(self, parent: QWidget | None = None, min_frame: int = 0, max_frame: int = 100):
+        super().__init__(parent)
         self.setWindowTitle("Extrapolate Curve")
         self.resize(450, 300)
 
@@ -596,11 +611,11 @@ class ExtrapolateDialog(QDialog):
 class ProblemDetectionDialog(QDialog):
     """Dialog for detecting and navigating to problematic areas in the curve."""
 
-    def __init__(self, parent: Optional[QWidget] = None, problems: Optional[List[Tuple[int, Any, Any, Any]]] = None) -> None:
-        super(ProblemDetectionDialog, self).__init__(parent)
+    def __init__(self, parent: QWidget | None = None, problems: list[tuple[int, Any, Any, Any]] | None = None) -> None:
+        super().__init__(parent)
         self.setWindowTitle("Problem Detection")
         self.resize(500, 400)
-        self.selected_problem: Optional[Tuple[int, Any, Any, Any]] = None
+        self.selected_problem: tuple[int, Any, Any, Any] | None = None
 
         if problems is None:
             problems = []
@@ -693,8 +708,8 @@ class ProblemDetectionDialog(QDialog):
 class ShortcutsDialog(QDialog):
     """Dialog displaying keyboard shortcuts."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
-        super(ShortcutsDialog, self).__init__(parent)
+    def __init__(self, parent: QWidget | None = None):
+        super().__init__(parent)
         self.setWindowTitle("Keyboard Shortcuts")
         self.resize(500, 400)
 
@@ -729,7 +744,7 @@ class ShortcutsDialog(QDialog):
 class ScaleDialog(QDialog):
     """Dialog for scaling points."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Scale Points")
 
@@ -822,7 +837,7 @@ class ScaleDialog(QDialog):
 class OffsetDialog(QDialog):
     """Dialog for offsetting points."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Offset Points")
 
@@ -901,7 +916,7 @@ class OffsetDialog(QDialog):
 class RotationDialog(QDialog):
     """Dialog for rotating points."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Rotate Points")
 
@@ -972,7 +987,7 @@ class RotationDialog(QDialog):
 class SmoothFactorDialog(QDialog):
     """Dialog for selecting smoothness factor."""
 
-    def __init__(self, parent: Optional[QWidget] = None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setWindowTitle("Smooth Points")
 

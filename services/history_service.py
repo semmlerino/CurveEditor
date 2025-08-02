@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 HistoryService: Manages undo/redo functionality for the application.
@@ -12,9 +11,10 @@ This service handles:
 """
 
 import copy
-from typing import Dict, Any
+from typing import Any
 
 from core.protocols import HistoryContainerProtocol
+
 
 class HistoryService:
     """Service for managing application history stack and undo/redo operations."""
@@ -35,13 +35,13 @@ class HistoryService:
         """
         # If we're not at the end of the history, truncate it
         if main_window.history_index < len(main_window.history) - 1:
-            main_window.history = main_window.history[:main_window.history_index + 1]
+            main_window.history = main_window.history[: main_window.history_index + 1]
 
         # Add current state to history
         current_state = {
-            'curve_data': copy.deepcopy(main_window.curve_data),
-            'point_name': main_window.point_name,
-            'point_color': main_window.point_color
+            "curve_data": copy.deepcopy(main_window.curve_data),
+            "point_name": main_window.point_name,
+            "point_color": main_window.point_color,
         }
 
         main_window.history.append(current_state)
@@ -82,7 +82,7 @@ class HistoryService:
     @staticmethod
     def undo(main_window: HistoryContainerProtocol) -> None:
         """Undo the last action by moving back in history.
-        
+
         Alias for undo_action to maintain API compatibility.
 
         Args:
@@ -107,7 +107,7 @@ class HistoryService:
     @staticmethod
     def redo(main_window: HistoryContainerProtocol) -> None:
         """Redo the previously undone action by moving forward in history.
-        
+
         Alias for redo_action to maintain API compatibility.
 
         Args:
@@ -116,7 +116,7 @@ class HistoryService:
         HistoryService.redo_action(main_window)
 
     @staticmethod
-    def restore_state(main_window: HistoryContainerProtocol, state: Dict[str, Any]) -> None:
+    def restore_state(main_window: HistoryContainerProtocol, state: dict[str, Any]) -> None:
         """Restore application state from history.
 
         Applies saved state to the main window and updates the curve view
@@ -126,24 +126,19 @@ class HistoryService:
             main_window: The main application window
             state: The saved application state to restore
         """
-        main_window.curve_data = copy.deepcopy(state['curve_data'])
-        main_window.point_name = state['point_name']
-        main_window.point_color = state['point_color']
+        main_window.curve_data = copy.deepcopy(state["curve_data"])
+        main_window.point_name = state["point_name"]
+        main_window.point_color = state["point_color"]
 
         # Update view without resetting zoom/pan
-        if hasattr(main_window.curve_view, 'set_curve_data'):
+        if hasattr(main_window.curve_view, "set_curve_data"):
             main_window.curve_view.set_curve_data(main_window.curve_data)
-        elif hasattr(main_window.curve_view, 'setPoints'):
+        elif hasattr(main_window.curve_view, "setPoints"):
             # Get image dimensions if available, else use defaults
-            image_width = getattr(main_window, 'image_width', 0)
-            image_height = getattr(main_window, 'image_height', 0)
+            image_width = getattr(main_window, "image_width", 0)
+            image_height = getattr(main_window, "image_height", 0)
 
-            main_window.curve_view.setPoints(
-                main_window.curve_data,
-                image_width,
-                image_height,
-                preserve_view=True
-            )
+            main_window.curve_view.setPoints(main_window.curve_data, image_width, image_height, preserve_view=True)
         else:
             main_window.curve_view.update()
 

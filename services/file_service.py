@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """File service module for curve editor file operations.
 
@@ -35,23 +34,24 @@ Note:
 import logging
 import os
 from types import ModuleType
-from typing import Optional, Any, Tuple, cast
+from typing import Any, cast
 
 # Third-party imports
-from PySide6.QtWidgets import QMessageBox, QFileDialog
+from PySide6.QtWidgets import QFileDialog, QMessageBox
+
+from core.protocols import MainWindowProtocol, PointsList
 
 # Local imports
 from services.logging_service import LoggingService
-from core.protocols import MainWindowProtocol, PointsList
 
 # Safe module imports with fallbacks
 # We'll define utility functions that provide safe access to modules that might not be available
-utils_module: Optional[Any] = None
-config_module: Optional[Any] = None
+utils_module: Any | None = None
+config_module: Any | None = None
 
-curve_utils_module: Optional[ModuleType] = None
-track_exporter_module: Optional[ModuleType] = None
-track_importer_module: Optional[ModuleType] = None
+curve_utils_module: ModuleType | None = None
+track_exporter_module: ModuleType | None = None
+track_importer_module: ModuleType | None = None
 
 try:
     import config as config_module
@@ -61,8 +61,9 @@ except ImportError:
 # Configure logger for this module
 logger: logging.Logger = LoggingService.get_logger("file_service")
 
+
 # Helper functions to safely access modules
-def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) -> Any:
+def safe_call(module: Any | None, attr_name: str, *args: Any, **kwargs: Any) -> Any:
     """Safely call a function from a module that might not be available.
 
     This function provides a safe way to call functions from modules that
@@ -106,6 +107,7 @@ def safe_call(module: Optional[Any], attr_name: str, *args: Any, **kwargs: Any) 
         # Keep a generic fallback for unexpected errors
         logger.error(f"Unexpected error calling {attr_name}: {e.__class__.__name__}: {e}")
         return None
+
 
 class FileService:
     """Service class for file operations in the 3DE4 Curve Editor.
@@ -250,24 +252,23 @@ class FileService:
                 return cls._fallback_load_3de_track(*args, **kwargs)
             return safe_call(track_importer_module, func_name, *args, **kwargs)
         elif module_name == "track_exporter":
-
             return safe_call(track_exporter_module, func_name, *args, **kwargs)
         else:
             logger.error(f"Unknown or unavailable module: {module_name}")
             return None
 
     @classmethod
-    def _fallback_estimate_image_dimensions(cls, curve_data: PointsList) -> Tuple[int, int]:
+    def _fallback_estimate_image_dimensions(cls, curve_data: PointsList) -> tuple[int, int]:
         """Fallback implementation for estimating image dimensions from curve data.
 
         This function estimates a reasonable image size based on the coordinates
         in the tracking data. It's used when the curve_utils module is not available.
 
         Args:
-            curve_data: List of tracking points containing frame, x, y coordinates.
+            curve_data: list of tracking points containing frame, x, y coordinates.
 
         Returns:
-            Tuple[int, int]: A tuple (width, height) representing the estimated
+            tuple[int, int]: A tuple (width, height) representing the estimated
                 image dimensions. Returns default 1920x1080 if estimation fails.
 
         Example:
@@ -309,7 +310,7 @@ class FileService:
             return default_width, default_height
 
     @classmethod
-    def _fallback_load_3de_track(cls, file_path: str) -> Optional[Tuple[str, str, int, PointsList]]:
+    def _fallback_load_3de_track(cls, file_path: str) -> tuple[str, str, int, PointsList] | None:
         """Fallback implementation for loading 3DE track data.
 
         Provides basic parsing of 3DE track data files when the track_importer
@@ -319,11 +320,11 @@ class FileService:
             file_path: Path to the track data file to load.
 
         Returns:
-            Optional[Tuple[str, str, int, PointsList]]: A tuple containing:
+            Optional[tuple[str, str, int, PointsList]]: A tuple containing:
                 - point_name: Name extracted from the filename
                 - point_color: Default color (#FF0000)
                 - num_frames: Total number of frames in the track
-                - curve_data: List of tracking points
+                - curve_data: list of tracking points
             Returns None if loading fails.
 
         Example:
@@ -342,7 +343,7 @@ class FileService:
             # Basic implementation to parse text file containing tracking data
             curve_data: PointsList = []
 
-            with open(file_path, 'r') as f:
+            with open(file_path) as f:
                 lines = f.readlines()
 
             # Get file name without path and extension as the point name
@@ -371,7 +372,9 @@ class FileService:
 
                     # If parsing succeeded, we have a header, start from line 5
                     line_index = 4
-                    logger.info(f"Detected 2DTrackData format: {num_tracks} tracks, ID: {track_id}, offset: {offset}, points: {num_points}")
+                    logger.info(
+                        f"Detected 2DTrackData format: {num_tracks} tracks, ID: {track_id}, offset: {offset}, points: {num_points}"
+                    )
                 except (ValueError, IndexError):
                     # Not a header format, process all lines as data
                     line_index = 0
@@ -382,7 +385,7 @@ class FileService:
                 line = lines[i].strip()
 
                 # Skip empty lines and comments
-                if not line or line.startswith('#'):
+                if not line or line.startswith("#"):
                     continue
 
                 # Try to parse the line as tracking data
@@ -455,11 +458,11 @@ class FileService:
 
         """
         file_path, _ = QFileDialog.getOpenFileName(
-            main_window.qwidget, 
-            "Load 2D Track Data", 
-            main_window.default_directory, 
+            main_window.qwidget,
+            "Load 2D Track Data",
+            main_window.default_directory,
             "Text Files (*.txt);;All Files (*)",
-            ""  # selectedFilter parameter
+            "",  # selectedFilter parameter
         )
 
         if not file_path:
@@ -499,35 +502,36 @@ class FileService:
 
             # Enable controls - only enable buttons that exist
             # Note: export_button is not in MainWindowProtocol, we need to use dynamic attribute access
-            if hasattr(main_window, 'export_button'):
+            if hasattr(main_window, "export_button"):
                 # Use getattr with Any type to avoid type checking issues
-                export_button = getattr(main_window, 'export_button')
-                if hasattr(export_button, 'setEnabled'):
+                export_button = getattr(main_window, "export_button")
+                if hasattr(export_button, "setEnabled"):
                     export_button.setEnabled(True)
-            if hasattr(main_window, 'add_point_button'):
+            if hasattr(main_window, "add_point_button"):
                 main_window.add_point_button.setEnabled(True)
-            if hasattr(main_window, 'smooth_button'):
+            if hasattr(main_window, "smooth_button"):
                 main_window.smooth_button.setEnabled(True)
-            if hasattr(main_window, 'fill_gaps_button'):
+            if hasattr(main_window, "fill_gaps_button"):
                 main_window.fill_gaps_button.setEnabled(True)
-            if hasattr(main_window, 'filter_button'):
+            if hasattr(main_window, "filter_button"):
                 main_window.filter_button.setEnabled(True)
-            if hasattr(main_window, 'detect_problems_button'):
+            if hasattr(main_window, "detect_problems_button"):
                 main_window.detect_problems_button.setEnabled(True)
-            if hasattr(main_window, 'extrapolate_button'):
+            if hasattr(main_window, "extrapolate_button"):
                 main_window.extrapolate_button.setEnabled(True)
 
             # Update status using centralized StatusManager
             from services.status_manager import StatusManager
+
             StatusManager.on_curve_data_loaded(main_window)
 
             # Setup timeline - let the UI components calculate the frame range from curve_data
             main_window.setup_timeline()
 
             # Enable timeline controls if they exist
-            if hasattr(main_window, 'timeline_slider'):
+            if hasattr(main_window, "timeline_slider"):
                 main_window.timeline_slider.setEnabled(True)
-            if hasattr(main_window, 'frame_edit'):
+            if hasattr(main_window, "frame_edit"):
                 main_window.frame_edit.setEnabled(True)
         except Exception as e:
             logger.exception(f"Failed to load track data: {e}")
@@ -674,16 +678,13 @@ class FileService:
                 main_window.image_filenames = image_files
 
                 # Configure the curve view to display the images
-                if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'setImageSequence'):
-                    main_window.curve_view.setImageSequence(
-                        last_image_path,
-                        image_files
-                    )
+                if hasattr(main_window, "curve_view") and hasattr(main_window.curve_view, "setImageSequence"):
+                    main_window.curve_view.setImageSequence(last_image_path, image_files)
 
                     # Update UI elements
-                    if hasattr(main_window, 'update_image_label'):
+                    if hasattr(main_window, "update_image_label"):
                         main_window.update_image_label()
-                    if hasattr(main_window, 'toggle_bg_button') and hasattr(main_window.toggle_bg_button, 'setEnabled'):
+                    if hasattr(main_window, "toggle_bg_button") and hasattr(main_window.toggle_bg_button, "setEnabled"):
                         main_window.toggle_bg_button.setEnabled(True)
 
                     logger.info(f"Successfully loaded {len(image_files)} images from sequence at {last_image_path}")
@@ -761,10 +762,11 @@ class FileService:
             frame_overlap: set[int] = existing_frames.intersection(new_frames)
             if frame_overlap:
                 response = QMessageBox.question(
-                    main_window.qwidget, "Frame Conflict",
+                    main_window.qwidget,
+                    "Frame Conflict",
                     "Some frames already exist. What would you like to do?",
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No
+                    QMessageBox.StandardButton.No,
                 )
                 if response == QMessageBox.StandardButton.No:
                     return
@@ -773,14 +775,18 @@ class FileService:
             current_height: float = float(main_window.image_height)
             orig_width: int
             orig_height: int
-            orig_width, orig_height = cast(Tuple[int, int], curve_utils_module.estimate_image_dimensions(additional_data)) if curve_utils_module else (0, 0)
+            orig_width, orig_height = (
+                cast(tuple[int, int], curve_utils_module.estimate_image_dimensions(additional_data))
+                if curve_utils_module
+                else (0, 0)
+            )
 
-            merged_data: dict[int, Tuple[float, float, *Tuple[Any, ...]]] = {}
+            merged_data: dict[int, tuple[float, float, *tuple[Any, ...]]] = {}
             for main_point in main_window.curve_data:
                 main_frame: int = int(main_point[0])  # type: ignore
                 main_x: float = float(main_point[1])  # type: ignore
                 main_y: float = float(main_point[2])  # type: ignore
-                main_rest: Tuple[Any, ...] = tuple(main_point[3:]) if len(main_point) > 3 else ()  # type: ignore
+                main_rest: tuple[Any, ...] = tuple(main_point[3:]) if len(main_point) > 3 else ()  # type: ignore
                 merged_data[main_frame] = (main_x, main_y, *main_rest)
 
             # Assume additional_data is a PointsList
@@ -788,7 +794,7 @@ class FileService:
                 add_frame: int = int(add_point[0])
                 add_x: float = float(add_point[1])
                 add_y: float = float(add_point[2])
-                add_rest: Tuple[Any, ...] = tuple(add_point[3:]) if len(add_point) > 3 else ()
+                add_rest: tuple[Any, ...] = tuple(add_point[3:]) if len(add_point) > 3 else ()
                 if add_frame not in merged_data:
                     norm_x: float = add_x / orig_width if orig_width else add_x
                     norm_y: float = add_y / orig_height if orig_height else add_y
@@ -804,6 +810,7 @@ class FileService:
 
             # Update status using centralized StatusManager
             from services.status_manager import StatusManager
+
             StatusManager.on_curve_data_loaded(main_window)
 
             main_window.add_to_history()
@@ -839,9 +846,7 @@ class FileService:
         """
         if not main_window.curve_data:
             QMessageBox.warning(
-                main_window.qwidget, 
-                "No Data", 
-                "No track data to save. Please load or create track data first."
+                main_window.qwidget, "No Data", "No track data to save. Please load or create track data first."
             )
             return
 
@@ -850,35 +855,31 @@ class FileService:
             "Save Track Data",
             main_window.default_directory,
             "Text Files (*.txt);;3DE Files (*.3de);;All Files (*)",
-            ""  # selectedFilter parameter
+            "",  # selectedFilter parameter
         )
 
         if not file_path:
             return
 
         try:
-            with open(file_path, 'w') as f:
+            with open(file_path, "w") as f:
                 # Write header comment
-                f.write(f"# 3DE Track Data\n")
+                f.write("# 3DE Track Data\n")
                 f.write(f"# Point: {main_window.point_name}\n")
-                
+
                 # Write track data
                 for point in main_window.curve_data:
                     if len(point) >= 3:
                         f.write(f"{point[0]} {point[1]:.6f} {point[2]:.6f}\n")
-                    
+
             # Update last opened file
             main_window.last_opened_file = file_path
-            
+
             # Update config if available
             FileService.set_config_value("last_opened_file", file_path)
-            
+
             logger.info(f"Successfully saved {len(main_window.curve_data)} points to {file_path}")
-            
+
         except Exception as e:
             logger.error(f"Error saving track data: {e}")
-            QMessageBox.critical(
-                main_window.qwidget, 
-                "Error", 
-                f"Failed to save track data: {e}"
-            )
+            QMessageBox.critical(main_window.qwidget, "Error", f"Failed to save track data: {e}")

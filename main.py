@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import logging
 import os
@@ -8,9 +7,9 @@ from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
 
-from main_window import MainWindow
-from services.logging_service import LoggingService
 import logging_config
+from services.logging_service import LoggingService
+from ui.main_window import MainWindow
 
 
 def main():
@@ -26,7 +25,7 @@ def main():
     config = logging_config.load_config()
 
     # Get logging level from environment or config
-    global_level = os.environ.get('LOG_LEVEL', config.get('global', 'INFO'))
+    global_level = os.environ.get("LOG_LEVEL", config.get("global", "INFO"))
     level_num = getattr(logging, global_level.upper(), logging.INFO)
 
     # Initialize logging through LoggingService
@@ -37,18 +36,17 @@ def main():
     logger.info("=" * 80)
 
     # Apply module-specific log levels from config
-    if isinstance(config.get('services'), dict):
-        for service_name, service_level in config['services'].items():
+    if isinstance(config.get("services"), dict):
+        for service_name, service_level in config["services"].items():
             if isinstance(service_level, str):
                 LoggingService.set_module_level(
-                    f"services.{service_name}",
-                    getattr(logging, service_level.upper(), logging.INFO)
+                    f"services.{service_name}", getattr(logging, service_level.upper(), logging.INFO)
                 )
                 logger.debug(f"Set {service_name} service log level to {service_level}")
 
     # Apply other module levels
     for module, level in config.items():
-        if module in ['global', 'services'] or not isinstance(level, str):
+        if module in ["global", "services"] or not isinstance(level, str):
             continue
         LoggingService.set_module_level(module, getattr(logging, level.upper(), logging.INFO))
         logger.debug(f"Set {module} log level to {level}")

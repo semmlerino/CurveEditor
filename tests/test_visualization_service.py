@@ -3,13 +3,14 @@ Unit tests for the VisualizationService class.
 """
 
 import unittest
-from unittest.mock import patch, MagicMock
 from typing import cast
+from unittest.mock import MagicMock, patch
+
 from PySide6.QtGui import QColor
 
-from services.visualization_service import VisualizationService, logger
 from services.centering_zoom_service import CenteringZoomService
 from services.protocols import PointsList
+from services.visualization_service import VisualizationService, logger
 
 
 class TestVisualizationService(unittest.TestCase):
@@ -97,7 +98,7 @@ class TestVisualizationService(unittest.TestCase):
     def test_toggle_crosshair_internal(self):
         """Test the internal crosshair toggle method."""
         # This method is a wrapper, so we patch the toggle_crosshair method
-        with patch.object(VisualizationService, 'toggle_crosshair') as mock_toggle:
+        with patch.object(VisualizationService, "toggle_crosshair") as mock_toggle:
             VisualizationService.toggle_crosshair_internal(self.mock_curve_view, True)
             mock_toggle.assert_called_once_with(self.mock_curve_view, True)
 
@@ -176,8 +177,8 @@ class TestVisualizationService(unittest.TestCase):
         self.assertEqual(self.mock_curve_view.grid_line_width, 1)
         self.mock_curve_view.update.assert_called_once()
 
-    @patch('re.search')
-    @patch('os.path.basename')
+    @patch("re.search")
+    @patch("os.path.basename")
     def test_update_timeline_for_image_valid(self, mock_basename: MagicMock, mock_re_search: MagicMock):
         """Test updating timeline for a valid image."""
         # Mock the basename function to return a filename
@@ -189,7 +190,7 @@ class TestVisualizationService(unittest.TestCase):
         mock_re_search.return_value = mock_match
 
         # Mock methods used by the function
-        with patch.object(VisualizationService, 'update_frame_marker_position') as mock_update_marker:
+        with patch.object(VisualizationService, "update_frame_marker_position") as mock_update_marker:
             # Call the method with valid data
             image_filenames = ["path/to/frame_042.jpg"]
             VisualizationService.update_timeline_for_image(0, self.mock_curve_view, image_filenames)
@@ -202,13 +203,13 @@ class TestVisualizationService(unittest.TestCase):
 
     def test_update_timeline_for_image_empty_list(self):
         """Test updating timeline with an empty list."""
-        with patch.object(logger, 'warning') as mock_logger:
+        with patch.object(logger, "warning") as mock_logger:
             VisualizationService.update_timeline_for_image(0, self.mock_curve_view, [])
             mock_logger.assert_called_once_with("No image filenames available")
 
     def test_update_timeline_for_image_invalid_index(self):
         """Test updating timeline with an invalid index."""
-        with patch.object(logger, 'warning') as mock_logger:
+        with patch.object(logger, "warning") as mock_logger:
             VisualizationService.update_timeline_for_image(5, self.mock_curve_view, ["frame_001.jpg"])
             mock_logger.assert_called_once_with("Invalid index 5")
 
@@ -259,7 +260,7 @@ class TestVisualizationService(unittest.TestCase):
         new_points = [(10, 300.0, 400.0), (20, 350.0, 450.0), (30, 400.0, 500.0)]
 
         # Patch the reset_view method to verify it's called
-        with patch.object(CenteringZoomService, 'reset_view') as mock_reset_view:
+        with patch.object(CenteringZoomService, "reset_view") as mock_reset_view:
             # Call the method with preserve_view=False
             VisualizationService.set_points(
                 self.mock_curve_view, cast(PointsList, new_points), 1920, 1080, preserve_view=False
@@ -290,7 +291,7 @@ class TestVisualizationService(unittest.TestCase):
         mock_main_window.curve_view = self.mock_curve_view
 
         # Patch the centering method to verify it's called
-        with patch.object(CenteringZoomService, 'center_on_selected_point') as mock_center:
+        with patch.object(CenteringZoomService, "center_on_selected_point") as mock_center:
             VisualizationService.center_on_selected_point_from_main_window(mock_main_window)
             mock_center.assert_called_once_with(self.mock_curve_view)
 
@@ -301,10 +302,10 @@ class TestVisualizationService(unittest.TestCase):
         mock_main_window.curve_view = None
 
         # Verify it handles the error gracefully
-        with patch.object(logger, 'warning') as mock_logger:
+        with patch.object(logger, "warning") as mock_logger:
             VisualizationService.center_on_selected_point_from_main_window(mock_main_window)
             mock_logger.assert_called_once_with("Cannot center: no curve view available.")
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

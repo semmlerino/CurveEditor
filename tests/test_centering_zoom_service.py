@@ -3,7 +3,8 @@ Unit tests for the CenteringZoomService class.
 """
 
 import unittest
-from unittest.mock import Mock, MagicMock
+from unittest.mock import MagicMock, Mock
+
 from services.centering_zoom_service import CenteringZoomService
 
 
@@ -46,7 +47,8 @@ class TestCenteringZoomService(unittest.TestCase):
         pan_offset_y = 0
 
         offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
-            widget_width, widget_height, content_width, content_height, pan_offset_x, pan_offset_y)
+            widget_width, widget_height, content_width, content_height, pan_offset_x, pan_offset_y
+        )
 
         # Content should be centered in the viewport
         self.assertEqual(offset_x, 200)  # (800 - 400) / 2
@@ -59,11 +61,12 @@ class TestCenteringZoomService(unittest.TestCase):
         pan_offset_y = 50
 
         offset_x, offset_y = CenteringZoomService.calculate_centering_offsets(
-            widget_width, widget_height, content_width, content_height, pan_offset_x, pan_offset_y)
+            widget_width, widget_height, content_width, content_height, pan_offset_x, pan_offset_y
+        )
 
         # Content should be positioned with pan offset
         self.assertEqual(offset_x, -100 + 100)  # -((1000 - 800) / 2) + 100
-        self.assertEqual(offset_y, -100 + 50)   # -((800 - 600) / 2) + 50
+        self.assertEqual(offset_y, -100 + 50)  # -((800 - 600) / 2) + 50
 
     def test_reset_view(self):
         """Test resetting the view to default state."""
@@ -153,10 +156,10 @@ class TestCenteringZoomService(unittest.TestCase):
         mock_main_window = MagicMock()
         mock_main_window.curve_data = self.mock_curve_view.points
         self.mock_curve_view.main_window = mock_main_window
-        
+
         # Reset update mock to ensure clean state
         self.mock_curve_view.update.reset_mock()
-        
+
         # Call the method
         CenteringZoomService.center_on_selected_point(self.mock_curve_view)
 
@@ -175,12 +178,7 @@ class TestCenteringZoomService(unittest.TestCase):
     def test_zoom_to_fit(self):
         """Test zooming to fit all points in the view."""
         # Set up some point data with known bounds
-        self.mock_curve_view.points = [
-            (1, 100, 100),
-            (2, 300, 100),
-            (3, 300, 300),
-            (4, 100, 300)
-        ]
+        self.mock_curve_view.points = [(1, 100, 100), (2, 300, 100), (3, 300, 300), (4, 100, 300)]
 
         # Call the method
         CenteringZoomService.zoom_to_fit(self.mock_curve_view)
@@ -208,5 +206,5 @@ class TestCenteringZoomService(unittest.TestCase):
         self.assertFalse(self.mock_curve_view.auto_center_enabled)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

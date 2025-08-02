@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Services package for CurveEditor.
@@ -13,52 +12,54 @@ code organization and reduce duplication across the application.
 """
 
 import inspect
-from typing import Any, Dict, Type, TypeVar, Protocol, cast
+from typing import Any, Protocol, TypeVar, cast
 
-from services.analysis_service import AnalysisService
+from core.protocols import PointsList
+# AnalysisService removed - using CurveAnalysisService directly
 from services.curve_service import CurveService
 from services.dialog_service import DialogService
 from services.file_service import FileService
+
+# New specialized analysis services
 from services.history_service import HistoryService
 from services.image_service import ImageService
 from services.input_service import InputService
 from services.logging_service import LoggingService
 from services.models import Point, PointsCollection
-from core.protocols import PointsList
 from services.settings_service import SettingsService
 from services.status_manager import StatusManager
 from services.unified_transform import Transform
-from services.unified_transformation_service import UnifiedTransformationService
+# UnifiedTransformationService removed - using TransformationService directly
 from services.view_state import ViewState
 from services.visualization_service import VisualizationService
 from track_quality import TrackQualityAnalysisService
 
-# New specialized analysis services
-from services.geometry_service import GeometryService
-from services.problem_detection_service import ProblemDetectionService
-from services.smoothing_service import SmoothingService
-from services.filtering_service import FilteringService
-from services.gap_filling_service import GapFillingService
-from services.extrapolation_service import ExtrapolationService
-
 __all__ = [
     # Core models and protocols
-    'Point', 'ViewState', 'PointsCollection', 'PointsList',
-
+    "Point",
+    "ViewState",
+    "PointsCollection",
+    "PointsList",
     # Core services
-    'AnalysisService', 'CurveService', 'DialogService', 'FileService',
-    'HistoryService', 'ImageService', 'InputService', 'LoggingService',
-    'SettingsService', 'StatusManager', 'VisualizationService', 'TrackQualityAnalysisService',
-    
-    # Specialized analysis services
-    'GeometryService', 'ProblemDetectionService', 'SmoothingService',
-    'FilteringService', 'GapFillingService', 'ExtrapolationService',
-
+    # "AnalysisService", # Removed - using CurveAnalysisService directly
+    "CurveService",
+    "DialogService",
+    "FileService",
+    "HistoryService",
+    "ImageService",
+    "InputService",
+    "LoggingService",
+    "SettingsService",
+    "StatusManager",
+    "VisualizationService",
+    "TrackQualityAnalysisService",
+    # Specialized analysis services (consolidated into CurveAnalysisService)
     # Unified transformation system
-    'Transform', 'UnifiedTransformationService',
-
+    "Transform",
+    # "UnifiedTransformationService", # Removed - using TransformationService directly
     # Utility functions
-    'get_module_logger', 'get_service'
+    "get_module_logger",
+    "get_service",
 ]
 
 
@@ -78,7 +79,7 @@ def get_module_logger() -> Any:
     if module is None:
         return LoggingService.get_logger("unknown")
 
-    module_name = module.__name__.split('.')[-1]
+    module_name = module.__name__.split(".")[-1]
     return LoggingService.get_logger(module_name)
 
 
@@ -86,9 +87,10 @@ def get_module_logger() -> Any:
 _service_cache = {}
 
 
-T = TypeVar('T')
+T = TypeVar("T")
 
-def get_service(service_class: Type[T]) -> T:
+
+def get_service[T](service_class: type[T]) -> T:
     """
     Get or create a singleton instance of a service class.
 
@@ -108,4 +110,4 @@ def get_service(service_class: Type[T]) -> T:
 
 # Protocol for track quality analyzers (kept for backward compatibility)
 class TrackQualityAnalyzerProtocol(Protocol):
-    def analyze_track(self, points: PointsList) -> Dict[str, float]: ...
+    def analyze_track(self, points: PointsList) -> dict[str, float]: ...

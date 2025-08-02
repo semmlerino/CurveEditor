@@ -8,11 +8,14 @@ validating both functionality and backward compatibility.
 import unittest
 from unittest.mock import Mock
 
+from services.transformation_integration import (
+    TransformationIntegration,
+    get_transform,
+    transform_point,
+    transform_points,
+)
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
-from services.transformation_integration import (
-    TransformationIntegration, get_transform, transform_point, transform_points
-)
 from services.view_state import ViewState
 
 
@@ -33,7 +36,7 @@ class TestUnifiedTransform(unittest.TestCase):
             display_height=1080,
             image_scale_x=1.0,
             image_scale_y=1.0,
-            scale_to_image=False
+            scale_to_image=False,
         )
 
     def test_basic_transformation(self):
@@ -44,11 +47,7 @@ class TestUnifiedTransform(unittest.TestCase):
 
     def test_scaling_transformation(self):
         """Test scaling transformation."""
-        scaled_transform = Transform(
-            scale=2.0,
-            center_offset_x=0.0,
-            center_offset_y=0.0
-        )
+        scaled_transform = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0)
 
         result = scaled_transform.apply(100, 200)
         self.assertEqual(result, (200.0, 400.0))
@@ -62,7 +61,7 @@ class TestUnifiedTransform(unittest.TestCase):
             pan_offset_x=5.0,
             pan_offset_y=10.0,
             manual_offset_x=2.0,
-            manual_offset_y=3.0
+            manual_offset_y=3.0,
         )
 
         result = offset_transform.apply(100, 200)
@@ -73,11 +72,7 @@ class TestUnifiedTransform(unittest.TestCase):
     def test_y_flip_transformation(self):
         """Test Y-axis flipping."""
         flip_transform = Transform(
-            scale=1.0,
-            center_offset_x=0.0,
-            center_offset_y=0.0,
-            flip_y=True,
-            display_height=1080
+            scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1080
         )
 
         result = flip_transform.apply(100, 200)
@@ -92,7 +87,7 @@ class TestUnifiedTransform(unittest.TestCase):
             center_offset_y=0.0,
             image_scale_x=2.0,
             image_scale_y=1.5,
-            scale_to_image=True
+            scale_to_image=True,
         )
 
         result = image_scale_transform.apply(100, 200)
@@ -113,7 +108,7 @@ class TestUnifiedTransform(unittest.TestCase):
             display_height=1080,
             image_scale_x=2.0,
             image_scale_y=1.5,
-            scale_to_image=True
+            scale_to_image=True,
         )
 
         result = complex_transform.apply(100, 200)
@@ -131,11 +126,7 @@ class TestUnifiedTransform(unittest.TestCase):
     def test_inverse_transformation(self):
         """Test inverse transformation accuracy."""
         transform = Transform(
-            scale=1.5,
-            center_offset_x=10.0,
-            center_offset_y=20.0,
-            pan_offset_x=5.0,
-            pan_offset_y=10.0
+            scale=1.5, center_offset_x=10.0, center_offset_y=20.0, pan_offset_x=5.0, pan_offset_y=10.0
         )
 
         # Transform and then inverse transform
@@ -155,7 +146,7 @@ class TestUnifiedTransform(unittest.TestCase):
             center_offset_y=100.0,
             image_scale_x=1.5,
             image_scale_y=2.0,
-            scale_to_image=True
+            scale_to_image=True,
         )
 
         original = (200, 300)
@@ -171,35 +162,24 @@ class TestUnifiedTransform(unittest.TestCase):
         transform2 = transform1.with_updates(scale=2.0)
 
         # Original should be unchanged
-        self.assertEqual(transform1.get_parameters()['scale'], 1.0)
-        self.assertEqual(transform2.get_parameters()['scale'], 2.0)
+        self.assertEqual(transform1.get_parameters()["scale"], 1.0)
+        self.assertEqual(transform2.get_parameters()["scale"], 2.0)
         self.assertNotEqual(transform1, transform2)
 
     def test_parameter_updates(self):
         """Test parameter updates create correct new instances."""
-        original = Transform(
-            scale=1.0,
-            center_offset_x=10.0,
-            center_offset_y=20.0
-        )
+        original = Transform(scale=1.0, center_offset_x=10.0, center_offset_y=20.0)
 
-        updated = original.with_updates(
-            scale=2.0,
-            center_offset_x=30.0
-        )
+        updated = original.with_updates(scale=2.0, center_offset_x=30.0)
 
         params = updated.get_parameters()
-        self.assertEqual(params['scale'], 2.0)
-        self.assertEqual(params['center_offset_x'], 30.0)
-        self.assertEqual(params['center_offset_y'], 20.0)  # Unchanged
+        self.assertEqual(params["scale"], 2.0)
+        self.assertEqual(params["center_offset_x"], 30.0)
+        self.assertEqual(params["center_offset_y"], 20.0)  # Unchanged
 
     def test_qt_point_transformation(self):
         """Test QPointF transformation."""
-        transform = Transform(
-            scale=2.0,
-            center_offset_x=10.0,
-            center_offset_y=20.0
-        )
+        transform = Transform(scale=2.0, center_offset_x=10.0, center_offset_y=20.0)
 
         qt_point = transform.apply_qt_point(100, 200)
 
@@ -211,11 +191,7 @@ class TestUnifiedTransform(unittest.TestCase):
     def test_image_position_calculation(self):
         """Test background image position calculation."""
         transform = Transform(
-            scale=2.0,
-            center_offset_x=10.0,
-            center_offset_y=20.0,
-            pan_offset_x=5.0,
-            pan_offset_y=10.0
+            scale=2.0, center_offset_x=10.0, center_offset_y=20.0, pan_offset_x=5.0, pan_offset_y=10.0
         )
 
         img_pos = transform.apply_for_image_position()
@@ -259,7 +235,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
             scale_to_image=False,
             flip_y_axis=False,
             manual_x_offset=0.0,
-            manual_y_offset=0.0
+            manual_y_offset=0.0,
         )
 
         # Create mock curve view
@@ -307,7 +283,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
 
         # Cache stats should show one item
         cache_stats = UnifiedTransformationService.get_cache_stats()
-        self.assertEqual(cache_stats['cache_size'], 1)
+        self.assertEqual(cache_stats["cache_size"], 1)
 
     def test_transform_point(self):
         """Test single point transformation."""
@@ -321,11 +297,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
         """Test multiple point transformation."""
         transform = UnifiedTransformationService.from_view_state(self.test_view_state)
 
-        test_points = [
-            (0, 100, 200),
-            (1, 300, 400),
-            (2, 500, 600)
-        ]
+        test_points = [(0, 100, 200), (1, 300, 400), (2, 500, 600)]
 
         results = UnifiedTransformationService.transform_points(transform, test_points)
 
@@ -338,10 +310,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
         """Test Qt point transformation."""
         transform = UnifiedTransformationService.from_view_state(self.test_view_state)
 
-        test_points = [
-            (0, 100, 200),
-            (1, 300, 400)
-        ]
+        test_points = [(0, 100, 200), (1, 300, 400)]
 
         qt_results = UnifiedTransformationService.transform_points_qt(transform, test_points)
 
@@ -351,9 +320,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
 
     def test_create_stable_transform(self):
         """Test stable transform creation."""
-        stable_transform = UnifiedTransformationService.create_stable_transform(
-            self.mock_curve_view
-        )
+        stable_transform = UnifiedTransformationService.create_stable_transform(self.mock_curve_view)
 
         self.assertIsInstance(stable_transform, Transform)
 
@@ -381,13 +348,13 @@ class TestUnifiedTransformationService(unittest.TestCase):
                 display_width=1920 + i,  # Make each unique
                 display_height=1080,
                 widget_width=800,
-                widget_height=600
+                widget_height=600,
             )
             UnifiedTransformationService.from_view_state(view_state)
 
         # Cache should not exceed max size
         cache_stats = UnifiedTransformationService.get_cache_stats()
-        self.assertLessEqual(cache_stats['cache_size'], cache_stats['max_cache_size'])
+        self.assertLessEqual(cache_stats["cache_size"], cache_stats["max_cache_size"])
 
     def test_clear_cache(self):
         """Test cache clearing."""
@@ -396,20 +363,18 @@ class TestUnifiedTransformationService(unittest.TestCase):
 
         # Verify cache has items
         cache_stats = UnifiedTransformationService.get_cache_stats()
-        self.assertGreater(cache_stats['cache_size'], 0)
+        self.assertGreater(cache_stats["cache_size"], 0)
 
         # Clear cache
         UnifiedTransformationService.clear_cache()
 
         # Verify cache is empty
         cache_stats = UnifiedTransformationService.get_cache_stats()
-        self.assertEqual(cache_stats['cache_size'], 0)
+        self.assertEqual(cache_stats["cache_size"], 0)
 
     def test_backward_compatibility(self):
         """Test backward compatibility with legacy interface."""
-        result = UnifiedTransformationService.transform_point_to_widget(
-            self.mock_curve_view, 100, 200
-        )
+        result = UnifiedTransformationService.transform_point_to_widget(self.mock_curve_view, 100, 200)
 
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 2)
@@ -417,12 +382,7 @@ class TestUnifiedTransformationService(unittest.TestCase):
     def test_parameter_overrides(self):
         """Test parameter overrides in legacy compatibility method."""
         result = UnifiedTransformationService.transform_point_to_widget(
-            self.mock_curve_view, 100, 200,
-            display_width=1000,
-            display_height=800,
-            offset_x=10,
-            offset_y=20,
-            scale=2.0
+            self.mock_curve_view, 100, 200, display_width=1000, display_height=800, offset_x=10, offset_y=20, scale=2.0
         )
 
         self.assertIsInstance(result, tuple)
@@ -431,15 +391,9 @@ class TestUnifiedTransformationService(unittest.TestCase):
     def test_stable_transformation_context(self):
         """Test stable transformation context manager."""
         # Mock a curve view with points
-        self.mock_curve_view.points = [
-            (0, 100, 200),
-            (1, 300, 400),
-            (2, 500, 600)
-        ]
+        self.mock_curve_view.points = [(0, 100, 200), (1, 300, 400), (2, 500, 600)]
 
-        with UnifiedTransformationService.stable_transformation_context(
-            self.mock_curve_view
-        ) as stable_transform:
+        with UnifiedTransformationService.stable_transformation_context(self.mock_curve_view) as stable_transform:
             self.assertIsInstance(stable_transform, Transform)
 
             # Modify the points slightly
@@ -486,8 +440,8 @@ class TestTransformationIntegration(unittest.TestCase):
         self.assertEqual(len(results), 2)
         # Results should be QPointF objects
         for result in results:
-            self.assertTrue(hasattr(result, 'x'))
-            self.assertTrue(hasattr(result, 'y'))
+            self.assertTrue(hasattr(result, "x"))
+            self.assertTrue(hasattr(result, "y"))
 
     def test_installation(self):
         """Test unified system installation."""
@@ -497,16 +451,14 @@ class TestTransformationIntegration(unittest.TestCase):
         install_unified_system(self.mock_curve_view)
 
         # Check that methods were added
-        self.assertTrue(hasattr(self.mock_curve_view, 'get_transform'))
-        self.assertTrue(hasattr(self.mock_curve_view, 'transform_point'))
-        self.assertTrue(hasattr(self.mock_curve_view, 'transform_point_qt'))
-        self.assertTrue(hasattr(self.mock_curve_view, '_unified_transform_installed'))
+        self.assertTrue(hasattr(self.mock_curve_view, "get_transform"))
+        self.assertTrue(hasattr(self.mock_curve_view, "transform_point"))
+        self.assertTrue(hasattr(self.mock_curve_view, "transform_point_qt"))
+        self.assertTrue(hasattr(self.mock_curve_view, "_unified_transform_installed"))
 
     def test_legacy_compatibility(self):
         """Test legacy compatibility methods."""
-        result = TransformationIntegration.transform_point_legacy(
-            self.mock_curve_view, 100, 200
-        )
+        result = TransformationIntegration.transform_point_legacy(self.mock_curve_view, 100, 200)
 
         self.assertIsInstance(result, tuple)
         self.assertEqual(len(result), 2)
@@ -544,9 +496,10 @@ class TestViewStateIntegration(unittest.TestCase):
         self.assertEqual(view_state.manual_y_offset, 15.0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Set up test logging
     import logging
+
     logging.basicConfig(level=logging.INFO)
 
     # Run tests

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Rendering components for CurveView.
@@ -9,13 +8,8 @@ CurveView paintEvent method to improve maintainability and testability.
 """
 
 from .background_renderer import BackgroundRenderer
-from .point_renderer import PointRenderer
-from .info_renderer import InfoRenderer
 from .curve_renderer import CurveRenderer
+from .info_renderer import InfoRenderer
+from .point_renderer import PointRenderer
 
-__all__ = [
-    'BackgroundRenderer',
-    'PointRenderer', 
-    'InfoRenderer',
-    'CurveRenderer'
-]
+__all__ = ["BackgroundRenderer", "PointRenderer", "InfoRenderer", "CurveRenderer"]

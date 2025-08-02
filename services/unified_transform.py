@@ -14,8 +14,8 @@ Key improvements:
 - Type-safe interfaces
 """
 
-from typing import Dict, Tuple, Any
 import hashlib
+from typing import Any
 
 from PySide6.QtCore import QPointF
 
@@ -43,19 +43,21 @@ class Transform:
     All parameters are immutable once set, ensuring consistent transformations.
     """
 
-    def __init__(self,
-                 scale: float,
-                 center_offset_x: float,
-                 center_offset_y: float,
-                 pan_offset_x: float = 0.0,
-                 pan_offset_y: float = 0.0,
-                 manual_offset_x: float = 0.0,
-                 manual_offset_y: float = 0.0,
-                 flip_y: bool = False,
-                 display_height: int = 0,
-                 image_scale_x: float = 1.0,
-                 image_scale_y: float = 1.0,
-                 scale_to_image: bool = True):
+    def __init__(
+        self,
+        scale: float,
+        center_offset_x: float,
+        center_offset_y: float,
+        pan_offset_x: float = 0.0,
+        pan_offset_y: float = 0.0,
+        manual_offset_x: float = 0.0,
+        manual_offset_y: float = 0.0,
+        flip_y: bool = False,
+        display_height: int = 0,
+        image_scale_x: float = 1.0,
+        image_scale_y: float = 1.0,
+        scale_to_image: bool = True,
+    ):
         """
         Initialize transformation parameters.
 
@@ -75,25 +77,27 @@ class Transform:
         """
         # Store all parameters as immutable private attributes
         self._parameters = {
-            'scale': float(scale),
-            'center_offset_x': float(center_offset_x),
-            'center_offset_y': float(center_offset_y),
-            'pan_offset_x': float(pan_offset_x),
-            'pan_offset_y': float(pan_offset_y),
-            'manual_offset_x': float(manual_offset_x),
-            'manual_offset_y': float(manual_offset_y),
-            'flip_y': bool(flip_y),
-            'display_height': int(display_height),
-            'image_scale_x': float(image_scale_x),
-            'image_scale_y': float(image_scale_y),
-            'scale_to_image': bool(scale_to_image)
+            "scale": float(scale),
+            "center_offset_x": float(center_offset_x),
+            "center_offset_y": float(center_offset_y),
+            "pan_offset_x": float(pan_offset_x),
+            "pan_offset_y": float(pan_offset_y),
+            "manual_offset_x": float(manual_offset_x),
+            "manual_offset_y": float(manual_offset_y),
+            "flip_y": bool(flip_y),
+            "display_height": int(display_height),
+            "image_scale_x": float(image_scale_x),
+            "image_scale_y": float(image_scale_y),
+            "scale_to_image": bool(scale_to_image),
         }
 
         # Calculate a hash for cache key generation
         self._hash = self._calculate_hash()
 
-        logger.debug(f"Created transform: scale={scale:.4f}, center=({center_offset_x:.1f},{center_offset_y:.1f}), "
-                    f"image_scale=({image_scale_x:.2f},{image_scale_y:.2f})")
+        logger.debug(
+            f"Created transform: scale={scale:.4f}, center=({center_offset_x:.1f},{center_offset_y:.1f}), "
+            f"image_scale=({image_scale_x:.2f},{image_scale_y:.2f})"
+        )
 
     def _calculate_hash(self) -> int:
         """Calculate a hash for this transform for use as cache key."""
@@ -107,7 +111,7 @@ class Transform:
         """Get a cache key for this transform."""
         return self._hash
 
-    def apply(self, x: float, y: float) -> Tuple[float, float]:
+    def apply(self, x: float, y: float) -> tuple[float, float]:
         """
         Transform a point from data space to screen space.
 
@@ -118,47 +122,46 @@ class Transform:
             x: X coordinate in data space
             y: Y coordinate in data space
 
-        Returns:
-            Tuple containing the transformed (x, y) coordinates in screen space
+        Returns: tuple containing the transformed (x, y) coordinates in screen space
         """
         # Step 1: Apply image scaling first if enabled
         tx = x
         ty = y
-        if self._parameters['scale_to_image']:
-            tx = x * self._parameters['image_scale_x']
-            ty = y * self._parameters['image_scale_y']
+        if self._parameters["scale_to_image"]:
+            tx = x * self._parameters["image_scale_x"]
+            ty = y * self._parameters["image_scale_y"]
 
         # Step 2: Apply Y-flip if needed
         # This needs to happen before scaling to ensure consistent behavior
-        if self._parameters['flip_y']:
+        if self._parameters["flip_y"]:
             # We need to flip relative to the data height, not the display height
             # This ensures the curve aligns properly with the background image
-            if self._parameters['scale_to_image']:
+            if self._parameters["scale_to_image"]:
                 # When scaling to image, flip relative to the post-scaled height
-                ty = self._parameters['display_height'] - ty
+                ty = self._parameters["display_height"] - ty
             else:
                 # When not scaling, flip relative to the original data height
-                ty = self._parameters['display_height'] - ty
+                ty = self._parameters["display_height"] - ty
 
         # Step 3: Apply main scaling factor
-        tx *= self._parameters['scale']
-        ty *= self._parameters['scale']
+        tx *= self._parameters["scale"]
+        ty *= self._parameters["scale"]
 
         # Step 4: Apply centering offsets
-        tx += self._parameters['center_offset_x']
-        ty += self._parameters['center_offset_y']
+        tx += self._parameters["center_offset_x"]
+        ty += self._parameters["center_offset_y"]
 
         # Step 5: Apply pan offsets from user interaction
-        tx += self._parameters['pan_offset_x']
-        ty += self._parameters['pan_offset_y']
+        tx += self._parameters["pan_offset_x"]
+        ty += self._parameters["pan_offset_y"]
 
         # Step 6: Apply manual offsets
-        tx += self._parameters['manual_offset_x']
-        ty += self._parameters['manual_offset_y']
+        tx += self._parameters["manual_offset_x"]
+        ty += self._parameters["manual_offset_y"]
 
         return tx, ty
 
-    def apply_inverse(self, screen_x: float, screen_y: float) -> Tuple[float, float]:
+    def apply_inverse(self, screen_x: float, screen_y: float) -> tuple[float, float]:
         """
         Transform a point from screen space to data space.
 
@@ -169,42 +172,41 @@ class Transform:
             screen_x: X coordinate in screen space
             screen_y: Y coordinate in screen space
 
-        Returns:
-            Tuple containing the transformed (x, y) coordinates in data space
+        Returns: tuple containing the transformed (x, y) coordinates in data space
         """
         # Reverse the forward transformation pipeline
 
         # Step 6 (reverse): Remove manual offset
-        px = screen_x - self._parameters['manual_offset_x']
-        py = screen_y - self._parameters['manual_offset_y']
+        px = screen_x - self._parameters["manual_offset_x"]
+        py = screen_y - self._parameters["manual_offset_y"]
 
         # Step 5 (reverse): Remove pan offset
-        cx = px - self._parameters['pan_offset_x']
-        cy = py - self._parameters['pan_offset_y']
+        cx = px - self._parameters["pan_offset_x"]
+        cy = py - self._parameters["pan_offset_y"]
 
         # Step 4 (reverse): Remove centering offset
-        sx = cx - self._parameters['center_offset_x']
-        sy = cy - self._parameters['center_offset_y']
+        sx = cx - self._parameters["center_offset_x"]
+        sy = cy - self._parameters["center_offset_y"]
 
         # Step 3 (reverse): Remove main scale
-        if self._parameters['scale'] != 0:
-            tx = sx / self._parameters['scale']
-            ty = sy / self._parameters['scale']
+        if self._parameters["scale"] != 0:
+            tx = sx / self._parameters["scale"]
+            ty = sy / self._parameters["scale"]
         else:
             tx, ty = sx, sy
 
         # Step 2 (reverse): Remove Y-flip if needed
-        if self._parameters['flip_y']:
-            ty = self._parameters['display_height'] - ty
+        if self._parameters["flip_y"]:
+            ty = self._parameters["display_height"] - ty
 
         # Step 1 (reverse): Remove image scaling if enabled
         x = tx
         y = ty
-        if self._parameters['scale_to_image']:
-            if self._parameters['image_scale_x'] != 0:
-                x = tx / self._parameters['image_scale_x']
-            if self._parameters['image_scale_y'] != 0:
-                y = ty / self._parameters['image_scale_y']
+        if self._parameters["scale_to_image"]:
+            if self._parameters["image_scale_x"] != 0:
+                x = tx / self._parameters["image_scale_x"]
+            if self._parameters["image_scale_y"] != 0:
+                y = ty / self._parameters["image_scale_y"]
 
         return x, y
 
@@ -222,7 +224,7 @@ class Transform:
         fx, fy = self.apply(x, y)
         return QPointF(fx, fy)
 
-    def apply_for_image_position(self) -> Tuple[float, float]:
+    def apply_for_image_position(self) -> tuple[float, float]:
         """
         Calculate the correct position for background image placement.
 
@@ -230,15 +232,14 @@ class Transform:
         where the background image should be positioned to align properly
         with transformed curve points.
 
-        Returns:
-            Tuple containing the (x, y) top-left position for the background image
+        Returns: tuple containing the (x, y) top-left position for the background image
         """
         img_x, img_y = self.apply(0.0, 0.0)
 
         logger.debug(f"Image position: ({img_x:.1f}, {img_y:.1f})")
         return img_x, img_y
 
-    def with_updates(self, **kwargs: Any) -> 'Transform':
+    def with_updates(self, **kwargs: Any) -> "Transform":
         """
         Create a new Transform with updated parameters.
 
@@ -263,21 +264,21 @@ class Transform:
 
         # Create new instance
         return Transform(
-            scale=float(new_params['scale']),
-            center_offset_x=float(new_params['center_offset_x']),
-            center_offset_y=float(new_params['center_offset_y']),
-            pan_offset_x=float(new_params['pan_offset_x']),
-            pan_offset_y=float(new_params['pan_offset_y']),
-            manual_offset_x=float(new_params['manual_offset_x']),
-            manual_offset_y=float(new_params['manual_offset_y']),
-            flip_y=bool(new_params['flip_y']),
-            display_height=int(new_params['display_height']),
-            image_scale_x=float(new_params['image_scale_x']),
-            image_scale_y=float(new_params['image_scale_y']),
-            scale_to_image=bool(new_params['scale_to_image'])
+            scale=float(new_params["scale"]),
+            center_offset_x=float(new_params["center_offset_x"]),
+            center_offset_y=float(new_params["center_offset_y"]),
+            pan_offset_x=float(new_params["pan_offset_x"]),
+            pan_offset_y=float(new_params["pan_offset_y"]),
+            manual_offset_x=float(new_params["manual_offset_x"]),
+            manual_offset_y=float(new_params["manual_offset_y"]),
+            flip_y=bool(new_params["flip_y"]),
+            display_height=int(new_params["display_height"]),
+            image_scale_x=float(new_params["image_scale_x"]),
+            image_scale_y=float(new_params["image_scale_y"]),
+            scale_to_image=bool(new_params["scale_to_image"]),
         )
 
-    def get_parameters(self) -> Dict[str, Any]:
+    def get_parameters(self) -> dict[str, Any]:
         """
         Get a copy of the transform parameters.
 
@@ -299,8 +300,10 @@ class Transform:
     def __repr__(self) -> str:
         """String representation for debugging."""
         params = self._parameters
-        return (f"Transform(scale={params['scale']:.4f}, "
-                f"center=({params['center_offset_x']:.1f},{params['center_offset_y']:.1f}), "
-                f"pan=({params['pan_offset_x']:.1f},{params['pan_offset_y']:.1f}), "
-                f"manual=({params['manual_offset_x']:.1f},{params['manual_offset_y']:.1f}), "
-                f"flip_y={params['flip_y']}, scale_to_image={params['scale_to_image']})")
+        return (
+            f"Transform(scale={params['scale']:.4f}, "
+            f"center=({params['center_offset_x']:.1f},{params['center_offset_y']:.1f}), "
+            f"pan=({params['pan_offset_x']:.1f},{params['pan_offset_y']:.1f}), "
+            f"manual=({params['manual_offset_x']:.1f},{params['manual_offset_y']:.1f}), "
+            f"flip_y={params['flip_y']}, scale_to_image={params['scale_to_image']})"
+        )

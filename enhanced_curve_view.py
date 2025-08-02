@@ -1,32 +1,42 @@
-# -*- coding: utf-8 -*-
-
-from typing import Optional, List, Tuple, Set, Union
-from PySide6.QtCore import Qt, Signal, QSettings, QPointF, QTimer, QRect
+from PySide6.QtCore import QPointF, QRect, QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import (
-    QPainter, QPen, QColor, QPainterPath,
-    QPixmap, QKeySequence, QPaintEvent, QMouseEvent, QWheelEvent, QKeyEvent,
-    QContextMenuEvent
+    QColor,
+    QContextMenuEvent,
+    QKeyEvent,
+    QKeySequence,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPaintEvent,
+    QPen,
+    QPixmap,
+    QWheelEvent,
 )
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QKeySequenceEdit, QPushButton,
-    QDialog, QRubberBand
+    QDialog,
+    QHBoxLayout,
+    QKeySequenceEdit,
+    QLabel,
+    QPushButton,
+    QRubberBand,
+    QVBoxLayout,
+    QWidget,
 )
+
 try:
     from PySide6.QtWidgets import QShortcut
 except ImportError:
     from PySide6.QtGui import QShortcut
 
+import ui.ui_constants as ui_constants
+from core.protocols import CurveViewProtocol, MainWindowProtocol, PointsList
 from services.centering_zoom_service import CenteringZoomService as ZoomOperations
 from services.curve_service import CurveService as CurveViewOperations
 from services.image_service import ImageService
 from services.input_service import InputService
 from services.logging_service import LoggingService
 from services.visualization_service import VisualizationService as VisualizationOperations
-from core.protocols import (
-    CurveViewProtocol, MainWindowProtocol, PointsList
-)
-from ui_scaling import UIScaling
-import ui_constants
+from ui.ui_scaling import UIScaling
 
 logger = LoggingService.get_logger("enhanced_curve_view")
 
@@ -41,23 +51,26 @@ class EnhancedCurveView(QWidget):
     point_selected: Signal = Signal(int)  # Signal emitted when a point is selected
     image_changed: Signal = Signal(int)  # Signal emitted when image changes via keyboard
 
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize the view."""
-        super(EnhancedCurveView, self).__init__(parent)
-        self.setMinimumSize(UIScaling.scale_px(200), UIScaling.scale_px(200))  # Smaller minimum to allow more flexibility
+        super().__init__(parent)
+        self.setMinimumSize(
+            UIScaling.scale_px(200), UIScaling.scale_px(200)
+        )  # Smaller minimum to allow more flexibility
         # Set size policy to expand and fill available space
         from PySide6.QtWidgets import QSizePolicy
+
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        
+
         # Set subtle background color to reduce glare
         # Apply theme-aware styling
         UIScaling.apply_theme_stylesheet(self, "curve_view")
         self.points: PointsList = []
         self.selected_point_idx: int = -1
-        self.selected_points: Set[int] = set()  # Track selected points for multi-select
+        self.selected_points: set[int] = set()  # Track selected points for multi-select
         self.drag_active: bool = False
         self.pan_active: bool = False
-        self.last_pan_pos: Optional[QPointF] = None
+        self.last_pan_pos: QPointF | None = None
         self.zoom_factor: float = 1.0
         self.offset_x: float = 0
         self.offset_y: float = 0
@@ -74,7 +87,6 @@ class EnhancedCurveView(QWidget):
         self.show_grid: bool = True
         self.grid_spacing: int = 100
         self.grid_line_width: int = 1
-        import ui_constants
         grid_rgba = ui_constants.CURVE_COLORS["grid_minor"]
         self.grid_color: QColor = QColor(*grid_rgba)
         self.show_velocity_vectors: bool = False
@@ -88,50 +100,50 @@ class EnhancedCurveView(QWidget):
         normal_color = ui_constants.CURVE_COLORS["point_normal"]
         self.normal_point_color: QColor = QColor(normal_color)
         self.normal_point_border: QColor = QColor(normal_color).darker(150)
-        
+
         selected_color = ui_constants.CURVE_COLORS["point_selected"]
         self.selected_point_color: QColor = QColor(selected_color)
         self.selected_point_border: QColor = QColor(selected_color).darker(150)
-        
+
         interpolated_color = ui_constants.CURVE_COLORS["point_interpolated"]
         self.interpolated_point_color: QColor = QColor(interpolated_color)
         self.interpolated_point_border: QColor = QColor(interpolated_color).darker(150)
-        
+
         # Keyframe status colors: use text color for keyframes
-        keyframe_color = UIScaling.get_color('text_primary')
+        keyframe_color = UIScaling.get_color("text_primary")
         self.keyframe_point_color: QColor = QColor(keyframe_color)
         self.keyframe_point_border: QColor = QColor(keyframe_color).darker(150)
 
         # Image background properties
         self.background_opacity: float = 0.7  # Background image opacity (more visible)
         self.image_sequence_path: str = ""  # Path to image sequence directory
-        self.image_filenames: List[str] = []  # List of image filenames
+        self.image_filenames: list[str] = []  # List of image filenames
         self.current_image_idx: int = -1  # Current image index in sequence
-        self.background_image: Optional[QPixmap] = None  # Current background image
+        self.background_image: QPixmap | None = None  # Current background image
 
         # Selection properties
         self.multi_select_active: bool = False
-        self.selection_start: Optional[QPointF] = None
-        self.selection_rect: Optional[QRect] = None  # Selection rectangle for multi-select
+        self.selection_start: QPointF | None = None
+        self.selection_rect: QRect | None = None  # Selection rectangle for multi-select
 
         # Store reference to main window for direct updates
-        self.main_window: Optional[MainWindowProtocol] = parent
-        
+        self.main_window: MainWindowProtocol | None = parent
+
         # Ensure widget expands to fill available space
         self.setAutoFillBackground(True)
 
         # Debug options
-        self.debug_mode: bool = True  # Enable debug visuals
+        self.debug_mode: bool = False  # Debug visuals disabled by default for clean UI
 
         # Protocol required properties
-        self.rubber_band: Optional[QRubberBand] = None
+        self.rubber_band: QRubberBand | None = None
         self.rubber_band_origin: QPointF = QPointF()
         self.rubber_band_active: bool = False
-        self.last_drag_pos: Optional[QPointF] = None
+        self.last_drag_pos: QPointF | None = None
 
         # Nudging increments
         self.nudge_increment: float = 1.0
-        self.available_increments: List[float] = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
+        self.available_increments: list[float] = [0.1, 0.5, 1.0, 2.0, 5.0, 10.0]
         self.current_increment_index: int = 2  # Default to 1.0
 
         # For panning
@@ -142,23 +154,33 @@ class EnhancedCurveView(QWidget):
 
         # Shortcut settings
         self.settings: QSettings = QSettings("Semmlerino", "CurveEditor")
-        self.default_shortcuts: dict[str, QKeySequence] = {"toggleGrid": QKeySequence("Ctrl+Shift+G"), "openShortcutSettings": QKeySequence("Ctrl+Shift+S")}
+        self.default_shortcuts: dict[str, QKeySequence] = {
+            "toggleGrid": QKeySequence("Ctrl+Shift+G"),
+            "openShortcutSettings": QKeySequence("Ctrl+Shift+S"),
+        }
         self.initShortcuts()
 
         # Nudge overlay toggle - disabled by default since it's now in status bar
         self.show_nudge_overlay: bool = False
         self.toggle_nudge_shortcut: QShortcut = QShortcut(QKeySequence("Ctrl+N"), self)
         self.toggle_nudge_shortcut.activated.connect(self.toggle_nudge_overlay)
-        
+
         # Flag to track if we need to fit content on first proper paint
         self._needs_initial_fit: bool = False
         self._has_fitted: bool = False
 
-    def setPoints(self, points: PointsList, image_width: int, image_height: int, preserve_view: bool = False, force_parameters: bool = False) -> None:
+    def setPoints(
+        self,
+        points: PointsList,
+        image_width: int,
+        image_height: int,
+        preserve_view: bool = False,
+        force_parameters: bool = False,
+    ) -> None:
         """Set the points to display and adjust view accordingly.
 
         Args:
-            points: List of points in format [(frame, x, y), ...] or [(frame, x, y, status), ...]
+            points: list of points in format [(frame, x, y), ...] or [(frame, x, y, status), ...]
             image_width: Width of the image/workspace
             image_height: Height of the image/workspace
             preserve_view: If True, maintain current view position
@@ -166,22 +188,25 @@ class EnhancedCurveView(QWidget):
         """
         VisualizationOperations.set_points(self, points, image_width, image_height, preserve_view, force_parameters)
 
-    def setImageSequence(self, path: str, filenames: List[str]) -> None:
+    def setImageSequence(self, path: str, filenames: list[str]) -> None:
         """Set the image sequence to display as background."""
         ImageService.set_image_sequence(self, path, filenames)
 
-    def toggleGrid(self, enabled: Optional[bool] = None) -> None:
+    def toggleGrid(self, enabled: bool | None = None) -> None:
         """Toggle grid visibility."""
         VisualizationOperations.toggle_grid(self, enabled)
 
-    def toggleVelocityVectors(self, enabled: Optional[bool] = None) -> None:
+    def toggleVelocityVectors(self, enabled: bool | None = None) -> None:
         """Toggle velocity vector display."""
-        VisualizationOperations.toggle_velocity_vectors(self, enabled if enabled is not None else not self.show_velocity_vectors)
+        VisualizationOperations.toggle_velocity_vectors(
+            self, enabled if enabled is not None else not self.show_velocity_vectors
+        )
 
-    def toggleAllFrameNumbers(self, enabled: Optional[bool] = None) -> None:
+    def toggleAllFrameNumbers(self, enabled: bool | None = None) -> None:
         """Toggle display of all frame numbers."""
-        VisualizationOperations.toggle_all_frame_numbers(self, enabled if enabled is not None else not self.show_all_frame_numbers)
-
+        VisualizationOperations.toggle_all_frame_numbers(
+            self, enabled if enabled is not None else not self.show_all_frame_numbers
+        )
 
     def centerOnSelectedPoint(self, point_idx: int = -1, preserve_zoom: bool = True) -> None:
         """Center the view on the specified point index.
@@ -208,9 +233,11 @@ class EnhancedCurveView(QWidget):
         """Set current image by index and update the view."""
         ImageService.set_current_image_by_index(self, idx)
 
-    def toggleBackgroundVisible(self, visible: Optional[bool] = None) -> None:
+    def toggleBackgroundVisible(self, visible: bool | None = None) -> None:
         """Toggle visibility of background image."""
-        VisualizationOperations.toggle_background_visible(self, visible if visible is not None else not self.show_background)
+        VisualizationOperations.toggle_background_visible(
+            self, visible if visible is not None else not self.show_background
+        )
 
     def setBackgroundOpacity(self, opacity: float) -> None:
         """Set the opacity of the background image."""
@@ -223,10 +250,10 @@ class EnhancedCurveView(QWidget):
     def resetView(self) -> None:
         """Reset view to default state (zoom and position)."""
         ZoomOperations.reset_view(self)
-    
+
     def fit_to_window(self) -> None:
         """Fit all content (image and curves) to the window.
-        
+
         Calculates the appropriate zoom level and offsets to fit
         all visible content within the view with some padding.
         """
@@ -235,21 +262,22 @@ class EnhancedCurveView(QWidget):
             # Widget is too small, defer fitting
             self._needs_initial_fit = True
             return
-            
+
         from fit_to_window import fit_content_to_window
+
         fit_content_to_window(self)
         self._has_fitted = True
-    
+
     def center_view(self) -> None:
         """Center the view on the curve points.
-        
+
         If points exist, centers on their bounding box.
         Otherwise centers on the image dimensions.
         """
         # Fit content to window instead of just centering
         self.fit_to_window()
 
-    def set_point_radius(self, radius: Union[int, float]) -> None:
+    def set_point_radius(self, radius: int | float) -> None:
         """Set the point display radius.
 
         Args:
@@ -260,18 +288,17 @@ class EnhancedCurveView(QWidget):
         # Update local point_radius property
         self.point_radius = int(radius)
 
-    def get_point_data(self, index: int) -> Optional[Tuple[int, float, float, Union[bool, str]]]:
+    def get_point_data(self, index: int) -> tuple[int, float, float, bool | str] | None:
         """Get point data as a tuple (frame, x, y, status).
 
         Args:
             index: Index of the point to get data for
 
-        Returns:
-            Tuple of (frame, x, y, status) or None if index is invalid
+        Returns: tuple of (frame, x, y, status) or None if index is invalid
         """
         # Delegate to service facade if available, else fallback to raw list
         try:
-            handler = getattr(CurveViewOperations, 'get_point_data', None)
+            handler = getattr(CurveViewOperations, "get_point_data", None)
             if callable(handler):
                 result = handler(self, index)
                 # Ensure we return a properly typed tuple
@@ -282,7 +309,8 @@ class EnhancedCurveView(QWidget):
             pass
         # Fallback: normalize a raw point tuple
         from curve_view_plumbing import normalize_point
-        pts = getattr(self, 'points', None)
+
+        pts = getattr(self, "points", None)
         if pts is None or index is None or index < 0 or index >= len(pts):
             return None
         result = normalize_point(pts[index])
@@ -336,7 +364,7 @@ class EnhancedCurveView(QWidget):
         # Always paint - don't return early as this prevents proper widget sizing
         # if not self.points and not self.background_image:
         #     return
-        
+
         # Check if we need to do initial fit after widget is properly sized
         if self._needs_initial_fit and self.width() > 300 and self.height() > 300:
             self._needs_initial_fit = False
@@ -348,12 +376,12 @@ class EnhancedCurveView(QWidget):
         painter.setRenderHint(QPainter.Antialiasing)
 
         # Fill background with theme-aware color
-        bg_color = UIScaling.get_color('bg_primary')
+        bg_color = UIScaling.get_color("bg_primary")
         painter.fillRect(self.rect(), QColor(bg_color))
-        
+
         # Draw focus indicator if widget has focus
         if self.hasFocus():
-            focus_color = UIScaling.get_color('border_focus')
+            focus_color = UIScaling.get_color("border_focus")
             painter.setPen(QPen(QColor(focus_color), 2))
             painter.drawRect(self.rect().adjusted(1, 1, -1, -1))
 
@@ -383,7 +411,7 @@ class EnhancedCurveView(QWidget):
         offset_x, offset_y = self.offset_x, self.offset_y
 
         # Coordinate transformation functions
-        def transform_point(x: float, y: float) -> Tuple[float, float]:
+        def transform_point(x: float, y: float) -> tuple[float, float]:
             """Transform from track coordinates to widget coordinates."""
             # We need to ensure the transformation is consistent with the background image
             # This direct transformation approach ensures the curve and background move together
@@ -405,8 +433,11 @@ class EnhancedCurveView(QWidget):
             else:
                 # Fall back to standard transformation when not scaling to image
                 result = CurveViewOperations.transform_point(
-                    self, x, y,
-                    display_width, display_height,
+                    self,
+                    x,
+                    y,
+                    display_width,
+                    display_height,
                     self.offset_x,
                     self.offset_y,
                     scale,
@@ -421,7 +452,7 @@ class EnhancedCurveView(QWidget):
                     logger.warning(f"Unexpected transform result type: {type(result)}")
                     return (0, 0)
 
-        def inverse_transform(tx: float, ty: float) -> Tuple[float, float]:
+        def inverse_transform(tx: float, ty: float) -> tuple[float, float]:
             """Transform from widget coordinates to track coordinates."""
             if self.background_image and self.scale_to_image:
                 # Convert from widget to image space
@@ -451,7 +482,7 @@ class EnhancedCurveView(QWidget):
             # Calculate scaled dimensions
             scaled_width = display_width * scale
             scaled_height = display_height * scale
-            
+
             # Position image (apply centering offset and scaling first)
             img_x_scaled = offset_x
             img_y_scaled = offset_y
@@ -459,11 +490,10 @@ class EnhancedCurveView(QWidget):
             # Apply manual pan offset (unscaled widget coordinates)
             img_x = img_x_scaled + self.x_offset
             img_y = img_y_scaled + self.y_offset
-            
 
             # Draw the image with proper clipping to prevent overflow
             painter.setOpacity(self.background_opacity)
-            
+
             # Set clipping rect to widget bounds to prevent image overflow
             painter.setClipRect(self.rect())
 
@@ -475,9 +505,10 @@ class EnhancedCurveView(QWidget):
                 try:
                     # Fill entire area - ignore aspect ratio to cover full widget
                     scaled_image = self.background_image.scaled(
-                        int(scaled_width), int(scaled_height), 
-                        Qt.AspectRatioMode.IgnoreAspectRatio, 
-                        Qt.TransformationMode.SmoothTransformation
+                        int(scaled_width),
+                        int(scaled_height),
+                        Qt.AspectRatioMode.IgnoreAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
                     )
                     painter.drawImage(int(img_x), int(img_y), scaled_image)
                 except (ValueError, TypeError, RuntimeError, OSError) as e:
@@ -524,12 +555,12 @@ class EnhancedCurveView(QWidget):
                 is_selected = i in self.selected_points
 
                 # Determine keyframe (first/last always) or interpolated status
-                is_keyframe = (i == 0 or i == len(self.points) - 1)
+                is_keyframe = i == 0 or i == len(self.points) - 1
                 is_interpolated = False
                 if not is_keyframe and len(point) > 3:
-                    if point[3] == 'keyframe':
+                    if point[3] == "keyframe":
                         is_keyframe = True
-                    elif point[3] == 'interpolated':
+                    elif point[3] == "interpolated":
                         is_interpolated = True
 
                 if is_selected:
@@ -537,7 +568,7 @@ class EnhancedCurveView(QWidget):
                     painter.setBrush(self.selected_point_color)
                     point_radius = self.point_radius + 2 if i == self.selected_point_idx else self.point_radius
                 elif is_keyframe:
-                    outline_color = UIScaling.get_color('bg_primary')
+                    outline_color = UIScaling.get_color("bg_primary")
                     painter.setPen(QPen(QColor(outline_color).lighter(110), 1))  # subtle outline
                     painter.setBrush(self.keyframe_point_color)
                     point_radius = self.point_radius + 3  # slightly larger for visibility
@@ -553,12 +584,12 @@ class EnhancedCurveView(QWidget):
                 painter.drawEllipse(QPointF(tx, ty), point_radius, point_radius)
 
                 # Draw frame number/type label for each point
-                label_color = UIScaling.get_color('text_warning')
+                label_color = UIScaling.get_color("text_warning")
                 painter.setPen(QPen(QColor(label_color), 1))
                 font = UIScaling.get_font("tiny")
                 painter.setFont(font)
                 if is_selected:
-                    point_type = point[3] if len(point) > 3 else 'normal'
+                    point_type = point[3] if len(point) > 3 else "normal"
                     painter.drawText(int(tx) + 10, int(ty) - 10, f"{frame}, {point_type}")
                 elif self.show_all_frame_numbers or frame % 10 == 0:
                     painter.drawText(int(tx) + 10, int(ty) - 10, str(frame))
@@ -571,35 +602,39 @@ class EnhancedCurveView(QWidget):
             indicator_y = 10
 
             # Use theme-aware colors for overlay
-            overlay_bg = UIScaling.get_color('bg_secondary')
-            overlay_border = UIScaling.get_color('border_default')
+            overlay_bg = UIScaling.get_color("bg_secondary")
+            overlay_border = UIScaling.get_color("border_default")
             painter.setBrush(QColor(overlay_bg))
             painter.setPen(QPen(QColor(overlay_border), 1))
             painter.drawRect(indicator_x, indicator_y, indicator_width, indicator_height)
 
             for i, _increment in enumerate(self.available_increments):
                 pos_x = indicator_x + (i / (len(self.available_increments) - 1)) * indicator_width
-                tick_color = UIScaling.get_color('text_secondary')
+                tick_color = UIScaling.get_color("text_secondary")
                 painter.setPen(QPen(QColor(tick_color), 1))
                 painter.drawLine(int(pos_x), indicator_y, int(pos_x), indicator_y + indicator_height)
 
-            current_pos_x = indicator_x + (self.current_increment_index / (len(self.available_increments) - 1)) * indicator_width
+            current_pos_x = (
+                indicator_x + (self.current_increment_index / (len(self.available_increments) - 1)) * indicator_width
+            )
 
             cursor_size = 6
-            cursor_color = UIScaling.get_color('text_warning')
+            cursor_color = UIScaling.get_color("text_warning")
             painter.setBrush(QColor(cursor_color))
             painter.setPen(Qt.NoPen)
             cursor_points = [
                 QPointF(current_pos_x, indicator_y),
-                QPointF(current_pos_x - cursor_size/2, indicator_y - cursor_size),
-                QPointF(current_pos_x + cursor_size/2, indicator_y - cursor_size),
+                QPointF(current_pos_x - cursor_size / 2, indicator_y - cursor_size),
+                QPointF(current_pos_x + cursor_size / 2, indicator_y - cursor_size),
             ]
             painter.drawPolygon(cursor_points)
 
             painter.setPen(QPen(QColor(cursor_color), 1))
-            painter.drawText(indicator_x + indicator_width + 5, indicator_y + indicator_height - 2, f"{self.nudge_increment:.1f}")
+            painter.drawText(
+                indicator_x + indicator_width + 5, indicator_y + indicator_height - 2, f"{self.nudge_increment:.1f}"
+            )
 
-            help_color = UIScaling.get_color('text_secondary')
+            help_color = UIScaling.get_color("text_secondary")
             painter.setPen(QPen(QColor(help_color), 1))
             painter.drawText(indicator_x, indicator_y + indicator_height + 12, "↑/↓ to change increment")
 
@@ -642,7 +677,7 @@ class EnhancedCurveView(QWidget):
         # Update internal points and refresh view, preserving zoom/pan
         self.setPoints(curve_data, self.image_width, self.image_height, preserve_view=True)
 
-    def set_selected_indices(self, indices: List[int]) -> None:
+    def set_selected_indices(self, indices: list[int]) -> None:
         """Set selected point indices."""
         self.selected_points = set(indices)
         if indices:
@@ -651,7 +686,7 @@ class EnhancedCurveView(QWidget):
             self.selected_point_idx = -1
         self.update()
 
-    def get_selected_indices(self) -> List[int]:
+    def get_selected_indices(self) -> list[int]:
         """Return list of selected indices."""
         return list(self.selected_points)
 
@@ -708,14 +743,14 @@ class EnhancedCurveView(QWidget):
         if dlg.exec() == QDialog.Accepted:
             self.reloadShortcuts()
 
-    def toggle_nudge_overlay(self, enabled: Optional[bool] = None) -> None:
+    def toggle_nudge_overlay(self, enabled: bool | None = None) -> None:
         """Show or hide the nudge overlay."""
         if enabled is None:
             self.show_nudge_overlay = not self.show_nudge_overlay
         else:
             self.show_nudge_overlay = enabled
         self.update()
-    
+
     def showEvent(self, event) -> None:
         """Handle widget show event."""
         super().showEvent(event)
@@ -725,7 +760,7 @@ class EnhancedCurveView(QWidget):
 
 
 class ShortcutSettingsDialog(QDialog):
-    def __init__(self, parent: Optional[QWidget] = None) -> None:
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setWindowTitle("Shortcut Settings")
         self.layout = QVBoxLayout(self)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Signal Connectors Package for 3DE4 Curve Editor.
@@ -16,10 +15,10 @@ from .view_signal_connector import ViewSignalConnector
 from .visualization_signal_connector import VisualizationSignalConnector
 
 __all__ = [
-    'EditSignalConnector',
-    'FileSignalConnector',
-    'ShortcutSignalConnector',
-    'UISignalConnector',
-    'ViewSignalConnector',
-    'VisualizationSignalConnector',
+    "EditSignalConnector",
+    "FileSignalConnector",
+    "ShortcutSignalConnector",
+    "UISignalConnector",
+    "ViewSignalConnector",
+    "VisualizationSignalConnector",
 ]

@@ -5,19 +5,19 @@ This module contains tests to verify that the transformation system correctly
 prevents curve shifting during operations.
 """
 
-import unittest
-import sys
-import os
 import logging
+import os
+import sys
+import unittest
 from unittest.mock import MagicMock, patch
 
 # Add parent directory to path for imports
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.view_state import ViewState
+from services.logging_service import LoggingService
 from services.unified_transform import Transform
 from services.unified_transformation_service import UnifiedTransformationService
-from services.logging_service import LoggingService
+from services.view_state import ViewState
 
 # Configure logging
 LoggingService.configure_logging(level=logging.INFO)
@@ -45,11 +45,11 @@ class TestTransformationSystem(unittest.TestCase):
 
         # Sample curve data
         self.curve_data = [
-            (0, 100.0, 200.0),   # (frame, x, y)
+            (0, 100.0, 200.0),  # (frame, x, y)
             (1, 110.0, 210.0),
             (2, 120.0, 205.0),
             (3, 130.0, 215.0),
-            (4, 140.0, 210.0)
+            (4, 140.0, 210.0),
         ]
 
         # Mock background image
@@ -81,14 +81,14 @@ class TestTransformationSystem(unittest.TestCase):
 
         # Verify transform parameters
         params = transform.get_parameters()
-        self.assertIsNotNone(params['scale'])
-        self.assertIsNotNone(params['center_offset_x'])
-        self.assertIsNotNone(params['center_offset_y'])
-        self.assertIsNotNone(params['pan_offset_x'])
-        self.assertIsNotNone(params['pan_offset_y'])
-        self.assertIsNotNone(params['manual_offset_x'])
-        self.assertIsNotNone(params['manual_offset_y'])
-        self.assertEqual(params['flip_y'], False)
+        self.assertIsNotNone(params["scale"])
+        self.assertIsNotNone(params["center_offset_x"])
+        self.assertIsNotNone(params["center_offset_y"])
+        self.assertIsNotNone(params["pan_offset_x"])
+        self.assertIsNotNone(params["pan_offset_y"])
+        self.assertIsNotNone(params["manual_offset_x"])
+        self.assertIsNotNone(params["manual_offset_y"])
+        self.assertEqual(params["flip_y"], False)
 
     def test_transform_application(self):
         """Test application of Transform to points."""
@@ -97,11 +97,11 @@ class TestTransformationSystem(unittest.TestCase):
 
         # Test application to point
         tx, ty = transform.apply(1.0, 2.0)
-        
+
         # Verify transformation results are valid
         self.assertIsNotNone(tx)
         self.assertIsNotNone(ty)
-        
+
         # Test application to another point
         tx2, ty2 = transform.apply(3.0, 4.0)
         self.assertNotEqual(tx, tx2)
@@ -139,7 +139,7 @@ class TestTransformationSystem(unittest.TestCase):
         self.assertIsNotNone(first_transform)
 
         # Second transform should use cache
-        with patch.object(Transform, '__init__', return_value=None) as mock_init:
+        with patch.object(Transform, "__init__", return_value=None) as mock_init:
             second_transform = UnifiedTransformationService.from_view_state(view_state)
             # Verify the second transform is valid
             self.assertIsNotNone(second_transform)
@@ -155,30 +155,30 @@ class TestTransformationSystem(unittest.TestCase):
         before_points = self.curve_data.copy()
         after_points = self.curve_data.copy()
         after_points[0] = (0, 120.0, 220.0)  # Significant change to first point
-        
+
         # Detect drift - function now returns (drift_detected, drift_report)
         drift_detected, drift_report = UnifiedTransformationService.detect_transformation_drift(
             before_points, after_points, transform, transform
         )
-        
+
         # Verify drift detection
         self.assertTrue(drift_detected)  # Should detect drift
         self.assertGreater(len(drift_report), 0)  # Should have entries
         self.assertIn(0, drift_report)  # Should identify first point
         self.assertGreater(drift_report[0], 1.0)  # Drift should be significant
-        
+
     def test_stable_transformation_context(self):
         """Test the stable transformation context manager."""
         # Create a transform through the context manager
         with UnifiedTransformationService.stable_transformation_context(self.curve_view) as transform:
             # Verify we got a valid transform
             self.assertIsNotNone(transform)
-            
+
             # Test that the transform works properly
             tx, ty = transform.apply(100.0, 200.0)
             self.assertIsNotNone(tx)
             self.assertIsNotNone(ty)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
