@@ -5,7 +5,7 @@ This module provides factory methods for creating widgets with consistent
 theming, spacing, and configuration across the application.
 """
 
-from typing import Literal, Optional, Tuple
+from typing import Literal
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -31,8 +31,8 @@ class WidgetFactory:
         title: str,
         layout_type: Literal["grid", "horizontal", "vertical"] = "grid",
         spacing: str = "s",
-        margins: Optional[str] = None,
-    ) -> Tuple[QGroupBox, QLayout]:
+        margins: str | None = None,
+    ) -> tuple[QGroupBox, QLayout]:
         """Create a themed group box with specified layout type.
 
         Args:
@@ -122,9 +122,7 @@ class WidgetFactory:
         widget.setStyleSheet(f"QWidget {{ {' '.join(styles)} }}")
 
     @staticmethod
-    def create_horizontal_button_group(
-        spacing: str = "s", margins: bool = False
-    ) -> Tuple[QWidget, QHBoxLayout]:
+    def create_horizontal_button_group(spacing: str = "s", margins: bool = False) -> tuple[QWidget, QHBoxLayout]:
         """Create a horizontal widget group for buttons.
 
         Args:
@@ -136,15 +134,15 @@ class WidgetFactory:
         """
         container = QWidget()
         layout = QHBoxLayout()
-        
+
         layout.setSpacing(UIScaling.get_spacing(spacing))
-        
+
         if not margins:
             layout.setContentsMargins(0, 0, 0, 0)
         else:
             margin = UIScaling.get_spacing(spacing)
             layout.setContentsMargins(margin, margin, margin, margin)
-            
+
         container.setLayout(layout)
         return container, layout
 
@@ -152,8 +150,8 @@ class WidgetFactory:
     def create_label_value_pair(
         label_text: str,
         initial_value: str = "",
-        label_width: Optional[int] = None,
-    ) -> Tuple[QLabel, QLabel]:
+        label_width: int | None = None,
+    ) -> tuple[QLabel, QLabel]:
         """Create a consistent label-value pair for displaying metrics.
 
         Args:
@@ -181,7 +179,7 @@ class WidgetFactory:
     def setup_standard_layout(
         layout: QLayout,
         spacing: str = "s",
-        margins: Optional[str] = None,
+        margins: str | None = None,
         zero_margins: bool = False,
     ) -> None:
         """Apply standard spacing and margin patterns to a layout.

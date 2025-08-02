@@ -16,9 +16,7 @@ found in ui_components.py to use the new LayoutFactory utility.
 from ui_utils import LayoutFactory
 
 # Using LayoutFactory for zero-margin layout
-main_layout = LayoutFactory.create_basic_layout(
-    main_widget, "vertical", spacing="none", zero_margins=True
-)
+main_layout = LayoutFactory.create_basic_layout(main_widget, "vertical", spacing="none", zero_margins=True)
 
 # BEFORE (Lines 150-152):
 # bottom_layout = QVBoxLayout(bottom_container)
@@ -26,9 +24,7 @@ main_layout = LayoutFactory.create_basic_layout(
 # bottom_layout.setSpacing(UIScaling.get_spacing("xs"))
 
 # AFTER:
-bottom_layout = LayoutFactory.create_basic_layout(
-    bottom_container, "vertical", spacing="xs", zero_margins=True
-)
+bottom_layout = LayoutFactory.create_basic_layout(bottom_container, "vertical", spacing="xs", zero_margins=True)
 
 # BEFORE (Lines 457-459 for container with standard margins):
 # container_layout = QVBoxLayout(container)
@@ -37,9 +33,7 @@ bottom_layout = LayoutFactory.create_basic_layout(
 # container_layout.setSpacing(UIScaling.get_spacing("s"))
 
 # AFTER:
-container_layout = LayoutFactory.create_container_layout(
-    container, "vertical", spacing="s", standard_margins=True
-)
+container_layout = LayoutFactory.create_container_layout(container, "vertical", spacing="s", standard_margins=True)
 
 # BEFORE (Button group pattern from toolbar_components.py):
 # button_layout = QHBoxLayout()
@@ -62,23 +56,17 @@ button_container, button_layout = LayoutFactory.create_button_group_layout(
 
 # AFTER:
 grid_layout = LayoutFactory.create_grid_with_labels(
-    [
-        ("Label1:", widget1),
-        ("Label2:", widget2)
-    ],
-    parent=group,
-    spacing="s",
-    margins="s"
+    [("Label1:", widget1), ("Label2:", widget2)], parent=group, spacing="s", margins="s"
 )
 
 # Summary of refactoring patterns:
-# 1. Replace manual QVBoxLayout/QHBoxLayout creation + setContentsMargins(0,0,0,0) 
+# 1. Replace manual QVBoxLayout/QHBoxLayout creation + setContentsMargins(0,0,0,0)
 #    with LayoutFactory.create_basic_layout(..., zero_margins=True)
 #
 # 2. Replace container layout patterns with standard margins
 #    with LayoutFactory.create_container_layout()
 #
-# 3. Replace button group patterns 
+# 3. Replace button group patterns
 #    with LayoutFactory.create_button_group_layout()
 #
 # 4. Replace grid layouts with label-widget pairs
