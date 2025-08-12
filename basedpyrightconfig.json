@@ -1,9 +1,9 @@
 {
   "typeCheckingMode": "basic",
-  "reportUnusedImport": "warning", 
+  "reportUnusedImport": "warning",
   "reportUnknownMemberType": "warning",
   "reportUnknownVariableType": "warning",
-  "reportUnknownParameterType": "warning", 
+  "reportUnknownParameterType": "warning",
   "reportMissingImports": "warning",
   "venvPath": ".",
   "venv": "venv",

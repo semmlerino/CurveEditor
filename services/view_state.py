@@ -10,7 +10,6 @@ enabling consistent coordinate transformations.
 from dataclasses import dataclass
 from typing import Any
 
-
 @dataclass(frozen=True)
 class ViewState:
     """
@@ -58,13 +57,13 @@ class ViewState:
     manual_y_offset: float = 0.0
 
     # Background image reference (optional)
-    background_image: Any | None = None
+    background_image: "QPixmap | None" = None
 
     # Original data dimensions for scaling
     image_width: int = 1920
     image_height: int = 1080
 
-    def with_updates(self, **kwargs: Any) -> "ViewState":
+    def with_updates(self, **kwargs: object) -> "ViewState":
         """
         Create a new ViewState with updated values.
 
@@ -102,7 +101,7 @@ class ViewState:
         }
 
     @classmethod
-    def from_curve_view(cls, curve_view: Any) -> "ViewState":
+    def from_curve_view(cls, curve_view: "CurveViewProtocol") -> "ViewState":
         """
         Create a ViewState from a CurveView instance.
 

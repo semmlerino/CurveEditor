@@ -17,12 +17,26 @@ Key improvements:
 import hashlib
 from typing import Any
 
-from PySide6.QtCore import QPointF
+try:
+    from PySide6.QtCore import QPointF
+except ImportError:
+    # Stub for when PySide6 is not available
+    class QPointF:
+        def __init__(self, x=0, y=0):
+            self._x = x
+            self._y = y
+        def x(self):
+            return self._x
+        def y(self):
+            return self._y
+        def setX(self, x):
+            self._x = x
+        def setY(self, y):
+            self._y = y
 
-from services.logging_service import LoggingService
+import logging
 
-logger = LoggingService.get_logger("unified_transform")
-
+logger = logging.getLogger("unified_transform")
 
 class Transform:
     """
@@ -239,7 +253,7 @@ class Transform:
         logger.debug(f"Image position: ({img_x:.1f}, {img_y:.1f})")
         return img_x, img_y
 
-    def with_updates(self, **kwargs: Any) -> "Transform":
+    def with_updates(self, **kwargs: object) -> "Transform":
         """
         Create a new Transform with updated parameters.
 

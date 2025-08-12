@@ -1,0 +1,81 @@
+[tool.ruff]
+# Exclude archive and obsolete directories from linting
+extend-exclude = [
+    "docs/ObsoleteArchive/",
+    "docs/archive_2025_01_28/",
+    "**/archive/",
+    "**/obsolete/",
+    "**/Archive/",
+    "**/Obsolete/",
+    "venv/",
+    "node_modules/",
+    "**/__pycache__/",
+    "**/.pytest_cache/",
+    "**/.mypy_cache/",
+]
+
+# Set the maximum line length
+line-length = 120
+
+# Python version target
+target-version = "py312"
+
+[tool.ruff.lint]
+# Enable common linting rules
+select = [
+    "E",     # pycodestyle errors
+    "F",     # pyflakes
+    "W",     # pycodestyle warnings
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+]
+
+# Ignore specific rules
+ignore = [
+    "E501",  # line too long (handled by formatter)
+    "N802",  # function name should be lowercase (Qt override methods)
+    "N815",  # variable in class scope should not be mixedCase (Qt properties)
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Qt requires specific method names for overrides
+"**/*.py" = ["N802", "N815"]  # Allow Qt method names and properties
+
+[tool.pytest.ini_options]
+# Test discovery patterns
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+# Test output options
+addopts = [
+    "-v",
+    "--tb=short",
+    "--strict-markers",
+    "--disable-warnings",
+    "-p", "no:cacheprovider",
+]
+
+# Timeout for tests (in seconds)
+timeout = 60
+
+# Markers
+markers = [
+    "qt_required: Tests that require Qt/QApplication to be initialized",
+    "skip_qt_cleanup: Tests that should skip automatic Qt cleanup",
+    "slow: Tests that take a long time to run",
+    "integration: Integration tests",
+    "unit: Unit tests",
+    "performance: Performance and benchmark tests",
+    "benchmark: Specific benchmark tests for performance comparison",
+]
+
+# Qt specific settings
+qt_api = "pyside6"
+
+# Test paths
+testpaths = ["tests"]
+
+# Minimum Python version
+minversion = "3.8"

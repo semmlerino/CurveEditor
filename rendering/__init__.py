@@ -7,9 +7,13 @@ This package contains specialized rendering classes extracted from the monolithi
 CurveView paintEvent method to improve maintainability and testability.
 """
 
-from .background_renderer import BackgroundRenderer
-from .curve_renderer import CurveRenderer
-from .info_renderer import InfoRenderer
-from .point_renderer import PointRenderer
-
-__all__ = ["BackgroundRenderer", "PointRenderer", "InfoRenderer", "CurveRenderer"]
+try:
+    from .curve_renderer import CurveRenderer
+    __all__ = ["CurveRenderer"]
+except ImportError:
+    # Stub when PySide6 is not available
+    class CurveRenderer:
+        """Stub renderer for startup compatibility."""
+        def __init__(self):
+            pass
+    __all__ = ["CurveRenderer"]

@@ -1,225 +1,131 @@
 #!/usr/bin/env python
+"""Consolidated rendering system for curve editor."""
 
-"""
-Main curve rendering orchestrator for CurveView.
-
-Architecture Overview:
-This module implements the main rendering pipeline that replaced the original
-316-line monolithic paintEvent method. The CurveRenderer class acts as an
-orchestrator that coordinates four specialized rendering components:
-
-1. BackgroundRenderer: Handles background image rendering with transformations
-2. PointRenderer: Manages curve points, selection highlighting, and labels
-3. InfoRenderer: Displays view statistics, image info, and debug information
-4. CurveRenderer (this class): Orchestrates the pipeline and painter setup
-
-The rendering pipeline follows this sequence:
-- Initial fit handling for proper widget sizing
-- Painter configuration (antialiasing, background, focus indicators)
-- Empty state detection and rendering
-- Stable coordinate transformation creation
-- Sequential component rendering (background → points → info)
-
-This architecture provides:
-- Clear separation of concerns (Single Responsibility Principle)
-- Improved testability through isolated components
-- Better maintainability and extensibility
-- Consistent coordinate transformations across all rendering
-"""
-
-from typing import TYPE_CHECKING, Any
-
-from PySide6.QtCore import QTimer
-from PySide6.QtGui import QColor, QPainter, QPaintEvent, QPen
-
-from services.logging_service import LoggingService
-from services.transformation_service import TransformationService
-from ui.ui_scaling import UIScaling
-
-from .background_renderer import BackgroundRenderer
-from .info_renderer import InfoRenderer
-from .point_renderer import PointRenderer
-
-if TYPE_CHECKING:
-    from curve_view import CurveView
-
-logger = LoggingService.get_logger("curve_renderer")
-
+from PySide6.QtCore import Qt, QPointF
+from PySide6.QtGui import QColor, QPainter, QPen, QBrush, QFont
 
 class CurveRenderer:
-    """
-    Main rendering orchestrator for CurveView.
-
-    This class coordinates all specialized rendering components and replaces
-    the monolithic paintEvent method with a clean, composable rendering pipeline.
-
-    Public API:
-        render(painter, event, curve_view): Main rendering entry point
-
-    Usage Example:
-        renderer = CurveRenderer()
-        # In paintEvent:
-        painter = QPainter(self)
-        renderer.render(painter, event, self)
-
-    Component Architecture:
-        - BackgroundRenderer: Handles background image rendering
-        - PointRenderer: Manages curve point visualization
-        - InfoRenderer: Displays text overlays and statistics
-
-    Thread Safety:
-        This class is not thread-safe. Each CurveView should have its own
-        CurveRenderer instance for concurrent usage.
-    """
-
-    def __init__(self) -> None:
-        """
-        Initialize the renderer with all specialized rendering components.
-
-        Creates instances of all four rendering components:
-        - BackgroundRenderer for image display
-        - PointRenderer for curve point visualization
-        - InfoRenderer for text overlays
-
-        Returns:
-            None
-
-        Raises:
-            ImportError: If required Qt modules are not available
-        """
-        self.background_renderer: BackgroundRenderer = BackgroundRenderer()
-        self.point_renderer: PointRenderer = PointRenderer()
-        self.info_renderer: InfoRenderer = InfoRenderer()
-
-    def render(self, painter: QPainter, event: QPaintEvent, curve_view: "CurveView") -> None:
-        """
-        Main rendering method that orchestrates all rendering components.
-
-        This method implements the complete rendering pipeline that replaced the
-        original 316-line monolithic paintEvent. It coordinates all rendering
-        components in the correct order to produce the final visualization.
-
-        Rendering Sequence:
-        1. Initial fit handling for proper widget sizing
-        2. Painter configuration (antialiasing, background, focus)
-        3. Empty state detection and rendering
-        4. Stable coordinate transformation creation
-        5. Background image rendering (if present)
-        6. Curve point rendering with selection highlighting
-        7. Information overlay rendering
-
-        Args:
-            painter (QPainter): Qt painter instance for drawing operations.
-                Must be properly initialized and associated with a paint device.
-            event (QPaintEvent): Paint event containing the update region.
-                Used for optimization and dirty region handling.
-            curve_view (CurveView): The CurveView instance providing:
-                - Point data and selection state
-                - Background image and display properties
-                - Zoom, pan, and transformation parameters
-                - UI state flags and debug settings
-
-        Returns:
-            None
-
-        Raises:
-            AttributeError: If curve_view is missing required protocol attributes
-            RuntimeError: If coordinate transformation fails
-
-        Example:
-            def paintEvent(self, event: QPaintEvent) -> None:
-                painter = QPainter(self)
-                self._curve_renderer.render(painter, event, self)
-                super().paintEvent(event)
-
-        Performance Notes:
-            - Uses stable transforms to avoid coordinate system drift
-            - Implements early returns for empty states to optimize performance
-            - Leverages Qt's built-in clipping for efficient dirty region updates
-        """
-        # Log current view state for debugging
-        logger.debug(
-            "Paint event - View state: Zoom=%.2f, OffsetX=%d, OffsetY=%d, ManualX=%d, ManualY=%d",
-            curve_view.zoom_factor,
-            curve_view.offset_x,
-            curve_view.offset_y,
-            curve_view.x_offset,
-            curve_view.y_offset,
-        )
-
-        # Handle initial fit after widget is properly sized
-        self._handle_initial_fit(curve_view)
-
-        # Configure painter
-        self._setup_painter(painter, curve_view)
-
-        # Check if we need to show empty state - only show when no data of any kind is loaded
-        has_curve_data = curve_view.points and len(curve_view.points) > 0
-        has_image_data = curve_view.background_image is not None and not curve_view.background_image.isNull()
-
-        if not has_curve_data and not has_image_data:
-            # Draw empty state UI
-            curve_view._draw_empty_state(painter)
+    """Main renderer that handles all curve visualization."""
+    
+    def __init__(self):
+        """Initialize renderer."""
+        self.background_opacity = 1.0
+        
+    def render(self, painter: QPainter, curve_view):
+        """Render complete curve view."""
+        # Save painter state
+        painter.save()
+        
+        # Render background if available
+        if curve_view.show_background and curve_view.background_image:
+            self.render_background(painter, curve_view)
+            
+        # Render grid
+        if curve_view.show_grid:
+            self.render_grid(painter, curve_view)
+            
+        # Render curve points
+        if curve_view.points:
+            self.render_points(painter, curve_view)
+            
+        # Render info overlay
+        self.render_info(painter, curve_view)
+        
+        # Restore painter state
+        painter.restore()
+        
+    def render_background(self, painter: QPainter, curve_view):
+        """Render background image."""
+        if not curve_view.background_image:
             return
-
-        # Create stable transform for consistent coordinate mapping
-        transform = TransformationService.from_curve_view(curve_view)
-
-        # Log transform parameters for debugging
-        self._log_transform_parameters(transform)
-
-        # Render all components in order
-        self.background_renderer.render_background(painter, transform, curve_view)
-        self.point_renderer.render_points(painter, transform, curve_view)
-        self.info_renderer.render_info(painter, curve_view)
-
-    def _handle_initial_fit(self, curve_view: "CurveView") -> None:
-        """
-        Handle initial fit to window after widget is properly sized.
-
-        Args:
-            curve_view: CurveView instance providing context
-        """
-        # Check if we need to do initial fit after widget is properly sized
-        if curve_view._needs_initial_fit and curve_view.width() > 300 and curve_view.height() > 300:
-            curve_view._needs_initial_fit = False
-            curve_view._has_fitted = True
-            # Use a timer to fit after this paint completes
-            QTimer.singleShot(10, curve_view.fit_to_window)
-
-    def _setup_painter(self, painter: QPainter, curve_view: "CurveView") -> None:
-        """
-        Configure painter settings and draw background.
-
-        Args:
-            painter: QPainter instance to configure
-            curve_view: CurveView instance providing context
-        """
-        # Enable antialiasing for smooth rendering
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-
-        # Fill background with theme-aware color
-        bg_color = UIScaling.get_color("bg_primary")
-        painter.fillRect(curve_view.rect(), QColor(bg_color))
-
-        # Draw focus indicator if widget has focus
-        if curve_view.hasFocus():
-            focus_color = UIScaling.get_color("border_focus")
-            painter.setPen(QPen(QColor(focus_color), 2))
-            painter.drawRect(curve_view.rect().adjusted(1, 1, -1, -1))
-
-    def _log_transform_parameters(self, transform: Any) -> None:
-        """
-        Log transform parameters for debugging.
-
-        Args:
-            transform: Transform object to log parameters for
-        """
-        transform_params = transform.get_parameters()
-        logger.debug(
-            f"Using stable transform: scale={transform_params['scale']:.4f}, "
-            f"center=({transform_params['center_offset_x']:.1f}, {transform_params['center_offset_y']:.1f}), "
-            f"pan=({transform_params['pan_offset_x']:.1f}, {transform_params['pan_offset_y']:.1f}), "
-            f"manual=({transform_params['manual_offset_x']:.1f}, {transform_params['manual_offset_y']:.1f}), "
-            f"flip_y={transform_params['flip_y']}"
-        )
+            
+        painter.setOpacity(curve_view.background_opacity)
+        painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), 
+                          curve_view.background_image)
+        painter.setOpacity(1.0)
+        
+    def render_grid(self, painter: QPainter, curve_view):
+        """Render grid lines."""
+        pen = QPen(QColor(100, 100, 100, 50))
+        pen.setWidth(1)
+        painter.setPen(pen)
+        
+        # Vertical lines
+        step = 50
+        for x in range(0, curve_view.width(), step):
+            painter.drawLine(x, 0, x, curve_view.height())
+            
+        # Horizontal lines
+        for y in range(0, curve_view.height(), step):
+            painter.drawLine(0, y, curve_view.width(), y)
+            
+    def render_points(self, painter: QPainter, curve_view):
+        """Render curve points and lines."""
+        if not curve_view.points:
+            return
+            
+        # Draw lines between points
+        pen = QPen(QColor(255, 255, 255))
+        pen.setWidth(2)
+        painter.setPen(pen)
+        
+        for i in range(len(curve_view.points) - 1):
+            p1 = self.data_to_screen(curve_view.points[i], curve_view)
+            p2 = self.data_to_screen(curve_view.points[i + 1], curve_view)
+            painter.drawLine(p1, p2)
+            
+        # Draw points
+        for i, point in enumerate(curve_view.points):
+            screen_pos = self.data_to_screen(point, curve_view)
+            
+            # Determine point color
+            if i in curve_view.selected_points:
+                color = QColor(255, 255, 0)  # Yellow for selected
+            else:
+                color = QColor(255, 0, 0)  # Red for normal
+                
+            # Draw point
+            painter.setBrush(QBrush(color))
+            painter.setPen(QPen(Qt.NoPen))
+            painter.drawEllipse(screen_pos, 5, 5)
+            
+            # Draw frame number if enabled
+            if curve_view.show_all_frame_numbers:
+                painter.setPen(QPen(QColor(255, 255, 255)))
+                painter.drawText(screen_pos.x() + 10, screen_pos.y() - 10, 
+                               f"F{point[0]}")
+                               
+    def render_info(self, painter: QPainter, curve_view):
+        """Render information overlay."""
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.setFont(QFont("Arial", 10))
+        
+        info_text = f"Points: {len(curve_view.points)}"
+        if curve_view.selected_points:
+            info_text += f" | Selected: {len(curve_view.selected_points)}"
+        info_text += f" | Zoom: {curve_view.zoom_factor:.1f}x"
+        
+        painter.drawText(10, 20, info_text)
+        
+    def data_to_screen(self, point: tuple, curve_view) -> QPointF:
+        """Convert data coordinates to screen coordinates."""
+        # Simple transformation
+        x = point[1] * curve_view.zoom_factor + curve_view.offset_x
+        y = point[2] * curve_view.zoom_factor + curve_view.offset_y
+        
+        if curve_view.flip_y_axis:
+            y = curve_view.height() - y
+            
+        return QPointF(x, y)
+        
+    def screen_to_data(self, pos: QPointF, curve_view) -> tuple[float, float]:
+        """Convert screen coordinates to data coordinates."""
+        x = (pos.x() - curve_view.offset_x) / curve_view.zoom_factor
+        y = pos.y()
+        
+        if curve_view.flip_y_axis:
+            y = curve_view.height() - y
+            
+        y = (y - curve_view.offset_y) / curve_view.zoom_factor
+        
+        return (x, y)

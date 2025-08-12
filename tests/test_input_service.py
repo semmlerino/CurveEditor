@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 # Assume QRect, QPointF, Qt are available or mocked appropriately.
 # Mock the actual services/classes being tested or depended upon
 from services.input_service import InputService
+from tests.conftest import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
 
 # Mock dependencies that InputService interacts with
 CurveService = MagicMock()
@@ -21,7 +22,6 @@ Qt.LeftButton = 1
 Qt.MiddleButton = 2  # Example value
 Qt.AltModifier = 0x08000000  # Example value
 
-
 # Patch the dependencies directly in the service's namespace if necessary
 @patch("services.input_service.CurveService", CurveService)
 @patch("services.input_service.QRect", QRect)
@@ -33,7 +33,7 @@ def test_handle_mouse_move_rubber_band_active():
     Verifies geometry update and real-time point selection call.
     """
     # Arrange
-    mock_view = MagicMock()
+    mock_view = ProtocolCompliantMockCurveView()
     mock_event = MagicMock()
     mock_rubber_band = MagicMock()
     mock_origin = MagicMock()
@@ -44,7 +44,7 @@ def test_handle_mouse_move_rubber_band_active():
     mock_view.rubber_band_active = True
     mock_view.rubber_band = mock_rubber_band
     mock_view.rubber_band_origin = mock_origin
-    mock_view.main_window = MagicMock()  # Add main_window mock
+    mock_view.main_window = ProtocolCompliantMockMainWindow()
 
     # Mock the QRect calculation result
     mock_selection_rect = MagicMock()
@@ -63,7 +63,6 @@ def test_handle_mouse_move_rubber_band_active():
 
     # 3. Point selection was called in real-time
     CurveService.select_points_in_rect.assert_called_once_with(mock_view, mock_view.main_window, mock_selection_rect)
-
 
 @patch("services.input_service.CurveService", CurveService)
 @patch("services.input_service.Qt", Qt)
@@ -100,7 +99,6 @@ def test_handle_mouse_release_rubber_band_finalize():
     mock_main_window.add_to_history.assert_called_once()
     # 4. Point selection was NOT called again on release
     CurveService.select_points_in_rect.assert_not_called()
-
 
 # Add more tests for other scenarios in InputService if needed
 # (e.g., mouse press, drag, pan, context menu)
