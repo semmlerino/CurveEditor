@@ -112,27 +112,77 @@ class CurveRenderer:
             logger.debug(f"Render #{self._render_count}: {render_time:.2f}ms")
 
     def render_background(self, painter: QPainter, curve_view):
-        """Render background image."""
+        """Render background image with proper transformations."""
         if not curve_view.background_image:
             return
 
+        painter.save()
         painter.setOpacity(curve_view.background_opacity)
-        painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), curve_view.background_image)
-        painter.setOpacity(1.0)
+
+        # Apply the same transformations as the curve points
+        zoom = curve_view.zoom_factor
+        offset_x = curve_view.offset_x
+        offset_y = curve_view.offset_y
+        flip_y = curve_view.flip_y_axis if hasattr(curve_view, "flip_y_axis") else False
+
+        # Calculate the transformed position and size of the background
+        # The background should move and scale with the curve data
+        img_width = curve_view.background_image.width()
+        img_height = curve_view.background_image.height()
+
+        # Apply zoom and offset transformations
+        # Top-left corner position after transformation
+        x = offset_x
+        y = offset_y
+
+        # Size after zoom
+        width = int(img_width * zoom)
+        height = int(img_height * zoom)
+
+        # Handle Y-axis flipping if enabled
+        if flip_y:
+            # When Y is flipped, we need to flip the image vertically
+            # and adjust its position
+            y = curve_view.height() - y - height
+            # Scale the painter to flip the image
+            painter.translate(0, curve_view.height())
+            painter.scale(1, -1)
+            # Adjust y back for the flipped coordinate system
+            y = curve_view.height() - y - height
+
+        # Draw the transformed background
+        target_rect = QRectF(x, y, width, height)
+        source_rect = QRectF(0, 0, img_width, img_height)
+        painter.drawPixmap(target_rect, curve_view.background_image, source_rect)
+
+        painter.restore()
 
     def render_grid(self, painter: QPainter, curve_view):
-        """Render grid lines."""
+        """Render grid lines that move with the view transformations."""
         pen = QPen(QColor(100, 100, 100, 50))
         pen.setWidth(1)
         painter.setPen(pen)
 
+        # Get transformation parameters
+        zoom = curve_view.zoom_factor
+        offset_x = curve_view.offset_x
+        offset_y = curve_view.offset_y
+
+        # Grid step size in data coordinates, scaled by zoom
+        step = int(50 * zoom) if zoom > 0.1 else 50
+        if step < 10:
+            step = 10  # Minimum grid spacing
+
+        # Calculate grid start positions based on offset
+        start_x = int(offset_x % step)
+        start_y = int(offset_y % step)
+
         # Vertical lines
-        step = 50
-        for x in range(0, curve_view.width(), step):
+        for x in range(start_x, curve_view.width(), step):
             painter.drawLine(x, 0, x, curve_view.height())
 
         # Horizontal lines
-        for y in range(0, curve_view.height(), step):
+        for y in range(start_y, curve_view.height(), step):
             painter.drawLine(0, y, curve_view.width(), y)
 
     def render_points(self, painter: QPainter, curve_view):
