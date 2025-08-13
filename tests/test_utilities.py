@@ -118,11 +118,11 @@ class TestCurveView:
         """Clear all selections."""
         self.selected_points.clear()
         self.selected_point_idx = -1
-    
+
     def _select_all(self) -> None:
         """Select all points."""
         self.selected_points = set(range(len(self.curve_data)))
-    
+
     def _delete_selected_points(self) -> None:
         """Delete selected points - real implementation."""
         # Sort indices in reverse order to avoid index shifting
@@ -285,7 +285,7 @@ class TestDataBuilder:
     @staticmethod
     def curve_data(num_points: int | None = None) -> list[Point4]:
         """Create sample curve data.
-        
+
         Args:
             num_points: Number of points to return (backwards compatibility)
         """
@@ -296,7 +296,7 @@ class TestDataBuilder:
             (4, 250.0, 350.0, "interpolated"),
             (5, 300.0, 400.0, "keyframe"),
         ]
-        
+
         if num_points is not None:
             return full_data[:num_points]
         return full_data
@@ -315,7 +315,7 @@ class TestDataBuilder:
     @staticmethod
     def curve_view_with_data(num_points: int | None = None, selected_indices: set[int] | None = None) -> TestCurveView:
         """Create a curve view with sample data.
-        
+
         Args:
             num_points: Number of points to include (backwards compatibility)
             selected_indices: Set of selected point indices

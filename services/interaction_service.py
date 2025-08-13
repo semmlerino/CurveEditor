@@ -412,8 +412,8 @@ class InteractionService:
 
             # Use spatial index for O(1) rectangular selection
             point_indices = self._point_index.get_points_in_rect(
-                view, transform, 
-                rect.left(), rect.top(), 
+                view, transform,
+                rect.left(), rect.top(),
                 rect.right(), rect.bottom()
             )
 
@@ -442,7 +442,7 @@ class InteractionService:
     def get_spatial_index_stats(self) -> dict[str, Any]:
         """
         Get spatial index performance statistics.
-        
+
         Returns:
             Dictionary with spatial index statistics
         """

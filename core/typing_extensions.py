@@ -17,7 +17,7 @@ import numpy as np
 from numpy.typing import NDArray
 
 if TYPE_CHECKING:
-    from PySide6.QtGui import QColor
+    from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPaintEvent
     from PySide6.QtWidgets import QWidget
 
 # ==================== Basic Types ====================

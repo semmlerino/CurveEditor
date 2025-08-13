@@ -576,7 +576,7 @@ class TestTransformService:
         service = TransformService()
         service.clear_cache()  # Ensure clean state
         return service
-    
+
     @pytest.fixture(autouse=True)
     def clear_cache_between_tests(self) -> None:
         """Automatically clear cache between tests to ensure isolation."""

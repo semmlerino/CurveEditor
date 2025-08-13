@@ -56,7 +56,9 @@ class SignalConnection:
             return True
 
         try:
-            self.signal.connect(self.slot)
+            # Type checking workaround - both Signal and SignalInstance have connect
+            signal_obj = self.signal  # type: ignore
+            signal_obj.connect(self.slot)
             self.connected = True
             logger.debug(f"Connected signal: {self.signal_name}")
             return True
@@ -74,7 +76,9 @@ class SignalConnection:
             return True
 
         try:
-            self.signal.disconnect(self.slot)
+            # Type checking workaround - both Signal and SignalInstance have disconnect
+            signal_obj = self.signal  # type: ignore
+            signal_obj.disconnect(self.slot)
             self.connected = False
             logger.debug(f"Disconnected signal: {self.signal_name}")
             return True

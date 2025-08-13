@@ -7,6 +7,7 @@ which handles file operations, data analysis, and image management.
 """
 
 import json
+import os
 import sys
 import tempfile
 from pathlib import Path

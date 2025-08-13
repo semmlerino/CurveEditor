@@ -69,10 +69,10 @@ def main():
 
     # Create main window with service registry
     logger.info("Creating main window...")
-    
+
     # Use modernized window for enhanced UI/UX (Sprint 11 requirement)
     use_modern_ui = os.environ.get("USE_MODERN_UI", "true").lower() == "true"
-    
+
     if use_modern_ui:
         logger.info("Using ModernizedMainWindow with enhanced UI/UX features")
         window = ModernizedMainWindow()

@@ -219,30 +219,30 @@ class SelectionService(SelectionProtocol):
     def find_point_at_position(self, view: Any, x: float, y: float, tolerance: float = 5.0) -> int:
         """
         Find point at given position (alias for find_point_at).
-        
+
         Args:
             view: The curve view widget
             x: X coordinate in curve space
             y: Y coordinate in curve space
             tolerance: Selection tolerance in pixels
-        
+
         Returns:
             Index of point at position, or -1 if none found
         """
         return self.find_point_at(view, x, y, tolerance)
-    
+
     def select_all(self, view: Any) -> int:
         """
         Select all points (alias for select_all_points).
-        
+
         Args:
             view: The curve view widget
-        
+
         Returns:
             Number of points selected
         """
         return self.select_all_points(view)
-    
+
     def select_all_points(self, view: Any) -> int:
         """
         Select all points.

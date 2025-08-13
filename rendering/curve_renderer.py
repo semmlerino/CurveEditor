@@ -216,7 +216,7 @@ class CurveRenderer:
 
         # Draw points with culling
         point_radius = 5
-        painter.setPen(QPen(Qt.NoPen))
+        painter.setPen(Qt.PenStyle.NoPen)
 
         # Batch points by color for efficiency
         normal_points = []
@@ -252,7 +252,7 @@ class CurveRenderer:
             for i, screen_pos in enumerate(screen_points):
                 if self._enable_culling and not viewport.contains(screen_pos):
                     continue
-                painter.drawText(screen_pos.x() + 10, screen_pos.y() - 10, f"F{curve_view.points[i][0]}")
+                painter.drawText(int(screen_pos.x()) + 10, int(screen_pos.y()) - 10, f"F{curve_view.points[i][0]}")
 
     def render_info(self, painter: QPainter, curve_view):
         """Render information overlay with performance metrics."""

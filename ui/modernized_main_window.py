@@ -5,14 +5,11 @@ Extends the base MainWindow with comprehensive modern UI/UX enhancements
 """
 
 import logging
-from typing import Optional
 
 from PySide6.QtCore import (
     QEasingCurve,
     QParallelAnimationGroup,
-    QPoint,
     QPropertyAnimation,
-    QRect,
     Qt,
     QTimer,
     Signal,
@@ -21,35 +18,22 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QColor,
-    QFont,
     QKeySequence,
-    QPalette,
-    QPixmap,
 )
 from PySide6.QtWidgets import (
-    QApplication,
     QGraphicsDropShadowEffect,
     QGraphicsOpacityEffect,
-    QHBoxLayout,
     QLabel,
-    QMainWindow,
-    QMenu,
     QPushButton,
-    QStatusBar,
     QToolBar,
-    QToolButton,
-    QVBoxLayout,
     QWidget,
 )
 
 from .main_window import MainWindow
 from .modern_theme import ModernTheme
 from .modern_widgets import (
-    ModernButton,
-    ModernCard,
     ModernLoadingSpinner,
     ModernProgressBar,
-    ModernTimeline,
     ModernToast,
 )
 from .ui_constants import ANIMATION, COLORS_DARK, COLORS_LIGHT
@@ -59,12 +43,12 @@ logger = logging.getLogger("modernized_main_window")
 
 class ModernizedMainWindow(MainWindow):
     """Enhanced main window with comprehensive modern UI/UX features."""
-    
+
     # Additional signals for modern features
     theme_changed = Signal(str)
     animation_toggled = Signal(bool)
     keyboard_hints_toggled = Signal(bool)
-    
+
     def __init__(self, parent=None):
         """Initialize the modernized main window."""
         # Initialize theme manager before parent init
@@ -72,10 +56,10 @@ class ModernizedMainWindow(MainWindow):
         self.animations_enabled = True
         self.current_theme = "dark"  # Default to dark theme
         self.keyboard_hints_visible = False
-        
+
         # Initialize parent (MainWindow)
         super().__init__(parent)
-        
+
         # Apply modern enhancements after parent initialization
         self._apply_modern_theme()
         self._enhance_ui_components()
@@ -86,21 +70,21 @@ class ModernizedMainWindow(MainWindow):
         self._enhance_timeline()
         self._enhance_toolbar()
         self._add_welcome_animation()
-        
+
         # Setup keyboard shortcuts for modern features
         self._setup_modern_shortcuts()
-        
+
         logger.info("ModernizedMainWindow initialized with enhanced UI/UX")
 
     def _apply_modern_theme(self):
         """Apply the modern theme to the application."""
         # Set dark theme as default
         self.theme_manager.current_theme = self.current_theme
-        
+
         # Apply comprehensive stylesheet
         stylesheet = self.theme_manager.get_stylesheet()
         self.setStyleSheet(stylesheet)
-        
+
         # Apply window-specific dark theme enhancements
         if self.current_theme == "dark":
             self.setStyleSheet(self.styleSheet() + """
@@ -108,25 +92,25 @@ class ModernizedMainWindow(MainWindow):
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #2b3035, stop:1 #212529);
                 }
-                
+
                 QToolBar {
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #343a40, stop:1 #2b3035);
                     border-bottom: 1px solid #495057;
                 }
-                
+
                 QStatusBar {
                     background: qlineargradient(x1:0, y1:1, x2:0, y2:0,
                         stop:0 #212529, stop:1 #2b3035);
                     border-top: 1px solid #495057;
                     color: #adb5bd;
                 }
-                
+
                 /* Enhanced timeline tabs */
                 QToolButton {
                     transition: all 0.2s ease;
                 }
-                
+
                 QToolButton:hover {
                     transform: translateY(-2px);
                 }
@@ -138,15 +122,15 @@ class ModernizedMainWindow(MainWindow):
         for group_box in self.findChildren(QWidget):
             if group_box.__class__.__name__ == "QGroupBox":
                 self._apply_card_effect(group_box)
-        
+
         # Enhance buttons with hover effects
         for button in self.findChildren(QPushButton):
             self._enhance_button(button)
-        
+
         # Enhance the curve widget
         if hasattr(self, 'curve_widget') and self.curve_widget:
             self._enhance_curve_widget()
-    
+
     def _apply_card_effect(self, widget: QWidget):
         """Apply modern card effect with shadow to widget."""
         # Create drop shadow effect
@@ -156,22 +140,22 @@ class ModernizedMainWindow(MainWindow):
         shadow.setYOffset(2)
         shadow.setColor(QColor(0, 0, 0, 40 if self.current_theme == "light" else 60))
         widget.setGraphicsEffect(shadow)
-        
+
         # Add hover animation capability
         widget.setProperty("card_shadow", shadow)
-    
+
     def _enhance_button(self, button: QPushButton):
         """Enhance button with modern hover effects."""
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setProperty("enhanced", True)
-        
+
         # Install event filter for hover animations
         button.installEventFilter(self)
-    
+
     def _enhance_curve_widget(self):
         """Enhance the curve widget with modern styling."""
         colors = COLORS_DARK if self.current_theme == "dark" else COLORS_LIGHT
-        
+
         self.curve_widget.setStyleSheet(f"""
             CurveViewWidget {{
                 border: 2px solid {colors['border_default']};
@@ -191,7 +175,7 @@ class ModernizedMainWindow(MainWindow):
         if not toolbar:
             return
 
-        
+
         # Apply modern styling to toolbar actions
         colors = COLORS_DARK if self.current_theme == "dark" else COLORS_LIGHT
         toolbar.setStyleSheet(f"""
@@ -213,14 +197,14 @@ class ModernizedMainWindow(MainWindow):
         """Setup animation controllers for smooth transitions."""
         self.animation_group = QParallelAnimationGroup()
         self.fade_animations = {}
-        
+
         # Setup opacity effects for smooth transitions
         for widget_name in ['timeline_widget', 'properties_widget', 'curve_container']:
             widget = getattr(self, widget_name, None)
             if widget:
                 opacity_effect = QGraphicsOpacityEffect()
                 widget.setGraphicsEffect(opacity_effect)
-                
+
                 fade_anim = QPropertyAnimation(opacity_effect, b"opacity")
                 fade_anim.setDuration(ANIMATION["duration_normal"])
                 fade_anim.setEasingCurve(QEasingCurve.Type.InOutCubic)
@@ -229,14 +213,14 @@ class ModernizedMainWindow(MainWindow):
     def _add_keyboard_hints(self):
         """Add visual keyboard navigation hints."""
         self.keyboard_hints = []
-        
+
         # Create keyboard hint overlays for important controls
         hint_configs = [
             (self.frame_spinbox, "↑↓", "Adjust frame"),
             (self.btn_play_pause, "Space", "Play/Pause"),
             (self.point_x_spinbox, "Tab", "Navigate"),
         ]
-        
+
         for widget, key, description in hint_configs:
             if widget:
                 hint = self._create_keyboard_hint(widget, key, description)
@@ -265,7 +249,7 @@ class ModernizedMainWindow(MainWindow):
         self.loading_spinner = ModernLoadingSpinner(self)
         self.loading_spinner.move(self.width() // 2 - 20, self.height() // 2 - 20)
         self.loading_spinner.hide()
-        
+
         # Create progress bar for file operations
         self.progress_bar_modern = ModernProgressBar(self)
         self.progress_bar_modern.setFixedWidth(300)
@@ -278,7 +262,7 @@ class ModernizedMainWindow(MainWindow):
         if toolbar:
             # Add separator before theme toggle
             toolbar.addSeparator()
-            
+
             # Create theme switcher action
             theme_action = QAction("🌙" if self.current_theme == "light" else "☀️", self)
             theme_action.setToolTip("Switch theme (Ctrl+T)")
@@ -291,7 +275,7 @@ class ModernizedMainWindow(MainWindow):
         """Enhance the timeline with modern styling and animations."""
         if hasattr(self, 'frame_tabs') and self.frame_tabs:
             colors = COLORS_DARK if self.current_theme == "dark" else COLORS_LIGHT
-            
+
             for i, tab in enumerate(self.frame_tabs):
                 # Apply modern styling with gradient
                 tab.setStyleSheet(f"""
@@ -320,7 +304,7 @@ class ModernizedMainWindow(MainWindow):
                         box-shadow: 0 0 10px {colors['selection']};
                     }}
                 """)
-                
+
                 # Add pulse animation for first frame
                 if i == 0:
                     self._add_pulse_animation(tab)
@@ -329,7 +313,7 @@ class ModernizedMainWindow(MainWindow):
         """Add subtle pulse animation to widget."""
         opacity_effect = QGraphicsOpacityEffect()
         widget.setGraphicsEffect(opacity_effect)
-        
+
         pulse_anim = QPropertyAnimation(opacity_effect, b"opacity")
         pulse_anim.setDuration(1000)
         pulse_anim.setStartValue(1.0)
@@ -338,7 +322,7 @@ class ModernizedMainWindow(MainWindow):
         pulse_anim.setLoopCount(-1)  # Infinite loop
         pulse_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
         pulse_anim.start()
-        
+
         widget.setProperty("pulse_animation", pulse_anim)
 
     def _add_welcome_animation(self):
@@ -353,7 +337,7 @@ class ModernizedMainWindow(MainWindow):
             )
             toast.move(self.width() - toast.width() - 20, 60)
             toast.show_toast()
-            
+
             # Animate main panels with fade-in
             for widget_name in ['timeline_widget', 'curve_container', 'properties_widget']:
                 widget = getattr(self, widget_name, None)
@@ -362,7 +346,7 @@ class ModernizedMainWindow(MainWindow):
                     fade_anim.setStartValue(0.0)
                     fade_anim.setEndValue(1.0)
                     fade_anim.start()
-        
+
         # Delay welcome animation slightly
         QTimer.singleShot(500, show_welcome)
 
@@ -379,25 +363,25 @@ class ModernizedMainWindow(MainWindow):
         # Switch theme
         self.current_theme = "dark" if self.current_theme == "light" else "light"
         self.theme_manager.switch_theme(self.current_theme)
-        
+
         # Apply new theme
         self._apply_modern_theme()
         self._enhance_ui_components()
         self._enhance_timeline()
-        
+
         # Update theme button icon
         if hasattr(self, 'theme_action'):
             self.theme_action.setText("🌙" if self.current_theme == "light" else "☀️")
-        
+
         # Show theme change notification
         self._show_notification(
             f"Switched to {self.current_theme.title()} Theme",
             "success"
         )
-        
+
         # Emit theme changed signal
         self.theme_changed.emit(self.current_theme)
-        
+
         logger.info(f"Theme switched to: {self.current_theme}")
 
     def _show_notification(self, message: str, variant: str = "info", duration: int = 3000):
@@ -409,7 +393,7 @@ class ModernizedMainWindow(MainWindow):
     def toggle_keyboard_hints(self):
         """Toggle visibility of keyboard hints."""
         self.keyboard_hints_visible = not self.keyboard_hints_visible
-        
+
         for hint in self.keyboard_hints:
             if self.keyboard_hints_visible:
                 hint.show()
@@ -417,13 +401,13 @@ class ModernizedMainWindow(MainWindow):
                 self._position_keyboard_hint(hint)
             else:
                 hint.hide()
-        
+
         self._show_notification(
             f"Keyboard hints {'shown' if self.keyboard_hints_visible else 'hidden'}",
             "info",
             2000
         )
-        
+
         self.keyboard_hints_toggled.emit(self.keyboard_hints_visible)
 
     def _position_keyboard_hint(self, hint: QLabel):
@@ -442,7 +426,7 @@ class ModernizedMainWindow(MainWindow):
         if event.key() == Qt.Key.Key_F1:
             self.toggle_keyboard_hints()
             return
-        
+
         # Toggle animations with F2
         if event.key() == Qt.Key.Key_F2:
             self.animations_enabled = not self.animations_enabled
@@ -453,17 +437,17 @@ class ModernizedMainWindow(MainWindow):
             )
             self.animation_toggled.emit(self.animations_enabled)
             return
-        
+
         # Call parent key press handler
         super().keyPressEvent(event)
-    
+
     def closeEvent(self, event):
         """Clean up animations and resources."""
         # Stop and clean up all animations
         for widget, anim in self.fade_animations.items():
             anim.stop()
             anim.deleteLater()
-        
+
         # Stop pulse animations on timeline tabs
         if hasattr(self, 'ui_components') and hasattr(self.ui_components, 'timeline'):
             timeline_widget = self.ui_components.timeline.timeline_widget
@@ -474,13 +458,13 @@ class ModernizedMainWindow(MainWindow):
                         pulse_anim = tab.property("pulse_animation")
                         pulse_anim.stop()
                         pulse_anim.deleteLater()
-        
+
         # Stop any running toast notifications
         for child in self.findChildren(QWidget):
             if isinstance(child, QWidget) and child.property("is_toast"):
                 child.close()
                 child.deleteLater()
-        
+
         # Call parent close event with error handling
         try:
             super().closeEvent(event)
@@ -492,7 +476,7 @@ class ModernizedMainWindow(MainWindow):
             else:
                 # Re-raise other runtime errors
                 raise
-    
+
     def eventFilter(self, obj, event):
         """Enhanced event filter with hover animations."""
         # Handle button hover animations
@@ -501,25 +485,25 @@ class ModernizedMainWindow(MainWindow):
                 self._animate_button_hover(obj, True)
             elif event.type() == event.Type.Leave:
                 self._animate_button_hover(obj, False)
-        
+
         # Call parent event filter
         return super().eventFilter(obj, event)
-    
+
     def _animate_button_hover(self, button: QPushButton, hovering: bool):
         """Animate button on hover."""
         if not self.animations_enabled:
             return
-        
+
         # Create subtle scale animation
         if not button.property("hover_animation"):
             anim = QPropertyAnimation(button, b"geometry")
             anim.setDuration(ANIMATION["duration_fast"])
             anim.setEasingCurve(QEasingCurve.Type.OutCubic)
             button.setProperty("hover_animation", anim)
-        
+
         anim = button.property("hover_animation")
         geometry = button.geometry()
-        
+
         if hovering:
             # Slightly expand button
             expanded = geometry.adjusted(-2, -2, 2, 2)
@@ -527,60 +511,60 @@ class ModernizedMainWindow(MainWindow):
         else:
             # Return to normal size
             anim.setEndValue(geometry)
-        
+
         anim.start()
-    
+
     # Override file operations to show loading indicators
     def _on_action_open(self):
         """Enhanced open file action with loading indicator."""
         self.loading_spinner.start()
         super()._on_action_open()
         self.loading_spinner.stop()
-    
+
     def _on_file_load_progress(self, progress: int, message: str):
         """Enhanced file loading progress display."""
         super()._on_file_load_progress(progress, message)
-        
+
         # Show modern progress bar
         if progress == 0:
             self.progress_bar_modern.show()
-        
+
         self.progress_bar_modern.setValue(progress)
         self.progress_bar_modern.setText(message)
-        
+
         if progress >= 100:
             QTimer.singleShot(1000, self.progress_bar_modern.hide)
-    
+
     def _on_file_load_finished(self):
         """Enhanced file loading completion."""
         super()._on_file_load_finished()
-        
+
         # Hide loading indicators
         self.loading_spinner.stop()
         self.progress_bar_modern.hide()
-        
+
         # Show success notification
         self._show_notification("Files loaded successfully!", "success")
-    
+
     def _on_file_load_error(self, error_message: str):
         """Enhanced error handling with notifications."""
         super()._on_file_load_error(error_message)
-        
+
         # Hide loading indicators
         self.loading_spinner.stop()
         self.progress_bar_modern.hide()
-        
+
         # Show error notification
         self._show_notification(f"Error: {error_message}", "error", 5000)
-    
+
     def resizeEvent(self, event):
         """Handle window resize to reposition floating elements."""
         super().resizeEvent(event)
-        
+
         # Reposition loading spinner
         if hasattr(self, 'loading_spinner'):
             self.loading_spinner.move(self.width() // 2 - 20, self.height() // 2 - 20)
-        
+
         # Reposition progress bar
         if hasattr(self, 'progress_bar_modern'):
             self.progress_bar_modern.move(self.width() // 2 - 150, self.height() - 100)

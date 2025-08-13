@@ -379,43 +379,43 @@ class PointManipulationService(PointManipulationProtocol):
                 return False
 
         return True
-    
+
     def delete_point(self, view: Any, idx: int) -> PointChange | None:
         """
         Delete a single point by index.
-        
+
         Args:
             view: The curve view widget
             idx: Index of point to delete
-        
+
         Returns:
             PointChange describing the operation, or None if failed
         """
         if not hasattr(view, 'points') or idx < 0 or idx >= len(view.points):
             return None
-        
+
         # Call delete_selected_points with single index
         return self.delete_selected_points(view, [idx])
-    
+
     def interpolate_points(self, view: Any, indices: list[int]) -> PointChange | None:
         """
         Interpolate selected points.
-        
+
         Args:
-            view: The curve view widget  
+            view: The curve view widget
             indices: Indices of points to interpolate
-        
+
         Returns:
             PointChange describing the operation, or None if failed
         """
         if not hasattr(view, 'points') or not indices:
             return None
-        
+
         # Store old values
         old_values = [view.points[i] for i in indices if 0 <= i < len(view.points)]
         if not old_values:
             return None
-        
+
         # Calculate interpolated values
         new_values = []
         for i in indices:
@@ -424,11 +424,11 @@ class PointManipulationService(PointManipulationProtocol):
                 if i > 0 and i < len(view.points) - 1:
                     prev_point = view.points[i - 1]
                     next_point = view.points[i + 1]
-                    
+
                     # Interpolate x and y values
                     interp_x = (prev_point[1] + next_point[1]) / 2
                     interp_y = (prev_point[2] + next_point[2]) / 2
-                    
+
                     # Keep the original frame
                     new_point = (view.points[i][0], interp_x, interp_y)
                     view.points[i] = new_point
@@ -436,15 +436,15 @@ class PointManipulationService(PointManipulationProtocol):
                 else:
                     # Edge points remain unchanged
                     new_values.append(view.points[i])
-        
+
         # Update view
         if hasattr(view, 'update'):
             view.update()
-        
+
         # Emit signal if available
         if hasattr(view, 'points_changed'):
             view.points_changed.emit()
-        
+
         return PointChange(
             operation=PointOperation.INTERPOLATE,
             indices=indices,

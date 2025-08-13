@@ -328,9 +328,9 @@ def load_csv_safe(
 
 def save_csv_safe(
     file_path: str | Path,
-    data: list,
+    data: list[Any],
     delimiter: str = ',',
-    header: list | None = None
+    header: list[str] | None = None
 ) -> bool:
     """
     Save data to CSV file with error handling.

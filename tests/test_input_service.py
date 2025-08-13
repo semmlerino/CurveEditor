@@ -6,28 +6,27 @@ has been modernized to use a delegation pattern with new services.
 The tests need to be updated to work with the new architecture.
 """
 
+
 import pytest
-from unittest.mock import MagicMock
 
 from services.interaction_service import InteractionService
-from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
 
 
 @pytest.mark.skip(reason="InteractionService architecture changed - needs test update")
 def test_handle_mouse_move_rubber_band_active():
     """
     Test handle_mouse_move when rubber band selection is active.
-    
+
     TODO: Update for new delegation-based architecture.
     """
     pass
 
 
-@pytest.mark.skip(reason="InteractionService architecture changed - needs test update") 
+@pytest.mark.skip(reason="InteractionService architecture changed - needs test update")
 def test_handle_mouse_release_rubber_band_finalize():
     """
     Test handle_mouse_release finalizing rubber band selection.
-    
+
     TODO: Update for new delegation-based architecture.
     """
     pass

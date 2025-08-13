@@ -440,13 +440,13 @@ class TransformService:
     def _create_transform_cached(view_state: ViewState) -> Transform:
         """
         Create a Transform from a ViewState with LRU caching.
-        
+
         This method uses @lru_cache for optimal performance. Since ViewState is
         a frozen dataclass, it's hashable and works perfectly as a cache key.
-        
+
         Args:
             view_state: The ViewState to create a transform for
-            
+
         Returns:
             Transform instance for the given view state
         """
@@ -455,13 +455,13 @@ class TransformService:
     def create_transform(self, view_state: ViewState) -> Transform:
         """
         Create a Transform from a ViewState with caching.
-        
+
         This method uses LRU caching for optimal performance. The cache is
         automatically managed by functools.lru_cache.
-        
+
         Args:
             view_state: The ViewState to create a transform for
-            
+
         Returns:
             Transform instance (potentially cached)
         """
@@ -470,11 +470,11 @@ class TransformService:
     def clear_cache(self) -> None:
         """Clear the transform cache."""
         self._create_transform_cached.cache_clear()
-        
+
     def get_cache_info(self) -> dict[str, Any]:
         """
         Get transform cache statistics.
-        
+
         Returns:
             Dictionary with cache hit/miss statistics
         """
