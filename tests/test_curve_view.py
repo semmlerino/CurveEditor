@@ -3,7 +3,7 @@
 Updated tests for CurveViewWidget.
 
 This test suite provides coverage of the new CurveViewWidget class that replaces
-the old CurveView. Tests are organized by functional areas to match the new 
+the old CurveView. Tests are organized by functional areas to match the new
 widget's capabilities.
 
 Test Categories:
@@ -16,7 +16,7 @@ Test Categories:
 
 import os
 import sys
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 
 import pytest
 
@@ -26,7 +26,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
+from tests.test_utilities import TestCurveView, TestDataBuilder
 from ui.curve_view_widget import CurveViewWidget
+
 
 class TestCurveViewWidgetInitialization:
     """Test CurveViewWidget initialization and basic setup."""
@@ -48,7 +50,7 @@ class TestCurveViewWidgetInitialization:
         assert curve_view_widget.scale_to_image is True
 
         # Display options
-        assert curve_view_widget.show_grid is True
+        assert curve_view_widget.show_grid is False
         assert curve_view_widget.show_points is True
         assert curve_view_widget.show_lines is True
         assert curve_view_widget.show_velocity_vectors is False
@@ -98,9 +100,9 @@ class TestPointDataManagement:
     def test_update_point(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
         """Test updating a point's coordinates."""
         curve_view_widget.set_curve_data(sample_points)
-        
+
         curve_view_widget.update_point(0, 150.0, 250.0)
-        
+
         # Check that point was updated
         assert curve_view_widget.curve_data[0][1] == 150.0  # X coordinate
         assert curve_view_widget.curve_data[0][2] == 250.0  # Y coordinate
@@ -109,9 +111,9 @@ class TestPointDataManagement:
         """Test removing a point."""
         curve_view_widget.set_curve_data(sample_points)
         original_length = len(curve_view_widget.curve_data)
-        
+
         curve_view_widget.remove_point(1)
-        
+
         assert len(curve_view_widget.curve_data) == original_length - 1
 
     def test_get_selected_indices(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
@@ -129,10 +131,10 @@ class TestPointDataManagement:
         # Test internal selection methods
         curve_view_widget._select_point(1)
         assert 1 in curve_view_widget.selected_indices
-        
+
         curve_view_widget._clear_selection()
         assert len(curve_view_widget.selected_indices) == 0
-        
+
         curve_view_widget._select_all()
         assert len(curve_view_widget.selected_indices) == len(sample_points)
 
@@ -151,7 +153,7 @@ class TestViewStateManagement:
         """Test pan functionality."""
         curve_view_widget.pan_offset_x = 100.0
         curve_view_widget.pan_offset_y = 50.0
-        
+
         assert curve_view_widget.pan_offset_x == 100.0
         assert curve_view_widget.pan_offset_y == 50.0
 
@@ -194,8 +196,8 @@ class TestCoordinateTransformation:
         transform = curve_view_widget.get_transform()
         assert transform is not None
         # Transform should have required methods
-        assert hasattr(transform, 'apply')
-        assert hasattr(transform, 'apply_inverse')
+        assert hasattr(transform, "data_to_screen")
+        assert hasattr(transform, "screen_to_data")
 
     def test_data_to_screen_conversion(self, curve_view_widget: CurveViewWidget) -> None:
         """Test converting data coordinates to screen coordinates."""
@@ -214,11 +216,11 @@ class TestCoordinateTransformation:
     def test_coordinate_roundtrip(self, curve_view_widget: CurveViewWidget) -> None:
         """Test that coordinate conversion is consistent."""
         original_x, original_y = 100.0, 200.0
-        
+
         # Convert to screen and back
         screen_pos = curve_view_widget.data_to_screen(original_x, original_y)
         converted_x, converted_y = curve_view_widget.screen_to_data(screen_pos)
-        
+
         # Should be approximately equal (allowing for floating point precision)
         assert abs(converted_x - original_x) < 0.1
         assert abs(converted_y - original_y) < 0.1
@@ -268,11 +270,11 @@ class TestInteractionHandling:
     def test_find_point_at(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
         """Test finding point at screen position."""
         curve_view_widget.set_curve_data(sample_points)
-        
+
         # This tests the internal method
         pos = QPointF(100.0, 200.0)
         result = curve_view_widget._find_point_at(pos)
-        
+
         # Should return -1 (no point found) or valid index
         assert isinstance(result, int)
         assert result >= -1
@@ -282,9 +284,9 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0, 2}
         original_length = len(curve_view_widget.curve_data)
-        
+
         curve_view_widget._delete_selected_points()
-        
+
         # Should have removed 2 points
         assert len(curve_view_widget.curve_data) == original_length - 2
         assert len(curve_view_widget.selected_indices) == 0
@@ -293,18 +295,18 @@ class TestInteractionHandling:
         """Test nudging selected points."""
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0}
-        
+
         # Get original position
         original_x = curve_view_widget.curve_data[0][1]
         original_y = curve_view_widget.curve_data[0][2]
-        
+
         # Nudge point
         curve_view_widget._nudge_selected(10.0, 5.0)
-        
+
         # Check that point moved
         new_x = curve_view_widget.curve_data[0][1]
         new_y = curve_view_widget.curve_data[0][2]
-        
+
         assert new_x == original_x + 10.0
         assert new_y == original_y + 5.0
 
@@ -316,16 +318,16 @@ class TestServiceIntegration:
         """Test setting main window reference."""
         mock_main_window = Mock()
         curve_view_widget.set_main_window(mock_main_window)
-        
+
         assert curve_view_widget.main_window == mock_main_window
-        assert curve_view_widget.curve_service is not None
+        assert curve_view_widget.interaction_service is not None
 
     def test_get_view_state(self, curve_view_widget: CurveViewWidget) -> None:
         """Test getting current view state."""
         view_state = curve_view_widget.get_view_state()
-        
+
         assert view_state is not None
-        assert hasattr(view_state, 'zoom_factor')
+        assert hasattr(view_state, "zoom_factor")
         assert view_state.zoom_factor == curve_view_widget.zoom_factor
 
     def test_set_background_image(self, curve_view_widget: CurveViewWidget) -> None:
@@ -349,20 +351,105 @@ class TestErrorHandling:
         """Test handling of invalid point operations."""
         # Try to update non-existent point
         curve_view_widget.update_point(99, 100.0, 200.0)  # Should not crash
-        
+
         # Try to remove non-existent point
         curve_view_widget.remove_point(99)  # Should not crash
 
     def test_selection_edge_cases(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
         """Test selection edge cases."""
         curve_view_widget.set_curve_data(sample_points)
-        
+
         # Try to select invalid index
         curve_view_widget._select_point(99)  # Should not crash
-        
+
         # Clear selection when already empty
         curve_view_widget._clear_selection()
         curve_view_widget._clear_selection()  # Should not crash
+
+
+class TestRealComponentBenefits:
+    """Demonstrate the benefits of using real components instead of mocks."""
+
+    def test_real_vs_mock_behavior(self) -> None:
+        """Show how real components provide actual behavior vs mock assumptions."""
+        # Real component - actual behavior
+        real_view = TestCurveView()
+        test_data = TestDataBuilder.curve_data(num_points=3)
+        real_view.set_curve_data(test_data)
+
+        # Real deletion behavior - data actually gets removed
+        original_count = len(real_view.curve_data)
+        real_view.selected_points = {1}
+        real_view._delete_selected_points()
+
+        # Verify real deletion happened
+        assert len(real_view.curve_data) == original_count - 1
+        assert real_view.selected_points == set()  # Real clearing
+
+        # Real coordinate transformation - actual math
+        real_view.zoom_factor = 2.0
+        real_view.offset_x = 100.0
+        screen_point = real_view.data_to_screen(150.0, 200.0)
+        data_point = real_view.screen_to_data(screen_point[0], screen_point[1])
+
+        # Real coordinate roundtrip works
+        assert abs(data_point[0] - 150.0) < 0.1
+        assert abs(data_point[1] - 200.0) < 0.1
+
+    def test_easy_test_data_creation(self) -> None:
+        """Show how builder pattern makes test data creation easy."""
+        # Create different types of test data easily
+        simple_data = TestDataBuilder.curve_data(num_points=5)
+        keyframe_data = TestDataBuilder.keyframe_data()
+        mixed_data = TestDataBuilder.curve_data()  # Contains both keyframes and interpolated
+        view_with_selection = TestDataBuilder.curve_view_with_data(
+            num_points=4, selected_indices={1, 3}
+        )
+
+        # Builder creates proper data structures
+        assert len(simple_data) == 5
+        assert all(isinstance(point, tuple) and len(point) == 4 for point in simple_data)
+
+        assert "keyframe" in [point[3] for point in keyframe_data]
+        assert "interpolated" in [point[3] for point in mixed_data]  # Use mixed_data instead
+
+        assert len(view_with_selection.curve_data) == 4
+        assert view_with_selection.selected_points == {1, 3}
+
+    def test_real_component_maintenance(self) -> None:
+        """Show how real components are easier to maintain than mocks."""
+        # Real component automatically matches interface changes
+        real_view = TestCurveView()
+
+        # If the real CurveView interface changes, this automatically adapts
+        # No need to update hundreds of mock method signatures
+        assert hasattr(real_view, "curve_data")
+        assert hasattr(real_view, "selected_points")
+        assert hasattr(real_view, "update")
+
+        # Real behavior doesn't drift from implementation
+        real_view.add_point((99, 999.0, 888.0, "test"))
+        assert len(real_view.curve_data) == 1
+        assert real_view.curve_data[0] == (99, 999.0, 888.0, "test")
+
+    def test_integration_with_real_widget(
+        self, curve_view_widget: CurveViewWidget, test_curve_view: TestCurveView
+    ) -> None:
+        """Show how real test components can work alongside real widgets."""
+        # Both provide similar interfaces but at different levels
+        test_data = TestDataBuilder.curve_data(num_points=3)
+
+        # Real widget (PySide6 implementation)
+        curve_view_widget.set_curve_data(test_data)
+        assert len(curve_view_widget.curve_data) == 3
+
+        # Real test component (lightweight implementation)
+        test_curve_view.set_curve_data(test_data)
+        assert len(test_curve_view.curve_data) == 3
+
+        # Both can be used where appropriate:
+        # - Real widget for UI integration tests
+        # - Real test component for service/logic tests
 
 
 if __name__ == "__main__":

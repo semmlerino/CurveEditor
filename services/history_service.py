@@ -1,216 +1,347 @@
-#!/usr/bin/env python
-
 """
-HistoryService: Manages undo/redo functionality for the application.
+History management service for the CurveEditor.
 
-This service handles:
-1. Adding current application state to the history stack
-2. Navigating through history with undo/redo operations
-3. Restoring application state from saved history
-4. Managing history size limits
+This service manages undo/redo functionality with memory-efficient
+state compression and automatic memory limit enforcement.
 """
 
-from typing import Any, Protocol
+import logging
+import pickle
+import sys
+import zlib
+from typing import Any
 
-class HistoryContainerProtocol(Protocol):
-    """Protocol for objects that can be saved and restored in history."""
-    
-    curve_data: list
-    point_name: str
-    point_color: str
-    
-    def restore_state(self, state: dict) -> None:
-        """Restore state from history."""
-        ...
+from services.compressed_snapshot import CompressedStateSnapshot
+from services.protocols.history_protocol import HistoryProtocol, HistoryStats
 
-class HistoryCommand(Protocol):
-    """Protocol for history commands that can be undone and redone."""
+logger = logging.getLogger(__name__)
 
-    def undo(self, main_window: HistoryContainerProtocol) -> None:
-        """Undo this command."""
-        ...
 
-    def redo(self, main_window: HistoryContainerProtocol) -> None:
-        """Redo this command."""
-        ...
 
-class StateSnapshot:
-    """Efficient state snapshot using minimal data storage while maintaining dict-like interface."""
+class HistoryService(HistoryProtocol):
+    """
+    Manages application state history for undo/redo.
 
-    def __init__(self, curve_data, point_name: str, point_color: str):
-        # Performance optimization: Store shallow copy instead of deepcopy
-        self._data = {
-            "curve_data": list(curve_data),  # Shallow copy - tuples are immutable
-            "point_name": point_name,
-            "point_color": point_color,
+    This service is responsible for:
+    - Recording application state changes
+    - Providing undo/redo functionality
+    - Compressing states for memory efficiency
+    - Enforcing memory limits
+    - Managing history stack
+    """
+
+    def __init__(self, max_memory_mb: int = 50):
+        """
+        Initialize the history service.
+
+        Args:
+            max_memory_mb: Maximum memory usage for history in MB
+        """
+        self._history: list[Any] = []  # Can store CompressedStateSnapshot or dict
+        self._history_index = -1
+        self._max_memory_mb = max_memory_mb
+        self._max_memory = max_memory_mb * 1024 * 1024  # Convert to bytes
+        self.compression_enabled = True
+
+        # History statistics
+        self.history_stats = {
+            "total_snapshots": 0,
+            "delta_snapshots": 0,
+            "full_snapshots": 0,
+            "memory_usage_mb": 0.0,
+            "compression_ratio": 0.0,
         }
 
-    def __getitem__(self, key: str) -> object:
-        """Support dict-like access for backward compatibility."""
-        return self._data[key]
-
-    def __setitem__(self, key: str, value: object) -> None:
-        """Support dict-like assignment for backward compatibility."""
-        self._data[key] = value
-
-    def get(self, key: str, default: object = None) -> object:
-        """Support dict.get() method for backward compatibility."""
-        return self._data.get(key, default)
-
-    def keys(self):
-        """Support dict.keys() for backward compatibility."""
-        return self._data.keys()
-
-    def values(self):
-        """Support dict.values() for backward compatibility."""
-        return self._data.values()
-
-    def items(self):
-        """Support dict.items() for backward compatibility."""
-        return self._data.items()
-
-class HistoryService:
-    """Service for managing application history stack and undo/redo operations."""
-
-    def add_to_history(self, main_window: HistoryContainerProtocol) -> None:
-        """Add current state to history.
-
-        This method:
-        1. If not at end of history, truncates history at current position
-        2. Adds current application state to history stack
-        3. Updates history index
-        4. Enforces history size limits
-        5. Updates UI button states
+    def add_to_history(self, state: Any, description: str = "") -> None:
+        """
+        Add a new state to history.
 
         Args:
-            main_window: The main application window containing state
+            state: Application state to record (dict with curve_data, point_name, point_color)
+            description: Human-readable description of the change
         """
-        # If we're not at the end of the history, truncate it
-        if main_window.history_index < len(main_window.history) - 1:
-            main_window.history = main_window.history[: main_window.history_index + 1]
+        # Truncate future history if we're not at the end
+        if self._history_index < len(self._history) - 1:
+            self._history = self._history[:self._history_index + 1]
 
-        # Performance optimization: Use efficient state snapshot instead of deepcopy
-        current_state = StateSnapshot(main_window.curve_data, main_window.point_name, main_window.point_color)
-
-        main_window.history.append(current_state)
-        main_window.history_index = len(main_window.history) - 1
-
-        # Limit history size
-        if len(main_window.history) > main_window.max_history_size:
-            main_window.history = main_window.history[1:]
-            main_window.history_index = len(main_window.history) - 1
-
-        # Update undo/redo buttons
-        self.update_history_buttons(main_window)
-
-        # Update workflow state - data has been modified
-        if hasattr(main_window, "services") and hasattr(main_window.services, "workflow_state"):
-            main_window.services.workflow_state.on_data_modified(main_window, "Edit operation")
-
-    def update_history_buttons(self, main_window: HistoryContainerProtocol) -> None:
-        """Update the state of undo/redo buttons based on history position.
-
-        Args:
-            main_window: The main application window containing undo/redo buttons
-        """
-        main_window.ui_components.undo_button.setEnabled(main_window.history_index > 0)
-        main_window.ui_components.redo_button.setEnabled(main_window.history_index < len(main_window.history) - 1)
-
-    def undo_action(self, main_window: HistoryContainerProtocol) -> None:
-        """Undo the last action by moving back in history.
-
-        Args:
-            main_window: The main application window
-        """
-        if main_window.history_index <= 0:
+        # Extract state components
+        if isinstance(state, dict):
+            curve_data = state.get("curve_data", [])
+            point_name = state.get("point_name", "TrackPoint")
+            point_color = state.get("point_color", "#FF0000")
+        else:
+            # Assume it's already a CompressedStateSnapshot
+            self._history.append(state)
+            self._history_index += 1
+            self._enforce_memory_limits()
+            self._update_stats()
             return
 
-        main_window.history_index -= 1
-        self.restore_state(main_window, main_window.history[main_window.history_index])
-        self.update_history_buttons(main_window)
+        # Create compressed snapshot
+        previous_snapshot = self._history[-1] if self._history else None
 
-    def undo(self, main_window: HistoryContainerProtocol) -> None:
-        """Undo the last action by moving back in history.
+        if self.compression_enabled:
+            current_state = CompressedStateSnapshot(curve_data, point_name, point_color, previous_snapshot)
+        else:
+            # Fallback to original format
+            current_state = {
+                "curve_data": list(curve_data),
+                "point_name": point_name,
+                "point_color": point_color,
+            }
 
-        Alias for undo_action to maintain API compatibility.
+        self._history.append(current_state)
+        self._history_index = len(self._history) - 1
+
+        # Enforce memory limits
+        self._enforce_memory_limits()
+
+        # Update statistics
+        self._update_stats()
+
+        logger.debug(f"Added to history: {description} (index: {self._history_index})")
+
+    def undo(self) -> Any | None:
+        """
+        Undo last operation, returns previous state.
+
+        Returns:
+            Previous state if undo available, None otherwise
+        """
+        if not self.can_undo():
+            logger.debug("Cannot undo: at beginning of history")
+            return None
+
+        self._history_index -= 1
+        state = self._history[self._history_index]
+
+        logger.debug(f"Undo to index: {self._history_index}")
+        return state
+
+    def redo(self) -> Any | None:
+        """
+        Redo next operation, returns next state.
+
+        Returns:
+            Next state if redo available, None otherwise
+        """
+        if not self.can_redo():
+            logger.debug("Cannot redo: at end of history")
+            return None
+
+        self._history_index += 1
+        state = self._history[self._history_index]
+
+        logger.debug(f"Redo to index: {self._history_index}")
+        return state
+
+    def clear_history(self) -> None:
+        """Clear all history."""
+        # Clean up compressed snapshots
+        for entry in self._history:
+            if isinstance(entry, CompressedStateSnapshot):
+                entry.cleanup()
+
+        self._history.clear()
+        self._history_index = -1
+        self.history_stats = {
+            "total_snapshots": 0,
+            "delta_snapshots": 0,
+            "full_snapshots": 0,
+            "memory_usage_mb": 0.0,
+            "compression_ratio": 0.0,
+        }
+        logger.debug("History cleared")
+
+    def can_undo(self) -> bool:
+        """
+        Check if undo is available.
+
+        Returns:
+            True if undo is possible
+        """
+        return self._history_index > 0
+
+    def can_redo(self) -> bool:
+        """
+        Check if redo is available.
+
+        Returns:
+            True if redo is possible
+        """
+        return self._history_index < len(self._history) - 1
+
+    def get_history_stats(self) -> HistoryStats:
+        """
+        Get statistics about history usage.
+
+        Returns:
+            History statistics
+        """
+        memory_mb = self.history_stats.get("memory_usage_mb", 0.0)
+        compression_ratio = self.history_stats.get("compression_ratio", 0.0)
+
+        return HistoryStats(
+            total_entries=len(self._history),
+            current_position=self._history_index,
+            memory_usage_mb=memory_mb,
+            compression_ratio=compression_ratio,
+            can_undo=self.can_undo(),
+            can_redo=self.can_redo()
+        )
+
+    def compress_state(self, state: Any) -> bytes:
+        """
+        Compress state for storage.
 
         Args:
-            main_window: The main application window
-        """
-        self.undo_action(main_window)
+            state: State to compress
 
-    def redo_action(self, main_window: HistoryContainerProtocol) -> None:
-        """Redo the previously undone action by moving forward in history.
+        Returns:
+            Compressed state as bytes
+        """
+        # Pickle and compress
+        pickled = pickle.dumps(state, protocol=pickle.HIGHEST_PROTOCOL)
+        compressed = zlib.compress(pickled, level=6)
+
+        # Log compression ratio
+        ratio = len(compressed) / len(pickled)
+        logger.debug(f"Compressed state: {len(pickled)} → {len(compressed)} bytes ({ratio:.1%})")
+
+        return compressed
+
+    def decompress_state(self, compressed: bytes) -> Any:
+        """
+        Decompress state for restoration.
 
         Args:
-            main_window: The main application window
+            compressed: Compressed state bytes
+
+        Returns:
+            Decompressed state
         """
-        if main_window.history_index >= len(main_window.history) - 1:
-            return
+        # Decompress and unpickle
+        decompressed = zlib.decompress(compressed)
+        state = pickle.loads(decompressed)
+        return state
 
-        main_window.history_index += 1
-        self.restore_state(main_window, main_window.history[main_window.history_index])
-        self.update_history_buttons(main_window)
-
-    def redo(self, main_window: HistoryContainerProtocol) -> None:
-        """Redo the previously undone action by moving forward in history.
-
-        Alias for redo_action to maintain API compatibility.
+    def set_memory_limit_mb(self, limit_mb: int) -> None:
+        """
+        Set memory limit for history storage.
 
         Args:
-            main_window: The main application window
+            limit_mb: New memory limit in MB
         """
-        self.redo_action(main_window)
+        self._max_memory_mb = limit_mb
+        self._max_memory = limit_mb * 1024 * 1024
+        self._enforce_memory_limits()
 
-    def restore_state(self, main_window: HistoryContainerProtocol, state: Any) -> None:
-        """Restore application state from history.
+    def _enforce_memory_limits(self) -> None:
+        """Enforce memory limits by removing old history if needed."""
+        total_memory = self._calculate_total_memory()
 
-        Applies saved state to the main window and updates the curve view
-        while preserving view position.
+        while self._history and total_memory > self._max_memory:
+            # Can't remove current or future states
+            if self._history_index <= 0:
+                break
 
-        Args:
-            main_window: The main application window
-            state: The saved application state to restore (StateSnapshot or legacy dict)
-        """
-        # Performance optimization: Always use shallow copy instead of deepcopy
-        # StateSnapshot provides dict-like interface, so this works for both formats
-        main_window.curve_data = list(state["curve_data"])  # Shallow copy instead of deepcopy
-        main_window.point_name = state["point_name"]
-        main_window.point_color = state["point_color"]
+            # Remove oldest state
+            removed = self._history.pop(0)
 
-        # Update view without resetting zoom/pan
-        try:
-            if hasattr(main_window.curve_view, "set_points"):
-                main_window.curve_view.set_points(main_window.curve_data)
-            elif hasattr(main_window.curve_view, "setPoints"):
-                # Get image dimensions if available, else use defaults
-                image_width = getattr(main_window, "image_width", 0)
-                image_height = getattr(main_window, "image_height", 0)
+            # Clean up if it's a compressed snapshot
+            if isinstance(removed, CompressedStateSnapshot):
+                removed.cleanup()
 
-                main_window.curve_view.setPoints(main_window.curve_data, image_width, image_height, preserve_view=True)
+            # Adjust history index
+            self._history_index -= 1
+
+            # Recalculate memory
+            total_memory = self._calculate_total_memory()
+
+        logger.debug(f"Enforced memory limit: {len(self._history)} entries, {total_memory / 1024 / 1024:.1f}MB")
+
+    def _calculate_total_memory(self) -> int:
+        """Calculate total memory usage of history."""
+        total = 0
+        for entry in self._history:
+            if isinstance(entry, CompressedStateSnapshot):
+                total += entry.get_memory_usage()
             else:
-                main_window.curve_view.update()
-        except AttributeError:
-            # Fallback if all methods are missing (edge case in testing)
-            if hasattr(main_window.curve_view, "update"):
-                main_window.curve_view.update()
+                # Estimate size for dict format
+                total += sys.getsizeof(pickle.dumps(entry))
+        return total
 
-        # Update info using unified status service
-        # Note: Status service integration would go here
-        
-    def save_state(self, main_window: HistoryContainerProtocol) -> None:
-        """Save current state to history.
-        
-        Alias for add_to_history for backward compatibility.
-        
-        Args:
-            main_window: The main application window containing state
+    def _update_stats(self) -> None:
+        """Update history statistics."""
+        total = len(self._history)
+        delta_count = 0
+        full_count = 0
+
+        for entry in self._history:
+            if isinstance(entry, CompressedStateSnapshot):
+                if entry._storage_type == "delta":
+                    delta_count += 1
+                else:
+                    full_count += 1
+            else:
+                full_count += 1  # Dict format counts as full
+
+        self.history_stats["total_snapshots"] = total
+        self.history_stats["delta_snapshots"] = delta_count
+        self.history_stats["full_snapshots"] = full_count
+        self.history_stats["memory_usage_mb"] = self._calculate_total_memory() / 1024 / 1024
+
+        if total > 0:
+            self.history_stats["compression_ratio"] = delta_count / total
+        else:
+            self.history_stats["compression_ratio"] = 0.0
+
+    def get_history_descriptions(self) -> list[tuple[int, str, bool]]:
         """
-        self.add_to_history(main_window)
+        Get list of history entry descriptions.
 
-# Module-level singleton instance
-_instance = HistoryService()
+        Returns:
+            List of (index, description, is_current) tuples
+        """
+        result = []
+        for i, entry in enumerate(self._history):
+            is_current = i == self._history_index
 
-def get_history_service() -> HistoryService:
-    """Get the singleton instance of HistoryService."""
-    return _instance
+            if isinstance(entry, CompressedStateSnapshot):
+                desc = f"State {i} ({entry._storage_type})"
+            else:
+                desc = f"State {i}"
+
+            result.append((i, desc, is_current))
+        return result
+
+    def jump_to_history(self, index: int) -> Any | None:
+        """
+        Jump to specific history entry.
+
+        Args:
+            index: History index to jump to
+
+        Returns:
+            State at that index, or None if invalid
+        """
+        if index < 0 or index >= len(self._history):
+            return None
+
+        self._history_index = index
+        state = self._history[index]
+
+        logger.debug(f"Jumped to history index: {index}")
+        return state
+
+    def get_current_state(self) -> Any | None:
+        """
+        Get the current state without changing history position.
+
+        Returns:
+            Current state or None if history is empty
+        """
+        if self._history_index < 0 or self._history_index >= len(self._history):
+            return None
+
+        return self._history[self._history_index]

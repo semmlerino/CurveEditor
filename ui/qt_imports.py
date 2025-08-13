@@ -1,0 +1,136 @@
+#!/usr/bin/env python
+"""
+Common Qt/PySide6 imports used across the UI components.
+
+This module centralizes frequently used Qt imports to reduce duplication
+and ensure consistency across UI components.
+"""
+
+# PySide6 Core
+from PySide6.QtCore import (
+    QEvent,
+    QObject,
+    QPointF,
+    QRect,
+    QRectF,
+    QSize,
+    QSizeF,
+    Qt,
+    QThread,
+    QTimer,
+    Signal,
+    SignalInstance,
+    Slot,
+)
+
+# PySide6 GUI
+from PySide6.QtGui import (
+    QAction,
+    QBrush,
+    QColor,
+    QFont,
+    QGuiApplication,
+    QIcon,
+    QImage,
+    QKeyEvent,
+    QKeySequence,
+    QMouseEvent,
+    QPainter,
+    QPainterPath,
+    QPalette,
+    QPen,
+    QPixmap,
+    QShortcut,
+    QWheelEvent,
+)
+
+# PySide6 Widgets
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDoubleSpinBox,
+    QFileDialog,
+    QHBoxLayout,
+    QInputDialog,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMenu,
+    QMenuBar,
+    QMessageBox,
+    QPushButton,
+    QRubberBand,
+    QSlider,
+    QSpinBox,
+    QStatusBar,
+    QStyle,
+    QTextEdit,
+    QToolBar,
+    QToolButton,
+    QVBoxLayout,
+    QWidget,
+)
+
+# Export all for easy importing
+__all__ = [
+    # Core
+    "QObject",
+    "QPointF",
+    "QRect",
+    "QRectF",
+    "QSize",
+    "QSizeF",
+    "Qt",
+    "QTimer",
+    "QThread",
+    "QEvent",
+    "Signal",
+    "SignalInstance",
+    "Slot",
+    # GUI
+    "QAction",
+    "QBrush",
+    "QColor",
+    "QFont",
+    "QGuiApplication",
+    "QIcon",
+    "QImage",
+    "QKeyEvent",
+    "QKeySequence",
+    "QMouseEvent",
+    "QPainter",
+    "QPainterPath",
+    "QPalette",
+    "QPen",
+    "QPixmap",
+    "QShortcut",
+    "QWheelEvent",
+    # Widgets
+    "QApplication",
+    "QCheckBox",
+    "QComboBox",
+    "QDialog",
+    "QDoubleSpinBox",
+    "QFileDialog",
+    "QHBoxLayout",
+    "QInputDialog",
+    "QLabel",
+    "QLineEdit",
+    "QMainWindow",
+    "QMenu",
+    "QMenuBar",
+    "QMessageBox",
+    "QPushButton",
+    "QRubberBand",
+    "QSlider",
+    "QSpinBox",
+    "QStatusBar",
+    "QStyle",
+    "QTextEdit",
+    "QToolBar",
+    "QToolButton",
+    "QVBoxLayout",
+    "QWidget",
+]

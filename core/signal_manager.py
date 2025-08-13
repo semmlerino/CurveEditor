@@ -13,6 +13,7 @@ Key features:
 4. Weak reference support to prevent circular references
 """
 
+import logging
 import weakref
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -20,9 +21,8 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Signal, SignalInstance
 
-import logging
-
 logger = logging.getLogger("signal_manager")
+
 
 class SignalConnection:
     """Represents a single signal connection that can be cleanly disconnected."""
@@ -81,6 +81,7 @@ class SignalConnection:
         except Exception as e:
             logger.warning(f"Failed to disconnect {self.signal_name}: {e}")
             return False
+
 
 class SignalManager:
     """Manages signal connections for a widget to prevent memory leaks.
@@ -164,10 +165,7 @@ class SignalManager:
         self.connections.clear()
 
         if disconnected > 0 or failed > 0:
-            logger.info(
-                f"Disconnected {disconnected} signals"
-                + (f", {failed} failed" if failed > 0 else "")
-            )
+            logger.info(f"Disconnected {disconnected} signals" + (f", {failed} failed" if failed > 0 else ""))
 
     def __del__(self) -> None:
         """Ensure all signals are disconnected when manager is destroyed."""
@@ -204,6 +202,7 @@ class SignalManager:
         finally:
             self.disconnect(connection)
 
+
 class ManagedWidget:
     """Mixin class that adds automatic signal management to Qt widgets.
 
@@ -230,6 +229,7 @@ class ManagedWidget:
         if hasattr(self, "signal_manager"):
             self.signal_manager.disconnect_all()
 
+
 def create_safe_connection(
     signal: Signal | SignalInstance,
     slot: Callable[..., Any],
@@ -252,6 +252,7 @@ def create_safe_connection(
     """
     manager = SignalManager(owner)
     return manager.connect(signal, slot, signal_name)
+
 
 def replace_lambda_with_method(
     widget: QObject,
@@ -280,6 +281,7 @@ def replace_lambda_with_method(
         # Create a wrapper that passes the arguments
         def wrapper():
             return method(*args, **kwargs)
+
         slot = wrapper
     else:
         slot = method

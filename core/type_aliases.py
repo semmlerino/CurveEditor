@@ -1,0 +1,88 @@
+#!/usr/bin/env python
+"""
+Type aliases for CurveEditor to improve type safety and readability.
+
+This module provides centralized type aliases for complex types used throughout
+the codebase, reducing duplication and improving maintainability.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from pathlib import Path
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from PySide6.QtCore import QPointF
+    from PySide6.QtGui import QImage, QPixmap
+    from PySide6.QtWidgets import QWidget
+
+# Core data types - consolidated point definitions
+PointTuple3 = tuple[int, float, float]
+PointTuple4 = tuple[int, float, float, str | bool]
+LegacyPointData = PointTuple3 | PointTuple4
+CurveDataList = list[LegacyPointData]
+
+# Unified point types for optimized operations
+# Note: These should match LegacyPointData for type compatibility
+PointData = tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, bool]
+PointList = list[PointData]
+
+# Path types
+PathLike = str | Path
+
+# Qt types (with better type handling)
+if TYPE_CHECKING:
+
+    type QtPointF = QPointF
+    type QtPixmap = QPixmap
+    type QtImage = QImage
+    type QtWidget = QWidget
+    type QtSignal = object  # Signal[...] - specific types in protocols
+else:
+    # Runtime stubs - avoid Any for better type inference
+    QtPointF = QtPixmap = QtImage = QtWidget = QtSignal = object
+
+# UI component types
+UIComponent = QtWidget
+UIContainer = dict[str, QtWidget]
+
+# Service types
+ServiceRegistry = dict[str, object]
+SignalConnection = object  # Qt signal connection
+
+
+class HasCurveData(Protocol):
+    """Protocol for objects that have curve data."""
+
+    @property
+    def curve_data(self) -> CurveDataList:
+        """Get the curve data."""
+        ...
+
+
+class HasSelection(Protocol):
+    """Protocol for objects that have selection state."""
+
+    @property
+    def selected_indices(self) -> list[int]:
+        """Get the selected indices."""
+        ...
+
+
+# Callback types
+ProgressCallback = Callable[[int, int], None] | None  # (current, total) -> None
+StatusCallback = Callable[[str], None] | None  # (message) -> None
+ErrorCallback = Callable[[str], None] | None  # (error_message) -> None
+
+# File operation types
+FileOperation = str  # "load", "save", "export", etc.
+FileResult = dict[str, str | int | bool | list[str]]  # Result of file operations
+
+# Transform types
+Coordinates = tuple[float, float]  # (x, y)
+ScreenCoordinates = tuple[int, int]  # (x, y) in screen pixels
+BoundingBox = tuple[float, float, float, float]  # (min_x, max_x, min_y, max_y)
+
+# History types - more specific than Any
+HistoryState = dict[str, CurveDataList | str | int | float | bool]  # State snapshot for undo/redo

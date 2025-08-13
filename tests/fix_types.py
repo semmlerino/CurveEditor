@@ -4,6 +4,7 @@ Simple script to fix type compatibility issues in the test files
 
 import re
 
+
 def fix_visualization_test_file():
     file_path = "test_visualization_service.py"
 
@@ -24,6 +25,7 @@ def fix_visualization_test_file():
         file.write(updated_content)
 
     print(f"Updated {file_path} with float coordinates")
+
 
 if __name__ == "__main__":
     fix_visualization_test_file()

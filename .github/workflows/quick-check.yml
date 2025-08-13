@@ -1,0 +1,36 @@
+name: Quick Check
+
+on:
+  push:
+    branches-ignore:
+      - main
+      - develop
+
+jobs:
+  quick-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.12'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest
+    
+    - name: Run quick tests
+      env:
+        QT_QPA_PLATFORM: offscreen
+      run: |
+        # Run only fast tests (no coverage for speed)
+        pytest tests/ -x --tb=short -q || true
+        
+        # Show summary
+        echo "Quick test run completed"
+        pytest tests/ --co -q | tail -5

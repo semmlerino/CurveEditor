@@ -41,6 +41,7 @@ DEFAULT_X = 0.0
 DEFAULT_Y = 0.0
 DEFAULT_STATUS = "normal"
 
+
 def is_point3(point: object) -> TypeGuard[Point3]:
     """
     TypeGuard to check if object is a valid Point3 tuple.
@@ -61,9 +62,10 @@ def is_point3(point: object) -> TypeGuard[Point3]:
         isinstance(point, tuple)
         and len(point) == 3
         and isinstance(point[0], int)
-        and isinstance(point[1], (int, float))
-        and isinstance(point[2], (int, float))
+        and isinstance(point[1], int | float)
+        and isinstance(point[2], int | float)
     )
+
 
 def is_point4(point: object) -> TypeGuard[Point4]:
     """
@@ -85,10 +87,11 @@ def is_point4(point: object) -> TypeGuard[Point4]:
         isinstance(point, tuple)
         and len(point) == 4
         and isinstance(point[0], int)
-        and isinstance(point[1], (int, float))
-        and isinstance(point[2], (int, float))
-        and isinstance(point[3], (str, bool))
+        and isinstance(point[1], int | float)
+        and isinstance(point[2], int | float)
+        and isinstance(point[3], str | bool)
     )
+
 
 def is_valid_point(point: object) -> TypeGuard[PointType]:
     """
@@ -107,14 +110,18 @@ def is_valid_point(point: object) -> TypeGuard[PointType]:
     """
     return is_point3(point) or is_point4(point)
 
+
 @overload
 def safe_extract_point(point: Point3) -> tuple[int, float, float, str]: ...
+
 
 @overload
 def safe_extract_point(point: Point4) -> tuple[int, float, float, str]: ...
 
+
 @overload
 def safe_extract_point(point: object) -> tuple[int, float, float, str]: ...
+
 
 def safe_extract_point(point: object) -> tuple[int, float, float, str]:
     """
@@ -160,11 +167,14 @@ def safe_extract_point(point: object) -> tuple[int, float, float, str]:
     # Fallback for invalid input
     return DEFAULT_FRAME, DEFAULT_X, DEFAULT_Y, DEFAULT_STATUS
 
+
 @overload
 def normalize_point(point: Point3) -> Point4: ...
 
+
 @overload
 def normalize_point(point: Point4) -> Point4: ...
+
 
 def normalize_point(point: PointType) -> Point4:
     """
@@ -208,6 +218,7 @@ def normalize_point(point: PointType) -> Point4:
     # This should never happen with proper TypeGuard usage
     raise ValueError(f"Invalid point format: {point}")
 
+
 def set_point_status(point: PointType, status: StatusType) -> Point4:
     """
     Return a new point tuple with the specified status.
@@ -236,6 +247,7 @@ def set_point_status(point: PointType, status: StatusType) -> Point4:
 
     return (frame, x, y, status_str)
 
+
 def update_point_coords(point: PointType, x: float, y: float) -> Point4:
     """
     Return a new point tuple with updated coordinates, preserving status.
@@ -257,6 +269,7 @@ def update_point_coords(point: PointType, x: float, y: float) -> Point4:
     """
     frame, _, _, status = normalize_point(point)
     return (frame, x, y, status)
+
 
 def validate_point_data(points: list[object]) -> list[Point4]:
     """
@@ -282,6 +295,7 @@ def validate_point_data(points: list[object]) -> list[Point4]:
 
     return validated_points
 
+
 def get_point_frame(point: PointType) -> int:
     """
     Safely get the frame number from any point tuple.
@@ -301,6 +315,7 @@ def get_point_frame(point: PointType) -> int:
     frame, _, _, _ = safe_extract_point(point)
     return frame
 
+
 def get_point_coords(point: PointType) -> tuple[float, float]:
     """
     Safely get the coordinates from any point tuple.
@@ -319,6 +334,7 @@ def get_point_coords(point: PointType) -> tuple[float, float]:
     """
     _, x, y, _ = safe_extract_point(point)
     return (x, y)
+
 
 def get_point_status(point: PointType) -> str:
     """
@@ -341,6 +357,7 @@ def get_point_status(point: PointType) -> str:
     _, _, _, status = safe_extract_point(point)
     return status
 
+
 def is_point_interpolated(point: PointType) -> bool:
     """
     Check if a point is marked as interpolated.
@@ -362,6 +379,7 @@ def is_point_interpolated(point: PointType) -> bool:
     status = get_point_status(point)
     return status == "interpolated"
 
+
 def create_point3(frame: int, x: float, y: float) -> Point3:
     """
     Create a Point3 tuple with validation.
@@ -379,6 +397,7 @@ def create_point3(frame: int, x: float, y: float) -> Point3:
         (1, 2.0, 3.0)
     """
     return (int(frame), float(x), float(y))
+
 
 def create_point4(frame: int, x: float, y: float, status: StatusType = "normal") -> Point4:
     """

@@ -11,28 +11,40 @@ different sources for image state.
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
+import logging
+from dataclasses import dataclass, field
 from enum import Enum, auto
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, TypeGuard
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+
 
 try:
     from PySide6.QtGui import QPixmap
 except ImportError:
     # Stub for when PySide6 is not available
     class QPixmap:
-        def __init__(self, *args):
+        def __init__(self, *args: object) -> None:
             pass
-        def isNull(self):
+
+        def isNull(self) -> bool:
             return True
-        def width(self):
-            return 0
-        def height(self):
+
+        def width(self) -> int:
             return 0
 
-import logging
+        def height(self) -> int:
+            return 0
+
+
 
 # Configure logger for this module
 logger = logging.getLogger("image_state")
+
 
 class ImageLoadingState(Enum):
     """Enumeration of possible image loading states."""
@@ -43,12 +55,13 @@ class ImageLoadingState(Enum):
     IMAGE_LOADED = auto()  # Image successfully loaded and displayed
     IMAGE_FAILED = auto()  # Image loading failed
 
+
 @dataclass
 class ImageSequenceInfo:
     """Information about an image sequence."""
 
     path: str = ""
-    filenames: list[str] = lambda: []  # type: ignore[assignment]
+    filenames: list[str] = field(default_factory=list)
     current_index: int = -1
     total_count: int = 0
 
@@ -61,7 +74,7 @@ class ImageSequenceInfo:
     @property
     def is_valid(self) -> bool:
         """Check if sequence info represents a valid sequence."""
-        return bool(self.path and self.filenames and os.path.isdir(self.path))
+        return bool(self.path and self.filenames and Path(self.path).is_dir())
 
     @property
     def current_filename(self) -> str | None:
@@ -75,8 +88,9 @@ class ImageSequenceInfo:
         """Get the full path to current image file."""
         filename = self.current_filename
         if filename and self.path:
-            return os.path.join(self.path, filename)
+            return str(Path(self.path) / filename)
         return None
+
 
 @dataclass
 class ImageDisplayInfo:
@@ -98,6 +112,24 @@ class ImageDisplayInfo:
         """Check if there was a loading error."""
         return bool(self.load_error)
 
+
+def _is_curve_view_protocol(obj: object) -> TypeGuard[CurveViewProtocol]:
+    """
+    Type guard to check if an object conforms to CurveViewProtocol.
+
+    Args:
+        obj: Object to check
+
+    Returns:
+        True if object has the required CurveViewProtocol attributes
+    """
+    required_attrs = [
+        'selected_point_idx', 'curve_data', 'current_image_idx',
+        'points', 'selected_points', 'offset_x', 'offset_y'
+    ]
+    return all(hasattr(obj, attr) for attr in required_attrs)
+
+
 class ImageState:
     """
     Unified image state management.
@@ -112,6 +144,12 @@ class ImageState:
     - Event-driven update notifications
     """
 
+    # Type annotations for class attributes
+    loading_state: ImageLoadingState
+    sequence_info: ImageSequenceInfo
+    display_info: ImageDisplayInfo
+    _state_change_callbacks: list[Callable[[], None]]
+
     def __init__(self) -> None:
         """Initialize image state with default values."""
         self.loading_state = ImageLoadingState.NO_SEQUENCE
@@ -119,7 +157,7 @@ class ImageState:
         self.display_info = ImageDisplayInfo()
 
         # State change callbacks
-        self._state_change_callbacks: list[callable] = []
+        self._state_change_callbacks: list[Callable[[], None]] = []
 
         logger.debug("ImageState initialized")
 
@@ -395,11 +433,15 @@ class ImageState:
 
         # Sync from curve view if available
         if hasattr(main_window, "curve_view") and main_window.curve_view:
-            self.sync_from_curve_view(main_window.curve_view)
+            curve_view = main_window.curve_view
+            if _is_curve_view_protocol(curve_view):
+                self.sync_from_curve_view(curve_view)
+            else:
+                logger.warning("curve_view object does not conform to CurveViewProtocol")
 
     # === State Change Notifications ===
 
-    def add_state_change_callback(self, callback: callable) -> None:
+    def add_state_change_callback(self, callback: Callable[[], None]) -> None:
         """
         Add a callback to be notified when state changes.
 
@@ -409,7 +451,7 @@ class ImageState:
         if callback not in self._state_change_callbacks:
             self._state_change_callbacks.append(callback)
 
-    def remove_state_change_callback(self, callback: callable) -> None:
+    def remove_state_change_callback(self, callback: Callable[[], None]) -> None:
         """
         Remove a state change callback.
 

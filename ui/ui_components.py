@@ -14,8 +14,10 @@ Key responsibilities:
 5. Support lazy initialization and validation
 """
 
+import logging
+from typing import Any
+
 from PySide6.QtCore import QTimer
-from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QComboBox,
     QDoubleSpinBox,
@@ -28,152 +30,157 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-import logging
-
 logger = logging.getLogger("ui_components")
+
 
 class ToolbarUIComponents:
     """Container for toolbar-related UI components."""
 
     def __init__(self) -> None:
         # File operations
-        self.ui_components.save_button: QPushButton | None = None
-        self.ui_components.load_button: QPushButton | None = None
-        self.ui_components.export_button: QPushButton | None = None
-        self.ui_components.load_images_button: QPushButton | None = None
+        self.save_button: QPushButton | None = None
+        self.load_button: QPushButton | None = None
+        self.export_button: QPushButton | None = None
+        self.load_images_button: QPushButton | None = None
 
         # History operations
-        self.ui_components.undo_button: QPushButton | None = None
-        self.ui_components.redo_button: QPushButton | None = None
+        self.undo_button: QPushButton | None = None
+        self.redo_button: QPushButton | None = None
 
         # Curve editing operations
-        self.ui_components.add_point_button: QPushButton | None = None
-        self.ui_components.smooth_button: QPushButton | None = None
-        self.ui_components.fill_gaps_button: QPushButton | None = None
-        self.ui_components.filter_button: QPushButton | None = None
-        self.ui_components.detect_problems_button: QPushButton | None = None
-        self.ui_components.extrapolate_button: QPushButton | None = None
+        self.add_point_button: QPushButton | None = None
+        self.smooth_button: QPushButton | None = None
+        self.fill_gaps_button: QPushButton | None = None
+        self.filter_button: QPushButton | None = None
+        self.detect_problems_button: QPushButton | None = None
+        self.extrapolate_button: QPushButton | None = None
 
         # View operations
-        self.ui_components.center_button: QPushButton | None = None
-        self.ui_components.reset_zoom_button: QPushButton | None = None
-        self.ui_components.toggle_bg_button: QPushButton | None = None
-        self.ui_components.toggle_background_button: QPushButton | None = None
-        self.ui_components.maximize_view_button: QPushButton | None = None
-        self.ui_components.reset_view_button: QPushButton | None = None
+        self.center_button: QPushButton | None = None
+        self.reset_zoom_button: QPushButton | None = None
+        self.toggle_bg_button: QPushButton | None = None
+        self.toggle_background_button: QPushButton | None = None
+        self.maximize_view_button: QPushButton | None = None
+        self.reset_view_button: QPushButton | None = None
 
         # Analysis operations
-        self.ui_components.analyze_button: QPushButton | None = None
+        self.analyze_button: QPushButton | None = None
 
         # Utility
-        self.ui_components.shortcuts_button: QPushButton | None = None
+        self.shortcuts_button: QPushButton | None = None
+
 
 class TimelineUIComponents:
     """Container for timeline and playback UI components."""
 
     def __init__(self) -> None:
         # Timeline controls
-        self.ui_components.timeline_slider: QSlider | None = None
-        self.ui_components.frame_edit: QLineEdit | None = None
-        self.ui_components.go_button: QPushButton | None = None
+        self.timeline_slider: QSlider | None = None
+        self.frame_edit: QLineEdit | None = None
+        self.go_button: QPushButton | None = None
 
         # Playback controls
-        self.ui_components.play_button: QPushButton | None = None
-        self.ui_components.prev_frame_button: QPushButton | None = None
-        self.ui_components.next_frame_button: QPushButton | None = None
-        self.ui_components.first_frame_button: QPushButton | None = None
-        self.ui_components.last_frame_button: QPushButton | None = None
+        self.play_button: QPushButton | None = None
+        self.prev_frame_button: QPushButton | None = None
+        self.next_frame_button: QPushButton | None = None
+        self.first_frame_button: QPushButton | None = None
+        self.last_frame_button: QPushButton | None = None
 
         # Image navigation
-        self.ui_components.prev_image_button: QPushButton | None = None
-        self.ui_components.next_image_button: QPushButton | None = None
+        self.prev_image_button: QPushButton | None = None
+        self.next_image_button: QPushButton | None = None
 
         # Timeline components
-        self.ui_components.playback_timer: QTimer | None = None
-        self.ui_components.frame_marker: Any | None = None  # TimelineFrameMarker
+        self.playback_timer: QTimer | None = None
+        self.frame_marker: Any | None = None  # TimelineFrameMarker
 
         # Labels
-        self.ui_components.frame_label: QLabel | None = None
-        self.ui_components.frame_info_label: QLabel | None = None
+        self.frame_label: QLabel | None = None
+        self.frame_info_label: QLabel | None = None
+
 
 class StatusUIComponents:
     """Container for status and information UI components."""
 
     def __init__(self) -> None:
         # Status bar
-        self.ui_components.status_bar: QStatusBar | None = None
+        self.status_bar: QStatusBar | None = None
 
         # Information displays
-        self.ui_components.info_label: QLabel | None = None
-        self.ui_components.image_label: QLabel | None = None
+        self.info_label: QLabel | None = None
+        self.image_label: QLabel | None = None
 
         # Quality metrics
-        self.ui_components.quality_score_label: QLabel | None = None
-        self.ui_components.quality_consistency_label: QLabel | None = None
-        self.ui_components.quality_coverage_label: QLabel | None = None
-        self.ui_components.quality_smoothness_label: QLabel | None = None
+        self.quality_score_label: QLabel | None = None
+        self.quality_consistency_label: QLabel | None = None
+        self.quality_coverage_label: QLabel | None = None
+        self.quality_smoothness_label: QLabel | None = None
 
         # Quality metrics (alternate names)
-        self.ui_components.consistency_label: QLabel | None = None
-        self.ui_components.coverage_label: QLabel | None = None
-        self.ui_components.smoothness_label: QLabel | None = None
+        self.consistency_label: QLabel | None = None
+        self.coverage_label: QLabel | None = None
+        self.smoothness_label: QLabel | None = None
+
 
 class VisualizationUIComponents:
     """Container for visualization and display UI components."""
 
     def __init__(self) -> None:
         # Visualization toggles
-        self.ui_components.toggle_grid_button: QPushButton | None = None
-        self.ui_components.toggle_vectors_button: QPushButton | None = None
-        self.ui_components.toggle_frame_numbers_button: QPushButton | None = None
-        self.ui_components.toggle_crosshair_button: QPushButton | None = None
-        self.ui_components.toggle_grid_view_button: QPushButton | None = None
+        self.toggle_grid_button: QPushButton | None = None
+        self.toggle_vectors_button: QPushButton | None = None
+        self.toggle_frame_numbers_button: QPushButton | None = None
+        self.toggle_crosshair_button: QPushButton | None = None
+        self.toggle_grid_view_button: QPushButton | None = None
 
         # View controls
-        self.ui_components.centering_toggle: QPushButton | None = None
-        self.ui_components.center_on_point_button: QPushButton | None = None
-        self.ui_components.opacity_slider: QSlider | None = None
+        self.centering_toggle: QPushButton | None = None
+        self.center_on_point_button: QPushButton | None = None
+        self.opacity_slider: QSlider | None = None
 
         # Display components
-        self.ui_components.nudge_indicator: QWidget | None = None
+        self.nudge_indicator: QWidget | None = None
+
 
 class PointEditUIComponents:
     """Container for point editing UI components."""
 
     def __init__(self) -> None:
         # Point editing controls
-        self.ui_components.update_point_button: QPushButton | None = None
-        self.ui_components.x_edit: QLineEdit | None = None
-        self.ui_components.y_edit: QLineEdit | None = None
-        self.ui_components.type_edit: QLineEdit | None = None
+        self.update_point_button: QPushButton | None = None
+        self.x_edit: QLineEdit | None = None
+        self.y_edit: QLineEdit | None = None
+        self.type_edit: QLineEdit | None = None
 
         # Point display settings
-        self.ui_components.point_size_spin: QSpinBox | None = None
-        self.ui_components.point_radius_spinbox: QSpinBox | None = None
-        self.ui_components.point_size_label: QLabel | None = None
+        self.point_size_spin: QSpinBox | None = None
+        self.point_radius_spinbox: QSpinBox | None = None
+        self.point_size_label: QLabel | None = None
 
         # Labels
-        self.ui_components.type_label: QLabel | None = None
+        self.type_label: QLabel | None = None
+
 
 class SmoothingUIComponents:
     """Container for smoothing and filtering UI components."""
 
     def __init__(self) -> None:
         # Smoothing controls
-        self.ui_components.smoothing_apply_button: QPushButton | None = None
-        self.ui_components.smoothing_method_combo: QComboBox | None = None
-        self.ui_components.smoothing_window_spinbox: QSpinBox | None = None
-        self.ui_components.smoothing_window_spin: QSpinBox | None = None  # Alias
-        self.ui_components.smoothing_sigma_spin: QDoubleSpinBox | None = None
-        self.ui_components.smoothing_range_combo: QComboBox | None = None
+        self.smoothing_apply_button: QPushButton | None = None
+        self.smoothing_method_combo: QComboBox | None = None
+        self.smoothing_window_spinbox: QSpinBox | None = None
+        self.smoothing_window_spin: QSpinBox | None = None  # Alias
+        self.smoothing_sigma_spin: QDoubleSpinBox | None = None
+        self.smoothing_range_combo: QComboBox | None = None
 
         # Filter controls
-        self.ui_components.filter_preset_combo: QComboBox | None = None
-        self.ui_components.apply_preset_button: QPushButton | None = None
-        self.ui_components.presets_combo: QComboBox | None = None
+        self.filter_preset_combo: QComboBox | None = None
+        self.apply_preset_button: QPushButton | None = None
+        self.presets_combo: QComboBox | None = None
 
         # Precision controls
-        self.ui_components.precision_spinbox: QSpinBox | None = None
+        self.precision_spinbox: QSpinBox | None = None
+
 
 class UIComponents:
     """
@@ -183,17 +190,17 @@ class UIComponents:
     complexity from 85+ individual widget attributes to organized component groups.
     """
 
-    def __init__(self, main_window: "MainWindow") -> None:
+    def __init__(self, main_window: Any) -> None:
         """Initialize UI components container."""
-        self.main_window = main_window
+        self.main_window: Any = main_window
 
         # Create component groups
-        self.toolbar = ToolbarUIComponents()
-        self.timeline = TimelineUIComponents()
-        self.status = StatusUIComponents()
-        self.visualization = VisualizationUIComponents()
-        self.point_edit = PointEditUIComponents()
-        self.smoothing = SmoothingUIComponents()
+        self.toolbar: ToolbarUIComponents = ToolbarUIComponents()
+        self.timeline: TimelineUIComponents = TimelineUIComponents()
+        self.status: StatusUIComponents = StatusUIComponents()
+        self.visualization: VisualizationUIComponents = VisualizationUIComponents()
+        self.point_edit: PointEditUIComponents = PointEditUIComponents()
+        self.smoothing: SmoothingUIComponents = SmoothingUIComponents()
 
         logger.info("UIComponents container initialized with component groups")
 
@@ -516,8 +523,14 @@ class UIComponents:
 
         # Define critical components that must exist
         critical_components = [
-            "save_button", "load_button", "timeline_slider", "frame_edit",
-            "status_bar", "info_label", "undo_button", "redo_button"
+            "save_button",
+            "load_button",
+            "timeline_slider",
+            "frame_edit",
+            "status_bar",
+            "info_label",
+            "undo_button",
+            "redo_button",
         ]
 
         for component_name in critical_components:

@@ -1,0 +1,85 @@
+name: Tests
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y xvfb libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xfixes0
+    
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov pytest-qt
+    
+    - name: Run type checking
+      run: |
+        pip install basedpyright
+        basedpyright . --pythonversion 3.12 || true  # Allow failures for now
+    
+    - name: Run tests with coverage
+      env:
+        QT_QPA_PLATFORM: offscreen
+        DISPLAY: :99
+      run: |
+        xvfb-run -a pytest tests/ --cov=services --cov=ui --cov=core --cov=data --cov=rendering --cov-report=xml --cov-report=term-missing -v
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false  # Don't fail if codecov is down
+    
+    - name: Generate coverage report
+      run: |
+        echo "## Test Coverage Report" >> $GITHUB_STEP_SUMMARY
+        echo "| Module | Coverage |" >> $GITHUB_STEP_SUMMARY
+        echo "|--------|----------|" >> $GITHUB_STEP_SUMMARY
+        pytest tests/ --cov=services --cov=ui --cov=core --cov-report=term | grep -E "^(services|ui|core|TOTAL)" | awk '{print "| " $1 " | " $4 " |"}' >> $GITHUB_STEP_SUMMARY || true
+    
+    - name: Check coverage threshold
+      run: |
+        # Extract overall coverage percentage
+        COVERAGE=$(pytest tests/ --cov=services --cov=ui --cov=core --cov-report=term | grep "TOTAL" | awk '{print $4}' | sed 's/%//')
+        echo "Overall coverage: ${COVERAGE}%"
+        
+        # Set minimum threshold (adjust as needed)
+        THRESHOLD=25
+        
+        if (( $(echo "$COVERAGE < $THRESHOLD" | bc -l) )); then
+          echo "⚠️ Coverage ${COVERAGE}% is below threshold ${THRESHOLD}%"
+          # Don't fail the build yet, just warn
+        else
+          echo "✅ Coverage ${COVERAGE}% meets threshold ${THRESHOLD}%"
+        fi

@@ -19,6 +19,7 @@ from ui import ui_constants
 # Create logger directly to avoid circular dependency with services
 logger = logging.getLogger("ui_scaling")
 
+
 class ScreenInfo(NamedTuple):
     """Information about the current screen configuration."""
 
@@ -27,6 +28,7 @@ class ScreenInfo(NamedTuple):
     dpi: float
     device_pixel_ratio: float
     physical_dpi: float
+
 
 class UIScaling:
     """Utility class for DPI-aware UI scaling and responsive design."""
@@ -590,18 +592,22 @@ class UIScaling:
 
         widget.setStyleSheet(stylesheet)
 
+
 # Convenience functions for common operations
 def scale_px(pixels: int) -> int:
     """Convenience function for scaling pixels."""
     return UIScaling.scale_px(pixels)
 
+
 def get_responsive_height(target_ratio: float, min_px: int, max_px: int | None = None) -> int:
     """Convenience function for calculating responsive height."""
     return UIScaling.calculate_responsive_height(target_ratio, min_px, max_px)
 
+
 def get_responsive_width(target_ratio: float, min_px: int, max_px: int | None = None) -> int:
     """Convenience function for calculating responsive width."""
     return UIScaling.calculate_responsive_width(target_ratio, min_px, max_px)
+
 
 def get_content_height(lines: int = 1, padding: int = 8) -> int:
     """Convenience function for calculating content-based height."""

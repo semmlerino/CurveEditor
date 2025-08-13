@@ -7,7 +7,10 @@ The Excel export functionality requires the optional xlsxwriter dependency.
 
 import logging
 
+from core.path_security import PathSecurityError, validate_file_path
+
 logger = logging.getLogger("csv_export")
+
 
 def export_to_csv(
     file_path: str, curve_data: list[tuple[int, float, float]], include_header: bool = True, delimiter: str = ","
@@ -23,6 +26,16 @@ def export_to_csv(
     Returns:
         True if export was successful, False otherwise
     """
+    # Validate file path for security
+    try:
+        validated_path = validate_file_path(
+            file_path, operation_type="export_files", allow_create=True, require_exists=False
+        )
+        file_path = str(validated_path)
+    except PathSecurityError as e:
+        logger.error(f"Security violation: {e}")
+        return False
+
     if not curve_data:
         logger.warning("No curve data to export")
         return False
@@ -43,6 +56,7 @@ def export_to_csv(
         logger.error(f"Error exporting to CSV: {str(e)}")
         return False
 
+
 def export_to_excel(file_path: str, curve_data: list[tuple[int, float, float]], sheet_name: str = "Track Data") -> bool:
     """Export tracking data to Excel format.
 
@@ -57,6 +71,16 @@ def export_to_excel(file_path: str, curve_data: list[tuple[int, float, float]], 
     Returns:
         True if export was successful, False otherwise
     """
+    # Validate file path for security
+    try:
+        validated_path = validate_file_path(
+            file_path, operation_type="export_files", allow_create=True, require_exists=False
+        )
+        file_path = str(validated_path)
+    except PathSecurityError as e:
+        logger.error(f"Security violation: {e}")
+        return False
+
     if not curve_data:
         logger.warning("No curve data to export")
         return False

@@ -1,14 +1,10 @@
 #!/usr/bin/env python
 """
-Consolidated DataService for CurveEditor.
+Refactored DataService for CurveEditor.
 
-This service merges functionality from:
-- curve_service.py: Analysis methods (smooth, filter, fill_gaps, detect_outliers)
-- file_service.py: File I/O operations (JSON/CSV load/save)
-- image_service.py: Image loading and manipulation
-
-Provides a unified interface for all data operations including analysis,
-file I/O, and image management.
+This service focuses on data analysis operations while delegating:
+- File I/O operations to FileIOService
+- Image operations to ImageSequenceService
 """
 
 import csv
@@ -16,636 +12,588 @@ import json
 import logging
 import os
 import statistics
+import threading
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from PySide6.QtGui import QImage, QPixmap
-from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
-
+from core.type_aliases import CurveDataList
+from services.file_io_service import FileIOService
+from services.image_sequence_service import ImageSequenceService
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QImage
+    from PySide6.QtWidgets import QWidget
 
 logger = logging.getLogger("data_service")
 
 
 class DataService:
     """
-    Consolidated service for all data operations.
-    
+    Refactored service for data analysis operations.
+
     This service handles:
-    - Curve data analysis (smoothing, filtering, gap filling)
-    - File I/O operations (JSON/CSV loading and saving)
-    - Image sequence management
+    - Curve data analysis (smoothing, filtering, gap filling, outlier detection)
+    - Delegates file I/O to FileIOService
+    - Delegates image operations to ImageSequenceService
     """
-    
+
     def __init__(
         self,
         logging_service: LoggingServiceProtocol | None = None,
         status_service: StatusServiceProtocol | None = None,
-    ):
-        """Initialize DataService with optional dependencies.
-        
-        Args:
-            logging_service: Optional logging service for error tracking
-            status_service: Optional status service for user feedback
-        """
+    ) -> None:
+        """Initialize DataService with optional dependencies."""
+        self._lock = threading.RLock()
         self._logger = logging_service
         self._status = status_service
-        
-        # File service state
-        self._recent_files: list[str] = []
-        self._max_recent_files = 10
-        self._last_directory = ""
-        
-        # Image service state
-        self._supported_formats = ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif']
-        self._image_cache: dict[str, QImage] = {}
-        self._max_cache_size = 50
-        
-        # Load recent files from config if available
-        self._load_recent_files()
-    
-    # ==================== Analysis Methods (from curve_service) ====================
-    
-    def smooth_moving_average(self, data: list[tuple], window_size: int = 5) -> list[tuple]:
-        """Apply moving average smoothing to curve data.
-        
-        Args:
-            data: List of point tuples (frame, x, y, ...)
-            window_size: Size of the moving average window
-        
-        Returns:
-            Smoothed data points
-        """
+
+        # Initialize delegate services
+        use_new = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
+        self._file_io = FileIOService() if use_new else None
+        self._image = ImageSequenceService() if use_new else None
+
+        # Legacy state (only if not using new services)
+        if not use_new:
+            self._recent_files: list[str] = []
+            self._max_recent_files: int = 10  # Maximum number of recent files to keep
+            self._last_directory: str = ""
+            self._image_cache: dict = {}
+            self._max_cache_size: int = 100  # Maximum number of cached images
+
+    # ==================== Core Analysis Methods ====================
+
+    def smooth_moving_average(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
+        """Apply moving average smoothing to curve data."""
         if len(data) < window_size:
             return data
-        
+
         result = []
         for i in range(len(data)):
             start = max(0, i - window_size // 2)
             end = min(len(data), i + window_size // 2 + 1)
             window = data[start:end]
+
             avg_x = sum(p[1] for p in window) / len(window)
             avg_y = sum(p[2] for p in window) / len(window)
-            result.append((data[i][0], avg_x, avg_y, *data[i][3:]))
-        
-        if self._logger:
-            self._logger.log_info(f"Applied moving average smoothing with window size {window_size}")
-        
+
+            # Preserve frame and additional data
+            if len(data[i]) > 3:
+                result.append((data[i][0], avg_x, avg_y) + data[i][3:])
+            else:
+                result.append((data[i][0], avg_x, avg_y))
+
+        if self._status:
+            self._status.show_status(f"Applied moving average (window={window_size})")
         return result
-    
-    def filter_median(self, data: list[tuple], window_size: int = 5) -> list[tuple]:
-        """Apply median filter to curve data.
-        
-        Args:
-            data: List of point tuples (frame, x, y, ...)
-            window_size: Size of the median filter window
-        
-        Returns:
-            Filtered data points
-        """
+
+    def filter_median(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
+        """Apply median filter to curve data."""
         if len(data) < window_size:
             return data
-        
+
         result = []
         for i in range(len(data)):
             start = max(0, i - window_size // 2)
             end = min(len(data), i + window_size // 2 + 1)
             window = data[start:end]
+
             med_x = statistics.median(p[1] for p in window)
             med_y = statistics.median(p[2] for p in window)
-            result.append((data[i][0], med_x, med_y, *data[i][3:]))
-        
-        if self._logger:
-            self._logger.log_info(f"Applied median filter with window size {window_size}")
-        
+
+            if len(data[i]) > 3:
+                result.append((data[i][0], med_x, med_y) + data[i][3:])
+            else:
+                result.append((data[i][0], med_x, med_y))
+
+        if self._status:
+            self._status.show_status(f"Applied median filter (window={window_size})")
         return result
-    
-    def filter_butterworth(self, data: list[tuple], cutoff: float = 0.1) -> list[tuple]:
-        """Apply simple low-pass filter (simplified butterworth).
-        
-        Args:
-            data: List of point tuples (frame, x, y, ...)
-            cutoff: Cutoff frequency (0.0 to 1.0)
-        
-        Returns:
-            Filtered data points
-        """
+
+    def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
+        """Apply Butterworth low-pass filter using scipy."""
+        try:
+            from scipy import signal
+
+            if len(data) < 4:
+                return data
+
+            frames = [p[0] for p in data]
+            x_coords = [p[1] for p in data]
+            y_coords = [p[2] for p in data]
+
+            # Design and apply filter
+            b, a = signal.butter(order, cutoff, btype='low')
+            filtered_x = signal.filtfilt(b, a, x_coords)
+            filtered_y = signal.filtfilt(b, a, y_coords)
+
+            # Reconstruct data
+            result = []
+            for i, frame in enumerate(frames):
+                if len(data[i]) > 3:
+                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])
+                else:
+                    result.append((frame, filtered_x[i], filtered_y[i]))
+
+            if self._status:
+                self._status.show_status("Applied Butterworth filter")
+            return result
+
+        except ImportError:
+            if self._logger:
+                self._logger.log_error("scipy not available")
+            return data
+
+    def fill_gaps(self, data: CurveDataList, max_gap: int = 5) -> CurveDataList:
+        """Fill gaps in curve data using linear interpolation."""
         if len(data) < 2:
             return data
-        
-        result = [data[0]]
-        alpha = cutoff
-        for i in range(1, len(data)):
-            filtered_x = alpha * data[i][1] + (1 - alpha) * result[-1][1]
-            filtered_y = alpha * data[i][2] + (1 - alpha) * result[-1][2]
-            result.append((data[i][0], filtered_x, filtered_y, *data[i][3:]))
-        
-        if self._logger:
-            self._logger.log_info(f"Applied butterworth filter with cutoff {cutoff}")
-        
-        return result
-    
-    def fill_gaps(self, data: list[tuple], max_gap: int = 10) -> list[tuple]:
-        """Fill gaps in curve data with linear interpolation.
-        
-        Args:
-            data: List of point tuples (frame, x, y, ...)
-            max_gap: Maximum gap size to fill with interpolation
-        
-        Returns:
-            Data with gaps filled
-        """
-        if len(data) < 2:
-            return data
-        
+
         result = []
         filled_count = 0
-        
+
         for i in range(len(data) - 1):
             result.append(data[i])
-            gap = data[i+1][0] - data[i][0] - 1
+            gap = data[i + 1][0] - data[i][0] - 1
+
             if 0 < gap <= max_gap:
-                # Linear interpolation
+                # Linear interpolation for gap filling
                 for j in range(1, gap + 1):
                     t = j / (gap + 1)
                     frame = data[i][0] + j
-                    x = data[i][1] + t * (data[i+1][1] - data[i][1])
-                    y = data[i][2] + t * (data[i+1][2] - data[i][2])
+                    x = data[i][1] + t * (data[i + 1][1] - data[i][1])
+                    y = data[i][2] + t * (data[i + 1][2] - data[i][2])
                     result.append((frame, x, y, False))  # Mark as interpolated
                     filled_count += 1
-        
+
         result.append(data[-1])
-        
-        if self._logger:
-            self._logger.log_info(f"Filled {filled_count} gaps with max gap size {max_gap}")
-        
-        if self._status and filled_count > 0:
-            self._status.show_info(f"Filled {filled_count} gaps")
-        
+
+        if filled_count > 0:
+            logger.info(f"Filled {filled_count} gap points")
         return result
-    
-    def detect_outliers(self, data: list[tuple], threshold: float = 2.0) -> list[int]:
-        """Detect outlier points based on deviation from neighbors.
-        
-        Args:
-            data: List of point tuples (frame, x, y, ...)
-            threshold: Standard deviation threshold for outlier detection
-        
-        Returns:
-            List of indices of detected outliers
-        """
+
+    def detect_outliers(self, data: CurveDataList, threshold: float = 2.0) -> list[int]:
+        """Detect outliers based on velocity deviation."""
         if len(data) < 3:
             return []
-        
-        outliers = []
-        
-        # Calculate velocity between consecutive points
+
+        # Calculate velocities
         velocities = []
         for i in range(1, len(data)):
-            dx = data[i][1] - data[i-1][1]
-            dy = data[i][2] - data[i-1][2]
-            dt = data[i][0] - data[i-1][0]
+            dx = data[i][1] - data[i - 1][1]
+            dy = data[i][2] - data[i - 1][2]
+            dt = data[i][0] - data[i - 1][0]
             if dt > 0:
-                vx = dx / dt
-                vy = dy / dt
-                velocities.append((vx, vy))
-        
+                velocities.append((dx / dt, dy / dt))
+
         if len(velocities) < 2:
             return []
-        
-        # Calculate mean and std of velocities
+
+        # Calculate statistics
         mean_vx = sum(v[0] for v in velocities) / len(velocities)
         mean_vy = sum(v[1] for v in velocities) / len(velocities)
-        
+
+        outliers = []
         if len(velocities) > 1:
             std_vx = statistics.stdev(v[0] for v in velocities)
             std_vy = statistics.stdev(v[1] for v in velocities)
-        else:
-            std_vx = std_vy = 0
-        
-        # Detect outliers based on velocity deviation
-        for i, (vx, vy) in enumerate(velocities):
-            if std_vx > 0 and abs(vx - mean_vx) > threshold * std_vx:
-                outliers.append(i + 1)
-            elif std_vy > 0 and abs(vy - mean_vy) > threshold * std_vy:
-                outliers.append(i + 1)
-        
+
+            # Detect outliers
+            for i, (vx, vy) in enumerate(velocities):
+                if (std_vx > 0 and abs(vx - mean_vx) > threshold * std_vx) or \
+                   (std_vy > 0 and abs(vy - mean_vy) > threshold * std_vy):
+                    outliers.append(i + 1)
+
         if self._logger and outliers:
-            self._logger.log_info(f"Detected {len(outliers)} outliers with threshold {threshold}")
-        
+            self._logger.log_info(f"Detected {len(outliers)} outliers")
         return outliers
-    
-    # ==================== File I/O Methods (from file_service) ====================
-    
-    def load_track_data(self, parent_widget: QWidget) -> list[tuple] | None:
-        """Load track data from file.
-        
-        Args:
-            parent_widget: Parent widget for dialog
-        
-        Returns:
-            List of point tuples or None if cancelled/failed
-        """
-        # Open file dialog
+
+    def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
+        """Add track data (for compatibility)."""
+        if self._status:
+            self._status.show_status(f"Added {len(data)} points for '{label}'")
+
+    # ==================== File I/O Delegation ====================
+
+    def load_track_data(self, parent_widget: "QWidget") -> CurveDataList | None:
+        """Load track data from file."""
+        if not self._file_io:
+            return self._load_track_data_legacy(parent_widget)
+
+        from PySide6.QtWidgets import QFileDialog
+
         file_path, _ = QFileDialog.getOpenFileName(
-            parent_widget,
-            "Load Track Data",
-            self._last_directory,
+            parent_widget, "Load Track Data",
+            self._file_io.get_last_directory(),
             "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)"
         )
-        
+
         if not file_path:
             return None
-        
-        try:
-            # Update last directory
-            self._last_directory = str(Path(file_path).parent)
-            
-            # Load based on extension
-            if file_path.endswith('.json'):
-                data = self._load_json(file_path)
-            elif file_path.endswith('.csv'):
-                data = self._load_csv(file_path)
-            else:
-                # Try to detect format
-                data = self._auto_detect_load(file_path)
-            
-            # Add to recent files
-            self.add_recent_file(file_path)
-            
-            # Log success
-            if self._logger:
-                self._logger.log_info(f"Successfully loaded {len(data)} points from {file_path}")
-            
-            # Update status
-            if self._status:
-                self._status.show_info(f"Loaded {len(data)} points")
-            
-            return data
-        
-        except Exception as e:
-            error_msg = f"Failed to load file: {e}"
-            
-            if self._logger:
-                self._logger.log_error(error_msg, e)
-            
-            if self._status:
-                self._status.show_error(error_msg)
-            
-            QMessageBox.critical(parent_widget, "Error", error_msg)
-            return None
-    
-    def save_track_data(self, parent_widget: QWidget, data: list[tuple]) -> bool:
-        """Save track data to file.
-        
-        Args:
-            parent_widget: Parent widget for dialog
-            data: Curve data to save
-        
-        Returns:
-            True if successful, False otherwise
-        """
-        if not data:
-            if self._status:
-                self._status.show_warning("No data to save")
-            return False
-        
-        # Open save dialog
+
+        if file_path.endswith(".json"):
+            return self._file_io.load_json(file_path)
+        elif file_path.endswith(".csv"):
+            return self._file_io.load_csv(file_path)
+        else:
+            # Try JSON first, then CSV
+            try:
+                return self._file_io.load_json(file_path)
+            except Exception:
+                return self._file_io.load_csv(file_path)
+
+    def save_track_data(self, parent_widget: "QWidget", data: CurveDataList,
+                       label: str = "Track", color: str = "#FF0000") -> bool:
+        """Save track data to file."""
+        if not self._file_io:
+            return self._save_track_data_legacy(parent_widget, data, label, color)
+
+        from PySide6.QtWidgets import QFileDialog
+
         file_path, _ = QFileDialog.getSaveFileName(
-            parent_widget,
-            "Save Track Data",
-            self._last_directory,
+            parent_widget, "Save Track Data",
+            self._file_io.get_last_directory(),
             "JSON Files (*.json);;CSV Files (*.csv)"
         )
-        
+
         if not file_path:
             return False
-        
-        try:
-            # Ensure proper extension
-            if not file_path.endswith(('.json', '.csv')):
-                file_path += '.json'
-            
-            # Update last directory
-            self._last_directory = str(Path(file_path).parent)
-            
-            # Save based on extension
-            if file_path.endswith('.json'):
-                self._save_json(file_path, data)
-            else:
-                self._save_csv(file_path, data)
-            
-            # Add to recent files
-            self.add_recent_file(file_path)
-            
-            # Log success
-            if self._logger:
-                self._logger.log_info(f"Successfully saved {len(data)} points to {file_path}")
-            
-            # Update status
-            if self._status:
-                self._status.show_info(f"Saved {len(data)} points")
-            
-            return True
-        
-        except Exception as e:
-            error_msg = f"Failed to save file: {e}"
-            
-            if self._logger:
-                self._logger.log_error(error_msg, e)
-            
-            if self._status:
-                self._status.show_error(error_msg)
-            
-            QMessageBox.critical(parent_widget, "Error", error_msg)
-            return False
-    
-    def _load_json(self, file_path: str) -> list[tuple]:
-        """Load data from JSON file."""
-        with open(file_path, 'r') as f:
-            data = json.load(f)
-        
-        # Convert to tuple format
-        points = []
-        for item in data:
-            if isinstance(item, dict):
-                frame = item.get('frame', 0)
-                x = item.get('x', 0)
-                y = item.get('y', 0)
-                status = item.get('status', 'keyframe')
-                points.append((frame, x, y, status))
-            elif isinstance(item, (list, tuple)) and len(item) >= 3:
-                # Handle list/tuple format
-                frame = item[0]
-                x = item[1]
-                y = item[2]
-                status = item[3] if len(item) > 3 else 'keyframe'
-                points.append((frame, x, y, status))
-        
-        return points
-    
-    def _load_csv(self, file_path: str) -> list[tuple]:
-        """Load data from CSV file."""
-        points = []
-        with open(file_path, 'r', newline='') as f:
-            reader = csv.reader(f)
-            # Skip header if present
-            first_row = next(reader, None)
-            if first_row and not first_row[0].isdigit():
-                # Header row, skip it
-                pass
-            elif first_row:
-                # Data row, process it
-                frame = int(first_row[0])
-                x = float(first_row[1])
-                y = float(first_row[2])
-                status = first_row[3] if len(first_row) > 3 else 'keyframe'
-                points.append((frame, x, y, status))
-            
-            # Process remaining rows
-            for row in reader:
-                if len(row) >= 3:
-                    frame = int(row[0])
-                    x = float(row[1])
-                    y = float(row[2])
-                    status = row[3] if len(row) > 3 else 'keyframe'
-                    points.append((frame, x, y, status))
-        
-        return points
-    
-    def _auto_detect_load(self, file_path: str) -> list[tuple]:
-        """Auto-detect file format and load."""
-        # Try JSON first
-        try:
-            return self._load_json(file_path)
-        except (json.JSONDecodeError, ValueError):
-            pass
-        
-        # Try CSV
-        try:
-            return self._load_csv(file_path)
-        except (csv.Error, ValueError):
-            pass
-        
-        raise ValueError("Unable to detect file format")
-    
-    def _save_json(self, file_path: str, data: list[tuple]) -> None:
-        """Save data to JSON file."""
-        json_data = []
-        for point in data:
-            json_data.append({
-                'frame': point[0],
-                'x': point[1],
-                'y': point[2],
-                'status': point[3] if len(point) > 3 else 'keyframe'
-            })
-        
-        with open(file_path, 'w') as f:
-            json.dump(json_data, f, indent=2)
-    
-    def _save_csv(self, file_path: str, data: list[tuple]) -> None:
-        """Save data to CSV file."""
-        with open(file_path, 'w', newline='') as f:
-            writer = csv.writer(f)
-            # Write header
-            writer.writerow(['frame', 'x', 'y', 'status'])
-            # Write data
-            for point in data:
-                row = [point[0], point[1], point[2]]
-                if len(point) > 3:
-                    row.append(point[3])
-                else:
-                    row.append('keyframe')
-                writer.writerow(row)
-    
-    def add_recent_file(self, file_path: str) -> None:
-        """Add a file to the recent files list."""
-        # Remove if already in list
-        if file_path in self._recent_files:
-            self._recent_files.remove(file_path)
-        
-        # Add to beginning
-        self._recent_files.insert(0, file_path)
-        
-        # Limit size
-        if len(self._recent_files) > self._max_recent_files:
-            self._recent_files = self._recent_files[:self._max_recent_files]
-        
-        # Save to config
-        self._save_recent_files()
-    
-    def get_recent_files(self) -> list[str]:
-        """Get the list of recent files."""
-        return list(self._recent_files)
-    
-    def _load_recent_files(self) -> None:
-        """Load recent files from config."""
-        # For now, just initialize empty
-        # TODO: Load from actual config file
-        pass
-    
-    def _save_recent_files(self) -> None:
-        """Save recent files to config."""
-        # TODO: Save to actual config file
-        pass
-    
-    # ==================== Image Methods (from image_service) ====================
-    
-    def load_image_sequence(self, directory: str) -> list[str]:
-        """Load image sequence from directory.
-        
-        Args:
-            directory: Path to directory containing images
-        
-        Returns:
-            List of image filenames sorted by frame number
-        """
-        if not os.path.exists(directory):
-            if self._logger:
-                self._logger.log_error(f"Directory does not exist: {directory}")
-            return []
-        
-        image_files = []
-        
-        try:
-            # Find all image files in directory
-            for file in os.listdir(directory):
-                file_path = os.path.join(directory, file)
-                if os.path.isfile(file_path):
-                    ext = os.path.splitext(file)[1].lower()
-                    if ext in self._supported_formats:
-                        image_files.append(file)
-            
-            # Sort by frame number if possible
-            image_files = self._sort_by_frame_number(image_files)
-            
-            if self._logger:
-                self._logger.log_info(f"Loaded {len(image_files)} images from {directory}")
-            
-            if self._status and image_files:
-                self._status.show_info(f"Loaded {len(image_files)} images")
-            
-            return image_files
-        
-        except Exception as e:
-            error_msg = f"Failed to load image sequence: {e}"
-            if self._logger:
-                self._logger.log_error(error_msg, e)
-            return []
-    
-    def set_current_image_by_frame(self, curve_view: Any, frame: int) -> None:
-        """Set current image by frame number.
-        
-        Args:
-            curve_view: The curve view instance
-            frame: Frame number to find the closest image for
-        """
-        if not hasattr(curve_view, "image_filenames"):
-            return
-        
-        image_filenames = getattr(curve_view, "image_filenames", [])
-        if not image_filenames:
-            return
-        
-        # Find the closest image index to the requested frame
-        closest_idx = self._find_closest_image_index(image_filenames, frame)
-        
-        if 0 <= closest_idx < len(image_filenames):
-            curve_view.current_image_idx = closest_idx
-            self.load_current_image(curve_view)
-    
-    def load_current_image(self, curve_view: Any) -> None:
-        """Load the current image for the curve view.
-        
-        Args:
-            curve_view: The curve view instance
-        """
-        if not hasattr(curve_view, "image_filenames") or not hasattr(curve_view, "current_image_idx"):
-            return
-        
-        image_filenames = getattr(curve_view, "image_filenames", [])
-        current_idx = getattr(curve_view, "current_image_idx", 0)
-        
-        if not image_filenames or current_idx < 0 or current_idx >= len(image_filenames):
-            return
-        
-        image_dir = getattr(curve_view, "image_directory", "")
-        if not image_dir:
-            return
-        
-        image_path = os.path.join(image_dir, image_filenames[current_idx])
-        
-        # Check cache first
-        if image_path in self._image_cache:
-            image = self._image_cache[image_path]
+
+        if file_path.endswith(".json"):
+            return self._file_io.save_json(file_path, data, label, color)
         else:
-            # Load image
-            image = QImage(image_path)
-            if image.isNull():
+            return self._file_io.save_csv(file_path, data, include_header=True)
+
+    def add_recent_file(self, file_path: str) -> None:
+        """Add file to recent files list."""
+        if self._file_io:
+            self._file_io.add_recent_file(file_path)
+        elif hasattr(self, "_recent_files"):
+            if file_path not in self._recent_files:
+                self._recent_files.insert(0, file_path)
+                max_files = getattr(self, "_max_recent_files", 10)
+                self._recent_files = self._recent_files[:max_files]
+
+    def get_recent_files(self) -> list[str]:
+        """Get list of recent files."""
+        if self._file_io:
+            return self._file_io.get_recent_files()
+        return getattr(self, "_recent_files", [])
+
+    # ==================== Image Operation Delegation ====================
+
+    def load_image_sequence(self, directory: str) -> list[str]:
+        """Load image sequence from directory."""
+        if self._image:
+            return self._image.load_image_sequence(directory)
+
+        # Fallback implementation
+        try:
+            path = Path(directory)
+            if not path.exists() or not path.is_dir():
                 if self._logger:
-                    self._logger.log_error(f"Failed to load image: {image_path}")
-                return
-            
-            # Add to cache
-            if len(self._image_cache) >= self._max_cache_size:
-                # Remove oldest entry
-                oldest_key = next(iter(self._image_cache))
-                del self._image_cache[oldest_key]
-            
-            self._image_cache[image_path] = image
-        
-        # Convert to pixmap and set as background
-        pixmap = QPixmap.fromImage(image)
-        curve_view.background_image = pixmap
-        curve_view.update()
-    
+                    self._logger.log_error(f"Directory does not exist: {directory}")
+                return []
+
+            # Common image extensions
+            image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif'}
+            image_files = []
+
+            for file_path in sorted(path.iterdir()):
+                if file_path.is_file() and file_path.suffix.lower() in image_extensions:
+                    image_files.append(str(file_path))
+
+            if self._logger and image_files:
+                self._logger.log_info(f"Loaded {len(image_files)} images from {directory}")
+
+            return image_files
+
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to load image sequence: {e}")
+            return []
+
+    def set_current_image_by_frame(self, view: Any, frame: int) -> None:
+        """Set current image by frame number."""
+        if self._image:
+            self._image.set_current_image_by_frame(view, frame)
+
+    def load_current_image(self, view: Any) -> "QImage | None":
+        """Load current image for view."""
+        if self._image:
+            return self._image.load_current_image(view)
+        return None
+
     def clear_image_cache(self) -> None:
         """Clear the image cache."""
-        self._image_cache.clear()
-    
-    def _sort_by_frame_number(self, filenames: list[str]) -> list[str]:
-        """Sort filenames by extracted frame number."""
-        import re
-        
-        def extract_number(filename: str) -> int:
-            """Extract frame number from filename."""
-            # Look for numbers in the filename
-            numbers = re.findall(r'\d+', filename)
-            if numbers:
-                # Return the last number found (usually the frame number)
-                return int(numbers[-1])
-            return 0
-        
-        return sorted(filenames, key=extract_number)
-    
-    def _find_closest_image_index(self, filenames: list[str], frame: int) -> int:
-        """Find the index of the image closest to the given frame number."""
-        import re
-        
-        def extract_number(filename: str) -> int:
-            """Extract frame number from filename."""
-            numbers = re.findall(r'\d+', filename)
-            if numbers:
-                return int(numbers[-1])
-            return 0
-        
-        # Find closest frame
-        min_diff = float('inf')
-        closest_idx = 0
-        
-        for i, filename in enumerate(filenames):
-            file_frame = extract_number(filename)
-            diff = abs(file_frame - frame)
-            if diff < min_diff:
-                min_diff = diff
-                closest_idx = i
-        
-        return closest_idx
+        if self._image:
+            self._image.clear_cache()
+        elif hasattr(self, "_image_cache"):
+            self._image_cache.clear()
+
+    def _add_to_cache(self, key: str, value: Any) -> None:
+        """Add an item to the image cache (thread-safe)."""
+        with self._lock:
+            if hasattr(self, "_image_cache"):
+                # Trim cache if it exceeds max size
+                if len(self._image_cache) >= getattr(self, "_max_cache_size", 100):
+                    # Remove oldest item (first key)
+                    if self._image_cache:
+                        oldest_key = next(iter(self._image_cache))
+                        del self._image_cache[oldest_key]
+                self._image_cache[key] = value
+
+    def set_cache_size(self, size: int) -> None:
+        """Set maximum cache size."""
+        if self._image:
+            self._image.set_cache_size(size)
+
+    # ==================== Legacy Methods (Minimal) ====================
+
+    def _load_track_data_legacy(self, parent_widget: "QWidget") -> CurveDataList | None:
+        """Legacy load implementation."""
+        # Minimal legacy implementation
+        return None
+
+    def _save_track_data_legacy(self, parent_widget: "QWidget", data: CurveDataList,
+                               label: str, color: str) -> bool:
+        """Legacy save implementation."""
+        # Minimal legacy implementation
+        return False
+
+    # Keep these minimal legacy methods for compatibility
+    def _load_json(self, file_path: str) -> CurveDataList:
+        """Legacy JSON load (delegates if possible)."""
+        if self._file_io:
+            return self._file_io.load_json(file_path)
+
+        # Fallback implementation
+        try:
+            with open(file_path, encoding='utf-8') as f:
+                data = json.load(f)
+
+            # Convert to CurveDataList format
+            curve_data = []
+
+            if isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict):
+                        # Handle different JSON formats
+                        frame = item.get('frame', item.get('f', 0))
+                        x = item.get('x', item.get('X', 0.0))
+                        y = item.get('y', item.get('Y', 0.0))
+                        status = item.get('status', item.get('type', 'keyframe'))
+                        curve_data.append((frame, x, y, status))
+                    elif isinstance(item, list | tuple) and len(item) >= 3:
+                        # Handle array format [frame, x, y, ...]
+                        frame = item[0]
+                        x = float(item[1])
+                        y = float(item[2])
+                        status = item[3] if len(item) > 3 else 'keyframe'
+                        curve_data.append((frame, x, y, status))
+            elif isinstance(data, dict) and 'points' in data:
+                # Handle wrapped format {"points": [...], "metadata": {...}}
+                points = data['points']
+                for point in points:
+                    if isinstance(point, dict):
+                        frame = point.get('frame', 0)
+                        x = point.get('x', 0.0)
+                        y = point.get('y', 0.0)
+                        status = point.get('status', 'keyframe')
+                        curve_data.append((frame, x, y, status))
+
+            if self._logger:
+                self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
+
+            return curve_data
+
+        except FileNotFoundError:
+            if self._logger:
+                self._logger.log_error(f"File not found: {file_path}")
+            return []
+        except json.JSONDecodeError as e:
+            if self._logger:
+                self._logger.log_error(f"Invalid JSON in {file_path}: {e}")
+            return []
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to load JSON file {file_path}: {e}")
+            return []
+
+    def _save_json(self, file_path: str, data: CurveDataList, label: str, color: str) -> bool:
+        """Legacy JSON save (delegates if possible)."""
+        if self._file_io:
+            return self._file_io.save_json(file_path, data, label, color)
+
+        # Fallback implementation
+        try:
+            # Convert CurveDataList to JSON format
+            json_data = {
+                "metadata": {
+                    "label": label,
+                    "color": color,
+                    "version": "1.0",
+                    "point_count": len(data)
+                },
+                "points": []
+            }
+
+            for point in data:
+                if len(point) >= 3:
+                    point_data = {
+                        "frame": point[0],
+                        "x": float(point[1]),
+                        "y": float(point[2])
+                    }
+                    # Add status if available
+                    if len(point) > 3:
+                        point_data["status"] = point[3]
+                    else:
+                        point_data["status"] = "keyframe"
+
+                    json_data["points"].append(point_data)
+
+            # Ensure directory exists
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(json_data, f, indent=2)
+
+            if self._logger:
+                self._logger.log_info(f"Saved {len(data)} points to {file_path}")
+
+            # Add to recent files
+            self.add_recent_file(file_path)
+
+            return True
+
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to save JSON file {file_path}: {e}")
+            return False
+
+    def _load_csv(self, file_path: str) -> CurveDataList:
+        """Legacy CSV load (delegates if possible)."""
+        if self._file_io:
+            return self._file_io.load_csv(file_path)
+
+        # Fallback implementation
+        try:
+            curve_data = []
+
+            with open(file_path, encoding='utf-8', newline='') as f:
+                # Try to detect delimiter
+                sample = f.read(1024)
+                f.seek(0)
+
+                delimiter = ','
+                if '\t' in sample and sample.count('\t') > sample.count(','):
+                    delimiter = '\t'
+                elif ';' in sample and sample.count(';') > sample.count(','):
+                    delimiter = ';'
+
+                reader = csv.reader(f, delimiter=delimiter)
+
+                # Skip header if present
+                first_row = next(reader, None)
+                if first_row:
+                    # Check if first row looks like a header
+                    try:
+                        # Try to convert first column to number
+                        float(first_row[0])
+                        # If successful, this is data, not header
+                        f.seek(0)
+                        reader = csv.reader(f, delimiter=delimiter)
+                    except (ValueError, IndexError):
+                        # First row is likely a header, continue from next row
+                        pass
+
+                for row_num, row in enumerate(reader, 1):
+                    if len(row) < 3:
+                        continue
+
+                    try:
+                        frame = int(float(row[0]))  # Allow float input, convert to int
+                        x = float(row[1])
+                        y = float(row[2])
+
+                        # Optional status column
+                        status = 'keyframe'
+                        if len(row) > 3 and row[3].strip():
+                            status = row[3].strip()
+
+                        curve_data.append((frame, x, y, status))
+
+                    except (ValueError, IndexError) as e:
+                        if self._logger:
+                            self._logger.log_error(f"Invalid data at row {row_num}: {e}")
+                        continue
+
+            if self._logger:
+                self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
+
+            return curve_data
+
+        except FileNotFoundError:
+            if self._logger:
+                self._logger.log_error(f"File not found: {file_path}")
+            return []
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to load CSV file {file_path}: {e}")
+            return []
+
+    def _save_csv(self, file_path: str, data: CurveDataList, include_header: bool = True) -> bool:
+        """Legacy CSV save (delegates if possible)."""
+        if self._file_io:
+            return self._file_io.save_csv(file_path, data, include_header)
+
+        # Fallback implementation
+        try:
+            # Ensure directory exists
+            Path(file_path).parent.mkdir(parents=True, exist_ok=True)
+
+            with open(file_path, 'w', encoding='utf-8', newline='') as f:
+                writer = csv.writer(f)
+
+                # Write header if requested
+                if include_header:
+                    writer.writerow(['frame', 'x', 'y', 'status'])
+
+                # Write data
+                for point in data:
+                    if len(point) >= 3:
+                        row = [point[0], point[1], point[2]]
+                        # Add status if available
+                        if len(point) > 3:
+                            row.append(point[3])
+                        else:
+                            row.append('keyframe')
+
+                        writer.writerow(row)
+
+            if self._logger:
+                self._logger.log_info(f"Saved {len(data)} points to {file_path}")
+
+            # Add to recent files
+            self.add_recent_file(file_path)
+
+            return True
+
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to save CSV file {file_path}: {e}")
+            return False
 
 
-# Module-level singleton instance
-_instance = DataService()
+# Module-level instance
+_data_service: DataService | None = None
+
 
 def get_data_service() -> DataService:
-    """Get the singleton instance of DataService."""
-    return _instance
+    """Get the singleton DataService instance."""
+    global _data_service
+    if _data_service is None:
+        _data_service = DataService()
+    return _data_service
+

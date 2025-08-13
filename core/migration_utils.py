@@ -37,27 +37,42 @@ Usage Examples:
 import functools
 import warnings
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, TypeGuard, TypeVar, cast, overload
 
 from core.models import CurvePoint, PointCollection, PointStatus, bulk_convert_from_tuples, bulk_convert_to_tuples
 
-# Type definitions for migration
-LegacyPointTuple = Union[tuple[int, float, float], tuple[int, float, float, str], tuple[int, float, float, bool]]
-AnyPointFormat = Union["PointsList", PointCollection, list[CurvePoint]]
-F = TypeVar("F", bound=Callable[..., Any])
+# Legacy type aliases for migration
+LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str | bool]
+
+# Use centralized type definitions from models.py
+if TYPE_CHECKING:
+    from core.models import PointsList as ModelPointsList
+    # Ensure consistency with models.py
+    PointsList = ModelPointsList  # Use the canonical definition
+    AnyPointFormat = PointsList | PointCollection | list[CurvePoint]
+else:
+    PointsList = list
+    AnyPointFormat = object  # Runtime fallback
+
+F = TypeVar("F", bound=Callable[..., object])
+
 
 class MigrationError(Exception):
     """Exception raised during point format migration."""
 
     pass
 
+
 class MigrationWarning(UserWarning):
     """Warning issued for deprecated point format usage."""
 
     pass
 
+
 # Type guards for runtime format detection
 
-def is_legacy_point_tuple(obj: Any) -> TypeGuard[LegacyPointTuple]:
+
+def is_legacy_point_tuple(obj: object) -> TypeGuard[LegacyPointTuple]:
     """Type guard for legacy point tuple formats.
 
     Args:
@@ -92,7 +107,8 @@ def is_legacy_point_tuple(obj: Any) -> TypeGuard[LegacyPointTuple]:
     except (ValueError, TypeError):
         return False
 
-def is_legacy_points_list(obj: Any) -> TypeGuard["PointsList"]:
+
+def is_legacy_points_list(obj: object) -> TypeGuard["PointsList"]:
     """Type guard for legacy PointsList format.
 
     Args:
@@ -109,7 +125,8 @@ def is_legacy_points_list(obj: Any) -> TypeGuard["PointsList"]:
 
     return all(is_legacy_point_tuple(item) for item in obj)
 
-def is_point_collection(obj: Any) -> TypeGuard[PointCollection]:
+
+def is_point_collection(obj: object) -> TypeGuard[PointCollection]:
     """Type guard for PointCollection format.
 
     Args:
@@ -120,7 +137,8 @@ def is_point_collection(obj: Any) -> TypeGuard[PointCollection]:
     """
     return isinstance(obj, PointCollection)
 
-def is_curve_point_list(obj: Any) -> TypeGuard[list[CurvePoint]]:
+
+def is_curve_point_list(obj: object) -> TypeGuard[list[CurvePoint]]:
     """Type guard for list of CurvePoint objects.
 
     Args:
@@ -137,16 +155,21 @@ def is_curve_point_list(obj: Any) -> TypeGuard[list[CurvePoint]]:
 
     return all(isinstance(item, CurvePoint) for item in obj)
 
+
 # Core migration functions
+
 
 @overload
 def migrate_points_list(points: "PointsList") -> PointCollection: ...
 
+
 @overload
 def migrate_points_list(points: PointCollection) -> PointCollection: ...
 
+
 @overload
 def migrate_points_list(points: list[CurvePoint]) -> PointCollection: ...
+
 
 def migrate_points_list(points: AnyPointFormat) -> PointCollection:
     """Migrate any point format to PointCollection.
@@ -175,14 +198,18 @@ def migrate_points_list(points: AnyPointFormat) -> PointCollection:
     else:
         raise MigrationError(f"Unsupported point format: {type(points)}")
 
+
 @overload
 def ensure_point_collection(points: "PointsList") -> PointCollection: ...
+
 
 @overload
 def ensure_point_collection(points: PointCollection) -> PointCollection: ...
 
+
 @overload
 def ensure_point_collection(points: list[CurvePoint]) -> PointCollection: ...
+
 
 def ensure_point_collection(points: AnyPointFormat) -> PointCollection:
     """Ensure input is a PointCollection, converting if necessary.
@@ -211,6 +238,7 @@ def ensure_point_collection(points: AnyPointFormat) -> PointCollection:
     """
     return migrate_points_list(points)
 
+
 def ensure_legacy_format(points: AnyPointFormat) -> "PointsList":
     """Ensure output is in legacy PointsList format.
 
@@ -235,7 +263,9 @@ def ensure_legacy_format(points: AnyPointFormat) -> "PointsList":
         collection = ensure_point_collection(points)
         return collection.to_tuples()
 
+
 # Performance-optimized migration for large datasets
+
 
 def bulk_migrate_points(points: "PointsList", chunk_size: int = 10000) -> PointCollection:
     """High-performance migration for large point datasets.
@@ -262,6 +292,7 @@ def bulk_migrate_points(points: "PointsList", chunk_size: int = 10000) -> PointC
 
     return PointCollection(all_curve_points)
 
+
 def bulk_export_to_legacy(collection: PointCollection, chunk_size: int = 10000) -> "PointsList":
     """High-performance export to legacy format for large datasets.
 
@@ -284,7 +315,9 @@ def bulk_export_to_legacy(collection: PointCollection, chunk_size: int = 10000) 
 
     return all_tuples
 
+
 # Service integration decorators
+
 
 def accept_both_formats[F: Callable[..., Any]](func: F) -> F:
     """Decorator to make service methods accept both legacy and new point formats.
@@ -326,6 +359,7 @@ def accept_both_formats[F: Callable[..., Any]](func: F) -> F:
 
     return cast(F, wrapper)
 
+
 def deprecate_legacy_format[F: Callable[..., Any]](func: F) -> F:
     """Decorator to issue deprecation warnings for legacy point format usage.
 
@@ -353,6 +387,7 @@ def deprecate_legacy_format[F: Callable[..., Any]](func: F) -> F:
 
     return cast(F, wrapper)
 
+
 def require_new_format[F: Callable[..., Any]](func: F) -> F:
     """Decorator to require new point format, converting legacy automatically.
 
@@ -377,7 +412,9 @@ def require_new_format[F: Callable[..., Any]](func: F) -> F:
 
     return cast(F, wrapper)
 
+
 # Compatibility layer for existing service methods
+
 
 class LegacyPointOperations:
     """Compatibility layer providing legacy point operations using new models.
@@ -432,7 +469,9 @@ class LegacyPointOperations:
         updated_point = curve_point.with_coordinates(x, y)
         return updated_point.to_legacy_tuple()
 
+
 # Testing and validation utilities
+
 
 def validate_migration_consistency(legacy_points: "PointsList", migrated_collection: PointCollection) -> bool:
     """Validate that migration preserved data integrity.
@@ -462,6 +501,7 @@ def validate_migration_consistency(legacy_points: "PointsList", migrated_collect
             raise MigrationError(f"Point {i} mismatch: {orig_normalized} vs {rt_normalized}")
 
     return True
+
 
 def benchmark_migration_performance(points: "PointsList", iterations: int = 10) -> dict[str, float]:
     """Benchmark migration performance for optimization.
@@ -502,9 +542,11 @@ def benchmark_migration_performance(points: "PointsList", iterations: int = 10) 
 
     return results
 
+
 # Helper functions
 
-def _looks_like_points_data(obj: Any) -> bool:
+
+def _looks_like_points_data(obj: object) -> bool:
     """Check if object looks like points data (heuristic).
 
     Args:
@@ -515,7 +557,9 @@ def _looks_like_points_data(obj: Any) -> bool:
     """
     return is_legacy_points_list(obj) or is_point_collection(obj) or is_curve_point_list(obj)
 
+
 # Migration status tracking
+
 
 class MigrationTracker:
     """Track migration progress across the codebase.
@@ -566,6 +610,7 @@ class MigrationTracker:
             "migration_percentage": migration_percentage,
             "warnings": self.migration_warnings,
         }
+
 
 # Global migration tracker instance
 migration_tracker = MigrationTracker()

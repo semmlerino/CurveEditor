@@ -1,40 +1,42 @@
 #!/usr/bin/env python
 
 import logging
-import os
 import sys
 from datetime import datetime
+from pathlib import Path
 
 from PySide6.QtWidgets import QApplication
 
-# from config import logging_config  # Temporarily disabled - config module not available
 from ui.main_window import MainWindow
+from ui.modernized_main_window import ModernizedMainWindow
+
 
 def main():
     """Main entry point for the application."""
     # Setup logging directory
-    log_dir = os.path.join(os.path.expanduser("~"), ".curve_editor", "logs")
-    os.makedirs(log_dir, exist_ok=True)
+    log_dir = Path.home() / ".curve_editor" / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
 
     # Create the log file path
-    log_file = os.path.join(log_dir, "curve_editor.log")
+    log_file = log_dir / "curve_editor.log"
 
     # Load logging configuration - simplified for startup
     # config = logging_config.load_config()  # Disabled - config module not available
     config = {"global": "INFO", "services": {}}  # Simple fallback config
 
     # Get logging level from environment or config
+    import os
     global_level = os.environ.get("LOG_LEVEL", config.get("global", "INFO"))
+    # Ensure global_level is a string
+    if not isinstance(global_level, str):
+        global_level = "INFO"
     level_num = getattr(logging, global_level.upper(), logging.INFO)
 
     # Setup basic logging
     logging.basicConfig(
         level=level_num,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.FileHandler(str(log_file)), logging.StreamHandler()],
     )
     logger = logging.getLogger("main")
     logger.info("=" * 80)
@@ -43,8 +45,9 @@ def main():
     logger.info("=" * 80)
 
     # Apply module-specific log levels from config
-    if isinstance(config.get("services"), dict):
-        for service_name, service_level in config["services"].items():
+    services_config = config.get("services")
+    if isinstance(services_config, dict):
+        for service_name, service_level in services_config.items():
             if isinstance(service_level, str):
                 service_logger = logging.getLogger(f"services.{service_name}")
                 service_logger.setLevel(getattr(logging, service_level.upper(), logging.INFO))
@@ -61,19 +64,25 @@ def main():
     # Initialize Qt application
     app = QApplication(sys.argv)
 
-    # Initialize Qt object pooling for improved rendering performance - disabled for startup
-    # try:
-    #     from rendering.qt_object_pool import get_global_pool
-    #     _pool = get_global_pool()  # Initialize global pool
-    #     logger.info("Qt object pooling initialized - rendering performance optimized")
-    # except ImportError:
-    #     logger.warning("Qt object pooling not available - using standard rendering")
-    logger.info("Qt object pooling disabled for startup - using standard rendering")
+    # Qt object pooling is not currently implemented
+    logger.info("Using standard Qt rendering")
 
     # Create main window with service registry
     logger.info("Creating main window...")
-    window = MainWindow()
+    
+    # Use modernized window for enhanced UI/UX (Sprint 11 requirement)
+    use_modern_ui = os.environ.get("USE_MODERN_UI", "true").lower() == "true"
+    
+    if use_modern_ui:
+        logger.info("Using ModernizedMainWindow with enhanced UI/UX features")
+        window = ModernizedMainWindow()
+    else:
+        logger.info("Using standard MainWindow")
+        window = MainWindow()
 
+    # Install event filter for debugging key events
+    # Note: This was causing issues with key event propagation
+    # Only enable if MainWindow.eventFilter is properly implemented
     app.installEventFilter(window)
 
     # Show window
@@ -81,8 +90,8 @@ def main():
     logger.info("Main window displayed successfully")
 
     # Verify logging is working
-    if os.path.exists(log_file):
-        logger.info(f"Log file verified: {log_file} (size: {os.path.getsize(log_file)} bytes)")
+    if log_file.exists():
+        logger.info(f"Log file verified: {log_file} (size: {log_file.stat().st_size} bytes)")
     else:
         logger.warning(f"Log file not found at: {log_file}")
 
@@ -92,16 +101,10 @@ def main():
 
     logger.info(f"Application exiting with code {exit_code}")
 
-    # Clean up Qt object pools - disabled for startup
-    # try:
-    #     from rendering.qt_object_pool import clear_global_pools
-    #     clear_global_pools()
-    #     logger.info("Qt object pools cleared")
-    # except ImportError:
-    #     pass
-    logger.debug("Qt object pools cleanup skipped - pools not initialized")
+    # No cleanup needed for standard Qt rendering
 
     sys.exit(exit_code)
+
 
 if __name__ == "__main__":
     main()

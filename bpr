@@ -1,0 +1,20 @@
+#!/bin/bash
+# Basedpyright wrapper that avoids the "2>&1" redirection bug
+# Usage: ./bpr [options] [files...]
+# 
+# The bug: When shell redirection "2>&1" is used, basedpyright incorrectly
+# interprets "2" as a filename argument, causing "File or directory '2' does not exist"
+
+cd "$(dirname "$0")"
+source venv/bin/activate
+
+# WORKAROUND: Use script command without shell redirection operators
+# The script command captures both stdout and stderr naturally
+if [ -t 1 ] ; then
+    # Terminal is attached - run normally with color
+    basedpyright "$@"
+else
+    # Output is being piped/redirected - use script to capture all output
+    # Note: We use script WITHOUT 2>&1 to avoid the bug
+    script -q -c "basedpyright $*" /dev/null
+fi

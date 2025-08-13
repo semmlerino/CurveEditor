@@ -7,10 +7,18 @@ the use of Any in protocol definitions, improving type safety and
 IDE support.
 """
 
+from __future__ import annotations
+
 from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol, TypeVar
+
+# Use object instead of Any for better type safety
+SignalSlot = Callable[..., object]
+VoidSlot = Callable[[], object]
 
 T = TypeVar("T")
 P = TypeVar("P")
+
 
 class SignalInstance(Protocol):
     """Protocol for Qt signal instances.
@@ -19,29 +27,30 @@ class SignalInstance(Protocol):
     to slots and emitted. It provides type safety for signal operations.
     """
 
-    def connect(self, slot: Callable[..., Any]) -> None:
+    def connect(self, slot: SignalSlot) -> None:
         """Connect the signal to a slot."""
         ...
 
-    def disconnect(self, slot: Callable[..., Any] | None = None) -> None:
+    def disconnect(self, slot: SignalSlot | None = None) -> None:
         """Disconnect the signal from a slot."""
         ...
 
-    def emit(self, *args: Any) -> None:
+    def emit(self, *args: object) -> None:
         """Emit the signal with arguments."""
         ...
 
-class TypedSignal(Generic[P], Protocol):
+
+class TypedSignal[P](Protocol):
     """Generic protocol for typed Qt signals.
 
     This protocol provides type-safe signal operations with specific parameter types.
     """
 
-    def connect(self, slot: Callable[[P], Any]) -> None:
+    def connect(self, slot: Callable[[P], object]) -> None:
         """Connect the signal to a slot with typed parameters."""
         ...
 
-    def disconnect(self, slot: Callable[[P], Any] | None = None) -> None:
+    def disconnect(self, slot: Callable[[P], object] | None = None) -> None:
         """Disconnect the signal from a slot."""
         ...
 
@@ -49,20 +58,22 @@ class TypedSignal(Generic[P], Protocol):
         """Emit the signal with typed argument."""
         ...
 
+
 # Type aliases for specific signal types with proper parameter types
 ImageChangedSignal = TypedSignal[int]  # Signal[int] - emits image index
 PointSelectedSignal = TypedSignal[int]  # Signal[int] - emits point index
 SelectionChangedSignal = TypedSignal[list[int]]  # Signal[list[int]] - emits selected indices
 
+
 # For multi-parameter signals, we need a more complex protocol
 class PointMovedSignalProtocol(Protocol):
     """Protocol for point moved signal that emits frame, x, y coordinates."""
 
-    def connect(self, slot: Callable[[int, float, float], Any]) -> None:
+    def connect(self, slot: Callable[[int, float, float], object]) -> None:
         """Connect to a slot that accepts frame, x, y parameters."""
         ...
 
-    def disconnect(self, slot: Callable[[int, float, float], Any] | None = None) -> None:
+    def disconnect(self, slot: Callable[[int, float, float], object] | None = None) -> None:
         """Disconnect from a slot."""
         ...
 
@@ -70,17 +81,19 @@ class PointMovedSignalProtocol(Protocol):
         """Emit the signal with frame, x, y coordinates."""
         ...
 
+
 PointMovedSignal = PointMovedSignalProtocol  # Signal[int, float, float] - emits frame, x, y
+
 
 # Additional signal types for common use cases
 class VoidSignalProtocol(Protocol):
     """Protocol for signals that emit no parameters."""
 
-    def connect(self, slot: Callable[[], Any]) -> None:
+    def connect(self, slot: VoidSlot) -> None:
         """Connect to a parameterless slot."""
         ...
 
-    def disconnect(self, slot: Callable[[], Any] | None = None) -> None:
+    def disconnect(self, slot: VoidSlot | None = None) -> None:
         """Disconnect from a slot."""
         ...
 
@@ -88,7 +101,9 @@ class VoidSignalProtocol(Protocol):
         """Emit the signal with no parameters."""
         ...
 
+
 VoidSignal = VoidSignalProtocol
+
 
 class BaseSignalConnector:
     """Base class for signal connection operations.
@@ -108,7 +123,8 @@ class BaseSignalConnector:
             connect_func: The function to use for connecting signals.
                          Should match the signature of SignalRegistry._connect_signal
         """
-        self._connect_signal = connect_func
+        self._connect_signal: Callable[..., bool] = connect_func
+
 
 class SignalConnectorProtocol(Protocol):
     """Protocol defining the interface for signal connector objects.
@@ -120,8 +136,8 @@ class SignalConnectorProtocol(Protocol):
 
     def _connect_signal(
         self,
-        main_window: Any,
-        signal: Any,
+        main_window: object,  # MainWindow
+        signal: object,  # Qt Signal
         slot: Callable[..., None],
         signal_name: str | None = None,
     ) -> bool:
@@ -137,6 +153,7 @@ class SignalConnectorProtocol(Protocol):
             bool: True if connection was successful, False otherwise
         """
         ...
+
 
 # For runtime usage (when not type checking)
 if not TYPE_CHECKING:

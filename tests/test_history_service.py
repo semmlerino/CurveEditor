@@ -15,13 +15,31 @@ from unittest.mock import Mock
 
 import pytest
 
-from services.history_service import HistoryService, get_history_service
-from services.interaction_service import HistoryContainerProtocol
+# History is now integrated into InteractionService
+from services import get_interaction_service
+
+
+# Create wrapper for compatibility with old tests
+class HistoryService:
+    """Wrapper for history functionality in InteractionService."""
+    def __init__(self):
+        self._service = get_interaction_service()
+
+    def __getattr__(self, name):
+        # Delegate to interaction service
+        return getattr(self._service, name)
+
+def get_history_service():
+    """Get history service (now part of interaction service)."""
+    # Return the interaction service directly since it has all history methods
+    return get_interaction_service()
+
 
 @pytest.fixture
 def history_service():
     """Create a HistoryService instance for testing."""
     return get_history_service()
+
 
 @pytest.fixture
 def mock_main_window():
@@ -33,17 +51,22 @@ def mock_main_window():
     main_window.history_index = -1
     main_window.max_history_size = 50
 
-    # Application state
-    main_window.curve_data = [[1, 100.0, 200.0], [2, 110.0, 210.0], [3, 120.0, 220.0]]
+    # Application state - provide real list data, not Mock objects
+    curve_data_list = [[1, 100.0, 200.0], [2, 110.0, 210.0], [3, 120.0, 220.0]]
+    main_window.curve_data = curve_data_list
     main_window.point_name = "TrackPoint1"
     main_window.point_color = "#FF0000"
+
+    # Curve widget - InteractionService expects this structure
+    main_window.curve_widget = Mock()
+    main_window.curve_widget.curve_data = curve_data_list  # Same real data
 
     # UI elements - properly set up the nested structure
     main_window.ui_components = Mock()
     main_window.ui_components.undo_button = Mock()
     main_window.ui_components.redo_button = Mock()
     main_window.ui_components.info_label = Mock()
-    
+
     # Also add direct button references for compatibility
     main_window.undo_button = main_window.ui_components.undo_button
     main_window.redo_button = main_window.ui_components.redo_button
@@ -63,6 +86,7 @@ def mock_main_window():
 
     return main_window
 
+
 class TestHistoryServiceBasicOperations:
     """Test basic history operations."""
 
@@ -76,11 +100,13 @@ class TestHistoryServiceBasicOperations:
 
         # Verify state was saved correctly
         saved_state = mock_main_window.history[0]
-        assert saved_state["curve_data"] == mock_main_window.curve_data
+        # Note: compressed state converts lists to tuples for efficiency
+        expected_curve_data = [(1, 100.0, 200.0), (2, 110.0, 210.0), (3, 120.0, 220.0)]
+        assert saved_state["curve_data"] == expected_curve_data
         assert saved_state["point_name"] == "TrackPoint1"
         assert saved_state["point_color"] == "#FF0000"
 
-        # Verify deep copy was made
+        # Verify deep copy was made (different object)
         assert saved_state["curve_data"] is not mock_main_window.curve_data
 
         # Verify button states
@@ -96,7 +122,9 @@ class TestHistoryServiceBasicOperations:
         history_service.add_to_history(mock_main_window)
 
         # Modify data and add second state
-        mock_main_window.curve_data = [[1, 105.0, 205.0], [2, 115.0, 215.0]]
+        new_curve_data = [[1, 105.0, 205.0], [2, 115.0, 215.0]]
+        mock_main_window.curve_data = new_curve_data
+        mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
         history_service.add_to_history(mock_main_window)
 
         # Verify history
@@ -114,7 +142,9 @@ class TestHistoryServiceBasicOperations:
         """Test that adding to history truncates future history."""
         # Build history with 3 states
         for i in range(3):
-            mock_main_window.curve_data = [[1, 100.0 + i * 10, 200.0 + i * 10]]
+            new_curve_data = [[1, 100.0 + i * 10, 200.0 + i * 10]]
+            mock_main_window.curve_data = new_curve_data
+            mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
             history_service.add_to_history(mock_main_window)
 
         # Undo twice
@@ -124,7 +154,9 @@ class TestHistoryServiceBasicOperations:
         assert len(mock_main_window.history) == 3
 
         # Add new state (should truncate future history)
-        mock_main_window.curve_data = [[1, 150.0, 250.0]]
+        new_curve_data = [[1, 150.0, 250.0]]
+        mock_main_window.curve_data = new_curve_data
+        mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
         history_service.add_to_history(mock_main_window)
 
         assert len(mock_main_window.history) == 2  # Old index 0 + new state
@@ -136,7 +168,9 @@ class TestHistoryServiceBasicOperations:
 
         # Add 7 states
         for i in range(7):
-            mock_main_window.curve_data = [[1, 100.0 + i, 200.0 + i]]
+            new_curve_data = [[1, 100.0 + i, 200.0 + i]]
+            mock_main_window.curve_data = new_curve_data
+            mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
             history_service.add_to_history(mock_main_window)
 
         # Should only keep last 5 states
@@ -147,6 +181,7 @@ class TestHistoryServiceBasicOperations:
         assert mock_main_window.history[0]["curve_data"][0][1] == 102.0  # Third state (index 2)
         assert mock_main_window.history[4]["curve_data"][0][1] == 106.0  # Seventh state (index 6)
 
+
 class TestHistoryServiceUndoRedo:
     """Test undo/redo operations."""
 
@@ -156,7 +191,9 @@ class TestHistoryServiceUndoRedo:
         original_data = copy.deepcopy(mock_main_window.curve_data)
         history_service.add_to_history(mock_main_window)
 
-        mock_main_window.curve_data = [[1, 105.0, 205.0]]
+        new_curve_data = [[1, 105.0, 205.0]]
+        mock_main_window.curve_data = new_curve_data
+        mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
         history_service.add_to_history(mock_main_window)
 
         # Undo
@@ -199,6 +236,7 @@ class TestHistoryServiceUndoRedo:
 
         modified_data = [[1, 105.0, 205.0]]
         mock_main_window.curve_data = modified_data
+        mock_main_window.curve_widget.curve_data = modified_data  # Keep in sync
         history_service.add_to_history(mock_main_window)
 
         history_service.undo_action(mock_main_window)
@@ -230,7 +268,9 @@ class TestHistoryServiceUndoRedo:
         """Test that undo() and redo() aliases work correctly."""
         # Add states
         history_service.add_to_history(mock_main_window)
-        mock_main_window.curve_data = [[1, 105.0, 205.0]]
+        new_curve_data = [[1, 105.0, 205.0]]
+        mock_main_window.curve_data = new_curve_data
+        mock_main_window.curve_widget.curve_data = new_curve_data  # Keep in sync
         history_service.add_to_history(mock_main_window)
 
         # Test undo alias
@@ -240,6 +280,7 @@ class TestHistoryServiceUndoRedo:
         # Test redo alias
         history_service.redo(mock_main_window)
         assert mock_main_window.history_index == 1
+
 
 class TestHistoryServiceStateRestoration:
     """Test state restoration functionality."""
@@ -307,6 +348,7 @@ class TestHistoryServiceStateRestoration:
         assert mock_main_window.point_name == "Track1"
         assert mock_main_window.point_color == "#FF0000"
 
+
 class TestHistoryServiceButtonStates:
     """Test button state management."""
 
@@ -339,6 +381,7 @@ class TestHistoryServiceButtonStates:
 
         mock_main_window.undo_button.setEnabled.assert_called_with(True)
         mock_main_window.redo_button.setEnabled.assert_called_with(False)
+
 
 class TestHistoryServiceEdgeCases:
     """Test edge cases and error conditions."""

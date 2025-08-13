@@ -7,19 +7,21 @@ Contains decorators and helper functions for state capture, data mutation, and c
 
 import functools
 import inspect
+import logging
 from collections.abc import Callable
 from typing import Any
 
 from PySide6.QtWidgets import QMessageBox
 
-from services.curve_service import CurveService as CurveViewOperations
-import logging
+from services.interaction_service import get_interaction_service
 
 logger = logging.getLogger("curve_view_plumbing")
+
 
 def _get_curve_view(target: Any) -> Any:
     """Extract curve_view from either main_window or direct curve_view object."""
     return target if hasattr(target, "points") else target.curve_view
+
 
 def operation(action_name: str, record_history: bool = True) -> Callable[..., Any]:
     """Unified decorator: flexible injection, error handling, and finalization."""
@@ -91,6 +93,7 @@ def operation(action_name: str, record_history: bool = True) -> Callable[..., An
 
     return decorator
 
+
 def capture_view_state(curve_view) -> dict[str, Any]:
     """Capture zoom & offset state."""
     return {
@@ -100,6 +103,7 @@ def capture_view_state(curve_view) -> dict[str, Any]:
         "x_offset": getattr(curve_view, "x_offset", 0),
         "y_offset": getattr(curve_view, "y_offset", 0),
     }
+
 
 def restore_view_state_and_selection(
     curve_view, state: dict[str, Any], selected_indices: list[int], original_primary: int
@@ -128,6 +132,7 @@ def restore_view_state_and_selection(
     if hasattr(curve_view, "point_selected") and len(selected_indices) == 1:
         curve_view.point_selected.emit(curve_view.selected_point_idx)
 
+
 def finalize_data_change(curve_view, main_window, view_state, selected_indices, original_primary, history_msg=None):
     """Restore view, selection, repaint, update UI, history, and status."""
     restore_view_state_and_selection(curve_view, view_state, selected_indices, original_primary)
@@ -137,12 +142,14 @@ def finalize_data_change(curve_view, main_window, view_state, selected_indices, 
     if main_window and selected_indices:
         idx0 = original_primary if original_primary in selected_indices else selected_indices[0]
         fd = main_window.curve_data[idx0]
-        # Update info panel using the imported CurveViewOperations
-        CurveViewOperations.update_point_info(main_window, idx0, fd[1], fd[2])
+        # Update info panel using InteractionService
+        interaction_service = get_interaction_service()
+        interaction_service.update_point_info(main_window, idx0, fd[1], fd[2])
     if main_window and hasattr(main_window, "add_to_history"):
         main_window.add_to_history()
     if main_window and history_msg and hasattr(main_window, "statusBar"):
         main_window.statusBar().showMessage(history_msg, 3000)
+
 
 def confirm_delete(main_window, count):
     """Show confirmation dialog for deleting N points."""
@@ -153,6 +160,7 @@ def confirm_delete(main_window, count):
         QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
     )
     return response == QMessageBox.StandardButton.Yes
+
 
 # Functions normalize_point, set_point_status, and update_point_coords
 # have been moved to services/curve_utils.py

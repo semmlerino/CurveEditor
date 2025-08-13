@@ -43,6 +43,11 @@ FrameNumber = int
 Coordinate = float
 PointIndex = int
 
+# Legacy type definitions for migration
+LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, bool]
+PointsList = list[LegacyPointTuple]
+
+
 class PointStatus(Enum):
     """Enumeration of point status values with backward compatibility.
 
@@ -91,6 +96,7 @@ class PointStatus(Enum):
     def to_legacy_bool(self) -> bool:
         """Convert to legacy boolean format."""
         return self == PointStatus.INTERPOLATED
+
 
 @dataclass(frozen=True)
 class CurvePoint:
@@ -255,6 +261,7 @@ class CurvePoint:
 
         return cls(frame, x, y, status)
 
+
 @dataclass
 class PointCollection:
     """Collection of curve points with bulk operations.
@@ -278,8 +285,14 @@ class PointCollection:
 
     points: list[CurvePoint]
 
-    def __post_init__(self) -> None:
-        """Validate collection after initialization."""
+    def __init__(self, points: list[CurvePoint] | None = None):
+        """Initialize with optional points list.
+
+        Args:
+            points: List of CurvePoint objects (defaults to empty list)
+        """
+        self.points = points if points is not None else []
+        # Validate points after assignment
         for i, point in enumerate(self.points):
             if not isinstance(point, CurvePoint):
                 raise TypeError(f"Point {i} must be CurvePoint, got {type(point)}")
@@ -475,7 +488,9 @@ class PointCollection:
         """
         return cls([])
 
+
 # Type guards for validation
+
 
 def is_point_tuple(obj: object) -> bool:
     """Type guard for point tuple format.
@@ -508,6 +523,7 @@ def is_point_tuple(obj: object) -> bool:
 
     return True
 
+
 def is_points_list(obj: object) -> bool:
     """Type guard for PointsList format.
 
@@ -522,7 +538,9 @@ def is_points_list(obj: object) -> bool:
 
     return all(is_point_tuple(item) for item in obj)
 
+
 # Utility functions for common operations
+
 
 def normalize_legacy_point(
     point: tuple[int, float, float] | tuple[int, float, float, str | bool],
@@ -554,11 +572,14 @@ def normalize_legacy_point(
     else:
         raise ValueError(f"Invalid point format: {point}")
 
+
 @overload
 def convert_to_curve_point(point: tuple[int, float, float]) -> CurvePoint: ...
 
+
 @overload
 def convert_to_curve_point(point: tuple[int, float, float, str | bool]) -> CurvePoint: ...
+
 
 def convert_to_curve_point(point: tuple[int, float, float] | tuple[int, float, float, str | bool]) -> CurvePoint:
     """Convert legacy point tuple to CurvePoint.
@@ -571,6 +592,7 @@ def convert_to_curve_point(point: tuple[int, float, float] | tuple[int, float, f
     """
     return CurvePoint.from_tuple(point)
 
+
 def convert_to_curve_collection(points: PointsList) -> PointCollection:
     """Convert legacy PointsList to PointCollection.
 
@@ -582,7 +604,9 @@ def convert_to_curve_collection(points: PointsList) -> PointCollection:
     """
     return PointCollection.from_tuples(points)
 
+
 # Performance-optimized utilities for large datasets
+
 
 def bulk_convert_to_tuples(points: list[CurvePoint]) -> PointsList:
     """High-performance conversion of CurvePoints to legacy tuples.
@@ -606,6 +630,7 @@ def bulk_convert_to_tuples(points: list[CurvePoint]) -> PointsList:
             result_append((point.frame, point.x, point.y, point.status.value))
 
     return result
+
 
 def bulk_convert_from_tuples(point_tuples: PointsList) -> list[CurvePoint]:
     """High-performance conversion of legacy tuples to CurvePoints.

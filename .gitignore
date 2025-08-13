@@ -5,10 +5,21 @@ __pycache__/
 .gitignore
 CurveEditor.concat
 
+# Virtual environment
+venv/
+
 # Ignore obsolete and archive directories that contain historical/outdated code
 docs/ObsoleteArchive/
 docs/archive_2025_01_28/
+docs/archive/
 **/archive/
 **/obsolete/
 **/Archive/
 **/Obsolete/
+
+# Cache directories
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.hypothesis/

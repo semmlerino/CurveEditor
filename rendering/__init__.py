@@ -8,12 +8,15 @@ CurveView paintEvent method to improve maintainability and testability.
 """
 
 try:
-    from .curve_renderer import CurveRenderer
+    from .optimized_curve_renderer import OptimizedCurveRenderer as CurveRenderer  # type: ignore[assignment]
+
     __all__ = ["CurveRenderer"]
 except ImportError:
     # Stub when PySide6 is not available
     class CurveRenderer:
         """Stub renderer for startup compatibility."""
+
         def __init__(self):
             pass
+
     __all__ = ["CurveRenderer"]

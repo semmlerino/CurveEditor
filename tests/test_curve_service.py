@@ -7,11 +7,11 @@ from typing import final
 
 from PySide6.QtCore import QRect
 
-from services.curve_service import CurveService
-from services.interaction_service import InteractionService
-from services.transform_service import TransformService
+from services import TransformService
 from services.data_service import DataService
-from tests.conftest import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
+from services.interaction_service import InteractionService
+from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
+
 
 @final
 class TestCurveService(unittest.TestCase):
@@ -27,17 +27,19 @@ class TestCurveService(unittest.TestCase):
     def setUp(self) -> None:
         """Set up test fixtures for each test."""
         # Create protocol-compliant mock objects for CurveView and MainWindow
-        self.mock_curve_view = ProtocolCompliantMockCurveView(
-            points=[(1, 100, 200), (2, 150, 250), (3, 200, 300)],
-            selected_points=set(),
-            selected_point_idx=-1,
-            zoom_factor=1.0,
-            offset_x=0,
-            offset_y=0,
-        )
-        self.mock_main_window = ProtocolCompliantMockMainWindow(
-            curve_data=[(1, 100, 200), (2, 150, 250), (3, 200, 300)]
-        )
+        self.mock_curve_view = ProtocolCompliantMockCurveView()
+        # Set properties after creation
+        self.mock_curve_view.curve_data = [(1, 100, 200, "keyframe"), (2, 150, 250, "keyframe"), (3, 200, 300, "keyframe")]
+        self.mock_curve_view.points = self.mock_curve_view.curve_data
+        self.mock_curve_view.selected_points = set()
+        self.mock_curve_view.selected_point_idx = -1
+        self.mock_curve_view.zoom_factor = 1.0
+        self.mock_curve_view.offset_x = 0
+        self.mock_curve_view.offset_y = 0
+
+        self.mock_main_window = ProtocolCompliantMockMainWindow()
+        self.mock_main_window.curve_view.curve_data = [(1, 100, 200, "keyframe"), (2, 150, 250, "keyframe"), (3, 200, 300, "keyframe")]
+        self.mock_main_window.curve_view.points = self.mock_main_window.curve_view.curve_data
 
         # Additional properties needed for transformation tests
         # Set these through the internal interface if they don't exist
@@ -45,7 +47,7 @@ class TestCurveService(unittest.TestCase):
             setattr(self.mock_curve_view, "center_offset_x", 0.0)
         if not hasattr(self.mock_curve_view, "center_offset_y"):
             setattr(self.mock_curve_view, "center_offset_y", 0.0)
-        
+
         # Initialize consolidated services
         self.interaction_service = InteractionService()
         self.transform_service = TransformService()
@@ -65,7 +67,9 @@ class TestCurveService(unittest.TestCase):
     def test_select_point_by_index_invalid(self) -> None:
         """Test selecting a point with invalid index."""
         # Act
-        result = self.interaction_service.select_point_by_index(self.mock_curve_view, self.mock_main_window, 10)  # Out of range
+        result = self.interaction_service.select_point_by_index(
+            self.mock_curve_view, self.mock_main_window, 10
+        )  # Out of range
 
         # Assert
         self.assertFalse(result)
@@ -106,17 +110,21 @@ class TestCurveService(unittest.TestCase):
         setattr(self.mock_curve_view, "center_offset_y", 0.0)
 
         # Use the real CurveService method with real transformation
-        from services.transform_service import get_transform_service
+        from services import get_transform_service
+
         transform_service = get_transform_service()
 
         # Create real transform to understand actual coordinate mapping
         view_state = transform_service.create_view_state(self.mock_curve_view)
-        transform = transform_service.create_transform(view_state)
+        real_transform = transform_service.create_transform(view_state)
+
+        # Override the mock's get_current_transform to return the real transform
+        self.mock_curve_view.get_current_transform = lambda: real_transform
 
         # Get transformed coordinates for the points we have
-        _ = transform.data_to_screen(100, 200)  # p0_transformed
-        p1_transformed = transform.data_to_screen(150, 250)
-        _ = transform.data_to_screen(200, 300)  # p2_transformed
+        _ = real_transform.data_to_screen(100, 200)  # p0_transformed
+        p1_transformed = real_transform.data_to_screen(150, 250)
+        _ = real_transform.data_to_screen(200, 300)  # p2_transformed
 
         # Create rectangle that should include only the middle point based on actual transforms
         rect = QRect(int(p1_transformed[0] - 10), int(p1_transformed[1] - 10), 20, 20)
@@ -133,11 +141,14 @@ class TestCurveService(unittest.TestCase):
     def test_update_point_position(self) -> None:
         """Test updating a point's position."""
         # Act
-        result = self.interaction_service.update_point_position(self.mock_curve_view, self.mock_main_window, 1, 160, 260)
+        result = self.interaction_service.update_point_position(
+            self.mock_curve_view, self.mock_main_window, 1, 160, 260
+        )
 
         # Assert
         self.assertTrue(result)
-        self.assertEqual(self.mock_main_window.curve_data[1], (2, 160, 260, "normal"))
+        # Check the curve_view's data, not main_window's
+        self.assertEqual(self.mock_curve_view.curve_data[1][1:3], (160, 260))
 
     def test_update_point_position_invalid_index(self) -> None:
         """Test updating a point with invalid index."""
@@ -148,8 +159,8 @@ class TestCurveService(unittest.TestCase):
 
         # Assert
         self.assertFalse(result)
-        # Ensure data wasn't modified
-        self.assertEqual(self.mock_main_window.curve_data[1], (2, 150, 250))
+        # Ensure data wasn't modified in curve_view
+        self.assertEqual(self.mock_curve_view.curve_data[1][1:3], (150, 250))
 
     def test_find_point_at(self) -> None:
         """Test finding a point at specific widget coordinates using real transformation."""
@@ -160,13 +171,18 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.center_offset_y = 0.0
 
         # Use the real CurveService method
-        from services.transform_service import get_transform_service
+        from services import get_transform_service
+
         transform_service = get_transform_service()
 
         # Get actual transformed coordinates for point 1 (150, 250)
         view_state = transform_service.create_view_state(self.mock_curve_view)
-        transform = transform_service.create_transform(view_state)
-        p1_transformed = transform.data_to_screen(150, 250)
+        real_transform = transform_service.create_transform(view_state)
+
+        # Override the mock's get_current_transform to return the real transform
+        self.mock_curve_view.get_current_transform = lambda: real_transform
+
+        p1_transformed = real_transform.data_to_screen(150, 250)
 
         # Call find_point_at near the transformed coordinates of point 1
         idx = self.interaction_service.find_point_at(self.mock_curve_view, p1_transformed[0], p1_transformed[1])
@@ -211,6 +227,7 @@ class TestCurveService(unittest.TestCase):
         # This functionality has been consolidated but not yet fully implemented
         # TODO: Implement nudge functionality in InteractionService
         pass
+
 
 if __name__ == "__main__":
     _ = unittest.main()

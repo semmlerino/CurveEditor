@@ -1,0 +1,172 @@
+================================================================================
+CURVEEDITOR PERFORMANCE BOTTLENECK ANALYSIS
+================================================================================
+
+📊 EXECUTIVE SUMMARY
+--------------------------------------------------
+Files analyzed: 8
+Critical issues: 0
+High priority issues: 42
+Medium priority issues: 4
+
+🚨 CRITICAL PERFORMANCE BOTTLENECKS
+--------------------------------------------------
+1. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1602
+   Issue: Use update(rect) for partial updates
+
+2. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1526
+   Issue: Use update(rect) for partial updates
+
+3. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1276
+   Issue: Use update(rect) for partial updates
+
+4. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1230
+   Issue: Use update(rect) for partial updates
+
+5. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1127
+   Issue: Use update(rect) for partial updates
+
+6. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1097
+   Issue: Use update(rect) for partial updates
+
+7. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:1020
+   Issue: Use update(rect) for partial updates
+
+8. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:984
+   Issue: Use update(rect) for partial updates
+
+9. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:954
+   Issue: Use update(rect) for partial updates
+
+10. Qt rendering bottleneck [HIGH]
+   File: ui/curve_view_widget.py:935
+   Issue: Use update(rect) for partial updates
+
+📁 FILE-BY-FILE ANALYSIS
+--------------------------------------------------
+
+rendering/curve_renderer.py
+  ───────────────────────────
+  Lines of code: 370
+  ⚠️  Inefficient patterns: 11
+  ⚠️  Qt performance issues: 6
+  ⚠️  Memory issues: 9
+
+data/curve_data_utils.py
+  ────────────────────────
+  Lines of code: 189
+  ⚠️  Nested loops: 2
+  ⚠️  Inefficient patterns: 6
+
+services/transform_service.py
+  ─────────────────────────────
+  Lines of code: 480
+  ⚠️  Inefficient patterns: 12
+  ⚠️  Memory issues: 8
+
+ui/components/interaction_handler.py
+  ────────────────────────────────────
+  Lines of code: 378
+  ⚠️  Qt performance issues: 13
+
+ui/theme_manager.py
+  ───────────────────
+  Lines of code: 558
+  ⚠️  Qt performance issues: 25
+  ⚠️  Memory issues: 3
+
+ui/progress_manager.py
+  ──────────────────────
+  Lines of code: 438
+  ⚠️  Qt performance issues: 9
+  ⚠️  Memory issues: 7
+
+services/data_service.py
+  ────────────────────────
+  Lines of code: 1147
+  ⚠️  Nested loops: 2
+  ⚠️  Inefficient patterns: 55
+  ⚠️  Qt performance issues: 2
+  ⚠️  Memory issues: 50
+
+ui/curve_view_widget.py
+  ───────────────────────
+  Lines of code: 1661
+  ⚠️  Inefficient patterns: 11
+  ⚠️  Qt performance issues: 52
+  ⚠️  Memory issues: 25
+
+🚀 OPTIMIZATION RECOMMENDATIONS
+--------------------------------------------------
+
+1. Replace nested loops with optimized algorithms [Critical]
+   Category: Algorithmic Optimization
+   Expected improvement: 10x-100x faster for large datasets
+   • Use hash maps/sets for O(1) lookups instead of nested searches
+   • Pre-compute neighbor mappings to avoid O(n²) searches
+   • Consider using numpy for vectorized operations
+   • Implement early exit conditions in search loops
+
+2. Optimize Qt painting operations [High]
+   Category: Qt Rendering Optimization
+   Expected improvement: 2x-5x faster rendering
+   • Use QPainterPath for batch drawing operations
+   • Implement viewport culling to skip off-screen elements
+   • Cache expensive QColor/QPen objects as class attributes
+   • Use update(QRect) for partial repaints instead of full updates
+   • Move font metrics calculations outside paint events
+
+3. Reduce memory allocations and improve cache management [Medium]
+   Category: Memory Optimization
+   Expected improvement: 50% reduction in memory usage
+   • Implement cache size limits with LRU eviction
+   • Use generators instead of lists for large datasets
+   • Implement object pooling for frequently created objects
+   • Use weak references for caches to allow garbage collection
+
+4. Optimize rendering/curve_renderer.py [Medium]
+   Category: Rendering Pipeline
+   Expected improvement: 2x-3x performance improvement
+   • Implement level-of-detail (LOD) rendering for large datasets
+   • Use instanced rendering for repeated point shapes
+   • Add dirty region tracking to minimize repaints
+
+5. Optimize data/curve_data_utils.py [Medium]
+   Category: Data Processing
+   Expected improvement: 2x-3x performance improvement
+   • Use numpy arrays for numerical operations
+   • Implement parallel processing for independent operations
+   • Add progress callbacks for long-running operations
+
+6. Optimize services/transform_service.py [Medium]
+   Category: Coordinate Transforms
+   Expected improvement: 2x-3x performance improvement
+   • Cache transform matrices instead of recalculating
+   • Use SIMD operations for batch coordinate transforms
+   • Implement transform change detection to avoid redundant work
+
+📋 IMPLEMENTATION PRIORITY
+--------------------------------------------------
+
+Critical Priority (1 items):
+  • Replace nested loops with optimized algorithms
+
+High Priority (1 items):
+  • Optimize Qt painting operations
+
+Medium Priority (4 items):
+  • Reduce memory allocations and improve cache management
+  • Optimize rendering/curve_renderer.py
+  • Optimize data/curve_data_utils.py
+  • Optimize services/transform_service.py
+
+================================================================================

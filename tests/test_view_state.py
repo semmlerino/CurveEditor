@@ -16,7 +16,8 @@ import pytest
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from services.view_state import ViewState
+from services.transform_service import ViewState
+
 
 class TestViewState:
     """Test suite for ViewState class."""
@@ -148,6 +149,7 @@ class TestViewState:
         assert view_state.image_height == 1080
         # And background_image reference is set
         assert view_state.background_image is mock_background
+
 
 if __name__ == "__main__":
     pytest.main(["-v", __file__])

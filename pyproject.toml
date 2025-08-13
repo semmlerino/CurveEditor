@@ -12,6 +12,11 @@ extend-exclude = [
     "**/__pycache__/",
     "**/.pytest_cache/",
     "**/.mypy_cache/",
+    "*.txt",
+    "*.md",
+    "*.bat",
+    "*.sh",
+    "footage/",
 ]
 
 # Set the maximum line length
@@ -79,3 +84,7 @@ testpaths = ["tests"]
 
 # Minimum Python version
 minversion = "3.8"
+
+[tool.basedpyright]
+# Use the configuration from basedpyrightconfig.json
+# This section exists for IDE integration but the JSON file takes precedence

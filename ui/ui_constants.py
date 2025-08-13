@@ -295,8 +295,40 @@ ANIMATION = {
 }
 
 # ============================================================================
+# APPLICATION DEFAULTS
+# ============================================================================
+
+# Default image/canvas dimensions
+DEFAULT_IMAGE_WIDTH = 1920
+DEFAULT_IMAGE_HEIGHT = 1080
+
+# History and limits
+MAX_HISTORY_SIZE = 100
+DEFAULT_CHUNK_SIZE = 10000
+
+# Grid and rendering
+GRID_CELL_SIZE = 100  # Grid cell size for spatial indexing
+RENDER_PADDING = 100  # Padding for viewport culling
+
+# View defaults
+DEFAULT_ZOOM_FACTOR = 1.0
+MIN_ZOOM_FACTOR = 0.1
+MAX_ZOOM_FACTOR = 10.0
+DEFAULT_BACKGROUND_OPACITY = 0.5
+
+# Timing defaults (milliseconds)
+DEFAULT_STATUS_TIMEOUT = 3000  # Status message timeout
+DEFAULT_FPS = 30
+
+# Numeric input defaults
+DEFAULT_DECIMAL_PLACES = 2
+DEFAULT_SMOOTHING_WINDOW = 5
+DEFAULT_NUDGE_AMOUNT = 1.0
+
+# ============================================================================
 # HELPER FUNCTIONS
 # ============================================================================
+
 
 def get_theme_colors(theme: str = "light") -> dict[str, str]:
     """Get color palette for specified theme.
@@ -314,6 +346,7 @@ def get_theme_colors(theme: str = "light") -> dict[str, str]:
     }
     return themes.get(theme, COLORS_LIGHT)
 
+
 def scale_value(value: int, dpi_scale: float) -> int:
     """Scale a pixel value based on DPI.
 
@@ -325,6 +358,7 @@ def scale_value(value: int, dpi_scale: float) -> int:
         Scaled pixel value
     """
     return int(value * dpi_scale)
+
 
 def get_scaled_font_size(size_key: str, dpi_scale: float) -> int:
     """Get scaled font size by key.
@@ -339,6 +373,7 @@ def get_scaled_font_size(size_key: str, dpi_scale: float) -> int:
     base_size = FONT_SIZES.get(size_key, FONT_SIZES["normal"])
     return scale_value(base_size, dpi_scale)
 
+
 def get_scaled_spacing(spacing_key: str, dpi_scale: float) -> int:
     """Get scaled spacing by key.
 
@@ -351,6 +386,7 @@ def get_scaled_spacing(spacing_key: str, dpi_scale: float) -> int:
     """
     base_spacing = SPACING.get(spacing_key, SPACING["m"])
     return scale_value(base_spacing, dpi_scale)
+
 
 def format_rgba(color: tuple[int, int, int, int]) -> str:
     """Format RGBA tuple as CSS rgba string.

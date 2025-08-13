@@ -1,0 +1,544 @@
+#!/usr/bin/env python
+"""
+Optimized curve renderer with advanced performance techniques for CurveEditor.
+
+This renderer addresses the critical performance issues identified in the analysis:
+- Rendering drops to 3.9 FPS with 25K points
+- Paint operations dominate rendering time (254ms for 25K points)
+- Need for viewport culling, level-of-detail, and vectorized operations
+"""
+
+import logging
+import time
+from enum import Enum
+from typing import Any
+
+import numpy as np
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
+
+from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
+
+logger = logging.getLogger("optimized_curve_renderer")
+
+
+class RenderQuality(Enum):
+    """Rendering quality levels for adaptive performance."""
+
+    DRAFT = "draft"  # Fast rendering for interaction
+    NORMAL = "normal"  # Standard quality
+    HIGH = "high"  # High quality for final display
+
+
+class ViewportCuller:
+    """Efficient viewport culling with spatial indexing."""
+
+    def __init__(self):
+        self._grid_size = GRID_CELL_SIZE  # Grid cell size for spatial indexing
+        self._spatial_index = {}
+
+    def update_spatial_index(self, points: np.ndarray, viewport: QRectF) -> None:
+        """Update spatial index for the given points."""
+        self._spatial_index.clear()
+
+        if len(points) == 0:
+            return
+
+        # Create grid-based spatial index
+        for i, (x, y) in enumerate(points):
+            grid_x = int(x // self._grid_size)
+            grid_y = int(y // self._grid_size)
+            key = (grid_x, grid_y)
+
+            if key not in self._spatial_index:
+                self._spatial_index[key] = []
+            self._spatial_index[key].append(i)
+
+    def get_visible_points(self, points: np.ndarray, viewport: QRectF, padding: float = 50) -> np.ndarray:
+        """Get indices of points visible in viewport using spatial indexing."""
+        if len(points) == 0:
+            return np.array([], dtype=int)
+
+        # Expand viewport by padding
+        expanded = QRectF(
+            viewport.x() - padding,
+            viewport.y() - padding,
+            viewport.width() + 2 * padding,
+            viewport.height() + 2 * padding,
+        )
+
+        # Fast path: if we have many points, use spatial indexing
+        if len(points) > 1000:
+            return self._get_visible_points_spatial(points, expanded)
+        else:
+            return self._get_visible_points_simple(points, expanded)
+
+    def _get_visible_points_spatial(self, points: np.ndarray, viewport: QRectF) -> np.ndarray:
+        """Use spatial index for large datasets."""
+        visible = []
+
+        # Find grid cells that intersect with viewport
+        min_grid_x = int(viewport.left() // self._grid_size) - 1
+        max_grid_x = int(viewport.right() // self._grid_size) + 1
+        min_grid_y = int(viewport.top() // self._grid_size) - 1
+        max_grid_y = int(viewport.bottom() // self._grid_size) + 1
+
+        # Check each intersecting grid cell
+        for grid_x in range(min_grid_x, max_grid_x + 1):
+            for grid_y in range(min_grid_y, max_grid_y + 1):
+                key = (grid_x, grid_y)
+                if key in self._spatial_index:
+                    for idx in self._spatial_index[key]:
+                        # Bounds check to prevent index errors
+                        if 0 <= idx < len(points):
+                            x, y = points[idx]
+                            if viewport.contains(x, y):
+                                visible.append(idx)
+
+        return np.array(visible, dtype=int)
+
+    def _get_visible_points_simple(self, points: np.ndarray, viewport: QRectF) -> np.ndarray:
+        """Simple viewport culling for smaller datasets."""
+        if len(points) == 0:
+            return np.array([], dtype=int)
+
+        # Vectorized viewport test
+        x_coords = points[:, 0]
+        y_coords = points[:, 1]
+
+        visible_mask = (
+            (x_coords >= viewport.left())
+            & (x_coords <= viewport.right())
+            & (y_coords >= viewport.top())
+            & (y_coords <= viewport.bottom())
+        )
+
+        return np.where(visible_mask)[0]
+
+
+class LevelOfDetail:
+    """Level-of-detail system for adaptive rendering."""
+
+    def __init__(self):
+        self._lod_thresholds = {
+            RenderQuality.DRAFT: 1000,  # Show every 1000th point
+            RenderQuality.NORMAL: 100,  # Show every 100th point
+            RenderQuality.HIGH: 1,  # Show all points
+        }
+
+    def get_lod_points(
+        self, points: np.ndarray, quality: RenderQuality, visible_indices: np.ndarray = None
+    ) -> tuple[np.ndarray, int]:
+        """Get points for the specified level of detail."""
+        if len(points) == 0:
+            return points, 1
+
+        # Use visible indices if provided, otherwise use all points
+        if visible_indices is not None and len(visible_indices) > 0:
+            working_points = points[visible_indices]
+        else:
+            working_points = points
+
+        threshold = self._lod_thresholds[quality]
+
+        # For high quality or small datasets, return all points
+        if quality == RenderQuality.HIGH or len(working_points) <= threshold:
+            return working_points, 1
+
+        # Calculate step size for sub-sampling
+        step = max(1, len(working_points) // threshold)
+
+        # Sub-sample points evenly
+        sampled_indices = np.arange(0, len(working_points), step)
+        lod_points = working_points[sampled_indices]
+
+        return lod_points, step
+
+
+class VectorizedTransform:
+    """Vectorized coordinate transformation using NumPy."""
+
+    @staticmethod
+    def transform_points_batch(
+        points: np.ndarray, zoom: float, offset_x: float, offset_y: float, flip_y: bool = False, height: int = 0
+    ) -> np.ndarray:
+        """Transform all points in a single vectorized operation."""
+        if len(points) == 0:
+            return np.array([]).reshape(0, 2)
+
+        # Extract x and y coordinates
+        x_coords = points[:, 1] if points.shape[1] > 1 else points[:, 0]
+        y_coords = points[:, 2] if points.shape[1] > 2 else points[:, 1]
+
+        # Vectorized transformation
+        screen_x = x_coords * zoom + offset_x
+        screen_y = y_coords * zoom + offset_y
+
+        # Apply Y-flip if needed
+        if flip_y and height > 0:
+            screen_y = height - screen_y
+
+        # Stack coordinates into Nx2 array
+        return np.column_stack((screen_x, screen_y))
+
+
+class OptimizedCurveRenderer:
+    """Optimized curve renderer with advanced performance techniques."""
+
+    def __init__(self):
+        """Initialize the optimized renderer."""
+        self.background_opacity = 1.0
+        self._viewport_culler = ViewportCuller()
+        self._lod_system = LevelOfDetail()
+        self._render_quality = RenderQuality.NORMAL
+
+        # Performance tracking
+        self._last_render_time = 0.0
+        self._render_count = 0
+        self._total_render_time = 0.0
+
+        # Adaptive quality settings
+        self._fps_target = 30.0
+        self._quality_auto_adjust = True
+        self._last_fps = 60.0
+
+        # Initialize cache variables
+        self._last_point_count = 0
+
+        # Caching
+        self._last_viewport = None
+        self._cached_visible_indices = None
+        self._cache_valid = False
+
+        logger.info("OptimizedCurveRenderer initialized with adaptive quality")
+
+    def set_render_quality(self, quality: RenderQuality) -> None:
+        """Set the rendering quality level."""
+        self._render_quality = quality
+        self._quality_auto_adjust = False
+        logger.info(f"Render quality set to {quality.value}")
+
+    def enable_auto_quality(self, target_fps: float = 30.0) -> None:
+        """Enable automatic quality adjustment based on performance."""
+        self._quality_auto_adjust = True
+        self._fps_target = target_fps
+        logger.info(f"Auto quality enabled with {target_fps} FPS target")
+
+    def render(self, painter: QPainter, event: Any, curve_view: Any) -> None:
+        """Render complete curve view with optimized performance."""
+        start_time = time.perf_counter()
+        self._render_count += 1
+
+        # Auto-adjust quality based on performance
+        if self._quality_auto_adjust:
+            self._adjust_quality_for_performance()
+
+        # Save painter state
+        painter.save()
+
+        try:
+            # Render background if available
+            if getattr(curve_view, "show_background", False) and getattr(curve_view, "background_image", None):
+                self._render_background_optimized(painter, curve_view)
+
+            # Render grid if needed
+            if getattr(curve_view, "show_grid", False):
+                self._render_grid_optimized(painter, curve_view)
+
+            # Render curve points with advanced optimizations
+            if hasattr(curve_view, "points") and curve_view.points:
+                self._render_points_ultra_optimized(painter, curve_view)
+
+            # Render info overlay
+            self._render_info_optimized(painter, curve_view)
+
+        finally:
+            # Restore painter state
+            painter.restore()
+
+        # Update performance metrics
+        render_time = time.perf_counter() - start_time
+        self._last_render_time = render_time
+        self._total_render_time += render_time
+
+        # Calculate FPS
+        if render_time > 0:
+            current_fps = 1.0 / render_time
+            self._last_fps = 0.9 * self._last_fps + 0.1 * current_fps  # Smoothed FPS
+
+        # Log performance periodically
+        if self._render_count % 60 == 0:  # Every 60 frames
+            avg_time = self._total_render_time / self._render_count
+            avg_fps = 1.0 / avg_time if avg_time > 0 else 0
+            logger.debug(
+                f"Render stats: {avg_fps:.1f} avg FPS, {render_time * 1000:.2f}ms last frame, quality: {self._render_quality.value}"
+            )
+
+    def _render_points_ultra_optimized(self, painter: QPainter, curve_view: Any) -> None:
+        """Ultra-optimized point rendering with all techniques combined."""
+        points = curve_view.points
+        if not points:
+            return
+
+        # Convert to NumPy array for vectorized operations
+        if not isinstance(points, np.ndarray):
+            # Convert list of tuples to NumPy array - handle variable tuple lengths
+            try:
+                # Extract frame, x, y from tuples (ignore optional 4th element)
+                point_data = np.array([(p[0], p[1], p[2]) for p in points if len(p) >= 3])
+            except (IndexError, TypeError):
+                # Fallback if points format is unexpected
+                return
+        else:
+            point_data = points
+
+        # Get viewport for culling
+        viewport = QRectF(0, 0, curve_view.width(), curve_view.height())
+
+        # Check if viewport or point count changed
+        viewport_changed = self._last_viewport != viewport
+        point_count_changed = (hasattr(self, '_last_point_count') and
+                             self._last_point_count != len(point_data))
+
+        if viewport_changed or point_count_changed:
+            self._last_viewport = viewport
+            self._last_point_count = len(point_data)
+            self._cache_valid = False
+
+        # Initialize point count if not set
+        if not hasattr(self, '_last_point_count'):
+            self._last_point_count = len(point_data)
+
+        # Transform all points using vectorized operations
+        screen_points = VectorizedTransform.transform_points_batch(
+            point_data,
+            getattr(curve_view, "zoom_factor", 1.0),
+            getattr(curve_view, "offset_x", 0.0),
+            getattr(curve_view, "offset_y", 0.0),
+            getattr(curve_view, "flip_y_axis", False),
+            curve_view.height(),
+        )
+
+        # Viewport culling - get visible points
+        if not self._cache_valid or viewport_changed or point_count_changed:
+            self._cached_visible_indices = self._viewport_culler.get_visible_points(
+                screen_points, viewport, padding=RENDER_PADDING
+            )
+            self._cache_valid = True
+
+        visible_indices = self._cached_visible_indices
+
+        # Early exit if no points are visible
+        if len(visible_indices) == 0:
+            return
+
+        # Validate indices are within bounds
+        max_index = len(screen_points) - 1
+        if max_index >= 0:
+            visible_indices = visible_indices[visible_indices <= max_index]
+
+        # Apply level of detail
+        visible_screen_points = screen_points[visible_indices]
+        lod_points, step = self._lod_system.get_lod_points(visible_screen_points, self._render_quality, None)
+
+        # Render lines with optimized path
+        self._render_lines_optimized(painter, lod_points, step)
+
+        # Render points with batching
+        self._render_point_markers_optimized(painter, curve_view, lod_points, visible_indices, step)
+
+        # Render frame numbers if enabled (with heavy culling)
+        if getattr(curve_view, "show_all_frame_numbers", False) and self._render_quality == RenderQuality.HIGH:
+            self._render_frame_numbers_optimized(painter, curve_view, lod_points, visible_indices, step)
+
+    def _render_lines_optimized(self, painter: QPainter, screen_points: np.ndarray, step: int) -> None:
+        """Render lines between points using optimized QPainterPath."""
+        if len(screen_points) < 2:
+            return
+
+        # Set line style
+        pen = QPen(QColor(255, 255, 255))
+        pen.setWidth(2)
+        painter.setPen(pen)
+
+        # Use QPainterPath for batch line drawing
+        line_path = QPainterPath()
+
+        # Start path at first point
+        first_point = screen_points[0]
+        line_path.moveTo(first_point[0], first_point[1])
+
+        # Add lines to remaining points
+        for i in range(1, len(screen_points)):
+            point = screen_points[i]
+            line_path.lineTo(point[0], point[1])
+
+        # Draw all lines at once
+        painter.drawPath(line_path)
+
+    def _render_point_markers_optimized(
+        self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
+    ) -> None:
+        """Render point markers with selection batching."""
+        if len(screen_points) == 0:
+            return
+
+        point_radius = getattr(curve_view, "point_radius", 5)
+        selected_points = getattr(curve_view, "selected_points", set())
+
+        # Batch points by selection state for efficient rendering
+        normal_points = []
+        selected_points_list = []
+
+        for i, screen_pos in enumerate(screen_points):
+            # Map back to original index (accounting for LOD step)
+            original_idx = visible_indices[i * step] if i * step < len(visible_indices) else -1
+
+            if original_idx in selected_points:
+                selected_points_list.append(screen_pos)
+            else:
+                normal_points.append(screen_pos)
+
+        # Set painter for point drawing
+        painter.setPen(Qt.PenStyle.NoPen)
+
+        # Draw normal points in batch
+        if normal_points:
+            painter.setBrush(QBrush(QColor(255, 0, 0)))  # Red for normal
+            for pos in normal_points:
+                painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+
+        # Draw selected points in batch
+        if selected_points_list:
+            painter.setBrush(QBrush(QColor(255, 255, 0)))  # Yellow for selected
+            for pos in selected_points_list:
+                painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+
+    def _render_frame_numbers_optimized(
+        self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
+    ) -> None:
+        """Render frame numbers with heavy culling for performance."""
+        if len(screen_points) == 0:
+            return
+
+        # Only show frame numbers for a subset of points to avoid clutter
+        max_labels = 50  # Maximum number of labels to show
+        if len(screen_points) > max_labels:
+            label_step = len(screen_points) // max_labels
+        else:
+            label_step = 1
+
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        font = QFont("Arial", 8)  # Smaller font for performance
+        painter.setFont(font)
+
+        points = curve_view.points
+        for i in range(0, len(screen_points), label_step):
+            screen_pos = screen_points[i]
+            # Map back to original index
+            original_idx = visible_indices[i * step] if i * step < len(visible_indices) else -1
+
+            if 0 <= original_idx < len(points):
+                frame_num = points[original_idx][0]
+                painter.drawText(int(screen_pos[0] + 10), int(screen_pos[1] - 10), f"F{frame_num}")
+
+    def _render_background_optimized(self, painter: QPainter, curve_view: Any) -> None:
+        """Optimized background rendering."""
+        background_image = getattr(curve_view, "background_image", None)
+        if not background_image:
+            return
+
+        opacity = getattr(curve_view, "background_opacity", 1.0)
+        if opacity < 1.0:
+            painter.setOpacity(opacity)
+
+        # Use fast scaling hint for better performance
+        painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, self._render_quality == RenderQuality.HIGH)
+
+        painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), background_image)
+
+        if opacity < 1.0:
+            painter.setOpacity(1.0)
+
+    def _render_grid_optimized(self, painter: QPainter, curve_view: Any) -> None:
+        """Optimized grid rendering with adaptive density."""
+        pen = QPen(QColor(100, 100, 100, 50))
+        pen.setWidth(1)
+        painter.setPen(pen)
+
+        # Adaptive grid spacing based on zoom
+        zoom = getattr(curve_view, "zoom_factor", 1.0)
+        base_step = 50
+        step = max(25, int(base_step / max(1, zoom / 2)))  # Adjust grid density
+
+        width = curve_view.width()
+        height = curve_view.height()
+
+        # Vertical lines
+        for x in range(0, width + step, step):
+            painter.drawLine(x, 0, x, height)
+
+        # Horizontal lines
+        for y in range(0, height + step, step):
+            painter.drawLine(0, y, width, y)
+
+    def _render_info_optimized(self, painter: QPainter, curve_view: Any) -> None:
+        """Render info overlay with performance metrics."""
+        painter.setPen(QPen(QColor(255, 255, 255)))
+        painter.setFont(QFont("Arial", 10))
+
+        points = getattr(curve_view, "points", [])
+        selected_points = getattr(curve_view, "selected_points", set())
+        zoom = getattr(curve_view, "zoom_factor", 1.0)
+
+        info_text = f"Points: {len(points)}"
+        if selected_points:
+            info_text += f" | Selected: {len(selected_points)}"
+        info_text += f" | Zoom: {zoom:.1f}x"
+
+        # Add performance info
+        info_text += f" | {self._last_fps:.1f} FPS"
+        info_text += f" | Quality: {self._render_quality.value.upper()}"
+
+        # Add optimization status
+        if hasattr(curve_view, "debug_mode") and curve_view.debug_mode:
+            visible_count = len(self._cached_visible_indices) if self._cached_visible_indices is not None else 0
+            info_text += f" | Visible: {visible_count}"
+
+        painter.drawText(10, 20, info_text)
+
+    def _adjust_quality_for_performance(self) -> None:
+        """Automatically adjust rendering quality based on performance."""
+        if not self._quality_auto_adjust:
+            return
+
+        current_fps = self._last_fps
+        target_fps = self._fps_target
+
+        # Hysteresis to prevent oscillation
+        if current_fps < target_fps * 0.8:  # 20% below target
+            if self._render_quality == RenderQuality.HIGH:
+                self._render_quality = RenderQuality.NORMAL
+                logger.info(f"Quality reduced to NORMAL (FPS: {current_fps:.1f})")
+            elif self._render_quality == RenderQuality.NORMAL:
+                self._render_quality = RenderQuality.DRAFT
+                logger.info(f"Quality reduced to DRAFT (FPS: {current_fps:.1f})")
+        elif current_fps > target_fps * 1.5:  # 50% above target
+            if self._render_quality == RenderQuality.DRAFT:
+                self._render_quality = RenderQuality.NORMAL
+                logger.info(f"Quality increased to NORMAL (FPS: {current_fps:.1f})")
+            elif self._render_quality == RenderQuality.NORMAL:
+                self._render_quality = RenderQuality.HIGH
+                logger.info(f"Quality increased to HIGH (FPS: {current_fps:.1f})")
+
+    def get_performance_stats(self) -> dict[str, float]:
+        """Get current performance statistics."""
+        avg_time = self._total_render_time / max(1, self._render_count)
+        return {
+            "avg_fps": 1.0 / avg_time if avg_time > 0 else 0,
+            "last_fps": self._last_fps,
+            "last_render_ms": self._last_render_time * 1000,
+            "render_count": self._render_count,
+            "current_quality": self._render_quality.value,
+            "auto_quality": self._quality_auto_adjust,
+        }

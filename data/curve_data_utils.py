@@ -2,6 +2,9 @@
 Utility functions for curve data manipulation in CurveEditor.
 """
 
+from core.point_types import get_point_status, safe_extract_point
+
+
 def compute_interpolated_curve_data(
     curve_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]], selected_indices: list[int]
 ) -> list[tuple[int, float, float, str]]:
@@ -24,16 +27,19 @@ def compute_interpolated_curve_data(
     n_points = len(curve_data)
     n_selected = len(selected_indices)
 
-    # For extremely large datasets where O(n²) becomes truly problematic, use optimized approach
-    # Based on benchmarking, the optimization overhead only pays off for very large datasets
-    if n_points * n_selected > 1000000:  # 1M operations threshold
+    # For large datasets where O(n²) becomes problematic, use optimized approach
+    # Based on benchmarking, the optimization overhead pays off at 100k operations
+    if n_points * n_selected > 100000:  # 100k operations threshold (10x more aggressive)
         return _compute_interpolated_optimized(old_data, new_data, selected_indices)
 
     # For smaller datasets, use original algorithm with minor optimizations
     return _compute_interpolated_original(old_data, new_data, selected_indices)
 
+
 def _compute_interpolated_original(
-    old_data: list, new_data: list[tuple[int, float, float, str]], selected_indices: list[int]
+    old_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]],
+    new_data: list[tuple[int, float, float, str]],
+    selected_indices: list[int],
 ) -> list[tuple[int, float, float, str]]:
     """
     Enhanced original algorithm with optimizations for better practical performance.
@@ -103,8 +109,11 @@ def _compute_interpolated_original(
 
     return new_data
 
+
 def _compute_interpolated_optimized(
-    old_data: list, new_data: list[tuple[int, float, float, str]], selected_indices: list[int]
+    old_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]],
+    new_data: list[tuple[int, float, float, str]],
+    selected_indices: list[int],
 ) -> list[tuple[int, float, float, str]]:
     """
     O(n) optimized algorithm for large datasets.
