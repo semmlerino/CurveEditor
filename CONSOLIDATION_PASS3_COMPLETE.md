@@ -5,7 +5,7 @@
 ### Magic Number Constants Consolidated
 Added to `ui/ui_constants.py`:
 - `DEFAULT_IMAGE_WIDTH = 1920`
-- `DEFAULT_IMAGE_HEIGHT = 1080`  
+- `DEFAULT_IMAGE_HEIGHT = 1080`
 - `MAX_HISTORY_SIZE = 100`
 - `DEFAULT_CHUNK_SIZE = 10000`
 - `GRID_CELL_SIZE = 100`
@@ -45,7 +45,7 @@ Added to `ui/ui_constants.py`:
 - Create `core/file_utils.py` with safe I/O functions
 - ~40 lines could be saved
 
-### Priority 3: Widget Factory Usage  
+### Priority 3: Widget Factory Usage
 - Better utilize existing `ui/widget_factory.py`
 - ~50 lines could be factored
 

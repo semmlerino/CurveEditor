@@ -29,7 +29,7 @@ The CurveEditor application has been successfully modernized with comprehensive 
 - **Visual Hints**: F1 toggles keyboard shortcut overlays
 - **Shortcut Display**: Visual badges showing keyboard shortcuts
 - **Focus Management**: Clear focus indicators and tab order
-- **Quick Actions**: 
+- **Quick Actions**:
   - F1: Toggle keyboard hints
   - F2: Toggle animations
   - Ctrl+T: Switch theme

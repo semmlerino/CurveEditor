@@ -206,6 +206,7 @@ class MenuBar(QMenuBar):
 
         # Create theme action group for exclusive selection
         from PySide6.QtGui import QActionGroup
+
         theme_group = QActionGroup(self)
 
         # Light theme
@@ -231,7 +232,9 @@ class MenuBar(QMenuBar):
         high_contrast_action = QAction("&High Contrast", self)
         high_contrast_action.setCheckable(True)
         self.signal_manager.connect(
-            high_contrast_action.triggered, lambda: self._handle_theme_change("high_contrast"), "high_contrast.triggered"
+            high_contrast_action.triggered,
+            lambda: self._handle_theme_change("high_contrast"),
+            "high_contrast.triggered",
         )
         theme_group.addAction(high_contrast_action)
         theme_menu.addAction(high_contrast_action)
@@ -343,7 +346,7 @@ class MenuBar(QMenuBar):
             theme_manager.set_theme(ThemeMode.HIGH_CONTRAST)
 
         # Update curve view widget colors if available
-        if self.main_window and hasattr(self.main_window, 'curve_widget'):
+        if self.main_window and hasattr(self.main_window, "curve_widget"):
             theme_manager.apply_to_widget(self.main_window.curve_widget)
 
     # File menu handlers

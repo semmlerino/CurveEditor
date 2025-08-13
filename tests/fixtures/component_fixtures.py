@@ -66,6 +66,7 @@ def test_curve_renderer():
         CurveRenderer: A renderer component for testing
     """
     from ui.components import CurveRenderer
+
     return CurveRenderer()
 
 
@@ -77,6 +78,7 @@ def test_selection_manager():
         SelectionManager: A selection manager for testing
     """
     from ui.components import SelectionManager
+
     return SelectionManager()
 
 
@@ -88,6 +90,7 @@ def test_data_manager():
         CurveDataManager: A data manager for testing
     """
     from ui.components import CurveDataManager
+
     return CurveDataManager()
 
 
@@ -99,6 +102,7 @@ def test_transform_manager():
         TransformManager: A transform manager for testing
     """
     from ui.components import TransformManager
+
     return TransformManager()
 
 
@@ -110,6 +114,7 @@ def test_interaction_handler():
         InteractionHandler: An interaction handler for testing
     """
     from ui.components import InteractionHandler
+
     return InteractionHandler()
 
 
@@ -124,6 +129,7 @@ def test_file_controller(test_main_window):
         FileController: A file controller for testing
     """
     from ui.controllers import FileController
+
     return FileController(test_main_window)
 
 
@@ -138,6 +144,7 @@ def test_edit_controller(test_main_window):
         EditController: An edit controller for testing
     """
     from ui.controllers import EditController
+
     return EditController(test_main_window)
 
 
@@ -152,6 +159,7 @@ def test_view_controller(test_main_window):
         ViewController: A view controller for testing
     """
     from ui.controllers import ViewController
+
     return ViewController(test_main_window)
 
 
@@ -166,6 +174,7 @@ def test_timeline_controller(test_main_window):
         TimelineController: A timeline controller for testing
     """
     from ui.controllers import TimelineController
+
     return TimelineController(test_main_window)
 
 
@@ -180,6 +189,7 @@ def test_curve_controller(test_main_window):
         CurveController: A curve controller for testing
     """
     from ui.controllers import CurveController
+
     return CurveController(test_main_window)
 
 
@@ -199,13 +209,15 @@ def integrated_curve_view(qapp):
     widget.resize(800, 600)
 
     # Initialize with test data
-    widget.set_curve_data([
-        (1, 100.0, 200.0),
-        (2, 150.0, 250.0),
-        (3, 200.0, 300.0),
-        (4, 250.0, 350.0),
-        (5, 300.0, 400.0),
-    ])
+    widget.set_curve_data(
+        [
+            (1, 100.0, 200.0),
+            (2, 150.0, 250.0),
+            (3, 200.0, 300.0),
+            (4, 250.0, 350.0),
+            (5, 300.0, 400.0),
+        ]
+    )
 
     return widget
 
@@ -227,10 +239,12 @@ def integrated_main_window(qapp):
 
     # Initialize with test data
     if window.curve_widget:
-        window.curve_widget.set_curve_data([
-            (1, 100.0, 200.0),
-            (2, 150.0, 250.0),
-            (3, 200.0, 300.0),
-        ])
+        window.curve_widget.set_curve_data(
+            [
+                (1, 100.0, 200.0),
+                (2, 150.0, 250.0),
+                (3, 200.0, 300.0),
+            ]
+        )
 
     return window

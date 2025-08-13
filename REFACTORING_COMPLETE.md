@@ -14,7 +14,7 @@ Transformed the codebase from monolithic classes to a clean component-based arch
 
 **Controllers Created:**
 - `FileController` (258 lines) - File operations
-- `EditController` (166 lines) - Edit operations  
+- `EditController` (166 lines) - Edit operations
 - `ViewController` (151 lines) - View management
 - `TimelineController` (227 lines) - Timeline control
 - `CurveController` (204 lines) - Curve operations
@@ -119,7 +119,7 @@ Both original and refactored versions coexist:
 ```
 ui/main_window.py (original)
 ui/main_window_refactored.py (new)
-ui/curve_view_widget.py (original)  
+ui/curve_view_widget.py (original)
 ui/curve_view_widget_refactored.py (new)
 ```
 
@@ -141,13 +141,13 @@ from ui.curve_view_widget_refactored import CurveViewWidget
 class CurveViewWidget(QWidget):
     def __init__(self):
         # 200+ lines of initialization
-        
+
     def paintEvent(self, event):
         # 200+ lines of rendering
-        
+
     def mousePressEvent(self, event):
         # 100+ lines of interaction
-        
+
     # ... 90+ more methods
 ```
 
@@ -158,10 +158,10 @@ class CurveViewWidget(QWidget):
         self.renderer = CurveRenderer()
         self.interaction = InteractionHandler()
         self.selection = SelectionManager()
-        
+
     def paintEvent(self, event):
         self.renderer.render(...)  # Delegate
-        
+
     def mousePressEvent(self, event):
         self.interaction.handle_mouse_press(...)  # Delegate
 ```

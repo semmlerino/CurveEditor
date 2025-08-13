@@ -30,6 +30,7 @@ logger = logging.getLogger("error_handler")
 
 class ErrorSeverity(Enum):
     """Severity levels for errors."""
+
     INFO = auto()
     WARNING = auto()
     ERROR = auto()
@@ -38,6 +39,7 @@ class ErrorSeverity(Enum):
 
 class ErrorCategory(Enum):
     """Categories of errors for better handling."""
+
     FILE_IO = auto()
     DATA_VALIDATION = auto()
     RENDERING = auto()
@@ -52,6 +54,7 @@ class ErrorCategory(Enum):
 @dataclass
 class ErrorInfo:
     """Information about an error."""
+
     title: str
     message: str
     details: str = ""
@@ -244,46 +247,48 @@ class ErrorHandler(QObject):
                 "Check if the file exists and is accessible",
                 "Verify you have read/write permissions",
                 "Ensure the file is not open in another application",
-                "Check available disk space"
+                "Check available disk space",
             ],
             ErrorCategory.DATA_VALIDATION: [
                 "Review the data format requirements",
                 "Check for missing or invalid values",
                 "Ensure data is within expected ranges",
-                "Try loading a different file"
+                "Try loading a different file",
             ],
             ErrorCategory.RENDERING: [
                 "Try resetting the view (View → Reset View)",
                 "Reduce the number of points displayed",
                 "Check graphics driver updates",
-                "Restart the application"
+                "Restart the application",
             ],
             ErrorCategory.MEMORY: [
                 "Close other applications to free memory",
                 "Reduce the size of the dataset",
                 "Save your work and restart the application",
-                "Check system memory usage"
+                "Check system memory usage",
             ],
             ErrorCategory.PERMISSION: [
                 "Run the application with appropriate permissions",
                 "Check file and folder permissions",
                 "Ensure you have access to the resource",
-                "Contact your system administrator"
+                "Contact your system administrator",
             ],
             ErrorCategory.USER_INPUT: [
                 "Check the input format",
                 "Ensure values are within valid ranges",
                 "Review the input requirements",
-                "Use the example format shown"
+                "Use the example format shown",
             ],
         }
 
-    def handle_exception(self,
-                        exception: Exception,
-                        title: str = "Error",
-                        parent: QWidget | None = None,
-                        can_retry: bool = False,
-                        can_ignore: bool = False) -> bool:
+    def handle_exception(
+        self,
+        exception: Exception,
+        title: str = "Error",
+        parent: QWidget | None = None,
+        can_retry: bool = False,
+        can_ignore: bool = False,
+    ) -> bool:
         """Handle an exception with user-friendly dialog.
 
         Args:
@@ -316,7 +321,7 @@ class ErrorHandler(QObject):
             recovery_suggestions=suggestions,
             exception=exception,
             can_retry=can_retry,
-            can_ignore=can_ignore
+            can_ignore=can_ignore,
         )
 
         # Log the error
@@ -347,49 +352,25 @@ class ErrorHandler(QObject):
 
         return retry_requested
 
-    def show_error(self,
-                  message: str,
-                  title: str = "Error",
-                  details: str = "",
-                  parent: QWidget | None = None) -> None:
+    def show_error(self, message: str, title: str = "Error", details: str = "", parent: QWidget | None = None) -> None:
         """Show a simple error message."""
         error_info = ErrorInfo(
-            title=title,
-            message=message,
-            details=details,
-            severity=ErrorSeverity.ERROR,
-            show_details=bool(details)
+            title=title, message=message, details=details, severity=ErrorSeverity.ERROR, show_details=bool(details)
         )
 
         self._log_error(error_info)
         self.show_error_dialog(error_info, parent)
 
-    def show_warning(self,
-                    message: str,
-                    title: str = "Warning",
-                    parent: QWidget | None = None) -> None:
+    def show_warning(self, message: str, title: str = "Warning", parent: QWidget | None = None) -> None:
         """Show a warning message."""
-        error_info = ErrorInfo(
-            title=title,
-            message=message,
-            severity=ErrorSeverity.WARNING,
-            show_details=False
-        )
+        error_info = ErrorInfo(title=title, message=message, severity=ErrorSeverity.WARNING, show_details=False)
 
         self._log_error(error_info)
         QMessageBox.warning(parent, title, message)
 
-    def show_info(self,
-                 message: str,
-                 title: str = "Information",
-                 parent: QWidget | None = None) -> None:
+    def show_info(self, message: str, title: str = "Information", parent: QWidget | None = None) -> None:
         """Show an information message."""
-        ErrorInfo(
-            title=title,
-            message=message,
-            severity=ErrorSeverity.INFO,
-            show_details=False
-        )
+        ErrorInfo(title=title, message=message, severity=ErrorSeverity.INFO, show_details=False)
 
         QMessageBox.information(parent, title, message)
 
@@ -471,7 +452,7 @@ class ErrorHandler(QObject):
 
         # Trim history if needed
         if len(self.error_history) > self.max_history_size:
-            self.error_history = self.error_history[-self.max_history_size:]
+            self.error_history = self.error_history[-self.max_history_size :]
 
         # Log to logger
         if error_info.severity == ErrorSeverity.CRITICAL:

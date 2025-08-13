@@ -100,11 +100,11 @@ class MainWindow(QMainWindow):
     # Declare with None default
     frame_spinbox: QSpinBox | None = None
     total_frames_label: QLabel | None = None
-    
+
     def __init__(self):
         super().__init__()
         self._init_widgets()  # Widgets created here
-    
+
     def _init_widgets(self):
         self.frame_spinbox = QSpinBox()
         self.total_frames_label = QLabel()
@@ -211,7 +211,7 @@ class ViewAdapter:
     """Adapt any view to CurveViewProtocol."""
     def __init__(self, view: Any):
         self._view = view
-    
+
     @property
     def points(self) -> CurveData:
         return getattr(self._view, 'points', [])

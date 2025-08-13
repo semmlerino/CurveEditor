@@ -23,7 +23,7 @@ ruff check . --fix
 - **Fixed**: 1,681 issues automatically
 - **Remaining**: 350 issues
 
-### 2. Unsafe Fixes Applied (5 min)  
+### 2. Unsafe Fixes Applied (5 min)
 ```bash
 ruff check . --fix --unsafe-fixes
 ```
@@ -98,7 +98,7 @@ python -m pytest tests/ --tb=short -q
 
 ### Original Plan: 3 hours
 - Auto-fix: 1 hour
-- Manual review: 1 hour  
+- Manual review: 1 hour
 - Testing: 1 hour
 
 ### Actual: 30 minutes
@@ -139,7 +139,7 @@ python -m pytest tests/ --tb=short -q
 
 ### Focus: Type Safety (1,148 errors → <500)
 1. Fix critical service import errors
-2. Add missing type annotations  
+2. Add missing type annotations
 3. Resolve protocol definitions
 4. Update basedpyright config
 

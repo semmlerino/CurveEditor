@@ -161,9 +161,7 @@ class TestServiceThreadSafety:
                     # Check cache size limit
                     with service._lock:
                         if len(service._image_cache) > service._max_cache_size:
-                            errors.append(
-                                f"Cache exceeded limit: {len(service._image_cache)}"
-                            )
+                            errors.append(f"Cache exceeded limit: {len(service._image_cache)}")
 
                     # Clear cache occasionally
                     if i % 25 == 0:
@@ -266,6 +264,7 @@ class TestServiceThreadSafety:
 
             # Clear the singleton first
             import services
+
             services._data_service = None
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=3) as executor:
@@ -388,8 +387,7 @@ class TestStressTests:
 
         # All seen values should be within valid range
         for value in seen_values:
-            assert 0 <= value <= 10, \
-                f"Invalid list size seen: {value}"
+            assert 0 <= value <= 10, f"Invalid list size seen: {value}"
 
 
 if __name__ == "__main__":

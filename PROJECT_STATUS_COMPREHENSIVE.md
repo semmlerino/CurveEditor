@@ -65,7 +65,7 @@ From performance optimization to UI/UX modernization and deployment.
 ```
 DEFAULT (Production Ready) ✅
 ├── TransformService
-├── DataService  
+├── DataService
 ├── InteractionService
 └── UIService
 

@@ -18,23 +18,11 @@ class TestHistoryService(unittest.TestCase):
         self.service = HistoryService()
 
         # Sample curve data for testing
-        self.sample_data1 = [
-            (1, 10.0, 20.0),
-            (2, 30.0, 40.0),
-            (3, 50.0, 60.0)
-        ]
+        self.sample_data1 = [(1, 10.0, 20.0), (2, 30.0, 40.0), (3, 50.0, 60.0)]
 
-        self.sample_data2 = [
-            (1, 15.0, 25.0),
-            (2, 35.0, 45.0),
-            (3, 55.0, 65.0)
-        ]
+        self.sample_data2 = [(1, 15.0, 25.0), (2, 35.0, 45.0), (3, 55.0, 65.0)]
 
-        self.sample_data3 = [
-            (1, 20.0, 30.0),
-            (2, 40.0, 50.0),
-            (3, 60.0, 70.0)
-        ]
+        self.sample_data3 = [(1, 20.0, 30.0), (2, 40.0, 50.0), (3, 60.0, 70.0)]
 
     def test_initialization(self):
         """Test service initialization."""
@@ -228,7 +216,7 @@ class TestHistoryService(unittest.TestCase):
     def test_compress_and_decompress(self):
         """Test that compression and decompression work correctly."""
         # Add a large dataset
-        large_data = [(i, float(i*10), float(i*20)) for i in range(1000)]
+        large_data = [(i, float(i * 10), float(i * 20)) for i in range(1000)]
 
         self.service.add_to_history(large_data, "Large state")
 
@@ -309,7 +297,7 @@ class TestHistoryService(unittest.TestCase):
         initial_memory = stats.memory_usage
 
         # Add a large state
-        large_data = [(i, float(i), float(i*2)) for i in range(1000)]
+        large_data = [(i, float(i), float(i * 2)) for i in range(1000)]
         self.service.add_to_history(large_data, "Large state")
 
         stats = self.service.get_history_stats()
@@ -322,10 +310,7 @@ class TestHistoryService(unittest.TestCase):
 
         def add_states():
             for i in range(10):
-                self.service.add_to_history(
-                    [(i, float(i), float(i*2))],
-                    f"State {i}"
-                )
+                self.service.add_to_history([(i, float(i), float(i * 2))], f"State {i}")
 
         # Create multiple threads
         threads = [threading.Thread(target=add_states) for _ in range(3)]
@@ -343,5 +328,5 @@ class TestHistoryService(unittest.TestCase):
         self.assertLessEqual(self.service.get_history_size(), 30)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

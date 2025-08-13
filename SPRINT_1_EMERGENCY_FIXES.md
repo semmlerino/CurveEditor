@@ -31,7 +31,7 @@ def get_data_service() -> DataService:
 
 **Apply Same Fix To:**
 - `get_transform_service()` - line 46
-- `get_interaction_service()` - line 86  
+- `get_interaction_service()` - line 86
 - `get_ui_service()` - line 106
 
 #### Issue #2: Unsynchronized Service Caches
@@ -50,14 +50,14 @@ class DataService:
         self._recent_files: list[str] = []
         self._image_cache: dict[str, QImage] = {}
         self._cache_size_limit = 50
-        
+
     # Wrap ALL cache access methods:
     def add_recent_file(self, path: str) -> None:
         with self._lock:
             self._recent_files.append(path)
             if len(self._recent_files) > 10:
                 self._recent_files.pop(0)
-    
+
     def cache_image(self, path: str, image: QImage) -> None:
         with self._lock:
             if len(self._image_cache) >= self._cache_size_limit:
@@ -126,20 +126,20 @@ except Exception as e:
 @dataclass
 class HistoryContainer:
     """Thread-safe history container."""
-    
+
     def __init__(self):
         self._lock = threading.Lock()
         self.history_stack: list[CompressedStateSnapshot] = []
         self.redo_stack: list[CompressedStateSnapshot] = []
         self.max_history = 100
-    
+
     def push_state(self, snapshot: CompressedStateSnapshot) -> None:
         with self._lock:
             self.history_stack.append(snapshot)
             if len(self.history_stack) > self.max_history:
                 self.history_stack.pop(0)
             self.redo_stack.clear()
-    
+
     def undo(self) -> CompressedStateSnapshot | None:
         with self._lock:
             if self.history_stack:
@@ -178,29 +178,29 @@ from services import (
 
 class TestServiceThreadSafety:
     """Test thread safety of service layer."""
-    
+
     def test_singleton_initialization_race(self):
         """Verify only one instance created under concurrent access."""
         results = set()
         barrier = threading.Barrier(20)  # Synchronize thread start
-        
+
         def get_service():
             barrier.wait()  # All threads start together
             service = get_data_service()
             results.add(id(service))
             return service
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
             futures = [executor.submit(get_service) for _ in range(100)]
             concurrent.futures.wait(futures)
-        
+
         assert len(results) == 1, f"Multiple instances created: {len(results)}"
-    
+
     def test_cache_concurrent_modifications(self):
         """Test cache operations under heavy concurrent load."""
         service = get_data_service()
         errors = []
-        
+
         def cache_stress_test(thread_id: int):
             try:
                 for i in range(1000):
@@ -208,28 +208,28 @@ class TestServiceThreadSafety:
                     key = f"key_{thread_id}_{i}"
                     service.cache_image(key, f"data_{thread_id}")
                     _ = service.get_cached_image(key)
-                    
+
                     # Verify cache size limit
                     if len(service._image_cache) > 50:
                         errors.append(f"Cache exceeded limit: {len(service._image_cache)}")
             except Exception as e:
                 errors.append(f"Thread {thread_id}: {e}")
-        
+
         threads = []
         for i in range(10):
             t = threading.Thread(target=cache_stress_test, args=(i,))
             threads.append(t)
             t.start()
-        
+
         for t in threads:
             t.join()
-        
+
         assert not errors, f"Errors detected: {errors}"
-    
+
     def test_history_concurrent_operations(self):
         """Test history stack under concurrent access."""
         service = get_interaction_service()
-        
+
         def history_operations(thread_id: int):
             for i in range(100):
                 # Simulate history operations
@@ -238,11 +238,11 @@ class TestServiceThreadSafety:
                     service.undo(mock_main_window())
                 if i % 15 == 0:
                     service.redo(mock_main_window())
-        
+
         with concurrent.futures.ThreadPoolExecutor(max_workers=5) as executor:
             futures = [executor.submit(history_operations, i) for i in range(5)]
             concurrent.futures.wait(futures)
-        
+
         # Verify history integrity
         assert service._history_container is not None
         assert isinstance(service._history_container.history_stack, list)
@@ -252,12 +252,12 @@ def mock_main_window():
     class MockWindow:
         def __init__(self):
             self.curve_widget = MockCurveWidget()
-    
+
     class MockCurveWidget:
         def __init__(self):
             self.curve_data = []
             self.selected_indices = set()
-    
+
     return MockWindow()
 
 if __name__ == "__main__":

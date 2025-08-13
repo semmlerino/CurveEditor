@@ -14,6 +14,7 @@ from PySide6.QtCore import QRect
 @dataclass
 class SelectionState:
     """Current selection state."""
+
     selected_indices: set[int]
     primary_index: int = -1  # Primary selection for focused operations
 

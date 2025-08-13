@@ -92,7 +92,7 @@ worker.start()  # Returns immediately
 ```
 
 ### 5. ✅ Added Critical @Slot Decorators
-**Files Modified**: 
+**Files Modified**:
 - `ui/main_window.py` - Added 14 @Slot decorators
 - `ui/menu_bar.py` - Added 10 @Slot decorators
 
@@ -160,8 +160,8 @@ pytest tests/test_threading_safety.py -v
 
 2. **Performance Test**:
 ```bash
-python -c "from data.curve_data_utils import compute_interpolated_curve_data; 
-import time; 
+python -c "from data.curve_data_utils import compute_interpolated_curve_data;
+import time;
 data = [(i, float(i), float(i)) for i in range(10000)];
 selected = list(range(0, 10000, 100));
 start = time.time();
@@ -175,7 +175,7 @@ print(f'Time: {time.time() - start:.2f}s')"
 
 4. **Qt Signal Test**:
 ```bash
-python -c "from ui.main_window import MainWindow; 
+python -c "from ui.main_window import MainWindow;
 from PySide6.QtWidgets import QApplication;
 import sys;
 app = QApplication(sys.argv);

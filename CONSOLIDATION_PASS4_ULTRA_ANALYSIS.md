@@ -10,7 +10,7 @@ Comprehensive duplicate code analysis revealed **2,300+ duplicate patterns** acr
 
 **Pattern Found**:
 - `import logging` in 20+ files
-- `from typing import TYPE_CHECKING, Any` in 15+ files  
+- `from typing import TYPE_CHECKING, Any` in 15+ files
 - `from PySide6.QtWidgets import ...` in 25+ files
 - `from PySide6.QtCore import ...` in 20+ files
 
@@ -56,7 +56,7 @@ logger = get_logger()  # Automatically uses module name
 
 **Estimated Savings**: 40 lines + improved consistency
 
-### 3. **File I/O Error Handling** 🔴 High Priority  
+### 3. **File I/O Error Handling** 🔴 High Priority
 **Impact**: 12+ duplicate file operation patterns
 
 **Current Pattern** (repeated everywhere):
@@ -143,7 +143,7 @@ layout.addWidget(self.button)
 **Recommendation**: Enhance existing widget_factory.py:
 ```python
 # ui/widget_factory.py (enhance existing)
-def create_button(text: str, tooltip: str = None, 
+def create_button(text: str, tooltip: str = None,
                   handler: Callable = None, parent=None) -> QPushButton:
     """Create button with common setup."""
     button = QPushButton(text, parent)
@@ -183,15 +183,15 @@ class MessageFormatter:
     @staticmethod
     def error(operation: str, error: Exception) -> str:
         return f"Error in {operation}: {error}"
-    
+
     @staticmethod
     def success_load(count: int, path: str) -> str:
         return f"Successfully loaded {count} points from {path}"
-    
+
     @staticmethod
     def progress(message: str, percentage: int) -> str:
         return f"{message} ({percentage}%)"
-    
+
     @staticmethod
     def fps_info(fps: float, quality: str) -> str:
         return f"{fps:.1f} FPS | Quality: {quality.upper()}"
@@ -211,7 +211,7 @@ def points_to_numpy(points: list) -> np.ndarray:
     """Convert point list to numpy array, handling variable formats."""
     if not points:
         return np.array([]).reshape(0, 3)
-    
+
     # Handle different point formats
     if len(points[0]) == 3:
         return np.array(points)
@@ -227,7 +227,7 @@ def ensure_qpointf(x: Any, y: Any) -> QPointF:
 
 **Estimated Savings**: 30-50 lines
 
-### 7. **Signal Connection Management** 🟢 Low Priority  
+### 7. **Signal Connection Management** 🟢 Low Priority
 **Impact**: 101 connections, but SignalManager already exists
 
 **Finding**: SignalManager class already provides good abstraction. Main issue is inconsistent usage.

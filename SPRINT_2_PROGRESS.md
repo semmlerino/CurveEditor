@@ -136,9 +136,9 @@ def test_file_controller_new_file():
     """Test creating a new file."""
     mock_window = MagicMock()
     controller = FileController(mock_window)
-    
+
     controller.new_file()
-    
+
     mock_window.curve_widget.clear_data.assert_called_once()
     assert controller.current_file_path is None
     assert controller.is_modified is False
@@ -147,9 +147,9 @@ def test_edit_controller_undo():
     """Test undo operation."""
     mock_window = MagicMock()
     controller = EditController(mock_window)
-    
+
     controller.undo()
-    
+
     controller.services.undo.assert_called_once()
     mock_window.update_ui_state.assert_called_once()
 ```

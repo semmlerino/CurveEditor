@@ -15,7 +15,7 @@
   - Added critical @Slot decorators
 
 #### Sprint 7: Complete Refactoring ✅
-- **Status**: COMPLETE  
+- **Status**: COMPLETE
 - **Duration**: 1 week (as planned)
 - **Key Achievements**:
   - Resolved MainWindow versions
@@ -187,12 +187,12 @@ export USE_NEW_SERVICES=true  # default
 The remediation plan is **50% complete** with the three most critical sprints finished:
 
 1. **Sprint 6** fixed critical stability issues
-2. **Sprint 7** completed the refactoring 
+2. **Sprint 7** completed the refactoring
 3. **Sprint 8** eliminated all God objects
 
 The codebase is now:
 - **Stable** (no thread safety issues)
-- **Clean** (no duplicate files) 
+- **Clean** (no duplicate files)
 - **Maintainable** (no God objects)
 - **Testable** (9 focused services)
 

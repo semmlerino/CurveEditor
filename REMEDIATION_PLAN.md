@@ -66,7 +66,7 @@ A comprehensive code review by 8 specialized agents has revealed significant dis
    # Add @Slot decorators to all signal handlers
    ```
 
-**Deliverables**: 
+**Deliverables**:
 - Zero thread safety violations
 - Performance fix for large datasets
 - No UI blocking
@@ -284,7 +284,7 @@ class HistoryProtocol(Protocol):
 3. **Add Viewport Culling**
    ```python
    # Only render visible points
-   visible_points = [p for p in points 
+   visible_points = [p for p in points
                      if self._is_in_viewport(p)]
    ```
 
@@ -463,7 +463,7 @@ class HistoryProtocol(Protocol):
 
 ## Conclusion
 
-The CurveEditor codebase requires significant remediation work. The claimed improvements from Sprints 1-5 were only partially implemented, leaving the code in a worse state than before in some areas (God objects, incomplete refactoring). 
+The CurveEditor codebase requires significant remediation work. The claimed improvements from Sprints 1-5 were only partially implemented, leaving the code in a worse state than before in some areas (God objects, incomplete refactoring).
 
 This 6-sprint plan provides a realistic path to:
 1. Fix critical issues preventing stability

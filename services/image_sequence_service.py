@@ -223,11 +223,7 @@ class ImageSequenceService:
             Dictionary with cache statistics
         """
         with self._lock:
-            return {
-                "size": len(self._image_cache),
-                "max_size": self._max_cache_size,
-                "files": list(self._cache_order)
-            }
+            return {"size": len(self._image_cache), "max_size": self._max_cache_size, "files": list(self._cache_order)}
 
     def _add_to_cache(self, path: str, image: QImage) -> None:
         """
@@ -267,6 +263,7 @@ class ImageSequenceService:
         Returns:
             Sorted list of filenames
         """
+
         def extract_frame_number(filename: str) -> int:
             """Extract frame number from filename."""
             # Look for patterns like:
@@ -276,7 +273,7 @@ class ImageSequenceService:
             # - frame1.png
 
             # Try to find any sequence of digits
-            matches = re.findall(r'\d+', filename)
+            matches = re.findall(r"\d+", filename)
             if matches:
                 # Use the last number found (often the frame number)
                 try:
@@ -312,7 +309,7 @@ class ImageSequenceService:
         # Extract frame numbers
         frame_numbers = []
         for filename in filenames:
-            matches = re.findall(r'\d+', filename)
+            matches = re.findall(r"\d+", filename)
             if matches:
                 try:
                     frame_numbers.append(int(matches[-1]))

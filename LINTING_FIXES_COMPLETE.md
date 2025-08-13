@@ -65,7 +65,7 @@ from PySide6.QtWidgets import QPushButton, QWidget
 # Before
 from services import USE_NEW_SERVICES as use_new_flag
 
-# After  
+# After
 from services import USE_NEW_SERVICES  # noqa: N811
 ```
 
@@ -88,10 +88,10 @@ All checks passed!
 ```
 
 ## Production Readiness
-✅ **Linting**: 0 issues  
-✅ **Code safety**: No bare excepts  
-✅ **Import hygiene**: Clean and organized  
-✅ **Naming conventions**: Consistent  
+✅ **Linting**: 0 issues
+✅ **Code safety**: No bare excepts
+✅ **Import hygiene**: Clean and organized
+✅ **Naming conventions**: Consistent
 
 The codebase is now fully compliant with Python best practices and ready for production deployment.
 

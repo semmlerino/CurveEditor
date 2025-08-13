@@ -71,9 +71,9 @@ class TestCurveView:
                 setattr(self, key, value)
 
         # Sync points with curve_data if points were provided
-        if 'points' in kwargs:
+        if "points" in kwargs:
             self.curve_data = self.points.copy()
-        elif 'curve_data' in kwargs:
+        elif "curve_data" in kwargs:
             self.points = self.curve_data.copy()
 
     def set_curve_data(self, points: list[Point4]) -> None:
@@ -98,11 +98,7 @@ class TestCurveView:
             del self.curve_data[index]
             self.points = self.curve_data  # Keep in sync
             # Update selection
-            self.selected_points = {
-                i-1 if i > index else i
-                for i in self.selected_points
-                if i != index
-            }
+            self.selected_points = {i - 1 if i > index else i for i in self.selected_points if i != index}
 
     def get_selected_indices(self) -> list[int]:
         """Get selected indices."""
@@ -187,6 +183,7 @@ class TestCurveView:
 
     def get_current_transform(self) -> object:
         """Get current transform object."""
+
         # Return a simple transform object with current view state
         class Transform:
             def __init__(self, zoom: float, offset_x: float, offset_y: float):
@@ -376,6 +373,7 @@ class ProtocolCompliantMockCurveView(TestCurveView):
 
 class ProtocolCompliantMockMainWindow(TestMainWindow):
     """Fully protocol-compliant mock main window."""
+
     pass
 
 

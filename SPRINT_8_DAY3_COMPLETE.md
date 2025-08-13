@@ -9,7 +9,7 @@ Complete adapter implementation that bridges old God object to new services:
 
 **services/interaction_service_adapter.py**
 - `handle_mouse_press_delegated()`: Delegates mouse press events
-- `handle_mouse_move_delegated()`: Delegates mouse move events  
+- `handle_mouse_move_delegated()`: Delegates mouse move events
 - `handle_mouse_release_delegated()`: Delegates mouse release events
 - `handle_wheel_event_delegated()`: Delegates wheel events
 - `handle_key_event_delegated()`: Delegates keyboard events
@@ -28,7 +28,7 @@ def handle_mouse_press(self, view: "CurveViewProtocol", event: QMouseEvent) -> N
     # Try delegation to new service first
     if InteractionServiceAdapter.handle_mouse_press_delegated(self, view, event):
         return
-    
+
     # Legacy implementation
     # ... existing code ...
 ```
@@ -139,7 +139,7 @@ The extraction pattern is proven and working. Ready to continue with remaining s
 
 ---
 
-**Status**: Day 3 COMPLETE ✅  
-**Progress**: 30% of Sprint 8 (3/10 days)  
-**Next**: Day 4 - Extract SelectionService  
+**Status**: Day 3 COMPLETE ✅
+**Progress**: 30% of Sprint 8 (3/10 days)
+**Next**: Day 4 - Extract SelectionService
 **Risk Level**: Low (pattern proven successful)

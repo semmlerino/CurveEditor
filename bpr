@@ -1,7 +1,7 @@
 #!/bin/bash
 # Basedpyright wrapper that avoids the "2>&1" redirection bug
 # Usage: ./bpr [options] [files...]
-# 
+#
 # The bug: When shell redirection "2>&1" is used, basedpyright incorrectly
 # interprets "2" as a filename argument, causing "File or directory '2' does not exist"
 

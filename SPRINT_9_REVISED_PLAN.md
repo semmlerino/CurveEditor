@@ -5,7 +5,7 @@
 
 The 1,074 "errors" are from:
 - Test files: ~300 errors
-- Performance/analysis scripts: ~200 errors  
+- Performance/analysis scripts: ~200 errors
 - Old/backup files: ~100 errors
 - UI controllers (possibly unused): ~150 errors
 - Other non-production code: ~324 errors
@@ -71,7 +71,7 @@ The 1,074 "errors" are from:
    # Add to test files
    from typing import Any
    from unittest.mock import Mock, MagicMock
-   
+
    def test_something() -> None:  # Add return types
        mock: Mock = Mock()  # Add type annotations
        result: Any = function_under_test()  # Use Any for test data
@@ -99,10 +99,10 @@ The 1,074 "errors" are from:
    ```bash
    # Full coverage report
    pytest tests/ --cov=. --cov-report=html --cov-report=term
-   
+
    # Focus on services
    pytest tests/ --cov=services --cov-report=term
-   
+
    # Focus on UI
    pytest tests/ --cov=ui --cov-report=term
    ```
@@ -136,10 +136,10 @@ The 1,074 "errors" are from:
    # tests/test_critical_workflows.py
    def test_complete_point_edit_workflow() -> None:
        """Test full workflow from selection to save."""
-   
+
    def test_file_corruption_handling() -> None:
        """Test handling of corrupted files."""
-   
+
    def test_large_dataset_performance() -> None:
        """Test performance with 10k+ points."""
    ```
@@ -188,10 +188,10 @@ The 1,074 "errors" are from:
    ```bash
    # Type errors
    ./bpr | tail -5
-   
+
    # Coverage
    pytest tests/ --cov=. --cov-report=term
-   
+
    # Code quality
    ruff check .
    ```

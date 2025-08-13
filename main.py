@@ -26,6 +26,7 @@ def main():
 
     # Get logging level from environment or config
     import os
+
     global_level = os.environ.get("LOG_LEVEL", config.get("global", "INFO"))
     # Ensure global_level is a string
     if not isinstance(global_level, str):

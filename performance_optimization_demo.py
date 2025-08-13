@@ -47,10 +47,7 @@ class MockCurveView:
 
 def generate_test_data(num_points: int = 1000) -> list[tuple[float, float, float, int]]:
     """Generate test curve data."""
-    return [
-        (i, random.uniform(0, 800), random.uniform(0, 600), 1)
-        for i in range(num_points)
-    ]
+    return [(i, random.uniform(0, 800), random.uniform(0, 600), 1) for i in range(num_points)]
 
 
 def demo_transform_caching() -> None:
@@ -70,7 +67,7 @@ def demo_transform_caching() -> None:
         widget_height=600,
         zoom_factor=1.5,
         offset_x=100,
-        offset_y=50
+        offset_y=50,
     )
 
     # Measure performance with caching
@@ -119,12 +116,7 @@ def demo_spatial_indexing() -> None:
 
     # Create transform for coordinate conversion
     transform_service = TransformService()
-    view_state = ViewState(
-        display_width=800,
-        display_height=600,
-        widget_width=800,
-        widget_height=600
-    )
+    view_state = ViewState(display_width=800, display_height=600, widget_width=800, widget_height=600)
     transform = transform_service.create_transform(view_state)
 
     print(f"Testing with {num_points} points...")
@@ -234,6 +226,7 @@ def main() -> None:
     except Exception as e:
         print(f"❌ Error during demonstration: {e}")
         import traceback
+
         traceback.print_exc()
 
 

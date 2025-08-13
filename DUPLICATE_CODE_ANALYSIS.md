@@ -34,7 +34,7 @@ def get_data_service() -> DataService:
 - **Status**: Auto-fixed with `ruff --fix`
 - **Impact**: Cleaner code, faster imports
 
-### 3. ⚠️ **Unused Variables** 
+### 3. ⚠️ **Unused Variables**
 - **Found**: 188 unused local variables
 - **Impact**: Dead code, potential bugs
 - **Recommendation**: Review and remove carefully

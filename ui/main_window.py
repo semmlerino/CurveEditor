@@ -141,7 +141,9 @@ class FileLoadWorker(QObject):
         finally:
             self.finished.emit()
 
-    def _load_2dtrack_data_direct(self, file_path: str) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
+    def _load_2dtrack_data_direct(
+        self, file_path: str
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Load 2D tracking data directly without using DataService."""
         data = []
         try:

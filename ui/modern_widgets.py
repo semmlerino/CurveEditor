@@ -176,7 +176,7 @@ class ModernButton(QPushButton):
                     background-color: #007bff;
                     color: white;
                 }
-            """
+            """,
         }
 
         self.setStyleSheet(base_style + variant_styles.get(self.variant, variant_styles["primary"]))
@@ -355,7 +355,7 @@ class ModernToast(QFrame):
             "info": "background: #17a2b8; color: white;",
             "success": "background: #28a745; color: white;",
             "warning": "background: #ffc107; color: #212529;",
-            "error": "background: #dc3545; color: white;"
+            "error": "background: #dc3545; color: white;",
         }
 
         self.setStyleSheet(f"""

@@ -21,6 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DeltaChange:
     """Represents a change to the curve data."""
+
     operation: str  # 'add', 'delete', 'modify', 'move'
     index: int
     old_value: tuple[int, float, float] | None = None
@@ -52,7 +53,11 @@ class CompressedStateSnapshot:
         else:
             self._use_full_compression(curve_data)
 
-    def _use_delta_compression(self, current_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], previous_snapshot: "CompressedStateSnapshot") -> None:
+    def _use_delta_compression(
+        self,
+        current_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],
+        previous_snapshot: "CompressedStateSnapshot",
+    ) -> None:
         """Store only the changes from previous state."""
         previous_data = previous_snapshot.get_curve_data()
         deltas = self._calculate_deltas(previous_data, current_data)
@@ -73,7 +78,9 @@ class CompressedStateSnapshot:
             # Too many changes, use full compression
             self._use_full_compression(current_data)
 
-    def _use_full_compression(self, curve_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]) -> None:
+    def _use_full_compression(
+        self, curve_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]
+    ) -> None:
         """Store full state with compression."""
         self._storage_type = "full"
         self._base_snapshot = None
@@ -102,7 +109,7 @@ class CompressedStateSnapshot:
 
             # Explicit cleanup of large temporary objects
             del serialized
-            if 'data_array' in locals():
+            if "data_array" in locals():
                 del data_array
 
         except Exception as e:
@@ -142,7 +149,11 @@ class CompressedStateSnapshot:
             logger.error(f"Failed to reconstruct curve data: {e}")
             return []
 
-    def _calculate_deltas(self, old_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], new_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]) -> list[DeltaChange]:
+    def _calculate_deltas(
+        self,
+        old_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],
+        new_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],
+    ) -> list[DeltaChange]:
         """Calculate changes between two data sets."""
         deltas = []
 
@@ -206,7 +217,9 @@ class CompressedStateSnapshot:
             logger.error(f"Failed to decompress deltas: {e}")
             return []
 
-    def _apply_deltas(self, base_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], deltas: list[DeltaChange]) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
+    def _apply_deltas(
+        self, base_data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], deltas: list[DeltaChange]
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply delta changes to base data."""
         result = list(base_data)
 
@@ -227,7 +240,9 @@ class CompressedStateSnapshot:
 
         return result
 
-    def _find_insert_position(self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], frame: int) -> int:
+    def _find_insert_position(
+        self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], frame: int
+    ) -> int:
         """Find correct insertion position to maintain frame order."""
         for i, point in enumerate(data):
             if point[0] > frame:
@@ -237,9 +252,9 @@ class CompressedStateSnapshot:
     def cleanup(self) -> None:
         """Clean up resources and break circular references."""
         # Break the reference chain to allow garbage collection
-        if hasattr(self, '_base_snapshot'):
+        if hasattr(self, "_base_snapshot"):
             self._base_snapshot = None
-        if hasattr(self, '_compressed_data'):
+        if hasattr(self, "_compressed_data"):
             self._compressed_data = b""
 
     def _estimate_size(self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]) -> int:

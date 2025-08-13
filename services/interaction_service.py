@@ -158,6 +158,7 @@ class InteractionService:
         if self.use_new_services:
             # Get from new HistoryService
             from services.history_service import HistoryService
+
             history_service = HistoryService()
             stats = history_service.get_history_stats()
             return {
@@ -165,17 +166,11 @@ class InteractionService:
                 "current_index": stats.current_position,
                 "memory_mb": stats.memory_usage_mb,
                 "can_undo": stats.can_undo,
-                "can_redo": stats.can_redo
+                "can_redo": stats.can_redo,
             }
         else:
             # Return empty stats for legacy mode
-            return {
-                "total_states": 0,
-                "current_index": 0,
-                "memory_mb": 0.0,
-                "can_undo": False,
-                "can_redo": False
-            }
+            return {"total_states": 0, "current_index": 0, "memory_mb": 0.0, "can_undo": False, "can_redo": False}
 
     # ==================== Legacy Compatibility Methods ====================
 
@@ -183,21 +178,20 @@ class InteractionService:
         """Legacy compatibility for history operations."""
         if self.use_new_services:
             from services.history_service import HistoryService
+
             history_service = HistoryService()
             # Get current state from main window
-            if hasattr(main_window, 'curve_view') and hasattr(main_window.curve_view, 'points'):
-                history_service.add_to_history(
-                    main_window.curve_view.points,
-                    "State saved"
-                )
+            if hasattr(main_window, "curve_view") and hasattr(main_window.curve_view, "points"):
+                history_service.add_to_history(main_window.curve_view.points, "State saved")
 
     def undo(self, main_window: Any) -> None:
         """Legacy compatibility for undo operations."""
         if self.use_new_services:
             from services.history_service import HistoryService
+
             history_service = HistoryService()
             previous_state = history_service.undo()
-            if previous_state and hasattr(main_window, 'curve_view'):
+            if previous_state and hasattr(main_window, "curve_view"):
                 main_window.curve_view.points = previous_state
                 main_window.curve_view.update()
 
@@ -205,9 +199,10 @@ class InteractionService:
         """Legacy compatibility for redo operations."""
         if self.use_new_services:
             from services.history_service import HistoryService
+
             history_service = HistoryService()
             next_state = history_service.redo()
-            if next_state and hasattr(main_window, 'curve_view'):
+            if next_state and hasattr(main_window, "curve_view"):
                 main_window.curve_view.points = next_state
                 main_window.curve_view.update()
 
@@ -215,6 +210,7 @@ class InteractionService:
         """Legacy compatibility for clearing history."""
         if self.use_new_services:
             from services.history_service import HistoryService
+
             history_service = HistoryService()
             history_service.clear_history()
 
@@ -222,15 +218,16 @@ class InteractionService:
         """Update undo/redo button states."""
         if self.use_new_services:
             from services.history_service import HistoryService
+
             history_service = HistoryService()
 
-            if hasattr(main_window, 'ui_components'):
+            if hasattr(main_window, "ui_components"):
                 components = main_window.ui_components
-                if hasattr(components, 'actions'):
+                if hasattr(components, "actions"):
                     actions = components.actions
-                    if hasattr(actions, 'undo_action'):
+                    if hasattr(actions, "undo_action"):
                         actions.undo_action.setEnabled(history_service.can_undo())
-                    if hasattr(actions, 'redo_action'):
+                    if hasattr(actions, "redo_action"):
                         actions.redo_action.setEnabled(history_service.can_redo())
 
     # ==================== Stub Methods for Compatibility ====================
@@ -239,14 +236,16 @@ class InteractionService:
         """Find point at given coordinates using spatial indexing for O(1) performance."""
         if self.use_new_services:
             from services.selection_service import SelectionService
+
             selection_service = SelectionService()
             return selection_service.find_point_at_position(view, x, y, 5.0)
         else:
             # Optimized consolidated behavior using spatial indexing
-            if not hasattr(view, 'curve_data'):
+            if not hasattr(view, "curve_data"):
                 return -1
 
             from services import get_transform_service
+
             transform_service = get_transform_service()
 
             # Create transform for coordinate conversion
@@ -257,16 +256,18 @@ class InteractionService:
             threshold = 5.0  # Threshold in screen pixels
             return self._point_index.find_point_at_position(view, transform, x, y, threshold)
 
-    def select_point_by_index(self, view: CurveViewProtocol, main_window: MainWindowProtocol,
-                              idx: int, add_to_selection: bool = False) -> bool:
+    def select_point_by_index(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, add_to_selection: bool = False
+    ) -> bool:
         """Select point by index (delegates to SelectionService)."""
         if self.use_new_services:
             from services.selection_service import SelectionService
+
             selection_service = SelectionService()
             return selection_service.select_point_by_index(view, idx, add_to_selection)
         else:
             # Default consolidated behavior
-            if hasattr(view, 'curve_data') and 0 <= idx < len(view.curve_data):
+            if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
                 if not add_to_selection:
                     view.selected_points.clear()
                 view.selected_points.add(idx)
@@ -279,6 +280,7 @@ class InteractionService:
         """Clear selection (delegates to SelectionService)."""
         if self.use_new_services:
             from services.selection_service import SelectionService
+
             selection_service = SelectionService()
             selection_service.clear_selection(view)
         else:
@@ -291,12 +293,13 @@ class InteractionService:
         """Select all points (delegates to SelectionService)."""
         if self.use_new_services:
             from services.selection_service import SelectionService
+
             selection_service = SelectionService()
             selection_service.select_all(view)
-            return len(view.selected_points) if hasattr(view, 'selected_points') else 0
+            return len(view.selected_points) if hasattr(view, "selected_points") else 0
         else:
             # Default consolidated behavior
-            if hasattr(view, 'curve_data') and view.curve_data:
+            if hasattr(view, "curve_data") and view.curve_data:
                 view.selected_points = set(range(len(view.curve_data)))
                 view.selected_point_idx = 0 if view.curve_data else -1
                 view.update()
@@ -304,17 +307,19 @@ class InteractionService:
             return 0
         return 0
 
-    def update_point_position(self, view: CurveViewProtocol, main_window: MainWindowProtocol,
-                             idx: int, x: float, y: float) -> bool:
+    def update_point_position(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, x: float, y: float
+    ) -> bool:
         """Update point position (delegates to PointManipulationService)."""
         if self.use_new_services:
             from services.point_manipulation import PointManipulationService
+
             manipulation_service = PointManipulationService()
             change = manipulation_service.update_point_position(view, idx, x, y)
             return change is not None
         else:
             # Default consolidated behavior
-            if hasattr(view, 'curve_data') and 0 <= idx < len(view.curve_data):
+            if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
                 point = view.curve_data[idx]
                 # Preserve frame and status, update x and y
                 if len(point) >= 4:
@@ -329,8 +334,9 @@ class InteractionService:
         """Delete selected points (delegates to PointManipulationService)."""
         if self.use_new_services:
             from services.point_manipulation import PointManipulationService
+
             manipulation_service = PointManipulationService()
-            if hasattr(view, 'selected_points'):
+            if hasattr(view, "selected_points"):
                 for idx in sorted(view.selected_points, reverse=True):
                     manipulation_service.delete_point(view, idx)
                 view.selected_points.clear()
@@ -348,7 +354,7 @@ class InteractionService:
 
     def update_point_info(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Update point information display."""
-        if hasattr(main_window, 'statusBar'):
+        if hasattr(main_window, "statusBar"):
             main_window.statusBar().showMessage(f"Point {idx}: ({x:.2f}, {y:.2f})")
 
     def _enable_point_controls(self, main_window: MainWindowProtocol) -> None:
@@ -358,23 +364,23 @@ class InteractionService:
 
     def reset_view(self, view: CurveViewProtocol) -> None:
         """Reset view to default state."""
-        if hasattr(view, 'reset_transform'):
+        if hasattr(view, "reset_transform"):
             view.reset_transform()
         else:
             # Default reset behavior
-            if hasattr(view, 'zoom_factor'):
+            if hasattr(view, "zoom_factor"):
                 view.zoom_factor = 1.0
-            if hasattr(view, 'offset_x'):
+            if hasattr(view, "offset_x"):
                 view.offset_x = 0
-            if hasattr(view, 'offset_y'):
+            if hasattr(view, "offset_y"):
                 view.offset_y = 0
-            if hasattr(view, 'pan_offset_x'):
+            if hasattr(view, "pan_offset_x"):
                 view.pan_offset_x = 0
-            if hasattr(view, 'pan_offset_y'):
+            if hasattr(view, "pan_offset_y"):
                 view.pan_offset_y = 0
-            if hasattr(view, 'manual_offset_x'):
+            if hasattr(view, "manual_offset_x"):
                 view.manual_offset_x = 0
-            if hasattr(view, 'manual_offset_y'):
+            if hasattr(view, "manual_offset_y"):
                 view.manual_offset_y = 0
             view.update()
 
@@ -396,14 +402,16 @@ class InteractionService:
         """Select points in rectangle using spatial indexing for O(1) performance."""
         if self.use_new_services:
             from services.selection_service import SelectionService
+
             selection_service = SelectionService()
             return selection_service.select_points_in_rect(view, rect)
         else:
             # Optimized consolidated behavior using spatial indexing
-            if not hasattr(view, 'curve_data'):
+            if not hasattr(view, "curve_data"):
                 return 0
 
             from services import get_transform_service
+
             transform_service = get_transform_service()
 
             # Create transform for coordinate conversion
@@ -412,9 +420,7 @@ class InteractionService:
 
             # Use spatial index for O(1) rectangular selection
             point_indices = self._point_index.get_points_in_rect(
-                view, transform,
-                rect.left(), rect.top(),
-                rect.right(), rect.bottom()
+                view, transform, rect.left(), rect.top(), rect.right(), rect.bottom()
             )
 
             view.selected_points.clear()
@@ -435,7 +441,7 @@ class InteractionService:
 
     def restore_state(self, main_window: Any, state: Any) -> None:
         """Restore a saved state."""
-        if hasattr(main_window, 'curve_view') and state:
+        if hasattr(main_window, "curve_view") and state:
             main_window.curve_view.points = state
             main_window.curve_view.update()
 

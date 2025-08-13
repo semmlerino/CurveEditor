@@ -48,12 +48,7 @@ class SelectionService(SelectionProtocol):
             return view.findPointAt(QPointF(x, y))
         return -1
 
-    def select_point_by_index(
-        self,
-        view: Any,
-        index: int,
-        add_to_selection: bool = False
-    ) -> bool:
+    def select_point_by_index(self, view: Any, index: int, add_to_selection: bool = False) -> bool:
         """
         Select a point by its index.
 

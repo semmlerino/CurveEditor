@@ -20,7 +20,7 @@ Successfully fixed all 5 critical issues identified in the comprehensive code re
 
 **Fixes Applied**:
 - Check for symlinks BEFORE resolving paths
-- Use `lstat()` to detect symlinks even if target doesn't exist  
+- Use `lstat()` to detect symlinks even if target doesn't exist
 - Preserve file extensions during filename sanitization
 - Moved symlink validation before path resolution
 
@@ -40,7 +40,7 @@ Successfully fixed all 5 critical issues identified in the comprehensive code re
 **Impact**: Reduced memory pressure during frequent history operations
 
 ### 4. ✅ Threading Race Conditions Fixed
-**Files**: 
+**Files**:
 - `ui/main_window.py` - FileLoadWorker
 - `services/__init__.py` - Service singletons
 

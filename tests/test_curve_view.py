@@ -402,9 +402,7 @@ class TestRealComponentBenefits:
         simple_data = TestDataBuilder.curve_data(num_points=5)
         keyframe_data = TestDataBuilder.keyframe_data()
         mixed_data = TestDataBuilder.curve_data()  # Contains both keyframes and interpolated
-        view_with_selection = TestDataBuilder.curve_view_with_data(
-            num_points=4, selected_indices={1, 3}
-        )
+        view_with_selection = TestDataBuilder.curve_view_with_data(num_points=4, selected_indices={1, 3})
 
         # Builder creates proper data structures
         assert len(simple_data) == 5

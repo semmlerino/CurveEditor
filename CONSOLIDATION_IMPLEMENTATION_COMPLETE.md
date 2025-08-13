@@ -19,13 +19,13 @@ Successfully implemented major consolidation improvements, removing duplicate co
   - `create_main_window()` - Main window mock with all attributes
   - `create_event()` - Qt event mocks (mouse, key, wheel)
   - `create_service()` - Service mocks (transform, data, interaction, ui)
-  
+
 - `TestDataGenerator` class for test data
   - `curve_data()` - Generate various curve data patterns
   - `point_tuples()` - Generate point tuples
   - `selection_indices()` - Generate selection patterns
   - `transform_params()` - Common transform parameters
-  
+
 - `TestFixtures` class for environment setup
   - `setup_qt_app()` - Qt app setup for tests
   - `create_test_environment()` - Complete test environment
@@ -43,12 +43,12 @@ Successfully implemented major consolidation improvements, removing duplicate co
   - `point_in_rect()` / `point_in_circle()` - Collision detection
   - `angle_between()` - Angle calculations
   - `centroid()` / `bounding_box()` - Geometric operations
-  
+
 - `InterpolationUtils` class
   - `linear()` / `linear_point()` - Frame-based interpolation
   - `cosine()` - Smooth interpolation
   - `cubic()` - Cubic interpolation
-  
+
 - `ValidationUtils` class
   - `clamp()` - Value clamping
   - `is_in_range()` - Range validation

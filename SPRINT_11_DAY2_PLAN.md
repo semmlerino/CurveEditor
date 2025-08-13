@@ -57,7 +57,7 @@ Sprint 11 Day 2 focused on quick performance optimizations (2 hours) followed by
 # services/interaction_service.py
 # Missing implementations will cause immediate crashes:
 - SelectionService.find_point_at_position() - NOT IMPLEMENTED
-- SelectionService.select_all() - NOT IMPLEMENTED  
+- SelectionService.select_all() - NOT IMPLEMENTED
 - PointManipulationService.delete_point() - NOT IMPLEMENTED
 - PointManipulationService.interpolate_points() - NOT IMPLEMENTED
 ```

@@ -29,7 +29,11 @@ class TestCurveService(unittest.TestCase):
         # Create protocol-compliant mock objects for CurveView and MainWindow
         self.mock_curve_view = ProtocolCompliantMockCurveView()
         # Set properties after creation
-        self.mock_curve_view.curve_data = [(1, 100, 200, "keyframe"), (2, 150, 250, "keyframe"), (3, 200, 300, "keyframe")]
+        self.mock_curve_view.curve_data = [
+            (1, 100, 200, "keyframe"),
+            (2, 150, 250, "keyframe"),
+            (3, 200, 300, "keyframe"),
+        ]
         self.mock_curve_view.points = self.mock_curve_view.curve_data
         self.mock_curve_view.selected_points = set()
         self.mock_curve_view.selected_point_idx = -1
@@ -38,7 +42,11 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.offset_y = 0
 
         self.mock_main_window = ProtocolCompliantMockMainWindow()
-        self.mock_main_window.curve_view.curve_data = [(1, 100, 200, "keyframe"), (2, 150, 250, "keyframe"), (3, 200, 300, "keyframe")]
+        self.mock_main_window.curve_view.curve_data = [
+            (1, 100, 200, "keyframe"),
+            (2, 150, 250, "keyframe"),
+            (3, 200, 300, "keyframe"),
+        ]
         self.mock_main_window.curve_view.points = self.mock_main_window.curve_view.curve_data
 
         # Additional properties needed for transformation tests

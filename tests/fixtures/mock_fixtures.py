@@ -52,8 +52,7 @@ def mock_main_window():
 def mock_main_window_with_data():
     """Create a mock main window with sample curve data."""
     return BaseMockMainWindow(
-        curve_data=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)],
-        selected_indices=[1]
+        curve_data=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)], selected_indices=[1]
     )
 
 

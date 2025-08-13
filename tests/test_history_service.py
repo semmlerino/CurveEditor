@@ -22,12 +22,14 @@ from services import get_interaction_service
 # Create wrapper for compatibility with old tests
 class HistoryService:
     """Wrapper for history functionality in InteractionService."""
+
     def __init__(self):
         self._service = get_interaction_service()
 
     def __getattr__(self, name):
         # Delegate to interaction service
         return getattr(self._service, name)
+
 
 def get_history_service():
     """Get history service (now part of interaction service)."""

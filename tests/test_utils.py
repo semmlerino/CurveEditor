@@ -119,10 +119,8 @@ class MockFactory:
             mock.button = Mock(return_value=kwargs.get("button", 1))  # Qt.LeftButton
             mock.buttons = Mock(return_value=kwargs.get("buttons", 1))
             mock.modifiers = Mock(return_value=kwargs.get("modifiers", 0))
-            mock.position = Mock(return_value=Mock(x=lambda: kwargs.get("x", 100),
-                                                   y=lambda: kwargs.get("y", 100)))
-            mock.pos = Mock(return_value=Mock(x=lambda: kwargs.get("x", 100),
-                                              y=lambda: kwargs.get("y", 100)))
+            mock.position = Mock(return_value=Mock(x=lambda: kwargs.get("x", 100), y=lambda: kwargs.get("y", 100)))
+            mock.pos = Mock(return_value=Mock(x=lambda: kwargs.get("x", 100), y=lambda: kwargs.get("y", 100)))
             mock.accept = Mock()
 
         elif event_type == "key":
@@ -228,6 +226,7 @@ class TestDataGenerator:
 
         elif pattern == "sine":
             import math
+
             for i in range(size):
                 x = float(i * 10)
                 y = 50.0 + 30.0 * math.sin(i * 0.5)
@@ -326,6 +325,7 @@ class TestFixtures:
         """Setup Qt application for testing (if needed)."""
         try:
             from PySide6.QtWidgets import QApplication
+
             app = QApplication.instance()
             if app is None:
                 app = QApplication([])
@@ -338,6 +338,7 @@ class TestFixtures:
         """Cleanup Qt application after testing."""
         try:
             from PySide6.QtWidgets import QApplication
+
             app = QApplication.instance()
             if app:
                 app.quit()

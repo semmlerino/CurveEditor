@@ -22,11 +22,7 @@ logger = get_logger()
 
 
 # Decorators for file operations
-def with_file_validation(
-    operation_type: str = "data_files",
-    require_exists: bool = True,
-    allow_create: bool = False
-):
+def with_file_validation(operation_type: str = "data_files", require_exists: bool = True, allow_create: bool = False):
     """
     Decorator for file operations with automatic path validation.
 
@@ -45,15 +41,13 @@ def with_file_validation(
             return True
         ```
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(self, file_path: str | Path, *args, **kwargs):
             try:
                 validated_path = validate_file_path(
-                    file_path,
-                    operation_type=operation_type,
-                    require_exists=require_exists,
-                    allow_create=allow_create
+                    file_path, operation_type=operation_type, require_exists=require_exists, allow_create=allow_create
                 )
                 # Replace file_path with validated version
                 return func(self, str(validated_path), *args, **kwargs)
@@ -62,21 +56,19 @@ def with_file_validation(
                 logger.error(error_msg)
 
                 # Try to call service's error handler if it exists
-                if hasattr(self, '_handle_security_error'):
+                if hasattr(self, "_handle_security_error"):
                     self._handle_security_error(e)
-                elif hasattr(self, '_status') and self._status:
+                elif hasattr(self, "_status") and self._status:
                     self._status.show_error(error_msg)
 
                 return None
+
         return wrapper
+
     return decorator
 
 
-def with_error_handling(
-    operation: str,
-    default_return: Any = None,
-    log_errors: bool = True
-):
+def with_error_handling(operation: str, default_return: Any = None, log_errors: bool = True):
     """
     Decorator for automatic error handling and logging.
 
@@ -93,6 +85,7 @@ def with_error_handling(
                 return json.load(f)
         ```
     """
+
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -103,16 +96,16 @@ def with_error_handling(
                     error_msg = MessageFormatter.error(operation, e)
                     logger.error(error_msg)
                 return default_return
+
         return wrapper
+
     return decorator
 
 
 # Context managers for safe file operations
 @contextmanager
 def safe_file_read(
-    file_path: str | Path,
-    mode: str = 'r',
-    encoding: str = 'utf-8'
+    file_path: str | Path, mode: str = "r", encoding: str = "utf-8"
 ) -> Generator[Any | None, None, None]:
     """
     Context manager for safe file reading with error handling.
@@ -135,7 +128,7 @@ def safe_file_read(
         ```
     """
     try:
-        if 'b' in mode:
+        if "b" in mode:
             with open(file_path, mode) as f:
                 yield f
         else:
@@ -154,10 +147,7 @@ def safe_file_read(
 
 @contextmanager
 def safe_file_write(
-    file_path: str | Path,
-    mode: str = 'w',
-    encoding: str = 'utf-8',
-    create_parents: bool = True
+    file_path: str | Path, mode: str = "w", encoding: str = "utf-8", create_parents: bool = True
 ) -> Generator[Any | None, None, None]:
     """
     Context manager for safe file writing with error handling.
@@ -188,7 +178,7 @@ def safe_file_write(
         if create_parents:
             file_path.parent.mkdir(parents=True, exist_ok=True)
 
-        if 'b' in mode:
+        if "b" in mode:
             with open(file_path, mode) as f:
                 yield f
         else:
@@ -205,9 +195,7 @@ def safe_file_write(
 
 # JSON operations
 def load_json_safe(
-    file_path: str | Path,
-    default: Any = None,
-    validate_fn: Callable[[dict[str, Any]], bool] | None = None
+    file_path: str | Path, default: Any = None, validate_fn: Callable[[dict[str, Any]], bool] | None = None
 ) -> Any:
     """
     Load JSON file with comprehensive error handling.
@@ -250,12 +238,7 @@ def load_json_safe(
             return default
 
 
-def save_json_safe(
-    file_path: str | Path,
-    data: Any,
-    indent: int = 2,
-    ensure_ascii: bool = False
-) -> bool:
+def save_json_safe(file_path: str | Path, data: Any, indent: int = 2, ensure_ascii: bool = False) -> bool:
     """
     Save data to JSON file with error handling.
 
@@ -289,10 +272,7 @@ def save_json_safe(
 
 # CSV operations
 def load_csv_safe(
-    file_path: str | Path,
-    default: list[list[str]] | None = None,
-    delimiter: str = ',',
-    has_header: bool = True
+    file_path: str | Path, default: list[list[str]] | None = None, delimiter: str = ",", has_header: bool = True
 ) -> list[list[str]]:
     """
     Load CSV file with error handling.
@@ -327,10 +307,7 @@ def load_csv_safe(
 
 
 def save_csv_safe(
-    file_path: str | Path,
-    data: list[Any],
-    delimiter: str = ',',
-    header: list[str] | None = None
+    file_path: str | Path, data: list[Any], delimiter: str = ",", header: list[str] | None = None
 ) -> bool:
     """
     Save data to CSV file with error handling.
@@ -363,11 +340,7 @@ def save_csv_safe(
 
 
 # Utility functions
-def ensure_file_extension(
-    file_path: str | Path,
-    extension: str,
-    force: bool = False
-) -> Path:
+def ensure_file_extension(file_path: str | Path, extension: str, force: bool = False) -> Path:
     """
     Ensure file has the specified extension.
 
@@ -388,8 +361,8 @@ def ensure_file_extension(
     path = Path(file_path)
 
     # Ensure extension starts with dot
-    if not extension.startswith('.'):
-        extension = '.' + extension
+    if not extension.startswith("."):
+        extension = "." + extension
 
     if not path.suffix or force:
         return path.with_suffix(extension)
@@ -397,10 +370,7 @@ def ensure_file_extension(
     return path
 
 
-def get_unique_filename(
-    base_path: str | Path,
-    suffix: str = ""
-) -> Path:
+def get_unique_filename(base_path: str | Path, suffix: str = "") -> Path:
     """
     Generate a unique filename by appending numbers if file exists.
 

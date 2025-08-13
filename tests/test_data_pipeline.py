@@ -53,10 +53,10 @@ class TestFileToDisplayPipeline:
             {"frame": 2, "x": 965.1, "y": 542.8, "status": "keyframe"},
             {"frame": 3, "x": 958.9, "y": 538.1, "status": "interpolated"},
             {"frame": 4, "x": 972.3, "y": 545.7, "status": "keyframe"},
-            {"frame": 5, "x": 969.8, "y": 543.2, "status": "keyframe"}
+            {"frame": 5, "x": 969.8, "y": 543.2, "status": "keyframe"},
         ]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(test_data, f)
             temp_file = f.name
 
@@ -77,11 +77,11 @@ class TestFileToDisplayPipeline:
             mock_view = ProtocolCompliantMockCurveView(
                 points=loaded_data,
                 zoom_factor=0.8,  # Zoomed out to see all points
-                offset_x=100.0,   # Panned slightly
+                offset_x=100.0,  # Panned slightly
                 offset_y=50.0,
                 image_width=1920,
                 image_height=1080,
-                flip_y_axis=True  # Image coordinates
+                flip_y_axis=True,  # Image coordinates
             )
 
             # 4. Generate transform for display
@@ -124,10 +124,10 @@ class TestFileToDisplayPipeline:
             ["1", "100.0", "200.0", "keyframe"],
             ["2", "105.5", "198.2", "keyframe"],
             ["3", "98.9", "203.1", "interpolated"],
-            ["4", "112.3", "195.7", "keyframe"]
+            ["4", "112.3", "195.7", "keyframe"],
         ]
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, newline='') as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False, newline="") as f:
             writer = csv.writer(f)
             writer.writerows(csv_data)
             temp_file = f.name
@@ -145,12 +145,7 @@ class TestFileToDisplayPipeline:
             assert first_point[3] == "keyframe"  # status
 
             # 3. Process through full pipeline
-            mock_view = ProtocolCompliantMockCurveView(
-                points=loaded_data,
-                zoom_factor=1.5,
-                offset_x=0.0,
-                offset_y=0.0
-            )
+            mock_view = ProtocolCompliantMockCurveView(points=loaded_data, zoom_factor=1.5, offset_x=0.0, offset_y=0.0)
 
             view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform(view_state)
@@ -174,15 +169,12 @@ class TestFileToDisplayPipeline:
             base_x = 960 + 50 * (frame / 200) + (frame % 10) * 2
             base_y = 540 + 20 * (frame / 200) + (frame % 7) * 1.5
 
-            large_dataset.append({
-                "frame": frame,
-                "x": base_x,
-                "y": base_y,
-                "status": "keyframe" if frame % 5 == 0 else "interpolated"
-            })
+            large_dataset.append(
+                {"frame": frame, "x": base_x, "y": base_y, "status": "keyframe" if frame % 5 == 0 else "interpolated"}
+            )
 
         # 2. Create temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(large_dataset, f)
             temp_file = f.name
 
@@ -203,10 +195,7 @@ class TestFileToDisplayPipeline:
 
             # 6. Test transform performance
             mock_view = ProtocolCompliantMockCurveView(
-                points=smoothed_data,
-                zoom_factor=1.0,
-                offset_x=0.0,
-                offset_y=0.0
+                points=smoothed_data, zoom_factor=1.0, offset_x=0.0, offset_y=0.0
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
@@ -236,11 +225,7 @@ class TestPointManipulationPipeline:
     def test_point_selection_to_modification_workflow(self):
         """Test: Point selection → Coordinate modification → Transform update → Display."""
         # 1. Set up test data and view
-        initial_points = [
-            (1, 100.0, 200.0, "keyframe"),
-            (2, 150.0, 250.0, "keyframe"),
-            (3, 200.0, 300.0, "keyframe")
-        ]
+        initial_points = [(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "keyframe"), (3, 200.0, 300.0, "keyframe")]
 
         mock_view = ProtocolCompliantMockCurveView(
             points=initial_points,
@@ -248,7 +233,7 @@ class TestPointManipulationPipeline:
             selected_point_idx=-1,
             zoom_factor=1.0,
             offset_x=0.0,
-            offset_y=0.0
+            offset_y=0.0,
         )
 
         # 2. Create transform for coordinate conversions
@@ -266,8 +251,9 @@ class TestPointManipulationPipeline:
         for i, point in enumerate(mock_view.points):
             frame, x, y, _ = safe_extract_point(point)
             point_screen = transform.data_to_screen(x, y)
-            distance = ((point_screen[0] - click_position.x()) ** 2 +
-                       (point_screen[1] - click_position.y()) ** 2) ** 0.5
+            distance = (
+                (point_screen[0] - click_position.x()) ** 2 + (point_screen[1] - click_position.y()) ** 2
+            ) ** 0.5
             if distance < 10:  # Within selection tolerance
                 found_point_idx = i
                 break
@@ -305,11 +291,7 @@ class TestPointManipulationPipeline:
         test_points = [(i, float(i * 100), float(i * 200), "keyframe") for i in range(1, 6)]
 
         mock_view = ProtocolCompliantMockCurveView(
-            points=test_points,
-            selected_points=set(),
-            zoom_factor=1.0,
-            offset_x=0.0,
-            offset_y=0.0
+            points=test_points, selected_points=set(), zoom_factor=1.0, offset_x=0.0, offset_y=0.0
         )
 
         # 2. Select multiple points (simulate box selection)
@@ -338,11 +320,7 @@ class TestPointManipulationPipeline:
     def test_undo_redo_data_consistency(self):
         """Test: Modification → Undo → Redo → Data consistency verification."""
         # 1. Set up initial state
-        original_data = [
-            (1, 100.0, 200.0, "keyframe"),
-            (2, 150.0, 250.0, "keyframe"),
-            (3, 200.0, 300.0, "keyframe")
-        ]
+        original_data = [(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "keyframe"), (3, 200.0, 300.0, "keyframe")]
 
         # 2. Create copies to simulate history states
         initial_state = [tuple(point) for point in original_data]
@@ -416,10 +394,7 @@ class TestImageSequencePipeline:
             # 3. Set up mock view with image sequence
             curve_points = [(i, float(i * 50), float(i * 75)) for i in range(1, 6)]
             mock_view = ProtocolCompliantMockCurveView(
-                points=curve_points,
-                image_sequence_path=temp_dir,
-                image_filenames=loaded_filenames,
-                current_image_idx=0
+                points=curve_points, image_sequence_path=temp_dir, image_filenames=loaded_filenames, current_image_idx=0
             )
 
             # 4. Test frame navigation
@@ -429,7 +404,7 @@ class TestImageSequencePipeline:
 
                 # Verify current image index updated appropriately
                 # (Implementation may map frame numbers to image indices differently)
-                assert hasattr(mock_view, 'current_image_idx')
+                assert hasattr(mock_view, "current_image_idx")
                 # Service may not update index if frame mapping is different
 
             # 5. Test image loading
@@ -452,18 +427,11 @@ class TestImageSequencePipeline:
             loaded_filenames = self.data_service.load_image_sequence(temp_dir)
 
             # 2. Create curve data that matches frame range
-            curve_data = [
-                (1, 100.0, 200.0, "keyframe"),
-                (2, 150.0, 225.0, "keyframe"),
-                (3, 200.0, 250.0, "keyframe")
-            ]
+            curve_data = [(1, 100.0, 200.0, "keyframe"), (2, 150.0, 225.0, "keyframe"), (3, 200.0, 250.0, "keyframe")]
 
             # 3. Set up synchronized view
             mock_view = ProtocolCompliantMockCurveView(
-                points=curve_data,
-                image_sequence_path=temp_dir,
-                image_filenames=loaded_filenames,
-                current_image_idx=0
+                points=curve_data, image_sequence_path=temp_dir, image_filenames=loaded_filenames, current_image_idx=0
             )
 
             # 4. Test synchronization: navigate to each frame
@@ -504,12 +472,13 @@ class TestDataConsistencyPipeline:
             {"frame": 1, "x": 960.0, "y": 540.0, "status": "keyframe"},
             {"frame": 2, "x": 965.0, "y": 545.0, "status": "keyframe"},
             {"frame": 3, "x": 970.0, "y": 550.0, "status": "keyframe"},
-            {"frame": 4, "x": 975.0, "y": 555.0, "status": "keyframe"}
+            {"frame": 4, "x": 975.0, "y": 555.0, "status": "keyframe"},
         ]
 
         # 2. Save initial data
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             import json as json_module
+
             json_module.dump(original_data, f)
             temp_input = f.name
 
@@ -522,10 +491,7 @@ class TestDataConsistencyPipeline:
 
             # 5. Transform coordinates
             mock_view = ProtocolCompliantMockCurveView(
-                points=processed_data,
-                zoom_factor=1.2,
-                offset_x=25.0,
-                offset_y=50.0
+                points=processed_data, zoom_factor=1.2, offset_x=25.0, offset_y=50.0
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
@@ -545,16 +511,16 @@ class TestDataConsistencyPipeline:
                 processed_data[1] = (frame, x + 10.0, y + 5.0, status)
 
             # 7. Save modified data
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+            with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 temp_output = f.name
 
             # Mock the file dialog to avoid actual dialog during testing
             mock_dialog = Mock()
-            mock_dialog.getSaveFileName = Mock(return_value=(temp_output, 'JSON Files (*.json)'))
-            with patch('services.data_service.QFileDialog', mock_dialog):
+            mock_dialog.getSaveFileName = Mock(return_value=(temp_output, "JSON Files (*.json)"))
+            with patch("services.data_service.QFileDialog", mock_dialog):
                 self.data_service.save_track_data(
                     Mock(spec=QWidget),  # Mock parent widget
-                    processed_data
+                    processed_data,
                 )
 
             # 8. Reload and verify consistency
@@ -585,7 +551,7 @@ class TestDataConsistencyPipeline:
             # Medium values (typical screen coordinates)
             [(1, 960.0, 540.0), (2, 965.0, 545.0), (3, 970.0, 550.0)],
             # Large values
-            [(1, 5000.0, 3000.0), (2, 5100.0, 3050.0), (3, 5200.0, 3100.0)]
+            [(1, 5000.0, 3000.0), (2, 5100.0, 3050.0), (3, 5200.0, 3100.0)],
         ]
 
         for i, test_data in enumerate(test_cases):
@@ -594,7 +560,7 @@ class TestDataConsistencyPipeline:
                 points=test_data,
                 zoom_factor=0.5 + i * 0.5,  # Different zoom for each test
                 offset_x=i * 100.0,
-                offset_y=i * 50.0
+                offset_y=i * 50.0,
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
@@ -633,10 +599,7 @@ class TestDataConsistencyPipeline:
     def test_error_recovery_and_data_preservation(self):
         """Test that data is preserved during error conditions."""
         # 1. Set up valid initial data
-        valid_data = [
-            (1, 100.0, 200.0, "keyframe"),
-            (2, 150.0, 250.0, "keyframe")
-        ]
+        valid_data = [(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "keyframe")]
 
         # 2. Test data service error recovery
         # Try invalid file operation
@@ -654,8 +617,8 @@ class TestDataConsistencyPipeline:
         invalid_view = ProtocolCompliantMockCurveView(
             points=valid_data,
             zoom_factor=0.0,  # Invalid zoom
-            offset_x=float('nan'),  # Invalid offset
-            offset_y=float('inf')   # Invalid offset
+            offset_x=float("nan"),  # Invalid offset
+            offset_y=float("inf"),  # Invalid offset
         )
 
         # Service should handle gracefully

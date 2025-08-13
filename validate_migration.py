@@ -139,13 +139,13 @@ class MigrationValidator:
             ui_service = get_ui_service()
 
             # Basic protocol compliance check (method existence)
-            if not hasattr(data_service, 'load_track_data'):
+            if not hasattr(data_service, "load_track_data"):
                 raise ValueError("DataService missing load_track_data method")
-            if not hasattr(transform_service, 'create_transform'):
+            if not hasattr(transform_service, "create_transform"):
                 raise ValueError("TransformService missing create_transform method")
-            if not hasattr(interaction_service, 'handle_mouse_press'):
+            if not hasattr(interaction_service, "handle_mouse_press"):
                 raise ValueError("InteractionService missing handle_mouse_press method")
-            if not hasattr(ui_service, 'show_error'):
+            if not hasattr(ui_service, "show_error"):
                 raise ValueError("UIService missing show_error method")
 
             self.messages.append("✅ Service protocols properly defined and implemented")
@@ -171,13 +171,7 @@ class MigrationValidator:
             transform_service = get_transform_service()
 
             # Create a view state
-            view_state = ViewState(
-                zoom_factor=2.0,
-                offset_x=100,
-                offset_y=50,
-                width=800,
-                height=600
-            )
+            view_state = ViewState(zoom_factor=2.0, offset_x=100, offset_y=50, width=800, height=600)
 
             # Create transform
             transform = transform_service.create_transform(view_state)
@@ -207,7 +201,7 @@ class MigrationValidator:
             ui_components = UIComponents()
 
             # Check for component groups
-            expected_groups = ['timeline', 'controls', 'visualization', 'status']
+            expected_groups = ["timeline", "controls", "visualization", "status"]
             for group in expected_groups:
                 if not hasattr(ui_components, group):
                     raise ValueError(f"UIComponents missing {group} group")
@@ -239,6 +233,7 @@ class MigrationValidator:
             import importlib
 
             import services
+
             importlib.reload(services)
 
             from services import USE_NEW_SERVICES, get_history_service
@@ -283,6 +278,7 @@ class MigrationValidator:
             import importlib
 
             import services
+
             importlib.reload(services)
 
     def run_validation(self) -> tuple[bool, str]:

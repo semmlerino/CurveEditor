@@ -123,7 +123,7 @@ class DataService:
             y_coords = [p[2] for p in data]
 
             # Design and apply filter
-            b, a = signal.butter(order, cutoff, btype='low')
+            b, a = signal.butter(order, cutoff, btype="low")
             filtered_x = signal.filtfilt(b, a, x_coords)
             filtered_y = signal.filtfilt(b, a, y_coords)
 
@@ -200,8 +200,9 @@ class DataService:
 
             # Detect outliers
             for i, (vx, vy) in enumerate(velocities):
-                if (std_vx > 0 and abs(vx - mean_vx) > threshold * std_vx) or \
-                   (std_vy > 0 and abs(vy - mean_vy) > threshold * std_vy):
+                if (std_vx > 0 and abs(vx - mean_vx) > threshold * std_vx) or (
+                    std_vy > 0 and abs(vy - mean_vy) > threshold * std_vy
+                ):
                     outliers.append(i + 1)
 
         if self._logger and outliers:
@@ -223,9 +224,10 @@ class DataService:
         from PySide6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getOpenFileName(
-            parent_widget, "Load Track Data",
+            parent_widget,
+            "Load Track Data",
             self._file_io.get_last_directory(),
-            "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)"
+            "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
         )
 
         if not file_path:
@@ -242,8 +244,9 @@ class DataService:
             except Exception:
                 return self._file_io.load_csv(file_path)
 
-    def save_track_data(self, parent_widget: "QWidget", data: CurveDataList,
-                       label: str = "Track", color: str = "#FF0000") -> bool:
+    def save_track_data(
+        self, parent_widget: "QWidget", data: CurveDataList, label: str = "Track", color: str = "#FF0000"
+    ) -> bool:
         """Save track data to file."""
         if not self._file_io:
             return self._save_track_data_legacy(parent_widget, data, label, color)
@@ -251,9 +254,10 @@ class DataService:
         from PySide6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getSaveFileName(
-            parent_widget, "Save Track Data",
+            parent_widget,
+            "Save Track Data",
             self._file_io.get_last_directory(),
-            "JSON Files (*.json);;CSV Files (*.csv)"
+            "JSON Files (*.json);;CSV Files (*.csv)",
         )
 
         if not file_path:
@@ -296,7 +300,7 @@ class DataService:
                 return []
 
             # Common image extensions
-            image_extensions = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif'}
+            image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif"}
             image_files = []
 
             for file_path in sorted(path.iterdir()):
@@ -355,8 +359,7 @@ class DataService:
         # Minimal legacy implementation
         return None
 
-    def _save_track_data_legacy(self, parent_widget: "QWidget", data: CurveDataList,
-                               label: str, color: str) -> bool:
+    def _save_track_data_legacy(self, parent_widget: "QWidget", data: CurveDataList, label: str, color: str) -> bool:
         """Legacy save implementation."""
         # Minimal legacy implementation
         return False
@@ -369,7 +372,7 @@ class DataService:
 
         # Fallback implementation
         try:
-            with open(file_path, encoding='utf-8') as f:
+            with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
 
             # Convert to CurveDataList format
@@ -379,27 +382,27 @@ class DataService:
                 for item in data:
                     if isinstance(item, dict):
                         # Handle different JSON formats
-                        frame = item.get('frame', item.get('f', 0))
-                        x = item.get('x', item.get('X', 0.0))
-                        y = item.get('y', item.get('Y', 0.0))
-                        status = item.get('status', item.get('type', 'keyframe'))
+                        frame = item.get("frame", item.get("f", 0))
+                        x = item.get("x", item.get("X", 0.0))
+                        y = item.get("y", item.get("Y", 0.0))
+                        status = item.get("status", item.get("type", "keyframe"))
                         curve_data.append((frame, x, y, status))
                     elif isinstance(item, list | tuple) and len(item) >= 3:
                         # Handle array format [frame, x, y, ...]
                         frame = item[0]
                         x = float(item[1])
                         y = float(item[2])
-                        status = item[3] if len(item) > 3 else 'keyframe'
+                        status = item[3] if len(item) > 3 else "keyframe"
                         curve_data.append((frame, x, y, status))
-            elif isinstance(data, dict) and 'points' in data:
+            elif isinstance(data, dict) and "points" in data:
                 # Handle wrapped format {"points": [...], "metadata": {...}}
-                points = data['points']
+                points = data["points"]
                 for point in points:
                     if isinstance(point, dict):
-                        frame = point.get('frame', 0)
-                        x = point.get('x', 0.0)
-                        y = point.get('y', 0.0)
-                        status = point.get('status', 'keyframe')
+                        frame = point.get("frame", 0)
+                        x = point.get("x", 0.0)
+                        y = point.get("y", 0.0)
+                        status = point.get("status", "keyframe")
                         curve_data.append((frame, x, y, status))
 
             if self._logger:
@@ -429,22 +432,13 @@ class DataService:
         try:
             # Convert CurveDataList to JSON format
             json_data = {
-                "metadata": {
-                    "label": label,
-                    "color": color,
-                    "version": "1.0",
-                    "point_count": len(data)
-                },
-                "points": []
+                "metadata": {"label": label, "color": color, "version": "1.0", "point_count": len(data)},
+                "points": [],
             }
 
             for point in data:
                 if len(point) >= 3:
-                    point_data = {
-                        "frame": point[0],
-                        "x": float(point[1]),
-                        "y": float(point[2])
-                    }
+                    point_data = {"frame": point[0], "x": float(point[1]), "y": float(point[2])}
                     # Add status if available
                     if len(point) > 3:
                         point_data["status"] = point[3]
@@ -456,7 +450,7 @@ class DataService:
             # Ensure directory exists
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
-            with open(file_path, 'w', encoding='utf-8') as f:
+            with open(file_path, "w", encoding="utf-8") as f:
                 json.dump(json_data, f, indent=2)
 
             if self._logger:
@@ -481,16 +475,16 @@ class DataService:
         try:
             curve_data = []
 
-            with open(file_path, encoding='utf-8', newline='') as f:
+            with open(file_path, encoding="utf-8", newline="") as f:
                 # Try to detect delimiter
                 sample = f.read(1024)
                 f.seek(0)
 
-                delimiter = ','
-                if '\t' in sample and sample.count('\t') > sample.count(','):
-                    delimiter = '\t'
-                elif ';' in sample and sample.count(';') > sample.count(','):
-                    delimiter = ';'
+                delimiter = ","
+                if "\t" in sample and sample.count("\t") > sample.count(","):
+                    delimiter = "\t"
+                elif ";" in sample and sample.count(";") > sample.count(","):
+                    delimiter = ";"
 
                 reader = csv.reader(f, delimiter=delimiter)
 
@@ -518,7 +512,7 @@ class DataService:
                         y = float(row[2])
 
                         # Optional status column
-                        status = 'keyframe'
+                        status = "keyframe"
                         if len(row) > 3 and row[3].strip():
                             status = row[3].strip()
 
@@ -553,12 +547,12 @@ class DataService:
             # Ensure directory exists
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)
 
-            with open(file_path, 'w', encoding='utf-8', newline='') as f:
+            with open(file_path, "w", encoding="utf-8", newline="") as f:
                 writer = csv.writer(f)
 
                 # Write header if requested
                 if include_header:
-                    writer.writerow(['frame', 'x', 'y', 'status'])
+                    writer.writerow(["frame", "x", "y", "status"])
 
                 # Write data
                 for point in data:
@@ -568,7 +562,7 @@ class DataService:
                         if len(point) > 3:
                             row.append(point[3])
                         else:
-                            row.append('keyframe')
+                            row.append("keyframe")
 
                         writer.writerow(row)
 
@@ -596,4 +590,3 @@ def get_data_service() -> DataService:
     if _data_service is None:
         _data_service = DataService()
     return _data_service
-

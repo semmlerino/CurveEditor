@@ -66,20 +66,15 @@ class TestServiceInitialization:
         data_service = get_data_service()
 
         # Verify services exist and have expected attributes/methods
-        assert hasattr(transform_service, 'create_transform')
-        assert hasattr(data_service, 'smooth_moving_average')
-        assert hasattr(data_service, 'load_track_data')
-        assert hasattr(data_service, 'load_image_sequence')
+        assert hasattr(transform_service, "create_transform")
+        assert hasattr(data_service, "smooth_moving_average")
+        assert hasattr(data_service, "load_track_data")
+        assert hasattr(data_service, "load_image_sequence")
 
     def test_service_lifecycle_management(self):
         """Test service lifecycle initialization and cleanup."""
         # Services should be properly initialized
-        services = [
-            get_transform_service(),
-            get_data_service(),
-            get_interaction_service(),
-            get_ui_service()
-        ]
+        services = [get_transform_service(), get_data_service(), get_interaction_service(), get_ui_service()]
 
         for service in services:
             # All services should be instantiated
@@ -98,20 +93,11 @@ class TestCrossServiceCommunication:
         data_service = get_data_service()
 
         # Create test data
-        test_points = [
-            (1, 100.0, 200.0),
-            (2, 150.0, 250.0),
-            (3, 200.0, 300.0)
-        ]
+        test_points = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
 
         # Create mock curve view with real transform capabilities
         mock_view = ProtocolCompliantMockCurveView(
-            points=test_points,
-            zoom_factor=2.0,
-            offset_x=50.0,
-            offset_y=100.0,
-            image_width=1920,
-            image_height=1080
+            points=test_points, zoom_factor=2.0, offset_x=50.0, offset_y=100.0, image_width=1920, image_height=1080
         )
 
         # Test transform service can create transforms for data
@@ -139,10 +125,7 @@ class TestCrossServiceCommunication:
 
         # Create mock curve view
         mock_view = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0), (2, 150.0, 250.0)],
-            zoom_factor=1.5,
-            offset_x=25.0,
-            offset_y=75.0
+            points=[(1, 100.0, 200.0), (2, 150.0, 250.0)], zoom_factor=1.5, offset_x=25.0, offset_y=75.0
         )
 
         # Test interaction service can get current transform
@@ -151,7 +134,7 @@ class TestCrossServiceCommunication:
 
         # Verify transform parameters match view state
         params = transform.get_parameters()
-        assert params['scale'] == 1.5
+        assert params["scale"] == 1.5
 
         # Test coordinate transformations for interactions
         screen_point = QPointF(300.0, 400.0)
@@ -168,10 +151,10 @@ class TestCrossServiceCommunication:
         ui_service = get_ui_service()
 
         # Create temporary test file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             test_data = [
                 {"frame": 1, "x": 100.0, "y": 200.0, "status": "keyframe"},
-                {"frame": 2, "x": 150.0, "y": 250.0, "status": "keyframe"}
+                {"frame": 2, "x": 150.0, "y": 250.0, "status": "keyframe"},
             ]
             json.dump(test_data, f)
             temp_file = f.name
@@ -184,8 +167,8 @@ class TestCrossServiceCommunication:
 
             # UI service should be able to handle status updates
             # Check that UI service has dialog methods (its main functionality)
-            assert hasattr(ui_service, 'get_smooth_window_size')
-            assert hasattr(ui_service, 'get_filter_params')
+            assert hasattr(ui_service, "get_smooth_window_size")
+            assert hasattr(ui_service, "get_filter_params")
 
         finally:
             os.unlink(temp_file)
@@ -199,11 +182,11 @@ class TestCompleteWorkflows:
         # This tests the full pipeline from file loading to display
 
         # 1. Create test data file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             test_data = [
                 {"frame": 1, "x": 100.0, "y": 200.0, "status": "keyframe"},
                 {"frame": 2, "x": 150.0, "y": 250.0, "status": "interpolated"},
-                {"frame": 3, "x": 200.0, "y": 300.0, "status": "keyframe"}
+                {"frame": 3, "x": 200.0, "y": 300.0, "status": "keyframe"},
             ]
             json.dump(test_data, f)
             temp_file = f.name
@@ -221,10 +204,7 @@ class TestCompleteWorkflows:
             # 4. Create view state and transform for display
             transform_service = get_transform_service()
             mock_view = ProtocolCompliantMockCurveView(
-                points=smoothed_data,
-                zoom_factor=1.0,
-                offset_x=0.0,
-                offset_y=0.0
+                points=smoothed_data, zoom_factor=1.0, offset_x=0.0, offset_y=0.0
             )
 
             view_state = transform_service.create_view_state(mock_view)
@@ -251,12 +231,10 @@ class TestCompleteWorkflows:
             selected_points=set(),
             zoom_factor=1.0,
             offset_x=0.0,
-            offset_y=0.0
+            offset_y=0.0,
         )
 
-        ProtocolCompliantMockMainWindow(
-            curve_data=mock_view.points.copy()
-        )
+        ProtocolCompliantMockMainWindow(curve_data=mock_view.points.copy())
 
         # 2. Create transform for coordinate conversion
         view_state = transform_service.create_view_state(mock_view)
@@ -288,9 +266,7 @@ class TestCompleteWorkflows:
         # Update point position
         if mock_view.selected_point_idx >= 0:
             old_point = mock_view.points[mock_view.selected_point_idx]
-            mock_view.points[mock_view.selected_point_idx] = (
-                old_point[0], new_data_pos[0], new_data_pos[1]
-            )
+            mock_view.points[mock_view.selected_point_idx] = (old_point[0], new_data_pos[0], new_data_pos[1])
 
         # 6. Verify point was moved
         moved_point = mock_view.points[1]
@@ -302,11 +278,7 @@ class TestCompleteWorkflows:
         data_service = get_data_service()
 
         # 1. Create initial data state
-        original_data = [
-            (1, 100.0, 200.0),
-            (2, 150.0, 250.0),
-            (3, 200.0, 300.0)
-        ]
+        original_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
 
         # 2. Apply data transformation (smoothing)
         smoothed_data = data_service.smooth_moving_average(original_data, window_size=3)
@@ -347,13 +319,13 @@ class TestCompleteWorkflows:
                 points=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)],
                 image_sequence_path=temp_dir,
                 image_filenames=image_files,
-                current_image_idx=0
+                current_image_idx=0,
             )
 
             # 4. Test image navigation
             data_service.set_current_image_by_frame(mock_view, 2)  # Go to frame 2
             # The service should find the closest image for frame 2
-            assert hasattr(mock_view, 'current_image_idx')
+            assert hasattr(mock_view, "current_image_idx")
 
             # 5. Test current image loading
             current_image = data_service.load_current_image(mock_view)
@@ -373,7 +345,7 @@ class TestErrorHandlingIntegration:
             data_service._load_json("/nonexistent/file.json")
 
         # Try to load invalid JSON
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("invalid json content {")
             temp_file = f.name
 
@@ -391,8 +363,8 @@ class TestErrorHandlingIntegration:
         mock_view = ProtocolCompliantMockCurveView(
             points=[],  # Empty points
             zoom_factor=0.0,  # Invalid zoom
-            offset_x=float('inf'),  # Invalid offset
-            offset_y=float('nan')   # Invalid offset
+            offset_x=float("inf"),  # Invalid offset
+            offset_y=float("nan"),  # Invalid offset
         )
 
         # Service should handle invalid values gracefully
@@ -447,12 +419,7 @@ class TestServicePerformance:
         # Create many points
         many_points = [(i, float(i), float(i * 2)) for i in range(1, 501)]  # 500 points
 
-        mock_view = ProtocolCompliantMockCurveView(
-            points=many_points,
-            zoom_factor=1.0,
-            offset_x=0.0,
-            offset_y=0.0
-        )
+        mock_view = ProtocolCompliantMockCurveView(points=many_points, zoom_factor=1.0, offset_x=0.0, offset_y=0.0)
 
         view_state = transform_service.create_view_state(mock_view)
         transform = transform_service.create_transform(view_state)
@@ -492,9 +459,7 @@ class TestServiceResourceManagement:
         assert transform1 is transform2
 
         # But service state should not interfere with different views
-        view1 = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0)], zoom_factor=1.0, offset_x=0.0, offset_y=0.0
-        )
+        view1 = ProtocolCompliantMockCurveView(points=[(1, 100.0, 200.0)], zoom_factor=1.0, offset_x=0.0, offset_y=0.0)
         view2 = ProtocolCompliantMockCurveView(
             points=[(1, 500.0, 600.0)], zoom_factor=2.0, offset_x=50.0, offset_y=100.0
         )
@@ -508,6 +473,7 @@ class TestServiceResourceManagement:
 
 
 # ==================== Performance Baseline Tests ====================
+
 
 class TestPerformanceBaselines:
     """Establish performance baselines for service operations."""
@@ -535,10 +501,7 @@ class TestPerformanceBaselines:
         transform_service = get_transform_service()
 
         mock_view = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0)],
-            zoom_factor=1.5,
-            offset_x=25.0,
-            offset_y=75.0
+            points=[(1, 100.0, 200.0)], zoom_factor=1.5, offset_x=25.0, offset_y=75.0
         )
 
         def create_and_transform():
@@ -557,6 +520,7 @@ class TestPerformanceBaselines:
 
 
 # ==================== Service State Management Tests ====================
+
 
 class TestServiceStateMaintenance:
     """Test that services maintain consistent state across operations."""
@@ -586,9 +550,7 @@ class TestServiceStateMaintenance:
         transform_service = get_transform_service()
 
         # Create two different views
-        view_a = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0)], zoom_factor=1.0, offset_x=0.0, offset_y=0.0
-        )
+        view_a = ProtocolCompliantMockCurveView(points=[(1, 100.0, 200.0)], zoom_factor=1.0, offset_x=0.0, offset_y=0.0)
         view_b = ProtocolCompliantMockCurveView(
             points=[(1, 300.0, 400.0)], zoom_factor=2.0, offset_x=50.0, offset_y=100.0
         )

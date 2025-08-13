@@ -29,12 +29,12 @@ def isolated_services():
 
     # Get all service attributes that are instances
     for attr_name in dir(services):
-        if attr_name.startswith('_') and '_service' in attr_name:
+        if attr_name.startswith("_") and "_service" in attr_name:
             original_services[attr_name] = getattr(services, attr_name)
             setattr(services, attr_name, None)
 
     # Reset service lock
-    if hasattr(services, '_service_lock'):
+    if hasattr(services, "_service_lock"):
         services._service_lock = threading.RLock()
 
     yield
@@ -94,6 +94,7 @@ def mock_service_factory():
     Returns:
         ServiceFactory: Factory object for creating mock services
     """
+
     class ServiceFactory:
         @staticmethod
         def create_data_service(with_data=False):
@@ -162,31 +163,32 @@ def service_patch():
     Yields:
         ServicePatcher: Object with methods to patch services
     """
+
     class ServicePatcher:
         def __init__(self):
             self.patches = []
 
         def patch_data_service(self, mock_service):
             """Patch the data service getter."""
-            p = patch('services.get_data_service', return_value=mock_service)
+            p = patch("services.get_data_service", return_value=mock_service)
             self.patches.append(p)
             return p.start()
 
         def patch_transform_service(self, mock_service):
             """Patch the transform service getter."""
-            p = patch('services.get_transform_service', return_value=mock_service)
+            p = patch("services.get_transform_service", return_value=mock_service)
             self.patches.append(p)
             return p.start()
 
         def patch_interaction_service(self, mock_service):
             """Patch the interaction service getter."""
-            p = patch('services.get_interaction_service', return_value=mock_service)
+            p = patch("services.get_interaction_service", return_value=mock_service)
             self.patches.append(p)
             return p.start()
 
         def patch_ui_service(self, mock_service):
             """Patch the UI service getter."""
-            p = patch('services.get_ui_service', return_value=mock_service)
+            p = patch("services.get_ui_service", return_value=mock_service)
             self.patches.append(p)
             return p.start()
 
@@ -219,6 +221,7 @@ def thread_safe_service_test():
 
         def run_concurrent(self, func, num_threads=10, num_iterations=100):
             """Run a function concurrently in multiple threads."""
+
             def worker():
                 try:
                     for _ in range(num_iterations):

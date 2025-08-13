@@ -29,12 +29,10 @@ warnings.filterwarnings("ignore", category=UserWarning, message=".*accessibility
 # Import all fixtures to make them available to tests
 
 
-
-
-
 # =============================================================================
 # Pytest Configuration
 # =============================================================================
+
 
 def pytest_configure(config: pytest.Config) -> None:
     """Configure pytest with custom markers."""
@@ -75,6 +73,7 @@ TEST_OUTPUT_DIR = project_root / "tests" / "test_output"
 TEST_DATA_DIR.mkdir(parents=True, exist_ok=True)
 TEST_OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
+
 # Clean test output directory before test run
 def pytest_sessionstart(session):
     """Clean up test output directory at start of test session."""
@@ -91,6 +90,7 @@ def pytest_sessionstart(session):
 # =============================================================================
 # Export configuration for tests
 # =============================================================================
+
 
 def get_test_data_path(filename: str) -> Path:
     """Get path to test data file.

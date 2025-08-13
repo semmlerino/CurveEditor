@@ -1,9 +1,9 @@
 # Sprint 9 Retrospective: Type Safety & Testing
 
 ## Sprint Overview
-**Duration**: 7 days  
-**Status**: COMPLETE ✅  
-**Success Rating**: 7/10  
+**Duration**: 7 days
+**Status**: COMPLETE ✅
+**Success Rating**: 7/10
 
 ## What Went Well ✅
 
@@ -197,7 +197,7 @@ Sprint 9 taught us that technical debt must be addressed incrementally, that pra
 
 ---
 
-**Retrospective Date**: Sprint 9 Day 7  
-**Facilitator**: Sprint Lead  
-**Participants**: Development Team  
+**Retrospective Date**: Sprint 9 Day 7
+**Facilitator**: Sprint Lead
+**Participants**: Development Team
 **Next Sprint**: Sprint 10 - Integration & Stability

@@ -484,7 +484,7 @@ class TransformService:
             "misses": info.misses,
             "current_size": info.currsize,
             "max_size": info.maxsize,
-            "hit_rate": info.hits / (info.hits + info.misses) if (info.hits + info.misses) > 0 else 0.0
+            "hit_rate": info.hits / (info.hits + info.misses) if (info.hits + info.misses) > 0 else 0.0,
         }
 
     def transform_point_to_screen(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
@@ -502,4 +502,3 @@ class TransformService:
     def update_transform(self, transform: Transform, **kwargs: Any) -> Transform:
         """Update a Transform with new parameters."""
         return transform.with_updates(**kwargs)
-

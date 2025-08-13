@@ -7,7 +7,7 @@ Found multiple instances of hardcoded values that should be in `ui_constants.py`
 
 #### Image Dimensions (1920x1080)
 - `services/transform_service.py`: Lines 77-78, 109-110
-- `ui/curve_view_widget.py`: Lines 167-168  
+- `ui/curve_view_widget.py`: Lines 167-168
 - `ui/ui_scaling.py`: Line 77, 115 (fallback screen resolution)
 
 #### Other Magic Numbers
@@ -35,7 +35,7 @@ DEFAULT_BACKGROUND_OPACITY = 0.5
 ### 2. **Widget Creation Patterns** 🟡
 In `ui/main_window.py`, there are 30+ widget creations with similar patterns:
 - QLabel creation: 15 instances
-- QPushButton creation: 5 instances  
+- QPushButton creation: 5 instances
 - QSlider creation: 2 instances
 - QSpinBox creation: 2 instances
 - QCheckBox creation: 3 instances
@@ -133,7 +133,7 @@ Many methods have inline defaults that could be constants:
 3. Centralize error handling and logging
 
 ### Priority 3: Widget Factory Usage
-1. Review `ui/widget_factory.py` 
+1. Review `ui/widget_factory.py`
 2. Update `ui/main_window.py` to use factory methods
 3. Ensure consistent widget configuration
 

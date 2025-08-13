@@ -83,7 +83,7 @@ def configure_logger(
     logger: logging.Logger,
     level: int = logging.INFO,
     format_string: str | None = None,
-    add_console_handler: bool = True
+    add_console_handler: bool = True,
 ) -> logging.Logger:
     """
     Configure a logger with common settings.

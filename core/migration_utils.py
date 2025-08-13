@@ -47,6 +47,7 @@ LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str | boo
 # Use centralized type definitions from models.py
 if TYPE_CHECKING:
     from core.models import PointsList as ModelPointsList
+
     # Ensure consistency with models.py
     PointsList = ModelPointsList  # Use the canonical definition
     AnyPointFormat = PointsList | PointCollection | list[CurvePoint]

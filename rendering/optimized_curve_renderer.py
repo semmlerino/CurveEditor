@@ -297,8 +297,7 @@ class OptimizedCurveRenderer:
 
         # Check if viewport or point count changed
         viewport_changed = self._last_viewport != viewport
-        point_count_changed = (hasattr(self, '_last_point_count') and
-                             self._last_point_count != len(point_data))
+        point_count_changed = hasattr(self, "_last_point_count") and self._last_point_count != len(point_data)
 
         if viewport_changed or point_count_changed:
             self._last_viewport = viewport
@@ -306,7 +305,7 @@ class OptimizedCurveRenderer:
             self._cache_valid = False
 
         # Initialize point count if not set
-        if not hasattr(self, '_last_point_count'):
+        if not hasattr(self, "_last_point_count"):
             self._last_point_count = len(point_data)
 
         # Transform all points using vectorized operations

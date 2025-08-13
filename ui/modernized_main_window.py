@@ -87,7 +87,9 @@ class ModernizedMainWindow(MainWindow):
 
         # Apply window-specific dark theme enhancements
         if self.current_theme == "dark":
-            self.setStyleSheet(self.styleSheet() + """
+            self.setStyleSheet(
+                self.styleSheet()
+                + """
                 QMainWindow {
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #2b3035, stop:1 #212529);
@@ -114,7 +116,8 @@ class ModernizedMainWindow(MainWindow):
                 QToolButton:hover {
                     transform: translateY(-2px);
                 }
-            """)
+            """
+            )
 
     def _enhance_ui_components(self):
         """Enhance existing UI components with modern features."""
@@ -128,7 +131,7 @@ class ModernizedMainWindow(MainWindow):
             self._enhance_button(button)
 
         # Enhance the curve widget
-        if hasattr(self, 'curve_widget') and self.curve_widget:
+        if hasattr(self, "curve_widget") and self.curve_widget:
             self._enhance_curve_widget()
 
     def _apply_card_effect(self, widget: QWidget):
@@ -175,7 +178,6 @@ class ModernizedMainWindow(MainWindow):
         if not toolbar:
             return
 
-
         # Apply modern styling to toolbar actions
         colors = COLORS_DARK if self.current_theme == "dark" else COLORS_LIGHT
         toolbar.setStyleSheet(f"""
@@ -199,7 +201,7 @@ class ModernizedMainWindow(MainWindow):
         self.fade_animations = {}
 
         # Setup opacity effects for smooth transitions
-        for widget_name in ['timeline_widget', 'properties_widget', 'curve_container']:
+        for widget_name in ["timeline_widget", "properties_widget", "curve_container"]:
             widget = getattr(self, widget_name, None)
             if widget:
                 opacity_effect = QGraphicsOpacityEffect()
@@ -273,7 +275,7 @@ class ModernizedMainWindow(MainWindow):
 
     def _enhance_timeline(self):
         """Enhance the timeline with modern styling and animations."""
-        if hasattr(self, 'frame_tabs') and self.frame_tabs:
+        if hasattr(self, "frame_tabs") and self.frame_tabs:
             colors = COLORS_DARK if self.current_theme == "dark" else COLORS_LIGHT
 
             for i, tab in enumerate(self.frame_tabs):
@@ -327,19 +329,15 @@ class ModernizedMainWindow(MainWindow):
 
     def _add_welcome_animation(self):
         """Show welcome animation on startup."""
+
         def show_welcome():
             # Create welcome toast
-            toast = ModernToast(
-                "Welcome to CurveEditor! Press F1 for keyboard shortcuts.",
-                "info",
-                4000,
-                self
-            )
+            toast = ModernToast("Welcome to CurveEditor! Press F1 for keyboard shortcuts.", "info", 4000, self)
             toast.move(self.width() - toast.width() - 20, 60)
             toast.show_toast()
 
             # Animate main panels with fade-in
-            for widget_name in ['timeline_widget', 'curve_container', 'properties_widget']:
+            for widget_name in ["timeline_widget", "curve_container", "properties_widget"]:
                 widget = getattr(self, widget_name, None)
                 if widget and widget in self.fade_animations:
                     fade_anim = self.fade_animations[widget]
@@ -370,14 +368,11 @@ class ModernizedMainWindow(MainWindow):
         self._enhance_timeline()
 
         # Update theme button icon
-        if hasattr(self, 'theme_action'):
+        if hasattr(self, "theme_action"):
             self.theme_action.setText("🌙" if self.current_theme == "light" else "☀️")
 
         # Show theme change notification
-        self._show_notification(
-            f"Switched to {self.current_theme.title()} Theme",
-            "success"
-        )
+        self._show_notification(f"Switched to {self.current_theme.title()} Theme", "success")
 
         # Emit theme changed signal
         self.theme_changed.emit(self.current_theme)
@@ -402,11 +397,7 @@ class ModernizedMainWindow(MainWindow):
             else:
                 hint.hide()
 
-        self._show_notification(
-            f"Keyboard hints {'shown' if self.keyboard_hints_visible else 'hidden'}",
-            "info",
-            2000
-        )
+        self._show_notification(f"Keyboard hints {'shown' if self.keyboard_hints_visible else 'hidden'}", "info", 2000)
 
         self.keyboard_hints_toggled.emit(self.keyboard_hints_visible)
 
@@ -430,11 +421,7 @@ class ModernizedMainWindow(MainWindow):
         # Toggle animations with F2
         if event.key() == Qt.Key.Key_F2:
             self.animations_enabled = not self.animations_enabled
-            self._show_notification(
-                f"Animations {'enabled' if self.animations_enabled else 'disabled'}",
-                "info",
-                2000
-            )
+            self._show_notification(f"Animations {'enabled' if self.animations_enabled else 'disabled'}", "info", 2000)
             self.animation_toggled.emit(self.animations_enabled)
             return
 
@@ -449,7 +436,7 @@ class ModernizedMainWindow(MainWindow):
             anim.deleteLater()
 
         # Stop pulse animations on timeline tabs
-        if hasattr(self, 'ui_components') and hasattr(self.ui_components, 'timeline'):
+        if hasattr(self, "ui_components") and hasattr(self.ui_components, "timeline"):
             timeline_widget = self.ui_components.timeline.timeline_widget
             if timeline_widget:
                 for i in range(timeline_widget.count()):
@@ -562,9 +549,9 @@ class ModernizedMainWindow(MainWindow):
         super().resizeEvent(event)
 
         # Reposition loading spinner
-        if hasattr(self, 'loading_spinner'):
+        if hasattr(self, "loading_spinner"):
             self.loading_spinner.move(self.width() // 2 - 20, self.height() // 2 - 20)
 
         # Reposition progress bar
-        if hasattr(self, 'progress_bar_modern'):
+        if hasattr(self, "progress_bar_modern"):
             self.progress_bar_modern.move(self.width() // 2 - 150, self.height() - 100)

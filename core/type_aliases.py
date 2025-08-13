@@ -33,7 +33,6 @@ PathLike = str | Path
 
 # Qt types (with better type handling)
 if TYPE_CHECKING:
-
     type QtPointF = QPointF
     type QtPixmap = QPixmap
     type QtImage = QImage

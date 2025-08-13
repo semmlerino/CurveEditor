@@ -100,6 +100,7 @@ class TestViewState:
         """Test that ViewState is truly immutable."""
         # ViewState should be frozen (dataclass with frozen=True)
         from dataclasses import FrozenInstanceError
+
         with pytest.raises(FrozenInstanceError, match="cannot assign to field"):
             basic_view_state.zoom_factor = 2.0  # type: ignore[misc]
 
@@ -582,6 +583,7 @@ class TestTransformService:
         """Automatically clear cache between tests to ensure isolation."""
         # Clear cache before each test
         from services import get_transform_service
+
         get_transform_service().clear_cache()
 
     @pytest.fixture

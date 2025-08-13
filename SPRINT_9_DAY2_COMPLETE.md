@@ -48,7 +48,7 @@ Updated `basedpyrightconfig.json` to exclude:
 ```
 ui/main_window.py                41 errors (uninitialized instance vars)
 services/interaction_service.py  14 errors
-ui/service_facade.py             13 errors  
+ui/service_facade.py             13 errors
 services/ui_service.py           12 errors
 rendering/curve_renderer.py       6 errors
 data/curve_view.py                5 errors

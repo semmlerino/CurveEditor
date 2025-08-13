@@ -11,13 +11,13 @@ Sprint 7 focused on completing the refactoring work that was claimed to be done 
 - `ui/main_window_original.py` - Backup without @Slot decorators, 1687 lines (removed)
 - `ui/main_window_refactored.py` - Refactored version with controllers, 408 lines (kept for future)
 
-**Decision**: 
+**Decision**:
 - Keep `main_window.py` as the active version
 - Removed `main_window_original.py` (was just a backup)
 - Keep `main_window_refactored.py` for potential future migration to controller pattern
 
 ### 2. ✅ Split conftest.py Into fixtures/ Directory
-**Before**: 
+**Before**:
 - `conftest.py` had 1,695 lines of mixed fixtures and helper classes
 
 **After**:

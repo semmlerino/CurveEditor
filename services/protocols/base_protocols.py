@@ -116,9 +116,7 @@ class ServiceProtocol(Protocol):
 class SelectionServiceProtocol(Protocol):
     """Protocol for selection service."""
 
-    def select_point_by_index(
-        self, view: CurveViewProtocol, idx: int, add_to_selection: bool = False
-    ) -> bool:
+    def select_point_by_index(self, view: CurveViewProtocol, idx: int, add_to_selection: bool = False) -> bool:
         """Select a point by its index."""
         ...
 
@@ -139,9 +137,7 @@ class SelectionServiceProtocol(Protocol):
 class ManipulationServiceProtocol(Protocol):
     """Protocol for point manipulation service."""
 
-    def update_point_position(
-        self, view: CurveViewProtocol, idx: int, x: float, y: float
-    ) -> Any:
+    def update_point_position(self, view: CurveViewProtocol, idx: int, x: float, y: float) -> Any:
         """Update a point's position."""
         ...
 
@@ -149,9 +145,7 @@ class ManipulationServiceProtocol(Protocol):
         """Delete a point."""
         ...
 
-    def add_point(
-        self, view: CurveViewProtocol, frame: Frame, x: float, y: float
-    ) -> bool:
+    def add_point(self, view: CurveViewProtocol, frame: Frame, x: float, y: float) -> bool:
         """Add a new point."""
         ...
 

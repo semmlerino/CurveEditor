@@ -20,13 +20,7 @@ class TestSelectionService(unittest.TestCase):
 
         # Create a mock view with required attributes
         self.mock_view = Mock()
-        self.mock_view.points = [
-            (1, 10.0, 20.0),
-            (2, 30.0, 40.0),
-            (3, 50.0, 60.0),
-            (4, 70.0, 80.0),
-            (5, 90.0, 100.0)
-        ]
+        self.mock_view.points = [(1, 10.0, 20.0), (2, 30.0, 40.0), (3, 50.0, 60.0), (4, 70.0, 80.0), (5, 90.0, 100.0)]
         self.mock_view.selected_points = set()
         self.mock_view.update = Mock()
         self.mock_view.transform = Mock()
@@ -209,5 +203,5 @@ class TestSelectionService(unittest.TestCase):
         self.assertEqual(view2.selected_points, {1})
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()

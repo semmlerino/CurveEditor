@@ -297,7 +297,9 @@ class UIService:
         """
         self.set_status(main_window, message, 0)
 
-    def set_temporary_status(self, main_window: "MainWindowProtocol", message: str, timeout: int = DEFAULT_STATUS_TIMEOUT) -> None:
+    def set_temporary_status(
+        self, main_window: "MainWindowProtocol", message: str, timeout: int = DEFAULT_STATUS_TIMEOUT
+    ) -> None:
         """Set a temporary status message.
 
         Args:
@@ -529,4 +531,3 @@ class UIService:
 
         dialog.setLayout(layout)
         dialog.exec()
-

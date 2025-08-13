@@ -73,7 +73,9 @@ class TestDataService:
 
     # ==================== Analysis Method Tests ====================
 
-    def test_smooth_moving_average(self, data_service: DataService, sample_data: list[tuple[int, float, float, str]]) -> None:
+    def test_smooth_moving_average(
+        self, data_service: DataService, sample_data: list[tuple[int, float, float, str]]
+    ) -> None:
         """Test moving average smoothing."""
         result = data_service.smooth_moving_average(sample_data, window_size=3)
         assert len(result) == len(sample_data)
@@ -93,7 +95,9 @@ class TestDataService:
         assert len(result) == len(sample_data)
         assert result[0][0] == sample_data[0][0]  # Frame preserved
 
-    def test_filter_butterworth(self, data_service: DataService, sample_data: list[tuple[int, float, float, str]]) -> None:
+    def test_filter_butterworth(
+        self, data_service: DataService, sample_data: list[tuple[int, float, float, str]]
+    ) -> None:
         """Test butterworth filter."""
         result = data_service.filter_butterworth(sample_data, cutoff=0.1)
         assert len(result) == len(sample_data)

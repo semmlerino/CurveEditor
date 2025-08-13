@@ -67,7 +67,7 @@ TOTAL                           707      0%
 ```
 Module          Coverage   Status
 Core              65%      🟡 Good
-UI                51%      ⚠️ Fair  
+UI                51%      ⚠️ Fair
 Services          21%      ❌ Critical
 Rendering         34%      ❌ Poor
 Data               5%      ❌ Critical

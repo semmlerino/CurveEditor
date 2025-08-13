@@ -36,7 +36,7 @@ The Quick Wins work completed so far shows **PARTIAL COMPLIANCE** with project d
 ```
 Old Sprint 8 Services (Still Present):
 - SelectionService
-- PointManipulationService  
+- PointManipulationService
 - HistoryService
 - EventHandlerService
 - FileIOService

@@ -56,34 +56,34 @@ class InteractionServiceAdapter:
             # Handle the action based on result
             if result.action == ActionType.SELECT:
                 if result.data:
-                    if 'index' in result.data:
+                    if "index" in result.data:
                         # Select a specific point
-                        idx = result.data['index']
-                        add_to_selection = result.data.get('add_to_selection', False)
+                        idx = result.data["index"]
+                        add_to_selection = result.data.get("add_to_selection", False)
                         selection_service.select_point_by_index(view, idx, add_to_selection)
 
                         # Update main window if available
-                        if hasattr(view, 'main_window'):
+                        if hasattr(view, "main_window"):
                             service.on_point_selected(view, view.main_window, idx)
 
-                    elif result.data.get('clear_selection'):
+                    elif result.data.get("clear_selection"):
                         # Clear selection
                         selection_service.clear_selection(view)
 
                         # Update main window
-                        if hasattr(view, 'main_window'):
+                        if hasattr(view, "main_window"):
                             service.update_history_buttons(view.main_window)
 
-                    if result.data.get('start_drag'):
+                    if result.data.get("start_drag"):
                         view.drag_active = True
                         view.last_drag_pos = event.position()
 
-                    if result.data.get('start_rect'):
+                    if result.data.get("start_rect"):
                         # Initialize rubber band selection
                         from PySide6.QtCore import QRect, QSize
                         from PySide6.QtWidgets import QRubberBand
 
-                        if not hasattr(view, 'rubber_band'):
+                        if not hasattr(view, "rubber_band"):
                             view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, None)
                         view.rubber_band_origin = event.position()
                         view.rubber_band_active = True
@@ -91,9 +91,9 @@ class InteractionServiceAdapter:
                         view.rubber_band.show()
 
             elif result.action == ActionType.MULTI_SELECT:
-                if result.data and 'index' in result.data:
-                    idx = result.data['index']
-                    if result.data.get('range_select'):
+                if result.data and "index" in result.data:
+                    idx = result.data["index"]
+                    if result.data.get("range_select"):
                         # Range selection with Shift
                         # TODO: Implement range selection
                         selection_service.toggle_point_selection(view, idx)
@@ -102,13 +102,13 @@ class InteractionServiceAdapter:
                         selection_service.toggle_point_selection(view, idx)
 
                     # Update main window
-                    if hasattr(view, 'main_window'):
+                    if hasattr(view, "main_window"):
                         service.on_point_selected(view, view.main_window, idx)
 
             elif result.action == ActionType.PAN:
-                if result.data and 'start_pos' in result.data:
+                if result.data and "start_pos" in result.data:
                     view.pan_active = True
-                    view.last_pan_pos = result.data['start_pos']
+                    view.last_pan_pos = result.data["start_pos"]
                     view.setCursor(Qt.CursorShape.ClosedHandCursor)
 
             elif result.action == ActionType.CONTEXT_MENU:
@@ -153,40 +153,36 @@ class InteractionServiceAdapter:
             # Handle the action based on result
             if result.action == ActionType.PAN and result.data:
                 # Pan the view
-                delta_x = result.data.get('delta_x', 0)
-                delta_y = result.data.get('delta_y', 0)
+                delta_x = result.data.get("delta_x", 0)
+                delta_y = result.data.get("delta_y", 0)
 
-                if hasattr(view, 'pan'):
+                if hasattr(view, "pan"):
                     view.pan(delta_x, delta_y)
                     view.update()
 
             elif result.action == ActionType.DRAG and result.data:
                 # Drag selected points
-                delta_x = result.data.get('delta_x', 0)
-                delta_y = result.data.get('delta_y', 0)
+                delta_x = result.data.get("delta_x", 0)
+                delta_y = result.data.get("delta_y", 0)
 
                 # Get selected points
                 state = selection_service.get_selection_state(view)
                 if state.selected_indices:
                     # Move points using manipulation service
-                    change = point_manipulation.nudge_points(
-                        view,
-                        list(state.selected_indices),
-                        delta_x,
-                        delta_y
-                    )
+                    change = point_manipulation.nudge_points(view, list(state.selected_indices), delta_x, delta_y)
 
-                    if change and hasattr(view, 'main_window'):
+                    if change and hasattr(view, "main_window"):
                         # Record in history
                         service.add_to_history(view.main_window)
 
             elif result.action == ActionType.SELECT and result.data:
                 # Update rubber band rectangle
-                if result.data.get('rect_start') and result.data.get('rect_end'):
-                    if hasattr(view, 'rubber_band') and view.rubber_band:
+                if result.data.get("rect_start") and result.data.get("rect_end"):
+                    if hasattr(view, "rubber_band") and view.rubber_band:
                         from PySide6.QtCore import QRect
-                        start = result.data['rect_start']
-                        end = result.data['rect_end']
+
+                        start = result.data["rect_start"]
+                        end = result.data["rect_end"]
                         rect = QRect(start.toPoint(), end.toPoint()).normalized()
                         view.rubber_band.setGeometry(rect)
 
@@ -225,23 +221,24 @@ class InteractionServiceAdapter:
                 return False
 
             # Handle the action based on result
-            if result.action == ActionType.PAN and result.data and result.data.get('end'):
+            if result.action == ActionType.PAN and result.data and result.data.get("end"):
                 # End panning
                 view.pan_active = False
                 view.last_pan_pos = None
                 view.unsetCursor()
 
-            elif result.action == ActionType.DRAG and result.data and result.data.get('end'):
+            elif result.action == ActionType.DRAG and result.data and result.data.get("end"):
                 # End dragging
                 view.drag_active = False
                 view.last_drag_pos = None
 
-            elif result.action == ActionType.SELECT and result.data and result.data.get('finish_rect'):
+            elif result.action == ActionType.SELECT and result.data and result.data.get("finish_rect"):
                 # Finish rectangle selection
-                if hasattr(view, 'rubber_band') and view.rubber_band:
+                if hasattr(view, "rubber_band") and view.rubber_band:
                     from PySide6.QtCore import QRect
-                    start = result.data['rect_start']
-                    end = result.data['rect_end']
+
+                    start = result.data["rect_start"]
+                    end = result.data["rect_end"]
                     rect = QRect(start.toPoint(), end.toPoint()).normalized()
 
                     # Select points in rectangle
@@ -252,7 +249,7 @@ class InteractionServiceAdapter:
                     view.rubber_band_active = False
 
                     # Update main window
-                    if count > 0 and hasattr(view, 'main_window'):
+                    if count > 0 and hasattr(view, "main_window"):
                         service.update_history_buttons(view.main_window)
 
             return True
@@ -290,10 +287,10 @@ class InteractionServiceAdapter:
 
             # Handle zoom action
             if result.action == ActionType.ZOOM and result.data:
-                factor = result.data.get('factor', 1.0)
-                center = result.data.get('center')
+                factor = result.data.get("factor", 1.0)
+                center = result.data.get("center")
 
-                if hasattr(view, 'zoom'):
+                if hasattr(view, "zoom"):
                     view.zoom(factor, center)
                     view.update()
 
@@ -337,42 +334,34 @@ class InteractionServiceAdapter:
                 # Delete selected points
                 state = selection_service.get_selection_state(view)
                 if state.selected_indices:
-                    change = point_manipulation.delete_selected_points(
-                        view,
-                        list(state.selected_indices)
-                    )
+                    change = point_manipulation.delete_selected_points(view, list(state.selected_indices))
 
-                    if change and hasattr(view, 'main_window'):
+                    if change and hasattr(view, "main_window"):
                         service.add_to_history(view.main_window)
 
             elif result.action == ActionType.SELECT and result.data:
-                if result.data.get('select_all'):
+                if result.data.get("select_all"):
                     # Select all points
                     selection_service.select_all_points(view)
-                    if hasattr(view, 'main_window'):
+                    if hasattr(view, "main_window"):
                         service.update_history_buttons(view.main_window)
 
-                elif result.data.get('clear_selection'):
+                elif result.data.get("clear_selection"):
                     # Clear selection
                     selection_service.clear_selection(view)
-                    if hasattr(view, 'main_window'):
+                    if hasattr(view, "main_window"):
                         service.update_history_buttons(view.main_window)
 
-            elif result.action == ActionType.DRAG and result.data and result.data.get('nudge'):
+            elif result.action == ActionType.DRAG and result.data and result.data.get("nudge"):
                 # Nudge selected points
-                delta_x = result.data.get('delta_x', 0)
-                delta_y = result.data.get('delta_y', 0)
+                delta_x = result.data.get("delta_x", 0)
+                delta_y = result.data.get("delta_y", 0)
 
                 state = selection_service.get_selection_state(view)
                 if state.selected_indices:
-                    change = point_manipulation.nudge_points(
-                        view,
-                        list(state.selected_indices),
-                        delta_x,
-                        delta_y
-                    )
+                    change = point_manipulation.nudge_points(view, list(state.selected_indices), delta_x, delta_y)
 
-                    if change and hasattr(view, 'main_window'):
+                    if change and hasattr(view, "main_window"):
                         service.add_to_history(view.main_window)
 
             return True

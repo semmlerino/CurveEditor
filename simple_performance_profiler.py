@@ -54,7 +54,7 @@ def profile_transforms():
             "transform_creation_ms": create_time * 1000,
             "total_transform_ms": to_screen_time * 1000,
             "per_point_ms": (to_screen_time / num_points) * 1000,
-            "points_per_second": num_points / to_screen_time if to_screen_time > 0 else float('inf'),
+            "points_per_second": num_points / to_screen_time if to_screen_time > 0 else float("inf"),
         }
 
     return results
@@ -75,11 +75,10 @@ def profile_file_io():
     for size in test_sizes:
         # Create test data
         test_data = [
-            (i, float(i * 10), float(i * 20), "keyframe" if i % 10 == 0 else "interpolated")
-            for i in range(size)
+            (i, float(i * 10), float(i * 20), "keyframe" if i % 10 == 0 else "interpolated") for i in range(size)
         ]
 
-        with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
             temp_path = f.name
 
         try:
@@ -165,7 +164,7 @@ def profile_service_operations():
 
     results["data_filtering"] = {
         "smooth_1000_points_ms": filter_time * 1000,
-        "points_per_second": 1000 / filter_time if filter_time > 0 else float('inf'),
+        "points_per_second": 1000 / filter_time if filter_time > 0 else float("inf"),
     }
 
     return results
@@ -200,15 +199,17 @@ def profile_memory():
 
     # Get memory snapshot
     snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
+    top_stats = snapshot.statistics("lineno")
 
     # Get top memory users
     top_memory = []
     for stat in top_stats[:10]:
-        top_memory.append({
-            "location": str(stat.traceback),
-            "size_mb": stat.size / 1024 / 1024,
-        })
+        top_memory.append(
+            {
+                "location": str(stat.traceback),
+                "size_mb": stat.size / 1024 / 1024,
+            }
+        )
 
     tracemalloc.stop()
 
@@ -245,9 +246,9 @@ def generate_report():
         print(f"  Throughput: {metrics['points_per_second']:.0f} points/sec")
 
     # Assessment
-    if transforms[1000]['total_transform_ms'] < 10:
+    if transforms[1000]["total_transform_ms"] < 10:
         print("\n✅ Transform performance is EXCELLENT (<10ms for 1000 points)")
-    elif transforms[1000]['total_transform_ms'] < 20:
+    elif transforms[1000]["total_transform_ms"] < 20:
         print("\n⚠️ Transform performance is ACCEPTABLE (10-20ms)")
     else:
         print("\n❌ Transform performance NEEDS OPTIMIZATION (>20ms)")
@@ -264,9 +265,9 @@ def generate_report():
         print(f"  Load Throughput: {metrics['throughput_load_mbps']:.2f}MB/s")
 
     # Assessment
-    if file_io[10000]['load_time_ms'] < 1000:
+    if file_io[10000]["load_time_ms"] < 1000:
         print("\n✅ File I/O is EXCELLENT (<1s for 10k points)")
-    elif file_io[10000]['load_time_ms'] < 2000:
+    elif file_io[10000]["load_time_ms"] < 2000:
         print("\n⚠️ File I/O is ACCEPTABLE (1-2s)")
     else:
         print("\n❌ File I/O NEEDS OPTIMIZATION (>2s)")
@@ -294,9 +295,9 @@ def generate_report():
     print(f"After 10k Points: {memory['after_large_data_mb']:.1f}MB (+{memory['large_data_overhead_mb']:.1f}MB)")
 
     # Assessment
-    if memory['after_large_data_mb'] < 100:
+    if memory["after_large_data_mb"] < 100:
         print("\n✅ Memory usage is EXCELLENT (<100MB)")
-    elif memory['after_large_data_mb'] < 200:
+    elif memory["after_large_data_mb"] < 200:
         print("\n⚠️ Memory usage is ACCEPTABLE (100-200MB)")
     else:
         print("\n❌ Memory usage NEEDS OPTIMIZATION (>200MB)")
@@ -307,16 +308,20 @@ def generate_report():
 
     bottlenecks = []
 
-    if transforms[10000]['total_transform_ms'] > 100:
-        bottlenecks.append(f"Transform operations slow for large datasets ({transforms[10000]['total_transform_ms']:.0f}ms for 10k points)")
+    if transforms[10000]["total_transform_ms"] > 100:
+        bottlenecks.append(
+            f"Transform operations slow for large datasets ({transforms[10000]['total_transform_ms']:.0f}ms for 10k points)"
+        )
 
-    if file_io[10000]['load_time_ms'] > 2000:
+    if file_io[10000]["load_time_ms"] > 2000:
         bottlenecks.append(f"File loading slow ({file_io[10000]['load_time_ms']:.0f}ms for 10k points)")
 
-    if services['point_finding']['per_find_ms'] > 1:
-        bottlenecks.append(f"Point finding inefficient ({services['point_finding']['per_find_ms']:.2f}ms per operation)")
+    if services["point_finding"]["per_find_ms"] > 1:
+        bottlenecks.append(
+            f"Point finding inefficient ({services['point_finding']['per_find_ms']:.2f}ms per operation)"
+        )
 
-    if memory['after_large_data_mb'] > 200:
+    if memory["after_large_data_mb"] > 200:
         bottlenecks.append(f"High memory usage ({memory['after_large_data_mb']:.0f}MB)")
 
     if bottlenecks:
@@ -332,18 +337,18 @@ def generate_report():
 
     recommendations = []
 
-    if transforms[1000]['per_point_ms'] > 0.01:
+    if transforms[1000]["per_point_ms"] > 0.01:
         recommendations.append("- Implement transform result caching")
         recommendations.append("- Consider numpy vectorization for batch transforms")
 
-    if file_io[10000]['load_time_ms'] > 1000:
+    if file_io[10000]["load_time_ms"] > 1000:
         recommendations.append("- Implement lazy loading for large files")
         recommendations.append("- Consider binary format (e.g., HDF5) for large datasets")
 
-    if services['point_finding']['per_find_ms'] > 0.5:
+    if services["point_finding"]["per_find_ms"] > 0.5:
         recommendations.append("- Implement spatial indexing (e.g., R-tree) for point queries")
 
-    if memory['large_data_overhead_mb'] > 50:
+    if memory["large_data_overhead_mb"] > 50:
         recommendations.append("- Optimize data structures (use numpy arrays)")
         recommendations.append("- Implement data compression for memory efficiency")
 
@@ -367,6 +372,7 @@ def main():
         with open("PERFORMANCE_BASELINE_REPORT.txt", "w") as f:
             # Redirect print to file
             import sys
+
             old_stdout = sys.stdout
             sys.stdout = f
             generate_report()
@@ -377,6 +383,7 @@ def main():
     except Exception as e:
         print(f"\nError during profiling: {e}")
         import traceback
+
         traceback.print_exc()
 
 

@@ -81,9 +81,7 @@ class DataService:
 
     # ==================== Analysis Methods (Core Functionality) ====================
 
-    def smooth_moving_average(
-        self, data: CurveDataList, window_size: int = 5
-    ) -> CurveDataList:
+    def smooth_moving_average(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
         """Apply moving average smoothing to curve data.
 
         Args:
@@ -149,9 +147,7 @@ class DataService:
 
         return result
 
-    def filter_butterworth(
-        self, data: CurveDataList, cutoff: float = 0.1, order: int = 2
-    ) -> CurveDataList:
+    def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
         """Apply Butterworth low-pass filter to curve data.
 
         Args:
@@ -179,7 +175,7 @@ class DataService:
         y_coords = [p[2] for p in data]
 
         # Design filter
-        b, a = signal.butter(order, cutoff, btype='low', analog=False)
+        b, a = signal.butter(order, cutoff, btype="low", analog=False)
 
         # Apply filter
         filtered_x = signal.filtfilt(b, a, x_coords)
@@ -198,9 +194,7 @@ class DataService:
 
         return result
 
-    def fill_gaps(
-        self, data: CurveDataList, max_gap: int = 5
-    ) -> CurveDataList:
+    def fill_gaps(self, data: CurveDataList, max_gap: int = 5) -> CurveDataList:
         """Fill gaps in curve data using interpolation.
 
         Args:
@@ -240,9 +234,7 @@ class DataService:
 
         return result
 
-    def detect_outliers(
-        self, data: CurveDataList, threshold: float = 2.0
-    ) -> list[int]:
+    def detect_outliers(self, data: CurveDataList, threshold: float = 2.0) -> list[int]:
         """Detect outlier points based on deviation from neighbors.
 
         Args:
@@ -295,9 +287,7 @@ class DataService:
 
     # ==================== Delegation Methods ====================
 
-    def add_track_data(
-        self, data: CurveDataList, label: str = "Track", color: str = "#FF0000"
-    ) -> None:
+    def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
         """Add track data to the current dataset.
 
         Args:
@@ -342,8 +332,9 @@ class DataService:
             # Legacy implementation would go here
             return None
 
-    def save_track_data(self, parent_widget: QWidget, data: CurveDataList,
-                       label: str = "Track", color: str = "#FF0000") -> bool:
+    def save_track_data(
+        self, parent_widget: QWidget, data: CurveDataList, label: str = "Track", color: str = "#FF0000"
+    ) -> bool:
         """Save track data to file (delegates to FileIOService)."""
         if self._file_io_service:
             from PySide6.QtWidgets import QFileDialog

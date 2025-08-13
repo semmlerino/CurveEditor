@@ -41,7 +41,6 @@ except ImportError:
             return 0
 
 
-
 # Configure logger for this module
 logger = logging.getLogger("image_state")
 
@@ -124,8 +123,13 @@ def _is_curve_view_protocol(obj: object) -> TypeGuard[CurveViewProtocol]:
         True if object has the required CurveViewProtocol attributes
     """
     required_attrs = [
-        'selected_point_idx', 'curve_data', 'current_image_idx',
-        'points', 'selected_points', 'offset_x', 'offset_y'
+        "selected_point_idx",
+        "curve_data",
+        "current_image_idx",
+        "points",
+        "selected_points",
+        "offset_x",
+        "offset_y",
     ]
     return all(hasattr(obj, attr) for attr in required_attrs)
 

@@ -14,6 +14,7 @@ from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 
 class ActionType(Enum):
     """Types of actions that can result from events."""
+
     SELECT = auto()
     MULTI_SELECT = auto()
     DRAG = auto()
@@ -27,6 +28,7 @@ class ActionType(Enum):
 @dataclass
 class EventResult:
     """Result of event processing."""
+
     handled: bool
     action: ActionType
     data: dict[str, Any] | None = None

@@ -6,7 +6,6 @@ has been modernized to use a delegation pattern with new services.
 The tests need to be updated to work with the new architecture.
 """
 
-
 import pytest
 
 from services.interaction_service import InteractionService
@@ -36,14 +35,14 @@ def test_interaction_service_initialization():
     """Test that InteractionService can be initialized."""
     service = InteractionService()
     assert service is not None
-    assert hasattr(service, 'handle_mouse_press')
-    assert hasattr(service, 'handle_mouse_move')
-    assert hasattr(service, 'handle_mouse_release')
+    assert hasattr(service, "handle_mouse_press")
+    assert hasattr(service, "handle_mouse_move")
+    assert hasattr(service, "handle_mouse_release")
 
 
 def test_interaction_service_spatial_index():
     """Test that spatial index is properly initialized."""
     service = InteractionService()
     assert service._point_index is not None
-    assert hasattr(service._point_index, 'rebuild_index')
-    assert hasattr(service._point_index, 'find_point_at_position')
+    assert hasattr(service._point_index, "rebuild_index")
+    assert hasattr(service._point_index, "find_point_at_position")

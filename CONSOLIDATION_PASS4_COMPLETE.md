@@ -11,7 +11,7 @@
 1. **`core/common_imports.py`** - Centralized common imports
    - Standard library imports (logging, typing, etc.)
    - Reduces duplication across 20+ files
-   
+
 2. **`ui/qt_imports.py`** - Centralized Qt/PySide6 imports
    - All common Qt widgets, core, and GUI imports
    - Reduces duplication across 25+ UI files

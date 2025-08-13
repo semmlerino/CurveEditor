@@ -9,7 +9,7 @@ This guide helps migrate from the LEGACY Sprint 8 architecture to the DEFAULT co
 **Environment**: `export USE_NEW_SERVICES=true`
 - 10+ granular services
 - SelectionService
-- PointManipulationService  
+- PointManipulationService
 - HistoryService
 - EventHandlerService
 - FileIOService

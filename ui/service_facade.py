@@ -146,7 +146,9 @@ class ServiceFacade:
         """Get the data service instance."""
         return self._data_service
 
-    def smooth_curve(self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], window_size: int = 5) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
+    def smooth_curve(
+        self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], window_size: int = 5
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply smoothing to curve data."""
         if self._data_service:
             return self._data_service.smooth_moving_average(data, window_size)

@@ -53,10 +53,7 @@ class EventHandlerService(EventHandlerProtocol):
 
         # Right click - context menu
         if button == Qt.MouseButton.RightButton:
-            return EventResult.handled_with(
-                ActionType.CONTEXT_MENU,
-                position=pos
-            )
+            return EventResult.handled_with(ActionType.CONTEXT_MENU, position=pos)
 
         # Middle button - start pan
         if button == Qt.MouseButton.MiddleButton:
@@ -71,6 +68,7 @@ class EventHandlerService(EventHandlerProtocol):
 
             # Check for point at position
             from services import get_selection_service
+
             selection_service = get_selection_service()
             point_idx = selection_service.find_point_at(view, curve_pos.x(), curve_pos.y())
 
@@ -78,35 +76,20 @@ class EventHandlerService(EventHandlerProtocol):
                 # Point found - select or start drag
                 if modifiers & Qt.KeyboardModifier.ControlModifier:
                     # Multi-select with Ctrl
-                    return EventResult.handled_with(
-                        ActionType.MULTI_SELECT,
-                        index=point_idx
-                    )
+                    return EventResult.handled_with(ActionType.MULTI_SELECT, index=point_idx)
                 elif modifiers & Qt.KeyboardModifier.ShiftModifier:
                     # Range select with Shift
-                    return EventResult.handled_with(
-                        ActionType.MULTI_SELECT,
-                        index=point_idx,
-                        range_select=True
-                    )
+                    return EventResult.handled_with(ActionType.MULTI_SELECT, index=point_idx, range_select=True)
                 else:
                     # Single select and potential drag
                     self._drag_start_pos = pos
                     self._is_dragging = True
-                    return EventResult.handled_with(
-                        ActionType.SELECT,
-                        index=point_idx,
-                        start_drag=True
-                    )
+                    return EventResult.handled_with(ActionType.SELECT, index=point_idx, start_drag=True)
             else:
                 # No point - start selection rectangle
                 self._selection_start = pos
                 self._is_selecting = True
-                return EventResult.handled_with(
-                    ActionType.SELECT,
-                    clear_selection=True,
-                    start_rect=True
-                )
+                return EventResult.handled_with(ActionType.SELECT, clear_selection=True, start_rect=True)
 
         return EventResult.not_handled()
 
@@ -127,30 +110,18 @@ class EventHandlerService(EventHandlerProtocol):
         if self._is_panning and self._pan_start_pos:
             delta = pos - self._pan_start_pos
             self._pan_start_pos = pos
-            return EventResult.handled_with(
-                ActionType.PAN,
-                delta_x=delta.x(),
-                delta_y=delta.y()
-            )
+            return EventResult.handled_with(ActionType.PAN, delta_x=delta.x(), delta_y=delta.y())
 
         # Handle dragging
         if self._is_dragging and self._drag_start_pos:
             delta = pos - self._drag_start_pos
             self._drag_start_pos = pos
             curve_delta = self._convert_delta_to_curve(view, delta)
-            return EventResult.handled_with(
-                ActionType.DRAG,
-                delta_x=curve_delta.x(),
-                delta_y=curve_delta.y()
-            )
+            return EventResult.handled_with(ActionType.DRAG, delta_x=curve_delta.x(), delta_y=curve_delta.y())
 
         # Handle selection rectangle
         if self._is_selecting and self._selection_start:
-            return EventResult.handled_with(
-                ActionType.SELECT,
-                rect_start=self._selection_start,
-                rect_end=pos
-            )
+            return EventResult.handled_with(ActionType.SELECT, rect_start=self._selection_start, rect_end=pos)
 
         return EventResult.not_handled()
 
@@ -183,10 +154,7 @@ class EventHandlerService(EventHandlerProtocol):
         if self._is_selecting and self._selection_start:
             pos = event.position()
             result = EventResult.handled_with(
-                ActionType.SELECT,
-                rect_start=self._selection_start,
-                rect_end=pos,
-                finish_rect=True
+                ActionType.SELECT, rect_start=self._selection_start, rect_end=pos, finish_rect=True
             )
             self._is_selecting = False
             self._selection_start = None
@@ -215,11 +183,7 @@ class EventHandlerService(EventHandlerProtocol):
         # Get zoom center point
         pos = event.position()
 
-        return EventResult.handled_with(
-            ActionType.ZOOM,
-            factor=zoom_factor,
-            center=pos
-        )
+        return EventResult.handled_with(ActionType.ZOOM, factor=zoom_factor, center=pos)
 
     def handle_key_event(self, view: Any, event: QKeyEvent) -> EventResult:
         """
@@ -261,12 +225,7 @@ class EventHandlerService(EventHandlerProtocol):
             elif key == Qt.Key.Key_Down:
                 dy = nudge_amount
 
-            return EventResult.handled_with(
-                ActionType.DRAG,
-                nudge=True,
-                delta_x=dx,
-                delta_y=dy
-            )
+            return EventResult.handled_with(ActionType.DRAG, nudge=True, delta_x=dx, delta_y=dy)
 
         return EventResult.not_handled()
 
@@ -286,20 +245,19 @@ class EventHandlerService(EventHandlerProtocol):
 
         # Check what's under the cursor
         from services import get_selection_service
+
         selection_service = get_selection_service()
         point_idx = selection_service.find_point_at(view, curve_pos.x(), curve_pos.y())
 
         return EventResult.handled_with(
-            ActionType.CONTEXT_MENU,
-            position=pos,
-            curve_position=curve_pos,
-            point_index=point_idx
+            ActionType.CONTEXT_MENU, position=pos, curve_position=curve_pos, point_index=point_idx
         )
 
     def _convert_to_curve_coords(self, view: Any, pos: QPointF) -> QPointF:
         """Convert screen coordinates to curve coordinates."""
         # This will use the transform service
         from services import get_transform_service
+
         transform_service = get_transform_service()
         transform = transform_service.get_transform(view)
         return transform.screen_to_curve(pos)
@@ -307,6 +265,7 @@ class EventHandlerService(EventHandlerProtocol):
     def _convert_delta_to_curve(self, view: Any, delta: QPointF) -> QPointF:
         """Convert screen delta to curve delta."""
         from services import get_transform_service
+
         transform_service = get_transform_service()
         transform = transform_service.get_transform(view)
 

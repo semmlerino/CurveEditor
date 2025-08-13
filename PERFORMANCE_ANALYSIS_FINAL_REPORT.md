@@ -57,8 +57,8 @@ def _compute_interpolated_original():
         for i in range(idx - 1, -1, -1):  # ← O(n)
             if i not in selected_set:     # ← O(1) good\!
                 # ... more O(n) searches
-        
-        # O(n) search for next neighbor  
+
+        # O(n) search for next neighbor
         for i in range(idx + 1, n_points):  # ← O(n)
             # ... more searches
 ```
@@ -75,13 +75,13 @@ def _compute_interpolated_optimized():
     # Pre-compute neighbor mappings using arrays - O(n)
     prev_neighbors = [-1] * n_points
     next_neighbors = [-1] * n_points
-    
+
     # Forward pass: O(n)
     for i in range(n_points):
         if i in selected_set:
             prev_neighbors[i] = last_valid_idx
-    
-    # Backward pass: O(n) 
+
+    # Backward pass: O(n)
     for i in range(n_points - 1, -1, -1):
         if i in selected_set:
             next_neighbors[i] = last_valid_idx
@@ -92,7 +92,7 @@ def _compute_interpolated_optimized():
 # Current
 if n_points * n_selected > 1000000:  # 1M threshold
 
-# Recommended 
+# Recommended
 if n_points * n_selected > 100000:   # 100k threshold
 ```
 
@@ -108,11 +108,11 @@ if n_points * n_selected > 100000:   # 100k threshold
 # GOOD: Transform caching implemented
 def create_transform(self, view_state: ViewState) -> Transform:
     cache_key = str(view_state.to_dict())
-    
+
     with self._lock:  # Thread-safe
         if cache_key in self._transform_cache:
             return self._transform_cache[cache_key]
-        
+
         # Create new transform with cache size limit
         if len(self._transform_cache) >= self._max_cache_size:
             oldest_key = next(iter(self._transform_cache))
@@ -171,7 +171,7 @@ class SpatialIndex:
             if cell not in self.grid:
                 self.grid[cell] = []
             self.grid[cell].append((i, point))
-    
+
     def find_closest(self, pos):  # O(log n) average case
         # Only check points in nearby grid cells
 ```
@@ -210,7 +210,7 @@ class ThemeManager:
         self._cached_stylesheets = {}
         for theme in ThemeMode:
             self._cached_stylesheets[theme] = self._generate_stylesheet_for_theme(theme)
-    
+
     def set_theme(self, mode: ThemeMode):
         # Use cached stylesheet - 100x faster
         stylesheet = self._cached_stylesheets[mode]
@@ -230,7 +230,7 @@ class ThemeManager:
 def _load_json(self, file_path: str):
     with open(file_path) as f:
         data = json.load(f)  # Loads entire file - BAD for large files
-    
+
     points = []
     for item in data:  # Second pass through data - inefficient
         points.append((frame, x, y, status))
@@ -240,14 +240,14 @@ def _load_json(self, file_path: str):
 ```python
 def _load_json_streaming(self, file_path: str):
     import ijson  # Streaming JSON parser
-    
+
     points = []
     parser = ijson.items(open(file_path, 'rb'), 'item')
-    
+
     for item in parser:  # Stream processing - memory efficient
         if self._is_valid_point(item):
             points.append(self._extract_point(item))
-        
+
         # Progress reporting for large files
         if len(points) % 1000 == 0:
             if progress_callback:
@@ -275,7 +275,7 @@ def update_point(self, point_index: int):
     # Calculate bounding rect for just this point
     point = self.curve_data[point_index]
     screen_pos = self.transform_to_screen(point)
-    
+
     # Update only the affected region
     update_rect = QRectF(
         screen_pos.x() - self.point_radius - 2,

@@ -76,10 +76,7 @@ class GeometryUtils:
         Returns:
             Interpolated point (x, y)
         """
-        return (
-            GeometryUtils.lerp(p1[0], p2[0], t),
-            GeometryUtils.lerp(p1[1], p2[1], t)
-        )
+        return (GeometryUtils.lerp(p1[0], p2[0], t), GeometryUtils.lerp(p1[1], p2[1], t))
 
     @staticmethod
     def distance(x1: float, y1: float, x2: float, y2: float) -> float:
@@ -137,8 +134,7 @@ class GeometryUtils:
         Returns:
             True if point is inside rectangle
         """
-        return (rect_x <= x <= rect_x + rect_w and
-                rect_y <= y <= rect_y + rect_h)
+        return rect_x <= x <= rect_x + rect_w and rect_y <= y <= rect_y + rect_h
 
     @staticmethod
     def point_in_circle(
@@ -206,9 +202,7 @@ class GeometryUtils:
         return (sum_x / count, sum_y / count)
 
     @staticmethod
-    def bounding_box(
-        points: list[tuple[float, float]]
-    ) -> tuple[float, float, float, float]:
+    def bounding_box(points: list[tuple[float, float]]) -> tuple[float, float, float, float]:
         """Calculate bounding box of a set of points.
 
         Args:

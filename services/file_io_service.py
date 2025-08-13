@@ -121,11 +121,7 @@ class FileIOService:
             return curve_data
 
     def save_json(
-        self,
-        file_path: str,
-        curve_data: CurveDataList,
-        point_name: str = "TrackPoint",
-        point_color: str = "#FF0000"
+        self, file_path: str, curve_data: CurveDataList, point_name: str = "TrackPoint", point_color: str = "#FF0000"
     ) -> bool:
         """
         Save curve data to JSON file.
@@ -154,28 +150,15 @@ class FileIOService:
                 for point in curve_data:
                     if len(point) >= 4:
                         # Include status
-                        points.append({
-                            "frame": point[0],
-                            "x": point[1],
-                            "y": point[2],
-                            "status": point[3]
-                        })
+                        points.append({"frame": point[0], "x": point[1], "y": point[2], "status": point[3]})
                     else:
                         # Basic format
-                        points.append({
-                            "frame": point[0],
-                            "x": point[1],
-                            "y": point[2]
-                        })
+                        points.append({"frame": point[0], "x": point[1], "y": point[2]})
 
                 # Create JSON structure
                 data = {
                     "curve_data": points,
-                    "metadata": {
-                        "point_name": point_name,
-                        "point_color": point_color,
-                        "version": "1.0"
-                    }
+                    "metadata": {"point_name": point_name, "point_color": point_color, "version": "1.0"},
                 }
 
                 # Write to file
@@ -262,12 +245,7 @@ class FileIOService:
             logger.debug(f"Loaded {len(curve_data)} points from CSV: {file_path}")
             return curve_data
 
-    def save_csv(
-        self,
-        file_path: str,
-        curve_data: CurveDataList,
-        include_header: bool = True
-    ) -> bool:
+    def save_csv(self, file_path: str, curve_data: CurveDataList, include_header: bool = True) -> bool:
         """
         Save curve data to CSV file.
 
@@ -330,7 +308,7 @@ class FileIOService:
             self._recent_files.insert(0, file_path)
 
             # Trim to max size
-            self._recent_files = self._recent_files[:self._max_recent_files]
+            self._recent_files = self._recent_files[: self._max_recent_files]
 
             # Save to config
             self._save_recent_files()

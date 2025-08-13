@@ -1565,7 +1565,7 @@ class CurveViewWidget(QWidget):
         """
         return list(self.selected_indices)
 
-# Compatibility properties for InteractionService
+    # Compatibility properties for InteractionService
     @property
     def selected_points(self) -> set[int]:
         """Compatibility property for InteractionService.
@@ -1613,8 +1613,6 @@ class CurveViewWidget(QWidget):
     def points(self, value: list) -> None:
         """Set points data (compatibility with InteractionService)."""
         self.set_curve_data(value)
-
-
 
 
 # Example usage and testing

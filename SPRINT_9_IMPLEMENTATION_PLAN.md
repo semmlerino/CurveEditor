@@ -56,7 +56,7 @@
    ```python
    # core/typing_extensions.py
    from typing import TypeAlias, Union, Optional
-   
+
    PointTuple: TypeAlias = tuple[int, float, float]
    PointTupleWithStatus: TypeAlias = tuple[int, float, float, str | bool]
    CurveData: TypeAlias = list[PointTuple | PointTupleWithStatus]
@@ -84,7 +84,7 @@
    from typing import Protocol
    from PySide6.QtCore import QPointF
    from PySide6.QtGui import QMouseEvent
-   
+
    def handle_mouse_press(
        self,
        view: "CurveViewProtocol",
@@ -97,7 +97,7 @@
 2. **Selection Service Types**
    ```python
    def select_point_by_index(
-       self, 
+       self,
        view: CurveViewProtocol,
        idx: int,
        add_to_selection: bool = False
@@ -214,10 +214,10 @@
    # tests/test_critical_paths.py
    def test_point_selection_workflow():
        """Test complete selection workflow."""
-   
+
    def test_undo_redo_workflow():
        """Test undo/redo with state changes."""
-   
+
    def test_file_save_load_cycle():
        """Test complete save/load cycle."""
    ```

@@ -7,7 +7,7 @@ Sprint 4 focused on documentation, code modernization, and Qt optimization to im
 
 ### 1. ✅ Created Comprehensive README.md
 - **Lines Added**: 370 lines of documentation
-- **Coverage**: 
+- **Coverage**:
   - Project overview and features
   - Installation and setup instructions
   - Usage guide with keyboard shortcuts
@@ -34,7 +34,7 @@ Sprint 4 focused on documentation, code modernization, and Qt optimization to im
   - Type safety improvements
 
 ### 3. ✅ Added @Slot Decorators
-- **Files Enhanced**: 
+- **Files Enhanced**:
   - `ui/main_window.py`: 11 @Slot decorators added
   - `ui/curve_view_widget_refactored.py`: 16 @Slot decorators added
 - **Signal Handlers Decorated**:

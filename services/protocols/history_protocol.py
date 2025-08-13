@@ -13,6 +13,7 @@ from typing import Any, Protocol
 @dataclass
 class HistoryEntry:
     """Single entry in the history stack."""
+
     timestamp: datetime
     description: str
     state: Any  # Can be compressed or uncompressed
@@ -23,18 +24,20 @@ class HistoryEntry:
     def create(cls, description: str, state: Any, compressed: bool = False) -> "HistoryEntry":
         """Create a new history entry."""
         import sys
+
         return cls(
             timestamp=datetime.now(),
             description=description,
             state=state,
             compressed=compressed,
-            size_bytes=sys.getsizeof(state)
+            size_bytes=sys.getsizeof(state),
         )
 
 
 @dataclass
 class HistoryStats:
     """Statistics about history usage."""
+
     total_entries: int
     current_position: int
     memory_usage_mb: float

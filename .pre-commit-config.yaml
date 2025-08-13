@@ -1,0 +1,84 @@
+# Pre-commit hooks for CurveEditor - Production Configuration
+# Optimized for speed and developer experience
+default_language_version:
+  python: python3.12
+
+# Run hooks in parallel for better performance
+ci:
+  autofix_prs: false
+
+repos:
+  # Standard pre-commit hooks for file hygiene
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of files
+      - id: check-yaml
+        name: Check YAML syntax
+      - id: check-json
+        name: Check JSON syntax
+      - id: check-toml
+        name: Check TOML syntax
+      - id: check-added-large-files
+        name: Check for large files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+      - id: check-case-conflict
+        name: Check for case conflicts
+      - id: mixed-line-ending
+        name: Fix line endings
+        args: ['--fix=lf']
+      - id: debug-statements
+        name: Check for debug statements
+      - id: detect-private-key
+        name: Detect private keys
+
+  # Ruff - Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      # Run the linter
+      - id: ruff
+        name: Ruff linter
+        args: [--fix, --exit-non-zero-on-fix]
+      # Run the formatter
+      - id: ruff-format
+        name: Ruff formatter
+
+  # Python-specific checks
+  - repo: https://github.com/pre-commit/pygrep-hooks
+    rev: v1.10.0
+    hooks:
+      - id: python-check-blanket-noqa
+        name: Check blanket noqa
+      - id: python-check-blanket-type-ignore
+        name: Check blanket type ignore
+      - id: python-no-eval
+        name: Check for eval()
+      - id: python-no-log-warn
+        name: Check for log.warn()
+
+# Configuration for specific hooks
+fail_fast: false
+exclude: |
+  (?x)^(
+    venv/.*|
+    \.venv/.*|
+    node_modules/.*|
+    \.git/.*|
+    __pycache__/.*|
+    \.pytest_cache/.*|
+    \.mypy_cache/.*|
+    build/.*|
+    dist/.*|
+    .*\.egg-info/.*|
+    footage/.*|
+    docs/ObsoleteArchive/.*|
+    docs/archive_2025_01_28/.*|
+    .*\.(png|jpg|jpeg|gif|bmp|svg|ico)$|
+    .*\.(pyc|pyo|pyd)$
+  )$

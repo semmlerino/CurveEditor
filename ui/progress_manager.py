@@ -31,6 +31,7 @@ logger = logging.getLogger("progress_manager")
 
 class ProgressType(Enum):
     """Types of progress indicators."""
+
     FILE_LOAD = auto()
     FILE_SAVE = auto()
     BATCH_OPERATION = auto()
@@ -43,6 +44,7 @@ class ProgressType(Enum):
 @dataclass
 class ProgressInfo:
     """Information about a progress operation."""
+
     title: str
     message: str
     total: int = 100
@@ -110,8 +112,7 @@ class ProgressDialog(QProgressDialog):
 
     def __init__(self, info: ProgressInfo, parent: QWidget | None = None):
         """Initialize the progress dialog."""
-        super().__init__(info.message, "Cancel" if info.cancellable else "",
-                        0, info.total, parent)
+        super().__init__(info.message, "Cancel" if info.cancellable else "", 0, info.total, parent)
 
         self.info = info
         self.start_time = time.time()
@@ -272,11 +273,9 @@ class ProgressManager(QObject):
         if self._busy_cursor_count == 0:
             QApplication.restoreOverrideCursor()
 
-    def show_progress_dialog(self,
-                            info: ProgressInfo,
-                            operation: Callable,
-                            parent: QWidget | None = None,
-                            *args, **kwargs) -> Any:
+    def show_progress_dialog(
+        self, info: ProgressInfo, operation: Callable, parent: QWidget | None = None, *args, **kwargs
+    ) -> Any:
         """Show a progress dialog for an operation.
 
         Args:
@@ -323,12 +322,15 @@ class ProgressManager(QObject):
 
         return result
 
-    def show_status_progress(self,
-                            message: str,
-                            operation: Callable,
-                            cancellable: bool = False,
-                            callback: Callable[[Any], None] = None,
-                            *args, **kwargs) -> None:
+    def show_status_progress(
+        self,
+        message: str,
+        operation: Callable,
+        cancellable: bool = False,
+        callback: Callable[[Any], None] = None,
+        *args,
+        **kwargs,
+    ) -> None:
         """Show progress in status bar for an operation (non-blocking).
 
         Args:
@@ -361,9 +363,7 @@ class ProgressManager(QObject):
                 callback(worker.result)
 
         # Connect signals
-        worker.progress_updated.connect(
-            lambda v: self.status_bar_widget.update_progress(v)
-        )
+        worker.progress_updated.connect(lambda v: self.status_bar_widget.update_progress(v))
         worker.finished.connect(on_finished)
 
         if cancellable:
@@ -379,6 +379,7 @@ class ProgressManager(QObject):
 
         # Could show error dialog here
         from PySide6.QtWidgets import QMessageBox
+
         QMessageBox.critical(dialog.parent(), "Operation Failed", error_msg)
 
     @Slot(str, int, int)
@@ -403,28 +404,24 @@ def get_progress_manager() -> ProgressManager:
 
 
 # Decorator for adding progress to functions
-def with_progress(title: str = "Processing...",
-                 message: str = "Please wait...",
-                 show_dialog: bool = True):
+def with_progress(title: str = "Processing...", message: str = "Please wait...", show_dialog: bool = True):
     """Decorator to add progress indicator to a function."""
+
     def decorator(func: Callable) -> Callable:
         def wrapper(*args, **kwargs):
             manager = get_progress_manager()
 
             if show_dialog:
                 info = ProgressInfo(
-                    title=title,
-                    message=message,
-                    cancellable=True,
-                    show_percentage=True,
-                    show_time_remaining=True
+                    title=title, message=message, cancellable=True, show_percentage=True, show_time_remaining=True
                 )
 
                 def operation(worker: ProgressWorker, *op_args, **op_kwargs):
                     # Pass worker to the function if it accepts it
                     import inspect
+
                     sig = inspect.signature(func)
-                    if 'progress_worker' in sig.parameters:
+                    if "progress_worker" in sig.parameters:
                         return func(*op_args, progress_worker=worker, **op_kwargs)
                     else:
                         return func(*op_args, **op_kwargs)
@@ -436,4 +433,5 @@ def with_progress(title: str = "Processing...",
                     return func(*args, **kwargs)
 
         return wrapper
+
     return decorator

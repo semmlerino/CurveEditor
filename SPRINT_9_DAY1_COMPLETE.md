@@ -75,7 +75,7 @@ The 1,074 errors are coming from:
 
 ## Important Insight
 
-**The core application code is already well-typed!** 
+**The core application code is already well-typed!**
 
 The majority of errors are in:
 - Test files (which we can fix but are lower priority)

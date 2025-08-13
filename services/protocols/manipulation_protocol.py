@@ -12,6 +12,7 @@ from typing import Any, Protocol
 
 class PointOperation(Enum):
     """Types of point operations for history tracking."""
+
     ADD = auto()
     DELETE = auto()
     MOVE = auto()
@@ -23,6 +24,7 @@ class PointOperation(Enum):
 @dataclass
 class PointChange:
     """Represents a change to point data."""
+
     operation: PointOperation
     indices: list[int]
     old_values: list[tuple[int, float, float]] | None = None

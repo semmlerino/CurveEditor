@@ -408,9 +408,9 @@ class TestMemoryUsageBenchmarks:
             memory_ratio = curr_memory / prev_memory if prev_memory > 0 else 0
 
             # Memory growth should not be more than 2x the data growth
-            assert memory_ratio <= size_ratio * 2, (
-                f"Memory scaling too high: {memory_ratio:.2f}x for {size_ratio:.2f}x data"
-            )
+            assert (
+                memory_ratio <= size_ratio * 2
+            ), f"Memory scaling too high: {memory_ratio:.2f}x for {size_ratio:.2f}x data"
 
         result = BenchmarkResult("Memory Scaling Test")
         result.duration = 0.0  # Not time-based

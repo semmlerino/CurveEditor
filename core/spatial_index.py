@@ -108,11 +108,13 @@ class PointIndex:
         with self._lock:
             # Check if rebuild is needed
             current_transform_hash = transform.stability_hash
-            current_point_count = len(view.curve_data) if hasattr(view, 'curve_data') else 0
+            current_point_count = len(view.curve_data) if hasattr(view, "curve_data") else 0
 
-            if (self._last_transform_hash == current_transform_hash and
-                self._last_point_count == current_point_count and
-                self._grid):
+            if (
+                self._last_transform_hash == current_transform_hash
+                and self._last_point_count == current_point_count
+                and self._grid
+            ):
                 # Index is still valid
                 return
 
@@ -122,15 +124,15 @@ class PointIndex:
             self._grid.clear()
 
             # Get screen dimensions
-            self.screen_width = float(view.width()) if hasattr(view, 'width') else 800.0
-            self.screen_height = float(view.height()) if hasattr(view, 'height') else 600.0
+            self.screen_width = float(view.width()) if hasattr(view, "width") else 800.0
+            self.screen_height = float(view.height()) if hasattr(view, "height") else 600.0
 
             # Calculate cell dimensions
             self.cell_width = self.screen_width / self.grid_width
             self.cell_height = self.screen_height / self.grid_height
 
             # Build index from curve data
-            if hasattr(view, 'curve_data') and view.curve_data:
+            if hasattr(view, "curve_data") and view.curve_data:
                 for idx, point in enumerate(view.curve_data):
                     if len(point) >= 3:
                         # Convert data point to screen coordinates
@@ -151,8 +153,9 @@ class PointIndex:
 
             logger.debug(f"Spatial index built with {len(self._grid)} occupied cells")
 
-    def find_point_at_position(self, view: CurveViewProtocol, transform: Transform,
-                             x: float, y: float, threshold: float = 5.0) -> int:
+    def find_point_at_position(
+        self, view: CurveViewProtocol, transform: Transform, x: float, y: float, threshold: float = 5.0
+    ) -> int:
         """
         Find point at given screen position using spatial indexing.
 
@@ -169,7 +172,7 @@ class PointIndex:
         # Rebuild index if needed
         self.rebuild_index(view, transform)
 
-        if not hasattr(view, 'curve_data') or not view.curve_data:
+        if not hasattr(view, "curve_data") or not view.curve_data:
             return -1
 
         # Get grid cell for position
@@ -180,7 +183,7 @@ class PointIndex:
         nearby_cells = self._get_nearby_cells(grid_x, grid_y, cell_radius)
 
         closest_idx = -1
-        closest_distance = float('inf')
+        closest_distance = float("inf")
 
         # Check points in nearby cells
         with self._lock:
@@ -203,8 +206,9 @@ class PointIndex:
 
         return closest_idx
 
-    def get_points_in_rect(self, view: CurveViewProtocol, transform: Transform,
-                          x1: float, y1: float, x2: float, y2: float) -> list[int]:
+    def get_points_in_rect(
+        self, view: CurveViewProtocol, transform: Transform, x1: float, y1: float, x2: float, y2: float
+    ) -> list[int]:
         """
         Find all points within a rectangular region using spatial indexing.
 
@@ -220,7 +224,7 @@ class PointIndex:
         # Rebuild index if needed
         self.rebuild_index(view, transform)
 
-        if not hasattr(view, 'curve_data') or not view.curve_data:
+        if not hasattr(view, "curve_data") or not view.curve_data:
             return []
 
         # Ensure proper bounds
@@ -249,8 +253,7 @@ class PointIndex:
                                     screen_px, screen_py = transform.data_to_screen(point[1], point[2])
 
                                     # Check if point is within rectangle
-                                    if (left <= screen_px <= right and
-                                        top <= screen_py <= bottom):
+                                    if left <= screen_px <= right and top <= screen_py <= bottom:
                                         result_indices.append(point_idx)
 
         return result_indices
@@ -274,12 +277,12 @@ class PointIndex:
                 "screen_size": (self.screen_width, self.screen_height),
                 "cell_size": (self.cell_width, self.cell_height),
                 "occupied_cells": occupied_cells,
-            "total_cells": total_cells,
-            "occupancy_ratio": occupied_cells / total_cells if total_cells > 0 else 0,
-            "total_points": total_points,
-            "avg_points_per_cell": avg_points_per_cell,
-            "transform_hash": self._last_transform_hash,
-        }
+                "total_cells": total_cells,
+                "occupancy_ratio": occupied_cells / total_cells if total_cells > 0 else 0,
+                "total_points": total_points,
+                "avg_points_per_cell": avg_points_per_cell,
+                "transform_hash": self._last_transform_hash,
+            }
 
     def clear_cache(self) -> None:
         """Clear the spatial index cache to force rebuild on next access."""

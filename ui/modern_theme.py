@@ -345,7 +345,7 @@ class ModernTheme(QObject):
         shadow_configs = {
             "small": (10, 0, 1, QColor(0, 0, 0, 20)),
             "medium": (15, 0, 2, QColor(0, 0, 0, 30)),
-            "large": (20, 0, 4, QColor(0, 0, 0, 40))
+            "large": (20, 0, 4, QColor(0, 0, 0, 40)),
         }
 
         config = shadow_configs.get(intensity, shadow_configs["medium"])

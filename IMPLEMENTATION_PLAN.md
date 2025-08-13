@@ -73,16 +73,16 @@ import threading
 def test_concurrent_service_initialization():
     """Verify services are thread-safe."""
     results = set()
-    
+
     def get_service():
         service = get_data_service()
         results.add(id(service))
         return service
-    
+
     with concurrent.futures.ThreadPoolExecutor(max_workers=20) as executor:
         futures = [executor.submit(get_service) for _ in range(100)]
         concurrent.futures.wait(futures)
-    
+
     assert len(results) == 1, "Multiple service instances created!"
 ```
 
@@ -107,19 +107,19 @@ class DataService:
         self._recent_files: list[str] = []
         self._image_cache: dict[str, Any] = {}
         self._cache_size_limit = 50
-    
+
     def add_recent_file(self, path: str) -> None:
         """Thread-safe addition to recent files."""
         with self._lock:
             self._recent_files.append(path)
             if len(self._recent_files) > 10:
                 self._recent_files.pop(0)
-    
+
     def get_cached_image(self, path: str) -> Any | None:
         """Thread-safe cache access."""
         with self._lock:
             return self._image_cache.get(path)
-    
+
     def cache_image(self, path: str, image: Any) -> None:
         """Thread-safe cache update with size limit."""
         with self._lock:
@@ -177,13 +177,13 @@ def test_performance_maintained(benchmark, qapp):
     """Verify performance not degraded by fixes."""
     window = MainWindow()
     data = create_benchmark_data(10000)
-    
+
     def load_and_process():
         window.curve_widget.set_curve_data(data)
         window.curve_widget.smooth_curve(window_size=5)
-    
+
     result = benchmark(load_and_process)
-    
+
     # Assert performance within 10% of baseline
     assert result.stats['mean'] < 0.020  # 20ms for 10k points
 ```
@@ -208,7 +208,7 @@ import pytest
 
 class TestThreadingSafety:
     """Comprehensive threading safety tests."""
-    
+
     def test_concurrent_data_modifications(self, main_window):
         """Test concurrent data access patterns."""
         def modify_data(thread_id):
@@ -216,34 +216,34 @@ class TestThreadingSafety:
                 point_data = [(i, float(i * thread_id), float(i), "test")]
                 main_window.curve_widget.set_curve_data(point_data)
                 time.sleep(0.001)  # Simulate work
-        
+
         threads = []
         for i in range(10):
             t = threading.Thread(target=modify_data, args=(i,))
             threads.append(t)
             t.start()
-        
+
         for t in threads:
             t.join()
-        
+
         # Verify data integrity
         assert main_window.curve_widget.curve_data is not None
-    
+
     def test_service_cache_concurrent_access(self):
         """Test cache operations under load."""
         service = get_data_service()
-        
+
         def cache_operations(thread_id):
             for i in range(100):
                 key = f"image_{thread_id}_{i}"
                 service.cache_image(key, f"data_{thread_id}")
                 _ = service.get_cached_image(key)
-        
+
         with ThreadPoolExecutor(max_workers=20) as executor:
             futures = [executor.submit(cache_operations, i) for i in range(20)]
             for future in futures:
                 future.result()
-        
+
         # Verify cache size limit maintained
         assert len(service._image_cache) <= 50
 ```
@@ -256,20 +256,20 @@ class TestThreadingSafety:
 def test_full_workflow_under_load(qapp):
     """Test complete user workflow with threading."""
     window = MainWindow()
-    
+
     # Load data in background
     load_thread = threading.Thread(
         target=lambda: window.load_file("test_data.json")
     )
     load_thread.start()
-    
+
     # Simultaneously interact with UI
     for i in range(100):
         window.curve_widget.select_point(i % 10)
         qapp.processEvents()
-    
+
     load_thread.join()
-    
+
     # Verify state consistency
     assert window.curve_widget.curve_data is not None
     assert len(window.curve_widget.selected_indices) >= 0
@@ -343,24 +343,24 @@ class MainWindowProtocol(Protocol):
 
 class FileOperationsController:
     """Handles all file-related operations."""
-    
+
     def __init__(self, main_window: MainWindowProtocol):
         self.main_window = main_window
         self.services = get_service_facade(main_window)
-    
+
     def load_track_data(self) -> None:
         """Load track data with progress feedback."""
         data = self.services.load_track_data()
         if data:
             self.main_window.curve_widget.set_curve_data(data)
             self.main_window.set_status(f"Loaded {len(data)} points")
-    
+
     def save_track_data(self) -> None:
         """Save current track data."""
         data = self.main_window.curve_widget.curve_data
         if self.services.save_track_data(data):
             self.main_window.set_status("Data saved successfully")
-    
+
     # Extract 15-20 file-related methods here
 ```
 
@@ -369,28 +369,28 @@ class FileOperationsController:
 # ui/controllers/edit_operations.py
 class EditOperationsController:
     """Handles all edit operations."""
-    
+
     def __init__(self, main_window: MainWindowProtocol):
         self.main_window = main_window
         self.services = get_service_facade(main_window)
-    
+
     def undo(self) -> None:
         """Undo last operation."""
         self.services.undo()
         self.main_window.update_ui_state()
-    
+
     def redo(self) -> None:
         """Redo last undone operation."""
         self.services.redo()
         self.main_window.update_ui_state()
-    
+
     def delete_selected_points(self) -> None:
         """Delete currently selected points."""
         indices = self.main_window.curve_widget.selected_indices
         if indices:
             self.services.delete_points(indices)
             self.main_window.update_ui_state()
-    
+
     # Extract 15-20 edit methods here
 ```
 
@@ -399,23 +399,23 @@ class EditOperationsController:
 # ui/main_window.py (refactored)
 class MainWindow(QMainWindow):
     """Simplified main window using controllers."""
-    
+
     def __init__(self):
         super().__init__()
-        
+
         # Initialize controllers
         self.file_ops = FileOperationsController(self)
         self.edit_ops = EditOperationsController(self)
         self.view_ops = ViewOperationsController(self)
-        
+
         # Setup UI (simplified)
         self._setup_ui()
         self._connect_signals()
-    
+
     def _setup_ui(self):
         """Setup UI components."""
         # UI setup code (200 lines max)
-    
+
     def _connect_signals(self):
         """Connect signals to controllers."""
         self.ui_components.file_menu.action_open.triggered.connect(
@@ -424,7 +424,7 @@ class MainWindow(QMainWindow):
         self.ui_components.edit_menu.action_undo.triggered.connect(
             self.edit_ops.undo
         )
-    
+
     # Total: <500 lines
 ```
 
@@ -435,11 +435,11 @@ class MainWindow(QMainWindow):
 # ui/components/curve_renderer.py
 class CurveRenderer:
     """Handles curve rendering logic."""
-    
+
     def __init__(self, widget: QWidget):
         self.widget = widget
         self.cache = {}
-    
+
     def render_curve(self, painter: QPainter, data: list, transform: Transform):
         """Render curve with optimizations."""
         # Extract 300+ lines of rendering logic
@@ -450,11 +450,11 @@ class CurveRenderer:
 # ui/components/curve_interaction.py
 class CurveInteractionHandler:
     """Handles user interactions."""
-    
+
     def handle_mouse_press(self, event: QMouseEvent) -> None:
         """Process mouse press events."""
         # Extract interaction logic
-    
+
     def handle_mouse_move(self, event: QMouseEvent) -> None:
         """Process mouse move events."""
         # Extract drag logic
@@ -491,13 +491,13 @@ from typing import Protocol
 
 class PointCollection(Protocol):
     """Properly typed point collection."""
-    
+
     @property
     def status(self) -> list[PointStatus]: ...
-    
+
     @property
     def frame(self) -> list[int]: ...
-    
+
     @property
     def coordinates(self) -> list[tuple[float, float]]: ...
 ```
@@ -619,7 +619,7 @@ def on_action_triggered(self):
 # ui/components/loading_spinner.py
 class LoadingSpinner(QWidget):
     """Modern loading indicator."""
-    
+
     def show_loading(self, message: str = "Loading..."):
         """Show loading state with message."""
 ```

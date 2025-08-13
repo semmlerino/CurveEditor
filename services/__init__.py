@@ -69,22 +69,18 @@ __all__ = [
     "DataService",
     "InteractionService",
     "UIService",
-
     # Service getters (4 core)
     "get_transform_service",
     "get_data_service",
     "get_interaction_service",
     "get_ui_service",
-
     # New decomposed service getters (Sprint 8)
     "get_event_handler_service",
     "get_selection_service",
     "get_point_manipulation_service",
     "get_history_service",
-
     # Utility
     "get_module_logger",
-
     # Feature flag
     "USE_NEW_SERVICES",
 ]
@@ -135,6 +131,7 @@ def get_event_handler_service() -> Any:
     with _service_lock:
         if _event_handler_service is None:
             from services.event_handler import EventHandlerService
+
             _event_handler_service = EventHandlerService()
     return _event_handler_service
 
@@ -147,6 +144,7 @@ def get_selection_service() -> Any:
     with _service_lock:
         if _selection_service is None:
             from services.selection_service import SelectionService
+
             _selection_service = SelectionService()
     return _selection_service
 
@@ -159,6 +157,7 @@ def get_point_manipulation_service() -> Any:
     with _service_lock:
         if _point_manipulation_service is None:
             from services.point_manipulation import PointManipulationService
+
             _point_manipulation_service = PointManipulationService()
     return _point_manipulation_service
 
@@ -172,6 +171,7 @@ def get_history_service() -> Any:
     with _service_lock:
         if _history_service is None:
             from services.history_service import HistoryService
+
             _history_service = HistoryService()
     return _history_service
 

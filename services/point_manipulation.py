@@ -43,7 +43,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or idx < 0 or idx >= len(view.points):
+        if not hasattr(view, "points") or idx < 0 or idx >= len(view.points):
             return None
 
         # Store old value
@@ -57,7 +57,7 @@ class PointManipulationService(PointManipulationProtocol):
         view.points[idx] = new_point
 
         # Update main window data if available
-        if hasattr(view, 'main_window') and view.main_window:
+        if hasattr(view, "main_window") and view.main_window:
             main_window = view.main_window
             if hasattr(main_window, "curve_data") and idx < len(main_window.curve_data):
                 # Preserve the original frame and status while updating position
@@ -73,16 +73,11 @@ class PointManipulationService(PointManipulationProtocol):
             view.point_moved.emit(idx, x, y)
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Create and return change record
-        return PointChange(
-            operation=PointOperation.MOVE,
-            indices=[idx],
-            old_values=old_values,
-            new_values=[new_point]
-        )
+        return PointChange(operation=PointOperation.MOVE, indices=[idx], old_values=old_values, new_values=[new_point])
 
     def delete_selected_points(self, view: Any, indices: list[int]) -> PointChange | None:
         """
@@ -95,7 +90,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or not indices:
+        if not hasattr(view, "points") or not indices:
             return None
 
         # Sort indices in reverse order for safe deletion
@@ -116,7 +111,7 @@ class PointManipulationService(PointManipulationProtocol):
                 del view.points[idx]
 
         # Delete from main window data
-        if hasattr(view, 'main_window') and view.main_window:
+        if hasattr(view, "main_window") and view.main_window:
             main_window = view.main_window
             if hasattr(main_window, "curve_data"):
                 for idx in indices:
@@ -130,7 +125,7 @@ class PointManipulationService(PointManipulationProtocol):
             view.selected_point_idx = -1
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Create and return change record
@@ -138,7 +133,7 @@ class PointManipulationService(PointManipulationProtocol):
             operation=PointOperation.DELETE,
             indices=list(reversed(indices)),  # Original order
             old_values=list(reversed(old_values)),
-            new_values=[]
+            new_values=[],
         )
 
     def nudge_points(self, view: Any, indices: list[int], dx: float, dy: float) -> PointChange | None:
@@ -154,7 +149,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or not indices:
+        if not hasattr(view, "points") or not indices:
             return None
 
         old_values = []
@@ -172,7 +167,9 @@ class PointManipulationService(PointManipulationProtocol):
                 new_y = old_point[2] + dy
 
                 # Create new point
-                new_point = (old_point[0], new_x, new_y) + old_point[3:] if len(old_point) > 3 else (old_point[0], new_x, new_y)
+                new_point = (
+                    (old_point[0], new_x, new_y) + old_point[3:] if len(old_point) > 3 else (old_point[0], new_x, new_y)
+                )
                 new_values.append(new_point)
                 valid_indices.append(idx)
 
@@ -180,7 +177,7 @@ class PointManipulationService(PointManipulationProtocol):
                 view.points[idx] = new_point
 
                 # Update main window data if available
-                if hasattr(view, 'main_window') and view.main_window:
+                if hasattr(view, "main_window") and view.main_window:
                     main_window = view.main_window
                     if hasattr(main_window, "curve_data") and idx < len(main_window.curve_data):
                         original_point = main_window.curve_data[idx]
@@ -196,15 +193,12 @@ class PointManipulationService(PointManipulationProtocol):
             return None
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Create and return change record
         return PointChange(
-            operation=PointOperation.MOVE,
-            indices=valid_indices,
-            old_values=old_values,
-            new_values=new_values
+            operation=PointOperation.MOVE, indices=valid_indices, old_values=old_values, new_values=new_values
         )
 
     def add_point(self, view: Any, frame: int, x: float, y: float) -> PointChange | None:
@@ -220,7 +214,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points'):
+        if not hasattr(view, "points"):
             view.points = []
 
         # Create new point
@@ -238,22 +232,17 @@ class PointManipulationService(PointManipulationProtocol):
         view.points.insert(insert_idx, new_point)
 
         # Add to main window data if available
-        if hasattr(view, 'main_window') and view.main_window:
+        if hasattr(view, "main_window") and view.main_window:
             main_window = view.main_window
             if hasattr(main_window, "curve_data"):
                 main_window.curve_data.insert(insert_idx, new_point)
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Create and return change record
-        return PointChange(
-            operation=PointOperation.ADD,
-            indices=[insert_idx],
-            old_values=[],
-            new_values=[new_point]
-        )
+        return PointChange(operation=PointOperation.ADD, indices=[insert_idx], old_values=[], new_values=[new_point])
 
     def smooth_points(self, view: Any, indices: list[int], factor: float = 0.5) -> PointChange | None:
         """
@@ -267,7 +256,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or not indices or len(view.points) < 3:
+        if not hasattr(view, "points") or not indices or len(view.points) < 3:
             return None
 
         factor = max(0.0, min(1.0, factor))  # Clamp factor
@@ -294,7 +283,9 @@ class PointManipulationService(PointManipulationProtocol):
                 new_y = old_point[2] + (smooth_y - old_point[2]) * factor
 
                 # Create new point
-                new_point = (old_point[0], new_x, new_y) + old_point[3:] if len(old_point) > 3 else (old_point[0], new_x, new_y)
+                new_point = (
+                    (old_point[0], new_x, new_y) + old_point[3:] if len(old_point) > 3 else (old_point[0], new_x, new_y)
+                )
                 new_values.append(new_point)
                 valid_indices.append(idx)
 
@@ -302,7 +293,7 @@ class PointManipulationService(PointManipulationProtocol):
                 view.points[idx] = new_point
 
                 # Update main window data if available
-                if hasattr(view, 'main_window') and view.main_window:
+                if hasattr(view, "main_window") and view.main_window:
                     main_window = view.main_window
                     if hasattr(main_window, "curve_data") and idx < len(main_window.curve_data):
                         original_point = main_window.curve_data[idx]
@@ -314,15 +305,12 @@ class PointManipulationService(PointManipulationProtocol):
             return None
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Create and return change record
         return PointChange(
-            operation=PointOperation.SMOOTH,
-            indices=valid_indices,
-            old_values=old_values,
-            new_values=new_values
+            operation=PointOperation.SMOOTH, indices=valid_indices, old_values=old_values, new_values=new_values
         )
 
     def validate_point_position(self, view: Any, x: float, y: float) -> bool:
@@ -339,7 +327,7 @@ class PointManipulationService(PointManipulationProtocol):
         """
         # Basic validation - can be extended based on requirements
         # Check for NaN or infinite values
-        if not (float('-inf') < x < float('inf')) or not (float('-inf') < y < float('inf')):
+        if not (float("-inf") < x < float("inf")) or not (float("-inf") < y < float("inf")):
             return False
 
         # Could add bounds checking here if needed
@@ -359,7 +347,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             True if frame order is maintained
         """
-        if not hasattr(view, 'points'):
+        if not hasattr(view, "points"):
             return True
 
         # Check frame is within bounds
@@ -391,7 +379,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or idx < 0 or idx >= len(view.points):
+        if not hasattr(view, "points") or idx < 0 or idx >= len(view.points):
             return None
 
         # Call delete_selected_points with single index
@@ -408,7 +396,7 @@ class PointManipulationService(PointManipulationProtocol):
         Returns:
             PointChange describing the operation, or None if failed
         """
-        if not hasattr(view, 'points') or not indices:
+        if not hasattr(view, "points") or not indices:
             return None
 
         # Store old values
@@ -438,16 +426,13 @@ class PointManipulationService(PointManipulationProtocol):
                     new_values.append(view.points[i])
 
         # Update view
-        if hasattr(view, 'update'):
+        if hasattr(view, "update"):
             view.update()
 
         # Emit signal if available
-        if hasattr(view, 'points_changed'):
+        if hasattr(view, "points_changed"):
             view.points_changed.emit()
 
         return PointChange(
-            operation=PointOperation.INTERPOLATE,
-            indices=indices,
-            old_values=old_values,
-            new_values=new_values
+            operation=PointOperation.INTERPOLATE, indices=indices, old_values=old_values, new_values=new_values
         )

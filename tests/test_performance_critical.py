@@ -48,15 +48,12 @@ class TestDataProcessingPerformance:
         for frame in range(1, 1001):  # 1000 points
             x = 960 + 200 * (frame / 1000) + (frame % 50) * 2  # Realistic movement
             y = 540 + 100 * (frame / 1000) + (frame % 30) * 1.5
-            large_data.append({
-                "frame": frame,
-                "x": x,
-                "y": y,
-                "status": "keyframe" if frame % 10 == 0 else "interpolated"
-            })
+            large_data.append(
+                {"frame": frame, "x": x, "y": y, "status": "keyframe" if frame % 10 == 0 else "interpolated"}
+            )
 
         # Create temporary file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(large_data, f)
             temp_file = f.name
 
@@ -77,8 +74,7 @@ class TestDataProcessingPerformance:
     def test_smoothing_performance_medium_dataset(self, benchmark):
         """Benchmark: Smooth 500 points with moving average - Target: <50ms."""
         # Create medium dataset for smoothing
-        medium_data = [(i, float(i * 2 + i % 10), float(i * 3 + i % 7))
-                      for i in range(1, 501)]  # 500 points
+        medium_data = [(i, float(i * 2 + i % 10), float(i * 3 + i % 7)) for i in range(1, 501)]  # 500 points
 
         # Benchmark smoothing operation
         result = benchmark(self.data_service.smooth_moving_average, medium_data, 5)
@@ -147,7 +143,7 @@ class TestTransformPerformance:
             offset_x=50.0,
             offset_y=100.0,
             image_width=1920,
-            image_height=1080
+            image_height=1080,
         )
 
         def create_transform():
@@ -160,17 +156,14 @@ class TestTransformPerformance:
         # Verify transform is valid
         assert transform is not None
         params = transform.get_parameters()
-        assert 'scale' in params
-        assert isinstance(params['scale'], int | float)
+        assert "scale" in params
+        assert isinstance(params["scale"], int | float)
 
     def test_batch_coordinate_transformation_performance(self, benchmark):
         """Benchmark: Transform 100 coordinates - Target: <10ms."""
         # Set up transform
         mock_view = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0)],
-            zoom_factor=2.0,
-            offset_x=25.0,
-            offset_y=75.0
+            points=[(1, 100.0, 200.0)], zoom_factor=2.0, offset_x=25.0, offset_y=75.0
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
@@ -199,11 +192,7 @@ class TestTransformPerformance:
         """Benchmark: Round-trip coordinate conversions - Target: <15ms."""
         # Set up transform with complex parameters
         mock_view = ProtocolCompliantMockCurveView(
-            points=[(1, 500.0, 300.0)],
-            zoom_factor=0.75,
-            offset_x=125.0,
-            offset_y=200.0,
-            flip_y_axis=True
+            points=[(1, 500.0, 300.0)], zoom_factor=0.75, offset_x=125.0, offset_y=200.0, flip_y_axis=True
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
@@ -278,7 +267,7 @@ class TestMemoryUsagePatterns:
                 points=[(1, float(i), float(i * 2))],
                 zoom_factor=1.0 + i * 0.01,
                 offset_x=float(i),
-                offset_y=float(i * 2)
+                offset_y=float(i * 2),
             )
 
             view_state = transform_service.create_view_state(mock_view)
@@ -305,10 +294,9 @@ class TestMemoryUsagePatterns:
         try:
             for i in range(50):
                 # Create small dataset
-                data = [{"frame": j, "x": float(j), "y": float(j * 2)}
-                       for j in range(1, 21)]  # 20 points each
+                data = [{"frame": j, "x": float(j), "y": float(j * 2)} for j in range(1, 21)]  # 20 points each
 
-                with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+                with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                     json.dump(data, f)
                     temp_files.append(f.name)
 
@@ -323,7 +311,7 @@ class TestMemoryUsagePatterns:
                     os.unlink(temp_file)
 
         # Clear any caches
-        if hasattr(data_service, 'clear_image_cache'):
+        if hasattr(data_service, "clear_image_cache"):
             data_service.clear_image_cache()
 
         gc.collect()
@@ -353,19 +341,16 @@ class TestRealisticWorkflowPerformance:
             # Simulate realistic motion with slight camera shake
             base_x = 960 + 100 * (frame / 300) + (frame % 20) * 0.5
             base_y = 540 + 50 * (frame / 300) + (frame % 15) * 0.3
-            realistic_data.append({
-                "frame": frame,
-                "x": base_x,
-                "y": base_y,
-                "status": "keyframe" if frame % 5 == 0 else "interpolated"
-            })
+            realistic_data.append(
+                {"frame": frame, "x": base_x, "y": base_y, "status": "keyframe" if frame % 5 == 0 else "interpolated"}
+            )
 
         # Create input file
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(realistic_data, f)
             input_file = f.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             output_file = f.name
 
         def complete_workflow():
@@ -377,10 +362,7 @@ class TestRealisticWorkflowPerformance:
 
             # Create transform and test coordinate conversions
             mock_view = ProtocolCompliantMockCurveView(
-                points=smoothed_data,
-                zoom_factor=1.0,
-                offset_x=0.0,
-                offset_y=0.0
+                points=smoothed_data, zoom_factor=1.0, offset_x=0.0, offset_y=0.0
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
@@ -420,7 +402,7 @@ class TestRealisticWorkflowPerformance:
             zoom_factor=1.5,
             offset_x=100.0,
             offset_y=50.0,
-            selected_points={10, 11, 12}  # Multiple selection
+            selected_points={10, 11, 12},  # Multiple selection
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
@@ -451,8 +433,7 @@ class TestRealisticWorkflowPerformance:
                     operations_count += 1
 
             # Simulate data processing on selected points
-            selected_data = [curve_data[i] for i in mock_view.selected_points
-                           if i < len(curve_data)]
+            selected_data = [curve_data[i] for i in mock_view.selected_points if i < len(curve_data)]
             if selected_data:
                 smoothed_selection = self.data_service.smooth_moving_average(selected_data, window_size=3)
                 operations_count += len(smoothed_selection)
@@ -506,10 +487,7 @@ class TestPerformanceBaselines:
 
         # Create standard transform
         mock_view = ProtocolCompliantMockCurveView(
-            points=[(1, 100.0, 200.0)],
-            zoom_factor=1.5,
-            offset_x=50.0,
-            offset_y=100.0
+            points=[(1, 100.0, 200.0)], zoom_factor=1.5, offset_x=50.0, offset_y=100.0
         )
 
         # Time view state creation

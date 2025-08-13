@@ -340,7 +340,7 @@ class CurveRenderer:
     def data_to_screen(self, point: tuple[Any, ...], curve_view) -> QPointF:
         """Convert data coordinates to screen coordinates using TransformService."""
         # Use TransformService for consistent transformations
-        if hasattr(curve_view, 'get_current_transform'):
+        if hasattr(curve_view, "get_current_transform"):
             transform = curve_view.get_current_transform()
             if transform:
                 x, y = transform.data_to_screen(point[1], point[2])
@@ -356,7 +356,7 @@ class CurveRenderer:
     def screen_to_data(self, pos: QPointF, curve_view) -> tuple[float, float]:
         """Convert screen coordinates to data coordinates using TransformService."""
         # Use TransformService for consistent transformations
-        if hasattr(curve_view, 'get_current_transform'):
+        if hasattr(curve_view, "get_current_transform"):
             transform = curve_view.get_current_transform()
             if transform:
                 return transform.screen_to_data(pos.x(), pos.y())

@@ -58,7 +58,9 @@ def apply_modern_theme_to_window(window):
             """)
 
     # Add smooth transitions to existing widgets
-    window.setStyleSheet(window.styleSheet() + """
+    window.setStyleSheet(
+        window.styleSheet()
+        + """
         * {
             transition: all 0.2s ease;
         }
@@ -70,16 +72,12 @@ def apply_modern_theme_to_window(window):
         QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
             box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
         }
-    """)
+    """
+    )
 
     # Show welcome notification
     def show_welcome():
-        toast = ModernToast(
-            "UI Modernization Applied Successfully!",
-            "success",
-            3000,
-            window
-        )
+        toast = ModernToast("UI Modernization Applied Successfully!", "success", 3000, window)
         toast.move(window.width() - toast.width() - 20, 60)
         toast.show_toast()
 

@@ -17,7 +17,6 @@ from services.protocols.history_protocol import HistoryProtocol, HistoryStats
 logger = logging.getLogger(__name__)
 
 
-
 class HistoryService(HistoryProtocol):
     """
     Manages application state history for undo/redo.
@@ -62,7 +61,7 @@ class HistoryService(HistoryProtocol):
         """
         # Truncate future history if we're not at the end
         if self._history_index < len(self._history) - 1:
-            self._history = self._history[:self._history_index + 1]
+            self._history = self._history[: self._history_index + 1]
 
         # Extract state components
         if isinstance(state, dict):
@@ -187,7 +186,7 @@ class HistoryService(HistoryProtocol):
             memory_usage_mb=memory_mb,
             compression_ratio=compression_ratio,
             can_undo=self.can_undo(),
-            can_redo=self.can_redo()
+            can_redo=self.can_redo(),
         )
 
     def compress_state(self, state: Any) -> bytes:

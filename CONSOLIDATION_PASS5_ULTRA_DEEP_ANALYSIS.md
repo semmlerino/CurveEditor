@@ -10,7 +10,7 @@ Ultra-deep analysis of **3,000+ code patterns** revealed additional **600-800 li
 
 **Findings**:
 - Repeated mock creation patterns
-- Duplicate fixture setups  
+- Duplicate fixture setups
 - Similar setUp/tearDown methods
 - Repeated test data generation
 
@@ -34,7 +34,7 @@ from typing import Any
 
 class MockFactory:
     """Factory for creating consistent test mocks."""
-    
+
     @staticmethod
     def create_curve_view(width=800, height=600, points=None):
         """Create a mock curve view with standard setup."""
@@ -48,7 +48,7 @@ class MockFactory:
         mock.offset_y = 0.0
         mock.flip_y_axis = False
         return mock
-    
+
     @staticmethod
     def create_main_window(curve_data=None):
         """Create a mock main window."""
@@ -58,7 +58,7 @@ class MockFactory:
         mock.history = []
         mock.history_index = 0
         return mock
-    
+
     @staticmethod
     def create_test_points(count=10, pattern="linear"):
         """Generate test point data."""
@@ -66,15 +66,15 @@ class MockFactory:
             return [(i, float(i * 10), float(i * 10)) for i in range(count)]
         elif pattern == "random":
             import random
-            return [(i, random.uniform(0, 100), random.uniform(0, 100)) 
+            return [(i, random.uniform(0, 100), random.uniform(0, 100))
                     for i in range(count)]
         elif pattern == "interpolated":
-            return [(i, float(i * 10), float(i * 10), "interpolated") 
+            return [(i, float(i * 10), float(i * 10), "interpolated")
                     for i in range(count)]
 
 class TestDataGenerator:
     """Generate consistent test data."""
-    
+
     @staticmethod
     def curve_data(size, include_interpolated=False):
         """Generate curve data for testing."""
@@ -89,7 +89,7 @@ class TestDataGenerator:
 
 **Estimated Savings**: 200-250 lines
 
-### 2. **Class Initialization Patterns** 🔴 High Priority  
+### 2. **Class Initialization Patterns** 🔴 High Priority
 **Impact**: 142 initialization patterns
 
 **Findings**:
@@ -102,7 +102,7 @@ class TestDataGenerator:
 # core/init_mixins.py
 class StateInitMixin:
     """Mixin for common state initialization."""
-    
+
     def init_state(self):
         """Initialize common state attributes."""
         self.is_modified = False
@@ -110,20 +110,20 @@ class StateInitMixin:
         self.is_saving = False
         self.last_update = None
         self.error_state = None
-    
+
 class CollectionInitMixin:
     """Mixin for collection initialization."""
-    
+
     def init_collections(self):
         """Initialize common collections."""
         self.data = []
         self.cache = {}
         self.observers = []
         self.pending_operations = []
-        
+
 class UIStateInitMixin:
     """Mixin for UI state initialization."""
-    
+
     def init_ui_state(self):
         """Initialize common UI state."""
         self.is_visible = True
@@ -161,47 +161,47 @@ from typing import Tuple
 
 class GeometryUtils:
     """Common geometric calculations."""
-    
+
     @staticmethod
-    def rotate_point(x: float, y: float, angle_degrees: float, 
+    def rotate_point(x: float, y: float, angle_degrees: float,
                      center_x: float = 0, center_y: float = 0) -> Tuple[float, float]:
         """Rotate a point around a center."""
         angle_rad = math.radians(angle_degrees)
         cos_a = math.cos(angle_rad)
         sin_a = math.sin(angle_rad)
-        
+
         dx = x - center_x
         dy = y - center_y
-        
+
         new_x = center_x + dx * cos_a - dy * sin_a
         new_y = center_y + dx * sin_a + dy * cos_a
-        
+
         return new_x, new_y
-    
+
     @staticmethod
     def lerp(start: float, end: float, t: float) -> float:
         """Linear interpolation between two values."""
         return start + t * (end - start)
-    
+
     @staticmethod
-    def lerp_point(p1: Tuple[float, float], p2: Tuple[float, float], 
+    def lerp_point(p1: Tuple[float, float], p2: Tuple[float, float],
                    t: float) -> Tuple[float, float]:
         """Linear interpolation between two points."""
         return (
             GeometryUtils.lerp(p1[0], p2[0], t),
             GeometryUtils.lerp(p1[1], p2[1], t)
         )
-    
+
     @staticmethod
     def distance(x1: float, y1: float, x2: float, y2: float) -> float:
         """Calculate Euclidean distance between two points."""
         return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-    
+
     @staticmethod
     def point_in_rect(x: float, y: float, rect_x: float, rect_y: float,
                       rect_w: float, rect_h: float) -> bool:
         """Check if point is inside rectangle."""
-        return (rect_x <= x <= rect_x + rect_w and 
+        return (rect_x <= x <= rect_x + rect_w and
                 rect_y <= y <= rect_y + rect_h)
 ```
 
@@ -216,20 +216,20 @@ class GeometryUtils:
 - Duplicate widget arrangement patterns
 
 **Recommendation**: Enhance layout factory:
-```python  
+```python
 # ui/layout_factory.py
 from ui.qt_imports import *
 
 class LayoutFactory:
     """Factory for common layout patterns."""
-    
+
     @staticmethod
-    def create_form_layout(fields: list[tuple[str, QWidget]], 
+    def create_form_layout(fields: list[tuple[str, QWidget]],
                           spacing: int = 10) -> QVBoxLayout:
         """Create a form layout with labels and widgets."""
         layout = QVBoxLayout()
         layout.setSpacing(spacing)
-        
+
         for label_text, widget in fields:
             row = QHBoxLayout()
             label = QLabel(label_text)
@@ -237,36 +237,36 @@ class LayoutFactory:
             row.addWidget(label)
             row.addWidget(widget)
             layout.addLayout(row)
-        
+
         return layout
-    
+
     @staticmethod
-    def create_button_row(buttons: list[tuple[str, callable]], 
+    def create_button_row(buttons: list[tuple[str, callable]],
                          stretch_first: bool = True) -> QHBoxLayout:
         """Create a horizontal button layout."""
         layout = QHBoxLayout()
-        
+
         if stretch_first:
             layout.addStretch()
-        
+
         for text, handler in buttons:
             btn = QPushButton(text)
             if handler:
                 btn.clicked.connect(handler)
             layout.addWidget(btn)
-        
+
         return layout
-    
+
     @staticmethod
     def create_toolbar_section(title: str, widgets: list[QWidget],
                               vertical: bool = False) -> QGroupBox:
         """Create a grouped toolbar section."""
         group = QGroupBox(title)
         layout = QVBoxLayout() if vertical else QHBoxLayout()
-        
+
         for widget in widgets:
             layout.addWidget(widget)
-        
+
         group.setLayout(layout)
         return group
 ```
@@ -288,12 +288,12 @@ from typing import Any, Optional
 
 class Validators:
     """Common validation utilities."""
-    
+
     @staticmethod
     def clamp(value: float, min_val: float, max_val: float) -> float:
         """Clamp value to range."""
         return max(min_val, min(max_val, value))
-    
+
     @staticmethod
     def is_in_range(value: float, min_val: float, max_val: float,
                     inclusive: bool = True) -> bool:
@@ -301,7 +301,7 @@ class Validators:
         if inclusive:
             return min_val <= value <= max_val
         return min_val < value < max_val
-    
+
     @staticmethod
     def validate_index(index: int, collection: list,
                       allow_negative: bool = False) -> bool:
@@ -309,9 +309,9 @@ class Validators:
         if allow_negative:
             return -len(collection) <= index < len(collection)
         return 0 <= index < len(collection)
-    
+
     @staticmethod
-    def validate_point(x: float, y: float, 
+    def validate_point(x: float, y: float,
                       x_range: tuple[float, float] = None,
                       y_range: tuple[float, float] = None) -> bool:
         """Validate point coordinates."""

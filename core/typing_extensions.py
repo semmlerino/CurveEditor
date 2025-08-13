@@ -124,14 +124,15 @@ type ProgressCallback = Callable[[float], None]  # 0.0 to 1.0
 
 # ==================== Generic Type Variables ====================
 
-T = TypeVar('T')
-T_co = TypeVar('T_co', covariant=True)
-T_contra = TypeVar('T_contra', contravariant=True)
+T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
+T_contra = TypeVar("T_contra", contravariant=True)
 
 # Widget type variable
-WidgetT = TypeVar('WidgetT', bound='QWidget')
+WidgetT = TypeVar("WidgetT", bound="QWidget")
 
 # ==================== Protocol Types ====================
+
 
 class SupportsTransform(Protocol):
     """Protocol for objects that support coordinate transformation."""
@@ -172,6 +173,7 @@ class SupportsFile(Protocol):
 
 # ==================== Utility Functions ====================
 
+
 def is_point_with_status(point: PointType) -> bool:
     """Check if a point has status information."""
     return len(point) > 3
@@ -195,6 +197,7 @@ def create_point(frame: Frame, x: float, y: float, status: str | bool | None = N
 
 
 # ==================== Type Guards ====================
+
 
 def is_curve_data(data: Any) -> bool:
     """Type guard for CurveData."""
@@ -222,7 +225,7 @@ def is_valid_color(color: Any) -> bool:
     """Type guard for color values."""
     if isinstance(color, str):
         # Check hex color
-        return color.startswith('#') and len(color) in (7, 9)
+        return color.startswith("#") and len(color) in (7, 9)
     if isinstance(color, tuple):
         if len(color) not in (3, 4):
             return False

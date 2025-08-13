@@ -30,7 +30,7 @@
 - Fixed `drawText()` float arguments → int conversion
 
 #### 5. Missing Imports ✅
-**Files**: 
+**Files**:
 - `ui/apply_modern_theme.py`: Added QPushButton, Qt imports
 - `tests/test_file_service.py`: Added os import
 

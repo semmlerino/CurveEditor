@@ -39,7 +39,7 @@ class TestSelectionService(unittest.TestCase):
     def setUp(self):
         """Create service and mock view."""
         self.service = SelectionService()
-        
+
         # Create mock view with required attributes
         self.mock_view = Mock()
         self.mock_view.points = [
@@ -48,7 +48,7 @@ class TestSelectionService(unittest.TestCase):
         ]
         self.mock_view.selected_points = set()
         self.mock_view.update = Mock()
-    
+
     def test_select_point(self):
         """Test point selection."""
         result = self.service.select_point_by_index(self.mock_view, 0)
@@ -78,10 +78,10 @@ def test_widget_interaction(qapp, qtbot):
     """Test Qt widget with qtbot."""
     widget = CurveViewWidget()
     qtbot.addWidget(widget)
-    
+
     # Simulate mouse click
     qtbot.mouseClick(widget, Qt.LeftButton)
-    
+
     # Verify behavior
     assert widget.selected_points == {0}
 ```
@@ -93,13 +93,13 @@ For complex Qt dependencies, create typed mocks:
 ```python
 class MockCurveView:
     """Typed mock for CurveViewProtocol."""
-    
+
     def __init__(self, points=None):
         self.points = points or []
         self.selected_points = set()
         self.transform = Mock()
         self.update = Mock()
-    
+
     def repaint(self):
         """Mock repaint method."""
         pass
@@ -118,7 +118,7 @@ Create builders for complex test data:
 ```python
 class TestDataBuilder:
     """Builder for test data."""
-    
+
     @staticmethod
     def curve_data(num_points=10, start_frame=1):
         """Create sample curve data."""
@@ -126,7 +126,7 @@ class TestDataBuilder:
             (start_frame + i, float(i * 10), float(i * 20))
             for i in range(num_points)
         ]
-    
+
     @staticmethod
     def point_with_status(frame, x, y, status="tracked"):
         """Create point with status."""
@@ -153,7 +153,7 @@ import pytest
 def test_select_point_validation(index, expected):
     service = SelectionService()
     view = MockCurveView(points=[(1, 10.0, 20.0)])
-    
+
     result = service.select_point_by_index(view, index)
     assert result == expected
 ```
@@ -170,15 +170,15 @@ def test_complete_workflow():
     # 1. Load data
     service = DataService()
     data = service.load_json("test.json")
-    
+
     # 2. Select points
     selection = SelectionService()
     selection.select_all(view)
-    
+
     # 3. Modify points
     manipulation = PointManipulationService()
     manipulation.move_selected_points(view, 10, 20)
-    
+
     # 4. Save data
     service.save_json("output.json", view.points)
 ```
@@ -191,14 +191,14 @@ Always test boundaries and edge cases:
 def test_edge_cases():
     """Test boundary conditions."""
     service = HistoryService()
-    
+
     # Empty state
     assert service.undo() is None
-    
+
     # Single item
     service.add_to_history([(1, 10.0, 20.0)])
     assert service.can_undo()
-    
+
     # Maximum items
     for i in range(100):  # Max history size
         service.add_to_history([(i, 10.0, 20.0)])
@@ -213,15 +213,15 @@ Test error conditions explicitly:
 def test_error_handling():
     """Test error conditions."""
     service = FileIOService()
-    
+
     # Invalid file path
     with pytest.raises(FileNotFoundError):
         service.load_json("/invalid/path.json")
-    
+
     # Corrupted data
     with pytest.raises(ValueError):
         service.parse_data("not json")
-    
+
     # Permission denied
     with pytest.raises(PermissionError):
         service.save_json("/root/forbidden.json", [])
@@ -293,10 +293,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 ```python
 def test_async_operation(qtbot):
     widget = MyWidget()
-    
+
     with qtbot.waitSignal(widget.finished, timeout=1000):
         widget.start_async_operation()
-    
+
     assert widget.result is not None
 ```
 
@@ -309,10 +309,10 @@ def tearDown(self):
     """Clean up after each test."""
     # Clear singletons
     ServiceRegistry.clear()
-    
+
     # Reset environment
     os.environ.pop("USE_NEW_SERVICES", None)
-    
+
     # Clear caches
     get_transform_service.cache_clear()
 ```
@@ -344,9 +344,9 @@ def test_performance(benchmark):
     """Benchmark critical operations."""
     service = TransformService()
     data = TestDataBuilder.curve_data(10000)
-    
+
     result = benchmark(service.transform_points, data)
-    
+
     # Assert performance requirements
     assert benchmark.stats['mean'] < 0.1  # Less than 100ms
 ```
@@ -357,7 +357,7 @@ def test_performance(benchmark):
 ```python
 def test_<what>_<condition>_<expected>():
     """Test that <what> <expected> when <condition>."""
-    
+
 # Examples:
 def test_select_point_valid_index_returns_true():
     """Test that select_point returns True with valid index."""
@@ -371,14 +371,14 @@ def test_undo_empty_history_returns_none():
 def test_complex_workflow():
     """
     Test complete point editing workflow.
-    
+
     This test verifies:
     1. Points can be loaded from file
     2. Points can be selected
     3. Selected points can be modified
     4. Changes can be undone/redone
     5. Modified data can be saved
-    
+
     Regression test for issue #123.
     """
 ```
@@ -423,18 +423,18 @@ jobs:
     - uses: actions/setup-python@v2
       with:
         python-version: '3.12'
-    
+
     - name: Install dependencies
       run: |
         pip install -r requirements.txt
         pip install pytest pytest-cov pytest-qt
-    
+
     - name: Run tests
       env:
         QT_QPA_PLATFORM: offscreen
       run: |
         python -m pytest tests/ --cov=. --cov-report=xml
-    
+
     - name: Upload coverage
       uses: codecov/codecov-action@v2
 ```
@@ -444,7 +444,7 @@ jobs:
 Testing the CurveEditor requires handling Qt widgets, complex service interactions, and legacy code patterns. Focus on:
 
 1. **Critical paths first** - Test what users actually do
-2. **Isolation** - Mock dependencies properly  
+2. **Isolation** - Mock dependencies properly
 3. **Pragmatism** - Some tests are better than no tests
 4. **Maintenance** - Keep tests updated with code changes
 

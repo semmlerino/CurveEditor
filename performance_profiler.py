@@ -39,6 +39,7 @@ class PerformanceProfiler:
                 get_transform_service,
                 get_ui_service,
             )
+
             import_time = time.perf_counter() - import_start
 
             # Initialize services
@@ -149,11 +150,10 @@ class PerformanceProfiler:
 
         for size in sizes:
             test_data = [
-                (i, float(i * 10), float(i * 20), "keyframe" if i % 10 == 0 else "interpolated")
-                for i in range(size)
+                (i, float(i * 10), float(i * 20), "keyframe" if i % 10 == 0 else "interpolated") for i in range(size)
             ]
 
-            with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as f:
+            with tempfile.NamedTemporaryFile(suffix=".json", delete=False) as f:
                 temp_path = f.name
 
             try:
@@ -206,10 +206,7 @@ class PerformanceProfiler:
             results = {}
 
             for size in sizes:
-                test_data = [
-                    (i, float(i * 10), float(i * 20), "keyframe")
-                    for i in range(size)
-                ]
+                test_data = [(i, float(i * 10), float(i * 20), "keyframe") for i in range(size)]
 
                 widget.set_curve_data(test_data)
 
@@ -226,7 +223,7 @@ class PerformanceProfiler:
 
                 results[f"{size}_points"] = {
                     "render_time": paint_time * 1000,
-                    "fps_potential": 1000 / (paint_time * 1000) if paint_time > 0 else float('inf'),
+                    "fps_potential": 1000 / (paint_time * 1000) if paint_time > 0 else float("inf"),
                 }
 
             return results
@@ -252,15 +249,12 @@ class PerformanceProfiler:
         snapshot1 = tracemalloc.take_snapshot()
 
         # Create large dataset
-        [
-            (i, float(i * 10), float(i * 20), "keyframe")
-            for i in range(10000)
-        ]
+        [(i, float(i * 10), float(i * 20), "keyframe") for i in range(10000)]
 
         snapshot2 = tracemalloc.take_snapshot()
 
         # Calculate memory difference
-        top_stats = snapshot2.compare_to(snapshot1, 'lineno')
+        top_stats = snapshot2.compare_to(snapshot1, "lineno")
 
         total_memory = sum(stat.size_diff for stat in top_stats) / 1024 / 1024  # MB
 
@@ -268,10 +262,12 @@ class PerformanceProfiler:
         top_consumers = []
         for stat in top_stats[:10]:
             if stat.size_diff > 0:
-                top_consumers.append({
-                    "file": stat.traceback.format()[0] if stat.traceback else "unknown",
-                    "size_mb": stat.size_diff / 1024 / 1024,
-                })
+                top_consumers.append(
+                    {
+                        "file": stat.traceback.format()[0] if stat.traceback else "unknown",
+                        "size_mb": stat.size_diff / 1024 / 1024,
+                    }
+                )
 
         tracemalloc.stop()
 
@@ -324,9 +320,9 @@ class PerformanceProfiler:
             report.append(f"Final Memory: {startup['final_memory']:.2f}MB")
 
             # Assessment
-            if startup['total_time'] < 500:
+            if startup["total_time"] < 500:
                 report.append("✅ Startup time is EXCELLENT (<500ms)")
-            elif startup['total_time'] < 1000:
+            elif startup["total_time"] < 1000:
                 report.append("⚠️ Startup time is ACCEPTABLE (500-1000ms)")
             else:
                 report.append("❌ Startup time NEEDS OPTIMIZATION (>1000ms)")
@@ -345,9 +341,9 @@ class PerformanceProfiler:
         report.append(f"Screen→Data Per Point: {transforms['per_point_to_data']:.4f}ms")
 
         # Assessment
-        if transforms['total_to_screen'] < 10:
+        if transforms["total_to_screen"] < 10:
             report.append("✅ Transform performance is EXCELLENT (<10ms for 1000 points)")
-        elif transforms['total_to_screen'] < 20:
+        elif transforms["total_to_screen"] < 20:
             report.append("⚠️ Transform performance is ACCEPTABLE (10-20ms)")
         else:
             report.append("❌ Transform performance NEEDS OPTIMIZATION (>20ms)")
@@ -357,7 +353,7 @@ class PerformanceProfiler:
         report.append("## FILE I/O PERFORMANCE")
         report.append("-" * 40)
         for size_key, metrics in file_io.items():
-            points = size_key.split('_')[0]
+            points = size_key.split("_")[0]
             report.append(f"\n{points} Points:")
             report.append(f"  Save Time: {metrics['save_time']:.2f}ms")
             report.append(f"  Load Time: {metrics['load_time']:.2f}ms")
@@ -380,7 +376,7 @@ class PerformanceProfiler:
         report.append("-" * 40)
         if "error" not in rendering:
             for size_key, metrics in rendering.items():
-                points = size_key.split('_')[0]
+                points = size_key.split("_")[0]
                 report.append(f"\n{points} Points:")
                 report.append(f"  Render Time: {metrics['render_time']:.2f}ms")
                 report.append(f"  FPS Potential: {metrics['fps_potential']:.1f}")
@@ -404,15 +400,15 @@ class PerformanceProfiler:
         report.append(f"Large Dataset (10k points): {memory['large_dataset_memory']:.2f}MB")
         report.append(f"Process Total Memory: {memory['process_memory']:.2f}MB")
 
-        if memory['top_consumers']:
+        if memory["top_consumers"]:
             report.append("\nTop Memory Consumers:")
-            for consumer in memory['top_consumers'][:5]:
+            for consumer in memory["top_consumers"][:5]:
                 report.append(f"  {consumer['size_mb']:.2f}MB - {consumer['file']}")
 
         # Assessment
-        if memory['process_memory'] < 100:
+        if memory["process_memory"] < 100:
             report.append("\n✅ Memory usage is EXCELLENT (<100MB)")
-        elif memory['process_memory'] < 200:
+        elif memory["process_memory"] < 200:
             report.append("\n⚠️ Memory usage is ACCEPTABLE (100-200MB)")
         else:
             report.append("\n❌ Memory usage NEEDS OPTIMIZATION (>200MB)")
@@ -425,11 +421,11 @@ class PerformanceProfiler:
         bottlenecks = []
 
         # Check each metric
-        if "error" not in startup and startup['total_time'] > 1000:
-            bottlenecks.append(("Startup", startup['total_time'], "ms"))
+        if "error" not in startup and startup["total_time"] > 1000:
+            bottlenecks.append(("Startup", startup["total_time"], "ms"))
 
-        if transforms['total_to_screen'] > 20:
-            bottlenecks.append(("Transforms", transforms['total_to_screen'], "ms"))
+        if transforms["total_to_screen"] > 20:
+            bottlenecks.append(("Transforms", transforms["total_to_screen"], "ms"))
 
         if "10000_points" in file_io and file_io["10000_points"]["load_time"] > 2000:
             bottlenecks.append(("File I/O", file_io["10000_points"]["load_time"], "ms"))
@@ -437,8 +433,8 @@ class PerformanceProfiler:
         if "1000_points" in rendering and rendering["1000_points"]["fps_potential"] < 30:
             bottlenecks.append(("Rendering", rendering["1000_points"]["render_time"], "ms"))
 
-        if memory['process_memory'] > 200:
-            bottlenecks.append(("Memory", memory['process_memory'], "MB"))
+        if memory["process_memory"] > 200:
+            bottlenecks.append(("Memory", memory["process_memory"], "MB"))
 
         if bottlenecks:
             report.append("Priority Optimization Targets:")
@@ -453,10 +449,10 @@ class PerformanceProfiler:
 
         recommendations = []
 
-        if "error" not in startup and startup['import_time'] > 200:
+        if "error" not in startup and startup["import_time"] > 200:
             recommendations.append("- Use lazy imports to reduce startup time")
 
-        if transforms['per_point_to_screen'] > 0.01:
+        if transforms["per_point_to_screen"] > 0.01:
             recommendations.append("- Implement transform caching for repeated operations")
             recommendations.append("- Consider vectorized operations for batch transforms")
 
@@ -469,7 +465,7 @@ class PerformanceProfiler:
             recommendations.append("- Use level-of-detail (LOD) for large datasets")
             recommendations.append("- Consider GPU acceleration via OpenGL")
 
-        if memory['large_dataset_memory'] > 50:
+        if memory["large_dataset_memory"] > 50:
             recommendations.append("- Implement data structure optimization")
             recommendations.append("- Use memory-mapped files for large datasets")
 

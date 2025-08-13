@@ -148,9 +148,9 @@ Fix what you see. Build momentum. The path will become clear.
 
 ---
 
-**Status**: READY TO START  
-**First Action**: Fix threading tests  
-**Time to First Win**: 1 hour  
-**Confidence**: HIGH  
+**Status**: READY TO START
+**First Action**: Fix threading tests
+**Time to First Win**: 1 hour
+**Confidence**: HIGH
 
 *"A journey of a thousand miles begins with fixing `test_threading_safety.py`"*

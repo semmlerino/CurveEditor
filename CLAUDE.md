@@ -16,7 +16,7 @@ CurveEditor is a Python/PySide6 application for editing animation curves and tra
 # DEFAULT (consolidated architecture - 4 services)
 export USE_NEW_SERVICES=false  # or unset
 
-# OPTIONAL (Sprint 8 granular services - 10+ services)  
+# OPTIONAL (Sprint 8 granular services - 10+ services)
 export USE_NEW_SERVICES=true
 ```
 
@@ -25,7 +25,7 @@ export USE_NEW_SERVICES=true
 ### Core Services (DEFAULT - Consolidated)
 When `USE_NEW_SERVICES=false` (default):
 1. **TransformService** - Coordinate transformations and view state management
-2. **DataService** - Data operations, analysis, file I/O, and image management  
+2. **DataService** - Data operations, analysis, file I/O, and image management
 3. **InteractionService** - User interactions, point manipulation, and history
 4. **UIService** - UI operations, dialogs, status updates, and component management
 

@@ -22,6 +22,7 @@ logger = logging.getLogger("theme_manager")
 
 class ThemeMode(Enum):
     """Available theme modes."""
+
     LIGHT = auto()
     DARK = auto()
     HIGH_CONTRAST = auto()
@@ -31,6 +32,7 @@ class ThemeMode(Enum):
 @dataclass
 class ColorScheme:
     """Color scheme for a theme."""
+
     # Primary colors
     background: str = "#FFFFFF"
     foreground: str = "#000000"
@@ -250,12 +252,9 @@ class ThemeManager(QObject):
         palette.setColor(QPalette.ColorRole.LinkVisited, QColor(scheme.secondary))
 
         # Disabled colors
-        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText,
-                        QColor(scheme.text_disabled))
-        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text,
-                        QColor(scheme.text_disabled))
-        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText,
-                        QColor(scheme.text_disabled))
+        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.WindowText, QColor(scheme.text_disabled))
+        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.Text, QColor(scheme.text_disabled))
+        palette.setColor(QPalette.ColorGroup.Disabled, QPalette.ColorRole.ButtonText, QColor(scheme.text_disabled))
 
         return palette
 
