@@ -458,20 +458,22 @@ class OptimizedCurveRenderer:
         if hasattr(curve_view, "get_transform"):
             transform = curve_view.get_transform()
 
-            # Get the top-left corner of the image in screen coordinates
-            # The background image starts at data coordinates (0, 0)
-            screen_x, screen_y = transform.data_to_screen(0, 0)
+            # Transform the corners of the background image through the same pipeline as curve points
+            # The background image occupies data coordinates from (0, 0) to (width, height)
+            top_left_x, top_left_y = transform.data_to_screen(0, 0)
+            bottom_right_x, bottom_right_y = transform.data_to_screen(
+                background_image.width(), background_image.height()
+            )
 
-            # Get the scale factor from the transform
-            params = transform.get_parameters()
-            scale = params.get("scale", 1.0)
+            # Calculate the target rectangle for the background
+            target_width = bottom_right_x - top_left_x
+            target_height = bottom_right_y - top_left_y
 
-            # Calculate scaled dimensions
-            scaled_width = int(background_image.width() * scale)
-            scaled_height = int(background_image.height() * scale)
-
-            # Draw the background at the transformed position with scaled size
-            painter.drawPixmap(int(screen_x), int(screen_y), scaled_width, scaled_height, background_image)
+            # Draw the background image scaled to fit the transformed rectangle
+            # This ensures it goes through the exact same transformation as curve points
+            painter.drawPixmap(
+                int(top_left_x), int(top_left_y), int(target_width), int(target_height), background_image
+            )
         else:
             # Fallback to old behavior if transform not available
             painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), background_image)
