@@ -481,8 +481,17 @@ class ModernizedMainWindow(MainWindow):
                 child.close()
                 child.deleteLater()
         
-        # Call parent close event
-        super().closeEvent(event)
+        # Call parent close event with error handling
+        try:
+            super().closeEvent(event)
+        except RuntimeError as e:
+            # Handle case where parent resources are already deleted
+            if "already deleted" in str(e):
+                # Resources already cleaned up, just accept the event
+                event.accept()
+            else:
+                # Re-raise other runtime errors
+                raise
     
     def eventFilter(self, obj, event):
         """Enhanced event filter with hover animations."""
