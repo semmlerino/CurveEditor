@@ -9,6 +9,7 @@ This service now focuses on data analysis operations while delegating:
 Provides analysis methods like smoothing, filtering, gap filling, and outlier detection.
 """
 
+import json
 import logging
 import os
 import statistics
@@ -162,7 +163,7 @@ class DataService:
             Filtered data points
         """
         try:
-            import numpy as np
+            import numpy as np  # noqa: F401
             from scipy import signal
         except ImportError:
             if self._logger:
@@ -335,7 +336,7 @@ class DataService:
                 # Try auto-detect
                 try:
                     return self._file_io_service.load_json(file_path)
-                except:
+                except (json.JSONDecodeError, ValueError, FileNotFoundError):
                     return self._file_io_service.load_csv(file_path)
         else:
             # Legacy implementation would go here

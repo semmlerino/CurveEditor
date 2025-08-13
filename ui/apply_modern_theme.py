@@ -4,7 +4,7 @@ Quick modernization script for existing MainWindow
 Apply this to instantly modernize the UI without major refactoring
 """
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import QPushButton, QWidget
 
 from ui.modern_theme import ModernTheme

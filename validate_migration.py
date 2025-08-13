@@ -126,10 +126,10 @@ class MigrationValidator:
             # Check protocol implementation
             from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
             from services.service_protocols import (
-                DataServiceProtocol,
-                InteractionServiceProtocol,
-                TransformServiceProtocol,
-                UIServiceProtocol,
+                DataServiceProtocol,  # noqa: F401
+                InteractionServiceProtocol,  # noqa: F401
+                TransformServiceProtocol,  # noqa: F401
+                UIServiceProtocol,  # noqa: F401
             )
 
             # Get service instances
@@ -257,9 +257,9 @@ class MigrationValidator:
             os.environ["USE_NEW_SERVICES"] = "true"
             importlib.reload(services)
 
-            from services import USE_NEW_SERVICES as use_new_flag
+            from services import USE_NEW_SERVICES  # noqa: N811
 
-            if not use_new_flag:
+            if not USE_NEW_SERVICES:
                 self.messages.append("❌ Architecture switch failed - still in DEFAULT mode")
                 self.results["switch_test"] = False
                 return False

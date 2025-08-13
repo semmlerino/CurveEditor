@@ -72,7 +72,7 @@ class TestPointManipulationServiceBasic(unittest.TestCase):
         try:
             change = PointChange(old_point, new_point)
             self.assertIsNotNone(change)
-        except:
+        except (TypeError, ValueError, AttributeError):
             # May need different constructor
             pass
 
@@ -170,7 +170,7 @@ class TestCompressedSnapshotBasic(unittest.TestCase):
             snapshot = CompressedStateSnapshot(sample_data)
             # Check for common methods
             self.assertTrue(hasattr(snapshot, 'get_data') or hasattr(snapshot, 'decompress'))
-        except:
+        except (TypeError, ValueError, AttributeError):
             # Different API
             pass
 

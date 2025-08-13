@@ -30,10 +30,10 @@ from services.ui_service import UIService
 
 # Import new decomposed services (Sprint 8)
 if os.environ.get("USE_NEW_SERVICES", "false").lower() == "true":
-    from services.event_handler import EventHandlerService
-    from services.history_service import HistoryService
-    from services.point_manipulation import PointManipulationService
-    from services.selection_service import SelectionService
+    from services.event_handler import EventHandlerService  # noqa: F401
+    from services.history_service import HistoryService  # noqa: F401
+    from services.point_manipulation import PointManipulationService  # noqa: F401
+    from services.selection_service import SelectionService  # noqa: F401
 
 # Feature flag for gradual migration to new services
 USE_NEW_SERVICES = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
