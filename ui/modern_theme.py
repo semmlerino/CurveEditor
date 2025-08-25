@@ -74,12 +74,12 @@ class ModernTheme(QObject):
 
         QPushButton:hover {{
             background-color: {colors['button_primary_hover']};
-            transform: translateY(-1px);
+            margin-top: -1px;
         }}
 
         QPushButton:pressed {{
             background-color: {colors['button_primary_active']};
-            transform: translateY(0px);
+            margin-top: 0px;
         }}
 
         QPushButton:disabled {{
@@ -134,6 +134,32 @@ class ModernTheme(QObject):
         QToolButton:checked {{
             background-color: {colors['accent_primary']};
             color: white;
+        }}
+
+        /* Timeline Tab Buttons */
+        QToolButton#timelineTab {{
+            background-color: {colors['bg_secondary']};
+            border: 1px solid {colors['border_default']};
+            border-radius: {BORDER_RADIUS['small']}px;
+            color: {colors['text_primary']};
+            font-weight: bold;
+            min-width: 40px;
+            min-height: 40px;
+        }}
+
+        QToolButton#timelineTab:hover {{
+            background-color: {colors['bg_hover']};
+            border-color: {colors['border_hover']};
+        }}
+
+        QToolButton#timelineTab:checked {{
+            background-color: {colors['accent_primary']};
+            border: 2px solid {colors['accent_secondary']};
+            color: white;
+        }}
+
+        QToolButton#timelineTab:pressed {{
+            background-color: {colors['button_primary_active']};
         }}
 
         /* ==================== Modern Input Fields ==================== */
@@ -211,7 +237,16 @@ class ModernTheme(QObject):
         QCheckBox::indicator:checked {{
             background-color: {colors['accent_primary']};
             border-color: {colors['accent_primary']};
-            image: url(:/icons/check-white.svg);
+        }}
+
+        QCheckBox::indicator:checked:after {{
+            content: "✓";
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            position: absolute;
+            left: 2px;
+            top: -1px;
         }}
 
         QCheckBox::indicator:hover {{

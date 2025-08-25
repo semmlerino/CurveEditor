@@ -61,6 +61,51 @@ class DataService:
             self._image_cache: dict = {}
             self._max_cache_size: int = 100  # Maximum number of cached images
 
+    # ==================== Public File I/O Methods (Sprint 11.5) ====================
+
+    def load_csv(self, filepath: str) -> CurveDataList:
+        """
+        Public method to load CSV file programmatically.
+
+        SPRINT 11.5 FIX: Added public method for programmatic file loading.
+
+        Args:
+            filepath: Path to CSV file
+
+        Returns:
+            List of curve data points
+        """
+        return self._load_csv(filepath)
+
+    def load_json(self, filepath: str) -> CurveDataList:
+        """
+        Public method to load JSON file programmatically.
+
+        SPRINT 11.5 FIX: Added public method for programmatic file loading.
+
+        Args:
+            filepath: Path to JSON file
+
+        Returns:
+            List of curve data points
+        """
+        return self._load_json(filepath)
+
+    def save_json(self, filepath: str, data: CurveDataList) -> bool:
+        """
+        Public method to save data as JSON programmatically.
+
+        SPRINT 11.5 FIX: Added public method for programmatic file saving.
+
+        Args:
+            filepath: Path to save JSON file
+            data: Curve data to save
+
+        Returns:
+            True if successful
+        """
+        return self._save_json(filepath, data, label="", color="")
+
     # ==================== Core Analysis Methods ====================
 
     def smooth_moving_average(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
@@ -208,6 +253,43 @@ class DataService:
         if self._logger and outliers:
             self._logger.log_info(f"Detected {len(outliers)} outliers")
         return outliers
+
+    def analyze_points(self, points: list[Any]) -> dict[str, Any]:
+        """Analyze curve points and return statistics."""
+        if not points:
+            return {
+                "count": 0,
+                "min_frame": 0,
+                "max_frame": 0,
+                "bounds": {"min_x": 0, "max_x": 0, "min_y": 0, "max_y": 0},
+            }
+
+        # Extract data from points (handle both CurvePoint objects and tuples)
+        frames = []
+        x_coords = []
+        y_coords = []
+
+        for point in points:
+            if hasattr(point, "frame"):  # CurvePoint object
+                frames.append(point.frame)
+                x_coords.append(point.x)
+                y_coords.append(point.y)
+            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+                frames.append(point[0])
+                x_coords.append(point[1])
+                y_coords.append(point[2])
+
+        return {
+            "count": len(points),
+            "min_frame": min(frames) if frames else 0,
+            "max_frame": max(frames) if frames else 0,
+            "bounds": {
+                "min_x": min(x_coords) if x_coords else 0,
+                "max_x": max(x_coords) if x_coords else 0,
+                "min_y": min(y_coords) if y_coords else 0,
+                "max_y": max(y_coords) if y_coords else 0,
+            },
+        }
 
     def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
         """Add track data (for compatibility)."""

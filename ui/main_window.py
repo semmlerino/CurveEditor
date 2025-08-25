@@ -43,7 +43,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSlider,
     QSpinBox,
-    QSplitter,
     QStatusBar,
     QStyle,
     QToolBar,
@@ -207,7 +206,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     btn_last_frame: QPushButton | None = None
     fps_spinbox: QSpinBox | None = None
     playback_timer: QTimer | None = None
-    frame_tabs: list[Any] | None = None
     curve_widget: Any = None  # CurveViewWidget
     selected_point_label: QLabel | None = None
     point_x_spinbox: QDoubleSpinBox | None = None
@@ -350,6 +348,83 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         toolbar.addAction(self.action_zoom_in)
         toolbar.addAction(self.action_zoom_out)
         toolbar.addAction(self.action_reset_view)
+        toolbar.addSeparator()
+
+        # Add frame control to toolbar
+        toolbar.addWidget(QLabel("Frame:"))
+        self.frame_spinbox = QSpinBox()
+        self.frame_spinbox.setMinimum(1)
+        self.frame_spinbox.setMaximum(1000)
+        self.frame_spinbox.setValue(1)
+        toolbar.addWidget(self.frame_spinbox)
+        toolbar.addSeparator()
+
+        # Add view option checkboxes to toolbar
+        self.show_background_cb = QCheckBox("Background")
+        self.show_background_cb.setChecked(True)
+        toolbar.addWidget(self.show_background_cb)
+
+        self.show_grid_cb = QCheckBox("Grid")
+        self.show_grid_cb.setChecked(False)
+        toolbar.addWidget(self.show_grid_cb)
+
+        self.show_info_cb = QCheckBox("Info")
+        self.show_info_cb.setChecked(True)
+        toolbar.addWidget(self.show_info_cb)
+
+        # Create UI elements that were in side panels (not added to UI, but needed for compatibility)
+        self.point_x_spinbox = QDoubleSpinBox()
+        self.point_x_spinbox.setRange(-10000, 10000)
+        self.point_x_spinbox.setDecimals(3)
+        self.point_x_spinbox.setEnabled(False)
+
+        self.point_y_spinbox = QDoubleSpinBox()
+        self.point_y_spinbox.setRange(-10000, 10000)
+        self.point_y_spinbox.setDecimals(3)
+        self.point_y_spinbox.setEnabled(False)
+
+        self.point_size_slider = QSlider(Qt.Orientation.Horizontal)
+        self.point_size_slider.setMinimum(2)
+        self.point_size_slider.setMaximum(20)
+        self.point_size_slider.setValue(6)
+
+        self.line_width_slider = QSlider(Qt.Orientation.Horizontal)
+        self.line_width_slider.setMinimum(1)
+        self.line_width_slider.setMaximum(10)
+        self.line_width_slider.setValue(2)
+
+        # Create playback controls (not added to UI, but needed for compatibility)
+        self.btn_first_frame = QPushButton()
+        self.btn_first_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
+
+        self.btn_prev_frame = QPushButton()
+        self.btn_prev_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
+
+        self.btn_play_pause = QPushButton()
+        self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.btn_play_pause.setCheckable(True)
+
+        self.btn_next_frame = QPushButton()
+        self.btn_next_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
+
+        self.btn_last_frame = QPushButton()
+        self.btn_last_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
+
+        self.fps_spinbox = QSpinBox()
+        self.fps_spinbox.setMinimum(1)
+        self.fps_spinbox.setMaximum(120)
+        self.fps_spinbox.setValue(24)
+        self.fps_spinbox.setSuffix(" fps")
+
+        self.frame_slider = QSlider(Qt.Orientation.Horizontal)
+        self.frame_slider.setMinimum(1)
+        self.frame_slider.setMaximum(1000)
+        self.frame_slider.setValue(1)
+
+        self.total_frames_label = QLabel("1")
+        self.point_count_label = QLabel("Points: 0")
+        self.selected_count_label = QLabel("Selected: 0")
+        self.bounds_label = QLabel("Bounds: N/A")
 
         # Add stretch to push remaining items to the right
         spacer = QWidget()
@@ -357,40 +432,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         toolbar.addWidget(spacer)
 
     def _init_central_widget(self) -> None:
-        """Initialize the central widget with QSplitter layout and bottom timeline."""
+        """Initialize the central widget with full-width curve view and bottom timeline."""
         # Create main central widget with vertical layout
         central_widget = QWidget()
         main_layout = QVBoxLayout(central_widget)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # Create main splitter for the top portion
-        self.main_splitter = QSplitter(Qt.Orientation.Horizontal)
-
-        # Left panel - Timeline controls (simplified)
-        self.timeline_widget = self._create_timeline_panel()
-        self.main_splitter.addWidget(self.timeline_widget)
-
-        # Center - Main curve view area
+        # Create the main curve view area (full width, no side panels)
         self.curve_container = self._create_curve_view_container()
-        self.main_splitter.addWidget(self.curve_container)
 
-        # Right panel - Properties/Info
-        self.properties_widget = self._create_properties_panel()
-        self.main_splitter.addWidget(self.properties_widget)
-
-        # Set initial splitter sizes (left: 250, center: expandable, right: 300)
-        self.main_splitter.setSizes([250, 850, 300])
-        self.main_splitter.setStretchFactor(0, 0)  # Left panel doesn't stretch
-        self.main_splitter.setStretchFactor(1, 1)  # Center panel stretches
-        self.main_splitter.setStretchFactor(2, 0)  # Right panel doesn't stretch
-
-        # Add splitter to main layout
-        main_layout.addWidget(self.main_splitter)
-
-        # Create and add timeline tabs at the bottom
-        self.timeline_tabs_widget = self._create_timeline_tabs()
-        main_layout.addWidget(self.timeline_tabs_widget)
+        # Add curve container directly to main layout (no splitter needed)
+        main_layout.addWidget(self.curve_container)
 
         # Set the central widget
         self.setCentralWidget(central_widget)
@@ -401,9 +454,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Timeline group
-        timeline_group = QGroupBox("Timeline")
-        timeline_layout = QVBoxLayout()
+        # Timeline group - use ModernCard if available
+        try:
+            from ui.modern_widgets import ModernCard
+
+            timeline_group = ModernCard("Timeline")
+            timeline_layout = timeline_group.content_layout
+        except ImportError:
+            timeline_group = QGroupBox("Timeline")
+            timeline_layout = QVBoxLayout()
 
         # Frame controls
         frame_layout = QHBoxLayout()
@@ -483,7 +542,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         timeline_layout.addLayout(fps_layout)
 
-        timeline_group.setLayout(timeline_layout)
+        if not hasattr(timeline_group, "content_layout"):
+            timeline_group.setLayout(timeline_layout)
         layout.addWidget(timeline_group)
 
         # Add stretch to push everything to the top
@@ -494,156 +554,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.playback_timer.timeout.connect(self._on_playback_timer)
 
         return widget
-
-    def _create_timeline_tabs(self) -> QWidget:
-        """Create the timeline tabs widget at the bottom."""
-        from PySide6.QtWidgets import QScrollArea, QToolButton
-
-        # Container widget
-        container = QWidget()
-        container.setMaximumHeight(60)
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(5, 5, 5, 5)
-        layout.setSpacing(0)
-
-        # Scroll area for tabs
-        scroll_area = QScrollArea()
-        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        scroll_area.setWidgetResizable(False)
-
-        # Custom widget to hold the tabs with scrubbing support
-        class TimelineTabsWidget(QWidget):
-            def __init__(self, parent_window):
-                super().__init__()
-                self.parent_window = parent_window
-                self.is_scrubbing = False
-                self.last_scrub_frame = -1
-                self.setMouseTracking(True)  # Enable mouse tracking
-
-            def eventFilter(self, obj: QObject, event: Any) -> bool:
-                """Filter events from child QToolButton widgets."""
-                from PySide6.QtCore import QEvent
-
-                # Handle mouse events from child buttons
-                if isinstance(obj, QToolButton):
-                    if event.type() == QEvent.Type.MouseButtonPress:
-                        if event.button() == Qt.MouseButton.LeftButton:
-                            self.is_scrubbing = True
-                            self.last_scrub_frame = -1
-                            # Get button's frame number
-                            for i, tab in enumerate(self.parent_window.frame_tabs):
-                                if tab == obj:
-                                    frame = i + 1
-                                    if frame != self.last_scrub_frame:
-                                        self.last_scrub_frame = frame
-                                        self.parent_window.frame_spinbox.setValue(frame)
-                                    break
-                            return False  # Allow button to also handle the click
-
-                    elif event.type() == QEvent.Type.MouseMove:
-                        if self.is_scrubbing:
-                            # Find which button we're over
-                            global_pos = obj.mapToGlobal(event.pos())
-                            local_pos = self.mapFromGlobal(global_pos)
-
-                            for i, tab in enumerate(self.parent_window.frame_tabs):
-                                if tab.geometry().contains(local_pos):
-                                    frame = i + 1
-                                    if frame != self.last_scrub_frame:
-                                        self.last_scrub_frame = frame
-                                        self.parent_window.frame_spinbox.setValue(frame)
-                                    break
-                            return True  # Consume the event during scrubbing
-
-                    elif event.type() == QEvent.Type.MouseButtonRelease:
-                        if event.button() == Qt.MouseButton.LeftButton:
-                            self.is_scrubbing = False
-                            self.last_scrub_frame = -1
-                            return False
-
-                    elif event.type() == QEvent.Type.Enter and self.is_scrubbing:
-                        # Handle entering a button while scrubbing
-                        for i, tab in enumerate(self.parent_window.frame_tabs):
-                            if tab == obj:
-                                frame = i + 1
-                                if frame != self.last_scrub_frame:
-                                    self.last_scrub_frame = frame
-                                    self.parent_window.frame_spinbox.setValue(frame)
-                                break
-                        return False
-
-                return super().eventFilter(obj, event)
-
-        # Create the custom tabs widget
-        tabs_widget = TimelineTabsWidget(self)
-        tabs_layout = QHBoxLayout(tabs_widget)
-        tabs_layout.setContentsMargins(0, 0, 0, 0)
-        tabs_layout.setSpacing(2)
-
-        # Store tab buttons for easy access
-        self.frame_tabs = []
-
-        # Create initial tabs (will be updated when data is loaded)
-        for i in range(1, 38):  # Default to 37 frames for now
-            tab = QToolButton()
-            tab.setText(str(i))
-            tab.setCheckable(True)
-            tab.setMinimumSize(40, 40)
-            tab.setMaximumSize(40, 40)
-
-            # Style the tab
-            tab.setStyleSheet("""
-                QToolButton {
-                    background-color: #404040;
-                    border: 1px solid #606060;
-                    color: white;
-                    font-weight: bold;
-                }
-                QToolButton:hover {
-                    background-color: #505050;
-                }
-                QToolButton:checked {
-                    background-color: #00a0a0;
-                    border: 2px solid #00ffff;
-                }
-            """)
-
-            # Connect to frame change
-            tab.clicked.connect(lambda checked, frame=i: self._on_tab_clicked(frame))
-
-            # Install event filter for scrubbing support
-            tab.installEventFilter(tabs_widget)
-            tab.setMouseTracking(True)  # Enable mouse tracking on button
-
-            tabs_layout.addWidget(tab)
-            self.frame_tabs.append(tab)
-
-        # Add stretch to push tabs to the left
-        tabs_layout.addStretch()
-
-        # Set the tabs widget in the scroll area
-        scroll_area.setWidget(tabs_widget)
-
-        # Add scroll area to container
-        layout.addWidget(scroll_area)
-
-        # Highlight first tab by default
-        if self.frame_tabs:
-            self.frame_tabs[0].setChecked(True)
-
-        return container
-
-    @Slot(int)
-    def _on_tab_clicked(self, frame: int) -> None:
-        """Handle timeline tab click."""
-        logger.debug(f"[FRAME] Timeline tab clicked: frame {frame}")
-        # Update frame
-        self.frame_spinbox.setValue(frame)
-
-        # Update tab highlighting
-        for i, tab in enumerate(self.frame_tabs):
-            tab.setChecked(i == frame - 1)
 
     def _create_curve_view_container(self) -> QWidget:
         """Create the container for the curve view."""
@@ -676,9 +586,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Point Properties group
-        point_group = QGroupBox("Point Properties")
-        point_layout = QVBoxLayout()
+        # Point Properties group - use ModernCard if available
+        try:
+            from ui.modern_widgets import ModernCard
+
+            point_group = ModernCard("Point Properties")
+            point_layout = point_group.content_layout
+        except ImportError:
+            point_group = QGroupBox("Point Properties")
+            point_layout = QVBoxLayout()
 
         # Selected point info
         self.selected_point_label = QLabel("No point selected")
@@ -702,12 +618,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         point_layout.addLayout(pos_layout)
 
-        point_group.setLayout(point_layout)
+        if not hasattr(point_group, "content_layout"):
+            point_group.setLayout(point_layout)
         layout.addWidget(point_group)
 
-        # View Settings group
-        view_group = QGroupBox("View Settings")
-        view_layout = QVBoxLayout()
+        # View Settings group - use ModernCard if available
+        try:
+            from ui.modern_widgets import ModernCard
+
+            view_group = ModernCard("View Settings")
+            view_layout = view_group.content_layout
+        except ImportError:
+            view_group = QGroupBox("View Settings")
+            view_layout = QVBoxLayout()
 
         # Display options
         self.show_background_cb = QCheckBox("Show Background")
@@ -757,12 +680,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         view_layout.addLayout(line_layout)
 
-        view_group.setLayout(view_layout)
+        if not hasattr(view_group, "content_layout"):
+            view_group.setLayout(view_layout)
         layout.addWidget(view_group)
 
-        # Curve Info group
-        info_group = QGroupBox("Curve Information")
-        info_layout = QVBoxLayout()
+        # Curve Info group - use ModernCard if available
+        try:
+            from ui.modern_widgets import ModernCard
+
+            info_group = ModernCard("Curve Information")
+            info_layout = info_group.content_layout
+        except ImportError:
+            info_group = QGroupBox("Curve Information")
+            info_layout = QVBoxLayout()
 
         self.point_count_label = QLabel("Points: 0")
         info_layout.addWidget(self.point_count_label)
@@ -774,7 +704,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.bounds_label.setWordWrap(True)
         info_layout.addWidget(self.bounds_label)
 
-        info_group.setLayout(info_layout)
+        if not hasattr(info_group, "content_layout"):
+            info_group.setLayout(info_layout)
         layout.addWidget(info_group)
 
         # Add stretch
@@ -851,30 +782,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
-        # Timeline controls (left panel)
-        self.setTabOrder(self.frame_spinbox, self.fps_spinbox)
-        self.setTabOrder(self.fps_spinbox, self.btn_first_frame)
-        self.setTabOrder(self.btn_first_frame, self.btn_prev_frame)
-        self.setTabOrder(self.btn_prev_frame, self.btn_play_pause)
-        self.setTabOrder(self.btn_play_pause, self.btn_next_frame)
-        self.setTabOrder(self.btn_next_frame, self.btn_last_frame)
-
-        # Curve view widget (center)
-        if self.curve_widget:
-            self.setTabOrder(self.btn_last_frame, self.curve_widget)
-
-        # Properties panel (right side)
-        if self.curve_widget:
-            self.setTabOrder(self.curve_widget, self.point_x_spinbox)
-        else:
-            self.setTabOrder(self.btn_last_frame, self.point_x_spinbox)
-
-        self.setTabOrder(self.point_x_spinbox, self.point_y_spinbox)
-        self.setTabOrder(self.point_y_spinbox, self.show_background_cb)
+        # Only set tab order for widgets that are actually in the UI
+        # Toolbar controls
+        self.setTabOrder(self.frame_spinbox, self.show_background_cb)
         self.setTabOrder(self.show_background_cb, self.show_grid_cb)
         self.setTabOrder(self.show_grid_cb, self.show_info_cb)
-        self.setTabOrder(self.show_info_cb, self.point_size_slider)
-        self.setTabOrder(self.point_size_slider, self.line_width_slider)
+
+        # Curve view widget (main area)
+        if self.curve_widget:
+            self.setTabOrder(self.show_info_cb, self.curve_widget)
 
         logger.debug("Tab order configured for keyboard navigation")
 
@@ -931,11 +847,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager.current_frame = value
         logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
 
-        # Update timeline tabs highlighting
-        if hasattr(self, "frame_tabs"):
-            for i, tab in enumerate(self.frame_tabs):
-                tab.setChecked(i == value - 1)
-
         # Update background image if image sequence is loaded
         self._update_background_image_for_frame(value)
 
@@ -944,8 +855,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Invalidate caches to ensure proper repainting with new frame highlight
             self.curve_widget._invalidate_caches()
             self.curve_widget.update()
-            # Force immediate repaint
-            self.curve_widget.repaint()
 
     @Slot(int)
     def _on_slider_changed(self, value: int) -> None:
@@ -955,11 +864,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_spinbox.blockSignals(False)
         self.state_manager.current_frame = value
 
-        # Update timeline tabs highlighting
-        if hasattr(self, "frame_tabs"):
-            for i, tab in enumerate(self.frame_tabs):
-                tab.setChecked(i == value - 1)
-
         # Update background image if image sequence is loaded
         self._update_background_image_for_frame(value)
 
@@ -968,8 +872,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Invalidate caches to ensure proper repainting with new frame highlight
             self.curve_widget._invalidate_caches()
             self.curve_widget.update()
-            # Force immediate repaint
-            self.curve_widget.repaint()
 
     @Slot()
     def _on_first_frame(self) -> None:

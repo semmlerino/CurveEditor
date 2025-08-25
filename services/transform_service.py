@@ -452,7 +452,7 @@ class TransformService:
         """
         return Transform.from_view_state(view_state)
 
-    def create_transform(self, view_state: ViewState) -> Transform:
+    def create_transform_from_view_state(self, view_state: ViewState) -> Transform:
         """
         Create a Transform from a ViewState with caching.
 
@@ -466,6 +466,34 @@ class TransformService:
             Transform instance (potentially cached)
         """
         return self._create_transform_cached(view_state)
+
+    def create_transform(
+        self,
+        scale: float = 1.0,
+        center_offset: tuple[float, float] = (0.0, 0.0),
+        pan_offset: tuple[float, float] = (0.0, 0.0),
+        **kwargs,
+    ) -> Transform:
+        """
+        Create a Transform directly with parameters (convenience method for testing).
+
+        Args:
+            scale: Zoom scale factor
+            center_offset: (x, y) center offset
+            pan_offset: (x, y) pan offset
+            **kwargs: Additional Transform parameters
+
+        Returns:
+            Transform instance
+        """
+        return Transform(
+            scale=scale,
+            center_offset_x=center_offset[0],
+            center_offset_y=center_offset[1],
+            pan_offset_x=pan_offset[0],
+            pan_offset_y=pan_offset[1],
+            **kwargs,
+        )
 
     def clear_cache(self) -> None:
         """Clear the transform cache."""

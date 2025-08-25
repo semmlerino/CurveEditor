@@ -127,7 +127,7 @@ class TestServiceThreadSafety:
                     )
 
                     # Create transform (should use cache when appropriate)
-                    transform = service.create_transform(view_state)
+                    transform = service.create_transform_from_view_state(view_state)
                     transforms_created.append(id(transform))
 
                     # Occasionally clear cache

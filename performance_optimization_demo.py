@@ -77,7 +77,7 @@ def demo_transform_caching() -> None:
 
     start_time = time.time()
     for _ in range(num_iterations):
-        transform_service.create_transform(view_state)
+        transform_service.create_transform_from_view_state(view_state)
     cache_time = time.time() - start_time
 
     # Get cache statistics
@@ -93,7 +93,7 @@ def demo_transform_caching() -> None:
     print("\nCreating transforms after clearing cache...")
     start_time = time.time()
     for _ in range(100):  # Fewer iterations since no caching
-        transform_service.create_transform(view_state)
+        transform_service.create_transform_from_view_state(view_state)
     no_cache_time = time.time() - start_time
 
     print(f"Time without cache (100 iterations): {no_cache_time:.4f} seconds")
@@ -117,7 +117,7 @@ def demo_spatial_indexing() -> None:
     # Create transform for coordinate conversion
     transform_service = TransformService()
     view_state = ViewState(display_width=800, display_height=600, widget_width=800, widget_height=600)
-    transform = transform_service.create_transform(view_state)
+    transform = transform_service.create_transform_from_view_state(view_state)
 
     print(f"Testing with {num_points} points...")
 

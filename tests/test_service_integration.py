@@ -107,7 +107,7 @@ class TestCrossServiceCommunication:
         assert view_state.offset_x == 50.0
         assert view_state.offset_y == 100.0
 
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
         assert isinstance(transform, Transform)
 
         # Test data service can work with transforms
@@ -130,7 +130,7 @@ class TestCrossServiceCommunication:
 
         # Test interaction service can get current transform
         view_state = transform_service.create_view_state(mock_view)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         # Verify transform parameters match view state
         params = transform.get_parameters()
@@ -208,7 +208,7 @@ class TestCompleteWorkflows:
             )
 
             view_state = transform_service.create_view_state(mock_view)
-            transform = transform_service.create_transform(view_state)
+            transform = transform_service.create_transform_from_view_state(view_state)
 
             # 5. Verify data can be transformed for display
             for point in smoothed_data:
@@ -238,7 +238,7 @@ class TestCompleteWorkflows:
 
         # 2. Create transform for coordinate conversion
         view_state = transform_service.create_view_state(mock_view)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         # 3. Simulate point selection
         # Find a point at screen coordinates
@@ -369,7 +369,7 @@ class TestErrorHandlingIntegration:
 
         # Service should handle invalid values gracefully
         view_state = transform_service.create_view_state(mock_view)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         # Transform should still be created even with invalid input
         assert transform is not None
@@ -422,7 +422,7 @@ class TestServicePerformance:
         mock_view = ProtocolCompliantMockCurveView(points=many_points, zoom_factor=1.0, offset_x=0.0, offset_y=0.0)
 
         view_state = transform_service.create_view_state(mock_view)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         # Test batch transformations
         for point in many_points[:100]:  # Test subset for performance
@@ -506,7 +506,7 @@ class TestPerformanceBaselines:
 
         def create_and_transform():
             view_state = transform_service.create_view_state(mock_view)
-            transform = transform_service.create_transform(view_state)
+            transform = transform_service.create_transform_from_view_state(view_state)
             return transform.data_to_screen(100.0, 200.0)
 
         # Time transform creation and execution

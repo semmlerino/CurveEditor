@@ -434,7 +434,9 @@ class UIService:
 
         return menu
 
-    def show_filter_dialog(self, parent: QWidget, data: list, indices: list) -> tuple[list, list] | None:
+    def show_filter_dialog(
+        self, parent: QWidget, data: list[tuple[float, float, float]], indices: list[int]
+    ) -> tuple[list[tuple[float, float, float]], list[int]] | None:
         """Show dialog for filtering curve data.
 
         Args:
@@ -450,7 +452,9 @@ class UIService:
         self.show_info(parent, "Filter dialog not yet implemented")
         return None
 
-    def show_fill_gaps_dialog(self, parent: QWidget, data: list, gaps: list) -> list | None:
+    def show_fill_gaps_dialog(
+        self, parent: QWidget, data: list[tuple[float, float, float]], gaps: list[tuple[int, int]]
+    ) -> list[tuple[float, float, float]] | None:
         """Show dialog for filling gaps in curve data.
 
         Args:
@@ -466,7 +470,9 @@ class UIService:
         self.show_info(parent, "Fill gaps dialog not yet implemented")
         return None
 
-    def show_extrapolate_dialog(self, parent: QWidget, data: list) -> list | None:
+    def show_extrapolate_dialog(
+        self, parent: QWidget, data: list[tuple[float, float, float]]
+    ) -> list[tuple[float, float, float]] | None:
         """Show dialog for extrapolating curve data.
 
         Args:

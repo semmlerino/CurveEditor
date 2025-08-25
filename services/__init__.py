@@ -29,11 +29,19 @@ from services.transform_service import Transform, TransformService, ViewState
 from services.ui_service import UIService
 
 # Import new decomposed services (Sprint 8)
-if os.environ.get("USE_NEW_SERVICES", "false").lower() == "true":
+# Note: Always import these classes so they're available for the getters
+# The getters will check USE_NEW_SERVICES flag before instantiating
+try:
     from services.event_handler import EventHandlerService  # noqa: F401
     from services.history_service import HistoryService  # noqa: F401
     from services.point_manipulation import PointManipulationService  # noqa: F401
     from services.selection_service import SelectionService  # noqa: F401
+
+    _SPRINT8_SERVICES_AVAILABLE = True
+except ImportError as e:
+    _SPRINT8_SERVICES_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.debug(f"Sprint 8 services not available: {e}")
 
 # Feature flag for gradual migration to new services
 USE_NEW_SERVICES = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
@@ -127,11 +135,11 @@ def get_event_handler_service() -> Any:
     """Get the singleton EventHandlerService instance (thread-safe)."""
     global _event_handler_service
     if not USE_NEW_SERVICES:
-        raise RuntimeError("New services not enabled. Set USE_NEW_SERVICES=true")
+        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
+    if not _SPRINT8_SERVICES_AVAILABLE:
+        raise ImportError("Sprint 8 services not available")
     with _service_lock:
         if _event_handler_service is None:
-            from services.event_handler import EventHandlerService
-
             _event_handler_service = EventHandlerService()
     return _event_handler_service
 
@@ -140,11 +148,11 @@ def get_selection_service() -> Any:
     """Get the singleton SelectionService instance (thread-safe)."""
     global _selection_service
     if not USE_NEW_SERVICES:
-        raise RuntimeError("New services not enabled. Set USE_NEW_SERVICES=true")
+        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
+    if not _SPRINT8_SERVICES_AVAILABLE:
+        raise ImportError("Sprint 8 services not available")
     with _service_lock:
         if _selection_service is None:
-            from services.selection_service import SelectionService
-
             _selection_service = SelectionService()
     return _selection_service
 
@@ -153,11 +161,11 @@ def get_point_manipulation_service() -> Any:
     """Get the singleton PointManipulationService instance (thread-safe)."""
     global _point_manipulation_service
     if not USE_NEW_SERVICES:
-        raise RuntimeError("New services not enabled. Set USE_NEW_SERVICES=true")
+        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
+    if not _SPRINT8_SERVICES_AVAILABLE:
+        raise ImportError("Sprint 8 services not available")
     with _service_lock:
         if _point_manipulation_service is None:
-            from services.point_manipulation import PointManipulationService
-
             _point_manipulation_service = PointManipulationService()
     return _point_manipulation_service
 
@@ -168,10 +176,10 @@ def get_history_service() -> Any:
     if not USE_NEW_SERVICES:
         # Fall back to InteractionService for backward compatibility
         return get_interaction_service()
+    if not _SPRINT8_SERVICES_AVAILABLE:
+        raise ImportError("Sprint 8 services not available")
     with _service_lock:
         if _history_service is None:
-            from services.history_service import HistoryService
-
             _history_service = HistoryService()
     return _history_service
 

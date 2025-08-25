@@ -59,6 +59,11 @@ class TestCurveView:
         self.image_height: int = 1080
         self.background_image: Any = None
 
+        # Image sequence properties
+        self.image_sequence_path: str = ""
+        self.image_filenames: list[str] = []
+        self.current_image_idx: int = 0
+
         # Interaction tracking
         self._update_called: bool = False
 

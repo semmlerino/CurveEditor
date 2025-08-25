@@ -10,7 +10,6 @@ These classes are critical for mapping between data space and screen space coord
 import math
 import os
 import sys
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -18,27 +17,49 @@ import pytest
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 # Import classes directly to avoid service initialization issues
+from PySide6.QtCore import QPointF
+
 from services.transform_service import Transform, TransformService, ViewState
-
-# Try to use PySide6 but fall back to mock if not available
-try:
-    from PySide6.QtCore import QPointF
-except ImportError:
-    # Create a mock QPointF class if PySide6 isn't available
-    class QPointF:
-        def __init__(self, x: float = 0.0, y: float = 0.0):
-            self._x = x
-            self._y = y
-
-        def x(self) -> float:
-            return self._x
-
-        def y(self) -> float:
-            return self._y
 
 
 class TestViewState:
     """Test suite for ViewState class."""
+
+    def _create_curve_view(self, qtbot, **overrides):
+        """Factory method to create curve view with custom properties."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+
+        # Set default test properties
+        defaults = {
+            "width": 800,
+            "height": 600,
+            "image_width": 1920,
+            "image_height": 1080,
+            "zoom_factor": 1.0,
+            "pan_offset_x": 0.0,
+            "pan_offset_y": 0.0,
+            "scale_to_image": True,
+            "flip_y_axis": False,
+            "manual_offset_x": 0.0,
+            "manual_offset_y": 0.0,
+            "background_image": None,
+        }
+
+        # Apply defaults and overrides
+        config = {**defaults, **overrides}
+
+        # Set widget size
+        curve_view.resize(config["width"], config["height"])
+
+        # Set properties
+        for key, value in config.items():
+            if key not in ["width", "height"]:
+                setattr(curve_view, key, value)
+
+        return curve_view
 
     @pytest.fixture
     def basic_view_state(self) -> ViewState:
@@ -142,23 +163,26 @@ class TestViewState:
         assert state_dict["manual_offset"] == (25.0, 30.0)
         assert state_dict["has_background_image"] is False
 
-    def test_view_state_from_curve_view(self) -> None:
-        """Test creating ViewState from a CurveView mock."""
-        mock_curve_view = MagicMock()
-        mock_curve_view.width.return_value = 800
-        mock_curve_view.height.return_value = 600
-        mock_curve_view.image_width = 1920
-        mock_curve_view.image_height = 1080
-        mock_curve_view.zoom_factor = 1.5
-        mock_curve_view.offset_x = 75.0
-        mock_curve_view.offset_y = 25.0
-        mock_curve_view.scale_to_image = True
-        mock_curve_view.flip_y_axis = False
-        mock_curve_view.x_offset = 10.0
-        mock_curve_view.y_offset = 15.0
-        mock_curve_view.background_image = None
+    def test_view_state_from_curve_view_legacy(self, qtbot) -> None:
+        """Test creating ViewState from a real CurveView widget (legacy test converted)."""
+        # Create a real curve view with specific test configuration
+        curve_view = self._create_curve_view(
+            qtbot,
+            width=800,
+            height=600,
+            image_width=1920,
+            image_height=1080,
+            zoom_factor=1.5,
+            pan_offset_x=75.0,
+            pan_offset_y=25.0,
+            scale_to_image=True,
+            flip_y_axis=False,
+            manual_offset_x=10.0,
+            manual_offset_y=15.0,
+            background_image=None,
+        )
 
-        view_state = ViewState.from_curve_view(mock_curve_view)
+        view_state = ViewState.from_curve_view(curve_view)
 
         assert view_state.widget_width == 800
         assert view_state.widget_height == 600
@@ -173,20 +197,20 @@ class TestViewState:
         assert view_state.manual_y_offset == 15.0
         assert view_state.background_image is None
 
-    def test_view_state_from_curve_view_with_background_image(self) -> None:
-        """Test creating ViewState from CurveView with background image."""
-        mock_curve_view = MagicMock()
-        mock_curve_view.width.return_value = 800
-        mock_curve_view.height.return_value = 600
-        mock_curve_view.image_width = 1920
-        mock_curve_view.image_height = 1080
+    def test_view_state_from_curve_view_with_background_image(self, qtbot) -> None:
+        """Test creating ViewState from CurveView with real background image."""
+        from PySide6.QtGui import QColor, QImage
 
-        mock_background = MagicMock()
-        mock_background.width.return_value = 2560
-        mock_background.height.return_value = 1440
-        mock_curve_view.background_image = mock_background
+        # Create a real test background image
+        background_image = QImage(2560, 1440, QImage.Format.Format_RGB32)
+        background_image.fill(QColor(128, 128, 128))  # Fill with gray
 
-        view_state = ViewState.from_curve_view(mock_curve_view)
+        # Create curve view with real background image
+        curve_view = self._create_curve_view(
+            qtbot, width=800, height=600, image_width=1920, image_height=1080, background_image=background_image
+        )
+
+        view_state = ViewState.from_curve_view(curve_view)
 
         # Display dimensions should match background image
         assert view_state.display_width == 2560
@@ -194,7 +218,8 @@ class TestViewState:
         # Image dimensions remain unchanged
         assert view_state.image_width == 1920
         assert view_state.image_height == 1080
-        assert view_state.background_image is mock_background
+        # Background image should be preserved
+        assert view_state.background_image is background_image
 
     @pytest.mark.parametrize(
         "width,height",
@@ -587,22 +612,45 @@ class TestTransformService:
         get_transform_service().clear_cache()
 
     @pytest.fixture
-    def mock_curve_view(self) -> MagicMock:
-        """Create a mock CurveView for testing."""
-        mock = MagicMock()
-        mock.width.return_value = 800
-        mock.height.return_value = 600
-        mock.image_width = 1920
-        mock.image_height = 1080
-        mock.zoom_factor = 1.0
-        mock.offset_x = 0.0
-        mock.offset_y = 0.0
-        mock.scale_to_image = True
-        mock.flip_y_axis = False
-        mock.x_offset = 0.0
-        mock.y_offset = 0.0
-        mock.background_image = None
-        return mock
+    def real_curve_view(self, qtbot):
+        """Create a real CurveViewWidget for testing transformations."""
+        return self._create_curve_view(qtbot)
+
+    def _create_curve_view(self, qtbot, **overrides):
+        """Factory method to create curve view with custom properties."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+
+        # Set default test properties
+        defaults = {
+            "width": 800,
+            "height": 600,
+            "image_width": 1920,
+            "image_height": 1080,
+            "zoom_factor": 1.0,
+            "pan_offset_x": 0.0,
+            "pan_offset_y": 0.0,
+            "scale_to_image": True,
+            "flip_y_axis": False,
+            "manual_offset_x": 0.0,
+            "manual_offset_y": 0.0,
+            "background_image": None,
+        }
+
+        # Apply defaults and overrides
+        config = {**defaults, **overrides}
+
+        # Set widget size
+        curve_view.resize(config["width"], config["height"])
+
+        # Set properties
+        for key, value in config.items():
+            if key not in ["width", "height"]:
+                setattr(curve_view, key, value)
+
+        return curve_view
 
     def test_service_creation(self) -> None:
         """Test that TransformService can be created."""
@@ -611,9 +659,9 @@ class TestTransformService:
         assert hasattr(service, "_create_transform_cached")
         assert hasattr(service, "get_cache_info")
 
-    def test_create_view_state(self, transform_service: TransformService, mock_curve_view: MagicMock) -> None:
-        """Test creating ViewState from CurveView."""
-        view_state = transform_service.create_view_state(mock_curve_view)
+    def test_create_view_state(self, transform_service: TransformService, real_curve_view, qtbot) -> None:
+        """Test creating ViewState from CurveView using real Qt widget."""
+        view_state = transform_service.create_view_state(real_curve_view)
 
         assert isinstance(view_state, ViewState)
         assert view_state.widget_width == 800
@@ -625,7 +673,7 @@ class TestTransformService:
         """Test creating Transform from ViewState."""
         view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
 
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         assert isinstance(transform, Transform)
         assert transform.scale == 1.0
@@ -635,8 +683,8 @@ class TestTransformService:
         view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
 
         # Create transform twice with same ViewState
-        transform1 = transform_service.create_transform(view_state)
-        transform2 = transform_service.create_transform(view_state)
+        transform1 = transform_service.create_transform_from_view_state(view_state)
+        transform2 = transform_service.create_transform_from_view_state(view_state)
 
         # Should return the same cached instance
         assert transform1 is transform2
@@ -653,8 +701,8 @@ class TestTransformService:
             zoom_factor=2.0,  # Different parameter
         )
 
-        transform1 = transform_service.create_transform(view_state1)
-        transform2 = transform_service.create_transform(view_state2)
+        transform1 = transform_service.create_transform_from_view_state(view_state1)
+        transform2 = transform_service.create_transform_from_view_state(view_state2)
 
         # Should be different instances
         assert transform1 is not transform2
@@ -672,7 +720,7 @@ class TestTransformService:
                 widget_height=600,
                 zoom_factor=1.0 + i * 0.01,  # Make each unique
             )
-            transforms.append(transform_service.create_transform(view_state))
+            transforms.append(transform_service.create_transform_from_view_state(view_state))
 
         # Cache should not exceed max size
         cache_info = transform_service.get_cache_info()
@@ -683,7 +731,7 @@ class TestTransformService:
         view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
 
         # Create a transform to populate cache
-        transform_service.create_transform(view_state)
+        transform_service.create_transform_from_view_state(view_state)
         cache_info = transform_service.get_cache_info()
         assert cache_info["current_size"] > 0
 
@@ -695,7 +743,7 @@ class TestTransformService:
     def test_transform_point_to_screen(self, transform_service: TransformService) -> None:
         """Test transforming points to screen coordinates."""
         view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         screen_x, screen_y = transform_service.transform_point_to_screen(transform, 100.0, 200.0)
 
@@ -707,7 +755,7 @@ class TestTransformService:
     def test_transform_point_to_data(self, transform_service: TransformService) -> None:
         """Test transforming points to data coordinates."""
         view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
         data_x, data_y = transform_service.transform_point_to_data(transform, 100.0, 200.0)
 
@@ -742,6 +790,42 @@ class TestTransformService:
 class TestTransformServiceIntegration:
     """Integration tests for TransformService with real-world scenarios."""
 
+    def _create_curve_view(self, qtbot, **overrides):
+        """Factory method to create curve view with custom properties."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+
+        # Set default test properties
+        defaults = {
+            "width": 800,
+            "height": 600,
+            "image_width": 1920,
+            "image_height": 1080,
+            "zoom_factor": 1.0,
+            "pan_offset_x": 0.0,
+            "pan_offset_y": 0.0,
+            "scale_to_image": True,
+            "flip_y_axis": False,
+            "manual_offset_x": 0.0,
+            "manual_offset_y": 0.0,
+            "background_image": None,
+        }
+
+        # Apply defaults and overrides
+        config = {**defaults, **overrides}
+
+        # Set widget size
+        curve_view.resize(config["width"], config["height"])
+
+        # Set properties
+        for key, value in config.items():
+            if key not in ["width", "height"]:
+                setattr(curve_view, key, value)
+
+        return curve_view
+
     @pytest.fixture
     def service(self) -> TransformService:
         """Create a fresh TransformService for integration tests."""
@@ -749,30 +833,32 @@ class TestTransformServiceIntegration:
         service.clear_cache()
         return service
 
-    def test_full_workflow_basic(self, service: TransformService) -> None:
+    def test_full_workflow_basic(self, service: TransformService, qtbot) -> None:
         """Test full workflow: CurveView -> ViewState -> Transform -> Coordinates."""
-        # Mock a typical CurveView
-        mock_curve_view = MagicMock()
-        mock_curve_view.width.return_value = 1200
-        mock_curve_view.height.return_value = 800
-        mock_curve_view.image_width = 1920
-        mock_curve_view.image_height = 1080
-        mock_curve_view.zoom_factor = 1.5
-        mock_curve_view.offset_x = 100.0
-        mock_curve_view.offset_y = 50.0
-        mock_curve_view.scale_to_image = True
-        mock_curve_view.flip_y_axis = False
-        mock_curve_view.x_offset = 25.0
-        mock_curve_view.y_offset = 30.0
-        mock_curve_view.background_image = None
+        # Create a real CurveView with test configuration
+        curve_view = self._create_curve_view(
+            qtbot,
+            width=1200,
+            height=800,
+            image_width=1920,
+            image_height=1080,
+            zoom_factor=1.5,
+            pan_offset_x=100.0,
+            pan_offset_y=50.0,
+            scale_to_image=True,
+            flip_y_axis=False,
+            manual_offset_x=25.0,
+            manual_offset_y=30.0,
+            background_image=None,
+        )
 
-        # Create ViewState from CurveView
-        view_state = service.create_view_state(mock_curve_view)
+        # Create ViewState from real CurveView
+        view_state = service.create_view_state(curve_view)
         assert view_state.widget_width == 1200
         assert view_state.zoom_factor == 1.5
 
         # Create Transform from ViewState
-        transform = service.create_transform(view_state)
+        transform = service.create_transform_from_view_state(view_state)
         assert transform.scale == 1.5
 
         # Test coordinate transformation
@@ -784,31 +870,34 @@ class TestTransformServiceIntegration:
         assert result_x == pytest.approx(data_x, abs=1e-10)
         assert result_y == pytest.approx(data_y, abs=1e-10)
 
-    def test_full_workflow_with_background_image(self, service: TransformService) -> None:
+    def test_full_workflow_with_background_image(self, service: TransformService, qtbot) -> None:
         """Test workflow with background image affecting display dimensions."""
-        # Mock CurveView with background image
-        mock_curve_view = MagicMock()
-        mock_curve_view.width.return_value = 1200
-        mock_curve_view.height.return_value = 800
-        mock_curve_view.image_width = 1920
-        mock_curve_view.image_height = 1080
+        from PySide6.QtGui import QColor, QImage
 
-        mock_background = MagicMock()
-        mock_background.width.return_value = 2560
-        mock_background.height.return_value = 1440
-        mock_curve_view.background_image = mock_background
+        # Create a real test background image
+        background_image = QImage(2560, 1440, QImage.Format.Format_RGB32)
+        background_image.fill(QColor(128, 128, 128))  # Fill with gray
 
-        mock_curve_view.zoom_factor = 0.8
-        mock_curve_view.offset_x = 0.0
-        mock_curve_view.offset_y = 0.0
-        mock_curve_view.scale_to_image = True
-        mock_curve_view.flip_y_axis = True
-        mock_curve_view.x_offset = 0.0
-        mock_curve_view.y_offset = 0.0
+        # Create CurveView with real background image
+        curve_view = self._create_curve_view(
+            qtbot,
+            width=1200,
+            height=800,
+            image_width=1920,
+            image_height=1080,
+            background_image=background_image,
+            zoom_factor=0.8,
+            pan_offset_x=0.0,
+            pan_offset_y=0.0,
+            scale_to_image=True,
+            flip_y_axis=True,
+            manual_offset_x=0.0,
+            manual_offset_y=0.0,
+        )
 
-        # Create transform and test
-        view_state = service.create_view_state(mock_curve_view)
-        transform = service.create_transform(view_state)
+        # Create transform and test with real components
+        view_state = service.create_view_state(curve_view)
+        transform = service.create_transform_from_view_state(view_state)
 
         # Display dimensions should match background image
         assert view_state.display_width == 2560
@@ -829,7 +918,7 @@ class TestTransformServiceIntegration:
         view_state = ViewState(
             display_width=1920, display_height=1080, widget_width=800, widget_height=600, zoom_factor=1.2
         )
-        transform = service.create_transform(view_state)
+        transform = service.create_transform_from_view_state(view_state)
 
         # Test with 10,000 coordinate pairs
         import time
@@ -856,7 +945,7 @@ class TestTransformServiceIntegration:
         view_state = ViewState(
             display_width=1920, display_height=1080, widget_width=800, widget_height=600, zoom_factor=zoom_factor
         )
-        transform = service.create_transform(view_state)
+        transform = service.create_transform_from_view_state(view_state)
 
         # Test multiple coordinate pairs
         test_coords = [(0.0, 0.0), (100.0, 200.0), (-50.0, -100.0), (1000.0, 2000.0)]
@@ -885,7 +974,7 @@ class TestTransformServiceIntegration:
                         widget_height=600,
                         zoom_factor=1.0 + worker_id * 0.1 + i * 0.001,
                     )
-                    transform = service.create_transform(view_state)
+                    transform = service.create_transform_from_view_state(view_state)
 
                     data_x, data_y = float(worker_id * 100 + i), float(worker_id * 200 + i)
                     screen_x, screen_y = service.transform_point_to_screen(transform, data_x, data_y)

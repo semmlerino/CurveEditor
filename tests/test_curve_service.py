@@ -124,7 +124,7 @@ class TestCurveService(unittest.TestCase):
 
         # Create real transform to understand actual coordinate mapping
         view_state = transform_service.create_view_state(self.mock_curve_view)
-        real_transform = transform_service.create_transform(view_state)
+        real_transform = transform_service.create_transform_from_view_state(view_state)
 
         # Override the mock's get_current_transform to return the real transform
         self.mock_curve_view.get_current_transform = lambda: real_transform
@@ -185,7 +185,7 @@ class TestCurveService(unittest.TestCase):
 
         # Get actual transformed coordinates for point 1 (150, 250)
         view_state = transform_service.create_view_state(self.mock_curve_view)
-        real_transform = transform_service.create_transform(view_state)
+        real_transform = transform_service.create_transform_from_view_state(view_state)
 
         # Override the mock's get_current_transform to return the real transform
         self.mock_curve_view.get_current_transform = lambda: real_transform
@@ -229,12 +229,58 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.zoom_factor = 1.0  # This would be set by ZoomOperations
         self.assertTrue(self.mock_curve_view.update_called)
 
-    @unittest.skip("nudge_selected_points method not yet implemented in consolidated services")
     def test_nudge_selected_points(self) -> None:
         """Test nudging selected points."""
-        # This functionality has been consolidated but not yet fully implemented
-        # TODO: Implement nudge functionality in InteractionService
-        pass
+        # Arrange
+        self.mock_curve_view.selected_points = {0, 1}  # Select first two points
+        initial_point_0 = self.mock_curve_view.curve_data[0]
+        initial_point_1 = self.mock_curve_view.curve_data[1]
+
+        # Act
+        dx, dy = 5.0, 10.0
+        result = self.interaction_service.nudge_selected_points(self.mock_curve_view, self.mock_main_window, dx, dy)
+
+        # Assert
+        self.assertTrue(result)
+
+        # Check that selected points were moved by the delta
+        moved_point_0 = self.mock_curve_view.curve_data[0]
+        moved_point_1 = self.mock_curve_view.curve_data[1]
+
+        # Point 0: (1, 100, 200, "keyframe") -> (1, 105, 210, "keyframe")
+        self.assertEqual(moved_point_0[0], initial_point_0[0])  # Frame unchanged
+        self.assertEqual(moved_point_0[1], initial_point_0[1] + dx)  # X moved
+        self.assertEqual(moved_point_0[2], initial_point_0[2] + dy)  # Y moved
+        self.assertEqual(moved_point_0[3], initial_point_0[3])  # Status unchanged
+
+        # Point 1: (2, 150, 250, "keyframe") -> (2, 155, 260, "keyframe")
+        self.assertEqual(moved_point_1[0], initial_point_1[0])  # Frame unchanged
+        self.assertEqual(moved_point_1[1], initial_point_1[1] + dx)  # X moved
+        self.assertEqual(moved_point_1[2], initial_point_1[2] + dy)  # Y moved
+        self.assertEqual(moved_point_1[3], initial_point_1[3])  # Status unchanged
+
+        # Point 2 should be unchanged (not selected)
+        unchanged_point_2 = self.mock_curve_view.curve_data[2]
+        self.assertEqual(unchanged_point_2, (3, 200, 300, "keyframe"))
+
+        # Verify update was called
+        self.assertTrue(self.mock_curve_view.update_called)
+
+    def test_nudge_selected_points_no_selection(self) -> None:
+        """Test nudging when no points are selected."""
+        # Arrange
+        self.mock_curve_view.selected_points = set()  # No selection
+
+        # Act
+        result = self.interaction_service.nudge_selected_points(self.mock_curve_view, self.mock_main_window, 5.0, 10.0)
+
+        # Assert
+        self.assertFalse(result)
+
+        # Verify no points were modified
+        self.assertEqual(self.mock_curve_view.curve_data[0], (1, 100, 200, "keyframe"))
+        self.assertEqual(self.mock_curve_view.curve_data[1], (2, 150, 250, "keyframe"))
+        self.assertEqual(self.mock_curve_view.curve_data[2], (3, 200, 300, "keyframe"))
 
 
 if __name__ == "__main__":

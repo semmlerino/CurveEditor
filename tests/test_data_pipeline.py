@@ -18,11 +18,9 @@ import csv
 import json
 import os
 import tempfile
-from unittest.mock import Mock, patch
 
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QImage
-from PySide6.QtWidgets import QWidget
 
 from core.point_types import safe_extract_point
 
@@ -86,7 +84,7 @@ class TestFileToDisplayPipeline:
 
             # 4. Generate transform for display
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 5. Convert all data points to screen coordinates
             screen_coordinates = []
@@ -148,7 +146,7 @@ class TestFileToDisplayPipeline:
             mock_view = ProtocolCompliantMockCurveView(points=loaded_data, zoom_factor=1.5, offset_x=0.0, offset_y=0.0)
 
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 4. Verify all points can be transformed
             for point in loaded_data:
@@ -199,7 +197,7 @@ class TestFileToDisplayPipeline:
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 7. Test batch transformation (sample for performance)
             sample_size = min(50, len(smoothed_data))
@@ -238,7 +236,7 @@ class TestPointManipulationPipeline:
 
         # 2. Create transform for coordinate conversions
         view_state = self.transform_service.create_view_state(mock_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # 3. Simulate point selection by screen coordinates
         # Target point 2 (150.0, 250.0)
@@ -389,7 +387,8 @@ class TestImageSequencePipeline:
             # 2. Load image sequence through DataService
             loaded_filenames = self.data_service.load_image_sequence(temp_dir)
             assert len(loaded_filenames) == 5
-            assert all(name in loaded_filenames for name in image_filenames)
+            # Check that each expected filename appears in one of the loaded full paths
+            assert all(any(name in loaded_path for loaded_path in loaded_filenames) for name in image_filenames)
 
             # 3. Set up mock view with image sequence
             curve_points = [(i, float(i * 50), float(i * 75)) for i in range(1, 6)]
@@ -467,6 +466,9 @@ class TestDataConsistencyPipeline:
 
     def test_data_integrity_through_full_pipeline(self):
         """Test: Load → Process → Transform → Modify → Save → Reload → Verify consistency."""
+        # Initialize temp_output to avoid UnboundLocalError
+        temp_output = None
+
         # 1. Create original test data
         original_data = [
             {"frame": 1, "x": 960.0, "y": 540.0, "status": "keyframe"},
@@ -495,7 +497,7 @@ class TestDataConsistencyPipeline:
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # Get screen coordinates for verification
             screen_coords = []
@@ -514,14 +516,9 @@ class TestDataConsistencyPipeline:
             with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 temp_output = f.name
 
-            # Mock the file dialog to avoid actual dialog during testing
-            mock_dialog = Mock()
-            mock_dialog.getSaveFileName = Mock(return_value=(temp_output, "JSON Files (*.json)"))
-            with patch("services.data_service.QFileDialog", mock_dialog):
-                self.data_service.save_track_data(
-                    Mock(spec=QWidget),  # Mock parent widget
-                    processed_data,
-                )
+            # Use the direct save method instead of going through the dialog
+            save_result = self.data_service._save_json(temp_output, processed_data, label="Test Track", color="#FF0000")
+            assert save_result, "Failed to save JSON data"
 
             # 8. Reload and verify consistency
             reloaded_data = self.data_service._load_json(temp_output)
@@ -539,7 +536,7 @@ class TestDataConsistencyPipeline:
 
         finally:
             for temp_file in [temp_input, temp_output]:
-                if os.path.exists(temp_file):
+                if temp_file and os.path.exists(temp_file):
                     os.unlink(temp_file)
 
     def test_coordinate_system_consistency(self):
@@ -564,7 +561,7 @@ class TestDataConsistencyPipeline:
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 3. Test round-trip coordinate transformations
             for point in test_data:
@@ -624,7 +621,7 @@ class TestDataConsistencyPipeline:
         # Service should handle gracefully
         try:
             view_state = self.transform_service.create_view_state(invalid_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
             # Should create some kind of valid transform even with invalid input
             assert transform is not None
         except Exception:

@@ -110,11 +110,11 @@ class ModernizedMainWindow(MainWindow):
 
                 /* Enhanced timeline tabs */
                 QToolButton {
-                    transition: all 0.2s ease;
+                    /* Transition effect handled by animations */
                 }
 
                 QToolButton:hover {
-                    transform: translateY(-2px);
+                    margin-top: -2px;
                 }
             """
             )
@@ -166,8 +166,8 @@ class ModernizedMainWindow(MainWindow):
                 background: {colors['bg_elevated']};
             }}
             CurveViewWidget:focus {{
-                border-color: {colors['accent_primary']};
-                box-shadow: 0 0 0 3px {colors['selection']};
+                border: 2px solid {colors['accent_primary']};
+                /* Shadow effect handled by QGraphicsDropShadowEffect */
             }}
         """)
 
@@ -201,10 +201,12 @@ class ModernizedMainWindow(MainWindow):
         self.fade_animations = {}
 
         # Setup opacity effects for smooth transitions
-        for widget_name in ["timeline_widget", "properties_widget", "curve_container"]:
+        # Only animate the curve container (side panels removed)
+        for widget_name in ["curve_container"]:
             widget = getattr(self, widget_name, None)
-            if widget:
+            if widget and isinstance(widget, QWidget):
                 opacity_effect = QGraphicsOpacityEffect()
+                opacity_effect.setOpacity(1.0)  # Set initial opacity
                 widget.setGraphicsEffect(opacity_effect)
 
                 fade_anim = QPropertyAnimation(opacity_effect, b"opacity")
@@ -241,6 +243,10 @@ class ModernizedMainWindow(MainWindow):
                 font-weight: bold;
             }
         """)
+        hint.setToolTip(description)
+        # Store reference to target widget for positioning
+        hint.setProperty("target_widget", target_widget)
+        hint.setProperty("description", description)
         hint.hide()
         hint.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         return hint
@@ -273,6 +279,15 @@ class ModernizedMainWindow(MainWindow):
             toolbar.addAction(theme_action)
             self.theme_action = theme_action
 
+            # Add performance mode toggle
+            perf_action = QAction("🚀 Performance Mode", self)
+            perf_action.setCheckable(True)
+            perf_action.setToolTip("Toggle performance mode (Ctrl+P)")
+            perf_action.setShortcut(QKeySequence("Ctrl+P"))
+            perf_action.triggered.connect(self._toggle_performance_mode)
+            toolbar.addAction(perf_action)
+            self.perf_action = perf_action
+
     def _enhance_timeline(self):
         """Enhance the timeline with modern styling and animations."""
         if hasattr(self, "frame_tabs") and self.frame_tabs:
@@ -290,12 +305,12 @@ class ModernizedMainWindow(MainWindow):
                         font-weight: 600;
                         min-width: 44px;
                         min-height: 44px;
-                        transition: all 0.2s ease;
+                        /* Transition effect handled by animations */
                     }}
                     QToolButton:hover {{
                         background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                             stop:0 {colors['bg_hover']}, stop:1 {colors['bg_selected']});
-                        transform: translateY(-2px);
+                        margin-top: -2px;
                         border-color: {colors['accent_primary']};
                     }}
                     QToolButton:checked {{
@@ -303,7 +318,7 @@ class ModernizedMainWindow(MainWindow):
                             stop:0 {colors['accent_primary']}, stop:1 {colors['button_primary_hover']});
                         border: 2px solid {colors['accent_primary']};
                         color: white;
-                        box-shadow: 0 0 10px {colors['selection']};
+                        /* Glow effect handled programmatically */
                     }}
                 """)
 
@@ -313,7 +328,11 @@ class ModernizedMainWindow(MainWindow):
 
     def _add_pulse_animation(self, widget: QWidget):
         """Add subtle pulse animation to widget."""
+        if not widget or not isinstance(widget, QWidget):
+            return
+
         opacity_effect = QGraphicsOpacityEffect()
+        opacity_effect.setOpacity(1.0)  # Set initial opacity
         widget.setGraphicsEffect(opacity_effect)
 
         pulse_anim = QPropertyAnimation(opacity_effect, b"opacity")
@@ -323,8 +342,13 @@ class ModernizedMainWindow(MainWindow):
         pulse_anim.setEndValue(1.0)
         pulse_anim.setLoopCount(-1)  # Infinite loop
         pulse_anim.setEasingCurve(QEasingCurve.Type.InOutSine)
-        pulse_anim.start()
 
+        # Store animation reference to prevent garbage collection
+        if not hasattr(self, "_pulse_animations"):
+            self._pulse_animations = []
+        self._pulse_animations.append(pulse_anim)
+
+        pulse_anim.start()
         widget.setProperty("pulse_animation", pulse_anim)
 
     def _add_welcome_animation(self):
@@ -336,8 +360,8 @@ class ModernizedMainWindow(MainWindow):
             toast.move(self.width() - toast.width() - 20, 60)
             toast.show_toast()
 
-            # Animate main panels with fade-in
-            for widget_name in ["timeline_widget", "curve_container", "properties_widget"]:
+            # Animate main panel with fade-in (only curve container now)
+            for widget_name in ["curve_container"]:
                 widget = getattr(self, widget_name, None)
                 if widget and widget in self.fade_animations:
                     fade_anim = self.fade_animations[widget]
@@ -385,6 +409,52 @@ class ModernizedMainWindow(MainWindow):
         toast.move(self.width() - toast.width() - 20, 60)
         toast.show_toast()
 
+    @Slot(bool)
+    def _toggle_performance_mode(self, enabled: bool):
+        """Toggle performance mode for better responsiveness.
+
+        Args:
+            enabled: True to enable performance mode
+        """
+        if enabled:
+            # Disable expensive visual effects
+            self.animations_enabled = False
+
+            # Disable graphics effects on widgets
+            for widget in self.findChildren(QWidget):
+                if widget.graphicsEffect():
+                    widget.graphicsEffect().setEnabled(False)
+
+            # Stop all animations
+            for widget, anim in self.fade_animations.items():
+                anim.stop()
+
+            # Use faster rendering in curve widget if available
+            if hasattr(self, "curve_widget") and self.curve_widget:
+                if hasattr(self.curve_widget, "renderer"):
+                    from rendering.optimized_curve_renderer import RenderQuality
+
+                    self.curve_widget.renderer.set_render_quality(RenderQuality.DRAFT)
+
+            self._show_notification("Performance mode enabled - animations disabled", "success", 2000)
+        else:
+            # Re-enable visual effects
+            self.animations_enabled = True
+
+            # Re-enable graphics effects
+            for widget in self.findChildren(QWidget):
+                if widget.graphicsEffect():
+                    widget.graphicsEffect().setEnabled(True)
+
+            # Restore normal rendering
+            if hasattr(self, "curve_widget") and self.curve_widget:
+                if hasattr(self.curve_widget, "renderer"):
+                    from rendering.optimized_curve_renderer import RenderQuality
+
+                    self.curve_widget.renderer.set_render_quality(RenderQuality.NORMAL)
+
+            self._show_notification("Performance mode disabled - animations enabled", "info", 2000)
+
     def toggle_keyboard_hints(self):
         """Toggle visibility of keyboard hints."""
         self.keyboard_hints_visible = not self.keyboard_hints_visible
@@ -405,10 +475,24 @@ class ModernizedMainWindow(MainWindow):
         """Position keyboard hint near its target widget."""
         target_widget = hint.property("target_widget")
         if target_widget and target_widget.isVisible():
-            # Position hint at top-right of target widget
-            global_pos = target_widget.mapToGlobal(target_widget.rect().topRight())
-            local_pos = self.mapFromGlobal(global_pos)
-            hint.move(local_pos.x() + 5, local_pos.y() - hint.height())
+            # Get target widget's geometry
+            target_rect = target_widget.rect()
+
+            # Map to main window coordinates
+            if target_widget.parent():
+                pos = target_widget.mapTo(self, target_rect.topRight())
+            else:
+                pos = target_widget.pos() + target_rect.topRight()
+
+            # Position hint at top-right corner, slightly offset
+            hint_x = pos.x() - hint.width() - 5
+            hint_y = pos.y() - hint.height() + 5
+
+            # Ensure hint stays within window bounds
+            hint_x = max(5, min(hint_x, self.width() - hint.width() - 5))
+            hint_y = max(5, hint_y)
+
+            hint.move(hint_x, hint_y)
             hint.raise_()  # Ensure hint is on top
 
     def keyPressEvent(self, event):
@@ -428,12 +512,44 @@ class ModernizedMainWindow(MainWindow):
         # Call parent key press handler
         super().keyPressEvent(event)
 
+    def resizeEvent(self, event):
+        """Handle window resize events."""
+        super().resizeEvent(event)
+
+        # Reposition keyboard hints if they're visible
+        if self.keyboard_hints_visible:
+            for hint in self.keyboard_hints:
+                self._position_keyboard_hint(hint)
+
+        # Reposition loading indicators
+        if hasattr(self, "loading_spinner"):
+            self.loading_spinner.move(self.width() // 2 - 20, self.height() // 2 - 20)
+
+        if hasattr(self, "progress_bar_modern"):
+            self.progress_bar_modern.move(self.width() // 2 - 150, self.height() - 100)
+
     def closeEvent(self, event):
         """Clean up animations and resources."""
-        # Stop and clean up all animations
+        # Stop and clean up fade animations
         for widget, anim in self.fade_animations.items():
-            anim.stop()
+            if anim and anim.state() == QPropertyAnimation.State.Running:
+                anim.stop()
             anim.deleteLater()
+
+        # Stop and clean up pulse animations
+        if hasattr(self, "_pulse_animations"):
+            for anim in self._pulse_animations:
+                if anim and anim.state() == QPropertyAnimation.State.Running:
+                    anim.stop()
+                anim.deleteLater()
+
+        # Stop and clean up button animations
+        if hasattr(self, "_button_animations"):
+            for key, obj in self._button_animations.items():
+                if isinstance(obj, QPropertyAnimation):
+                    if obj.state() == QPropertyAnimation.State.Running:
+                        obj.stop()
+                    obj.deleteLater()
 
         # Stop pulse animations on timeline tabs
         if hasattr(self, "ui_components") and hasattr(self.ui_components, "timeline"):
@@ -477,27 +593,63 @@ class ModernizedMainWindow(MainWindow):
         return super().eventFilter(obj, event)
 
     def _animate_button_hover(self, button: QPushButton, hovering: bool):
-        """Animate button on hover."""
+        """Animate button on hover with opacity effect."""
         if not self.animations_enabled:
             return
 
-        # Create subtle scale animation
-        if not button.property("hover_animation"):
-            anim = QPropertyAnimation(button, b"geometry")
+        # Get or create animation objects
+        anim_id = f"hover_anim_{id(button)}"
+        effect_id = f"opacity_effect_{id(button)}"
+
+        if not hasattr(self, "_button_animations"):
+            self._button_animations = {}
+
+        if anim_id not in self._button_animations:
+            # Create new opacity effect and animation
+            opacity_effect = QGraphicsOpacityEffect()
+            opacity_effect.setOpacity(0.9)  # Initial opacity
+            button.setGraphicsEffect(opacity_effect)
+
+            anim = QPropertyAnimation(opacity_effect, b"opacity")
             anim.setDuration(ANIMATION["duration_fast"])
             anim.setEasingCurve(QEasingCurve.Type.OutCubic)
-            button.setProperty("hover_animation", anim)
 
-        anim = button.property("hover_animation")
-        geometry = button.geometry()
+            # Store in our dictionary instead of as widget properties
+            self._button_animations[anim_id] = anim
+            self._button_animations[effect_id] = opacity_effect
+
+        # Get animation and effect from our storage
+        anim = self._button_animations[anim_id]
+        opacity_effect = self._button_animations[effect_id]
+
+        # Stop any running animation
+        if anim.state() == QPropertyAnimation.State.Running:
+            anim.stop()
 
         if hovering:
-            # Slightly expand button
-            expanded = geometry.adjusted(-2, -2, 2, 2)
-            anim.setEndValue(expanded)
+            # Brighten button on hover
+            anim.setStartValue(opacity_effect.opacity())
+            anim.setEndValue(1.0)
+
+            # Also update style for visual feedback
+            current_style = button.styleSheet()
+            if "background-color" not in current_style:
+                button.setStyleSheet(
+                    current_style
+                    + """
+                    QPushButton {
+                        background-color: rgba(255, 255, 255, 0.1);
+                    }
+                """
+                )
         else:
-            # Return to normal size
-            anim.setEndValue(geometry)
+            # Return to normal opacity
+            anim.setStartValue(opacity_effect.opacity())
+            anim.setEndValue(0.9)
+
+            # Remove hover style
+            current_style = button.styleSheet()
+            button.setStyleSheet(current_style.replace("background-color: rgba(255, 255, 255, 0.1);", ""))
 
         anim.start()
 
@@ -543,15 +695,3 @@ class ModernizedMainWindow(MainWindow):
 
         # Show error notification
         self._show_notification(f"Error: {error_message}", "error", 5000)
-
-    def resizeEvent(self, event):
-        """Handle window resize to reposition floating elements."""
-        super().resizeEvent(event)
-
-        # Reposition loading spinner
-        if hasattr(self, "loading_spinner"):
-            self.loading_spinner.move(self.width() // 2 - 20, self.height() // 2 - 20)
-
-        # Reposition progress bar
-        if hasattr(self, "progress_bar_modern"):
-            self.progress_bar_modern.move(self.width() // 2 - 150, self.height() - 100)

@@ -47,13 +47,13 @@ def apply_modern_theme_to_window(window):
                 QToolButton:hover {
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #6c757d, stop:1 #495057);
-                    transform: translateY(-2px);
+                    margin-top: -2px;
                 }
                 QToolButton:checked {
                     background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
                         stop:0 #007bff, stop:1 #0056b3);
                     border: 2px solid #66b3ff;
-                    box-shadow: 0 0 10px rgba(0, 123, 255, 0.5);
+                    /* Glow effect handled programmatically */
                 }
             """)
 
@@ -61,16 +61,9 @@ def apply_modern_theme_to_window(window):
     window.setStyleSheet(
         window.styleSheet()
         + """
-        * {
-            transition: all 0.2s ease;
-        }
-
-        QPushButton, QToolButton {
-            transition: all 0.15s ease;
-        }
-
         QLineEdit:focus, QSpinBox:focus, QDoubleSpinBox:focus {
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+            border: 2px solid #007bff;
+            /* Focus ring handled by border */
         }
     """
     )
@@ -118,8 +111,8 @@ def enhance_existing_ui(window):
                 background: white;
             }
             CurveViewWidget:focus {
-                border-color: #007bff;
-                box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+                border: 2px solid #007bff;
+                /* Focus ring handled by border */
             }
         """)
 

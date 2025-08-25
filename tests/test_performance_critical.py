@@ -148,7 +148,7 @@ class TestTransformPerformance:
 
         def create_transform():
             view_state = self.transform_service.create_view_state(mock_view)
-            return self.transform_service.create_transform(view_state)
+            return self.transform_service.create_transform_from_view_state(view_state)
 
         # Benchmark transform creation
         transform = benchmark(create_transform)
@@ -167,7 +167,7 @@ class TestTransformPerformance:
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Create coordinate batch for transformation
         coordinate_batch = [(float(i * 10), float(i * 15)) for i in range(100)]
@@ -196,7 +196,7 @@ class TestTransformPerformance:
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Test coordinates
         test_coords = [(float(i * 20), float(i * 30)) for i in range(50)]
@@ -271,7 +271,7 @@ class TestMemoryUsagePatterns:
             )
 
             view_state = transform_service.create_view_state(mock_view)
-            transform = transform_service.create_transform(view_state)
+            transform = transform_service.create_transform_from_view_state(view_state)
             transforms.append(transform)
 
         # Clear references and force garbage collection
@@ -366,7 +366,7 @@ class TestRealisticWorkflowPerformance:
             )
 
             view_state = self.transform_service.create_view_state(mock_view)
-            transform = self.transform_service.create_transform(view_state)
+            transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # Transform sample of coordinates
             for i in range(0, len(smoothed_data), 10):  # Every 10th point
@@ -406,7 +406,7 @@ class TestRealisticWorkflowPerformance:
         )
 
         view_state = self.transform_service.create_view_state(mock_view)
-        _ = self.transform_service.create_transform(view_state)
+        _ = self.transform_service.create_transform_from_view_state(view_state)
 
         def simulate_interactive_operations():
             operations_count = 0
@@ -414,14 +414,14 @@ class TestRealisticWorkflowPerformance:
             # Simulate zoom operation
             mock_view.zoom_factor = 2.0
             new_view_state = self.transform_service.create_view_state(mock_view)
-            _ = self.transform_service.create_transform(new_view_state)
+            _ = self.transform_service.create_transform_from_view_state(new_view_state)
             operations_count += 1
 
             # Simulate pan operation
             mock_view.offset_x = 150.0
             mock_view.offset_y = 75.0
             pan_view_state = self.transform_service.create_view_state(mock_view)
-            pan_transform = self.transform_service.create_transform(pan_view_state)
+            pan_transform = self.transform_service.create_transform_from_view_state(pan_view_state)
             operations_count += 1
 
             # Simulate point selection and coordinate lookups
@@ -497,7 +497,7 @@ class TestPerformanceBaselines:
 
         # Time transform creation
         start_time = time.perf_counter()
-        transform = transform_service.create_transform(view_state)
+        transform = transform_service.create_transform_from_view_state(view_state)
         transform_time = time.perf_counter() - start_time
 
         # Time coordinate transformations

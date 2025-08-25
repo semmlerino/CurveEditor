@@ -278,7 +278,10 @@ class OptimizedCurveRenderer:
         """Ultra-optimized point rendering with all techniques combined."""
         points = curve_view.points
         if not points:
+            logger.warning("No points to render - curve_view.points is empty")
             return
+
+        logger.debug(f"Rendering {len(points)} points")
 
         # Convert to NumPy array for vectorized operations
         if not isinstance(points, np.ndarray):
@@ -308,15 +311,46 @@ class OptimizedCurveRenderer:
         if not hasattr(self, "_last_point_count"):
             self._last_point_count = len(point_data)
 
-        # Transform all points using vectorized operations
-        screen_points = VectorizedTransform.transform_points_batch(
-            point_data,
-            getattr(curve_view, "zoom_factor", 1.0),
-            getattr(curve_view, "offset_x", 0.0),
-            getattr(curve_view, "offset_y", 0.0),
-            getattr(curve_view, "flip_y_axis", False),
-            curve_view.height(),
-        )
+        # Transform all points using the Transform service for consistency with background
+        if hasattr(curve_view, "get_transform"):
+            transform = curve_view.get_transform()
+            # Transform each point through the same pipeline as background
+            screen_points = np.zeros((len(point_data), 2))
+            for i, point in enumerate(point_data):
+                x, y = transform.data_to_screen(point[1], point[2])
+                screen_points[i] = [x, y]
+
+            # Debug logging
+            if len(screen_points) > 0:
+                logger.debug(f"Transformed {len(screen_points)} points using Transform service")
+                logger.debug(
+                    f"First point: data ({point_data[0][1]:.1f}, {point_data[0][2]:.1f}) -> screen ({screen_points[0][0]:.1f}, {screen_points[0][1]:.1f})"
+                )
+                logger.debug(f"Viewport: {viewport}")
+        else:
+            # Fallback to old method if transform not available
+            zoom = getattr(curve_view, "zoom_factor", 1.0)
+
+            # Calculate center offset (like in Transform)
+            image_width = getattr(curve_view, "image_width", 800)
+            image_height = getattr(curve_view, "image_height", 600)
+            scaled_width = image_width * zoom
+            scaled_height = image_height * zoom
+            center_x = (curve_view.width() - scaled_width) / 2
+            center_y = (curve_view.height() - scaled_height) / 2
+
+            # Calculate total offsets (center + pan + manual)
+            offset_x = center_x + getattr(curve_view, "pan_offset_x", 0.0) + getattr(curve_view, "manual_offset_x", 0.0)
+            offset_y = center_y + getattr(curve_view, "pan_offset_y", 0.0) + getattr(curve_view, "manual_offset_y", 0.0)
+
+            screen_points = VectorizedTransform.transform_points_batch(
+                point_data,
+                zoom,
+                offset_x,
+                offset_y,
+                getattr(curve_view, "flip_y_axis", False),
+                curve_view.height(),
+            )
 
         # Viewport culling - get visible points
         if not self._cache_valid or viewport_changed or point_count_changed:
@@ -329,6 +363,9 @@ class OptimizedCurveRenderer:
 
         # Early exit if no points are visible
         if len(visible_indices) == 0:
+            logger.warning(f"No visible points after culling! Total points: {len(screen_points)}, Viewport: {viewport}")
+            if len(screen_points) > 0:
+                logger.warning(f"Sample screen points: {screen_points[:3]}")
             return
 
         # Validate indices are within bounds

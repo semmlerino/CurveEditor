@@ -84,7 +84,7 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
 
         # 4. Create transform for coordinate conversion
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # 5. Transform data coordinates to screen
         screen_coords = []
@@ -165,7 +165,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
         # Create transform
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Get screen coordinates for a data point
         data_x, data_y = self.test_data[2][1], self.test_data[2][2]  # Point 2
@@ -184,7 +184,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
         """Test selecting multiple points in a rectangle."""
         # Create transform
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Get screen bounds for points 1-3
         screen_coords = []
@@ -223,7 +223,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
         # Create new transform and verify it's identity-like
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Test that transform works correctly after reset
         test_x, test_y = 100.0, 100.0
@@ -270,7 +270,7 @@ class TestDataUIIntegration(TestServiceIntegration):
         # Create transform and verify filtered data can be displayed
         self.curve_view.zoom_factor = 1.5
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Transform filtered data to screen space
         for point in filtered[:3]:  # Test first 3 points
@@ -417,7 +417,7 @@ class TestPerformanceIntegration(TestServiceIntegration):
 
         # Transform operations should still work
         view_state = self.transform_service.create_view_state(self.curve_view)
-        transform = self.transform_service.create_transform(view_state)
+        transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # Find point in middle of dataset
         mid_point = loaded[500]
