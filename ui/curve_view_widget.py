@@ -901,7 +901,10 @@ class CurveViewWidget(QWidget):
             return QRect()
 
         # Get screen position of point
-        screen_pos = self.data_to_screen_point(self.curve_data[index])
+        point = self.curve_data[index]
+        # Extract x, y from the point tuple (frame, x, y, ...)
+        x, y = point[1], point[2] if len(point) >= 3 else (point[0], point[1])
+        screen_pos = self.data_to_screen(x, y)
 
         # Calculate radius including hover and selection indicators
         radius = max(self.point_radius, self.selected_point_radius) + 10  # Extra padding for hover

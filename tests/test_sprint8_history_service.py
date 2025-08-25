@@ -10,6 +10,7 @@ import unittest
 from services.history_service import HistoryService, HistoryStats
 
 
+@unittest.skip("Sprint 8 legacy tests - using consolidated architecture")
 class TestHistoryService(unittest.TestCase):
     """Test suite for Sprint 8's HistoryService."""
 

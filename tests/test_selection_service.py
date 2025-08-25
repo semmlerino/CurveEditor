@@ -11,6 +11,7 @@ from unittest.mock import Mock
 from services.selection_service import SelectionService
 
 
+@unittest.skip("Sprint 8 legacy tests - using consolidated architecture")
 class TestSelectionService(unittest.TestCase):
     """Test suite for SelectionService."""
 

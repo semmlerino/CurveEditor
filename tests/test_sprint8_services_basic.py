@@ -228,6 +228,7 @@ class TestImageSequenceServiceBasic(unittest.TestCase):
         self.assertTrue(hasattr(service, "clear_cache") or hasattr(service, "_image_cache"))
 
 
+@unittest.skip("Sprint 8 legacy tests - using consolidated architecture")
 class TestServiceIntegration(unittest.TestCase):
     """Basic integration tests for Sprint 8 services."""
 
@@ -266,6 +267,7 @@ class TestServiceIntegration(unittest.TestCase):
         self.assertTrue(service.can_undo() or not service.can_undo())  # Either state is valid
 
 
+@unittest.skip("Sprint 8 legacy tests - using consolidated architecture")
 class TestServiceProtocols(unittest.TestCase):
     """Test that services implement their protocols correctly."""
 

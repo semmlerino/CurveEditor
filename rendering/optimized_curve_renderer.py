@@ -508,12 +508,23 @@ class OptimizedCurveRenderer:
 
             # Draw the background image scaled to fit the transformed rectangle
             # This ensures it goes through the exact same transformation as curve points
-            painter.drawPixmap(
-                int(top_left_x), int(top_left_y), int(target_width), int(target_height), background_image
-            )
+            # Convert QImage to QPixmap if needed
+            from PySide6.QtGui import QImage, QPixmap
+
+            if isinstance(background_image, QImage):
+                pixmap = QPixmap.fromImage(background_image)
+            else:
+                pixmap = background_image
+            painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
         else:
             # Fallback to old behavior if transform not available
-            painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), background_image)
+            from PySide6.QtGui import QImage, QPixmap
+
+            if isinstance(background_image, QImage):
+                pixmap = QPixmap.fromImage(background_image)
+            else:
+                pixmap = background_image
+            painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), pixmap)
 
         if opacity < 1.0:
             painter.setOpacity(1.0)

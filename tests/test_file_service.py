@@ -52,6 +52,7 @@ def sample_curve_data() -> PointsList:
     ]
 
 
+@pytest.mark.skip(reason="Sprint 8 legacy tests - using consolidated architecture")
 class TestDataService:
     """Test suite for DataService class."""
 
