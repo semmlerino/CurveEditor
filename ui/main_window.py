@@ -996,9 +996,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Update frame range based on loaded data
             if data:
                 max_frame = max(point[0] for point in data)
-                self.frame_slider.setMaximum(max_frame)
-                self.frame_spinbox.setMaximum(max_frame)
-                self.total_frames_label.setText(str(max_frame))
+                if self.frame_slider:
+                    self.frame_slider.setMaximum(max_frame)
+                if self.frame_spinbox:
+                    self.frame_spinbox.setMaximum(max_frame)
+                if self.total_frames_label:
+                    self.total_frames_label.setText(str(max_frame))
                 # CRITICAL: Update state manager's total frames!
                 self.state_manager.total_frames = max_frame
 
@@ -1110,9 +1113,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Update frame range based on data
             if data:
                 max_frame = max(point[0] for point in data)
-                self.frame_slider.setMaximum(max_frame)
-                self.frame_spinbox.setMaximum(max_frame)
-                self.total_frames_label.setText(str(max_frame))
+                if self.frame_slider:
+                    self.frame_slider.setMaximum(max_frame)
+                if self.frame_spinbox:
+                    self.frame_spinbox.setMaximum(max_frame)
+                if self.total_frames_label:
+                    self.total_frames_label.setText(str(max_frame))
                 # Update state manager's total frames
                 self.state_manager.total_frames = max_frame
 
@@ -1265,7 +1271,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if count == 1:
             # Show single point properties
             idx = indices[0]
-            self.selected_point_label.setText(f"Point #{idx}")
+            if self.selected_point_label:
+                self.selected_point_label.setText(f"Point #{idx}")
 
             # Get actual point data from curve widget
             if self.curve_widget and idx < len(self.curve_widget.curve_data):
@@ -1275,29 +1282,38 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 frame, x, y, status = safe_extract_point(point_data)
 
                 # Update spinboxes with actual values
-                self.point_x_spinbox.blockSignals(True)
-                self.point_y_spinbox.blockSignals(True)
-                self.point_x_spinbox.setValue(x)
-                self.point_y_spinbox.setValue(y)
-                self.point_x_spinbox.blockSignals(False)
-                self.point_y_spinbox.blockSignals(False)
+                if self.point_x_spinbox and self.point_y_spinbox:
+                    self.point_x_spinbox.blockSignals(True)
+                    self.point_y_spinbox.blockSignals(True)
+                    self.point_x_spinbox.setValue(x)
+                    self.point_y_spinbox.setValue(y)
+                    self.point_x_spinbox.blockSignals(False)
+                    self.point_y_spinbox.blockSignals(False)
 
-                # Connect spinbox changes to update point
-                if not hasattr(self, "_point_spinbox_connected"):
-                    self.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
-                    self.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
-                    self._point_spinbox_connected = True
+                    # Connect spinbox changes to update point
+                    if not hasattr(self, "_point_spinbox_connected"):
+                        self.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
+                        self.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
+                        self._point_spinbox_connected = True
 
-            self.point_x_spinbox.setEnabled(True)
-            self.point_y_spinbox.setEnabled(True)
+            if self.point_x_spinbox:
+                self.point_x_spinbox.setEnabled(True)
+            if self.point_y_spinbox:
+                self.point_y_spinbox.setEnabled(True)
         elif count > 1:
-            self.selected_point_label.setText(f"{count} points selected")
-            self.point_x_spinbox.setEnabled(False)
-            self.point_y_spinbox.setEnabled(False)
+            if self.selected_point_label:
+                self.selected_point_label.setText(f"{count} points selected")
+            if self.point_x_spinbox:
+                self.point_x_spinbox.setEnabled(False)
+            if self.point_y_spinbox:
+                self.point_y_spinbox.setEnabled(False)
         else:
-            self.selected_point_label.setText("No point selected")
-            self.point_x_spinbox.setEnabled(False)
-            self.point_y_spinbox.setEnabled(False)
+            if self.selected_point_label:
+                self.selected_point_label.setText("No point selected")
+            if self.point_x_spinbox:
+                self.point_x_spinbox.setEnabled(False)
+            if self.point_y_spinbox:
+                self.point_y_spinbox.setEnabled(False)
 
     def _on_view_state_changed(self) -> None:
         """Handle view state change from state manager."""
@@ -1313,9 +1329,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Update frame controls
         total_frames = self.state_manager.total_frames
-        self.frame_spinbox.setMaximum(total_frames)
-        self.frame_slider.setMaximum(total_frames)
-        self.total_frames_label.setText(str(total_frames))
+        if self.frame_spinbox:
+            self.frame_spinbox.setMaximum(total_frames)
+        if self.frame_slider:
+            self.frame_slider.setMaximum(total_frames)
+        if self.total_frames_label:
+            self.total_frames_label.setText(str(total_frames))
 
         # Update info labels - use curve widget data if available
         if self.curve_widget:
