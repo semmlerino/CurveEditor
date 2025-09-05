@@ -19,10 +19,11 @@ class FrameTab(QWidget):
     frame_hovered = Signal(int)  # Emitted when tab is hovered
 
     # Tab appearance constants - modern 3DE style
-    TAB_WIDTH = 30
-    TAB_HEIGHT = 30  # Taller tabs for better visibility
+    TAB_HEIGHT = 38  # Taller tabs for better visibility
     BORDER_WIDTH = 1
     CORNER_RADIUS = 0  # No rounded corners for seamless look
+    MIN_WIDTH = 2  # Minimum width for very large frame ranges
+    MAX_WIDTH = 60  # Maximum width for small frame ranges
 
     # Color scheme for frame status - modern 3DE style (very subtle)
     COLORS = {
@@ -62,15 +63,25 @@ class FrameTab(QWidget):
 
     def _setup_widget(self):
         """Setup widget properties and policies."""
-        # Fixed size for consistent appearance
-        self.setFixedSize(self.TAB_WIDTH, self.TAB_HEIGHT)
-        self.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
+        # Dynamic width, fixed height
+        self.setMinimumHeight(self.TAB_HEIGHT)
+        self.setMaximumHeight(self.TAB_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         # Enable mouse tracking for hover effects
         self.setMouseTracking(True)
 
         # Set tooltip
         self._update_tooltip()
+
+    def set_tab_width(self, width: int):
+        """Set the width of the tab dynamically.
+
+        Args:
+            width: Width in pixels for this tab
+        """
+        self.setFixedWidth(max(self.MIN_WIDTH, min(width, self.MAX_WIDTH)))
+        self.update()
 
     def set_point_status(self, keyframe_count: int = 0, interpolated_count: int = 0, has_selected: bool = False):
         """Update point status information for this frame.

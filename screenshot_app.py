@@ -63,6 +63,15 @@ def capture_screenshot():
         print(f"Timeline tabs present: {main_window.timeline_tabs is not None}")
         if main_window.timeline_tabs:
             print(f"Timeline tabs visible: {main_window.timeline_tabs.isVisible()}")
+            print(f"Timeline tabs height: {main_window.timeline_tabs.height()}")
+            print(f"Timeline tabs minimumHeight: {main_window.timeline_tabs.minimumHeight()}")
+            print(f"Timeline tabs maximumHeight: {main_window.timeline_tabs.maximumHeight()}")
+            print(f"Timeline tabs frame count: {len(main_window.timeline_tabs.frame_tabs)}")
+            if main_window.timeline_tabs.frame_tabs:
+                first_tab = list(main_window.timeline_tabs.frame_tabs.values())[0]
+                print(f"First tab height: {first_tab.height()}")
+                print(f"First tab minimumHeight: {first_tab.minimumHeight()}")
+                print(f"First tab width: {first_tab.width()}")
     else:
         print(f"Failed to save screenshot to {filename}")
 

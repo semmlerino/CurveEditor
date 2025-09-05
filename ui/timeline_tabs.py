@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -114,17 +115,17 @@ class TimelineTabWidget(QWidget):
     # Layout constants
     TAB_SPACING = 0  # No spacing for seamless look
     NAVIGATION_HEIGHT = 20  # Ultra-compact navigation bar
-    MIN_VISIBLE_TABS = 25  # Many more tabs visible at once
-    SCROLL_STEP = 5  # Number of tabs to scroll per button click
-    TOTAL_HEIGHT = 55  # Height to accommodate taller tabs
+    TOTAL_HEIGHT = 60  # Height: 20px nav + 40px scroll area
 
     def __init__(self, parent=None):
         """Initialize timeline widget."""
         super().__init__(parent)
 
-        # Set fixed height to prevent vertical expansion
+        # Set minimum and fixed height to ensure proper display
+        self.setMinimumHeight(self.TOTAL_HEIGHT)
         self.setFixedHeight(self.TOTAL_HEIGHT)
         self.setMaximumHeight(self.TOTAL_HEIGHT)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
         # Apply visual styling - modern 3DE style
         self.setStyleSheet("""
@@ -162,7 +163,6 @@ class TimelineTabWidget(QWidget):
 
         # Tab management
         self.frame_tabs: dict[FrameNumber, FrameTab] = {}
-        self.visible_range = (1, 20)  # Currently visible frame range
 
         # Performance optimization
         self.status_cache = FrameStatusCache()
@@ -178,7 +178,7 @@ class TimelineTabWidget(QWidget):
         # Main layout
         self.main_layout = QVBoxLayout(self)
         self.main_layout.setContentsMargins(0, 0, 0, 0)
-        self.main_layout.setSpacing(2)
+        self.main_layout.setSpacing(0)  # No spacing between elements
 
         # Navigation controls
         self._create_navigation_controls()
@@ -187,7 +187,7 @@ class TimelineTabWidget(QWidget):
         self._create_timeline_area()
 
         # Initialize with default range
-        self._update_visible_tabs()
+        self._create_all_tabs()
 
     def _create_navigation_controls(self):
         """Create navigation buttons and frame info."""
@@ -238,15 +238,18 @@ class TimelineTabWidget(QWidget):
 
     def _create_timeline_area(self):
         """Create scrollable timeline area."""
-        # Create scroll area
+        # Create scroll area (but disable scrolling - we show all frames)
         self.scroll_area = TimelineScrollArea(self)
-        # Adjust height to match taller tabs
-        self.scroll_area.setFixedHeight(34)  # Enough for 30px tabs + minimal padding
+        self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.scroll_area.setMinimumHeight(40)  # Minimum for 38px tabs
+        self.scroll_area.setFixedHeight(40)  # Fixed height for 38px tabs
 
         # Create container widget for tabs
         self.tabs_container = QWidget()
+        self.tabs_container.setMinimumHeight(38)  # Ensure tabs get their full height
+        self.tabs_container.setMaximumHeight(38)  # Prevent compression
         self.tabs_layout = QHBoxLayout(self.tabs_container)
-        self.tabs_layout.setContentsMargins(2, 2, 2, 2)
+        self.tabs_layout.setContentsMargins(0, 0, 0, 0)  # No margins for maximum space
         self.tabs_layout.setSpacing(self.TAB_SPACING)  # 0 for seamless
         self.tabs_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
@@ -270,10 +273,9 @@ class TimelineTabWidget(QWidget):
         elif self.current_frame > max_frame:
             self.current_frame = max_frame
 
-        # Clear cache and update tabs
+        # Clear cache and recreate all tabs
         self.status_cache.clear()
-        self._update_visible_range()
-        self._update_visible_tabs()
+        self._create_all_tabs()
         self._update_frame_info()
 
     def set_current_frame(self, frame: int):
@@ -296,8 +298,7 @@ class TimelineTabWidget(QWidget):
             if frame in self.frame_tabs:
                 self.frame_tabs[frame].set_current_frame(True)
 
-            # Ensure frame is visible
-            self._ensure_frame_visible(frame)
+            # Update frame info
             self._update_frame_info()
 
             # Emit signal
@@ -338,77 +339,74 @@ class TimelineTabWidget(QWidget):
         self.status_cache.invalidate_all()
         self._schedule_deferred_update()
 
-    def _update_visible_range(self):
-        """Update which frames should be visible."""
-        # Calculate optimal visible range around current frame
-        visible_width = self.scroll_area.viewport().width()
-        tab_width = FrameTab.TAB_WIDTH + self.TAB_SPACING
-        max_visible = max(self.MIN_VISIBLE_TABS, visible_width // tab_width)
+    def _calculate_tab_width(self) -> int:
+        """Calculate optimal tab width based on available space and frame count."""
+        # Use parent width if available, otherwise use a default
+        if self.parent():
+            available_width = self.parent().width() - 100  # Subtract space for nav buttons and margins
+        else:
+            available_width = 1300  # Default for 1400px window
 
-        # Center around current frame when possible
-        half_range = max_visible // 2
-        start = max(self.min_frame, self.current_frame - half_range)
-        end = min(self.max_frame, start + max_visible - 1)
+        # Minimum reasonable width
+        if available_width < 200:
+            available_width = 1300
 
-        # Adjust start if we're at the end
-        if end == self.max_frame:
-            start = max(self.min_frame, end - max_visible + 1)
+        frame_count = self.max_frame - self.min_frame + 1
 
-        self.visible_range = (start, end)
+        if frame_count == 0:
+            return 30  # Default width
 
-    def _update_visible_tabs(self):
-        """Update which frame tabs are visible."""
-        start_frame, end_frame = self.visible_range
+        # Calculate width per tab
+        tab_width = available_width // frame_count
 
-        # Remove tabs outside visible range
-        for frame in list(self.frame_tabs.keys()):
-            if frame < start_frame or frame > end_frame:
-                tab = self.frame_tabs.pop(frame)
-                self.tabs_layout.removeWidget(tab)
-                tab.deleteLater()
+        # Clamp to reasonable limits
+        from ui.frame_tab import FrameTab
 
-        # Add tabs for visible range
-        for frame in range(start_frame, end_frame + 1):
-            if frame not in self.frame_tabs:
-                tab = FrameTab(frame, self)
-                tab.frame_clicked.connect(self.set_current_frame)
-                tab.frame_hovered.connect(self.frame_hovered.emit)
+        return max(FrameTab.MIN_WIDTH, min(tab_width, FrameTab.MAX_WIDTH))
 
-                # Set current frame status
-                if frame == self.current_frame:
-                    tab.set_current_frame(True)
+    def _create_all_tabs(self):
+        """Create tabs for all frames with dynamic width."""
+        # Clear existing tabs
+        for tab in self.frame_tabs.values():
+            self.tabs_layout.removeWidget(tab)
+            tab.deleteLater()
+        self.frame_tabs.clear()
 
-                # Apply cached status if available
-                cached_status = self.status_cache.get_status(frame)
-                if cached_status:
-                    keyframe_count, interpolated_count, has_selected = cached_status
-                    tab.set_point_status(keyframe_count, interpolated_count, has_selected)
+        # Calculate optimal tab width
+        tab_width = self._calculate_tab_width()
 
-                self.frame_tabs[frame] = tab
-                self.tabs_layout.addWidget(tab)
+        # Create tabs for entire frame range
+        for frame in range(self.min_frame, self.max_frame + 1):
+            tab = FrameTab(frame, self)
+            tab.set_tab_width(tab_width)
+            tab.frame_clicked.connect(self.set_current_frame)
+            tab.frame_hovered.connect(self.frame_hovered.emit)
 
-        # Update container size
-        total_width = len(self.frame_tabs) * (FrameTab.TAB_WIDTH + self.TAB_SPACING) + 8
+            # Set current frame status
+            if frame == self.current_frame:
+                tab.set_current_frame(True)
+
+            # Apply cached status if available
+            cached_status = self.status_cache.get_status(frame)
+            if cached_status:
+                keyframe_count, interpolated_count, has_selected = cached_status
+                tab.set_point_status(keyframe_count, interpolated_count, has_selected)
+
+            self.frame_tabs[frame] = tab
+            self.tabs_layout.addWidget(tab)
+
+        # Update container size to fit all tabs
+        total_width = tab_width * len(self.frame_tabs) + 4
         self.tabs_container.setMinimumWidth(total_width)
 
     def _ensure_frame_visible(self, frame: int):
-        """Ensure the specified frame is visible in the timeline."""
-        start_frame, end_frame = self.visible_range
-
-        # Check if frame is outside visible range
-        if frame < start_frame or frame > end_frame:
-            self._update_visible_range()
-            self._update_visible_tabs()
-
-        # Scroll to make frame visible
-        if frame in self.frame_tabs:
-            tab = self.frame_tabs[frame]
-            self.scroll_area.ensureWidgetVisible(tab, 50, 0)  # 50px margin
+        """Ensure the specified frame is visible (no-op since all frames are visible)."""
+        # All frames are always visible with dynamic width
+        pass
 
     def _update_frame_info(self):
         """Update frame information label."""
-        visible_start, visible_end = self.visible_range
-        info_text = f"Frame {self.current_frame:3d} | {visible_start:3d}-{visible_end:3d} of {self.max_frame:3d}"
+        info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
         self.frame_info.setText(info_text)
 
     def _jump_back_group(self):
@@ -437,10 +435,20 @@ class TimelineTabWidget(QWidget):
                 tab.set_point_status(keyframe_count, interpolated_count, has_selected)
 
     def resizeEvent(self, event: QResizeEvent):
-        """Handle widget resize to update visible range."""
+        """Handle widget resize to recalculate tab widths."""
         super().resizeEvent(event)
-        self._update_visible_range()
-        self._update_visible_tabs()
+
+        # Recalculate tab width for new size
+        if self.frame_tabs:
+            tab_width = self._calculate_tab_width()
+
+            # Update width of all existing tabs
+            for tab in self.frame_tabs.values():
+                tab.set_tab_width(tab_width)
+
+            # Update container size
+            total_width = tab_width * len(self.frame_tabs) + 4
+            self.tabs_container.setMinimumWidth(total_width)
 
     def keyPressEvent(self, event: QKeyEvent):
         """Handle keyboard navigation."""

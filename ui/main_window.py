@@ -460,6 +460,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Add timeline tabs widget if available - no stretch so it stays fixed height
         if self.timeline_tabs:
+            self.timeline_tabs.setMinimumHeight(60)  # Ensure timeline gets its minimum space
+            self.timeline_tabs.setFixedHeight(60)  # Force exact height
             main_layout.addWidget(self.timeline_tabs, stretch=0)  # Fixed height, no expansion
             logger.info("Timeline tabs added to main layout")
 
