@@ -121,9 +121,9 @@ class LevelOfDetail:
 
     def __init__(self):
         self._lod_thresholds = {
-            RenderQuality.DRAFT: 1000,  # Show every 1000th point
-            RenderQuality.NORMAL: 100,  # Show every 100th point
-            RenderQuality.HIGH: 1,  # Show all points
+            RenderQuality.DRAFT: 100,  # Target ~100 points for fast rendering
+            RenderQuality.NORMAL: 1000,  # Target ~1000 points for normal quality
+            RenderQuality.HIGH: 1,  # Show all points for high quality
         }
 
     def get_lod_points(
@@ -145,8 +145,11 @@ class LevelOfDetail:
         if quality == RenderQuality.HIGH or len(working_points) <= threshold:
             return working_points, 1
 
-        # Calculate step size for sub-sampling
+        # Calculate step size for sub-sampling to get approximately 'threshold' points
         step = max(1, len(working_points) // threshold)
+        # If step is 1, we need to increase it to actually reduce point count
+        if step == 1:
+            step = max(2, len(working_points) // threshold + 1)
 
         # Sub-sample points evenly
         sampled_indices = np.arange(0, len(working_points), step)
@@ -238,7 +241,10 @@ class OptimizedCurveRenderer:
 
         try:
             # Render background if available
-            if getattr(curve_view, "show_background", False) and getattr(curve_view, "background_image", None):
+            show_bg = getattr(curve_view, "show_background", False)
+            bg_img = getattr(curve_view, "background_image", None)
+            print(f"[RENDERER] show_background: {show_bg}, has_background_image: {bg_img is not None}")
+            if show_bg and bg_img:
                 self._render_background_optimized(painter, curve_view)
 
             # Render grid if needed
@@ -480,8 +486,10 @@ class OptimizedCurveRenderer:
 
     def _render_background_optimized(self, painter: QPainter, curve_view: Any) -> None:
         """Optimized background rendering with proper transformations."""
+        print("[RENDERER_BG] _render_background_optimized called")
         background_image = getattr(curve_view, "background_image", None)
         if not background_image:
+            print("[RENDERER_BG] No background image, returning")
             return
 
         opacity = getattr(curve_view, "background_opacity", 1.0)
@@ -493,18 +501,20 @@ class OptimizedCurveRenderer:
 
         # Get the transform from curve_view to apply the same transformations as curve points
         if hasattr(curve_view, "get_transform"):
+            print("[RENDERER_BG] Using transform-based rendering")
             transform = curve_view.get_transform()
 
-            # Transform the corners of the background image through the same pipeline as curve points
-            # The background image occupies data coordinates from (0, 0) to (width, height)
+            # Get image position and calculate scaled dimensions (matches _paint_background method)
             top_left_x, top_left_y = transform.data_to_screen(0, 0)
-            bottom_right_x, bottom_right_y = transform.data_to_screen(
-                background_image.width(), background_image.height()
-            )
 
-            # Calculate the target rectangle for the background
-            target_width = bottom_right_x - top_left_x
-            target_height = bottom_right_y - top_left_y
+            # Calculate scaled dimensions directly like _paint_background does
+            scale = transform.get_parameters()["scale"]
+            target_width = int(background_image.width() * scale)
+            target_height = int(background_image.height() * scale)
+
+            print(
+                f"[RENDERER_BG] Scale: {scale}, original size: ({background_image.width()}, {background_image.height()})"
+            )
 
             # Draw the background image scaled to fit the transformed rectangle
             # This ensures it goes through the exact same transformation as curve points
@@ -515,9 +525,13 @@ class OptimizedCurveRenderer:
                 pixmap = QPixmap.fromImage(background_image)
             else:
                 pixmap = background_image
+            print(
+                f"[RENDERER_BG] Drawing at pos=({int(top_left_x)}, {int(top_left_y)}), size=({int(target_width)}, {int(target_height)})"
+            )
             painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
         else:
             # Fallback to old behavior if transform not available
+            print("[RENDERER_BG] Using fallback rendering (no transform)")
             from PySide6.QtGui import QImage, QPixmap
 
             if isinstance(background_image, QImage):

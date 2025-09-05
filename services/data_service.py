@@ -291,6 +291,101 @@ class DataService:
             },
         }
 
+    def get_frame_point_status(self, points: CurveDataList, frame: int) -> tuple[int, int, bool]:
+        """Get point status information for a specific frame.
+
+        Args:
+            points: List of curve data points to analyze
+            frame: Frame number to query
+
+        Returns:
+            Tuple of (keyframe_count, interpolated_count, has_selected)
+            where has_selected is always False (reserved for future selection tracking)
+        """
+        if not points:
+            return (0, 0, False)
+
+        keyframe_count = 0
+        interpolated_count = 0
+
+        for point in points:
+            # Handle both tuple format and CurvePoint objects
+            if hasattr(point, "frame"):  # CurvePoint object
+                if point.frame == frame:
+                    if point.status.value == "interpolated":
+                        interpolated_count += 1
+                    else:
+                        keyframe_count += 1
+            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+                point_frame = point[0]
+                if point_frame == frame:
+                    # Check status if available
+                    status = point[3] if len(point) > 3 else "keyframe"
+                    if isinstance(status, bool):
+                        # Legacy boolean format: True = interpolated, False = keyframe
+                        if status:
+                            interpolated_count += 1
+                        else:
+                            keyframe_count += 1
+                    elif isinstance(status, str):
+                        if status == "interpolated":
+                            interpolated_count += 1
+                        else:
+                            keyframe_count += 1
+                    else:
+                        keyframe_count += 1
+
+        return (keyframe_count, interpolated_count, False)
+
+    def get_frame_range_point_status(self, points: CurveDataList) -> dict[int, tuple[int, int, bool]]:
+        """Get point status for all frames that have points.
+
+        Args:
+            points: List of curve data points to analyze
+
+        Returns:
+            Dictionary mapping frame numbers to (keyframe_count, interpolated_count, has_selected) tuples
+        """
+        if not points:
+            return {}
+
+        frame_status = {}
+
+        for point in points:
+            # Handle both tuple format and CurvePoint objects
+            if hasattr(point, "frame"):  # CurvePoint object
+                frame = point.frame
+                if frame not in frame_status:
+                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+
+                if point.status.value == "interpolated":
+                    frame_status[frame][1] += 1
+                else:
+                    frame_status[frame][0] += 1
+            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+                frame = point[0]
+                if frame not in frame_status:
+                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+
+                # Check status if available
+                status = point[3] if len(point) > 3 else "keyframe"
+                if isinstance(status, bool):
+                    # Legacy boolean format: True = interpolated, False = keyframe
+                    if status:
+                        frame_status[frame][1] += 1
+                    else:
+                        frame_status[frame][0] += 1
+                elif isinstance(status, str):
+                    if status == "interpolated":
+                        frame_status[frame][1] += 1
+                    else:
+                        frame_status[frame][0] += 1
+                else:
+                    frame_status[frame][0] += 1
+
+        # Convert to tuple format
+        return {frame: tuple(counts) for frame, counts in frame_status.items()}
+
     def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
         """Add track data (for compatibility)."""
         if self._status:

@@ -199,6 +199,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     frame_spinbox: QSpinBox | None = None
     total_frames_label: QLabel | None = None
     frame_slider: QSlider | None = None
+    timeline_tabs: Any = None  # TimelineTabWidget - imported dynamically
     btn_first_frame: QPushButton | None = None
     btn_prev_frame: QPushButton | None = None
     btn_play_pause: QPushButton | None = None
@@ -421,6 +422,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_slider.setMaximum(1000)
         self.frame_slider.setValue(1)
 
+        # Create timeline tabs widget here in actual initialization
+        self.timeline_tabs = None  # Initialize to None first
+        try:
+            from ui.timeline_tabs import TimelineTabWidget
+
+            self.timeline_tabs = TimelineTabWidget()
+            # Connections will be set up later when handlers are available
+            logger.info("Timeline tabs widget created successfully in main init")
+        except Exception as e:
+            logger.warning(f"Could not create timeline tabs widget in main init: {e}")
+            self.timeline_tabs = None
+
         self.total_frames_label = QLabel("1")
         self.point_count_label = QLabel("Points: 0")
         self.selected_count_label = QLabel("Selected: 0")
@@ -442,8 +455,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Create the main curve view area (full width, no side panels)
         self.curve_container = self._create_curve_view_container()
 
-        # Add curve container directly to main layout (no splitter needed)
-        main_layout.addWidget(self.curve_container)
+        # Add curve container with stretch factor so it expands
+        main_layout.addWidget(self.curve_container, stretch=1)  # Takes all available space
+
+        # Add timeline tabs widget if available - no stretch so it stays fixed height
+        if self.timeline_tabs:
+            main_layout.addWidget(self.timeline_tabs, stretch=0)  # Fixed height, no expansion
+            logger.info("Timeline tabs added to main layout")
 
         # Set the central widget
         self.setCentralWidget(central_widget)
@@ -490,6 +508,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_slider.setValue(1)
         self.frame_slider.valueChanged.connect(self._on_slider_changed)
         timeline_layout.addWidget(self.frame_slider)
+
+        # NOTE: This _create_timeline_panel method is never called
+        # The actual timeline tabs are created in __init__ around line 426-434
+        # This entire method contains duplicate/unused code and could be removed
 
         # Playback controls
         playback_layout = QHBoxLayout()
@@ -744,6 +766,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect shortcut signals (these will be no-ops for now)
         self.shortcut_manager.shortcut_activated.connect(self._on_shortcut_activated)
 
+        # Connect frame controls
+        if self.frame_spinbox:
+            self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
+        if self.frame_slider:
+            self.frame_slider.valueChanged.connect(self._on_slider_changed)
+
+        # Connect timeline tabs if available
+        if self.timeline_tabs:
+            self.timeline_tabs.frame_changed.connect(self._on_timeline_tab_clicked)
+            self.timeline_tabs.frame_hovered.connect(self._on_timeline_tab_hovered)
+            logger.info("Timeline tabs signals connected")
+
     def _connect_curve_widget_signals(self) -> None:
         """Connect signals from the curve widget."""
         if not self.curve_widget:
@@ -844,6 +878,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_slider.blockSignals(True)
         self.frame_slider.setValue(value)
         self.frame_slider.blockSignals(False)
+
+        # Update timeline tabs if available
+        if self.timeline_tabs:
+            self.timeline_tabs.set_current_frame(value)
+
         self.state_manager.current_frame = value
         logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
 
@@ -862,6 +901,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_spinbox.blockSignals(True)
         self.frame_spinbox.setValue(value)
         self.frame_spinbox.blockSignals(False)
+
+        # Update timeline tabs if available
+        if self.timeline_tabs:
+            self.timeline_tabs.set_current_frame(value)
+
         self.state_manager.current_frame = value
 
         # Update background image if image sequence is loaded
@@ -930,6 +974,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             interval = int(1000 / value)
             self.playback_timer.setInterval(interval)
         self.frame_rate_changed.emit(value)
+
+    @Slot(int)
+    def _on_timeline_tab_clicked(self, frame: int) -> None:
+        """Handle timeline tab click to navigate to frame."""
+        # Update spinbox and slider (which will trigger frame change)
+        self.frame_spinbox.setValue(frame)
+        logger.debug(f"Timeline tab clicked: navigating to frame {frame}")
+
+    @Slot(int)
+    def _on_timeline_tab_hovered(self, frame: int) -> None:
+        """Handle timeline tab hover for preview (optional feature)."""
+        # Could be used to show frame preview in the future
+        pass
 
     # ==================== View Control Handlers ====================
 
@@ -1004,6 +1061,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     self.total_frames_label.setText(str(max_frame))
                 # CRITICAL: Update state manager's total frames!
                 self.state_manager.total_frames = max_frame
+
+                # Update timeline tabs with frame range and point data
+                self._update_timeline_tabs(data)
 
             self._update_ui_state()
             self.status_bar.showMessage("File loaded successfully", 2000)
@@ -1089,14 +1149,20 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.file_load_worker.stop()
             self.file_load_worker = None
 
-        if self.file_load_thread and self.file_load_thread.isRunning():
-            self.file_load_thread.quit()
-            # Wait longer for graceful shutdown
-            if not self.file_load_thread.wait(5000):  # Wait up to 5 seconds
-                # Don't terminate - log warning and let it finish naturally
-                logger.warning("File load thread did not quit gracefully within 5 seconds")
-                # Still set to None to avoid memory leak, thread will clean itself up
-            self.file_load_thread = None
+        if self.file_load_thread:
+            try:
+                if self.file_load_thread.isRunning():
+                    self.file_load_thread.quit()
+                    # Wait longer for graceful shutdown
+                    if not self.file_load_thread.wait(5000):  # Wait up to 5 seconds
+                        # Don't terminate - log warning and let it finish naturally
+                        logger.warning("File load thread did not quit gracefully within 5 seconds")
+            except RuntimeError:
+                # Thread's C++ object already deleted, safe to ignore
+                pass
+            finally:
+                # Always set to None to avoid memory leak
+                self.file_load_thread = None
 
     def _on_tracking_data_loaded(self, data: list) -> None:
         """Handle tracking data loaded in background thread."""
@@ -1113,14 +1179,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Update frame range based on data
             if data:
                 max_frame = max(point[0] for point in data)
-                if self.frame_slider:
-                    self.frame_slider.setMaximum(max_frame)
-                if self.frame_spinbox:
-                    self.frame_spinbox.setMaximum(max_frame)
-                if self.total_frames_label:
-                    self.total_frames_label.setText(str(max_frame))
-                # Update state manager's total frames
-                self.state_manager.total_frames = max_frame
+                try:
+                    if self.frame_slider:
+                        self.frame_slider.setMaximum(max_frame)
+                    if self.frame_spinbox:
+                        self.frame_spinbox.setMaximum(max_frame)
+                    if self.total_frames_label:
+                        self.total_frames_label.setText(str(max_frame))
+                    # Update state manager's total frames
+                    self.state_manager.total_frames = max_frame
+                except RuntimeError:
+                    # Widgets may have been deleted during application shutdown
+                    pass
 
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
         """Handle image sequence loaded in background thread."""
@@ -1483,6 +1553,57 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # For now, we'll leave this as a placeholder for future frame-based features
 
     # ==================== Utility Methods ====================
+
+    def _update_timeline_tabs(self, curve_data: list | None = None) -> None:
+        """Update timeline tabs with current curve data and frame range."""
+        if not self.timeline_tabs:
+            return
+
+        # Get curve data if not provided
+        if curve_data is None:
+            curve_data = self._get_current_curve_data()
+
+        if not curve_data:
+            return
+
+        # Calculate frame range - validate data first
+        frames = []
+        for point in curve_data:
+            if len(point) >= 3:
+                try:
+                    # Ensure frame number is an integer
+                    frame = int(point[0])
+                    frames.append(frame)
+                except (ValueError, TypeError):
+                    # Skip invalid data
+                    continue
+
+        if not frames:
+            return
+
+        min_frame = min(frames)
+        max_frame = max(frames)
+
+        # Update timeline widget frame range
+        self.timeline_tabs.set_frame_range(min_frame, max_frame)
+
+        # Get point status for all frames using DataService
+        try:
+            from services import get_data_service
+
+            data_service = get_data_service()
+
+            # Get status for all frames that have points
+            frame_status = data_service.get_frame_range_point_status(curve_data)
+
+            # Update timeline tabs with point status
+            for frame, (keyframe_count, interpolated_count, has_selected) in frame_status.items():
+                self.timeline_tabs.update_frame_status(frame, keyframe_count, interpolated_count, has_selected)
+
+            logger.debug(f"Updated timeline tabs with {len(frame_status)} frames of point data")
+
+        except Exception as e:
+            logger.warning(f"Could not update timeline tabs with point data: {e}")
 
     def _get_current_curve_data(self) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Get current curve data from curve widget or state manager."""
