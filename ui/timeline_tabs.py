@@ -112,11 +112,11 @@ class TimelineTabWidget(QWidget):
     frame_hovered = Signal(int)  # Emitted when hovering over frame
 
     # Layout constants
-    TAB_SPACING = 1
-    NAVIGATION_HEIGHT = 24  # Compact navigation bar
-    MIN_VISIBLE_TABS = 15  # More tabs visible at once
+    TAB_SPACING = 0  # No spacing for seamless look
+    NAVIGATION_HEIGHT = 20  # Ultra-compact navigation bar
+    MIN_VISIBLE_TABS = 25  # Many more tabs visible at once
     SCROLL_STEP = 5  # Number of tabs to scroll per button click
-    TOTAL_HEIGHT = 60  # Compact height matching 3DE
+    TOTAL_HEIGHT = 45  # Ultra-compact height matching modern 3DE
 
     def __init__(self, parent=None):
         """Initialize timeline widget."""
@@ -126,31 +126,31 @@ class TimelineTabWidget(QWidget):
         self.setFixedHeight(self.TOTAL_HEIGHT)
         self.setMaximumHeight(self.TOTAL_HEIGHT)
 
-        # Apply visual styling - dark professional 3DE style
+        # Apply visual styling - modern 3DE style
         self.setStyleSheet("""
             TimelineTabWidget {
-                background-color: #1a1a1a;
-                border-top: 1px solid #3a3a3a;
-                border-bottom: 1px solid #0a0a0a;
+                background-color: #2d2d2d;
+                border-top: 1px solid #1a1a1a;
+                border-bottom: 1px solid #1a1a1a;
             }
             QPushButton {
-                background-color: #2a2a2a;
-                color: #aaa;
-                border: 1px solid #3a3a3a;
-                border-radius: 2px;
+                background-color: transparent;
+                color: #888;
+                border: none;
                 font-weight: normal;
-                font-size: 11px;
+                font-size: 10px;
+                padding: 0;
             }
             QPushButton:hover {
-                background-color: #3a3a3a;
-                color: #ddd;
+                color: #aaa;
             }
             QPushButton:pressed {
-                background-color: #1a1a1a;
+                color: #666;
             }
             QLabel {
-                color: #ccc;
-                font-size: 11px;
+                color: #aaa;
+                font-size: 10px;
+                font-family: monospace;
             }
         """)
 
@@ -196,8 +196,8 @@ class TimelineTabWidget(QWidget):
         nav_layout = QHBoxLayout(nav_widget)
         nav_layout.setContentsMargins(4, 2, 4, 2)
 
-        # Navigation buttons - compact for professional look
-        button_size = 20
+        # Navigation buttons - ultra-small and minimal
+        button_size = 16
         self.first_btn = QPushButton("⏮")
         self.first_btn.setFixedSize(button_size, button_size)
         self.first_btn.setToolTip("Go to first frame")
@@ -218,10 +218,10 @@ class TimelineTabWidget(QWidget):
         self.last_btn.setToolTip("Go to last frame")
         self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
 
-        # Frame info label - professional 3DE style
+        # Frame info label - modern 3DE style
         self.frame_info = QLabel()
         self.frame_info.setStyleSheet(
-            "QLabel { color: #ddc064; font-size: 11px; font-weight: bold; font-family: monospace; }"
+            "QLabel { color: #bba050; font-size: 10px; font-weight: normal; font-family: monospace; }"
         )
         self._update_frame_info()
 
@@ -240,14 +240,14 @@ class TimelineTabWidget(QWidget):
         """Create scrollable timeline area."""
         # Create scroll area
         self.scroll_area = TimelineScrollArea(self)
-        # Adjust height to match compact tabs
-        self.scroll_area.setFixedHeight(32)  # Enough for 24px tabs + padding
+        # Adjust height to match ultra-compact tabs
+        self.scroll_area.setFixedHeight(24)  # Enough for 20px tabs + minimal padding
 
         # Create container widget for tabs
         self.tabs_container = QWidget()
         self.tabs_layout = QHBoxLayout(self.tabs_container)
-        self.tabs_layout.setContentsMargins(4, 4, 4, 4)
-        self.tabs_layout.setSpacing(self.TAB_SPACING)
+        self.tabs_layout.setContentsMargins(2, 2, 2, 2)
+        self.tabs_layout.setSpacing(self.TAB_SPACING)  # 0 for seamless
         self.tabs_layout.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
         self.scroll_area.setWidget(self.tabs_container)

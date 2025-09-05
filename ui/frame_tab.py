@@ -18,24 +18,24 @@ class FrameTab(QWidget):
     frame_clicked = Signal(int)  # Emitted when tab is clicked
     frame_hovered = Signal(int)  # Emitted when tab is hovered
 
-    # Tab appearance constants - compact 3DE style
-    TAB_WIDTH = 40
-    TAB_HEIGHT = 24
+    # Tab appearance constants - modern 3DE style
+    TAB_WIDTH = 30
+    TAB_HEIGHT = 20
     BORDER_WIDTH = 1
-    CORNER_RADIUS = 2
+    CORNER_RADIUS = 0  # No rounded corners for seamless look
 
-    # Color scheme for frame status - professional 3DE style
+    # Color scheme for frame status - modern 3DE style (very subtle)
     COLORS = {
-        "no_points": QColor(45, 45, 45),  # Dark gray - no tracked points
-        "keyframe": QColor(70, 140, 70),  # Muted green - has keyframe points
-        "interpolated": QColor(140, 120, 60),  # Muted yellow/brown - only interpolated points
-        "mixed": QColor(70, 100, 140),  # Muted blue - mixed keyframe/interpolated
-        "current_frame": QColor(45, 45, 45),  # Same as no_points, highlight with border
-        "current_border": QColor(220, 180, 0),  # Golden border for current frame
-        "selected": QColor(160, 60, 60),  # Muted red for selected points
-        "border": QColor(30, 30, 30),  # Darker border
-        "text": QColor(200, 200, 200),  # Softer text for dark backgrounds
-        "text_current": QColor(255, 220, 100),  # Golden text for current frame
+        "no_points": QColor(50, 50, 50),  # Medium-dark gray - no tracked points
+        "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
+        "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
+        "mixed": QColor(55, 58, 65),  # Very subtle blue tint - mixed keyframe/interpolated
+        "current_frame": QColor(50, 50, 50),  # Same as no_points, highlight with border
+        "current_border": QColor(200, 170, 0),  # Golden border for current frame
+        "selected": QColor(70, 50, 50),  # Subtle red tint for selected points
+        "border": QColor(25, 25, 25),  # Very dark border
+        "text": QColor(255, 255, 255),  # Pure white text for all tabs
+        "text_current": QColor(255, 255, 255),  # White text even for current frame
     }
 
     def __init__(self, frame_number: int, parent=None):
@@ -134,10 +134,8 @@ class FrameTab(QWidget):
             return self.COLORS["interpolated"]
 
     def _get_text_color(self) -> QColor:
-        """Get text color based on background."""
-        if self.is_current_frame:
-            return self.COLORS["text_current"]
-        return self.COLORS["text"]
+        """Get text color - always white in 3DE style."""
+        return self.COLORS["text"]  # Always white
 
     def paintEvent(self, event):
         """Custom paint for frame tab appearance."""
@@ -146,29 +144,39 @@ class FrameTab(QWidget):
 
         rect = self.rect()
 
-        # Draw background
+        # Draw background with optional gradient for depth
         bg_color = self._get_background_color()
         if self.is_hovered and not self.is_current_frame:
-            # Slightly lighter on hover (except current frame)
-            bg_color = bg_color.lighter(115)
+            # Very subtle hover effect
+            bg_color = bg_color.lighter(105)
 
-        # Use golden border for current frame, normal border otherwise
-        border_color = self.COLORS["current_border"] if self.is_current_frame else self.COLORS["border"]
-        border_width = 2 if self.is_current_frame else self.BORDER_WIDTH
+        # Create subtle gradient for depth (3DE style)
+        from PySide6.QtGui import QLinearGradient
 
-        painter.setPen(QPen(border_color, border_width))
-        painter.setBrush(QBrush(bg_color))
-        painter.drawRoundedRect(
-            rect.adjusted(1, 1, -1, -1) if self.is_current_frame else rect, self.CORNER_RADIUS, self.CORNER_RADIUS
-        )
+        gradient = QLinearGradient(0, 0, 0, rect.height())
+        gradient.setColorAt(0, bg_color.lighter(110))
+        gradient.setColorAt(0.5, bg_color)
+        gradient.setColorAt(1, bg_color.darker(110))
+
+        # Use golden border for current frame, subtle border otherwise
+        if self.is_current_frame:
+            # Draw golden border for current frame
+            painter.setPen(QPen(self.COLORS["current_border"], 2))
+            painter.setBrush(QBrush(gradient))
+            painter.drawRect(rect.adjusted(1, 1, -1, -1))
+        else:
+            # Draw with subtle border
+            painter.setPen(QPen(self.COLORS["border"], self.BORDER_WIDTH))
+            painter.setBrush(QBrush(gradient))
+            painter.drawRect(rect)
 
         # Draw frame number
         painter.setPen(QPen(self._get_text_color()))
 
-        # Use smaller font for compact tabs
-        font = QFont("Arial", 9)
-        font.setBold(self.is_current_frame)
-        font.setWeight(QFont.Weight.Bold if self.is_current_frame else QFont.Weight.Normal)
+        # Use smaller font for ultra-compact tabs
+        font = QFont("Arial", 8)
+        font.setBold(False)  # No bold in 3DE style
+        font.setWeight(QFont.Weight.Normal)
         painter.setFont(font)
 
         painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(self.frame_number))
