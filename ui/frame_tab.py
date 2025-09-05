@@ -7,7 +7,7 @@ Similar to 3DEqualizer frame tabs with visual indicators for tracking status.
 """
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QMouseEvent, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QMouseEvent, QPainter, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 
@@ -20,7 +20,7 @@ class FrameTab(QWidget):
 
     # Tab appearance constants - modern 3DE style
     TAB_WIDTH = 30
-    TAB_HEIGHT = 20
+    TAB_HEIGHT = 30  # Taller tabs for better visibility
     BORDER_WIDTH = 1
     CORNER_RADIUS = 0  # No rounded corners for seamless look
 
@@ -100,6 +100,7 @@ class FrameTab(QWidget):
 
     def _update_tooltip(self):
         """Update tooltip text based on current status."""
+        # Always show frame number in tooltip since it's not displayed on tab
         if self.point_count == 0:
             tooltip = f"Frame {self.frame_number}: No tracked points"
         else:
@@ -170,16 +171,8 @@ class FrameTab(QWidget):
             painter.setBrush(QBrush(gradient))
             painter.drawRect(rect)
 
-        # Draw frame number
-        painter.setPen(QPen(self._get_text_color()))
-
-        # Use smaller font for ultra-compact tabs
-        font = QFont("Arial", 8)
-        font.setBold(False)  # No bold in 3DE style
-        font.setWeight(QFont.Weight.Normal)
-        painter.setFont(font)
-
-        painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, str(self.frame_number))
+        # No frame numbers on tabs in 3DE style - just colored bars
+        # Frame number is shown in tooltip on hover
 
     def mousePressEvent(self, event: QMouseEvent):
         """Handle mouse press for frame selection."""

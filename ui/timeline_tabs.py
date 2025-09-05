@@ -116,7 +116,7 @@ class TimelineTabWidget(QWidget):
     NAVIGATION_HEIGHT = 20  # Ultra-compact navigation bar
     MIN_VISIBLE_TABS = 25  # Many more tabs visible at once
     SCROLL_STEP = 5  # Number of tabs to scroll per button click
-    TOTAL_HEIGHT = 45  # Ultra-compact height matching modern 3DE
+    TOTAL_HEIGHT = 55  # Height to accommodate taller tabs
 
     def __init__(self, parent=None):
         """Initialize timeline widget."""
@@ -240,8 +240,8 @@ class TimelineTabWidget(QWidget):
         """Create scrollable timeline area."""
         # Create scroll area
         self.scroll_area = TimelineScrollArea(self)
-        # Adjust height to match ultra-compact tabs
-        self.scroll_area.setFixedHeight(24)  # Enough for 20px tabs + minimal padding
+        # Adjust height to match taller tabs
+        self.scroll_area.setFixedHeight(34)  # Enough for 30px tabs + minimal padding
 
         # Create container widget for tabs
         self.tabs_container = QWidget()
