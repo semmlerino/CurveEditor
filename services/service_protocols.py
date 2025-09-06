@@ -8,6 +8,7 @@ Minimal implementation for startup compatibility.
 """
 
 import logging
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -22,7 +23,22 @@ from core.type_aliases import (
 )
 
 
-# TYPE_CHECKING block removed - no imports needed
+class SignalProtocol(Protocol):
+    """Protocol for Qt signal objects with emit method."""
+
+    def emit(self, *args: object) -> None:
+        """Emit the signal with arguments."""
+        ...
+
+    def connect(self, slot: Callable[..., object]) -> object:
+        """Connect signal to slot."""
+        ...
+
+    def disconnect(self, slot: Callable[..., object] | None = None) -> None:
+        """Disconnect signal from slot."""
+        ...
+
+
 class LoggingServiceProtocol(Protocol):
     """Protocol for logging service dependency injection."""
 
@@ -125,9 +141,9 @@ class CurveViewProtocol(Protocol):
     # Parent reference
     main_window: "MainWindowProtocol"  # Forward reference
 
-    # Qt signals (typed for better inference)
-    point_selected: object  # Signal[int] - avoid circular imports
-    point_moved: object  # Signal[int, float, float]
+    # Qt signals (properly typed for type safety)
+    point_selected: SignalProtocol  # Signal[int]
+    point_moved: SignalProtocol  # Signal[int, float, float]
 
     # Methods that services may call
     def update(self) -> None:
@@ -166,6 +182,10 @@ class CurveViewProtocol(Protocol):
         """Get current transform object."""
         ...
 
+    def get_transform(self) -> object:  # Transform - avoid circular import
+        """Get transform object (alias for compatibility)."""
+        ...
+
     def _invalidate_caches(self) -> None:
         """Invalidate any cached data."""
         ...
@@ -182,6 +202,18 @@ class CurveViewProtocol(Protocol):
         """Toggle interpolation status of a point."""
         ...
 
+    def set_curve_data(self, data: CurveDataList) -> None:
+        """Set the curve data."""
+        ...
+
+    def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
+        """Set points with image dimensions (legacy compatibility)."""
+        ...
+
+    def set_selected_indices(self, indices: list[int]) -> None:
+        """Set the selected point indices."""
+        ...
+
 
 class MainWindowProtocol(Protocol):
     """Protocol for main window widgets.
@@ -192,10 +224,15 @@ class MainWindowProtocol(Protocol):
 
     # Basic attributes commonly used by services
     selected_indices: list[int]
-    current_frame: int
     curve_view: object  # CurveViewProtocol, but avoid circular reference
     curve_data: CurveDataList
     curve_widget: object  # CurveViewWidget
+
+    # Frame management - property for type-safe access
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number."""
+        ...
 
     # History management
     history: list[object]  # list[HistoryState] but avoiding complex types
@@ -294,6 +331,37 @@ class HistoryCommandProtocol(Protocol):
 
     def redo(self, container: HistoryContainerProtocol) -> None:
         """Redo this command."""
+        ...
+
+
+class BatchEditableProtocol(Protocol):
+    """Protocol for batch-editable parent components.
+
+    Defines the interface that parent widgets must implement
+    to support batch editing operations.
+    """
+
+    # UI component references
+    point_edit_layout: object | None  # QLayout
+    batch_edit_group: object | None  # QGroupBox
+    curve_view: CurveViewProtocol | None
+
+    # Data attributes
+    selected_indices: list[int]
+    image_width: int
+    image_height: int
+
+    # Methods for batch operations
+    def statusBar(self) -> "QStatusBar":
+        """Get status bar widget."""
+        ...
+
+    def update_curve_data(self, data: CurveDataList) -> None:
+        """Update curve data."""
+        ...
+
+    def add_to_history(self) -> None:
+        """Add current state to history."""
         ...
 
 

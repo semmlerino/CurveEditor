@@ -155,6 +155,9 @@ class TestRenderingPipeline:
                 self.flip_y_axis = False
                 self.image_width = 800
                 self.image_height = 600
+                self.main_window = None  # For OptimizedCurveRenderer compatibility
+                self.background_image = None  # Required by renderer
+                self.show_all_frame_numbers = False  # Required by renderer
 
             def get_transform(self):
                 return self.transform
@@ -187,6 +190,7 @@ class TestRenderingPipeline:
             def __init__(self):
                 self.points = [(1, 100, 100), (2, 400, 300)]
                 self.show_background = True
+                self.main_window = None  # For OptimizedCurveRenderer compatibility
                 self.background_image = QImage(800, 600, QImage.Format.Format_RGB32)
                 self.background_image.fill(Qt.GlobalColor.blue)
                 self.background_opacity = 0.5
@@ -202,6 +206,7 @@ class TestRenderingPipeline:
                 self.flip_y_axis = False
                 self.image_width = 800
                 self.image_height = 600
+                self.show_all_frame_numbers = False  # Required by renderer
 
             def get_transform(self):
                 # Calculate center offset
@@ -247,6 +252,7 @@ class TestRenderingPipeline:
             def __init__(self):
                 # Create 1000 points (enough to test viewport culling without memory issues)
                 self.points = [(i, i * 10, i * 5) for i in range(1000)]
+                self.main_window = None  # For OptimizedCurveRenderer compatibility
                 self.show_background = False
                 self.show_grid = False
                 self.selected_points = set()
@@ -260,6 +266,8 @@ class TestRenderingPipeline:
                 self.flip_y_axis = False
                 self.image_width = 800
                 self.image_height = 600
+                self.background_image = None  # Required by renderer
+                self.show_all_frame_numbers = False  # Required by renderer
 
             def get_transform(self):
                 # Calculate center offset for proper Transform initialization

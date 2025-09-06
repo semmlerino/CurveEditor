@@ -6,8 +6,9 @@ Implements a comprehensive theming system with modern visual design patterns
 
 from PySide6.QtCore import QEasingCurve, QObject, QPropertyAnimation, Signal
 from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QGraphicsDropShadowEffect, QWidget
+from PySide6.QtWidgets import QWidget
 
+from ui.animation_utils import AnimationFactory
 from ui.ui_constants import BORDER_RADIUS, COLORS_DARK, COLORS_LIGHT, FONT_SIZES, SPACING
 
 
@@ -375,8 +376,6 @@ class ModernTheme(QObject):
 
     def apply_card_shadow(self, widget: QWidget, intensity: str = "medium") -> None:
         """Apply modern card shadow effect to widget."""
-        shadow = QGraphicsDropShadowEffect()
-
         shadow_configs = {
             "small": (10, 0, 1, QColor(0, 0, 0, 20)),
             "medium": (15, 0, 2, QColor(0, 0, 0, 30)),
@@ -384,18 +383,24 @@ class ModernTheme(QObject):
         }
 
         config = shadow_configs.get(intensity, shadow_configs["medium"])
-        shadow.setBlurRadius(config[0])
-        shadow.setXOffset(config[1])
-        shadow.setYOffset(config[2])
+        shadow = AnimationFactory.create_shadow_effect(
+            blur_radius=config[0],
+            x_offset=config[1],
+            y_offset=config[2],
+        )
         shadow.setColor(config[3])
-
         widget.setGraphicsEffect(shadow)
 
     def create_hover_animation(self, widget: QWidget, property_name: bytes = b"geometry") -> QPropertyAnimation:
         """Create smooth hover animation for widget."""
-        animation = QPropertyAnimation(widget, property_name)
-        animation.setDuration(200)
-        animation.setEasingCurve(QEasingCurve.Type.OutCubic)
+        # Use AnimationFactory for consistent animation creation
+        animation = AnimationFactory.create_property_animation(
+            widget,
+            property_name,
+            duration="fast",  # 150ms is close to 200ms
+            easing=QEasingCurve.Type.OutCubic,
+        )
+        animation.setDuration(200)  # Override to exact 200ms if needed
         return animation
 
     def switch_theme(self, theme: str) -> None:

@@ -15,21 +15,34 @@ This is the consolidated implementation without Sprint 8 delegation.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QRubberBand
 
 from core.spatial_index import PointIndex
-from services.transform_service import TransformService
+
+# Import protocols for type annotations (available at runtime)
+from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 if TYPE_CHECKING:
-    from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+    from PySide6.QtCore import QRect
 
 logger = logging.getLogger("interaction_service")
 
-# Create a module-level transform service instance to avoid import cycle
-_transform_service = TransformService()
+# Lazy singleton access to avoid circular import
+_transform_service = None
+
+
+def _get_transform_service():
+    """Get transform service singleton (lazy initialization)."""
+    global _transform_service
+    if _transform_service is None:
+        # Import here to avoid circular import
+        from services import get_transform_service
+
+        _transform_service = get_transform_service()
+    return _transform_service
 
 
 class InteractionService:
@@ -56,10 +69,10 @@ class InteractionService:
         self.rubber_band_origin: tuple[int, int] | None = None
 
         # Spatial index for efficient point lookups
-        self._point_index = PointIndex(grid_width=20, grid_height=20)
+        self._point_index: PointIndex = PointIndex(grid_width=20, grid_height=20)
 
         # History state
-        self._history: list[dict[str, Any]] = []
+        self._history: list[dict[str, object]] = []
         self._current_index: int = -1
         self._max_history_size: int = 100
 
@@ -103,7 +116,8 @@ class InteractionService:
             # Point clicked
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 # Toggle selection
-                if not hasattr(view, "selected_points"):
+                # selected_points is defined in CurveViewProtocol
+                if not view.selected_points:
                     view.selected_points = set()
                 if point_idx in view.selected_points:
                     view.selected_points.remove(point_idx)
@@ -112,7 +126,8 @@ class InteractionService:
                 view.selected_point_idx = point_idx
             elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                 # Range selection (simplified - just add to selection)
-                if not hasattr(view, "selected_points"):
+                # selected_points is defined in CurveViewProtocol
+                if not view.selected_points:
                     view.selected_points = set()
                 view.selected_points.add(point_idx)
                 view.selected_point_idx = point_idx
@@ -129,8 +144,11 @@ class InteractionService:
         elif event.button() == Qt.MouseButton.LeftButton:
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 # Start rectangle selection
-                if not hasattr(view, "rubber_band") or view.rubber_band is None:
-                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, view)
+                # rubber_band is Optional in CurveViewProtocol
+                if view.rubber_band is None:
+                    # Create rubber band with parent widget workaround
+                    parent_widget = getattr(view, "parentWidget", lambda: None)() or None
+                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)  # type: ignore[arg-type]
                 view.rubber_band_origin = pos
                 view.rubber_band_active = True
                 view.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))
@@ -156,23 +174,27 @@ class InteractionService:
 
         pos = event.position()
 
-        if getattr(view, "drag_active", False) and hasattr(view, "last_drag_pos"):
+        # drag_active is bool, last_drag_pos is Optional in CurveViewProtocol
+        if view.drag_active and view.last_drag_pos is not None:
             # Drag selected points
-            if hasattr(view, "selected_points") and view.selected_points:
+            # selected_points is defined in CurveViewProtocol
+            if view.selected_points:
                 delta_x = pos.x() - view.last_drag_pos.x()
                 delta_y = pos.y() - view.last_drag_pos.y()
 
                 # Convert screen delta to curve coordinates
-                transform_service = _transform_service
+                transform_service = _get_transform_service()
                 view_state = transform_service.create_view_state(view)
                 transform = transform_service.create_transform_from_view_state(view_state)
 
-                curve_delta_x = delta_x / transform.scale_x
-                curve_delta_y = -delta_y / transform.scale_y  # Invert Y for curve coordinates
+                # Transform has a single scale, not scale_x/scale_y
+                curve_delta_x = delta_x / transform.scale
+                curve_delta_y = -delta_y / transform.scale  # Invert Y for curve coordinates
 
                 # Move all selected points
                 for idx in view.selected_points:
-                    if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+                    # curve_data is defined in CurveViewProtocol
+                    if 0 <= idx < len(view.curve_data):
                         point = view.curve_data[idx]
                         new_x = point[1] + curve_delta_x
                         new_y = point[2] + curve_delta_y
@@ -183,18 +205,23 @@ class InteractionService:
 
             view.last_drag_pos = pos
 
-        elif getattr(view, "pan_active", False) and hasattr(view, "last_pan_pos"):
+        # pan_active is bool, last_pan_pos is Optional in CurveViewProtocol
+        elif view.pan_active and view.last_pan_pos is not None:
             # Pan the view
             delta_x = pos.x() - view.last_pan_pos.x()
             delta_y = pos.y() - view.last_pan_pos.y()
 
-            if hasattr(view, "pan"):
-                view.pan(delta_x, delta_y)
+            # Pan the view if supported
+            pan_method = getattr(view, "pan", None)
+            if pan_method is not None and callable(pan_method):
+                pan_method(delta_x, delta_y)
             view.last_pan_pos = pos
 
-        elif getattr(view, "rubber_band_active", False) and hasattr(view, "rubber_band_origin"):
+        # rubber_band_active is bool, rubber_band_origin is QtPointF in CurveViewProtocol
+        elif view.rubber_band_active:
             # Update rubber band rectangle
-            if hasattr(view, "rubber_band") and view.rubber_band:
+            # rubber_band is Optional in CurveViewProtocol
+            if view.rubber_band is not None:
                 rect = QRect(view.rubber_band_origin.toPoint(), pos.toPoint()).normalized()
                 view.rubber_band.setGeometry(rect)
 
@@ -203,35 +230,41 @@ class InteractionService:
     def _handle_mouse_release_consolidated(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Consolidated mouse release handling for default mode."""
 
-        if getattr(view, "drag_active", False):
+        # drag_active is bool in CurveViewProtocol
+        if view.drag_active:
             # End dragging
             view.drag_active = False
             view.last_drag_pos = None
             self.drag_point_idx = None
 
             # Add to history if we have a main window
-            if hasattr(view, "main_window"):
+            # main_window is defined in CurveViewProtocol
+            if view.main_window is not None:
                 self.add_to_history(view.main_window)
 
-        elif getattr(view, "pan_active", False):
+        # pan_active is bool in CurveViewProtocol
+        elif view.pan_active:
             # End panning
             view.pan_active = False
             view.last_pan_pos = None
             view.unsetCursor()
 
-        elif getattr(view, "rubber_band_active", False):
+        # rubber_band_active is bool in CurveViewProtocol
+        elif view.rubber_band_active:
             # Finish rectangle selection
-            if hasattr(view, "rubber_band") and view.rubber_band:
+            # rubber_band is Optional in CurveViewProtocol
+            if view.rubber_band is not None:
                 rect = view.rubber_band.geometry()
 
                 # Find points in rectangle
                 selected_count = 0
-                if hasattr(view, "curve_data"):
-                    transform_service = _transform_service
+                # curve_data is defined in CurveViewProtocol
+                if view.curve_data:
+                    transform_service = _get_transform_service()
                     view_state = transform_service.create_view_state(view)
                     transform = transform_service.create_transform_from_view_state(view_state)
 
-                    if not hasattr(view, "selected_points"):
+                    if not view.selected_points:
                         view.selected_points = set()
 
                     for i, point in enumerate(view.curve_data):
@@ -245,7 +278,7 @@ class InteractionService:
                 view.rubber_band_active = False
 
                 # Update history if points were selected
-                if selected_count > 0 and hasattr(view, "main_window"):
+                if selected_count > 0 and view.main_window is not None:
                     self.update_history_buttons(view.main_window)
 
         view.update()
@@ -256,9 +289,11 @@ class InteractionService:
         delta = event.angleDelta().y()
         zoom_factor = 1.1 if delta > 0 else 0.9
 
-        if hasattr(view, "zoom"):
+        # Zoom the view if supported
+        zoom_method = getattr(view, "zoom", None)
+        if zoom_method is not None and callable(zoom_method):
             center = event.position()
-            view.zoom(zoom_factor, center)
+            zoom_method(zoom_factor, center)
             view.update()
 
     def _handle_key_event_consolidated(self, view: CurveViewProtocol, event: QKeyEvent) -> None:
@@ -269,36 +304,43 @@ class InteractionService:
 
         if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
             # Delete selected points
-            if hasattr(view, "selected_points") and view.selected_points:
+            # selected_points is defined in CurveViewProtocol
+            if view.selected_points:
                 for idx in sorted(view.selected_points, reverse=True):
-                    if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+                    # curve_data is defined in CurveViewProtocol
+                    if 0 <= idx < len(view.curve_data):
                         view.curve_data.pop(idx)
 
                 view.selected_points.clear()
                 view.selected_point_idx = -1
 
                 # Add to history
-                if hasattr(view, "main_window"):
-                    self.add_to_history(view.main_window)
+                # main_window is defined in CurveViewProtocol
+            if view.main_window is not None:
+                self.add_to_history(view.main_window)
 
         elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             # Select all points
-            if hasattr(view, "curve_data") and view.curve_data:
+            # curve_data is defined in CurveViewProtocol
+            if view.curve_data:
                 view.selected_points = set(range(len(view.curve_data)))
                 view.selected_point_idx = 0
-                if hasattr(view, "main_window"):
-                    self.update_history_buttons(view.main_window)
+                # main_window is defined in CurveViewProtocol
+            if view.main_window is not None:
+                self.update_history_buttons(view.main_window)
 
         elif key == Qt.Key.Key_Escape:
             # Clear selection
             view.selected_points = set()
             view.selected_point_idx = -1
-            if hasattr(view, "main_window"):
+            # main_window is defined in CurveViewProtocol
+            if view.main_window is not None:
                 self.update_history_buttons(view.main_window)
 
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
             # Nudge selected points
-            if hasattr(view, "selected_points") and view.selected_points:
+            # selected_points is defined in CurveViewProtocol
+            if view.selected_points:
                 nudge_distance = 1.0
                 delta_x = (
                     nudge_distance if key == Qt.Key.Key_Right else (-nudge_distance if key == Qt.Key.Key_Left else 0)
@@ -306,16 +348,17 @@ class InteractionService:
                 delta_y = nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
 
                 # Convert to curve coordinates
-                transform_service = _transform_service
+                transform_service = _get_transform_service()
                 view_state = transform_service.create_view_state(view)
                 transform = transform_service.create_transform_from_view_state(view_state)
 
-                curve_delta_x = delta_x / transform.scale_x
-                curve_delta_y = -delta_y / transform.scale_y  # Invert Y
+                curve_delta_x = delta_x / transform.scale
+                curve_delta_y = -delta_y / transform.scale  # Invert Y
 
                 # Move selected points
                 for idx in view.selected_points:
-                    if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+                    # curve_data is defined in CurveViewProtocol
+                    if 0 <= idx < len(view.curve_data):
                         point = view.curve_data[idx]
                         new_x = point[1] + curve_delta_x
                         new_y = point[2] + curve_delta_y
@@ -325,8 +368,9 @@ class InteractionService:
                             view.curve_data[idx] = (point[0], new_x, new_y)
 
                 # Add to history
-                if hasattr(view, "main_window"):
-                    self.add_to_history(view.main_window)
+                # main_window is defined in CurveViewProtocol
+            if view.main_window is not None:
+                self.add_to_history(view.main_window)
 
         view.update()
 
@@ -347,7 +391,7 @@ class InteractionService:
 
     # ==================== State Query Methods ====================
 
-    def get_memory_stats(self) -> dict[str, Any]:
+    def get_memory_stats(self) -> dict[str, object]:
         """
         Get memory statistics from history.
 
@@ -367,7 +411,7 @@ class InteractionService:
 
     # ==================== Legacy Compatibility Methods ====================
 
-    def add_to_history(self, main_window_or_view: Any, state: dict | None = None) -> None:
+    def add_to_history(self, main_window_or_view: MainWindowProtocol, state: dict[str, object] | None = None) -> None:
         """
         Add current state to history.
 
@@ -388,56 +432,73 @@ class InteractionService:
         history_state = {}
 
         # Get curve_data - try multiple possible attributes
-        if hasattr(main_window, "curve_data"):
+        # curve_data is defined in MainWindowProtocol
+        if main_window.curve_data is not None:
             # Convert lists to tuples for compression (as expected by tests)
             curve_data = main_window.curve_data
             if curve_data and isinstance(curve_data[0], list):
                 history_state["curve_data"] = [tuple(point) for point in curve_data]
             else:
                 history_state["curve_data"] = copy.deepcopy(curve_data)
-        elif hasattr(main_window, "curve_widget") and hasattr(main_window.curve_widget, "curve_data"):
-            curve_data = main_window.curve_widget.curve_data
-            if curve_data and isinstance(curve_data[0], list):
-                history_state["curve_data"] = [tuple(point) for point in curve_data]
+        # curve_widget is defined in MainWindowProtocol
+        elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
+            widget_curve_data = getattr(main_window.curve_widget, "curve_data")
+            if (
+                widget_curve_data
+                and isinstance(widget_curve_data, list)
+                and len(widget_curve_data) > 0
+                and isinstance(widget_curve_data[0], list)
+            ):
+                history_state["curve_data"] = [tuple(point) for point in widget_curve_data]
             else:
-                history_state["curve_data"] = copy.deepcopy(curve_data)
-        elif hasattr(main_window, "curve_view") and hasattr(main_window.curve_view, "curve_data"):
-            curve_data = main_window.curve_view.curve_data
-            if curve_data and isinstance(curve_data[0], list):
-                history_state["curve_data"] = [tuple(point) for point in curve_data]
+                history_state["curve_data"] = copy.deepcopy(widget_curve_data)
+        # curve_view is defined in MainWindowProtocol
+        elif main_window.curve_view is not None and getattr(main_window.curve_view, "curve_data", None) is not None:
+            view_curve_data = getattr(main_window.curve_view, "curve_data")
+            if (
+                view_curve_data
+                and isinstance(view_curve_data, list)
+                and len(view_curve_data) > 0
+                and isinstance(view_curve_data[0], list)
+            ):
+                history_state["curve_data"] = [tuple(point) for point in view_curve_data]
             else:
-                history_state["curve_data"] = copy.deepcopy(curve_data)
+                history_state["curve_data"] = copy.deepcopy(view_curve_data)
         else:
             logger.warning("Cannot extract curve data from main_window")
             return
 
         # Get point_name
-        if hasattr(main_window, "point_name"):
-            history_state["point_name"] = main_window.point_name
+        point_name = getattr(main_window, "point_name", None)
+        if point_name is not None:
+            history_state["point_name"] = point_name
 
         # Get point_color
-        if hasattr(main_window, "point_color"):
-            history_state["point_color"] = main_window.point_color
+        point_color = getattr(main_window, "point_color", None)
+        if point_color is not None:
+            history_state["point_color"] = point_color
 
         # Check if main_window has history attributes for direct management
-        if hasattr(main_window, "history"):
+        # history is defined in MainWindowProtocol
+        if main_window.history is not None:
             # Truncate future history if we're not at the end
-            if hasattr(main_window, "history_index"):
-                if main_window.history_index < len(main_window.history) - 1:
-                    main_window.history = main_window.history[: main_window.history_index + 1]
+            # history_index is defined in MainWindowProtocol
+            if main_window.history_index < len(main_window.history) - 1:
+                main_window.history = main_window.history[: main_window.history_index + 1]
             # Add state to main_window's history
             main_window.history.append(history_state)
 
             # Update history index
-            if hasattr(main_window, "history_index"):
-                main_window.history_index = len(main_window.history) - 1
+            # history_index is defined in MainWindowProtocol
+            main_window.history_index = len(main_window.history) - 1
 
             # Enforce size limit
-            if hasattr(main_window, "max_history_size"):
-                while len(main_window.history) > main_window.max_history_size:
+            max_history_size = getattr(main_window, "max_history_size", None)
+            if max_history_size is not None:
+                while len(main_window.history) > max_history_size:
                     main_window.history.pop(0)
-                    if hasattr(main_window, "history_index"):
-                        main_window.history_index = max(0, main_window.history_index - 1)
+                    # history_index is defined in MainWindowProtocol
+                    main_window.history_index = max(0, main_window.history_index - 1)
         else:
             # Truncate future history if we're not at the end
             if self._current_index < len(self._history) - 1:
@@ -456,9 +517,13 @@ class InteractionService:
         self.update_history_buttons(main_window)
 
         # Notify workflow state service if available
-        if hasattr(main_window, "services") and hasattr(main_window.services, "workflow_state"):
+        if (
+            main_window.services is not None
+            and getattr(main_window.services, "workflow_state", None) is not None
+            and getattr(getattr(main_window.services, "workflow_state"), "on_data_modified", None) is not None
+        ):
             try:
-                main_window.services.workflow_state.on_data_modified()
+                getattr(main_window.services, "workflow_state").on_data_modified()
             except Exception:
                 pass  # Ignore errors in workflow notification
 
@@ -470,25 +535,25 @@ class InteractionService:
 
         return time.time()
 
-    def undo(self, main_window: Any) -> None:
+    def undo(self, main_window: MainWindowProtocol) -> None:
         """Undo last operation - alias for undo_action."""
         self.undo_action(main_window)
 
-    def redo(self, main_window: Any) -> None:
+    def redo(self, main_window: MainWindowProtocol) -> None:
         """Redo next operation - alias for redo_action."""
         self.redo_action(main_window)
 
-    def clear_history(self, main_window: Any) -> None:
+    def clear_history(self, main_window: MainWindowProtocol) -> None:
         """Clear all history."""
         self._history.clear()
         self._current_index = -1
         logger.debug("History cleared")
         self.update_history_buttons(main_window)
 
-    def update_history_buttons(self, main_window: Any) -> None:
+    def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
         # Determine can_undo and can_redo based on history location
-        if hasattr(main_window, "history") and hasattr(main_window, "history_index"):
+        if main_window.history is not None and main_window.history_index is not None:
             # Use main_window's history
             can_undo_val = main_window.history_index > 0
             can_redo_val = main_window.history_index < len(main_window.history) - 1
@@ -497,23 +562,23 @@ class InteractionService:
             can_undo_val = self.can_undo()
             can_redo_val = self.can_redo()
 
-        # Update buttons - try both direct attributes and ui_components
-        if hasattr(main_window, "undo_button"):
-            main_window.undo_button.setEnabled(can_undo_val)
-        elif hasattr(main_window, "ui_components") and hasattr(main_window.ui_components, "undo_button"):
-            main_window.ui_components.undo_button.setEnabled(can_undo_val)
+        # Update buttons via ui components
+        ui = getattr(main_window, "ui", None)
+        if ui is not None:
+            undo_btn = getattr(ui, "undo_button", None)
+            if undo_btn is not None:
+                undo_btn.setEnabled(can_undo_val)
 
-        if hasattr(main_window, "redo_button"):
-            main_window.redo_button.setEnabled(can_redo_val)
-        elif hasattr(main_window, "ui_components") and hasattr(main_window.ui_components, "redo_button"):
-            main_window.ui_components.redo_button.setEnabled(can_redo_val)
+            redo_btn = getattr(ui, "redo_button", None)
+            if redo_btn is not None:
+                redo_btn.setEnabled(can_redo_val)
 
     def find_point_at(self, view: CurveViewProtocol, x: float, y: float) -> int:
         """Find point at given coordinates using spatial indexing for O(1) performance."""
-        if not hasattr(view, "curve_data"):
+        if not view.curve_data:
             return -1
 
-        transform_service = _transform_service
+        transform_service = _get_transform_service()
 
         # Create transform for coordinate conversion
         view_state = transform_service.create_view_state(view)
@@ -525,10 +590,10 @@ class InteractionService:
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
-        if not hasattr(view, "curve_data"):
+        if not view.curve_data:
             return -1
 
-        transform_service = _transform_service
+        transform_service = _get_transform_service()
 
         # Create transform for coordinate conversion
         view_state = transform_service.create_view_state(view)
@@ -541,7 +606,8 @@ class InteractionService:
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, add_to_selection: bool = False
     ) -> bool:
         """Select point by index."""
-        if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+        # curve_data is defined in CurveViewProtocol
+        if 0 <= idx < len(view.curve_data):
             if not add_to_selection:
                 view.selected_points.clear()
             view.selected_points.add(idx)
@@ -558,7 +624,7 @@ class InteractionService:
 
     def select_all_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> int:
         """Select all points."""
-        if hasattr(view, "curve_data") and view.curve_data:
+        if view.curve_data:
             view.selected_points = set(range(len(view.curve_data)))
             view.selected_point_idx = 0 if view.curve_data else -1
             view.update()
@@ -569,7 +635,8 @@ class InteractionService:
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, x: float, y: float
     ) -> bool:
         """Update point position."""
-        if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+        # curve_data is defined in CurveViewProtocol
+        if 0 <= idx < len(view.curve_data):
             point = view.curve_data[idx]
             # Preserve frame and status, update x and y
             if len(point) >= 4:
@@ -582,27 +649,26 @@ class InteractionService:
 
     def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
         """Delete selected points."""
-        if hasattr(view, "selected_points") and hasattr(view, "curve_data"):
-            if view.selected_points:
-                # Store current state for undo
-                self.add_to_history(main_window)
+        if view.selected_points and view.curve_data:
+            # Store current state for undo
+            self.add_to_history(main_window)
 
-                # Delete points in reverse order to maintain indices
-                for idx in sorted(view.selected_points, reverse=True):
-                    if 0 <= idx < len(view.curve_data):
-                        del view.curve_data[idx]
+            # Delete points in reverse order to maintain indices
+            for idx in sorted(view.selected_points, reverse=True):
+                if 0 <= idx < len(view.curve_data):
+                    del view.curve_data[idx]
 
-                # Clear selection
-                view.selected_points.clear()
-                if hasattr(view, "selected_point_idx"):
-                    view.selected_point_idx = -1
+            # Clear selection
+            view.selected_points.clear()
+            view.selected_point_idx = -1
 
-                # Clear spatial index since points changed
-                self.clear_spatial_index()
+            # Clear spatial index since points changed
+            self.clear_spatial_index()
 
-                # Update view
-                if hasattr(view, "update"):
-                    view.update()
+            # Update view
+            update_method = getattr(view, "update", None)
+            if update_method is not None:
+                update_method()
 
     # ==================== UI Update Methods ====================
 
@@ -616,8 +682,12 @@ class InteractionService:
 
     def update_point_info(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Update point information display."""
-        if hasattr(main_window, "statusBar"):
-            main_window.statusBar().showMessage(f"Point {idx}: ({x:.2f}, {y:.2f})")
+        status_bar_method = getattr(main_window, "statusBar", None)
+        if status_bar_method is not None and callable(status_bar_method):
+            status_bar = status_bar_method()
+            show_message = getattr(status_bar, "showMessage", None)
+            if show_message is not None and callable(show_message):
+                show_message(f"Point {idx}: ({x:.2f}, {y:.2f})")
 
     def _enable_point_controls(self, main_window: MainWindowProtocol) -> None:
         """Enable point manipulation controls."""
@@ -626,36 +696,38 @@ class InteractionService:
 
     def reset_view(self, view: CurveViewProtocol) -> None:
         """Reset view to default state."""
-        if hasattr(view, "reset_transform"):
-            view.reset_transform()
+        reset_transform = getattr(view, "reset_transform", None)
+        if reset_transform is not None:
+            reset_transform()
         else:
             # Default reset behavior
-            if hasattr(view, "zoom_factor"):
-                view.zoom_factor = 1.0
-            if hasattr(view, "offset_x"):
-                view.offset_x = 0
-            if hasattr(view, "offset_y"):
-                view.offset_y = 0
-            if hasattr(view, "pan_offset_x"):
-                view.pan_offset_x = 0
-            if hasattr(view, "pan_offset_y"):
-                view.pan_offset_y = 0
-            if hasattr(view, "manual_offset_x"):
-                view.manual_offset_x = 0
-            if hasattr(view, "manual_offset_y"):
-                view.manual_offset_y = 0
+            if getattr(view, "zoom_factor", None) is not None:
+                view.zoom_factor = 1.0  # type: ignore[attr-defined]
+            if getattr(view, "offset_x", None) is not None:
+                view.offset_x = 0  # type: ignore[attr-defined]
+            if getattr(view, "offset_y", None) is not None:
+                view.offset_y = 0  # type: ignore[attr-defined]
+            if getattr(view, "pan_offset_x", None) is not None:
+                view.pan_offset_x = 0  # type: ignore[attr-defined]
+            if getattr(view, "pan_offset_y", None) is not None:
+                view.pan_offset_y = 0  # type: ignore[attr-defined]
+            if getattr(view, "manual_offset_x", None) is not None:
+                view.manual_offset_x = 0  # type: ignore[attr-defined]
+            if getattr(view, "manual_offset_y", None) is not None:
+                view.manual_offset_y = 0  # type: ignore[attr-defined]
             view.update()
 
     # ==================== Legacy Methods (Minimal Implementation) ====================
 
-    def undo_action(self, main_window: Any) -> None:
+    def undo_action(self, main_window: MainWindowProtocol) -> None:
         """Legacy undo action."""
         # Check if main_window manages its own history
-        if hasattr(main_window, "history") and hasattr(main_window, "history_index"):
+        if main_window.history is not None and main_window.history_index is not None:
             if main_window.history_index > 0:
                 main_window.history_index -= 1
                 state = main_window.history[main_window.history_index]
-                self.restore_state(main_window, state)
+                typed_state = cast(dict[str, object], state)
+                self.restore_state(main_window, typed_state)
                 self.update_history_buttons(main_window)
         else:
             # Use internal history
@@ -665,14 +737,15 @@ class InteractionService:
                 self.restore_state(main_window, state)
                 self.update_history_buttons(main_window)
 
-    def redo_action(self, main_window: Any) -> None:
+    def redo_action(self, main_window: MainWindowProtocol) -> None:
         """Legacy redo action."""
         # Check if main_window manages its own history
-        if hasattr(main_window, "history") and hasattr(main_window, "history_index"):
+        if main_window.history is not None and main_window.history_index is not None:
             if main_window.history_index < len(main_window.history) - 1:
                 main_window.history_index += 1
                 state = main_window.history[main_window.history_index]
-                self.restore_state(main_window, state)
+                typed_state = cast(dict[str, object], state)
+                self.restore_state(main_window, typed_state)
                 self.update_history_buttons(main_window)
         else:
             # Use internal history
@@ -682,16 +755,16 @@ class InteractionService:
                 self.restore_state(main_window, state)
                 self.update_history_buttons(main_window)
 
-    def save_state(self, main_window: Any) -> None:
+    def save_state(self, main_window: MainWindowProtocol) -> None:
         """Legacy save state."""
         self.add_to_history(main_window)
 
-    def select_points_in_rect(self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: Any) -> int:
+    def select_points_in_rect(self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect) -> int:
         """Select points in rectangle using spatial indexing for O(1) performance."""
-        if not hasattr(view, "curve_data"):
+        if not view.curve_data:
             return 0
 
-        transform_service = _transform_service
+        transform_service = _get_transform_service()
 
         # Create transform for coordinate conversion
         view_state = transform_service.create_view_state(view)
@@ -717,73 +790,94 @@ class InteractionService:
         view.update()
         return selected_count
 
-    def restore_state(self, main_window: Any, state: Any) -> None:
+    def restore_state(self, main_window: MainWindowProtocol, state: dict[str, object]) -> None:
         """Restore a saved state."""
         import copy
 
         if not state:
             return
 
+        # Initialize curve_data for type checker
+        curve_data = []
+
         # Restore curve_data
         if "curve_data" in state:
             curve_data = copy.deepcopy(state["curve_data"])
 
             # Convert tuples back to lists for compatibility
-            if curve_data and isinstance(curve_data[0], tuple):
+            if curve_data and isinstance(curve_data, list) and len(curve_data) > 0 and isinstance(curve_data[0], tuple):
                 curve_data = [list(point) for point in curve_data]
 
             # Set on main_window directly if it has the attribute
-            if hasattr(main_window, "curve_data"):
-                main_window.curve_data = curve_data
+            # curve_data is defined in MainWindowProtocol
+            if main_window.curve_data is not None:
+                # Cast to ensure type safety
+                from core.type_aliases import CurveDataList
+
+                main_window.curve_data = cast(CurveDataList, curve_data)
 
             # Also set on curve_widget if present
-            if hasattr(main_window, "curve_widget"):
-                main_window.curve_widget.curve_data = curve_data
+            if (
+                main_window.curve_widget is not None
+                and getattr(main_window.curve_widget, "curve_data", None) is not None
+            ):
+                setattr(main_window.curve_widget, "curve_data", curve_data)
 
             # Also set on curve_view if present
-            if hasattr(main_window, "curve_view"):
-                main_window.curve_view.curve_data = curve_data
+            if main_window.curve_view is not None and getattr(main_window.curve_view, "curve_data", None) is not None:
+                setattr(main_window.curve_view, "curve_data", curve_data)
 
         # Restore point_name
-        if "point_name" in state and hasattr(main_window, "point_name"):
-            main_window.point_name = state["point_name"]
+        if "point_name" in state and getattr(main_window, "point_name", None) is not None:
+            main_window.point_name = cast(str, state["point_name"])  # type: ignore[attr-defined]
 
         # Restore point_color
-        if "point_color" in state and hasattr(main_window, "point_color"):
-            main_window.point_color = state["point_color"]
+        if "point_color" in state and getattr(main_window, "point_color", None) is not None:
+            main_window.point_color = cast(str, state["point_color"])  # type: ignore[attr-defined]
 
         # Update the view
-        if hasattr(main_window, "curve_view"):
+        if main_window.curve_view is not None:
+            curve_view = main_window.curve_view
+            # Ensure curve_data is available - curve_data is always bound now
+            safe_curve_data = curve_data
             # Try different update methods
-            if hasattr(main_window.curve_view, "setPoints"):
+            set_points = getattr(curve_view, "setPoints", None)
+            if set_points is not None:
                 try:
-                    if hasattr(main_window, "image_width") and hasattr(main_window, "image_height"):
+                    image_width = getattr(main_window, "image_width", None)
+                    image_height = getattr(main_window, "image_height", None)
+                    if image_width is not None and image_height is not None:
                         # Use the converted curve_data (lists, not tuples)
-                        main_window.curve_view.setPoints(
-                            curve_data if "curve_data" in state else [],
-                            main_window.image_width,
-                            main_window.image_height,
+                        set_points(
+                            safe_curve_data,
+                            image_width,
+                            image_height,
                             preserve_view=True,
                         )
                     else:
-                        main_window.curve_view.setPoints(curve_data if "curve_data" in state else [])
+                        set_points(safe_curve_data)
                 except Exception:
-                    # Fallback if setPoints fails
-                    if hasattr(main_window.curve_view, "update"):
-                        main_window.curve_view.update()
-            elif hasattr(main_window.curve_view, "set_points"):
-                main_window.curve_view.set_points(curve_data if "curve_data" in state else [])
-            elif hasattr(main_window.curve_view, "update"):
-                main_window.curve_view.update()
+                    # Fallback if set_points fails
+                    update_method = getattr(curve_view, "update", None)
+                    if update_method is not None:
+                        update_method()
+            else:
+                set_points = getattr(curve_view, "set_points", None)
+                if set_points is not None:
+                    set_points(safe_curve_data)
+                else:
+                    update_method = getattr(curve_view, "update", None)
+                    if update_method is not None:
+                        update_method()
 
-    def get_spatial_index_stats(self) -> dict[str, Any]:
+    def get_spatial_index_stats(self) -> dict[str, object]:
         """
         Get spatial index performance statistics.
 
         Returns:
             Dictionary with spatial index statistics
         """
-        return self._point_index.get_stats()
+        return cast(dict[str, object], self._point_index.get_stats())
 
     def clear_spatial_index(self) -> None:
         """Clear the spatial index cache to force rebuild."""
@@ -806,10 +900,10 @@ class InteractionService:
         Returns:
             True if points were successfully nudged, False otherwise
         """
-        if not hasattr(view, "selected_points") or not view.selected_points:
+        if not view.selected_points:
             return False
 
-        if not hasattr(view, "curve_data"):
+        if not view.curve_data:
             return False
 
         success = False
@@ -843,7 +937,7 @@ class InteractionService:
         """Check if redo is possible."""
         return self._current_index < len(self._history) - 1
 
-    def get_history_stats(self) -> dict[str, Any]:
+    def get_history_stats(self) -> dict[str, object]:
         """Get history statistics - alias for get_memory_stats for compatibility."""
         return self.get_memory_stats()
 

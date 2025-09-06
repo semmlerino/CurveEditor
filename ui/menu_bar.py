@@ -2,7 +2,7 @@
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
 
 # Standard library imports
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 # Third-party imports
 from PySide6.QtCore import Slot
@@ -13,6 +13,12 @@ from core.signal_manager import SignalManager
 
 # Local imports - using consolidated services
 from services import get_data_service, get_interaction_service, get_ui_service
+
+if TYPE_CHECKING:
+    from services.data_service import DataService
+    from services.interaction_service import InteractionService
+    from services.ui_service import UIService
+
 from services.service_protocols import (
     CurveViewProtocol,
     HistoryContainerProtocol,
@@ -22,6 +28,18 @@ from services.service_protocols import (
 
 class MenuBar(QMenuBar):
     """Menu bar for the 3DE4 Curve Editor application."""
+
+    main_window: "MainWindowProtocol"
+    signal_manager: SignalManager
+    auto_center_action: QAction | None
+    data_service: "DataService"
+    interaction_service: "InteractionService"
+    ui_service: "UIService"
+    history_service: "InteractionService"
+    file_service: "DataService"
+    curve_service: "InteractionService"
+    dialog_service: "UIService"
+    image_service: "DataService"
 
     def __init__(self, parent: MainWindowProtocol):  # MainWindow always provided
         super().__init__(parent)

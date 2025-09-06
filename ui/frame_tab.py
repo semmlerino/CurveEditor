@@ -7,7 +7,7 @@ Similar to 3DEqualizer frame tabs with visual indicators for tracking status.
 """
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QBrush, QColor, QMouseEvent, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QContextMenuEvent, QEnterEvent, QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 
@@ -15,18 +15,18 @@ class FrameTab(QWidget):
     """Individual frame tab with color coding and click interaction."""
 
     # Signals
-    frame_clicked = Signal(int)  # Emitted when tab is clicked
-    frame_hovered = Signal(int)  # Emitted when tab is hovered
+    frame_clicked = Signal(int)  # Emitted when tab is clicked (frame_number)
+    frame_hovered = Signal(int)  # Emitted when tab is hovered (frame_number)
 
     # Tab appearance constants - modern 3DE style
-    TAB_HEIGHT = 38  # Taller tabs for better visibility
-    BORDER_WIDTH = 1
-    CORNER_RADIUS = 0  # No rounded corners for seamless look
-    MIN_WIDTH = 2  # Minimum width for very large frame ranges
-    MAX_WIDTH = 60  # Maximum width for small frame ranges
+    TAB_HEIGHT: int = 38  # Taller tabs for better visibility
+    BORDER_WIDTH: int = 1
+    CORNER_RADIUS: int = 0  # No rounded corners for seamless look
+    MIN_WIDTH: int = 2  # Minimum width for very large frame ranges
+    MAX_WIDTH: int = 60  # Maximum width for small frame ranges
 
     # Color scheme for frame status - modern 3DE style (very subtle)
-    COLORS = {
+    COLORS: dict[str, QColor] = {
         "no_points": QColor(50, 50, 50),  # Medium-dark gray - no tracked points
         "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
         "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
@@ -39,7 +39,16 @@ class FrameTab(QWidget):
         "text_current": QColor(255, 255, 255),  # White text even for current frame
     }
 
-    def __init__(self, frame_number: int, parent=None):
+    # Instance attributes
+    frame_number: int
+    is_current_frame: bool
+    is_hovered: bool
+    point_count: int
+    keyframe_count: int
+    interpolated_count: int
+    has_selected_points: bool
+
+    def __init__(self, frame_number: int, parent: QWidget | None = None):
         """Initialize frame tab.
 
         Args:
@@ -149,7 +158,7 @@ class FrameTab(QWidget):
         """Get text color - always white in 3DE style."""
         return self.COLORS["text"]  # Always white
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Custom paint for frame tab appearance."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -191,20 +200,20 @@ class FrameTab(QWidget):
             self.frame_clicked.emit(self.frame_number)
         super().mousePressEvent(event)
 
-    def enterEvent(self, event):
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Handle mouse enter for hover effect."""
         self.is_hovered = True
         self.frame_hovered.emit(self.frame_number)
         self.update()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event: QEnterEvent) -> None:
         """Handle mouse leave."""
         self.is_hovered = False
         self.update()
         super().leaveEvent(event)
 
-    def contextMenuEvent(self, event):
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu (future feature)."""
         # TODO: Implement context menu with options like:
         # - Jump to frame

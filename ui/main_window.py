@@ -22,12 +22,19 @@ import sys
 import threading
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from ui.timeline_tabs import TimelineTabWidget
+
+    from .curve_view_widget import CurveViewWidget
+    from .service_facade import ServiceFacade
 
 # Import PySide6 modules
 from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import (
     QAction,
+    QKeyEvent,
     QKeySequence,
     QPixmap,
 )
@@ -36,7 +43,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QFrame,
-    QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
@@ -61,7 +67,6 @@ from .state_manager import StateManager
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
 from .ui_scaling import UIScaling
-from .widget_factory import WidgetGroupFactory
 
 # Configure logger for this module
 logger = logging.getLogger("main_window")
@@ -100,10 +105,10 @@ class FileLoadWorker(QObject):
     def __init__(self, tracking_file_path: str | None = None, image_dir_path: str | None = None):
         """Initialize worker with file paths to load."""
         super().__init__()
-        self.tracking_file_path = tracking_file_path
-        self.image_dir_path = image_dir_path
-        self._should_stop = False
-        self._stop_lock = threading.Lock()
+        self.tracking_file_path: str | None = tracking_file_path
+        self.image_dir_path: str | None = image_dir_path
+        self._should_stop: bool = False
+        self._stop_lock: threading.Lock = threading.Lock()
 
     def stop(self) -> None:
         """Request the worker to stop processing."""
@@ -117,6 +122,11 @@ class FileLoadWorker(QObject):
 
     def run(self) -> None:
         """Main worker method that runs in background thread."""
+        current_thread = QThread.currentThread()
+        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        logger.info(
+            f"[THREAD-DEBUG] Worker.run() starting in thread: {current_thread} (main={current_thread == main_thread})"
+        )
         try:
             total_tasks = 0
             current_task = 0
@@ -138,7 +148,10 @@ class FileLoadWorker(QObject):
                     # Directly load the file without creating DataService in worker thread
                     data = self._load_2dtrack_data_direct(self.tracking_file_path)
                     if data:
-                        self.tracking_data_loaded.emit(data)
+                        logger.info(
+                            f"[THREAD-DEBUG] Emitting tracking_data_loaded from thread: {QThread.currentThread()}"
+                        )
+                    self.tracking_data_loaded.emit(data)
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
                     self.progress_updated.emit(progress, f"Loaded {len(data) if data else 0} tracking points")
@@ -152,6 +165,9 @@ class FileLoadWorker(QObject):
                     # Directly scan for image files without creating DataService
                     image_files = self._scan_image_directory(self.image_dir_path)
                     if image_files:
+                        logger.info(
+                            f"[THREAD-DEBUG] Emitting image_sequence_loaded from thread: {QThread.currentThread()}"
+                        )
                         self.image_sequence_loaded.emit(self.image_dir_path, image_files)
                     current_task += 1
                     self.progress_updated.emit(100, f"Loaded {len(image_files) if image_files else 0} images")
@@ -161,7 +177,20 @@ class FileLoadWorker(QObject):
         except Exception as e:
             self.error_occurred.emit(f"Unexpected error in file loading: {str(e)}")
         finally:
+            logger.info("[THREAD-DEBUG] About to emit finished signal")
+            logger.info(f"[THREAD-DEBUG] Current thread: {QThread.currentThread()}")
+            logger.info(f"[THREAD-DEBUG] Worker thread: {self.thread()}")
+            logger.info(f"[THREAD-DEBUG] finished signal: {self.finished}")
+
+            # Check receivers
+            try:
+                # Try to get receiver count (this might not work in all PySide versions)
+                logger.info("[THREAD-DEBUG] Checking signal receivers...")
+            except Exception as e:
+                logger.info(f"[THREAD-DEBUG] Could not check receivers: {e}")
+
             self.finished.emit()
+            logger.info("[THREAD-DEBUG] finished.emit() completed")
 
     def _load_2dtrack_data_direct(
         self, file_path: str
@@ -215,25 +244,26 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     """Main application window for the Curve Editor."""
 
     # Custom signals for internal communication
-    play_toggled = Signal(bool)
-    frame_rate_changed = Signal(int)
+    play_toggled: Signal = Signal(bool)
+    frame_rate_changed: Signal = Signal(int)
 
     # Widget type annotations - initialized in init methods
     frame_spinbox: QSpinBox | None = None
     total_frames_label: QLabel | None = None
     frame_slider: QSlider | None = None
-    timeline_tabs: Any = None  # TimelineTabWidget - imported dynamically
+    timeline_tabs: "TimelineTabWidget | None" = None
     # Removed orphaned playback button attributes - they were never used
     btn_play_pause: QPushButton | None = None  # Used for playback control (not visible but functional)
     fps_spinbox: QSpinBox | None = None
     playback_timer: QTimer | None = None
-    curve_widget: Any = None  # CurveViewWidget
+    curve_widget: "CurveViewWidget | None" = None
     selected_point_label: QLabel | None = None
     point_x_spinbox: QDoubleSpinBox | None = None
     point_y_spinbox: QDoubleSpinBox | None = None
     show_background_cb: QCheckBox | None = None
     show_grid_cb: QCheckBox | None = None
     show_info_cb: QCheckBox | None = None
+    show_tooltips_cb: QCheckBox | None = None
     point_size_label: QLabel | None = None
     line_width_label: QLabel | None = None
     point_size_slider: QSlider | None = None
@@ -249,19 +279,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.resize(1400, 900)
 
         # Initialize managers
-        self.state_manager = StateManager(self)
-        self.shortcut_manager = ShortcutManager(self)
+        self.state_manager: StateManager = StateManager(self)
+        self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
         # Initialize service facade
         from .service_facade import get_service_facade
 
-        self.services = get_service_facade(self)
+        self.services: ServiceFacade = get_service_facade(self)
 
         # Initialize UI scaling
-        self.ui_scaling = UIScaling()
+        self.ui_scaling: UIScaling = UIScaling()
 
         # Initialize UI components container for organized widget management
-        self.ui = UIComponents(self)
+        self.ui: UIComponents = UIComponents(self)
 
         # Initialize UI components
         self._init_actions()
@@ -271,11 +301,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._init_status_bar()
 
         # Initialize legacy curve view and track quality UI
-        self.curve_view = None
-        self.track_quality_ui = None
+        self.curve_view: CurveViewWidget | None = None  # Legacy curve view - no longer used
+        self.track_quality_ui: QWidget | None = None  # Legacy track quality UI
 
         # Initialize history tracking
-        self.history: list[Any] = []
+        self.history: list[dict[str, object]] = []  # Each history entry is a dict with curve data
         self.history_index: int = -1
         self.max_history_size: int = MAX_HISTORY_SIZE
 
@@ -293,10 +323,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Initialize playback timer for oscillating timeline playback
         self.playback_timer = QTimer(self)
-        self.playback_timer.timeout.connect(self._on_playback_timer)
+        _ = self.playback_timer.timeout.connect(self._on_playback_timer)
 
         # Initialize playback state for oscillating playback
-        self.playback_state = PlaybackState()
+        self.playback_state: PlaybackState = PlaybackState()
+
+        # Initialize dynamic instance variables that will be checked later
+        self._point_spinbox_connected: bool = False
+        self._stored_tooltips: dict[QWidget, str] = {}
 
         # Connect state manager signals
         self._connect_signals()
@@ -312,57 +346,60 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._setup_tab_order()
 
         # Auto-load burger footage and tracking data if available
-        self._load_burger_tracking_data()
+        _ = self._load_burger_tracking_data()
+
+        # Initialize tooltips as disabled by default
+        self._toggle_tooltips()
 
         logger.info("MainWindow initialized successfully")
 
     def _init_actions(self) -> None:
         """Initialize all QActions for menus and toolbars."""
         # File actions
-        self.action_new = QAction("New", self)
+        self.action_new: QAction = QAction("New", self)
         self.action_new.setShortcut(QKeySequence.StandardKey.New)
         self.action_new.setStatusTip("Create a new curve")
         self.action_new.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
 
-        self.action_open = QAction("Open", self)
+        self.action_open: QAction = QAction("Open", self)
         self.action_open.setShortcut(QKeySequence.StandardKey.Open)
         self.action_open.setStatusTip("Open an existing curve file")
         self.action_open.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
 
-        self.action_save = QAction("Save", self)
+        self.action_save: QAction = QAction("Save", self)
         self.action_save.setShortcut(QKeySequence.StandardKey.Save)
         self.action_save.setStatusTip("Save the current curve")
         self.action_save.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon))
 
-        self.action_save_as = QAction("Save As...", self)
+        self.action_save_as: QAction = QAction("Save As...", self)
         self.action_save_as.setShortcut(QKeySequence.StandardKey.SaveAs)
         self.action_save_as.setStatusTip("Save the curve with a new name")
 
         # Edit actions
-        self.action_undo = QAction("Undo", self)
+        self.action_undo: QAction = QAction("Undo", self)
         self.action_undo.setShortcut(QKeySequence.StandardKey.Undo)
         self.action_undo.setStatusTip("Undo the last action")
         self.action_undo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack))
         self.action_undo.setEnabled(False)
 
-        self.action_redo = QAction("Redo", self)
+        self.action_redo: QAction = QAction("Redo", self)
         self.action_redo.setShortcut(QKeySequence.StandardKey.Redo)
         self.action_redo.setStatusTip("Redo the previously undone action")
         self.action_redo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward))
         self.action_redo.setEnabled(False)
 
         # View actions
-        self.action_zoom_in = QAction("Zoom In", self)
+        self.action_zoom_in: QAction = QAction("Zoom In", self)
         self.action_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
         self.action_zoom_in.setStatusTip("Zoom in the view")
         self.action_zoom_in.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp))
 
-        self.action_zoom_out = QAction("Zoom Out", self)
+        self.action_zoom_out: QAction = QAction("Zoom Out", self)
         self.action_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
         self.action_zoom_out.setStatusTip("Zoom out the view")
         self.action_zoom_out.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown))
 
-        self.action_reset_view = QAction("Reset View", self)
+        self.action_reset_view: QAction = QAction("Reset View", self)
         self.action_reset_view.setShortcut("Ctrl+0")
         self.action_reset_view.setStatusTip("Reset the view to default")
         self.action_reset_view.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogResetButton))
@@ -378,44 +415,49 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.addToolBar(toolbar)
 
         # File operations
-        toolbar.addAction(self.action_new)
-        toolbar.addAction(self.action_open)
-        toolbar.addAction(self.action_save)
-        toolbar.addSeparator()
+        _ = toolbar.addAction(self.action_new)
+        _ = toolbar.addAction(self.action_open)
+        _ = toolbar.addAction(self.action_save)
+        _ = toolbar.addSeparator()
 
         # Edit operations
-        toolbar.addAction(self.action_undo)
-        toolbar.addAction(self.action_redo)
-        toolbar.addSeparator()
+        _ = toolbar.addAction(self.action_undo)
+        _ = toolbar.addAction(self.action_redo)
+        _ = toolbar.addSeparator()
 
         # View operations
-        toolbar.addAction(self.action_zoom_in)
-        toolbar.addAction(self.action_zoom_out)
-        toolbar.addAction(self.action_reset_view)
-        toolbar.addSeparator()
+        _ = toolbar.addAction(self.action_zoom_in)
+        _ = toolbar.addAction(self.action_zoom_out)
+        _ = toolbar.addAction(self.action_reset_view)
+        _ = toolbar.addSeparator()
 
         # Add frame control to toolbar
-        toolbar.addWidget(QLabel("Frame:"))
+        _ = toolbar.addWidget(QLabel("Frame:"))
         self.frame_spinbox = QSpinBox()
         self.frame_spinbox.setMinimum(1)
         self.frame_spinbox.setMaximum(1000)
         self.frame_spinbox.setValue(1)
-        toolbar.addWidget(self.frame_spinbox)
+        _ = toolbar.addWidget(self.frame_spinbox)
         self.ui.timeline.frame_spinbox = self.frame_spinbox  # Map to timeline group
-        toolbar.addSeparator()
+        _ = toolbar.addSeparator()
 
         # Add view option checkboxes to toolbar
         self.show_background_cb = QCheckBox("Background")
         self.show_background_cb.setChecked(True)
-        toolbar.addWidget(self.show_background_cb)
+        _ = toolbar.addWidget(self.show_background_cb)
 
         self.show_grid_cb = QCheckBox("Grid")
         self.show_grid_cb.setChecked(False)
-        toolbar.addWidget(self.show_grid_cb)
+        _ = toolbar.addWidget(self.show_grid_cb)
 
         self.show_info_cb = QCheckBox("Info")
         self.show_info_cb.setChecked(True)
-        toolbar.addWidget(self.show_info_cb)
+        _ = toolbar.addWidget(self.show_info_cb)
+
+        # Add tooltip toggle checkbox
+        self.show_tooltips_cb = QCheckBox("Tooltips")
+        self.show_tooltips_cb.setChecked(False)  # Off by default
+        _ = toolbar.addWidget(self.show_tooltips_cb)
 
         # Create widgets needed for UIComponents compatibility (even though not all are added to toolbar)
         # These widgets are required for the Component Container Pattern to work correctly
@@ -471,17 +513,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         self.total_frames_label = QLabel("1")
         self.ui.status.info_label = self.total_frames_label  # Map to status group
-        self.point_count_label = QLabel("Points: 0")
+        self.point_count_label: QLabel = QLabel("Points: 0")
         self.ui.status.quality_score_label = self.point_count_label  # Map to status group
-        self.selected_count_label = QLabel("Selected: 0")
+        self.selected_count_label: QLabel = QLabel("Selected: 0")
         self.ui.status.quality_coverage_label = self.selected_count_label  # Map to status group
-        self.bounds_label = QLabel("Bounds: N/A")
+        self.bounds_label: QLabel = QLabel("Bounds: N/A")
         self.ui.status.quality_consistency_label = self.bounds_label  # Map to status group
 
         # Add stretch to push remaining items to the right
         spacer = QWidget()
         spacer.setSizePolicy(spacer.sizePolicy().horizontalPolicy(), spacer.sizePolicy().verticalPolicy())
-        toolbar.addWidget(spacer)
+        _ = toolbar.addWidget(spacer)
 
     def _init_central_widget(self) -> None:
         """Initialize the central widget with full-width curve view and bottom timeline."""
@@ -492,7 +534,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         main_layout.setSpacing(0)
 
         # Create the main curve view area (full width, no side panels)
-        self.curve_container = self._create_curve_view_container()
+        self.curve_container: QWidget = self._create_curve_view_container()
 
         # Add curve container with stretch factor so it expands
         main_layout.addWidget(self.curve_container, stretch=1)  # Takes all available space
@@ -530,7 +572,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Create the actual CurveViewWidget
         self.curve_widget = CurveViewWidget(container)
-        self.curve_widget.set_main_window(self)
+        self.curve_widget.set_main_window(self)  # pyright: ignore[reportArgumentType]
 
         # Ensure the curve widget can receive keyboard focus
         self.curve_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -538,117 +580,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         layout.addWidget(self.curve_widget)
 
         # Set focus to curve widget after creation
-        QTimer.singleShot(100, lambda: self.curve_widget.setFocus())
+        QTimer.singleShot(100, lambda: self.curve_widget.setFocus() if self.curve_widget else None)
 
         logger.info("CurveViewWidget created and integrated")
 
         return container
-
-    def _create_properties_panel(self) -> QWidget:
-        """Create the properties/info panel."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(5, 5, 5, 5)
-
-        # Point Properties group
-        point_group, point_layout = WidgetGroupFactory.create_group("Point Properties")
-
-        # Selected point info
-        self.selected_point_label = QLabel("No point selected")
-        point_layout.addWidget(self.selected_point_label)
-
-        # Point position
-        pos_layout = QHBoxLayout()
-        pos_layout.addWidget(QLabel("X:"))
-        self.point_x_spinbox = QDoubleSpinBox()
-        self.point_x_spinbox.setRange(-10000, 10000)
-        self.point_x_spinbox.setDecimals(3)
-        self.point_x_spinbox.setEnabled(False)
-        pos_layout.addWidget(self.point_x_spinbox)
-
-        pos_layout.addWidget(QLabel("Y:"))
-        self.point_y_spinbox = QDoubleSpinBox()
-        self.point_y_spinbox.setRange(-10000, 10000)
-        self.point_y_spinbox.setDecimals(3)
-        self.point_y_spinbox.setEnabled(False)
-        pos_layout.addWidget(self.point_y_spinbox)
-
-        point_layout.addLayout(pos_layout)
-
-        layout.addWidget(point_group)
-
-        # View Settings group
-        view_group, view_layout = WidgetGroupFactory.create_group("View Settings")
-
-        # Display options
-        self.show_background_cb = QCheckBox("Show Background")
-        self.show_background_cb.setChecked(True)
-        self.show_background_cb.stateChanged.connect(self._on_view_option_changed)
-        view_layout.addWidget(self.show_background_cb)
-
-        self.show_grid_cb = QCheckBox("Show Grid")
-        self.show_grid_cb.setChecked(False)
-        self.show_grid_cb.stateChanged.connect(self._on_view_option_changed)
-        view_layout.addWidget(self.show_grid_cb)
-
-        self.show_info_cb = QCheckBox("Show Info Overlay")
-        self.show_info_cb.setChecked(True)
-        self.show_info_cb.stateChanged.connect(self._on_view_option_changed)
-        view_layout.addWidget(self.show_info_cb)
-
-        # Point size slider
-        size_layout = QHBoxLayout()
-        size_layout.addWidget(QLabel("Point Size:"))
-
-        self.point_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.point_size_slider.setMinimum(2)
-        self.point_size_slider.setMaximum(20)
-        self.point_size_slider.setValue(6)
-        self.point_size_slider.valueChanged.connect(self._on_point_size_changed)
-        size_layout.addWidget(self.point_size_slider)
-
-        self.point_size_label = QLabel("6")
-        size_layout.addWidget(self.point_size_label)
-
-        view_layout.addLayout(size_layout)
-
-        # Line width slider
-        line_layout = QHBoxLayout()
-        line_layout.addWidget(QLabel("Line Width:"))
-
-        self.line_width_slider = QSlider(Qt.Orientation.Horizontal)
-        self.line_width_slider.setMinimum(1)
-        self.line_width_slider.setMaximum(10)
-        self.line_width_slider.setValue(2)
-        self.line_width_slider.valueChanged.connect(self._on_line_width_changed)
-        line_layout.addWidget(self.line_width_slider)
-
-        self.line_width_label = QLabel("2")
-        line_layout.addWidget(self.line_width_label)
-
-        view_layout.addLayout(line_layout)
-
-        layout.addWidget(view_group)
-
-        # Curve Info group
-        info_group, info_layout = WidgetGroupFactory.create_group("Curve Information")
-
-        self.point_count_label = QLabel("Points: 0")
-        info_layout.addWidget(self.point_count_label)
-
-        self.selected_count_label = QLabel("Selected: 0")
-        info_layout.addWidget(self.selected_count_label)
-
-        self.bounds_label = QLabel("Bounds: N/A")
-        self.bounds_label.setWordWrap(True)
-        info_layout.addWidget(self.bounds_label)
-
-        layout.addWidget(info_group)
-
-        # Add stretch
-        layout.addStretch()
-
-        return widget
 
     def _init_dock_widgets(self) -> None:
         """Initialize dock widgets (optional, for future expansion)."""
@@ -657,40 +593,42 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _init_status_bar(self) -> None:
         """Initialize the status bar with additional widgets."""
-        self.status_bar = QStatusBar()
+        self.status_bar: QStatusBar = QStatusBar(self)
         self.setStatusBar(self.status_bar)
 
-        # Add permanent widgets to status bar
-        self.zoom_label = QLabel("Zoom: 100%")
+        # Add primary status label (left side) for thread-safe status messages
+        self.status_label: QLabel = QLabel("Ready")
+        self.status_bar.addWidget(self.status_label)  # Regular widget goes on left
+
+        # Add permanent widgets to status bar (right side)
+        self.zoom_label: QLabel = QLabel("Zoom: 100%")
         self.status_bar.addPermanentWidget(self.zoom_label)
 
-        self.position_label = QLabel("X: 0.000, Y: 0.000")
+        self.position_label: QLabel = QLabel("X: 0.000, Y: 0.000")
         self.status_bar.addPermanentWidget(self.position_label)
-
-        self.status_bar.showMessage("Ready", 2000)
 
     def _connect_signals(self) -> None:
         """Connect signals from state manager and shortcuts."""
         # Connect state manager signals
-        self.state_manager.file_changed.connect(self._on_file_changed)
-        self.state_manager.modified_changed.connect(self._on_modified_changed)
-        self.state_manager.frame_changed.connect(self._on_state_frame_changed)
-        self.state_manager.selection_changed.connect(self._on_selection_changed)
-        self.state_manager.view_state_changed.connect(self._on_view_state_changed)
+        _ = self.state_manager.file_changed.connect(self._on_file_changed)
+        _ = self.state_manager.modified_changed.connect(self._on_modified_changed)
+        _ = self.state_manager.frame_changed.connect(self._on_state_frame_changed)
+        _ = self.state_manager.selection_changed.connect(self._on_selection_changed)
+        _ = self.state_manager.view_state_changed.connect(self._on_view_state_changed)
 
         # Connect shortcut signals (these will be no-ops for now)
-        self.shortcut_manager.shortcut_activated.connect(self._on_shortcut_activated)
+        _ = self.shortcut_manager.shortcut_activated.connect(self._on_shortcut_activated)
 
         # Connect frame controls
         if self.frame_spinbox:
-            self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
+            _ = self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
         if self.frame_slider:
-            self.frame_slider.valueChanged.connect(self._on_slider_changed)
+            _ = self.frame_slider.valueChanged.connect(self._on_slider_changed)
 
         # Connect timeline tabs if available
         if self.timeline_tabs:
-            self.timeline_tabs.frame_changed.connect(self._on_timeline_tab_clicked)
-            self.timeline_tabs.frame_hovered.connect(self._on_timeline_tab_hovered)
+            _ = self.timeline_tabs.frame_changed.connect(self._on_timeline_tab_clicked)
+            _ = self.timeline_tabs.frame_hovered.connect(self._on_timeline_tab_hovered)
             logger.info("Timeline tabs signals connected")
 
     def _connect_curve_widget_signals(self) -> None:
@@ -699,40 +637,42 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             return
 
         # Connect curve widget signals to handlers
-        self.curve_widget.point_selected.connect(self._on_point_selected)
-        self.curve_widget.point_moved.connect(self._on_point_moved)
-        self.curve_widget.selection_changed.connect(self._on_curve_selection_changed)
-        self.curve_widget.view_changed.connect(self._on_curve_view_changed)
-        self.curve_widget.zoom_changed.connect(self._on_curve_zoom_changed)
+        _ = self.curve_widget.point_selected.connect(self._on_point_selected)
+        _ = self.curve_widget.point_moved.connect(self._on_point_moved)
+        _ = self.curve_widget.selection_changed.connect(self._on_curve_selection_changed)
+        _ = self.curve_widget.view_changed.connect(self._on_curve_view_changed)
+        _ = self.curve_widget.zoom_changed.connect(self._on_curve_zoom_changed)
 
         # Connect view options to curve widget
         if self.show_background_cb:
-            self.show_background_cb.stateChanged.connect(self._update_curve_view_options)
+            _ = self.show_background_cb.stateChanged.connect(self._update_curve_view_options)
         if self.show_grid_cb:
-            self.show_grid_cb.stateChanged.connect(self._update_curve_view_options)
+            _ = self.show_grid_cb.stateChanged.connect(self._update_curve_view_options)
         if self.show_info_cb:
-            self.show_info_cb.stateChanged.connect(self._update_curve_view_options)
+            _ = self.show_info_cb.stateChanged.connect(self._update_curve_view_options)
+        if self.show_tooltips_cb:
+            _ = self.show_tooltips_cb.stateChanged.connect(self._toggle_tooltips)
         if self.point_size_slider:
-            self.point_size_slider.valueChanged.connect(self._update_curve_point_size)
+            _ = self.point_size_slider.valueChanged.connect(self._update_curve_point_size)
         if self.line_width_slider:
-            self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
+            _ = self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
 
     def _connect_actions(self) -> None:
         """Connect actions to their handlers."""
         # File actions
-        self.action_new.triggered.connect(self._on_action_new)
-        self.action_open.triggered.connect(self._on_action_open)
-        self.action_save.triggered.connect(self._on_action_save)
-        self.action_save_as.triggered.connect(self._on_action_save_as)
+        _ = self.action_new.triggered.connect(self._on_action_new)
+        _ = self.action_open.triggered.connect(self._on_action_open)
+        _ = self.action_save.triggered.connect(self._on_action_save)
+        _ = self.action_save_as.triggered.connect(self._on_action_save_as)
 
         # Edit actions
-        self.action_undo.triggered.connect(self._on_action_undo)
-        self.action_redo.triggered.connect(self._on_action_redo)
+        _ = self.action_undo.triggered.connect(self._on_action_undo)
+        _ = self.action_redo.triggered.connect(self._on_action_redo)
 
         # View actions
-        self.action_zoom_in.triggered.connect(self._on_action_zoom_in)
-        self.action_zoom_out.triggered.connect(self._on_action_zoom_out)
-        self.action_reset_view.triggered.connect(self._on_action_reset_view)
+        _ = self.action_zoom_in.triggered.connect(self._on_action_zoom_in)
+        _ = self.action_zoom_out.triggered.connect(self._on_action_zoom_out)
+        _ = self.action_reset_view.triggered.connect(self._on_action_reset_view)
 
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
@@ -742,27 +682,32 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.setTabOrder(self.frame_spinbox, self.show_background_cb)
         if self.show_background_cb and self.show_grid_cb:
             self.setTabOrder(self.show_background_cb, self.show_grid_cb)
-        if hasattr(self, "show_info_cb") and self.show_grid_cb and self.show_info_cb:
+        # show_info_cb is Optional[QCheckBox]
+        if self.show_grid_cb and self.show_info_cb is not None:
             self.setTabOrder(self.show_grid_cb, self.show_info_cb)
 
         # Curve view widget (main area)
-        if self.curve_widget and hasattr(self, "show_info_cb") and self.show_info_cb:
+        # show_info_cb is Optional[QCheckBox]
+        if self.curve_widget and self.show_info_cb is not None:
             self.setTabOrder(self.show_info_cb, self.curve_widget)
 
         logger.debug("Tab order configured for keyboard navigation")
 
+    @Slot(str)
     def _on_file_changed(self, file_path: str) -> None:
         """Handle file path changes."""
         self.setWindowTitle(self.state_manager.get_window_title())
         if file_path:
             logger.info(f"File changed to: {file_path}")
 
+    @Slot(bool)
     def _on_modified_changed(self, modified: bool) -> None:
         """Handle modification status changes."""
         self.setWindowTitle(self.state_manager.get_window_title())
         if modified:
             logger.debug("Document marked as modified")
 
+    @Slot(str)
     def _on_shortcut_activated(self, shortcut_name: str) -> None:
         """Handle keyboard shortcut activation."""
         logger.debug(f"Shortcut activated: {shortcut_name}")
@@ -790,42 +735,59 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             else:
                 action_or_func.trigger()
 
-        self.status_bar.showMessage(f"Shortcut: {shortcut_name}", 1000)
+        self.status_label.setText(f"Shortcut: {shortcut_name}")
 
     # ==================== Timeline Control Handlers ====================
 
     @Slot(int)
+    @Slot(int)
     def _on_frame_changed(self, value: int) -> None:
         """Handle frame spinbox value change."""
         logger.debug(f"[FRAME] Frame changed to: {value}")
+        # Use shared frame update logic, including state manager update
+        self._update_frame_display(value, update_state_manager=True)
+
+    def _update_frame_display(self, frame: int, update_state_manager: bool = True) -> None:
+        """Shared method to update frame display across all UI components."""
+        # Update UI controls
+        if self.frame_spinbox:
+            _ = self.frame_spinbox.blockSignals(True)
+            self.frame_spinbox.setValue(frame)
+            _ = self.frame_spinbox.blockSignals(False)
+
         if self.frame_slider:
-            self.frame_slider.blockSignals(True)
-            self.frame_slider.setValue(value)
-            self.frame_slider.blockSignals(False)
+            _ = self.frame_slider.blockSignals(True)
+            self.frame_slider.setValue(frame)
+            _ = self.frame_slider.blockSignals(False)
 
         # Update timeline tabs if available
         if self.timeline_tabs:
-            self.timeline_tabs.set_current_frame(value)
+            self.timeline_tabs.set_current_frame(frame)
 
-        self.state_manager.current_frame = value
-        logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
+        # Update state manager (only when called from user input, not state sync)
+        if update_state_manager:
+            self.state_manager.current_frame = frame
+            logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
 
         # Update background image if image sequence is loaded
-        self._update_background_image_for_frame(value)
+        self._update_background_image_for_frame(frame)
 
         # Update curve widget to highlight current frame's point
         if self.curve_widget:
+            # Notify curve widget of frame change for centering mode
+            self.curve_widget.on_frame_changed(frame)
             # Invalidate caches to ensure proper repainting with new frame highlight
             self.curve_widget._invalidate_caches()
             self.curve_widget.update()
 
     @Slot(int)
+    @Slot(int)
     def _on_slider_changed(self, value: int) -> None:
         """Handle frame slider value change."""
         if self.frame_spinbox:
-            self.frame_spinbox.blockSignals(True)
+            _ = self.frame_spinbox.blockSignals(True)
             self.frame_spinbox.setValue(value)
-            self.frame_spinbox.blockSignals(False)
+            _ = self.frame_spinbox.blockSignals(False)
 
         # Update timeline tabs if available
         if self.timeline_tabs:
@@ -838,16 +800,20 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Update curve widget to highlight current frame's point
         if self.curve_widget:
+            # Notify curve widget of frame change for centering mode
+            self.curve_widget.on_frame_changed(value)
             # Invalidate caches to ensure proper repainting with new frame highlight
             self.curve_widget._invalidate_caches()
             self.curve_widget.update()
 
+    @Slot()
     @Slot()
     def _on_first_frame(self) -> None:
         """Go to first frame."""
         if self.frame_spinbox:
             self.frame_spinbox.setValue(1)
 
+    @Slot()
     @Slot()
     def _on_prev_frame(self) -> None:
         """Go to previous frame."""
@@ -857,6 +823,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.frame_spinbox.setValue(current - 1)
 
     @Slot()
+    @Slot()
     def _on_next_frame(self) -> None:
         """Go to next frame."""
         if self.frame_spinbox:
@@ -865,11 +832,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.frame_spinbox.setValue(current + 1)
 
     @Slot()
+    @Slot()
     def _on_last_frame(self) -> None:
         """Go to last frame."""
         if self.frame_spinbox:
             self.frame_spinbox.setValue(self.frame_spinbox.maximum())
 
+    @Slot(bool)
     @Slot(bool)
     def _on_play_pause(self, checked: bool) -> None:
         """Handle play/pause toggle."""
@@ -888,6 +857,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
             self.play_toggled.emit(False)
 
+    @Slot()
     @Slot()
     def _on_playback_timer(self) -> None:
         """Handle oscillating playback timer tick."""
@@ -921,6 +891,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update frame and UI
         self._set_current_frame(next_frame)
 
+    @Slot(int)
     @Slot(int)
     def _on_fps_changed(self, value: int) -> None:
         """Handle FPS change."""
@@ -975,14 +946,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Update playbook frame bounds based on current data."""
         # Get bounds from data service if available
         try:
+            # curve_view is initialized as None in __init__
             if (
-                hasattr(self, "curve_view")
-                and self.curve_view
-                and hasattr(self.curve_view, "curve_data")
+                self.curve_view is not None
+                and getattr(self.curve_view, "curve_data", None) is not None
                 and self.curve_view.curve_data
             ):
                 # Calculate frame bounds directly from curve data
-                frames = [int(point.frame) for point in self.curve_view.curve_data if hasattr(point, "frame")]
+                frames = [int(point[0]) for point in self.curve_view.curve_data]
                 if frames:
                     self.playback_state.min_frame = max(1, min(frames))
                     self.playback_state.max_frame = max(frames)
@@ -991,7 +962,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     self.playback_state.max_frame = 100
             else:
                 # Use timeline widget bounds if available
-                if hasattr(self, "timeline_tabs") and self.timeline_tabs:
+                # timeline_tabs is Optional
+                if self.timeline_tabs is not None:
                     self.playback_state.min_frame = getattr(self.timeline_tabs, "min_frame", 1)
                     self.playback_state.max_frame = getattr(self.timeline_tabs, "max_frame", 100)
                 else:
@@ -1027,18 +999,32 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.frame_spinbox.setValue(frame)
 
         # Update timeline widget if available
-        if hasattr(self, "timeline_tabs") and self.timeline_tabs:
-            if hasattr(self.timeline_tabs, "set_current_frame"):
+        # timeline_tabs is Optional
+        if self.timeline_tabs is not None:
+            if getattr(self.timeline_tabs, "set_current_frame", None) is not None:
                 self.timeline_tabs.set_current_frame(frame)
-            elif hasattr(self.timeline_tabs, "current_frame"):
+            elif getattr(self.timeline_tabs, "current_frame", None) is not None:
                 self.timeline_tabs.current_frame = frame
 
-        # Update curve view if available (for frame highlighting)
-        if hasattr(self, "curve_view") and self.curve_view:
-            # Update MainWindow's current image index (0-based)
-            self.current_image_idx = frame - 1
-            self.curve_view.update()
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number.
 
+        Property accessor for better type safety and compatibility.
+        Provides a clean interface for accessing the current frame.
+        """
+        return self._get_current_frame()
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set the current frame number.
+
+        Property setter for better type safety and compatibility.
+        Provides a clean interface for setting the current frame.
+        """
+        self._set_current_frame(value)
+
+    @Slot(int)
     @Slot(int)
     def _on_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click to navigate to frame."""
@@ -1048,40 +1034,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         logger.debug(f"Timeline tab clicked: navigating to frame {frame}")
 
     @Slot(int)
-    def _on_timeline_tab_hovered(self, frame: int) -> None:
+    @Slot(int)
+    def _on_timeline_tab_hovered(self, frame: int) -> None:  # pyright: ignore[reportUnusedParameter]
         """Handle timeline tab hover for preview (optional feature)."""
         # Could be used to show frame preview in the future
         pass
 
-    # ==================== View Control Handlers ====================
-
-    @Slot()
-    def _on_view_option_changed(self) -> None:
-        """Handle view option checkbox changes."""
-        # Now handled by dedicated curve widget handlers
-        self._update_curve_view_options()
-        logger.debug(
-            f"View options changed - Background: {self.show_background_cb.isChecked() if self.show_background_cb else False}, "
-            f"Grid: {self.show_grid_cb.isChecked() if self.show_grid_cb else True}, "
-            f"Info: {self.show_info_cb.isChecked() if self.show_info_cb else True}"
-        )
-
-    @Slot(int)
-    def _on_point_size_changed(self, value: int) -> None:
-        """Handle point size slider change."""
-        # Now handled by dedicated curve widget handler
-        self._update_curve_point_size(value)
-        logger.debug(f"Point size changed to: {value}")
-
-    @Slot(int)
-    def _on_line_width_changed(self, value: int) -> None:
-        """Handle line width slider change."""
-        # Now handled by dedicated curve widget handler
-        self._update_curve_line_width(value)
-        logger.debug(f"Line width changed to: {value}")
-
     # ==================== Action Handlers ====================
 
+    @Slot()
     @Slot()
     def _on_action_new(self) -> None:
         """Handle new file action."""
@@ -1095,8 +1056,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         self.state_manager.reset_to_defaults()
         self._update_ui_state()
-        self.status_bar.showMessage("New curve created", 2000)
+        self.status_label.setText("New curve created")
 
+    @Slot()
     @Slot()
     def _on_action_open(self) -> None:
         """Handle open file action."""
@@ -1131,8 +1093,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self._update_timeline_tabs(data)
 
             self._update_ui_state()
-            self.status_bar.showMessage("File loaded successfully", 2000)
+            self.status_label.setText("File loaded successfully")
 
+    @Slot()
     @Slot()
     def _on_action_save(self) -> None:
         """Handle save file action."""
@@ -1143,8 +1106,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             data = self._get_current_curve_data()
             if self.services.save_track_data(data, self):
                 self.state_manager.is_modified = False
-                self.status_bar.showMessage("File saved successfully", 2000)
+                self.status_label.setText("File saved successfully")
 
+    @Slot()
     @Slot()
     def _on_action_save_as(self) -> None:
         """Handle save as action."""
@@ -1152,7 +1116,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         data = self._get_current_curve_data()
         if self.services.save_track_data(data, self):
             self.state_manager.is_modified = False
-            self.status_bar.showMessage("File saved successfully", 2000)
+            self.status_label.setText("File saved successfully")
 
     def _load_burger_tracking_data(self) -> None:
         """Auto-load burger footage and tracking data if available using background thread."""
@@ -1195,35 +1159,116 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._cleanup_file_load_thread()
 
         # Create worker and thread
+        logger.info(f"[THREAD-DEBUG] Creating FileLoadWorker and QThread in thread: {QThread.currentThread()}")
         self.file_load_worker = FileLoadWorker(tracking_file_path, image_dir_path)
         self.file_load_thread = QThread()
+        logger.info(
+            f"[THREAD-DEBUG] Worker created at {self.file_load_worker}, thread created at {self.file_load_thread}"
+        )
 
-        # Move worker to thread
+        # Move worker to thread FIRST
+        logger.info("[THREAD-DEBUG] Moving worker to thread BEFORE connecting signals")
+        logger.info(f"[THREAD-DEBUG] Worker thread before move: {self.file_load_worker.thread()}")
         self.file_load_worker.moveToThread(self.file_load_thread)
+        logger.info(f"[THREAD-DEBUG] Worker moved to thread {self.file_load_worker.thread()}")
 
-        # Connect worker signals
-        self.file_load_worker.tracking_data_loaded.connect(self._on_tracking_data_loaded)
-        self.file_load_worker.image_sequence_loaded.connect(self._on_image_sequence_loaded)
-        self.file_load_worker.progress_updated.connect(self._on_file_load_progress)
-        self.file_load_worker.error_occurred.connect(self._on_file_load_error)
-        self.file_load_worker.finished.connect(self._on_file_load_finished)
+        # NOW connect signals AFTER worker is in its thread
+        logger.info("[THREAD-DEBUG] Connecting signals AFTER moveToThread")
+        logger.info(f"[THREAD-DEBUG] MainWindow thread: {self.thread()}")
+        logger.info(f"[THREAD-DEBUG] Worker thread after move: {self.file_load_worker.thread()}")
+        logger.info(f"[THREAD-DEBUG] Receiver (self) thread: {self.thread()}")
+
+        # Connect with detailed logging
+        conn1 = self.file_load_worker.tracking_data_loaded.connect(
+            self._on_tracking_data_loaded, Qt.ConnectionType.QueuedConnection
+        )
+        logger.info(f"[THREAD-DEBUG] tracking_data_loaded connection result: {conn1}")
+
+        conn2 = self.file_load_worker.image_sequence_loaded.connect(
+            self._on_image_sequence_loaded, Qt.ConnectionType.QueuedConnection
+        )
+        logger.info(f"[THREAD-DEBUG] image_sequence_loaded connection result: {conn2}")
+
+        conn3 = self.file_load_worker.progress_updated.connect(
+            self._on_file_load_progress, Qt.ConnectionType.QueuedConnection
+        )
+        logger.info(f"[THREAD-DEBUG] progress_updated connection result: {conn3}")
+
+        conn4 = self.file_load_worker.error_occurred.connect(
+            self._on_file_load_error, Qt.ConnectionType.QueuedConnection
+        )
+        logger.info(f"[THREAD-DEBUG] error_occurred connection result: {conn4}")
+
+        # Extra debug for the problematic finished signal
+        logger.info("[THREAD-DEBUG] About to connect finished signal:")
+        logger.info(f"[THREAD-DEBUG]   self class: {self.__class__.__name__}")
+        logger.info(f"[THREAD-DEBUG]   Worker is now in thread: {self.file_load_worker.thread()}")
+        logger.info(f"[THREAD-DEBUG]   MainWindow is in thread: {self.thread()}")
+        logger.info(f"[THREAD-DEBUG]   Are they different? {self.file_load_worker.thread() != self.thread()}")
+
+        # Check if it's recognized as a slot
+        try:
+            meta_object = self.metaObject()
+            method_name = "_on_file_load_finished"
+            for i in range(meta_object.methodCount()):
+                method = meta_object.method(i)
+                if method.name() == method_name.encode():
+                    logger.info(f"[THREAD-DEBUG]   Found slot {method_name} in metaObject, type: {method.methodType()}")
+                    break
+            else:
+                logger.info(f"[THREAD-DEBUG]   WARNING: {method_name} NOT found as slot in metaObject!")
+        except Exception as e:
+            logger.info(f"[THREAD-DEBUG]   Could not check metaObject: {e}")
+
+        # WORKAROUND: QueuedConnection doesn't work properly with Python slots in PySide6
+        # Use lambda + invokeMethod to force execution in main thread
+        from PySide6.QtCore import QMetaObject
+
+        conn5 = self.file_load_worker.finished.connect(
+            lambda: QMetaObject.invokeMethod(self, "_on_file_load_finished", Qt.ConnectionType.QueuedConnection)
+        )
+        logger.info(f"[THREAD-DEBUG] finished connection result (using invokeMethod): {conn5}")
+        logger.info(f"[THREAD-DEBUG] Connection made with worker in thread: {self.file_load_worker.thread()}")
+
+        logger.info("[THREAD-DEBUG] All signals connected")
 
         # Connect thread signals with proper cleanup chain
-        self.file_load_thread.started.connect(self.file_load_worker.run)
-        # Ensure proper cleanup sequence
-        self.file_load_worker.finished.connect(self.file_load_thread.quit)
-        self.file_load_worker.finished.connect(self.file_load_worker.deleteLater)
-        if self.file_load_thread is not None:
-            self.file_load_thread.finished.connect(self.file_load_thread.deleteLater)
+        _ = self.file_load_thread.started.connect(self.file_load_worker.run)
+        # Don't automatically quit thread or delete worker - let _on_file_load_finished handle it
+        # This ensures _on_file_load_finished runs in main thread before cleanup
+        logger.info("[THREAD-DEBUG] NOT connecting automatic cleanup - will handle in _on_file_load_finished")
+
+        # Thread can still delete itself when finished
+        if self.file_load_thread:
+            _ = self.file_load_thread.finished.connect(
+                self.file_load_thread.deleteLater, Qt.ConnectionType.QueuedConnection
+            )
 
         # Start the background loading
-        self.status_bar.showMessage("Loading files in background...", 0)
+        self.status_label.setText("Loading files in background...")
+        logger.info(f"[THREAD-DEBUG] Starting thread {self.file_load_thread}")
         self.file_load_thread.start()
+        logger.info(f"[THREAD-DEBUG] Thread started, is running: {self.file_load_thread.isRunning()}")
         logger.info("Started background file loading thread")
 
     def _cleanup_file_load_thread(self) -> None:
         """Clean up existing file load thread and worker."""
+        logger.info(f"[THREAD-DEBUG] _cleanup_file_load_thread called from thread: {QThread.currentThread()}")
         if self.file_load_worker:
+            # Disconnect signals FIRST to prevent further updates
+            try:
+                logger.info(f"[THREAD-DEBUG] Disconnecting signals from worker in thread: {QThread.currentThread()}")
+                _ = self.file_load_worker.tracking_data_loaded.disconnect()
+                _ = self.file_load_worker.image_sequence_loaded.disconnect()
+                _ = self.file_load_worker.progress_updated.disconnect()
+                _ = self.file_load_worker.error_occurred.disconnect()
+                _ = self.file_load_worker.finished.disconnect()
+            except RuntimeError:
+                # Already disconnected or worker deleted, safe to ignore
+                pass
+
+            # Then stop the worker
+            logger.info("[THREAD-DEBUG] Stopping worker")
             self.file_load_worker.stop()
             self.file_load_worker = None
 
@@ -1242,16 +1287,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 # Always set to None to avoid memory leak
                 self.file_load_thread = None
 
-    def _on_tracking_data_loaded(self, data: list) -> None:
+    @Slot(list)
+    def _on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """Handle tracking data loaded in background thread."""
+        current_thread = QThread.currentThread()
+        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        logger.info(
+            f"[THREAD-DEBUG] _on_tracking_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
+        )
         if data and self.curve_widget:
             logger.debug(f"[DATA] Loaded {len(data)} points from background thread")
             # Log first few points for debugging
             for i in range(min(3, len(data))):
                 logger.debug(f"[DATA] Point {i}: {data[i]}")
 
-            self.curve_widget.set_curve_data(data)
-            self.state_manager.set_track_data(data, mark_modified=False)
+            self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
+            self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
             logger.info(f"Loaded {len(data)} tracking points from background thread")
 
             # Update frame range based on data
@@ -1270,8 +1321,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     # Widgets may have been deleted during application shutdown
                     pass
 
+    @Slot(str, list)
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
         """Handle image sequence loaded in background thread."""
+        current_thread = QThread.currentThread()
+        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        logger.info(
+            f"[THREAD-DEBUG] _on_image_sequence_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
+        )
         if image_files and self.curve_widget:
             # Store image sequence info
             self.image_directory = image_dir
@@ -1294,7 +1351,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 pass
 
             # Update timeline tabs if available
-            if hasattr(self, "timeline_tabs") and self.timeline_tabs:
+            # timeline_tabs is Optional
+            if self.timeline_tabs is not None:
                 try:
                     self.timeline_tabs.set_frame_range(1, num_images)
                     logger.info(f"Updated timeline tabs frame range to 1-{num_images}")
@@ -1302,7 +1360,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     logger.warning(f"Could not update timeline tabs: {e}")
 
             # Update state manager if available
-            if hasattr(self, "state_manager") and self.state_manager:
+            # state_manager is always initialized in __init__
+            if self.state_manager:
                 self.state_manager.set_image_files(image_files)
 
             # Load the first image as background
@@ -1310,7 +1369,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 from pathlib import Path
 
                 first_image_path = Path(image_dir) / image_files[0]
+                logger.info(
+                    f"[THREAD-DEBUG] Creating QPixmap in thread: {QThread.currentThread()} (main={QThread.currentThread() == (QApplication.instance().thread() if QApplication.instance() else None)})"
+                )
                 pixmap = QPixmap(str(first_image_path))
+                logger.info("[THREAD-DEBUG] QPixmap created successfully")
 
                 if not pixmap.isNull():
                     self.curve_widget.background_image = pixmap
@@ -1330,30 +1393,57 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.show_background_cb.setChecked(True)
                 logger.info("Enabled background display for loaded images")
 
+    @Slot(int, str)
     def _on_file_load_progress(self, progress: int, message: str) -> None:
         """Handle file loading progress updates."""
-        self.status_bar.showMessage(f"{message} ({progress}%)", 0)
+        self.status_label.setText(f"{message} ({progress}%)")
         logger.debug(f"File load progress: {progress}% - {message}")
 
+    @Slot(str)
     def _on_file_load_error(self, error_message: str) -> None:
         """Handle file loading errors."""
         logger.error(f"File loading error: {error_message}")
-        self.status_bar.showMessage(f"Error: {error_message}", 5000)
+        self.status_label.setText(f"Error: {error_message}")
 
+    @Slot()
     def _on_file_load_finished(self) -> None:
         """Handle file loading completion."""
-        self.status_bar.showMessage("File loading completed", 2000)
+        current_thread = QThread.currentThread()
+        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        logger.info(
+            f"[THREAD-DEBUG] _on_file_load_finished executing in thread: {current_thread} (main={current_thread == main_thread})"
+        )
+
+        if current_thread != main_thread:
+            # WORKAROUND: If called from wrong thread, reschedule to main thread
+            logger.info("[THREAD-DEBUG] _on_file_load_finished in wrong thread, rescheduling to main thread")
+            from PySide6.QtCore import QTimer
+
+            QTimer.singleShot(0, self._on_file_load_finished_impl)
+            return
+
+        # If in main thread, call implementation directly
+        self._on_file_load_finished_impl()
+
+    def _on_file_load_finished_impl(self) -> None:
+        """Implementation of file load finished handler (runs in main thread)."""
+        self.status_label.setText("File loading completed")
         logger.info("Background file loading finished")
 
-        # Properly clean up thread resources
+        # Now handle cleanup from main thread
+        if self.file_load_worker:
+            logger.info("[THREAD-DEBUG] Scheduling worker deletion")
+            self.file_load_worker.deleteLater()
+            self.file_load_worker = None
+
         if self.file_load_thread:
+            logger.info("[THREAD-DEBUG] Quitting thread")
             self.file_load_thread.quit()
-            # Don't set to None yet - let deleteLater handle it
-        # Worker will be deleted by deleteLater connection
+            # Thread will delete itself via finished.connect(deleteLater)
 
     def _update_background_image_for_frame(self, frame: int) -> None:
         """Update the background image based on the current frame."""
-        if not hasattr(self, "image_filenames") or not self.image_filenames:
+        if getattr(self, "image_filenames", None) is None or not self.image_filenames:
             return
 
         if not self.curve_widget:
@@ -1374,7 +1464,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
             from PySide6.QtGui import QPixmap
 
-            image_path = Path(self.image_directory) / self.image_filenames[image_idx]
+            image_path = Path(self.image_directory) / self.image_filenames[image_idx]  # pyright: ignore[reportArgumentType]
+            logger.info(f"[THREAD-DEBUG] Creating QPixmap for frame update in thread: {QThread.currentThread()}")
             pixmap = QPixmap(str(image_path))
 
             if not pixmap.isNull():
@@ -1383,17 +1474,20 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
 
     @Slot()
+    @Slot()
     def _on_action_undo(self) -> None:
         """Handle undo action."""
         self.services.undo()
-        self.status_bar.showMessage("Undo", 1000)
+        self.status_label.setText("Undo")
 
+    @Slot()
     @Slot()
     def _on_action_redo(self) -> None:
         """Handle redo action."""
         self.services.redo()
-        self.status_bar.showMessage("Redo", 1000)
+        self.status_label.setText("Redo")
 
+    @Slot()
     @Slot()
     def _on_action_zoom_in(self) -> None:
         """Handle zoom in action."""
@@ -1412,6 +1506,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._update_zoom_label()
 
     @Slot()
+    @Slot()
     def _on_action_zoom_out(self) -> None:
         """Handle zoom out action."""
         if self.curve_widget:
@@ -1429,6 +1524,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._update_zoom_label()
 
     @Slot()
+    @Slot()
     def _on_action_reset_view(self) -> None:
         """Handle reset view action."""
         if self.curve_widget:
@@ -1439,11 +1535,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.state_manager.zoom_level = 1.0
             self.state_manager.pan_offset = (0.0, 0.0)
         self._update_zoom_label()
-        self.status_bar.showMessage("View reset", 1000)
+        self.status_label.setText("View reset")
 
     # ==================== State Change Handlers ====================
 
-    def _on_selection_changed(self, indices: list) -> None:
+    @Slot(list)
+    def _on_selection_changed(self, indices: list[int]) -> None:
         """Handle selection change from state manager."""
         count = len(indices)
         self.selected_count_label.setText(f"Selected: {count}")
@@ -1459,21 +1556,21 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 point_data = self.curve_widget.curve_data[idx]
                 from core.point_types import safe_extract_point
 
-                frame, x, y, status = safe_extract_point(point_data)
+                frame, x, y, _ = safe_extract_point(point_data)
 
                 # Update spinboxes with actual values
                 if self.point_x_spinbox and self.point_y_spinbox:
-                    self.point_x_spinbox.blockSignals(True)
-                    self.point_y_spinbox.blockSignals(True)
+                    _ = self.point_x_spinbox.blockSignals(True)
+                    _ = self.point_y_spinbox.blockSignals(True)
                     self.point_x_spinbox.setValue(x)
                     self.point_y_spinbox.setValue(y)
-                    self.point_x_spinbox.blockSignals(False)
-                    self.point_y_spinbox.blockSignals(False)
+                    _ = self.point_x_spinbox.blockSignals(False)
+                    _ = self.point_y_spinbox.blockSignals(False)
 
                     # Connect spinbox changes to update point
-                    if not hasattr(self, "_point_spinbox_connected"):
-                        self.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
-                        self.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
+                    if getattr(self, "_point_spinbox_connected", False) is False:
+                        _ = self.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
+                        _ = self.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
                         self._point_spinbox_connected = True
 
             if self.point_x_spinbox:
@@ -1495,6 +1592,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             if self.point_y_spinbox:
                 self.point_y_spinbox.setEnabled(False)
 
+    @Slot()
     def _on_view_state_changed(self) -> None:
         """Handle view state change from state manager."""
         self._update_zoom_label()
@@ -1561,27 +1659,27 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             zoom_percent = int(self.state_manager.zoom_level * 100)
         self.zoom_label.setText(f"Zoom: {zoom_percent}%")
 
-    def eventFilter(self, obj, event) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Event filter to handle key event redirection."""
-        if event.type() == QEvent.Type.KeyPress:
+        if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
             key = event.key()
-            logger.debug(f"[EVENT_FILTER] KeyPress detected: key={key}, object={obj.__class__.__name__}")
+            logger.debug(f"[EVENT_FILTER] KeyPress detected: key={key}, object={watched.__class__.__name__}")
 
             # Handle C key specifically without modifiers
             if key == Qt.Key.Key_C and not event.modifiers():
                 # If C key pressed on curve widget, let it handle normally
-                if obj == self.curve_widget:
+                if watched == self.curve_widget:
                     logger.debug("[EVENT_FILTER] C key on curve_widget, passing through")
-                    return super().eventFilter(obj, event)  # Proper delegation
+                    return super().eventFilter(watched, event)  # Proper delegation
 
                 # If C key pressed elsewhere, redirect to curve widget
-                elif obj != self.curve_widget and self.curve_widget:
+                elif watched != self.curve_widget and self.curve_widget:
                     logger.debug("[EVENT_FILTER] Redirecting C key to curve_widget")
                     self.curve_widget.setFocus()
-                    QApplication.sendEvent(self.curve_widget, event)
+                    _ = QApplication.sendEvent(self.curve_widget, event)
                     return True  # Consume original event to prevent double handling
 
-        return super().eventFilter(obj, event)  # Proper delegation to parent
+        return super().eventFilter(watched, event)  # Proper delegation to parent
 
     def update_cursor_position(self, x: float, y: float) -> None:
         """Update cursor position in status bar."""
@@ -1589,27 +1687,32 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== Curve Widget Signal Handlers ====================
 
+    @Slot(int)
     def _on_point_selected(self, index: int) -> None:
         """Handle point selection from curve widget."""
         logger.debug(f"Point {index} selected")
         # Update properties panel will be handled by selection_changed signal
 
+    @Slot(int, float, float)
     def _on_point_moved(self, index: int, x: float, y: float) -> None:
         """Handle point movement from curve widget."""
         self.state_manager.is_modified = True
         logger.debug(f"Point {index} moved to ({x:.3f}, {y:.3f})")
 
+    @Slot(list)
     def _on_curve_selection_changed(self, indices: list[int]) -> None:
         """Handle selection change from curve widget."""
         # Update state manager
         self.state_manager.set_selected_points(indices)
         # Properties panel will be updated via state manager signal
 
+    @Slot()
     def _on_curve_view_changed(self) -> None:
         """Handle view changes from curve widget."""
         # Update zoom display
         self._update_zoom_label()
 
+    @Slot(float)
     def _on_curve_zoom_changed(self, zoom: float) -> None:
         """Handle zoom changes from curve widget."""
         # Update state manager and zoom label
@@ -1650,27 +1753,47 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if self.line_width_label:
             self.line_width_label.setText(str(value))
 
+    def _toggle_tooltips(self) -> None:
+        """Toggle tooltips on/off globally."""
+        if not self.show_tooltips_cb:
+            return
+
+        enabled = self.show_tooltips_cb.isChecked()
+
+        # Store/restore tooltips for all widgets in the main window
+        if enabled:
+            # Restore tooltips if we have them stored
+            if getattr(self, "_stored_tooltips", None) is not None:
+                for widget, tooltip in self._stored_tooltips.items():
+                    if widget and tooltip:
+                        widget.setToolTip(tooltip)
+        else:
+            # Store current tooltips and clear them
+            if getattr(self, "_stored_tooltips", None) is None:
+                self._stored_tooltips = {}
+
+            # Find all widgets with tooltips and store/clear them
+            for widget in self.findChildren(QWidget):
+                tooltip = widget.toolTip()
+                if tooltip:
+                    self._stored_tooltips[widget] = tooltip
+                    widget.setToolTip("")
+
+        logger.debug(f"Tooltips {'enabled' if enabled else 'disabled'}")
+
     # ==================== Frame Navigation Handlers ====================
 
+    @Slot(int)
     def _on_state_frame_changed(self, frame: int) -> None:
         """Handle frame change from state manager."""
-        # Update UI controls
-        if self.frame_spinbox:
-            self.frame_spinbox.blockSignals(True)
-            self.frame_spinbox.setValue(frame)
-            self.frame_spinbox.blockSignals(False)
-        if self.frame_slider:
-            self.frame_slider.blockSignals(True)
-            self.frame_slider.setValue(frame)
-            self.frame_slider.blockSignals(False)
-
-        # Update curve widget if it handles frame-based display
-        # This would be for showing different frames of animation data
-        # For now, we'll leave this as a placeholder for future frame-based features
+        # Use shared frame update logic, but don't update state manager to avoid loops
+        self._update_frame_display(frame, update_state_manager=False)
 
     # ==================== Utility Methods ====================
 
-    def _update_timeline_tabs(self, curve_data: list | None = None) -> None:
+    def _update_timeline_tabs(
+        self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] | None = None
+    ) -> None:
         """Update timeline tabs with current curve data and frame range."""
         if not self.timeline_tabs:
             return
@@ -1683,7 +1806,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             return
 
         # Calculate frame range - validate data first
-        frames = []
+        frames: list[int] = []
         for point in curve_data:
             if len(point) >= 3:
                 try:
@@ -1710,7 +1833,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             data_service = get_data_service()
 
             # Get status for all frames that have points
-            frame_status = data_service.get_frame_range_point_status(curve_data)
+            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
 
             # Update timeline tabs with point status
             for frame, (keyframe_count, interpolated_count, has_selected) in frame_status.items():
@@ -1721,11 +1844,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         except Exception as e:
             logger.warning(f"Could not update timeline tabs with point data: {e}")
 
-    def _get_current_curve_data(self) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
+    def _get_current_curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
         """Get current curve data from curve widget or state manager."""
         if self.curve_widget:
-            return self.curve_widget.curve_data
-        return [(x, y) for x, y in self.state_manager.track_data]
+            return self.curve_widget.curve_data  # pyright: ignore[reportReturnType]
+        return self.state_manager.track_data  # pyright: ignore[reportReturnType]
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""
@@ -1735,6 +1858,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_undo.setEnabled(self.state_manager.can_undo)
         self.action_redo.setEnabled(self.state_manager.can_redo)
 
+    @Slot(float)
     def _on_point_x_changed(self, value: float) -> None:
         """Handle X coordinate change in properties panel."""
         selected_indices = self.state_manager.selected_points
@@ -1747,6 +1871,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.curve_widget.update_point(idx, value, y)
                 self.state_manager.is_modified = True
 
+    @Slot(float)
     def _on_point_y_changed(self, value: float) -> None:
         """Handle Y coordinate change in properties panel."""
         selected_indices = self.state_manager.selected_points
@@ -1766,7 +1891,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.curve_view = curve_view
         logger.info("Legacy curve view reference set")
 
-    def get_view_options(self) -> dict[str, Any]:
+    def get_view_options(self) -> dict[str, object]:
         """Get current view options."""
         return {
             "show_background": self.show_background_cb.isChecked() if self.show_background_cb else False,
@@ -1786,16 +1911,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.auto_center_enabled = enabled
 
         # Update the curve widget if available
-        if hasattr(self, "curve_widget") and self.curve_widget:
-            if hasattr(self.curve_widget, "set_auto_center"):
-                self.curve_widget.set_auto_center(enabled)
+        # curve_widget is Optional
+        if self.curve_widget is not None:
+            if getattr(self.curve_widget, "set_auto_center", None) is not None:
+                self.curve_widget.set_auto_center(enabled)  # pyright: ignore[reportAttributeAccessIssue]
 
         # Log the state change
         logger.info(f"Auto-centering {'enabled' if enabled else 'disabled'}")
 
         # Update status bar
-        if hasattr(self, "statusBar"):
-            self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
+        # statusBar() is a QMainWindow method, always available
+        self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation to selected points in the curve.
@@ -1803,14 +1929,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Shows a dialog to get smoothing parameters and applies smoothing
         to the currently selected points or all points if none selected.
         """
-        if not hasattr(self, "curve_widget") or not self.curve_widget:
+        # curve_widget is Optional
+        if self.curve_widget is None:
             logger.warning("No curve widget available for smoothing")
             return
 
         # Get the current curve data
         curve_data = getattr(self.curve_widget, "curve_data", [])
         if not curve_data:
-            QMessageBox.information(self, "No Data", "No curve data to smooth.")
+            _ = QMessageBox.information(self, "No Data", "No curve data to smooth.")
             return
 
         # Get selected points or use all points
@@ -1862,8 +1989,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget.set_curve_data(new_curve_data)
 
             # Mark as modified
-            if hasattr(self, "state_manager"):
-                self.state_manager.is_modified = True
+            # state_manager is always initialized in __init__
+            self.state_manager.is_modified = True
 
             # Update status
             self.statusBar().showMessage(
@@ -1871,9 +1998,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             )
             logger.info(f"Smoothing applied to {len(selected_indices)} points")
         else:
-            QMessageBox.warning(self, "Service Error", "Data service not available for smoothing.")
+            _ = QMessageBox.warning(self, "Service Error", "Data service not available for smoothing.")
 
-    def closeEvent(self, event) -> None:
+    def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         # Clean up any running background threads
         self._cleanup_file_load_thread()

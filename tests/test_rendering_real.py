@@ -273,7 +273,10 @@ class TestOptimizedCurveRenderer:
                 self.image_width = 800
                 self.image_height = 600
                 self._width = 800
+                self.main_window = None  # For OptimizedCurveRenderer compatibility
                 self._height = 600
+                self.background_image = None  # Required by renderer
+                self.show_all_frame_numbers = False  # Required by renderer
 
             def width(self):
                 return self._width

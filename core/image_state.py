@@ -20,9 +20,8 @@ from typing import TYPE_CHECKING, TypeGuard, cast, override
 if TYPE_CHECKING:
     from collections.abc import Callable
 
+    from core.type_aliases import QtPixmap as QPixmap
     from services.service_protocols import CurveViewProtocol, MainWindowProtocol
-
-from core.type_aliases import QtPixmap as QPixmap
 
 # Configure logger for this module
 logger = logging.getLogger("image_state")
@@ -48,9 +47,11 @@ class ImageSequenceInfo:
     total_count: int = 0
 
     def __post_init__(self) -> None:
-        """Initialize default values correctly."""
+        """Initialize default values correctly and validate inputs."""
+        # Ensure filenames is always a list
         if not isinstance(self.filenames, list):
             self.filenames = []
+
         self.total_count = len(self.filenames)
 
     @property
@@ -105,6 +106,7 @@ def _is_curve_view_protocol(obj: object) -> TypeGuard[CurveViewProtocol]:
     Returns:
         True if object has the required CurveViewProtocol attributes
     """
+    sentinel = object()
     required_attrs = [
         "selected_point_idx",
         "curve_data",
@@ -114,7 +116,7 @@ def _is_curve_view_protocol(obj: object) -> TypeGuard[CurveViewProtocol]:
         "offset_x",
         "offset_y",
     ]
-    return all(hasattr(obj, attr) for attr in required_attrs)
+    return all(getattr(obj, attr, sentinel) is not sentinel for attr in required_attrs)
 
 
 class ImageState:
@@ -374,28 +376,25 @@ class ImageState:
             curve_view: The curve view instance to sync from
         """
         # Sync sequence information
-        if hasattr(curve_view, "image_sequence_path") and hasattr(curve_view, "image_filenames"):
-            path = getattr(curve_view, "image_sequence_path", "")
-            filenames = getattr(curve_view, "image_filenames", [])
-            if path and filenames:
-                self.set_sequence(path, filenames)
+        path = getattr(curve_view, "image_sequence_path", "")
+        filenames = getattr(curve_view, "image_filenames", [])
+        if path and filenames:
+            self.set_sequence(path, filenames)
 
         # Sync current index
-        if hasattr(curve_view, "current_image_idx"):
-            index = getattr(curve_view, "current_image_idx", -1)
-            if index >= 0:
-                self.set_current_image_index(index)
+        index = getattr(curve_view, "current_image_idx", -1)
+        if index >= 0:
+            self.set_current_image_index(index)
 
         # Sync display state
-        if hasattr(curve_view, "background_image"):
-            background_image = cast(QPixmap | None, getattr(curve_view, "background_image"))
-            if background_image and not background_image.isNull():
-                filepath = self.sequence_info.current_filepath or ""
-                self.set_image_loaded(background_image, filepath)
-            elif self.has_sequence_loaded():
-                self.loading_state = ImageLoadingState.SEQUENCE_LOADED
-            else:
-                self.loading_state = ImageLoadingState.NO_SEQUENCE
+        background_image = cast("QPixmap | None", getattr(curve_view, "background_image", None))
+        if background_image and not background_image.isNull():
+            filepath = self.sequence_info.current_filepath or ""
+            self.set_image_loaded(background_image, filepath)
+        elif self.has_sequence_loaded():
+            self.loading_state = ImageLoadingState.SEQUENCE_LOADED
+        else:
+            self.loading_state = ImageLoadingState.NO_SEQUENCE
 
     def sync_from_main_window(self, main_window: MainWindowProtocol) -> None:
         """
@@ -405,21 +404,19 @@ class ImageState:
             main_window: The main window instance to sync from
         """
         # Sync sequence information from main window
-        if hasattr(main_window, "image_sequence_path") and hasattr(main_window, "image_filenames"):
-            path = getattr(main_window, "image_sequence_path", "")
-            filenames = getattr(main_window, "image_filenames", [])
-            if path and filenames:
-                self.set_sequence(path, filenames)
+        path = getattr(main_window, "image_sequence_path", "")
+        filenames = getattr(main_window, "image_filenames", [])
+        if path and filenames:
+            self.set_sequence(path, filenames)
 
         # Sync current frame
-        if hasattr(main_window, "current_frame"):
-            frame = getattr(main_window, "current_frame", 0)
-            if frame >= 0:
-                self.set_current_image_index(frame)
+        frame = getattr(main_window, "current_frame", 0)
+        if frame >= 0:
+            self.set_current_image_index(frame)
 
         # Sync from curve view if available
-        if hasattr(main_window, "curve_view") and main_window.curve_view:
-            curve_view = main_window.curve_view
+        curve_view = getattr(main_window, "curve_view", None)
+        if curve_view is not None:
             if _is_curve_view_protocol(curve_view):
                 self.sync_from_curve_view(curve_view)
             else:

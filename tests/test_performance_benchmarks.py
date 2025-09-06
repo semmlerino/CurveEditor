@@ -58,7 +58,7 @@ class BenchmarkResult:
 
 
 @pytest.fixture
-def benchmark_context() -> Generator[dict[str, Any], None, None]:
+def benchmark_context() -> Generator[dict[str, object], None, None]:
     """Provide benchmarking context with memory tracking."""
     # Start memory tracking
     tracemalloc.start()
@@ -82,7 +82,7 @@ def create_benchmark_data(size: int) -> list[tuple[int, float, float, str]]:
 class TestApplicationStartupBenchmarks:
     """Benchmark application startup performance."""
 
-    def test_main_window_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, Any]) -> None:
+    def test_main_window_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, object]) -> None:
         """Benchmark MainWindow creation time."""
         result = BenchmarkResult("MainWindow Creation")
 
@@ -114,7 +114,7 @@ class TestApplicationStartupBenchmarks:
         benchmark_context["results"].append(result)
         print(f"\n{result}")
 
-    def test_curve_widget_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, Any]) -> None:
+    def test_curve_widget_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, object]) -> None:
         """Benchmark CurveViewWidget creation time."""
         result = BenchmarkResult("CurveViewWidget Creation")
 
@@ -216,7 +216,7 @@ class TestDataProcessingBenchmarks:
         benchmark_context["results"].append(result)
         print(f"\n{result}")
 
-    def test_file_io_performance(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_file_io_performance(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
         """Benchmark file I/O operations."""
         data_size = 5000
         test_data = create_benchmark_data(data_size)
@@ -307,7 +307,9 @@ class TestUIRenderingBenchmarks:
         benchmark_context["results"].append(result)
         print(f"\n{result}")
 
-    def test_selection_performance(self, main_window_with_data: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_selection_performance(
+        self, main_window_with_data: MainWindow, benchmark_context: dict[str, object]
+    ) -> None:
         """Benchmark point selection performance."""
         curve_widget = main_window_with_data.curve_widget
         data_size = len(curve_widget.curve_data)
@@ -338,7 +340,9 @@ class TestUIRenderingBenchmarks:
         benchmark_context["results"].append(result)
         print(f"\n{result}")
 
-    def test_ui_update_performance(self, main_window_with_data: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_ui_update_performance(
+        self, main_window_with_data: MainWindow, benchmark_context: dict[str, object]
+    ) -> None:
         """Benchmark UI state updates."""
         update_count = 100
 
@@ -379,7 +383,7 @@ class TestMemoryUsageBenchmarks:
         yield window
         window.close()
 
-    def test_memory_scaling_with_data_size(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_memory_scaling_with_data_size(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
         """Test memory usage scaling with data size."""
         data_sizes = [100, 1000, 5000, 10000]
         memory_usage = []
@@ -426,7 +430,9 @@ class TestMemoryUsageBenchmarks:
         for size, memory in memory_usage:
             print(f"  {size:,} points: {memory:.1f}MB")
 
-    def test_memory_cleanup_after_operations(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_memory_cleanup_after_operations(
+        self, main_window: MainWindow, benchmark_context: dict[str, object]
+    ) -> None:
         """Test memory cleanup after various operations."""
         # Get baseline memory
         gc.collect()
@@ -473,7 +479,7 @@ class TestServicePerformanceBenchmarks:
         yield window
         window.close()
 
-    def test_service_facade_performance(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
+    def test_service_facade_performance(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
         """Benchmark service facade delegation performance."""
         operation_count = 1000
 
@@ -542,7 +548,7 @@ class TestServicePerformanceBenchmarks:
         print(f"\n{result}")
 
 
-def test_benchmark_summary(benchmark_context: dict[str, Any]) -> None:
+def test_benchmark_summary(benchmark_context: dict[str, object]) -> None:
     """Print benchmark summary."""
     results = benchmark_context.get("results", [])
 

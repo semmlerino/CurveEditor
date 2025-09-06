@@ -12,7 +12,7 @@ from enum import Enum, auto
 
 class PlaybackMode(Enum):
     STOPPED = auto()
-    PLAYING_FORWARD = auto() 
+    PLAYING_FORWARD = auto()
     PLAYING_BACKWARD = auto()
 
 @dataclass
@@ -35,30 +35,30 @@ class MainWindow:
         # Fix broken initialization
         self.playback_timer = QTimer()
         self.playback_timer.timeout.connect(self._on_playback_timer)
-        
+
         # Playback state
         self.playback_state = PlaybackState()
-        
+
     def _toggle_oscillating_playback(self) -> None:
         """Toggle oscillating playbook on spacebar."""
         if self.playback_state.mode == PlaybackMode.STOPPED:
             self._start_oscillating_playback()
         else:
             self._stop_oscillating_playback()
-            
+
     def _start_oscillating_playback(self) -> None:
         """Start oscillating playback."""
         # Update frame boundaries from data
         self._update_playback_bounds()
-        
+
         # Set FPS-based timer interval
         fps = self.fps_spinbox.value() if self.fps_spinbox else 12
         interval = int(1000 / fps)  # Convert to milliseconds
-        
+
         # Start forward playback
         self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
         self.playback_timer.start(interval)
-        
+
     def _stop_oscillating_playback(self) -> None:
         """Stop oscillating playback."""
         self.playback_timer.stop()
@@ -71,7 +71,7 @@ class MainWindow:
 def _on_playback_timer(self) -> None:
     """Handle oscillating playback timer tick."""
     current = self.playback_state.current_frame
-    
+
     if self.playback_state.mode == PlaybackMode.PLAYING_FORWARD:
         # Move forward
         if current >= self.playback_state.max_frame:
@@ -80,16 +80,16 @@ def _on_playback_timer(self) -> None:
             next_frame = current - 1
         else:
             next_frame = current + 1
-            
+
     elif self.playback_state.mode == PlaybackMode.PLAYING_BACKWARD:
         # Move backward
         if current <= self.playback_state.min_frame:
             # Hit lower boundary - reverse direction
-            self.playback_state.mode = PlaybackMode.PLAYING_FORWARD  
+            self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
             next_frame = current + 1
         else:
             next_frame = current - 1
-    
+
     # Update frame and UI
     self._set_current_frame(next_frame)
 ```
@@ -100,7 +100,7 @@ def _on_playback_timer(self) -> None:
 def _update_playback_bounds(self) -> None:
     """Update playback bounds based on actual data."""
     data_service = get_data_service()
-    
+
     if hasattr(self, 'curve_view') and self.curve_view.curve_data:
         bounds = data_service.get_data_bounds(self.curve_view.curve_data)
         self.playback_state.min_frame = max(1, bounds.get('min_frame', 1))
@@ -109,7 +109,7 @@ def _update_playback_bounds(self) -> None:
         # Default bounds
         self.playback_state.min_frame = 1
         self.playback_state.max_frame = 100
-        
+
     # Ensure current frame is within bounds
     current = self._get_current_frame()
     if current < self.playback_state.min_frame:
@@ -127,7 +127,7 @@ def _setup_frame_shortcuts(self) -> None:
     """Set up frame navigation shortcuts."""
     # Existing shortcuts...
     self.register_shortcut("oscillate_playback", "Space", self._on_oscillate_playback)
-    
+
 def _on_oscillate_playback(self) -> None:
     """Handle oscillating playback toggle (spacebar)."""
     self.shortcut_activated.emit("oscillate_playback")
@@ -140,7 +140,7 @@ def _setup_shortcuts(self) -> None:
     """Setup keyboard shortcuts."""
     # Connect oscillation shortcut
     self.shortcut_manager.shortcut_activated.connect(self._handle_shortcut)
-    
+
 def _handle_shortcut(self, shortcut_name: str) -> None:
     """Handle shortcut activation."""
     if shortcut_name == "oscillate_playback":
@@ -155,15 +155,15 @@ def _set_current_frame(self, frame: int) -> None:
     """Set current frame with UI updates."""
     # Update internal state
     self.playback_state.current_frame = frame
-    
+
     # Update spinbox
     if self.frame_spinbox:
         self.frame_spinbox.setValue(frame)
-        
+
     # Update timeline widget
     if hasattr(self, 'timeline_tabs'):
         self.timeline_tabs.set_current_frame(frame)
-        
+
     # Update curve view if needed
     if hasattr(self, 'curve_view'):
         self.curve_view.current_image_idx = frame - 1  # Convert to 0-based index
@@ -185,11 +185,11 @@ def _setup_fps_control(self) -> None:
         self.fps_spinbox.setMaximum(60)
         self.fps_spinbox.setValue(12)  # Default 12fps
         self.fps_spinbox.valueChanged.connect(self._on_fps_changed)
-        
+
 def _on_fps_changed(self, fps: int) -> None:
     """Handle FPS change during playback."""
     self.playback_state.fps = fps
-    
+
     # Update timer interval if playing
     if self.playback_state.mode != PlaybackMode.STOPPED:
         interval = int(1000 / fps)
@@ -210,7 +210,7 @@ def _on_fps_changed(self, fps: int) -> None:
 ## User Experience
 
 - **Spacebar**: Toggle oscillating playback on/off
-- **Visual Feedback**: Timeline tabs highlight current frame during playback  
+- **Visual Feedback**: Timeline tabs highlight current frame during playback
 - **Smooth Animation**: Configurable FPS for different animation speeds
 - **Boundary Bouncing**: Seamless direction reversal at frame boundaries
 - **Persistent Settings**: FPS setting remembered between sessions

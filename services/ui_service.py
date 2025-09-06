@@ -13,7 +13,7 @@ status updates, and UI component management.
 
 import logging
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox, QWidget
 
@@ -212,7 +212,7 @@ class UIService:
             message: Error message to display
             title: Dialog title
         """
-        QMessageBox.critical(parent, title, message)
+        _ = QMessageBox.critical(parent, title, message)
         logger.error(f"Error shown to user: {message}")
 
     def show_warning(self, parent: QWidget, message: str, title: str = "Warning") -> None:
@@ -223,7 +223,7 @@ class UIService:
             message: Warning message to display
             title: Dialog title
         """
-        QMessageBox.warning(parent, title, message)
+        _ = QMessageBox.warning(parent, title, message)
         logger.warning(f"Warning shown to user: {message}")
 
     def show_info(self, parent: QWidget, message: str, title: str = "Information") -> None:
@@ -234,7 +234,7 @@ class UIService:
             message: Information message to display
             title: Dialog title
         """
-        QMessageBox.information(parent, title, message)
+        _ = QMessageBox.information(parent, title, message)
         logger.info(f"Info shown to user: {message}")
 
     def confirm_action(self, parent: QWidget, message: str, title: str = "Confirm") -> bool:
@@ -287,9 +287,9 @@ class UIService:
             message: Status message to display
             timeout: Timeout in milliseconds (0 = permanent)
         """
-        if hasattr(main_window, "statusBar"):
-            main_window.statusBar().showMessage(message, timeout)
-            logger.debug(f"Status bar updated: {message}")
+        # statusBar() is defined in MainWindowProtocol
+        main_window.statusBar().showMessage(message, timeout)
+        logger.debug(f"Status bar updated: {message}")
 
     def clear_status(self, main_window: "MainWindowProtocol") -> None:
         """Clear status bar message.
@@ -297,8 +297,8 @@ class UIService:
         Args:
             main_window: Main window with status bar
         """
-        if hasattr(main_window, "statusBar"):
-            main_window.statusBar().clearMessage()
+        # statusBar() is defined in MainWindowProtocol
+        main_window.statusBar().clearMessage()
 
     def set_permanent_status(self, main_window: "MainWindowProtocol", message: str) -> None:
         """Set a permanent status message.
@@ -335,7 +335,7 @@ class UIService:
         """
         for component_name in components:
             component = getattr(main_window, component_name, None)
-            if component and hasattr(component, "setEnabled"):
+            if component is not None and callable(getattr(component, "setEnabled", None)):
                 component.setEnabled(enabled)
 
     def update_button_states(self, main_window: "MainWindowProtocol") -> None:
@@ -345,20 +345,23 @@ class UIService:
             main_window: Main window containing the buttons
         """
         # Update undo/redo buttons
-        if hasattr(main_window, "undo_button") and hasattr(main_window, "history_index"):
+        # undo_button is Optional, history_index is defined in MainWindowProtocol
+        if main_window.undo_button is not None:
             main_window.undo_button.setEnabled(main_window.history_index > 0)
 
-        if hasattr(main_window, "redo_button") and hasattr(main_window, "history"):
+        # redo_button is Optional, history is defined in MainWindowProtocol
+        if main_window.redo_button is not None:
             main_window.redo_button.setEnabled(main_window.history_index < len(main_window.history) - 1)
 
         # Update save button
-        if hasattr(main_window, "save_button") and hasattr(main_window, "curve_data"):
+        # save_button is Optional, curve_data is defined in MainWindowProtocol
+        if main_window.save_button is not None:
             main_window.save_button.setEnabled(len(main_window.curve_data) > 0)
 
         # Update selection-dependent buttons
         has_selection = False
-        if hasattr(main_window, "selected_indices"):
-            has_selection = len(main_window.selected_indices) > 0
+        # selected_indices is defined in MainWindowProtocol
+        has_selection = len(main_window.selected_indices) > 0
 
         selection_buttons = ["delete_button", "update_point_button", "duplicate_button"]
         for button_name in selection_buttons:
@@ -382,8 +385,8 @@ class UIService:
         if modified:
             title = f"*{title}"
 
-        if hasattr(main_window, "setWindowTitle"):
-            main_window.setWindowTitle(title)
+        # setWindowTitle is defined in MainWindowProtocol
+        main_window.setWindowTitle(title)
 
     def show_progress(
         self, main_window: "MainWindowProtocol", message: str, value: int = -1, maximum: int = 100
@@ -414,12 +417,13 @@ class UIService:
         self.update_button_states(main_window)
 
         # Update status bar with data info
-        if hasattr(main_window, "curve_data"):
-            point_count = len(main_window.curve_data)
-            self.set_status(main_window, f"{point_count} points loaded")
+        # curve_data is defined in MainWindowProtocol
+        point_count = len(main_window.curve_data)
+        self.set_status(main_window, f"{point_count} points loaded")
 
         # Update window title if modified
-        if hasattr(main_window, "is_modified") and main_window.is_modified:
+        # is_modified is a property in MainWindowProtocol
+        if main_window.is_modified:
             self.update_window_title(main_window, modified=True)
 
     def create_context_menu(self, parent: QWidget, actions: dict[str, Callable[[], None] | None]) -> QMenu:
@@ -499,7 +503,7 @@ class UIService:
         self.show_info(parent, "Extrapolate dialog not yet implemented")
         return None
 
-    def show_shortcuts_dialog(self, parent: Any) -> None:
+    def show_shortcuts_dialog(self, parent: object) -> None:
         """Show keyboard shortcuts dialog.
 
         Args:

@@ -109,8 +109,9 @@ class SignalManager:
             self.owner_ref = weakref.ref(owner, self._owner_destroyed)
 
             # Try to hook into the owner's destruction
-            if hasattr(owner, "destroyed"):
-                _ = owner.destroyed.connect(self.disconnect_all)
+            destroyed_signal = getattr(owner, "destroyed", None)
+            if destroyed_signal is not None:
+                _ = destroyed_signal.connect(self.disconnect_all)
 
     def _owner_destroyed(self, _: weakref.ReferenceType[QObject]) -> None:
         """Called when the owner widget is destroyed."""
@@ -233,5 +234,6 @@ class ManagedWidget:
 
     def __del__(self) -> None:
         """Ensure signals are disconnected on destruction."""
-        if hasattr(self, "signal_manager"):
-            self.signal_manager.disconnect_all()
+        signal_manager = getattr(self, "signal_manager", None)
+        if signal_manager is not None:
+            signal_manager.disconnect_all()

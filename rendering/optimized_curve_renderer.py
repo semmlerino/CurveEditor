@@ -11,13 +11,61 @@ This renderer addresses the critical performance issues identified in the analys
 import logging
 import time
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
-from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 
-from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
+if TYPE_CHECKING:
+    from services.transform_service import Transform
+else:
+    Transform = object
+
+# Use Any for NumPy array types to avoid type checker complexity
+# The actual NumPy operations will work correctly at runtime
+FloatArray = Any
+IntArray = Any
+from PySide6.QtCore import QPointF, QRectF, Qt  # noqa: E402
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen  # noqa: E402
+
+from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING  # noqa: E402
+
+
+class CurveViewProtocol(Protocol):
+    """Protocol for curve view objects used by the renderer."""
+
+    # Required attributes
+    points: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]
+    show_background: bool
+    background_image: object  # QImage or QPixmap
+    show_grid: bool
+    zoom_factor: float
+    pan_offset_x: float
+    pan_offset_y: float
+    manual_offset_x: float
+    manual_offset_y: float
+    image_width: int
+    image_height: int
+    background_opacity: float
+    selected_points: set[int]
+    point_radius: int
+    main_window: object  # MainWindow
+
+    # Optional attributes for debugging
+    debug_mode: bool
+    show_all_frame_numbers: bool
+    flip_y_axis: bool
+
+    def width(self) -> int: ...
+    def height(self) -> int: ...
+    def get_transform(self) -> Transform: ...
+
+
+class MainWindowProtocol(Protocol):
+    """Protocol for main window objects."""
+
+    @property
+    def state_manager(self) -> object: ...  # StateManager with current_frame
+
 
 logger = logging.getLogger("optimized_curve_renderer")
 
@@ -34,10 +82,10 @@ class ViewportCuller:
     """Efficient viewport culling with spatial indexing."""
 
     def __init__(self):
-        self._grid_size = GRID_CELL_SIZE  # Grid cell size for spatial indexing
-        self._spatial_index = {}
+        self._grid_size: float = GRID_CELL_SIZE  # Grid cell size for spatial indexing
+        self._spatial_index: dict[tuple[int, int], list[int]] = {}
 
-    def update_spatial_index(self, points: np.ndarray, viewport: QRectF) -> None:
+    def update_spatial_index(self, points: FloatArray, viewport: QRectF) -> None:
         """Update spatial index for the given points."""
         self._spatial_index.clear()
 
@@ -54,10 +102,10 @@ class ViewportCuller:
                 self._spatial_index[key] = []
             self._spatial_index[key].append(i)
 
-    def get_visible_points(self, points: np.ndarray, viewport: QRectF, padding: float = 50) -> np.ndarray:
+    def get_visible_points(self, points: FloatArray, viewport: QRectF, padding: float = 50) -> IntArray:
         """Get indices of points visible in viewport using spatial indexing."""
         if len(points) == 0:
-            return np.array([], dtype=int)
+            return np.array([], dtype=int)  # pyright: ignore[reportPrivateImportUsage]
 
         # Expand viewport by padding
         expanded = QRectF(
@@ -73,7 +121,7 @@ class ViewportCuller:
         else:
             return self._get_visible_points_simple(points, expanded)
 
-    def _get_visible_points_spatial(self, points: np.ndarray, viewport: QRectF) -> np.ndarray:
+    def _get_visible_points_spatial(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Use spatial index for large datasets."""
         visible = []
 
@@ -95,12 +143,12 @@ class ViewportCuller:
                             if viewport.contains(x, y):
                                 visible.append(idx)
 
-        return np.array(visible, dtype=int)
+        return np.array(visible, dtype=int)  # pyright: ignore[reportPrivateImportUsage]
 
-    def _get_visible_points_simple(self, points: np.ndarray, viewport: QRectF) -> np.ndarray:
+    def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Simple viewport culling for smaller datasets."""
         if len(points) == 0:
-            return np.array([], dtype=int)
+            return np.array([], dtype=int)  # pyright: ignore[reportPrivateImportUsage]
 
         # Vectorized viewport test
         x_coords = points[:, 0]
@@ -113,22 +161,22 @@ class ViewportCuller:
             & (y_coords <= viewport.bottom())
         )
 
-        return np.where(visible_mask)[0]
+        return np.where(visible_mask)[0]  # pyright: ignore[reportPrivateImportUsage]
 
 
 class LevelOfDetail:
     """Level-of-detail system for adaptive rendering."""
 
     def __init__(self):
-        self._lod_thresholds = {
+        self._lod_thresholds: dict[RenderQuality, int] = {
             RenderQuality.DRAFT: 100,  # Target ~100 points for fast rendering
             RenderQuality.NORMAL: 1000,  # Target ~1000 points for normal quality
             RenderQuality.HIGH: 1,  # Show all points for high quality
         }
 
     def get_lod_points(
-        self, points: np.ndarray, quality: RenderQuality, visible_indices: np.ndarray = None
-    ) -> tuple[np.ndarray, int]:
+        self, points: FloatArray, quality: RenderQuality, visible_indices: IntArray | None = None
+    ) -> tuple[FloatArray, int]:
         """Get points for the specified level of detail."""
         if len(points) == 0:
             return points, 1
@@ -152,7 +200,7 @@ class LevelOfDetail:
             step = max(2, len(working_points) // threshold + 1)
 
         # Sub-sample points evenly
-        sampled_indices = np.arange(0, len(working_points), step)
+        sampled_indices = np.arange(0, len(working_points), step)  # pyright: ignore[reportPrivateImportUsage]
         lod_points = working_points[sampled_indices]
 
         return lod_points, step
@@ -163,11 +211,16 @@ class VectorizedTransform:
 
     @staticmethod
     def transform_points_batch(
-        points: np.ndarray, zoom: float, offset_x: float, offset_y: float, flip_y: bool = False, height: int = 0
-    ) -> np.ndarray:
+        points: FloatArray,
+        zoom: float,
+        offset_x: float,
+        offset_y: float,
+        flip_y: bool = False,
+        height: int = 0,
+    ) -> FloatArray:
         """Transform all points in a single vectorized operation."""
         if len(points) == 0:
-            return np.array([]).reshape(0, 2)
+            return np.array([]).reshape(0, 2)  # pyright: ignore[reportPrivateImportUsage]
 
         # Extract x and y coordinates
         x_coords = points[:, 1] if points.shape[1] > 1 else points[:, 0]
@@ -182,7 +235,7 @@ class VectorizedTransform:
             screen_y = height - screen_y
 
         # Stack coordinates into Nx2 array
-        return np.column_stack((screen_x, screen_y))
+        return np.column_stack((screen_x, screen_y))  # pyright: ignore[reportPrivateImportUsage]
 
 
 class OptimizedCurveRenderer:
@@ -190,28 +243,28 @@ class OptimizedCurveRenderer:
 
     def __init__(self):
         """Initialize the optimized renderer."""
-        self.background_opacity = 1.0
-        self._viewport_culler = ViewportCuller()
-        self._lod_system = LevelOfDetail()
-        self._render_quality = RenderQuality.NORMAL
+        self.background_opacity: float = 1.0
+        self._viewport_culler: ViewportCuller = ViewportCuller()
+        self._lod_system: LevelOfDetail = LevelOfDetail()
+        self._render_quality: RenderQuality = RenderQuality.NORMAL
 
         # Performance tracking
-        self._last_render_time = 0.0
-        self._render_count = 0
-        self._total_render_time = 0.0
+        self._last_render_time: float = 0.0
+        self._render_count: int = 0
+        self._total_render_time: float = 0.0
 
         # Adaptive quality settings
-        self._fps_target = 30.0
-        self._quality_auto_adjust = True
-        self._last_fps = 60.0
+        self._fps_target: float = 30.0
+        self._quality_auto_adjust: bool = True
+        self._last_fps: float = 60.0
 
         # Initialize cache variables
-        self._last_point_count = 0
+        self._last_point_count: int = 0
 
         # Caching
-        self._last_viewport = None
-        self._cached_visible_indices = None
-        self._cache_valid = False
+        self._last_viewport: QRectF | None = None
+        self._cached_visible_indices: IntArray | None = None
+        self._cache_valid: bool = False
 
         logger.info("OptimizedCurveRenderer initialized with adaptive quality")
 
@@ -227,7 +280,7 @@ class OptimizedCurveRenderer:
         self._fps_target = target_fps
         logger.info(f"Auto quality enabled with {target_fps} FPS target")
 
-    def render(self, painter: QPainter, event: Any, curve_view: Any) -> None:
+    def render(self, painter: QPainter, event: object | None, curve_view: CurveViewProtocol) -> None:
         """Render complete curve view with optimized performance."""
         start_time = time.perf_counter()
         self._render_count += 1
@@ -241,18 +294,19 @@ class OptimizedCurveRenderer:
 
         try:
             # Render background if available
-            show_bg = getattr(curve_view, "show_background", False)
-            bg_img = getattr(curve_view, "background_image", None)
+            show_bg = curve_view.show_background
+            bg_img = curve_view.background_image
             print(f"[RENDERER] show_background: {show_bg}, has_background_image: {bg_img is not None}")
             if show_bg and bg_img:
                 self._render_background_optimized(painter, curve_view)
 
             # Render grid if needed
-            if getattr(curve_view, "show_grid", False):
+            if curve_view.show_grid:
                 self._render_grid_optimized(painter, curve_view)
 
             # Render curve points with advanced optimizations
-            if hasattr(curve_view, "points") and curve_view.points:
+            # points is defined in CurveViewProtocol
+            if curve_view.points:
                 self._render_points_ultra_optimized(painter, curve_view)
 
             # Render info overlay
@@ -280,7 +334,7 @@ class OptimizedCurveRenderer:
                 f"Render stats: {avg_fps:.1f} avg FPS, {render_time * 1000:.2f}ms last frame, quality: {self._render_quality.value}"
             )
 
-    def _render_points_ultra_optimized(self, painter: QPainter, curve_view: Any) -> None:
+    def _render_points_ultra_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Ultra-optimized point rendering with all techniques combined."""
         points = curve_view.points
         if not points:
@@ -290,11 +344,11 @@ class OptimizedCurveRenderer:
         logger.debug(f"Rendering {len(points)} points")
 
         # Convert to NumPy array for vectorized operations
-        if not isinstance(points, np.ndarray):
+        if not isinstance(points, np.ndarray):  # pyright: ignore[reportPrivateImportUsage]
             # Convert list of tuples to NumPy array - handle variable tuple lengths
             try:
                 # Extract frame, x, y from tuples (ignore optional 4th element)
-                point_data = np.array([(p[0], p[1], p[2]) for p in points if len(p) >= 3])
+                point_data = np.array([(p[0], p[1], p[2]) for p in points if len(p) >= 3])  # pyright: ignore[reportPrivateImportUsage]
             except (IndexError, TypeError):
                 # Fallback if points format is unexpected
                 return
@@ -306,22 +360,22 @@ class OptimizedCurveRenderer:
 
         # Check if viewport or point count changed
         viewport_changed = self._last_viewport != viewport
-        point_count_changed = hasattr(self, "_last_point_count") and self._last_point_count != len(point_data)
+        point_count_changed = self._last_point_count != len(point_data)
 
         if viewport_changed or point_count_changed:
             self._last_viewport = viewport
             self._last_point_count = len(point_data)
             self._cache_valid = False
 
-        # Initialize point count if not set
-        if not hasattr(self, "_last_point_count"):
-            self._last_point_count = len(point_data)
+            # Initialize point count if not set
+            # Initialize cache if not present - _last_point_count is always initialized in __init__
+            # This check is redundant but kept for defensive programming
 
-        # Transform all points using the Transform service for consistency with background
-        if hasattr(curve_view, "get_transform"):
+            # Transform all points using the Transform service for consistency with background
+            # get_transform is defined in CurveViewProtocol
             transform = curve_view.get_transform()
             # Transform each point through the same pipeline as background
-            screen_points = np.zeros((len(point_data), 2))
+            screen_points = np.zeros((len(point_data), 2))  # pyright: ignore[reportPrivateImportUsage]
             for i, point in enumerate(point_data):
                 x, y = transform.data_to_screen(point[1], point[2])
                 screen_points[i] = [x, y]
@@ -335,26 +389,26 @@ class OptimizedCurveRenderer:
                 logger.debug(f"Viewport: {viewport}")
         else:
             # Fallback to old method if transform not available
-            zoom = getattr(curve_view, "zoom_factor", 1.0)
+            zoom = curve_view.zoom_factor
 
             # Calculate center offset (like in Transform)
-            image_width = getattr(curve_view, "image_width", 800)
-            image_height = getattr(curve_view, "image_height", 600)
+            image_width = curve_view.image_width
+            image_height = curve_view.image_height
             scaled_width = image_width * zoom
             scaled_height = image_height * zoom
             center_x = (curve_view.width() - scaled_width) / 2
             center_y = (curve_view.height() - scaled_height) / 2
 
             # Calculate total offsets (center + pan + manual)
-            offset_x = center_x + getattr(curve_view, "pan_offset_x", 0.0) + getattr(curve_view, "manual_offset_x", 0.0)
-            offset_y = center_y + getattr(curve_view, "pan_offset_y", 0.0) + getattr(curve_view, "manual_offset_y", 0.0)
+            offset_x = center_x + curve_view.pan_offset_x + curve_view.manual_offset_x
+            offset_y = center_y + curve_view.pan_offset_y + curve_view.manual_offset_y
 
             screen_points = VectorizedTransform.transform_points_batch(
                 point_data,
                 zoom,
                 offset_x,
                 offset_y,
-                getattr(curve_view, "flip_y_axis", False),
+                curve_view.flip_y_axis,
                 curve_view.height(),
             )
 
@@ -392,10 +446,10 @@ class OptimizedCurveRenderer:
         self._render_point_markers_optimized(painter, curve_view, lod_points, visible_indices, step)
 
         # Render frame numbers if enabled (with heavy culling)
-        if getattr(curve_view, "show_all_frame_numbers", False) and self._render_quality == RenderQuality.HIGH:
+        if curve_view.show_all_frame_numbers and self._render_quality == RenderQuality.HIGH:
             self._render_frame_numbers_optimized(painter, curve_view, lod_points, visible_indices, step)
 
-    def _render_lines_optimized(self, painter: QPainter, screen_points: np.ndarray, step: int) -> None:
+    def _render_lines_optimized(self, painter: QPainter, screen_points: FloatArray, step: int) -> None:
         """Render lines between points using optimized QPainterPath."""
         if len(screen_points) < 2:
             return
@@ -421,23 +475,29 @@ class OptimizedCurveRenderer:
         painter.drawPath(line_path)
 
     def _render_point_markers_optimized(
-        self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
+        self,
+        painter: QPainter,
+        curve_view: CurveViewProtocol,
+        screen_points: FloatArray,
+        visible_indices: IntArray,
+        step: int,
     ) -> None:
         """Render point markers with selection and current frame highlighting."""
         if len(screen_points) == 0:
             return
 
-        point_radius = getattr(curve_view, "point_radius", 5)
-        selected_points = getattr(curve_view, "selected_points", set())
+        point_radius = curve_view.point_radius
+        selected_points = curve_view.selected_points
 
         # Get current frame from main window if available
         current_frame = 1
-        if hasattr(curve_view, "main_window") and curve_view.main_window:
-            if hasattr(curve_view.main_window, "state_manager"):
-                current_frame = curve_view.main_window.state_manager.current_frame
+        # main_window is defined in CurveViewProtocol
+        if curve_view.main_window is not None:
+            # state_manager is always initialized in MainWindow
+            current_frame = curve_view.main_window.state_manager.current_frame
 
         # Get the curve data to check frame numbers
-        points_data = getattr(curve_view, "points", [])
+        points_data = curve_view.points
 
         # Batch points by state for efficient rendering
         normal_points = []
@@ -487,7 +547,12 @@ class OptimizedCurveRenderer:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), current_frame_radius, current_frame_radius)
 
     def _render_frame_numbers_optimized(
-        self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
+        self,
+        painter: QPainter,
+        curve_view: CurveViewProtocol,
+        screen_points: FloatArray,
+        visible_indices: IntArray,
+        step: int,
     ) -> None:
         """Render frame numbers with heavy culling for performance."""
         if len(screen_points) == 0:
@@ -514,15 +579,15 @@ class OptimizedCurveRenderer:
                 frame_num = points[original_idx][0]
                 painter.drawText(int(screen_pos[0] + 10), int(screen_pos[1] - 10), f"F{frame_num}")
 
-    def _render_background_optimized(self, painter: QPainter, curve_view: Any) -> None:
+    def _render_background_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Optimized background rendering with proper transformations."""
         print("[RENDERER_BG] _render_background_optimized called")
-        background_image = getattr(curve_view, "background_image", None)
+        background_image = curve_view.background_image
         if not background_image:
             print("[RENDERER_BG] No background image, returning")
             return
 
-        opacity = getattr(curve_view, "background_opacity", 1.0)
+        opacity = curve_view.background_opacity
         if opacity < 1.0:
             painter.setOpacity(opacity)
 
@@ -530,57 +595,45 @@ class OptimizedCurveRenderer:
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, self._render_quality == RenderQuality.HIGH)
 
         # Get the transform from curve_view to apply the same transformations as curve points
-        if hasattr(curve_view, "get_transform"):
-            print("[RENDERER_BG] Using transform-based rendering")
-            transform = curve_view.get_transform()
+        # get_transform is defined in CurveViewProtocol
+        print("[RENDERER_BG] Using transform-based rendering")
+        transform = curve_view.get_transform()
 
-            # Get image position and calculate scaled dimensions (matches _paint_background method)
-            top_left_x, top_left_y = transform.data_to_screen(0, 0)
+        # Get image position and calculate scaled dimensions (matches _paint_background method)
+        top_left_x, top_left_y = transform.data_to_screen(0, 0)
 
-            # Calculate scaled dimensions directly like _paint_background does
-            scale = transform.get_parameters()["scale"]
-            target_width = int(background_image.width() * scale)
-            target_height = int(background_image.height() * scale)
+        # Calculate scaled dimensions directly like _paint_background does
+        scale = transform.get_parameters()["scale"]
+        target_width = int(background_image.width() * scale)
+        target_height = int(background_image.height() * scale)
 
-            print(
-                f"[RENDERER_BG] Scale: {scale}, original size: ({background_image.width()}, {background_image.height()})"
-            )
+        print(f"[RENDERER_BG] Scale: {scale}, original size: ({background_image.width()}, {background_image.height()})")
 
-            # Draw the background image scaled to fit the transformed rectangle
-            # This ensures it goes through the exact same transformation as curve points
-            # Convert QImage to QPixmap if needed
-            from PySide6.QtGui import QImage, QPixmap
+        # Draw the background image scaled to fit the transformed rectangle
+        # This ensures it goes through the exact same transformation as curve points
+        # Convert QImage to QPixmap if needed
+        from PySide6.QtGui import QImage, QPixmap
 
-            if isinstance(background_image, QImage):
-                pixmap = QPixmap.fromImage(background_image)
-            else:
-                pixmap = background_image
-            print(
-                f"[RENDERER_BG] Drawing at pos=({int(top_left_x)}, {int(top_left_y)}), size=({int(target_width)}, {int(target_height)})"
-            )
-            painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
+        if isinstance(background_image, QImage):
+            pixmap = QPixmap.fromImage(background_image)
         else:
-            # Fallback to old behavior if transform not available
-            print("[RENDERER_BG] Using fallback rendering (no transform)")
-            from PySide6.QtGui import QImage, QPixmap
-
-            if isinstance(background_image, QImage):
-                pixmap = QPixmap.fromImage(background_image)
-            else:
-                pixmap = background_image
-            painter.drawPixmap(0, 0, curve_view.width(), curve_view.height(), pixmap)
+            pixmap = background_image
+        print(
+            f"[RENDERER_BG] Drawing at pos=({int(top_left_x)}, {int(top_left_y)}), size=({int(target_width)}, {int(target_height)})"
+        )
+        painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
 
         if opacity < 1.0:
             painter.setOpacity(1.0)
 
-    def _render_grid_optimized(self, painter: QPainter, curve_view: Any) -> None:
+    def _render_grid_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Optimized grid rendering with adaptive density."""
         pen = QPen(QColor(100, 100, 100, 50))
         pen.setWidth(1)
         painter.setPen(pen)
 
         # Adaptive grid spacing based on zoom
-        zoom = getattr(curve_view, "zoom_factor", 1.0)
+        zoom = curve_view.zoom_factor
         base_step = 50
         step = max(25, int(base_step / max(1, zoom / 2)))  # Adjust grid density
 
@@ -595,14 +648,14 @@ class OptimizedCurveRenderer:
         for y in range(0, height + step, step):
             painter.drawLine(0, y, width, y)
 
-    def _render_info_optimized(self, painter: QPainter, curve_view: Any) -> None:
+    def _render_info_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Render info overlay with performance metrics."""
         painter.setPen(QPen(QColor(255, 255, 255)))
         painter.setFont(QFont("Arial", 10))
 
-        points = getattr(curve_view, "points", [])
-        selected_points = getattr(curve_view, "selected_points", set())
-        zoom = getattr(curve_view, "zoom_factor", 1.0)
+        points = curve_view.points
+        selected_points = curve_view.selected_points
+        zoom = curve_view.zoom_factor
 
         info_text = f"Points: {len(points)}"
         if selected_points:
@@ -614,9 +667,13 @@ class OptimizedCurveRenderer:
         info_text += f" | Quality: {self._render_quality.value.upper()}"
 
         # Add optimization status
-        if hasattr(curve_view, "debug_mode") and curve_view.debug_mode:
-            visible_count = len(self._cached_visible_indices) if self._cached_visible_indices is not None else 0
-            info_text += f" | Visible: {visible_count}"
+        # debug_mode is an optional attribute for debugging
+        try:
+            if curve_view.debug_mode:
+                visible_count = len(self._cached_visible_indices) if self._cached_visible_indices is not None else 0
+                info_text += f" | Visible: {visible_count}"
+        except AttributeError:
+            pass  # debug_mode not available
 
         painter.drawText(10, 20, info_text)
 

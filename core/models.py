@@ -60,11 +60,11 @@ class PointStatus(Enum):
     KEYFRAME = "keyframe"
 
     @classmethod
-    def from_legacy(cls, value: str | bool | None) -> PointStatus:
+    def from_legacy(cls, value: str | bool | int | None) -> PointStatus:
         """Convert legacy status values to enum.
 
         Args:
-            value: Legacy status (string, bool, or None)
+            value: Legacy status (string, bool, int, or None)
 
         Returns:
             PointStatus enum value
@@ -81,6 +81,14 @@ class PointStatus(Enum):
             return cls.NORMAL
         elif isinstance(value, bool):
             return cls.INTERPOLATED if value else cls.NORMAL
+        elif isinstance(value, int):
+            # Convert int to corresponding status (0=NORMAL, 1=INTERPOLATED, 2=KEYFRAME)
+            if value == 1:
+                return cls.INTERPOLATED
+            elif value == 2:
+                return cls.KEYFRAME
+            else:
+                return cls.NORMAL
         else:
             # Must be str at this point due to type annotation
             try:
@@ -105,7 +113,7 @@ class CurvePoint:
     and utility methods. All data is immutable to prevent accidental changes.
 
     Attributes:
-        frame: Frame number (typically integer, but float supported)
+        frame: Frame number (must be integer)
         x: X coordinate in curve space
         y: Y coordinate in curve space
         status: Point status (normal, interpolated, keyframe)
@@ -129,9 +137,20 @@ class CurvePoint:
 
     def __post_init__(self) -> None:
         """Validate point data after initialization."""
-        # Type annotations ensure correct types at compile time
-        # Add any runtime value validation here if needed
-        pass
+        # Runtime validation for critical type safety
+        # These checks provide defensive programming despite type hints
+        if not isinstance(self.frame, int):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Frame must be int")
+
+        # Validate coordinate types (must be numeric)
+        if not isinstance(self.x, int | float):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("X coordinate must be numeric")
+        if not isinstance(self.y, int | float):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Y coordinate must be numeric")
+
+        # Validate status type
+        if not isinstance(self.status, PointStatus):  # pyright: ignore[reportUnnecessaryIsInstance]
+            raise TypeError("Status must be PointStatus enum")
 
     @property
     def is_interpolated(self) -> bool:
@@ -228,7 +247,9 @@ class CurvePoint:
             return (self.frame, self.x, self.y, self.status.value)
 
     @classmethod
-    def from_tuple(cls, point_tuple: tuple[int, float, float] | tuple[int, float, float, str | bool]) -> CurvePoint:
+    def from_tuple(
+        cls, point_tuple: tuple[int, float, float] | tuple[int, float, float, str | bool] | tuple[int, ...]
+    ) -> CurvePoint:
         """Create CurvePoint from tuple format.
 
         Args:
@@ -244,7 +265,9 @@ class CurvePoint:
             >>> CurvePoint.from_tuple((100, 1920.5, 1080.0, "interpolated"))
             CurvePoint(frame=100, x=1920.5, y=1080.0, status=PointStatus.INTERPOLATED)
         """
-        if len(point_tuple) == 3:
+        if len(point_tuple) < 3:
+            raise ValueError("Point tuple must have 3 or 4 elements")
+        elif len(point_tuple) == 3:
             frame, x, y = point_tuple
             status = PointStatus.NORMAL
         else:
@@ -285,7 +308,11 @@ class PointCollection:
             points: List of CurvePoint objects (defaults to empty list)
         """
         self.points = points if points is not None else []
-        # Type annotations ensure correct types at compile time
+
+        # Validate all points are CurvePoint instances
+        for i, point in enumerate(self.points):
+            if not isinstance(point, CurvePoint):  # pyright: ignore[reportUnnecessaryIsInstance]
+                raise TypeError(f"Point {i} must be CurvePoint")
 
     # Collection interface
 
@@ -389,7 +416,7 @@ class PointCollection:
         Returns:
             New PointCollection with updated statuses
         """
-        new_points = []
+        new_points: list[CurvePoint] = []
         for i, point in enumerate(self.points):
             if i in updates:
                 new_points.append(point.with_status(updates[i]))
@@ -406,7 +433,7 @@ class PointCollection:
         Returns:
             New PointCollection with updated coordinates
         """
-        new_points = []
+        new_points: list[CurvePoint] = []
         for i, point in enumerate(self.points):
             if i in updates:
                 x, y = updates[i]
@@ -507,7 +534,7 @@ def is_point_tuple(obj: object) -> bool:
 
     # Check status if present
     if len(obj) == 4:
-        status = obj[3]
+        status: object = obj[3]
         if not isinstance(status, str | bool):
             return False
 
@@ -526,14 +553,18 @@ def is_points_list(obj: object) -> bool:
     if not isinstance(obj, list):
         return False
 
-    return all(is_point_tuple(item) for item in obj)
+    # Type check each item individually to help type inference
+    for item in obj:
+        if not is_point_tuple(item):
+            return False
+    return True
 
 
 # Utility functions for common operations
 
 
 def normalize_legacy_point(
-    point: tuple[int, float, float] | tuple[int, float, float, str | bool],
+    point: tuple[int, float, float] | tuple[int, float, float, str | bool] | tuple[int, ...],
 ) -> tuple[int, float, float, str]:
     """Normalize legacy point tuple to consistent 4-tuple format.
 
@@ -610,7 +641,7 @@ def bulk_convert_to_tuples(points: list[CurvePoint]) -> PointsList:
         PointsList in legacy format
     """
     # Pre-allocate list for better performance
-    result = []
+    result: PointsList = []
     result_append = result.append  # Cache method lookup
 
     for point in points:
@@ -634,7 +665,7 @@ def bulk_convert_from_tuples(point_tuples: PointsList) -> list[CurvePoint]:
         List of CurvePoint objects
     """
     # Pre-allocate list for better performance
-    result = []
+    result: list[CurvePoint] = []
     result_append = result.append  # Cache method lookup
 
     # Cache enum lookups

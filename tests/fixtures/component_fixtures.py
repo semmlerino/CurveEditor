@@ -5,7 +5,10 @@ Contains fixtures that provide real component instances instead of mocks.
 These should be preferred over mock objects when possible.
 """
 
+from typing import Any
+
 import pytest
+from PySide6.QtWidgets import QApplication
 
 from tests.test_utilities import (
     TestCurveView,
@@ -66,7 +69,7 @@ def make_test_curve_view():
         Factory function that creates TestCurveView instances
     """
 
-    def _make_test_curve_view(**kwargs):
+    def _make_test_curve_view(**kwargs: Any) -> TestCurveView:
         return TestCurveView(**kwargs)
 
     return _make_test_curve_view
@@ -135,7 +138,7 @@ def make_test_main_window():
         Factory function that creates TestMainWindow instances
     """
 
-    def _make_test_main_window(**kwargs):
+    def _make_test_main_window(**kwargs: Any) -> TestMainWindow:
         return TestMainWindow(**kwargs)
 
     return _make_test_main_window
@@ -212,7 +215,7 @@ def test_interaction_handler():
 
 
 @pytest.fixture
-def test_file_controller(test_main_window):
+def test_file_controller(test_main_window: TestMainWindow):
     """Create a test file controller.
 
     Args:
@@ -227,7 +230,7 @@ def test_file_controller(test_main_window):
 
 
 @pytest.fixture
-def test_edit_controller(test_main_window):
+def test_edit_controller(test_main_window: TestMainWindow):
     """Create a test edit controller.
 
     Args:
@@ -242,7 +245,7 @@ def test_edit_controller(test_main_window):
 
 
 @pytest.fixture
-def test_view_controller(test_main_window):
+def test_view_controller(test_main_window: TestMainWindow):
     """Create a test view controller.
 
     Args:
@@ -257,7 +260,7 @@ def test_view_controller(test_main_window):
 
 
 @pytest.fixture
-def test_timeline_controller(test_main_window):
+def test_timeline_controller(test_main_window: TestMainWindow):
     """Create a test timeline controller.
 
     Args:
@@ -272,7 +275,7 @@ def test_timeline_controller(test_main_window):
 
 
 @pytest.fixture
-def test_curve_controller(test_main_window):
+def test_curve_controller(test_main_window: TestMainWindow):
     """Create a test curve controller.
 
     Args:
@@ -287,7 +290,7 @@ def test_curve_controller(test_main_window):
 
 
 @pytest.fixture
-def integrated_curve_view(qapp):
+def integrated_curve_view(qapp: QApplication):
     """Create a fully integrated curve view widget with all components.
 
     Args:
@@ -316,7 +319,7 @@ def integrated_curve_view(qapp):
 
 
 @pytest.fixture
-def integrated_main_window(qapp):
+def integrated_main_window(qapp: QApplication):
     """Create a fully integrated main window with all controllers.
 
     Args:

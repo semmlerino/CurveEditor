@@ -16,6 +16,7 @@ from pathlib import Path
 import pytest
 
 from core.path_security import (
+    PathSecurityConfig,
     PathSecurityError,
     add_allowed_directory,
     get_path_security_config,
@@ -30,14 +31,14 @@ from core.path_security import (
 
 
 @pytest.fixture
-def temp_dir():
+def temp_dir() -> Path:
     """Create a temporary directory for testing."""
     with tempfile.TemporaryDirectory() as tmpdir:
         yield Path(tmpdir)
 
 
 @pytest.fixture
-def config_backup():
+def config_backup() -> PathSecurityConfig:
     """Backup and restore path security configuration."""
     config = get_path_security_config()
     original_allowed_dirs = config.allowed_directories.copy()
@@ -55,7 +56,7 @@ def config_backup():
 class TestPathTraversalPrevention:
     """Test prevention of path traversal attacks."""
 
-    def test_basic_path_traversal_attack(self, temp_dir, config_backup):
+    def test_basic_path_traversal_attack(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that basic path traversal attacks are blocked."""
         # Add temp directory as allowed
         add_allowed_directory(temp_dir)
@@ -75,7 +76,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(PathSecurityError):
                 validate_file_path(malicious_path, allow_create=True, require_exists=False)
 
-    def test_null_byte_injection(self, temp_dir, config_backup):
+    def test_null_byte_injection(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that null byte injection is prevented."""
         add_allowed_directory(temp_dir)
 
@@ -89,7 +90,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(PathSecurityError):
                 validate_file_path(malicious_path, allow_create=True, require_exists=False)
 
-    def test_suspicious_system_paths(self, config_backup):
+    def test_suspicious_system_paths(self, config_backup: PathSecurityConfig) -> None:
         """Test that system paths are blocked."""
         suspicious_paths = [
             "/etc/passwd",
@@ -105,7 +106,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(PathSecurityError):
                 validate_file_path(suspicious_path, allow_create=True, require_exists=False)
 
-    def test_allowed_directory_restriction(self, temp_dir, config_backup):
+    def test_allowed_directory_restriction(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that files outside allowed directories are blocked."""
         # Only allow temp_dir
         config = get_path_security_config()
@@ -122,7 +123,7 @@ class TestPathTraversalPrevention:
             with pytest.raises(PathSecurityError):
                 validate_file_path(outside_path, allow_create=True, require_exists=False)
 
-    def test_allowed_directory_traversal_within_bounds(self, temp_dir, config_backup):
+    def test_allowed_directory_traversal_within_bounds(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that files within allowed directories are accepted."""
         add_allowed_directory(temp_dir)
 
@@ -143,7 +144,7 @@ class TestPathTraversalPrevention:
             result = validate_file_path(allowed_path, operation_type=op_type, allow_create=True, require_exists=False)
             assert result.is_absolute()
 
-    def test_file_extension_validation(self, temp_dir, config_backup):
+    def test_file_extension_validation(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test file extension validation."""
         add_allowed_directory(temp_dir)
 
@@ -161,7 +162,7 @@ class TestPathTraversalPrevention:
 class TestSymlinkSecurity:
     """Test symlink security controls."""
 
-    def test_symlink_blocked_by_default(self, temp_dir, config_backup):
+    def test_symlink_blocked_by_default(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that symlinks are blocked by default."""
         add_allowed_directory(temp_dir)
 
@@ -176,7 +177,7 @@ class TestSymlinkSecurity:
         with pytest.raises(PathSecurityError):
             validate_file_path(symlink_file, require_exists=True)
 
-    def test_symlink_allowed_when_enabled(self, temp_dir, config_backup):
+    def test_symlink_allowed_when_enabled(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that symlinks work when explicitly enabled."""
         add_allowed_directory(temp_dir)
         set_allow_symlinks(True)
@@ -192,7 +193,7 @@ class TestSymlinkSecurity:
         result = validate_file_path(symlink_file, require_exists=True)
         assert result.resolve() == real_file.resolve()
 
-    def test_symlink_directory_blocked(self, temp_dir, config_backup):
+    def test_symlink_directory_blocked(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test that symlinked directories are blocked."""
         # Create directory structure
         real_dir = temp_dir / "real_dir"
@@ -213,7 +214,7 @@ class TestSymlinkSecurity:
 class TestDirectoryValidation:
     """Test directory path validation."""
 
-    def test_valid_directory(self, temp_dir, config_backup):
+    def test_valid_directory(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test validation of valid directories."""
         add_allowed_directory(temp_dir)
 
@@ -221,7 +222,7 @@ class TestDirectoryValidation:
         result = validate_directory_path(temp_dir)
         assert result == temp_dir.resolve()
 
-    def test_nonexistent_directory_creation_allowed(self, temp_dir, config_backup):
+    def test_nonexistent_directory_creation_allowed(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test allowing creation of non-existent directories."""
         add_allowed_directory(temp_dir)
 
@@ -231,7 +232,7 @@ class TestDirectoryValidation:
         result = validate_directory_path(new_dir, allow_create=True)
         assert result == new_dir.resolve()
 
-    def test_nonexistent_directory_creation_blocked(self, temp_dir, config_backup):
+    def test_nonexistent_directory_creation_blocked(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test blocking non-existent directories when creation not allowed."""
         add_allowed_directory(temp_dir)
 
@@ -241,7 +242,7 @@ class TestDirectoryValidation:
         with pytest.raises(PathSecurityError):
             validate_directory_path(new_dir, allow_create=False)
 
-    def test_directory_traversal_attack(self, temp_dir, config_backup):
+    def test_directory_traversal_attack(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test directory traversal attacks."""
         add_allowed_directory(temp_dir)
 
@@ -300,7 +301,7 @@ class TestFilenameSanitization:
 class TestSafetyChecks:
     """Test safety check functions."""
 
-    def test_safe_to_write(self, temp_dir, config_backup):
+    def test_safe_to_write(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test is_safe_to_write function."""
         add_allowed_directory(temp_dir)
 
@@ -310,7 +311,7 @@ class TestSafetyChecks:
         assert is_safe_to_write(safe_path) is True
         assert is_safe_to_write(unsafe_path) is False
 
-    def test_safe_to_read(self, temp_dir, config_backup):
+    def test_safe_to_read(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test is_safe_to_read function."""
         add_allowed_directory(temp_dir)
 
@@ -328,7 +329,7 @@ class TestSafetyChecks:
 class TestConfigurationManagement:
     """Test configuration management functions."""
 
-    def test_add_remove_allowed_directory(self, temp_dir, config_backup):
+    def test_add_remove_allowed_directory(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test adding and removing allowed directories."""
         config = get_path_security_config()
         initial_count = len(config.allowed_directories)
@@ -343,7 +344,7 @@ class TestConfigurationManagement:
         assert len(config.allowed_directories) == initial_count
         assert temp_dir.resolve() not in config.allowed_directories
 
-    def test_symlink_configuration(self, config_backup):
+    def test_symlink_configuration(self, config_backup: PathSecurityConfig) -> None:
         """Test symlink configuration."""
         config = get_path_security_config()
 
@@ -362,7 +363,7 @@ class TestConfigurationManagement:
 class TestPathTraversalAttackScenarios:
     """Test realistic path traversal attack scenarios."""
 
-    def test_windows_path_traversal(self, temp_dir, config_backup):
+    def test_windows_path_traversal(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test Windows-specific path traversal attempts."""
         add_allowed_directory(temp_dir)
 
@@ -377,7 +378,7 @@ class TestPathTraversalAttackScenarios:
             with pytest.raises(PathSecurityError):
                 validate_file_path(attack, allow_create=True, require_exists=False)
 
-    def test_unix_path_traversal(self, temp_dir, config_backup):
+    def test_unix_path_traversal(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test Unix-specific path traversal attempts."""
         add_allowed_directory(temp_dir)
 
@@ -394,7 +395,7 @@ class TestPathTraversalAttackScenarios:
             with pytest.raises(PathSecurityError):
                 validate_file_path(attack, allow_create=True, require_exists=False)
 
-    def test_mixed_separator_attacks(self, temp_dir, config_backup):
+    def test_mixed_separator_attacks(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test attacks using mixed path separators."""
         add_allowed_directory(temp_dir)
 
@@ -410,7 +411,7 @@ class TestPathTraversalAttackScenarios:
             with pytest.raises(PathSecurityError):
                 validate_file_path(attack, allow_create=True, require_exists=False)
 
-    def test_unicode_path_traversal(self, temp_dir, config_backup):
+    def test_unicode_path_traversal(self, temp_dir: Path, config_backup: PathSecurityConfig) -> None:
         """Test Unicode-based path traversal attempts."""
         add_allowed_directory(temp_dir)
 

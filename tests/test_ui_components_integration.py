@@ -6,7 +6,8 @@ These tests validate the architectural integration methodology documented
 in CLAUDE.md and ensure proper widget mapping and validation.
 """
 
-from PySide6.QtWidgets import QDoubleSpinBox, QLabel, QSlider, QSpinBox
+from PySide6.QtWidgets import QApplication, QDoubleSpinBox, QLabel, QSlider, QSpinBox
+from pytestqt.qtbot import QtBot
 
 from ui.main_window import MainWindow
 from ui.ui_components import UIComponents
@@ -15,7 +16,7 @@ from ui.ui_components import UIComponents
 class TestUIComponentsIntegration:
     """Test Component Container Pattern integration."""
 
-    def test_ui_components_initialization(self, qapp, qtbot):
+    def test_ui_components_initialization(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test UIComponents container is properly initialized in MainWindow."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -32,7 +33,7 @@ class TestUIComponentsIntegration:
         assert hasattr(window.ui, "toolbar"), "Missing toolbar components"
         assert hasattr(window.ui, "smoothing"), "Missing smoothing components"
 
-    def test_timeline_component_mappings(self, qapp, qtbot):
+    def test_timeline_component_mappings(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test timeline components are properly mapped."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -59,7 +60,7 @@ class TestUIComponentsIntegration:
         # NOTE: Removed orphaned button tests (first_frame_button, etc.) - those buttons
         # were never added to UI and have been correctly removed as architectural bugs
 
-    def test_point_edit_component_mappings(self, qapp, qtbot):
+    def test_point_edit_component_mappings(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test point editing components are properly mapped with correct types."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -74,7 +75,7 @@ class TestUIComponentsIntegration:
         assert window.ui.point_edit.y_edit is window.point_y_spinbox, "y_edit not mapped correctly"
         assert isinstance(window.ui.point_edit.y_edit, QDoubleSpinBox), "y_edit wrong type - should be QDoubleSpinBox"
 
-    def test_visualization_component_mappings(self, qapp, qtbot):
+    def test_visualization_component_mappings(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test visualization components are properly mapped."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -89,7 +90,7 @@ class TestUIComponentsIntegration:
         assert window.ui.visualization.line_width_slider is window.line_width_slider, "line_width_slider not mapped"
         assert isinstance(window.ui.visualization.line_width_slider, QSlider), "line_width_slider wrong type"
 
-    def test_status_component_mappings(self, qapp, qtbot):
+    def test_status_component_mappings(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test status components are properly mapped."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -111,7 +112,7 @@ class TestUIComponentsIntegration:
         assert hasattr(window.ui.status, "quality_consistency_label"), "Missing status.quality_consistency_label"
         assert window.ui.status.quality_consistency_label is window.bounds_label, "quality_consistency_label not mapped"
 
-    def test_property_access_works(self, qapp, qtbot):
+    def test_property_access_works(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that property access through UIComponents works correctly."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -129,7 +130,7 @@ class TestUIComponentsIntegration:
         assert window.ui.point_size_slider is window.point_size_slider, "point_size_slider property access failed"
         assert window.ui.line_width_slider is window.line_width_slider, "line_width_slider property access failed"
 
-    def test_component_groups_access(self, qapp, qtbot):
+    def test_component_groups_access(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that component groups can be accessed and inspected."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -146,7 +147,7 @@ class TestUIComponentsIntegration:
             assert group is not None, f"Component group {group_name} is None"
             assert hasattr(group, "__dict__"), f"Component group {group_name} not a proper object"
 
-    def test_validation_completeness(self, qapp, qtbot):
+    def test_validation_completeness(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test built-in validation method works."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -159,7 +160,7 @@ class TestUIComponentsIntegration:
         # but the method should work without crashing
         # Note: This test validates the methodology works, not that all components are mapped
 
-    def test_no_silent_attribute_creation(self, qapp, qtbot):
+    def test_no_silent_attribute_creation(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that mappings don't create silent attributes."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -217,7 +218,7 @@ class TestArchitecturalIntegrationMethodology:
             for attr in expected_attrs:
                 assert attr in component_attrs, f"Missing {attr} in {group_name} - would cause silent creation"
 
-    def test_type_compatibility_validation(self, qapp, qtbot):
+    def test_type_compatibility_validation(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that widget types match component expectations."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -230,7 +231,7 @@ class TestArchitecturalIntegrationMethodology:
         assert isinstance(window.ui.point_edit.x_edit, QDoubleSpinBox), "UIComponents x_edit should be QDoubleSpinBox"
         assert isinstance(window.ui.point_edit.y_edit, QDoubleSpinBox), "UIComponents y_edit should be QDoubleSpinBox"
 
-    def test_mapping_integrity(self, qapp, qtbot):
+    def test_mapping_integrity(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that all mappings reference the same widget instances."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -249,7 +250,7 @@ class TestArchitecturalIntegrationMethodology:
         for direct_widget, component_widget, name in test_cases:
             assert direct_widget is component_widget, f"Mapping integrity failed for {name}"
 
-    def test_component_organization(self, qapp, qtbot):
+    def test_component_organization(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test that components are properly organized by functional groups."""
         window = MainWindow()
         qtbot.addWidget(window)

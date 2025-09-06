@@ -9,7 +9,6 @@ application-level state information.
 
 import logging
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, Signal
 
@@ -75,7 +74,7 @@ class StateManager(QObject):
 
         # Tools state
         self._current_tool: str = "select"
-        self._tool_options: dict[str, Any] = {}
+        self._tool_options: dict[str, object] = {}
 
         # History state
         self._history_position: int = 0
@@ -428,7 +427,7 @@ class StateManager(QObject):
 
         logger.info("State manager reset to defaults")
 
-    def get_state_summary(self) -> dict[str, Any]:
+    def get_state_summary(self) -> dict[str, object]:
         """Get a summary of the current state for debugging."""
         return {
             "file": {

@@ -12,7 +12,6 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
@@ -59,12 +58,19 @@ class ProgressWorker(QThread):
     """Worker thread for progress operations."""
 
     # Signals
-    progress_updated = Signal(int)
-    message_updated = Signal(str)
-    finished = Signal(bool)  # True if successful, False if cancelled
-    error_occurred = Signal(str)
+    progress_updated: Signal
+    message_updated: Signal
+    finished: Signal  # True if successful, False if cancelled
+    error_occurred: Signal
 
-    def __init__(self, operation: Callable, *args, **kwargs):
+    # Attributes
+    operation: Callable
+    args: tuple[object, ...]
+    kwargs: dict[str, object]
+    is_cancelled: bool
+    result: object
+
+    def __init__(self, operation: Callable, *args: object, **kwargs: object) -> None:
         """Initialize the worker with an operation to perform."""
         super().__init__()
         self.operation = operation
@@ -109,6 +115,10 @@ class ProgressWorker(QThread):
 
 class ProgressDialog(QProgressDialog):
     """Enhanced progress dialog with additional features."""
+
+    info: ProgressInfo
+    start_time: float
+    last_update_time: float
 
     def __init__(self, info: ProgressInfo, parent: QWidget | None = None):
         """Initialize the progress dialog."""
@@ -185,6 +195,10 @@ class ProgressDialog(QProgressDialog):
 class StatusBarProgress(QWidget):
     """Progress widget for status bar."""
 
+    label: QLabel
+    progress_bar: QProgressBar
+    cancel_button: QPushButton
+
     def __init__(self, parent: QWidget | None = None):
         """Initialize the status bar progress widget."""
         super().__init__(parent)
@@ -237,8 +251,11 @@ class ProgressManager(QObject):
     """Manages progress indicators throughout the application."""
 
     # Signals
-    operation_started = Signal(str)
-    operation_finished = Signal(str, bool)  # operation_name, success
+    operation_started: Signal
+    operation_finished: Signal  # operation_name, success
+
+    # Attributes
+    _busy_cursor_count: int
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the progress manager."""
@@ -274,8 +291,8 @@ class ProgressManager(QObject):
             QApplication.restoreOverrideCursor()
 
     def show_progress_dialog(
-        self, info: ProgressInfo, operation: Callable, parent: QWidget | None = None, *args, **kwargs
-    ) -> Any:
+        self, info: ProgressInfo, operation: Callable, parent: QWidget | None = None, *args: object, **kwargs: object
+    ) -> object:
         """Show a progress dialog for an operation.
 
         Args:
@@ -327,9 +344,9 @@ class ProgressManager(QObject):
         message: str,
         operation: Callable,
         cancellable: bool = False,
-        callback: Callable[[Any], None] = None,
-        *args,
-        **kwargs,
+        callback: Callable[[object], None] = None,
+        *args: object,
+        **kwargs: object,
     ) -> None:
         """Show progress in status bar for an operation (non-blocking).
 
@@ -408,7 +425,7 @@ def with_progress(title: str = "Processing...", message: str = "Please wait...",
     """Decorator to add progress indicator to a function."""
 
     def decorator(func: Callable) -> Callable:
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: object, **kwargs: object) -> object:
             manager = get_progress_manager()
 
             if show_dialog:
@@ -416,7 +433,7 @@ def with_progress(title: str = "Processing...", message: str = "Please wait...",
                     title=title, message=message, cancellable=True, show_percentage=True, show_time_remaining=True
                 )
 
-                def operation(worker: ProgressWorker, *op_args, **op_kwargs):
+                def operation(worker: ProgressWorker, *op_args: object, **op_kwargs: object) -> object:
                     # Pass worker to the function if it accepts it
                     import inspect
 

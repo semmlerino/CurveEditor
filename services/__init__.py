@@ -23,6 +23,17 @@ import threading
 
 from services.data_service import DataService
 from services.interaction_service import InteractionService
+from services.service_protocols import (
+    BatchEditableProtocol,
+    CurveViewProtocol,
+    HistoryCommandProtocol,
+    HistoryContainerProtocol,
+    LoggingServiceProtocol,
+    MainWindowProtocol,
+    ServiceProtocol,
+    StateManagerProtocol,
+    StatusServiceProtocol,
+)
 from services.transform_service import Transform, TransformService, ViewState
 from services.ui_service import UIService
 
@@ -39,7 +50,6 @@ _service_lock = threading.Lock()
 
 # History is now fully integrated into InteractionService
 # Legacy service getters removed - use core services directly:
-# get_history_service() -> use get_interaction_service()
 # get_file_service() -> use get_data_service()
 # get_curve_analysis_service() -> use get_data_service()
 # get_image_management_service() -> use get_data_service()
@@ -53,12 +63,21 @@ __all__ = [
     "DataService",
     "InteractionService",
     "UIService",
+    # Service Protocols for type safety
+    "BatchEditableProtocol",
+    "CurveViewProtocol",
+    "HistoryCommandProtocol",
+    "HistoryContainerProtocol",
+    "LoggingServiceProtocol",
+    "MainWindowProtocol",
+    "ServiceProtocol",
+    "StateManagerProtocol",
+    "StatusServiceProtocol",
     # Service getters (4 core)
     "get_transform_service",
     "get_data_service",
     "get_interaction_service",
     "get_ui_service",
-    "get_history_service",  # Backward compatibility alias
     # Utility
     "get_module_logger",
 ]
@@ -98,11 +117,6 @@ def get_ui_service() -> UIService:
         if _ui_service is None:
             _ui_service = UIService()
     return _ui_service
-
-
-def get_history_service() -> InteractionService:
-    """Get the InteractionService for history operations (backward compatibility)."""
-    return get_interaction_service()
 
 
 def get_module_logger(name: str | None = None) -> logging.Logger:

@@ -11,7 +11,7 @@ from ui.modern_theme import ModernTheme
 from ui.modern_widgets import ModernToast
 
 
-def apply_modern_theme_to_window(window):
+def apply_modern_theme_to_window(window: object) -> None:
     """Apply modern theme to existing MainWindow with minimal changes."""
 
     # Initialize theme
@@ -76,10 +76,12 @@ def apply_modern_theme_to_window(window):
 
     QTimer.singleShot(500, show_welcome)
 
-    return theme
+    # Note: This function shows a toast message but doesn't return the theme
+    # Returning None to match the declared return type
+    return None
 
 
-def enhance_existing_ui(window):
+def enhance_existing_ui(window: object) -> None:
     """Enhance existing UI with modern patterns without breaking functionality."""
 
     # Add hover effects to all buttons

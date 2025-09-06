@@ -16,13 +16,38 @@ Consolidated Services:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from services.data_service import DataService
     from services.interaction_service import InteractionService
     from services.transform_service import Transform, TransformService, ViewState
     from services.ui_service import UIService
+
+
+class MainWindowProtocol(Protocol):
+    """Protocol for main window objects."""
+
+    def __init__(self) -> None: ...
+
+
+class CurveViewProtocol(Protocol):
+    """Protocol for curve view objects."""
+
+    def __init__(self) -> None: ...
+
+
+class WidgetProtocol(Protocol):
+    """Protocol for Qt widget objects."""
+
+    def __init__(self) -> None: ...
+
+
+class EventProtocol(Protocol):
+    """Protocol for Qt event objects."""
+
+    def __init__(self) -> None: ...
+
 
 # Import core state management
 try:
@@ -81,7 +106,17 @@ class ServiceFacade:
     using the new consolidated 4-service architecture.
     """
 
-    def __init__(self, main_window: Any = None):
+    main_window: MainWindowProtocol | None
+    logger: logging.Logger
+    _transform_service: TransformService | None
+    _data_service: DataService | None
+    _interaction_service: InteractionService | None
+    _ui_service: UIService | None
+    image_state: ImageState
+    _file_service: DataService | None
+    _history_service: InteractionService | None
+
+    def __init__(self, main_window: MainWindowProtocol | None = None):
         """Initialize the service facade with consolidated services.
 
         Args:
@@ -110,7 +145,7 @@ class ServiceFacade:
         """Get the transform service instance."""
         return self._transform_service
 
-    def create_view_state(self, curve_view: Any) -> ViewState | None:
+    def create_view_state(self, curve_view: CurveViewProtocol) -> ViewState | None:
         """Create a ViewState from a CurveView."""
         if self._transform_service:
             return self._transform_service.create_view_state(curve_view)
@@ -175,7 +210,7 @@ class ServiceFacade:
             return self._data_service.detect_outliers(data, threshold)
         return []
 
-    def load_track_data(self, parent_widget: Any = None) -> list[tuple] | None:
+    def load_track_data(self, parent_widget: WidgetProtocol | None = None) -> list[tuple] | None:
         """Load track data from file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:
@@ -185,7 +220,7 @@ class ServiceFacade:
             return self._file_service.load_track_data(widget)
         return None
 
-    def save_track_data(self, data: list[tuple], parent_widget: Any = None) -> bool:
+    def save_track_data(self, data: list[tuple], parent_widget: WidgetProtocol | None = None) -> bool:
         """Save track data to file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:
@@ -213,32 +248,32 @@ class ServiceFacade:
         if self._interaction_service and self.main_window:
             self._interaction_service.on_point_moved(self.main_window, idx, x, y)
 
-    def on_point_selected(self, curve_view: Any, idx: int) -> None:
+    def on_point_selected(self, curve_view: CurveViewProtocol, idx: int) -> None:
         """Handle point selected event."""
         if self._interaction_service and self.main_window:
             self._interaction_service.on_point_selected(curve_view, self.main_window, idx)
 
-    def handle_mouse_press(self, view: Any, event: Any) -> None:
+    def handle_mouse_press(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse press event."""
         if self._interaction_service:
             self._interaction_service.handle_mouse_press(view, event)
 
-    def handle_mouse_move(self, view: Any, event: Any) -> None:
+    def handle_mouse_move(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse move event."""
         if self._interaction_service:
             self._interaction_service.handle_mouse_move(view, event)
 
-    def handle_mouse_release(self, view: Any, event: Any) -> None:
+    def handle_mouse_release(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse release event."""
         if self._interaction_service:
             self._interaction_service.handle_mouse_release(view, event)
 
-    def handle_wheel_event(self, view: Any, event: Any) -> None:
+    def handle_wheel_event(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse wheel event."""
         if self._interaction_service:
             self._interaction_service.handle_wheel_event(view, event)
 
-    def handle_key_press(self, view: Any, event: Any) -> None:
+    def handle_key_press(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle key press event."""
         if self._interaction_service:
             self._interaction_service.handle_key_press(view, event)
@@ -274,39 +309,39 @@ class ServiceFacade:
         """Get the UI service instance."""
         return self._ui_service
 
-    def show_error(self, message: str, parent: Any = None) -> None:
+    def show_error(self, message: str, parent: WidgetProtocol | None = None) -> None:
         """Show error message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
             self._ui_service.show_error(widget, message)
 
-    def show_warning(self, message: str, parent: Any = None) -> None:
+    def show_warning(self, message: str, parent: WidgetProtocol | None = None) -> None:
         """Show warning message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
             self._ui_service.show_warning(widget, message)
 
-    def show_info(self, message: str, parent: Any = None) -> None:
+    def show_info(self, message: str, parent: WidgetProtocol | None = None) -> None:
         """Show information message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
             self._ui_service.show_info(widget, message)
 
-    def confirm_action(self, message: str, parent: Any = None) -> bool:
+    def confirm_action(self, message: str, parent: WidgetProtocol | None = None) -> bool:
         """Ask for confirmation from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
             return self._ui_service.confirm_action(widget, message)
         return False
 
-    def get_smooth_window_size(self, parent: Any = None) -> int | None:
+    def get_smooth_window_size(self, parent: WidgetProtocol | None = None) -> int | None:
         """Get smoothing window size from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
             return self._ui_service.get_smooth_window_size(widget)
         return None
 
-    def get_filter_params(self, parent: Any = None) -> tuple[str, int] | None:
+    def get_filter_params(self, parent: WidgetProtocol | None = None) -> tuple[str, int] | None:
         """Get filter parameters from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
@@ -381,7 +416,7 @@ class ServiceFacade:
 _facade_instance: ServiceFacade | None = None
 
 
-def get_service_facade(main_window: Any = None) -> ServiceFacade:
+def get_service_facade(main_window: MainWindowProtocol | None = None) -> ServiceFacade:
     """Get or create the singleton ServiceFacade instance.
 
     Args:

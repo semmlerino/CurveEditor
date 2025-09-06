@@ -19,14 +19,15 @@ if TYPE_CHECKING:
 
 # Core data types - consolidated point definitions
 PointTuple3 = tuple[int, float, float]
-PointTuple4 = tuple[int, float, float, str | bool]
-LegacyPointData = PointTuple3 | PointTuple4
+PointTuple4Str = tuple[int, float, float, str]
+PointTuple4Bool = tuple[int, float, float, bool]
+# Use union of specific tuple types for type safety
+LegacyPointData = PointTuple3 | PointTuple4Str | PointTuple4Bool
 CurveDataList = list[LegacyPointData]
 
-# Unified point types for optimized operations
-# Note: These should match LegacyPointData for type compatibility
-PointData = tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, bool]
-PointList = list[PointData]
+# Unified point types for optimized operations - now matches LegacyPointData exactly
+PointData = LegacyPointData
+PointList = CurveDataList
 
 # Path types
 PathLike = str | Path

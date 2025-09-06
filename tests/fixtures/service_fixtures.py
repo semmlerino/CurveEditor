@@ -6,7 +6,7 @@ Contains fixtures for testing service components and managing service state.
 
 import gc
 import threading
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -70,7 +70,7 @@ def memory_monitor():
             """Get memory increase since initialization in MB."""
             return self.get_memory_usage() - self.initial_memory
 
-        def assert_memory_usage(self, max_increase_mb=50):
+        def assert_memory_usage(self, max_increase_mb: float = 50) -> None:
             """Assert memory usage hasn't increased too much."""
             increase = self.get_memory_increase()
             assert increase < max_increase_mb, f"Memory increased by {increase:.2f} MB"
@@ -97,7 +97,7 @@ def mock_service_factory():
 
     class ServiceFactory:
         @staticmethod
-        def create_data_service(with_data=False):
+        def create_data_service(with_data: bool = False) -> MagicMock:
             """Create a mock data service."""
             from unittest.mock import MagicMock
 
@@ -116,7 +116,7 @@ def mock_service_factory():
             return service
 
         @staticmethod
-        def create_transform_service(scale=1.0, offset_x=0, offset_y=0):
+        def create_transform_service(scale: float = 1.0, offset_x: float = 0, offset_y: float = 0) -> MagicMock:
             """Create a mock transform service."""
             from unittest.mock import MagicMock
 
@@ -132,7 +132,7 @@ def mock_service_factory():
             return service
 
         @staticmethod
-        def create_interaction_service(selected_indices=None):
+        def create_interaction_service(selected_indices: list | None = None) -> MagicMock:
             """Create a mock interaction service."""
             from unittest.mock import MagicMock
 

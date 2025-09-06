@@ -8,7 +8,9 @@ CurveView paintEvent method to improve maintainability and testability.
 """
 
 try:
-    from .optimized_curve_renderer import OptimizedCurveRenderer as CurveRenderer  # type: ignore[assignment]
+    from .optimized_curve_renderer import OptimizedCurveRenderer
+
+    CurveRenderer = OptimizedCurveRenderer  # type: ignore[misc]
 
     __all__ = ["CurveRenderer"]
 except ImportError:
@@ -16,7 +18,7 @@ except ImportError:
     class CurveRenderer:
         """Stub renderer for startup compatibility."""
 
-        def __init__(self):
+        def __init__(self) -> None:
             pass
 
     __all__ = ["CurveRenderer"]

@@ -10,8 +10,10 @@ These classes are critical for mapping between data space and screen space coord
 import math
 import os
 import sys
+from typing import Any
 
 import pytest
+from pytestqt.qtbot import QtBot
 
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
@@ -25,7 +27,7 @@ from services.transform_service import Transform, TransformService, ViewState
 class TestViewState:
     """Test suite for ViewState class."""
 
-    def _create_curve_view(self, qtbot, **overrides):
+    def _create_curve_view(self, qtbot: QtBot, **overrides: Any):
         """Factory method to create curve view with custom properties."""
         from ui.curve_view_widget import CurveViewWidget
 
@@ -612,11 +614,11 @@ class TestTransformService:
         get_transform_service().clear_cache()
 
     @pytest.fixture
-    def real_curve_view(self, qtbot):
+    def real_curve_view(self, qtbot: QtBot) -> None:
         """Create a real CurveViewWidget for testing transformations."""
         return self._create_curve_view(qtbot)
 
-    def _create_curve_view(self, qtbot, **overrides):
+    def _create_curve_view(self, qtbot: QtBot, **overrides: Any):
         """Factory method to create curve view with custom properties."""
         from ui.curve_view_widget import CurveViewWidget
 
@@ -790,7 +792,7 @@ class TestTransformService:
 class TestTransformServiceIntegration:
     """Integration tests for TransformService with real-world scenarios."""
 
-    def _create_curve_view(self, qtbot, **overrides):
+    def _create_curve_view(self, qtbot: QtBot, **overrides: Any):
         """Factory method to create curve view with custom properties."""
         from ui.curve_view_widget import CurveViewWidget
 

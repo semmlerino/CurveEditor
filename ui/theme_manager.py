@@ -11,7 +11,6 @@ import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
-from typing import Any
 
 from PySide6.QtCore import QObject, Signal, Slot
 from PySide6.QtGui import QColor, QPalette
@@ -538,7 +537,7 @@ class ThemeManager(QObject):
             # Special handling for curve view widget
             self._style_curve_view(widget)
 
-    def _style_curve_view(self, widget: Any) -> None:
+    def _style_curve_view(self, widget: object) -> None:
         """Apply theme-specific styling to curve view widget."""
         # This would set colors for curve rendering
         if hasattr(widget, "set_colors"):

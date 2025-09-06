@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
-from tests.test_utilities import TestCurveView, TestDataBuilder
+from tests.test_utilities import PointsList, TestCurveView, TestDataBuilder
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -80,7 +80,7 @@ class TestCurveViewWidgetInitialization:
 class TestPointDataManagement:
     """Test point data management functionality."""
 
-    def test_set_curve_data_basic(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_set_curve_data_basic(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test basic set_curve_data functionality."""
         curve_view_widget.set_curve_data(sample_points)
 
@@ -97,7 +97,7 @@ class TestPointDataManagement:
         assert len(curve_view_widget.curve_data) == 1
         assert curve_view_widget.curve_data[0] == point
 
-    def test_update_point(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_update_point(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test updating a point's coordinates."""
         curve_view_widget.set_curve_data(sample_points)
 
@@ -107,7 +107,7 @@ class TestPointDataManagement:
         assert curve_view_widget.curve_data[0][1] == 150.0  # X coordinate
         assert curve_view_widget.curve_data[0][2] == 250.0  # Y coordinate
 
-    def test_remove_point(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_remove_point(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test removing a point."""
         curve_view_widget.set_curve_data(sample_points)
         original_length = len(curve_view_widget.curve_data)
@@ -116,7 +116,7 @@ class TestPointDataManagement:
 
         assert len(curve_view_widget.curve_data) == original_length - 1
 
-    def test_get_selected_indices(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_get_selected_indices(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test getting selected indices."""
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0, 2}
@@ -124,7 +124,7 @@ class TestPointDataManagement:
         selected = curve_view_widget.get_selected_indices()
         assert set(selected) == {0, 2}
 
-    def test_selection_operations(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_selection_operations(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test point selection operations."""
         curve_view_widget.set_curve_data(sample_points)
 
@@ -170,7 +170,7 @@ class TestViewStateManagement:
         assert curve_view_widget.pan_offset_x == 0.0
         assert curve_view_widget.pan_offset_y == 0.0
 
-    def test_fit_to_view(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_fit_to_view(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test fit to view functionality."""
         curve_view_widget.set_curve_data(sample_points)
 
@@ -178,7 +178,7 @@ class TestViewStateManagement:
         curve_view_widget.fit_to_view()
         assert True
 
-    def test_center_on_selection(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_center_on_selection(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test centering on selected points."""
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0, 1}
@@ -268,7 +268,7 @@ class TestVisualizationOptions:
 class TestInteractionHandling:
     """Test mouse and keyboard interaction handling."""
 
-    def test_find_point_at(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_find_point_at(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test finding point at screen position."""
         curve_view_widget.set_curve_data(sample_points)
 
@@ -280,7 +280,7 @@ class TestInteractionHandling:
         assert isinstance(result, int)
         assert result >= -1
 
-    def test_point_deletion(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_point_deletion(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test deleting selected points."""
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0, 2}
@@ -292,7 +292,7 @@ class TestInteractionHandling:
         assert len(curve_view_widget.curve_data) == original_length - 2
         assert len(curve_view_widget.selected_indices) == 0
 
-    def test_nudge_selected_points(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_nudge_selected_points(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test nudging selected points."""
         curve_view_widget.set_curve_data(sample_points)
         curve_view_widget.selected_indices = {0}
@@ -356,7 +356,7 @@ class TestErrorHandling:
         # Try to remove non-existent point
         curve_view_widget.remove_point(99)  # Should not crash
 
-    def test_selection_edge_cases(self, curve_view_widget: CurveViewWidget, sample_points) -> None:
+    def test_selection_edge_cases(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test selection edge cases."""
         curve_view_widget.set_curve_data(sample_points)
 

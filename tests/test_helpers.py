@@ -10,6 +10,7 @@ Following best practices from UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md:
 """
 
 from collections.abc import Callable
+from typing import Any
 from unittest.mock import Mock
 
 from core.models import CurvePoint
@@ -29,27 +30,27 @@ except ImportError:
         pass
 
     class QSize:
-        def __init__(self, w, h):
+        def __init__(self, w: int, h: int) -> None:
             self.w = w
             self.h = h
 
     class QImage:
         Format_RGB32 = None
 
-        def __init__(self, *args):
+        def __init__(self, *args: Any) -> None:
             pass
 
-        def fill(self, color):
+        def fill(self, color: Any) -> None:
             pass
 
-        def isNull(self):
+        def isNull(self) -> bool:
             return False
 
-        def sizeInBytes(self):
+        def sizeInBytes(self) -> int:
             return 0
 
     class QColor:
-        def __init__(self, *args):
+        def __init__(self, *args: Any) -> None:
             pass
 
 
@@ -195,6 +196,22 @@ class TestSignal:
 # ==================== Qt Component Test Doubles ====================
 
 
+class MockUIComponents:
+    """Mock UI components structure matching real MainWindow.ui interface."""
+
+    def __init__(self):
+        self.undo_button = Mock()
+        self.redo_button = Mock()
+        self.save_button = Mock()
+
+
+class MockServices:
+    """Mock services structure matching real ServiceFacade interface."""
+
+    def __init__(self):
+        self.workflow_state = None  # No workflow_state service in current architecture
+
+
 class MockMainWindow(QMainWindow if HAS_QT else object):
     """
     Real Qt MainWindow for testing with tracking capabilities.
@@ -223,14 +240,42 @@ class MockMainWindow(QMainWindow if HAS_QT else object):
 
             self.status_bar.showMessage = track_message
 
-        # Common attributes
-        self.curve_view = None
+        # Common attributes - using actual MainWindow attribute names
+        self.curve_widget = None  # Real MainWindow uses curve_widget
+        self.curve_view = None  # Keep for backward compatibility
         self.undo_action = Mock()
         self.redo_action = Mock()
 
+        # UI components structure (for InteractionService compatibility)
+        self.ui = MockUIComponents()
+
+        # Services structure (for InteractionService compatibility)
+        self.services = MockServices()
+
+        # History management (for MainWindowProtocol compatibility)
+        self.history = []
+        self.history_index = -1
+
+    @property
+    def curve_data(self):
+        """Delegate to curve_widget's curve_data for MainWindowProtocol compatibility."""
+        # Try curve_widget first (actual MainWindow interface), then curve_view (backward compatibility)
+        curve_obj = self.curve_widget or self.curve_view
+        if curve_obj and hasattr(curve_obj, "curve_data"):
+            return curve_obj.curve_data
+        return []
+
+    @curve_data.setter
+    def curve_data(self, value):
+        """Set curve_data on curve_widget for MainWindowProtocol compatibility."""
+        # Try curve_widget first (actual MainWindow interface), then curve_view (backward compatibility)
+        curve_obj = self.curve_widget or self.curve_view
+        if curve_obj and hasattr(curve_obj, "curve_data"):
+            curve_obj.curve_data = value
+
     def get_curve_view(self):
-        """Return the curve view."""
-        return self.curve_view
+        """Return the curve view (backward compatibility method)."""
+        return self.curve_widget or self.curve_view
 
 
 class MockCurveView:
@@ -248,12 +293,18 @@ class MockCurveView:
         self.selected_points = set()
         self.selected_point_idx = -1
 
+        # Main window reference (for OptimizedCurveRenderer compatibility)
+        self.main_window = None
+
         # View state
         self.zoom_factor = 1.0
         self.pan_offset_x = 0
         self.pan_offset_y = 0
         self.manual_offset_x = 0.0
         self.manual_offset_y = 0.0
+
+        # Background image (for rendering tests compatibility)
+        self.background_image = None
 
         # Display properties
         self._width = 800

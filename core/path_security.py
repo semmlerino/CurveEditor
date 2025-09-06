@@ -56,7 +56,7 @@ class PathSecurityConfig:
             )
 
         # Allowed file extensions for different operation types
-        self.allowed_extensions = {
+        self.allowed_extensions: dict[str, set[str]] = {
             "data_files": {".json", ".csv", ".txt"},
             "image_files": {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"},
             "export_files": {".json", ".csv", ".xlsx", ".txt"},
@@ -332,7 +332,7 @@ def _validate_file_extension(path: Path, operation_type: str) -> None:
     Raises:
         PathSecurityError: If extension is not allowed
     """
-    allowed_extensions = _config.allowed_extensions.get(operation_type, set())
+    allowed_extensions: set[str] = _config.allowed_extensions.get(operation_type, set())
 
     # If allowed_extensions is empty, allow all extensions
     if not allowed_extensions:

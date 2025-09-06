@@ -131,7 +131,8 @@ class TestInteractionServiceSelection:
             ]
         )
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         # Use correct method name: select_all_points, not select_all
         count = self.service.select_all_points(view, main_window)
@@ -152,7 +153,8 @@ class TestInteractionServiceSelection:
         view.selected_points = {0, 1}
         view.selected_point_idx = 1
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         self.service.clear_selection(view, main_window)
 
@@ -179,7 +181,8 @@ class TestInteractionServiceSelection:
         rect = QRect(90, 90, 70, 70)  # From (90,90) to (160,160)
 
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
         count = self.service.select_points_in_rect(view, main_window, rect)
 
         # Should select points at (100,100) and (150,150)
@@ -198,61 +201,72 @@ class TestInteractionServiceHistory:
         self.service = get_interaction_service()
         # Clear history
         self.service._history = []
-        self.service._history_index = -1
+        self.service._current_index = -1  # Use _current_index not _history_index
 
     def test_add_to_history(self):
         """Test adding states to history."""
         view = MockCurveView()
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
-        state1 = {"points": [(1, 100, 100)], "selection": set()}
-        state2 = {"points": [(1, 100, 100), (2, 200, 200)], "selection": {0}}
+        # Set up actual curve data that will be captured by add_to_history
+        view.curve_data = [(1, 100, 100)]
+        self.service.add_to_history(main_window, None)  # state param is ignored
 
-        # add_to_history can take main_window or view as first arg
-        self.service.add_to_history(main_window, state1)
-        self.service.add_to_history(main_window, state2)
+        # Modify data and add another state
+        view.curve_data = [(1, 100, 100), (2, 200, 200)]
+        self.service.add_to_history(main_window, None)  # state param is ignored
 
-        # Note: _history is private, but we'll check if operations work
+        # Now we should have 2 states in history and can undo
         assert self.service.can_undo()
 
     def test_undo_operation(self):
         """Test undo functionality."""
         view = MockCurveView([(1, 100, 100)])
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         # Add initial state
-        initial_state = {"points": [(1, 100, 100)], "selection": set()}
-        self.service.add_to_history(main_window, initial_state)
+        self.service.add_to_history(main_window, None)
 
         # Modify and add new state
         view.curve_data = [(1, 150, 150)]
-        modified_state = {"points": [(1, 150, 150)], "selection": {0}}
-        self.service.add_to_history(main_window, modified_state)
+        self.service.add_to_history(main_window, None)
 
         # Perform undo
         assert self.service.can_undo()
         self.service.undo(main_window)
 
-        # Note: undo implementation may differ, check if it can redo now
+        # After undo, should be able to redo
         assert self.service.can_redo()
 
     def test_redo_operation(self):
         """Test redo functionality."""
         view = MockCurveView()
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
-        # Add multiple states
-        states = [
-            {"points": [(1, 100, 100)], "selection": set()},
-            {"points": [(1, 150, 150)], "selection": {0}},
-            {"points": [(1, 200, 200)], "selection": set()},
-        ]
+        # Add multiple states by modifying curve_data
+        view.curve_data = [(1, 100, 100)]
+        self.service.add_to_history(main_window, None)
 
-        for state in states:
-            self.service.add_to_history(main_window, state)
+        view.curve_data = [(1, 150, 150)]
+        self.service.add_to_history(main_window, None)
+
+        view.curve_data = [(1, 200, 200)]
+        self.service.add_to_history(main_window, None)
 
         # Undo twice
         self.service.undo(main_window)
@@ -269,18 +283,28 @@ class TestInteractionServiceHistory:
         """Test that new action after undo creates new branch."""
         view = MockCurveView()
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         # Add states
-        self.service.add_to_history(main_window, {"points": [(1, 100, 100)], "selection": set()})
-        self.service.add_to_history(main_window, {"points": [(1, 150, 150)], "selection": set()})
-        self.service.add_to_history(main_window, {"points": [(1, 200, 200)], "selection": set()})
+        view.curve_data = [(1, 100, 100)]
+        self.service.add_to_history(main_window, None)
+
+        view.curve_data = [(1, 150, 150)]
+        self.service.add_to_history(main_window, None)
+
+        view.curve_data = [(1, 200, 200)]
+        self.service.add_to_history(main_window, None)
 
         # Undo once
         self.service.undo(main_window)
 
         # Add new state (should clear redo history)
-        self.service.add_to_history(main_window, {"points": [(1, 175, 175)], "selection": {0}})
+        view.curve_data = [(1, 175, 175)]
+        self.service.add_to_history(main_window, None)
 
         # Can't redo anymore
         assert not self.service.can_redo()
@@ -289,11 +313,16 @@ class TestInteractionServiceHistory:
         """Test history respects maximum size limit."""
         view = MockCurveView()
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         # Add many states
         for i in range(150):  # More than typical max
-            self.service.add_to_history(main_window, {"points": [(1, i, i)], "selection": set()})
+            view.curve_data = [(1, i, i)]
+            self.service.add_to_history(main_window, None)
 
         # History size check through public API
         stats = self.service.get_history_stats()
@@ -324,7 +353,8 @@ class TestInteractionServicePointManipulation:
         )
         view.selected_points = {1, 2}  # Select middle points
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
         self.service.delete_selected_points(view, main_window)
 
@@ -502,11 +532,18 @@ class TestInteractionServiceKeyboardEvents:
         """Test Ctrl+Z/Ctrl+Y shortcuts."""
         view = MockCurveView()
         main_window = MockMainWindow()
-        main_window.curve_view = view
+        # Set history to None to force use of internal history
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_view = view  # Backward compatibility
 
-        # Add some history
-        self.service.add_to_history(main_window, {"points": [(1, 100, 100)], "selection": set()})
-        self.service.add_to_history(main_window, {"points": [(1, 150, 150)], "selection": set()})
+        # Add some history by setting actual curve data
+        view.curve_data = [(1, 100, 100)]
+        self.service.add_to_history(main_window, None)
+
+        view.curve_data = [(1, 150, 150)]
+        self.service.add_to_history(main_window, None)
 
         # Test that undo/redo capability exists
         assert self.service.can_undo()

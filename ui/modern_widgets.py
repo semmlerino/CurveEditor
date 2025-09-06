@@ -5,7 +5,7 @@ Custom widgets with modern design patterns and enhanced user experience
 """
 
 from PySide6.QtCore import Property, QEasingCurve, QPoint, QPropertyAnimation, QRect, Qt, QTimer, Signal
-from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPen
+from PySide6.QtGui import QBrush, QColor, QEnterEvent, QFont, QLinearGradient, QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import (
     QFrame,
     QGraphicsOpacityEffect,
@@ -21,7 +21,14 @@ from PySide6.QtWidgets import (
 class ModernCard(QFrame):
     """Modern card widget with shadow and hover effects."""
 
-    def __init__(self, title: str = "", parent=None):
+    title: str
+    _hover: bool
+    main_layout: QVBoxLayout
+    title_label: QLabel
+    content_layout: QVBoxLayout
+    shadow_animation: QPropertyAnimation
+
+    def __init__(self, title: str = "", parent: QWidget | None = None):
         super().__init__(parent)
         self.setObjectName("modernCard")
         self.title = title
@@ -67,19 +74,19 @@ class ModernCard(QFrame):
         """Add widget to card content area."""
         self.content_layout.addWidget(widget)
 
-    def enterEvent(self, event):
+    def enterEvent(self, event: QEnterEvent) -> None:
         """Handle mouse enter for hover effect."""
         self._hover = True
         self.update()
         super().enterEvent(event)
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event: QEnterEvent) -> None:
         """Handle mouse leave."""
         self._hover = False
         self.update()
         super().leaveEvent(event)
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Custom paint for modern card appearance."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -106,7 +113,11 @@ class ModernCard(QFrame):
 class ModernButton(QPushButton):
     """Modern button with animations and multiple variants."""
 
-    def __init__(self, text: str = "", variant: str = "primary", parent=None):
+    variant: str
+    click_animation: QPropertyAnimation
+    click_position: QPoint
+
+    def __init__(self, text: str = "", variant: str = "primary", parent: QWidget | None = None):
         super().__init__(text, parent)
         self.variant = variant
         self._animation_progress = 0
@@ -189,7 +200,7 @@ class ModernButton(QPushButton):
         self.click_animation.setEndValue(100)
         self.click_animation.setEasingCurve(QEasingCurve.Type.OutCubic)
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Trigger animation on click."""
         self.click_position = event.pos()
         self.click_animation.start()
@@ -208,7 +219,13 @@ class ModernButton(QPushButton):
 class ModernProgressBar(QWidget):
     """Custom progress bar with modern design."""
 
-    def __init__(self, parent=None):
+    _value: int
+    _max_value: int
+    _text: str
+    _color: QColor
+    _indeterminate: bool
+
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self._value = 0
         self._max_value = 100
@@ -250,7 +267,7 @@ class ModernProgressBar(QWidget):
         self._indeterminate = indeterminate
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Custom paint for modern progress bar."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -287,7 +304,11 @@ class ModernProgressBar(QWidget):
 class ModernLoadingSpinner(QWidget):
     """Animated loading spinner widget."""
 
-    def __init__(self, parent=None):
+    _angle: int
+    _timer: QTimer
+    _color: QColor
+
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setFixedSize(40, 40)
         self._angle = 0
@@ -310,7 +331,7 @@ class ModernLoadingSpinner(QWidget):
         self._angle = (self._angle + 10) % 360
         self.update()
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint the spinner."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -327,9 +348,17 @@ class ModernLoadingSpinner(QWidget):
 class ModernToast(QFrame):
     """Toast notification widget."""
 
+    # Signal emitted when toast is closed
     closed = Signal()
 
-    def __init__(self, message: str, variant: str = "info", duration: int = 3000, parent=None):
+    message: str
+    variant: str
+    duration: int
+    opacity_effect: QGraphicsOpacityEffect
+    fade_in: QPropertyAnimation
+    fade_out: QPropertyAnimation
+
+    def __init__(self, message: str, variant: str = "info", duration: int = 3000, parent: QWidget | None = None):
         super().__init__(parent)
         self.message = message
         self.variant = variant
@@ -423,9 +452,13 @@ class ModernToast(QFrame):
 class ModernTimeline(QWidget):
     """Modern timeline widget with smooth scrubbing."""
 
-    frame_changed = Signal(int)
+    frame_changed: Signal
+    total_frames: int
+    current_frame: int
+    _is_scrubbing: bool
+    _hover_frame: int
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.total_frames = 100
         self.current_frame = 1
@@ -444,13 +477,13 @@ class ModernTimeline(QWidget):
         self.current_frame = max(1, min(frame, self.total_frames))
         self.update()
 
-    def mousePressEvent(self, event):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Start scrubbing."""
         if event.button() == Qt.MouseButton.LeftButton:
             self._is_scrubbing = True
             self._update_frame_from_position(event.pos())
 
-    def mouseMoveEvent(self, event):
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Update during scrubbing or hover."""
         if self._is_scrubbing:
             self._update_frame_from_position(event.pos())
@@ -461,11 +494,11 @@ class ModernTimeline(QWidget):
             if old_hover != self._hover_frame:
                 self.update()
 
-    def mouseReleaseEvent(self, event):
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Stop scrubbing."""
         self._is_scrubbing = False
 
-    def leaveEvent(self, event):
+    def leaveEvent(self, event: QEnterEvent) -> None:
         """Clear hover state."""
         self._hover_frame = -1
         self.update()
@@ -486,7 +519,7 @@ class ModernTimeline(QWidget):
         frame = int(pos.x() / frame_width) + 1
         return max(1, min(frame, self.total_frames))
 
-    def paintEvent(self, event):
+    def paintEvent(self, event: QPaintEvent) -> None:
         """Paint modern timeline."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)

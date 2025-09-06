@@ -14,7 +14,7 @@ import logging
 import threading
 from dataclasses import dataclass, field
 from functools import lru_cache
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
@@ -27,8 +27,8 @@ except ImportError:
     # Stub for when PySide6 is not available
     class QPointF:
         def __init__(self, x: float = 0, y: float = 0) -> None:
-            self._x = x
-            self._y = y
+            self._x: float = x
+            self._y: float = y
 
         def x(self) -> float:
             return self._x
@@ -75,20 +75,21 @@ class ViewState:
     manual_y_offset: float = 0.0
 
     # Background image reference (optional) - excluded from hash for LRU cache
-    background_image: Any | None = field(default=None, hash=False)
+    background_image: object | None = field(default=None, hash=False)
 
     # Original data dimensions for scaling
     image_width: int = DEFAULT_IMAGE_WIDTH
     image_height: int = DEFAULT_IMAGE_HEIGHT
 
-    def with_updates(self, **kwargs: Any) -> "ViewState":
+    def with_updates(self, **kwargs: object) -> "ViewState":
         """Create a new ViewState with updated values."""
         # Merge current values with updates, ensuring proper types
         updated = dict(self.__dict__)
         updated.update(kwargs)
-        return ViewState(**updated)
+        # Type ignore for dict unpacking with mixed types
+        return ViewState(**updated)  # type: ignore[arg-type]
 
-    def to_dict(self) -> dict[str, Any]:
+    def to_dict(self) -> dict[str, object]:
         """Convert the ViewState to a dictionary."""
         return {
             "display_dimensions": (self.display_width, self.display_height),
@@ -157,6 +158,9 @@ class Transform:
     5. Pan offset application
     6. Manual offset application
     """
+
+    _parameters: dict[str, float | bool | int]
+    _stability_hash: str
 
     def __init__(
         self,
@@ -245,7 +249,7 @@ class Transform:
         """Check if scaling to image dimensions is enabled."""
         return self._parameters["scale_to_image"]
 
-    def get_parameters(self) -> dict[str, Any]:
+    def get_parameters(self) -> dict[str, object]:
         """Get all transformation parameters as a dictionary."""
         return self._parameters.copy()
 
@@ -338,7 +342,7 @@ class Transform:
         x, y = self.screen_to_data(point.x(), point.y())
         return QPointF(x, y)
 
-    def with_updates(self, **kwargs: Any) -> "Transform":
+    def with_updates(self, **kwargs: object) -> "Transform":
         """Create a new Transform with updated parameters."""
         # Merge current parameters with updates
         new_params = dict(self._parameters)
@@ -427,6 +431,8 @@ class TransformService:
     to provide a single interface for transformation operations.
     """
 
+    _lock: threading.RLock
+
     def __init__(self) -> None:
         """Initialize the TransformService."""
         self._lock = threading.RLock()
@@ -472,7 +478,7 @@ class TransformService:
         scale: float = 1.0,
         center_offset: tuple[float, float] = (0.0, 0.0),
         pan_offset: tuple[float, float] = (0.0, 0.0),
-        **kwargs,
+        **kwargs: object,
     ) -> Transform:
         """
         Create a Transform directly with parameters (convenience method for testing).
@@ -499,7 +505,7 @@ class TransformService:
         """Clear the transform cache."""
         self._create_transform_cached.cache_clear()
 
-    def get_cache_info(self) -> dict[str, Any]:
+    def get_cache_info(self) -> dict[str, object]:
         """
         Get transform cache statistics.
 
@@ -523,10 +529,10 @@ class TransformService:
         """Transform a screen point to data coordinates."""
         return transform.screen_to_data(x, y)
 
-    def update_view_state(self, view_state: ViewState, **kwargs: Any) -> ViewState:
+    def update_view_state(self, view_state: ViewState, **kwargs: object) -> ViewState:
         """Update a ViewState with new parameters."""
         return view_state.with_updates(**kwargs)
 
-    def update_transform(self, transform: Transform, **kwargs: Any) -> Transform:
+    def update_transform(self, transform: Transform, **kwargs: object) -> Transform:
         """Update a Transform with new parameters."""
         return transform.with_updates(**kwargs)

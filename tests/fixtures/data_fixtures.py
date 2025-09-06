@@ -5,7 +5,6 @@ Contains fixtures that provide test data, sample points, and data builders.
 """
 
 import math
-from typing import Any
 
 import pytest
 
@@ -72,7 +71,7 @@ def sparse_curve_data() -> list[Point4]:
 
 
 @pytest.fixture
-def invalid_curve_data() -> list[Any]:
+def invalid_curve_data() -> list[object]:
     """Provide invalid curve data for error testing."""
     return [
         (1, "invalid", 200.0),  # Invalid x coordinate

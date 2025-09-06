@@ -8,15 +8,16 @@ to ensure consistency and reduce type errors.
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
+    Any,
     TypeVar,
 )
 
-import numpy as np
-from numpy.typing import NDArray
-
 if TYPE_CHECKING:
+    from numpy.typing import NDArray
     from PySide6.QtGui import QColor, QKeyEvent, QMouseEvent, QPaintEvent
     from PySide6.QtWidgets import QWidget
+else:
+    NDArray = object
 
 # ==================== Basic Types ====================
 
@@ -27,7 +28,7 @@ type PointType = PointTuple | PointTupleWithStatus
 
 # Collections of points
 type CurveData = list[PointType]
-type CurveDataArray = NDArray[np.float64]
+type CurveDataArray = NDArray[Any]  # Generic NumPy array for curve data
 type PointList = list[PointType]
 type PointIndices = list[int]
 
@@ -45,7 +46,7 @@ type FrameList = list[Frame]
 # ==================== Transform Types ====================
 
 # Transform matrix type (3x3 for 2D homogeneous coordinates)
-type TransformMatrix = NDArray[np.float64]
+type TransformMatrix = NDArray[Any]  # Generic 3x3 transform matrix
 
 # Scale and offset for simple transforms
 type ScaleFactors = tuple[float, float]

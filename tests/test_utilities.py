@@ -5,13 +5,12 @@ Contains lightweight test implementations of components that can be used
 instead of heavy mock objects.
 """
 
-from typing import Any
 from unittest.mock import MagicMock
 
 # Type aliases for test data
 PointsList = list[tuple[int, float, float]]
 Point3 = tuple[int, float, float]
-Point4 = tuple[int, float, float, Any]
+Point4 = tuple[int, float, float, object]
 
 
 class TestCurveView:
@@ -57,7 +56,7 @@ class TestCurveView:
         # Image properties
         self.image_width: int = 1920
         self.image_height: int = 1080
-        self.background_image: Any = None
+        self.background_image: object = None
 
         # Image sequence properties
         self.image_sequence_path: str = ""
@@ -204,7 +203,7 @@ class TestCurveView:
 
         return Transform(self.zoom_factor, self.offset_x, self.offset_y)
 
-    def get_point_data(self, idx: int) -> tuple[int, float, float, Any]:
+    def get_point_data(self, idx: int) -> tuple[int, float, float, object]:
         """Get point data by index."""
         if 0 <= idx < len(self.curve_data):
             return self.curve_data[idx]
@@ -238,6 +237,21 @@ class TestMainWindow:
         # Status bar mock
         self.status_bar = MagicMock()
         self.status_bar.showMessage = MagicMock()
+
+        # History management (for MainWindowProtocol compatibility)
+        self.history = []
+        self.history_index = -1
+
+    @property
+    def curve_data(self) -> list:
+        """Delegate to curve_view's curve_data for MainWindowProtocol compatibility."""
+        return self.curve_view.curve_data
+
+    @curve_data.setter
+    def curve_data(self, value: list) -> None:
+        """Set curve_data on curve_view for MainWindowProtocol compatibility."""
+        self.curve_view.curve_data = value
+        self.curve_view.points = value  # Keep in sync
 
     def _create_timeline_components(self):
         """Create timeline UI components."""

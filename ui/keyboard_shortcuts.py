@@ -271,7 +271,7 @@ class ShortcutManager(QObject):
         """Handle fit image shortcut (F key)."""
         logger.debug("Fit image shortcut activated")
         # Access the curve widget through parent (MainWindow)
-        if hasattr(self.parent_widget, "curve_widget") and self.parent_widget.curve_widget:
+        if getattr(self.parent_widget, "curve_widget", None) is not None and self.parent_widget.curve_widget:
             self.parent_widget.curve_widget.fit_to_background_image()
 
     def _on_reset_view(self) -> None:
@@ -298,33 +298,33 @@ class ShortcutManager(QObject):
         """Handle next frame shortcut."""
         logger.debug("Next frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if hasattr(self.parent_widget, "_on_next_frame"):
+        if getattr(self.parent_widget, "_on_next_frame", None) is not None:
             self.parent_widget._on_next_frame()
 
     def _on_prev_frame(self) -> None:
         """Handle previous frame shortcut."""
         logger.debug("Previous frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if hasattr(self.parent_widget, "_on_prev_frame"):
+        if getattr(self.parent_widget, "_on_prev_frame", None) is not None:
             self.parent_widget._on_prev_frame()
 
     def _on_first_frame(self) -> None:
         """Handle first frame shortcut."""
         logger.debug("First frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if hasattr(self.parent_widget, "_on_first_frame"):
+        if getattr(self.parent_widget, "_on_first_frame", None) is not None:
             self.parent_widget._on_first_frame()
 
     def _on_last_frame(self) -> None:
         """Handle last frame shortcut."""
         logger.debug("Last frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if hasattr(self.parent_widget, "_on_last_frame"):
+        if getattr(self.parent_widget, "_on_last_frame", None) is not None:
             self.parent_widget._on_last_frame()
 
     def _on_oscillate_playback(self) -> None:
         """Handle oscillating playback toggle shortcut (spacebar)."""
         logger.debug("Oscillating playback toggle shortcut activated")
         # Trigger oscillating playback through parent widget
-        if hasattr(self.parent_widget, "_toggle_oscillating_playback"):
+        if getattr(self.parent_widget, "_toggle_oscillating_playback", None) is not None:
             self.parent_widget._toggle_oscillating_playback()

@@ -112,7 +112,7 @@ class PointIndex:
         with self._lock:
             # Check if rebuild is needed
             current_transform_hash = transform.stability_hash
-            current_point_count = len(view.curve_data) if hasattr(view, "curve_data") else 0
+            current_point_count = len(getattr(view, "curve_data", []))
 
             if (
                 self._last_transform_hash == current_transform_hash
@@ -128,16 +128,17 @@ class PointIndex:
             self._grid.clear()
 
             # Get screen dimensions
-            self.screen_width = float(view.width()) if hasattr(view, "width") else 800.0
-            self.screen_height = float(view.height()) if hasattr(view, "height") else 600.0
+            self.screen_width = float(getattr(view, "width", lambda: 800.0)())
+            self.screen_height = float(getattr(view, "height", lambda: 600.0)())
 
             # Calculate cell dimensions
             self.cell_width = self.screen_width / self.grid_width
             self.cell_height = self.screen_height / self.grid_height
 
             # Build index from curve data
-            if hasattr(view, "curve_data") and view.curve_data:
-                for idx, point in enumerate(view.curve_data):
+            curve_data = getattr(view, "curve_data", None)
+            if curve_data:
+                for idx, point in enumerate(curve_data):
                     if len(point) >= 3:
                         # Convert data point to screen coordinates
                         screen_x, screen_y = transform.data_to_screen(point[1], point[2])
@@ -176,7 +177,8 @@ class PointIndex:
         # Rebuild index if needed
         self.rebuild_index(view, transform)
 
-        if not hasattr(view, "curve_data") or not view.curve_data:
+        curve_data = getattr(view, "curve_data", None)
+        if not curve_data:
             return -1
 
         # Get grid cell for position
@@ -198,13 +200,13 @@ class PointIndex:
             for cell_key in nearby_cells:
                 if cell_key in self._grid:
                     for point_idx in self._grid[cell_key]:
-                        if point_idx < len(view.curve_data):
-                            point = view.curve_data[point_idx]
+                        if point_idx < len(curve_data):
+                            point = curve_data[point_idx]
                             if len(point) >= 3:
                                 # Convert to screen coordinates
-                                screen_px: float
-                                screen_py: float
-                                screen_px, screen_py = transform.data_to_screen(point[1], point[2])
+                                screen_coords = transform.data_to_screen(point[1], point[2])
+                                screen_px: float = screen_coords[0]
+                                screen_py: float = screen_coords[1]
 
                                 # Calculate distance
                                 distance: float = ((screen_px - x) ** 2 + (screen_py - y) ** 2) ** 0.5
@@ -233,7 +235,8 @@ class PointIndex:
         # Rebuild index if needed
         self.rebuild_index(view, transform)
 
-        if not hasattr(view, "curve_data") or not view.curve_data:
+        curve_data = getattr(view, "curve_data", None)
+        if not curve_data:
             return []
 
         # Ensure proper bounds
@@ -255,8 +258,8 @@ class PointIndex:
                     cell_key = (gx, gy)
                     if cell_key in self._grid:
                         for point_idx in self._grid[cell_key]:
-                            if point_idx < len(view.curve_data):
-                                point = view.curve_data[point_idx]
+                            if point_idx < len(curve_data):
+                                point = curve_data[point_idx]
                                 if len(point) >= 3:
                                     # Convert to screen coordinates
                                     screen_px, screen_py = transform.data_to_screen(point[1], point[2])

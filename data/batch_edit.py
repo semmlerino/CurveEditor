@@ -22,8 +22,7 @@ from PySide6.QtWidgets import (
 from core.math_utils import GeometryUtils, ValidationUtils
 
 # Import PointsList type from models
-from core.models import PointsList
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataList, LegacyPointData
 
 # Import protocols and type aliases for proper typing
 from services.service_protocols import CurveViewProtocol, MainWindowProtocol
@@ -39,8 +38,8 @@ logger = logging.getLogger("batch_edit")
 class BatchEditParentWidgetProtocol(MainWindowProtocol, Protocol):
     # Extend MainWindowProtocol for proper typing
     # Additional attributes specific to batch editing
-    def setPoints(self, points: PointsList) -> None: ...
-    def set_curve_data(self, data: PointsList) -> None: ...
+    def setPoints(self, points: CurveDataList) -> None: ...
+    def set_curve_data(self, data: CurveDataList) -> None: ...
     def showMessage(self, message: str) -> None: ...
 
     image_width: int
@@ -51,24 +50,22 @@ class BatchEditParentWidgetProtocol(MainWindowProtocol, Protocol):
     rotate_button: QPushButton
     smooth_button: QPushButton
     select_all_button: QPushButton
-    point_edit_layout: QVBoxLayout
+    point_edit_layout: QVBoxLayout | None
 
-    def update_curve_data(self, data: PointsList) -> None: ...
-
-    # Inherit statusBar from MainWindowProtocol with correct return type
+    def update_curve_data(self, data: CurveDataList) -> None: ...
 
 
 # Avoid duplicate imports
 
 
 def batch_scale_points(
-    curve_data: PointsList,
+    curve_data: CurveDataList,
     indices: Sequence[int],
     scale_x: float,
     scale_y: float,
     center_x: float | None = None,
     center_y: float | None = None,
-) -> PointsList:
+) -> CurveDataList:
     """Scale multiple points around a center point.
 
     Args:
@@ -95,7 +92,7 @@ def batch_scale_points(
 
     # Performance optimization: Use structural sharing
     indices_set = set(indices)  # O(1) lookup
-    new_data = []
+    new_data: list[LegacyPointData] = []
     # Build result with structural sharing
     for i, point in enumerate(curve_data):
         if i in indices_set:
@@ -112,7 +109,9 @@ def batch_scale_points(
     return new_data
 
 
-def batch_offset_points(curve_data: PointsList, indices: Sequence[int], offset_x: float, offset_y: float) -> PointsList:
+def batch_offset_points(
+    curve_data: CurveDataList, indices: Sequence[int], offset_x: float, offset_y: float
+) -> CurveDataList:
     """Offset multiple points by a fixed amount.
 
     Args:
@@ -130,7 +129,7 @@ def batch_offset_points(curve_data: PointsList, indices: Sequence[int], offset_x
 
     # Performance optimization: Use structural sharing
     indices_set = set(indices)  # O(1) lookup
-    new_data = []
+    new_data: list[LegacyPointData] = []
 
     for idx, point in enumerate(curve_data):
         if idx in indices_set:
@@ -148,12 +147,12 @@ def batch_offset_points(curve_data: PointsList, indices: Sequence[int], offset_x
 
 
 def batch_rotate_points(
-    curve_data: PointsList,
+    curve_data: CurveDataList,
     indices: Sequence[int],
     angle_degrees: float,
     center_x: float | None = None,
     center_y: float | None = None,
-) -> PointsList:
+) -> CurveDataList:
     """Rotate multiple points around a center point.
 
     Args:
@@ -178,7 +177,7 @@ def batch_rotate_points(
 
     # Use structural sharing - only create new tuples for rotated points
     indices_set = set(indices)
-    new_data = []
+    new_data: list[LegacyPointData] = []
 
     for i, point in enumerate(curve_data):
         if i in indices_set:
@@ -197,11 +196,11 @@ def batch_rotate_points(
 
 
 def batch_smoothness_adjustment(
-    curve_data: PointsList,
+    curve_data: CurveDataList,
     indices: Sequence[int],
     smoothness_factor: float,
-    curve_view: CurveViewProtocol | None = None,
-) -> PointsList:
+    curve_view: CurveViewProtocol | None = None,  # noqa: ARG001
+) -> CurveDataList:
     """Adjust the smoothness of a selection of points using moving average.
 
     Args:
@@ -261,7 +260,9 @@ def batch_smoothness_adjustment(
     return new_data
 
 
-def batch_normalize_velocity(curve_data: PointsList, indices: Sequence[int], target_velocity: float) -> PointsList:
+def batch_normalize_velocity(
+    curve_data: CurveDataList, indices: Sequence[int], target_velocity: float
+) -> CurveDataList:
     """Normalize velocity between points to target value.
 
     Args:
@@ -365,32 +366,48 @@ class BatchEditUI:
         batch_layout.addWidget(self.parent.select_all_button)
 
         # Add to the point editing section if it exists
-        if hasattr(self.parent, "point_edit_layout"):
+        # point_edit_layout is Optional in BatchEditableProtocol
+        if self.parent.point_edit_layout is not None:
             self.parent.point_edit_layout.addWidget(self.parent.batch_edit_group)
 
     def _select_all_points(self) -> None:
         """Select all points in the curve."""
-        if hasattr(self.parent, "curve_view") and hasattr(self.parent.curve_view, "points"):
+        # curve_view is Optional in BatchEditableProtocol
+        if self.parent.curve_view is not None:
             curve_view = cast(CurveViewProtocol, self.parent.curve_view)
-            num_points = len(curve_view.points)
-            if num_points > 0:
-                # Select all points
-                curve_view.selected_points = set(range(num_points))
-                curve_view.selected_point_idx = 0
-                # Update parent's selected indices
-                if hasattr(self.parent, "selected_indices"):
+            if curve_view.points:
+                num_points = len(curve_view.points)
+                if num_points > 0:
+                    # Select all points
+                    curve_view.selected_points = set(range(num_points))
+                    curve_view.selected_point_idx = 0
+                    # Update parent's selected indices
+                    # selected_indices is defined in MainWindowProtocol
                     self.parent.selected_indices = list(range(num_points))
-                curve_view.update()
-                # Show status message
-                if hasattr(self.parent, "statusBar"):
+                    curve_view.update()
+                    # Show status message
+                    # statusBar() is a QMainWindow method, always available
                     self.parent.statusBar().showMessage(f"Selected all {num_points} points", 2000)
+
+    def _check_selection(self, operation_name: str) -> bool:
+        """Check if points are selected and show warning if not.
+
+        Args:
+            operation_name: Name of the operation for the warning message
+
+        Returns:
+            True if points are selected, False otherwise
+        """
+        if not self.parent.selected_indices:
+            _ = QMessageBox.warning(
+                cast(QWidget, cast(object, self.parent)), "No Selection", f"Please select points to {operation_name}."
+            )
+            return False
+        return True
 
     def batch_scale(self) -> None:
         """Scale selected points with dialog UI."""
-        if not self.parent.selected_indices:
-            _ = QMessageBox.warning(
-                cast(QWidget, cast(object, self.parent)), "No Selection", "Please select points to scale."
-            )
+        if not self._check_selection("scale"):
             return
 
         # Get scale factors from user
@@ -433,10 +450,7 @@ class BatchEditUI:
 
     def batch_offset(self) -> None:
         """Offset selected points with dialog UI."""
-        if not self.parent.selected_indices:
-            _ = QMessageBox.warning(
-                cast(QWidget, cast(object, self.parent)), "No Selection", "Please select points to offset."
-            )
+        if not self._check_selection("offset"):
             return
 
         # Get offset values from user
@@ -477,10 +491,7 @@ class BatchEditUI:
 
     def batch_rotate(self) -> None:
         """Rotate selected points with dialog UI."""
-        if not self.parent.selected_indices:
-            _ = QMessageBox.warning(
-                cast(QWidget, cast(object, self.parent)), "No Selection", "Please select points to rotate."
-            )
+        if not self._check_selection("rotate"):
             return
 
         # Get rotation angle from user
@@ -498,7 +509,7 @@ class BatchEditUI:
 
         # Apply batch rotation (uses centroid as center by default)
         new_data = batch_rotate_points(
-            cast(PointsList, self.parent.curve_data),
+            self.parent.curve_data,
             self.parent.selected_indices,
             angle,
             None,  # center_x - None means use centroid
@@ -510,10 +521,7 @@ class BatchEditUI:
 
     def batch_smooth(self) -> None:
         """Smooth selected points with dialog UI."""
-        if not self.parent.selected_indices:
-            _ = QMessageBox.warning(
-                cast(QWidget, cast(object, self.parent)), "No Selection", "Please select points to smooth."
-            )
+        if not self._check_selection("smooth"):
             return
 
         # Get smoothing factor from user
@@ -531,18 +539,19 @@ class BatchEditUI:
 
         # Apply batch smoothing
         new_data = batch_smoothness_adjustment(
-            cast(PointsList, self.parent.curve_data),
+            self.parent.curve_data,
             self.parent.selected_indices,
             factor,
             cast(CurveViewProtocol, self.parent.curve_view)
-            if hasattr(self.parent, "curve_view") and self.parent.curve_view
+            # curve_view is Optional in BatchEditableProtocol
+            if self.parent.curve_view is not None
             else None,
         )
 
         # Update curve data
         self.update_parent_data(new_data, f"Smoothed {len(self.parent.selected_indices)} points")
 
-    def update_parent_data(self, new_data: PointsList, status_message: str) -> None:
+    def update_parent_data(self, new_data: CurveDataList, status_message: str) -> None:
         """Update the parent window with new curve data.
 
         Args:
@@ -550,21 +559,28 @@ class BatchEditUI:
             status_message: Message to show in status bar
         """
         # Check if parent has update_curve_data method
-        if hasattr(self.parent, "update_curve_data"):
-            self.parent.update_curve_data(new_data)
+        # update_curve_data is a method in BatchEditableProtocol
+        update_method = getattr(self.parent, "update_curve_data", None)
+        if update_method is not None:
+            update_method(new_data)
         else:
             # Fallback to direct update
-            # Use cast to handle type compatibility between PointsList and CurveDataList
-            self.parent.curve_data[:] = cast(CurveDataList, new_data)
+            # PointsList and CurveDataList are now compatible (both use LegacyPointData)
+            self.parent.curve_data[:] = new_data
             curve_view = cast(CurveViewProtocol, self.parent.curve_view)
-            if hasattr(curve_view, "setPoints"):
-                curve_view.setPoints(new_data, self.parent.image_width, self.parent.image_height)
-            elif hasattr(curve_view, "set_curve_data"):
-                curve_view.set_curve_data(new_data)
+            # Use set_curve_data method if available
+            set_data_method = getattr(curve_view, "set_curve_data", None)
+            if set_data_method is not None:
+                set_data_method(new_data)
+            else:
+                # Fall back to setPoints for backward compatibility
+                set_points_method = getattr(curve_view, "setPoints", None)
+                if set_points_method is not None:
+                    set_points_method(new_data, self.parent.image_width, self.parent.image_height)
 
         # Update status bar
         self.parent.statusBar().showMessage(status_message, 2000)
 
         # Add to history if available
-        if hasattr(self.parent, "add_to_history"):
-            self.parent.add_to_history()
+        # add_to_history is defined in MainWindowProtocol
+        self.parent.add_to_history()

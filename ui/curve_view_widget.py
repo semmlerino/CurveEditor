@@ -26,7 +26,7 @@ Architecture:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, override
 
 from PySide6.QtCore import (
     QPointF,
@@ -46,7 +46,7 @@ from PySide6.QtGui import (
     QPixmap,
     QWheelEvent,
 )
-from PySide6.QtWidgets import QRubberBand, QWidget
+from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
 
 # Import core modules
 from core.models import CurvePoint, PointCollection
@@ -68,9 +68,17 @@ from ui.ui_constants import (
 )
 
 if TYPE_CHECKING:
-    from typing import Any
+    from typing import Protocol
 
-    MainWindow = Any  # Avoid import cycle
+    class MainWindow(Protocol):
+        """Main window protocol for type checking."""
+
+        current_frame: int
+        status_bar: QStatusBar
+
+        def add_to_history(self) -> None: ...
+else:
+    MainWindow = Any  # Runtime fallback to avoid import cycle
 
 logger = logging.getLogger("curve_view_widget")
 
@@ -102,11 +110,11 @@ class CurveViewWidget(QWidget):
     """
 
     # Signals
-    point_selected = Signal(int)  # index
-    point_moved = Signal(int, float, float)  # index, x, y
-    selection_changed = Signal(list)  # list of indices
-    view_changed = Signal()  # view transform changed
-    zoom_changed = Signal(float)  # zoom level
+    point_selected: Signal = Signal(int)  # index
+    point_moved: Signal = Signal(int, float, float)  # index, x, y
+    selection_changed: Signal = Signal(list)  # list of indices
+    view_changed: Signal = Signal()  # view transform changed
+    zoom_changed: Signal = Signal(float)  # zoom level
 
     def __init__(self, parent: QWidget | None = None):
         """
@@ -118,7 +126,7 @@ class CurveViewWidget(QWidget):
         super().__init__(parent)
 
         # Signal management for proper cleanup
-        self.signal_manager = SignalManager(self)
+        self.signal_manager: SignalManager = SignalManager(self)
 
         # Core data
         self.curve_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]] = []
@@ -170,6 +178,9 @@ class CurveViewWidget(QWidget):
         self.image_width: int = DEFAULT_IMAGE_WIDTH
         self.image_height: int = DEFAULT_IMAGE_HEIGHT
 
+        # Centering mode - stays centered on current frame when navigating timeline
+        self.centering_mode: bool = False
+
         # Interaction state
         self.drag_active: bool = False
         self.pan_active: bool = False
@@ -190,10 +201,12 @@ class CurveViewWidget(QWidget):
 
         # Services (will be set by main window)
         self.main_window: MainWindow | None = None
-        self.interaction_service = get_interaction_service()
+        self.interaction_service: object = (
+            get_interaction_service()
+        )  # InteractionService type not imported to avoid cycle
 
         # Initialize optimized renderer for 47x performance improvement
-        self._optimized_renderer = OptimizedCurveRenderer()
+        self._optimized_renderer: OptimizedCurveRenderer = OptimizedCurveRenderer()
         self._optimized_renderer.background_opacity = self.background_opacity
 
         # Widget setup
@@ -270,7 +283,17 @@ class CurveViewWidget(QWidget):
             data: List of point tuples (frame, x, y, [status])
         """
         self.curve_data = data
-        self.point_collection = PointCollection.from_tuples(data) if data else None
+        # Convert union types to expected format for PointCollection
+        if data:
+            # PointCollection.from_tuples expects LegacyPointTuple format
+            formatted_data = []
+            for point in data:
+                if len(point) >= 3:
+                    # Convert to (frame, x, y) format expected by PointCollection
+                    formatted_data.append((int(point[0]), float(point[1]), float(point[2])))
+            self.point_collection = PointCollection.from_tuples(formatted_data)
+        else:
+            self.point_collection = None
 
         # Clear caches
         self._invalidate_caches()
@@ -406,12 +429,12 @@ class CurveViewWidget(QWidget):
         # Calculate center offsets
         scaled_width = display_width * total_scale
         scaled_height = display_height * total_scale
-        (widget_width - scaled_width) / 2
-        (widget_height - scaled_height) / 2
+        _ = (widget_width - scaled_width) / 2  # center_offset_x - calculated but not used in current implementation
+        _ = (widget_height - scaled_height) / 2  # center_offset_y - calculated but not used in current implementation
 
         # Image scale factors for data-to-image mapping
-        display_width / self.image_width
-        display_height / self.image_height
+        _ = display_width / self.image_width  # image_scale_x - calculated but not used in current implementation
+        _ = display_height / self.image_height  # image_scale_y - calculated but not used in current implementation
 
         # Create ViewState for caching
         view_state = ViewState(
@@ -479,10 +502,12 @@ class CurveViewWidget(QWidget):
             Data coordinates as QPointF
         """
         transform = self.get_transform()
-        return transform.screen_to_data_qpoint(pos)
+        data_x, data_y = transform.screen_to_data(pos.x(), pos.y())
+        return QPointF(data_x, data_y)
 
     # Painting
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         """
         Paint the widget content using OptimizedCurveRenderer for 47x performance.
@@ -518,11 +543,15 @@ class CurveViewWidget(QWidget):
 
         # Draw rubber band if active
         if self.rubber_band_active and self.rubber_band:
-            self.rubber_band.show()
+            _ = self.rubber_band.show()  # Suppress unused return value
 
         # Draw hover indicator
         if self.hover_index >= 0:
             self._paint_hover_indicator(painter)
+
+        # Draw centering mode indicator
+        if self.centering_mode:
+            self._paint_centering_indicator(painter)
 
     def _paint_hover_indicator(self, painter: QPainter) -> None:
         """Paint hover indicator for point under mouse."""
@@ -537,6 +566,31 @@ class CurveViewWidget(QWidget):
             painter.drawEllipse(pos, self.point_radius + 5, self.point_radius + 5)
 
             painter.restore()
+
+    def _paint_centering_indicator(self, painter: QPainter) -> None:
+        """Paint centering mode indicator in the top-right corner."""
+        painter.save()
+
+        # Set up text properties
+        font = painter.font()
+        font.setPointSize(12)
+        font.setBold(True)
+        painter.setFont(font)
+
+        # Draw background rectangle
+        text = "CENTERING ON"
+        rect = QRectF(self.width() - 120, 10, 110, 25)
+        painter.fillRect(rect, QColor(255, 100, 0, 180))  # Orange background
+
+        # Draw border
+        painter.setPen(QPen(QColor(255, 150, 50), 2))
+        _ = painter.drawRect(rect)
+
+        # Draw text
+        painter.setPen(QColor(255, 255, 255))
+        _ = painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        painter.restore()
 
     # Mouse Events
 
@@ -555,7 +609,11 @@ class CurveViewWidget(QWidget):
         # Get screen position of point
         point = self.curve_data[index]
         # Extract x, y from the point tuple (frame, x, y, ...)
-        x, y = point[1], point[2] if len(point) >= 3 else (point[0], point[1])
+        if len(point) >= 3:
+            x, y = point[1], point[2]
+        else:
+            # Fallback for malformed points
+            x, y = float(point[0]), float(point[1])
         screen_pos = self.data_to_screen(x, y)
 
         # Calculate radius including hover and selection indicators
@@ -564,6 +622,7 @@ class CurveViewWidget(QWidget):
         # Return rectangle around point
         return QRect(int(screen_pos.x() - radius), int(screen_pos.y() - radius), int(radius * 2), int(radius * 2))
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse press events.
@@ -589,7 +648,8 @@ class CurveViewWidget(QWidget):
                 idx = self._find_point_at(pos)
                 if idx >= 0:
                     # Select and start dragging point
-                    self._select_point(idx, modifiers & Qt.KeyboardModifier.ControlModifier)
+                    add_to_selection = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
+                    self._select_point(idx, add_to_selection)
                     self.drag_active = True
                     self.dragged_index = idx
                     self.drag_start_pos = pos
@@ -611,6 +671,7 @@ class CurveViewWidget(QWidget):
 
         self.update()
 
+    @override
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse move events.
@@ -652,6 +713,7 @@ class CurveViewWidget(QWidget):
             self.update()
             self.view_changed.emit()
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse release events.
@@ -671,8 +733,9 @@ class CurveViewWidget(QWidget):
                 self.last_mouse_pos = None
 
                 # Notify about changes
-                if self.main_window and hasattr(self.main_window, "add_to_history"):
-                    self.main_window.add_to_history()
+                if self.main_window is not None:
+                    if getattr(self.main_window, "add_to_history", None) is not None:
+                        self.main_window.add_to_history()  # type: ignore[attr-defined]
 
         elif button == Qt.MouseButton.MiddleButton:
             self.pan_active = False
@@ -681,6 +744,7 @@ class CurveViewWidget(QWidget):
 
         self.update()
 
+    @override
     def wheelEvent(self, event: QWheelEvent) -> None:
         """
         Handle mouse wheel events for zooming.
@@ -719,6 +783,7 @@ class CurveViewWidget(QWidget):
             self.zoom_changed.emit(self.zoom_factor)
             self.view_changed.emit()
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """
         Handle keyboard events.
@@ -763,17 +828,31 @@ class CurveViewWidget(QWidget):
             self._clear_selection()
             event.accept()
 
-        # Center on selected points
+        # Toggle centering mode - keeps view centered on current frame/selection
         elif key == Qt.Key.Key_C and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
-            logger.info(f"[KEY_C] C key pressed! Selected indices: {self.selected_indices}")
-            if self.selected_indices:
-                logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
-                self.center_on_selection()
-                logger.info("[KEY_C] View centering completed")
-                event.accept()  # Mark event as handled
-            else:
-                logger.info("[KEY_C] No points selected, cannot center view")
-                event.ignore()
+            self.centering_mode = not self.centering_mode
+            logger.info(f"[KEY_C] Centering mode {'enabled' if self.centering_mode else 'disabled'}")
+
+            # If enabling centering mode, immediately center on selection or current frame
+            if self.centering_mode:
+                if self.selected_indices:
+                    logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
+                    self.center_on_selection()
+                    logger.info("[KEY_C] View centering completed")
+                elif self.main_window is not None:
+                    if getattr(self.main_window, "current_frame", None) is not None:
+                        current_frame: int = self.main_window.current_frame  # type: ignore[attr-defined]
+                        logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
+                        self.center_on_frame(current_frame)
+                    logger.info("[KEY_C] View centered on current frame")
+
+            # Update status bar to show centering mode state
+            if self.main_window is not None:
+                if getattr(self.main_window, "status_bar", None) is not None:
+                    status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
+                    self.main_window.status_bar.showMessage(status_msg, 2000)  # type: ignore[attr-defined]
+
+            event.accept()
 
         # Fit background image to view
         elif key == Qt.Key.Key_F and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
@@ -887,6 +966,18 @@ class CurveViewWidget(QWidget):
             offset = widget_center - screen_center
             self.pan_offset_x = offset.x()
             self.pan_offset_y = offset.y()
+
+    def on_frame_changed(self, frame: int) -> None:
+        """Handle frame change event from timeline navigation.
+
+        Centers the view on the current frame if centering mode is enabled.
+
+        Args:
+            frame: The new current frame number
+        """
+        if self.centering_mode:
+            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
+            self.center_on_frame(frame)
 
     def fit_to_background_image(self) -> None:
         """Fit the background image fully in view."""
@@ -1002,6 +1093,37 @@ class CurveViewWidget(QWidget):
             self.repaint()  # Force immediate repaint
             self.view_changed.emit()
 
+    def center_on_frame(self, frame: int) -> None:
+        """Center view on a specific frame.
+
+        Args:
+            frame: Frame number to center on (1-based)
+        """
+        # Find the point at the given frame
+        frame_index = frame - 1  # Convert to 0-based index
+
+        if 0 <= frame_index < len(self.curve_data):
+            _, x, y, _ = safe_extract_point(self.curve_data[frame_index])
+            logger.debug(f"[CENTER] Centering on frame {frame} at ({x:.2f}, {y:.2f})")
+
+            # Get screen position of the point
+            screen_pos = self.data_to_screen(x, y)
+            widget_center = QPointF(self.width() / 2, self.height() / 2)
+
+            # Adjust pan
+            offset = widget_center - screen_pos
+            self.pan_offset_x += offset.x()
+            self.pan_offset_y += offset.y()
+
+            logger.debug(f"[CENTER] View centered on frame {frame}")
+
+            self._invalidate_caches()
+            self.update()
+            self.repaint()
+            self.view_changed.emit()
+        else:
+            logger.warning(f"[CENTER] Frame {frame} is out of range (data has {len(self.curve_data)} points)")
+
     # Selection Operations
 
     def _find_point_at(self, pos: QPointF) -> int:
@@ -1018,7 +1140,8 @@ class CurveViewWidget(QWidget):
         # This provides the claimed 64.7x speedup for point operations
 
         # Use the optimized InteractionService with spatial indexing
-        result = self.interaction_service.find_point_at(self, pos.x(), pos.y())
+        # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
+        result: int = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # type: ignore[arg-type]
 
         # Log for verification during integration testing
         logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {result}")
@@ -1044,7 +1167,8 @@ class CurveViewWidget(QWidget):
 
         # Update interaction service if available
         if self.interaction_service and self.main_window:
-            self.interaction_service.on_point_selected(self, self.main_window, index)
+            # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
+            self.interaction_service.on_point_selected(self, self.main_window, index)  # type: ignore[arg-type]
 
     def _clear_selection(self) -> None:
         """Clear all selection."""
@@ -1114,18 +1238,19 @@ class CurveViewWidget(QWidget):
         if 0 <= index < len(self.curve_data):
             # Convert delta to data space
             transform = self.get_transform()
-            scale = transform.get_parameters()["scale"]
+            params = transform.get_parameters()
+            scale: float = params["scale"]
 
             if scale > 0:
-                dx = delta.x() / scale
-                dy = delta.y() / scale
+                dx: float = delta.x() / scale
+                dy: float = delta.y() / scale
 
                 # Get current position
                 _, x, y, _ = safe_extract_point(self.curve_data[index])
 
                 # Update position
-                new_x = x + dx
-                new_y = y + dy
+                new_x: float = x + dx
+                new_y: float = y + dy
 
                 self.update_point(index, new_x, new_y)
 
@@ -1146,8 +1271,9 @@ class CurveViewWidget(QWidget):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
                 self.update_point(idx, x + dx, y + dy)
 
-        if self.main_window and hasattr(self.main_window, "add_to_history"):
-            self.main_window.add_to_history()
+        if self.main_window is not None:
+            if getattr(self.main_window, "add_to_history", None) is not None:
+                self.main_window.add_to_history()  # type: ignore[attr-defined]
 
     def _delete_selected_points(self) -> None:
         """Delete selected points."""
@@ -1160,8 +1286,9 @@ class CurveViewWidget(QWidget):
         self.selected_indices.clear()
         self.selection_changed.emit([])
 
-        if self.main_window and hasattr(self.main_window, "add_to_history"):
-            self.main_window.add_to_history()
+        if self.main_window is not None:
+            if getattr(self.main_window, "add_to_history", None) is not None:
+                self.main_window.add_to_history()  # type: ignore[attr-defined]
 
     # Cache Management
 
@@ -1354,7 +1481,7 @@ if __name__ == "__main__":
         (40, 500.0, 220.0),
         (50, 600.0, 250.0, "keyframe"),
     ]
-    curve_widget.set_curve_data(test_data)
+    curve_widget.set_curve_data(list(test_data))
 
     # Enable features
     curve_widget.show_grid = True
@@ -1365,9 +1492,9 @@ if __name__ == "__main__":
     main_window.setCentralWidget(curve_widget)
 
     # Connect signals for testing
-    curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))
-    curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))
-    curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))
+    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))
+    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))
+    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))
 
     main_window.show()
     sys.exit(app.exec())

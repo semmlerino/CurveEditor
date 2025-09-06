@@ -15,7 +15,13 @@ import logging
 import statistics
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
+
+# Third-party imports with type stubs handling
+try:
+    from scipy import signal  # type: ignore[import-untyped]
+except ImportError:
+    signal = None  # type: ignore[assignment]
 
 from core.type_aliases import CurveDataList
 
@@ -46,15 +52,15 @@ class DataService:
         status_service: StatusServiceProtocol | None = None,
     ) -> None:
         """Initialize DataService with optional dependencies."""
-        self._lock = threading.RLock()
-        self._logger = logging_service
-        self._status = status_service
+        self._lock: threading.RLock = threading.RLock()
+        self._logger: LoggingServiceProtocol | None = logging_service
+        self._status: StatusServiceProtocol | None = status_service
 
         # Initialize state for file I/O and image operations
         self._recent_files: list[str] = []
         self._max_recent_files: int = 10  # Maximum number of recent files to keep
         self._last_directory: str = ""
-        self._image_cache: dict = {}
+        self._image_cache: dict[str, object] = {}
         self._max_cache_size: int = 100  # Maximum number of cached images
 
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
@@ -109,7 +115,7 @@ class DataService:
         if len(data) < window_size:
             return data
 
-        result = []
+        result: CurveDataList = []
         for i in range(len(data)):
             start = max(0, i - window_size // 2)
             end = min(len(data), i + window_size // 2 + 1)
@@ -120,12 +126,12 @@ class DataService:
 
             # Preserve frame and additional data
             if len(data[i]) > 3:
-                result.append((data[i][0], avg_x, avg_y) + data[i][3:])
+                result.append((data[i][0], avg_x, avg_y) + data[i][3:])  # type: ignore[arg-type]
             else:
                 result.append((data[i][0], avg_x, avg_y))
 
         if self._status:
-            self._status.show_status(f"Applied moving average (window={window_size})")
+            self._status.set_status(f"Applied moving average (window={window_size})")
         return result
 
     def filter_median(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
@@ -133,7 +139,7 @@ class DataService:
         if len(data) < window_size:
             return data
 
-        result = []
+        result: CurveDataList = []
         for i in range(len(data)):
             start = max(0, i - window_size // 2)
             end = min(len(data), i + window_size // 2 + 1)
@@ -143,19 +149,22 @@ class DataService:
             med_y = statistics.median(p[2] for p in window)
 
             if len(data[i]) > 3:
-                result.append((data[i][0], med_x, med_y) + data[i][3:])
+                result.append((data[i][0], med_x, med_y) + data[i][3:])  # type: ignore[arg-type]
             else:
                 result.append((data[i][0], med_x, med_y))
 
         if self._status:
-            self._status.show_status(f"Applied median filter (window={window_size})")
+            self._status.set_status(f"Applied median filter (window={window_size})")
         return result
 
     def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
         """Apply Butterworth low-pass filter using scipy."""
-        try:
-            from scipy import signal
+        if signal is None:
+            if self._logger:
+                self._logger.log_error("scipy not available")
+            return data
 
+        try:
             if len(data) < 4:
                 return data
 
@@ -163,26 +172,33 @@ class DataService:
             x_coords = [p[1] for p in data]
             y_coords = [p[2] for p in data]
 
-            # Design and apply filter
-            b, a = signal.butter(order, cutoff, btype="low")
-            filtered_x = signal.filtfilt(b, a, x_coords)
-            filtered_y = signal.filtfilt(b, a, y_coords)
+            # Design and apply filter - properly handle scipy return types
+            assert signal is not None  # Type guard for mypy/basedpyright
+            filter_result = signal.butter(order, cutoff, btype="low")  # type: ignore[attr-defined]
+
+            # scipy.signal.butter always returns a 2-tuple (b, a) when output='ba' (default)
+            if not isinstance(filter_result, tuple) or len(filter_result) != 2:
+                raise ValueError("Unexpected return type from signal.butter")
+
+            b, a = filter_result
+            filtered_x = signal.filtfilt(b, a, x_coords)  # type: ignore[attr-defined,arg-type]
+            filtered_y = signal.filtfilt(b, a, y_coords)  # type: ignore[attr-defined,arg-type]
 
             # Reconstruct data
-            result = []
+            result: CurveDataList = []
             for i, frame in enumerate(frames):
                 if len(data[i]) > 3:
-                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])
+                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])  # type: ignore[arg-type]
                 else:
                     result.append((frame, filtered_x[i], filtered_y[i]))
 
             if self._status:
-                self._status.show_status("Applied Butterworth filter")
+                self._status.set_status("Applied Butterworth filter")
             return result
 
-        except ImportError:
+        except Exception as e:
             if self._logger:
-                self._logger.log_error("scipy not available")
+                self._logger.log_error(f"Butterworth filter failed: {e}")
             return data
 
     def fill_gaps(self, data: CurveDataList, max_gap: int = 5) -> CurveDataList:
@@ -250,7 +266,7 @@ class DataService:
             self._logger.log_info(f"Detected {len(outliers)} outliers")
         return outliers
 
-    def analyze_points(self, points: list[Any]) -> dict[str, Any]:
+    def analyze_points(self, points: CurveDataList) -> dict[str, object]:
         """Analyze curve points and return statistics."""
         if not points:
             return {
@@ -266,14 +282,15 @@ class DataService:
         y_coords = []
 
         for point in points:
-            if hasattr(point, "frame"):  # CurvePoint object
-                frames.append(point.frame)
-                x_coords.append(point.x)
-                y_coords.append(point.y)
-            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            # Check if point is a CurvePoint object by looking for frame attribute
+            if isinstance(point, tuple | list) and len(point) >= 3:  # Tuple format
                 frames.append(point[0])
                 x_coords.append(point[1])
                 y_coords.append(point[2])
+            elif getattr(point, "frame", None) is not None:  # CurvePoint object
+                frames.append(point.frame)
+                x_coords.append(point.x)
+                y_coords.append(point.y)
 
         return {
             "count": len(points),
@@ -306,13 +323,7 @@ class DataService:
 
         for point in points:
             # Handle both tuple format and CurvePoint objects
-            if hasattr(point, "frame"):  # CurvePoint object
-                if point.frame == frame:
-                    if point.status.value == "interpolated":
-                        interpolated_count += 1
-                    else:
-                        keyframe_count += 1
-            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
                 point_frame = point[0]
                 if point_frame == frame:
                     # Check status if available
@@ -328,6 +339,12 @@ class DataService:
                             interpolated_count += 1
                         else:
                             keyframe_count += 1
+                    else:
+                        keyframe_count += 1
+            elif getattr(point, "frame", None) is not None:  # CurvePoint object
+                if getattr(point, "frame") == frame:
+                    if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                        interpolated_count += 1
                     else:
                         keyframe_count += 1
 
@@ -349,16 +366,7 @@ class DataService:
 
         for point in points:
             # Handle both tuple format and CurvePoint objects
-            if hasattr(point, "frame"):  # CurvePoint object
-                frame = point.frame
-                if frame not in frame_status:
-                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
-
-                if point.status.value == "interpolated":
-                    frame_status[frame][1] += 1
-                else:
-                    frame_status[frame][0] += 1
-            elif isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
                 frame = point[0]
                 if frame not in frame_status:
                     frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
@@ -378,6 +386,15 @@ class DataService:
                         frame_status[frame][0] += 1
                 else:
                     frame_status[frame][0] += 1
+            elif getattr(point, "frame", None) is not None:  # CurvePoint object
+                frame = getattr(point, "frame")
+                if frame not in frame_status:
+                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+
+                if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                    frame_status[frame][1] += 1
+                else:
+                    frame_status[frame][0] += 1
 
         # Convert to tuple format
         return {frame: tuple(counts) for frame, counts in frame_status.items()}
@@ -385,7 +402,7 @@ class DataService:
     def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
         """Add track data (for compatibility)."""
         if self._status:
-            self._status.show_status(f"Added {len(data)} points for '{label}'")
+            self._status.set_status(f"Added {len(data)} points for '{label}'")
 
     # ==================== File I/O Delegation ====================
 
@@ -483,12 +500,12 @@ class DataService:
                 self._logger.log_error(f"Failed to load image sequence: {e}")
             return []
 
-    def set_current_image_by_frame(self, view: Any, frame: int) -> None:
+    def set_current_image_by_frame(self, view: object, frame: int) -> None:
         """Set current image by frame number."""
         # No-op implementation for consolidated service
         pass
 
-    def load_current_image(self, view: Any) -> "QImage | None":
+    def load_current_image(self, view: object) -> "QImage | None":
         """Load current image for view."""
         return None
 
@@ -496,7 +513,7 @@ class DataService:
         """Clear the image cache."""
         self._image_cache.clear()
 
-    def _add_to_cache(self, key: str, value: Any) -> None:
+    def _add_to_cache(self, key: str, value: object) -> None:
         """Add an item to the image cache (thread-safe)."""
         with self._lock:
             # Trim cache if it exceeds max size
@@ -572,14 +589,14 @@ class DataService:
         """Save JSON file implementation."""
         try:
             # Convert CurveDataList to JSON format
-            json_data = {
+            json_data: dict[str, object] = {
                 "metadata": {"label": label, "color": color, "version": "1.0", "point_count": len(data)},
                 "points": [],
             }
 
             for point in data:
                 if len(point) >= 3:
-                    point_data = {"frame": point[0], "x": float(point[1]), "y": float(point[2])}
+                    point_data: dict[str, object] = {"frame": point[0], "x": float(point[1]), "y": float(point[2])}
                     # Add status if available
                     if len(point) > 3:
                         point_data["status"] = point[3]
@@ -690,7 +707,7 @@ class DataService:
                 # Write data
                 for point in data:
                     if len(point) >= 3:
-                        row = [point[0], point[1], point[2]]
+                        row: list[object] = [point[0], point[1], point[2]]
                         # Add status if available
                         if len(point) > 3:
                             row.append(point[3])

@@ -60,7 +60,7 @@ class ErrorInfo:
     details: str = ""
     severity: ErrorSeverity = ErrorSeverity.ERROR
     category: ErrorCategory = ErrorCategory.UNKNOWN
-    recovery_suggestions: list[str] = None
+    recovery_suggestions: list[str] | None = None
     exception: Exception | None = None
     show_details: bool = True
     can_retry: bool = False
@@ -71,8 +71,8 @@ class ErrorDialog(QDialog):
     """Enhanced error dialog with recovery suggestions."""
 
     # Signals
-    retry_requested = Signal()
-    ignore_requested = Signal()
+    retry_requested: Signal = Signal()
+    ignore_requested: Signal = Signal()
 
     def __init__(self, error_info: ErrorInfo, parent: QWidget | None = None):
         """Initialize the error dialog."""

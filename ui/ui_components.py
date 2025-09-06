@@ -15,7 +15,23 @@ Key responsibilities:
 """
 
 import logging
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class TimelineFrameMarker(Protocol):
+        """Protocol for timeline frame marker."""
+
+        pass
+
+    class MainWindow(Protocol):
+        """Main window protocol for type checking."""
+
+        pass
+else:
+    TimelineFrameMarker = Any
+    MainWindow = Any
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
@@ -89,7 +105,7 @@ class TimelineUIComponents:
 
         # Timeline components
         self.playback_timer: QTimer | None = None
-        self.frame_marker: Any | None = None  # TimelineFrameMarker
+        self.frame_marker: TimelineFrameMarker | None = None
 
         # Frame controls
         self.frame_spinbox: QSpinBox | None = None
@@ -195,9 +211,9 @@ class UIComponents:
     complexity from 85+ individual widget attributes to organized component groups.
     """
 
-    def __init__(self, main_window: Any) -> None:
+    def __init__(self, main_window: "MainWindow") -> None:
         """Initialize UI components container."""
-        self.main_window: Any = main_window
+        self.main_window: MainWindow = main_window
 
         # Create component groups
         self.toolbar: ToolbarUIComponents = ToolbarUIComponents()
@@ -328,7 +344,7 @@ class UIComponents:
         return self.timeline.playback_timer
 
     @property
-    def frame_marker(self) -> Any:
+    def frame_marker(self) -> object:
         return self.timeline.frame_marker
 
     @property
@@ -546,7 +562,7 @@ class UIComponents:
 
         return missing
 
-    def get_component_groups(self) -> dict[str, Any]:
+    def get_component_groups(self) -> dict[str, object]:
         """
         Get all component groups for inspection or testing.
 

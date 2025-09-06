@@ -8,11 +8,11 @@ that adapt to different screen sizes, resolutions, and scaling factors.
 """
 
 import logging
-from typing import NamedTuple
+from typing import NamedTuple, cast
 
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QFont, QGuiApplication
-from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import QApplication, QWidget
 
 from ui import ui_constants
 
@@ -46,23 +46,23 @@ class UIScaling:
         """
         if cls._cached_screen_info is None:
             cls._refresh_screen_info()
+        # At this point _cached_screen_info should not be None due to fallback logic
+        assert cls._cached_screen_info is not None
         return cls._cached_screen_info
 
     @classmethod
     def _refresh_screen_info(cls) -> None:
         """Refresh cached screen information."""
-        app = QApplication.instance()
-        if app is None:
+        app_instance = QApplication.instance()
+        if app_instance is None:
             # Fallback values for testing or edge cases
             cls._cached_screen_info = ScreenInfo(1920, 1080, 96.0, 1.0, 96.0)
             logger.warning("No QApplication instance found, using fallback screen info")
             return
 
-        # Cast to QGuiApplication to access primaryScreen method
-        gui_app = QGuiApplication.instance()
-        if gui_app is None:
-            gui_app = app  # QApplication inherits from QGuiApplication
-        primary_screen = gui_app.primaryScreen()
+        # Cast to QApplication since we know this is a GUI application
+        app = cast(QApplication, app_instance)
+        primary_screen = app.primaryScreen()
         if primary_screen is None:
             cls._cached_screen_info = ScreenInfo(1920, 1080, 96.0, 1.0, 96.0)
             logger.warning("No primary screen found, using fallback screen info")
@@ -99,13 +99,11 @@ class UIScaling:
         dpi_scale = screen_info.dpi / 96.0
 
         # Font-based scaling (12pt is considered base size)
-        app = QApplication.instance()
-        if app is not None:
-            # Cast to QGuiApplication to access font method
-            gui_app = QGuiApplication.instance()
-            if gui_app is None:
-                gui_app = app  # QApplication inherits from QGuiApplication
-            current_font = gui_app.font()
+        app_instance = QApplication.instance()
+        if app_instance is not None:
+            # Cast to QApplication since we know this is a GUI application
+            app = cast(QApplication, app_instance)
+            current_font = app.font()
             font_scale = current_font.pointSize() / cls._base_font_size
         else:
             font_scale = 1.0
@@ -242,17 +240,15 @@ class UIScaling:
         Returns:
             int: Calculated height in pixels
         """
-        app = QApplication.instance()
-        if app is None:
+        app_instance = QApplication.instance()
+        if app_instance is None:
             # Fallback calculation
             return cls.scale_px(24 * lines + padding)
 
         if font is None:
-            # Cast to QGuiApplication to access font method
-            gui_app = QGuiApplication.instance()
-            if gui_app is None:
-                gui_app = app  # QApplication inherits from QGuiApplication
-            font = gui_app.font()
+            # Cast to QApplication since we know this is a GUI application
+            app = cast(QApplication, app_instance)
+            font = app.font()
 
         # Calculate font metrics
         # Use QFontMetrics constructor instead of deprecated app.fontMetrics()
@@ -502,12 +498,11 @@ class UIScaling:
         return cls.scale_px(base_radius)
 
     @classmethod
-    def apply_theme_stylesheet(cls, widget, component_type: str = "default") -> None:
+    def apply_theme_stylesheet(cls, widget: QWidget) -> None:
         """Apply theme-aware stylesheet to a widget.
 
         Args:
             widget: Qt widget to style
-            component_type: Component type for specific styling
         """
         colors = ui_constants.get_theme_colors(cls._current_theme)
         # spacing = cls.get_spacing("s")  # Not used in current stylesheet

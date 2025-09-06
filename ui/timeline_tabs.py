@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.models import FrameNumber
+from ui.animation_utils import SignalConnectionUtils
 from ui.frame_tab import FrameTab
 
 logger = logging.getLogger(__name__)
@@ -109,13 +110,35 @@ class TimelineTabWidget(QWidget):
     """Main timeline widget with frame tabs and navigation."""
 
     # Signals
-    frame_changed = Signal(int)  # Emitted when user selects a frame
-    frame_hovered = Signal(int)  # Emitted when hovering over frame
+    frame_changed = Signal(int)
+    frame_hovered = Signal(int)
 
     # Layout constants
-    TAB_SPACING = 0  # No spacing for seamless look
-    NAVIGATION_HEIGHT = 20  # Ultra-compact navigation bar
-    TOTAL_HEIGHT = 60  # Height: 20px nav + 40px scroll area
+    TAB_SPACING: int = 0  # No spacing for seamless look
+    NAVIGATION_HEIGHT: int = 20  # Ultra-compact navigation bar
+    TOTAL_HEIGHT: int = 60  # Height: 20px nav + 40px scroll area
+
+    # State variables
+    current_frame: int
+    total_frames: int
+    min_frame: int
+    max_frame: int
+    frame_tabs: dict[FrameNumber, "FrameTab"]
+    is_scrubbing: bool
+    scrub_start_frame: int
+    status_cache: FrameStatusCache
+    _update_timer: QTimer
+
+    # UI components
+    main_layout: QVBoxLayout
+    first_btn: QPushButton
+    prev_group_btn: QPushButton
+    next_group_btn: QPushButton
+    last_btn: QPushButton
+    frame_info: QLabel
+    scroll_area: TimelineScrollArea
+    tabs_container: QWidget
+    tabs_layout: QHBoxLayout
 
     def __init__(self, parent=None):
         """Initialize timeline widget."""
@@ -208,7 +231,7 @@ class TimelineTabWidget(QWidget):
         self.first_btn = QPushButton("⏮")
         self.first_btn.setFixedSize(button_size, button_size)
         self.first_btn.setToolTip("Go to first frame")
-        self.first_btn.clicked.connect(lambda: self.set_current_frame(self.min_frame))
+        SignalConnectionUtils.connect_with_lambda(self.first_btn.clicked, self.set_current_frame, self.min_frame)
 
         self.prev_group_btn = QPushButton("⏪")
         self.prev_group_btn.setFixedSize(button_size, button_size)
@@ -223,7 +246,7 @@ class TimelineTabWidget(QWidget):
         self.last_btn = QPushButton("⏭")
         self.last_btn.setFixedSize(button_size, button_size)
         self.last_btn.setToolTip("Go to last frame")
-        self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
+        SignalConnectionUtils.connect_with_lambda(self.last_btn.clicked, self.set_current_frame, self.max_frame)
 
         # Frame info label - modern 3DE style
         self.frame_info = QLabel()
