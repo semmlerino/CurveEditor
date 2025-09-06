@@ -1,24 +1,25 @@
 #!/usr/bin/env python
 """
-Refactored DataService for CurveEditor.
+Consolidated DataService for CurveEditor.
 
-This service focuses on data analysis operations while delegating:
-- File I/O operations to FileIOService
-- Image operations to ImageSequenceService
+This service handles:
+- Data analysis operations (smoothing, filtering, gap filling, outlier detection)
+- File I/O operations (load/save CSV and JSON files)
+- Image sequence operations (loading and caching)
+- Recent files tracking
 """
 
 import csv
 import json
 import logging
-import os
 import statistics
 import threading
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from core.type_aliases import CurveDataList
-from services.file_io_service import FileIOService
-from services.image_sequence_service import ImageSequenceService
+
+# Sprint 8 services removed - file I/O and image operations now handled locally
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
@@ -30,12 +31,13 @@ logger = logging.getLogger("data_service")
 
 class DataService:
     """
-    Refactored service for data analysis operations.
+    Consolidated service for data analysis and file operations.
 
     This service handles:
     - Curve data analysis (smoothing, filtering, gap filling, outlier detection)
-    - Delegates file I/O to FileIOService
-    - Delegates image operations to ImageSequenceService
+    - File I/O operations (load/save CSV and JSON files)
+    - Image sequence operations (loading and caching)
+    - Recent files tracking
     """
 
     def __init__(
@@ -48,18 +50,12 @@ class DataService:
         self._logger = logging_service
         self._status = status_service
 
-        # Initialize delegate services
-        use_new = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
-        self._file_io = FileIOService() if use_new else None
-        self._image = ImageSequenceService() if use_new else None
-
-        # Legacy state (only if not using new services)
-        if not use_new:
-            self._recent_files: list[str] = []
-            self._max_recent_files: int = 10  # Maximum number of recent files to keep
-            self._last_directory: str = ""
-            self._image_cache: dict = {}
-            self._max_cache_size: int = 100  # Maximum number of cached images
+        # Initialize state for file I/O and image operations
+        self._recent_files: list[str] = []
+        self._max_recent_files: int = 10  # Maximum number of recent files to keep
+        self._last_directory: str = ""
+        self._image_cache: dict = {}
+        self._max_cache_size: int = 100  # Maximum number of cached images
 
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
 
@@ -395,80 +391,73 @@ class DataService:
 
     def load_track_data(self, parent_widget: "QWidget") -> CurveDataList | None:
         """Load track data from file."""
-        if not self._file_io:
-            return self._load_track_data_legacy(parent_widget)
-
         from PySide6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getOpenFileName(
             parent_widget,
             "Load Track Data",
-            self._file_io.get_last_directory(),
+            self._last_directory,
             "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
         )
 
         if not file_path:
             return None
 
+        # Update last directory
+        self._last_directory = str(Path(file_path).parent)
+
         if file_path.endswith(".json"):
-            return self._file_io.load_json(file_path)
+            return self._load_json(file_path)
         elif file_path.endswith(".csv"):
-            return self._file_io.load_csv(file_path)
+            return self._load_csv(file_path)
         else:
             # Try JSON first, then CSV
             try:
-                return self._file_io.load_json(file_path)
+                return self._load_json(file_path)
             except Exception:
-                return self._file_io.load_csv(file_path)
+                return self._load_csv(file_path)
 
     def save_track_data(
         self, parent_widget: "QWidget", data: CurveDataList, label: str = "Track", color: str = "#FF0000"
     ) -> bool:
         """Save track data to file."""
-        if not self._file_io:
-            return self._save_track_data_legacy(parent_widget, data, label, color)
-
         from PySide6.QtWidgets import QFileDialog
 
         file_path, _ = QFileDialog.getSaveFileName(
             parent_widget,
             "Save Track Data",
-            self._file_io.get_last_directory(),
+            self._last_directory,
             "JSON Files (*.json);;CSV Files (*.csv)",
         )
 
         if not file_path:
             return False
 
+        # Update last directory
+        self._last_directory = str(Path(file_path).parent)
+
         if file_path.endswith(".json"):
-            return self._file_io.save_json(file_path, data, label, color)
+            return self._save_json(file_path, data, label, color)
         else:
-            return self._file_io.save_csv(file_path, data, include_header=True)
+            return self._save_csv(file_path, data, include_header=True)
 
     def add_recent_file(self, file_path: str) -> None:
         """Add file to recent files list."""
-        if self._file_io:
-            self._file_io.add_recent_file(file_path)
-        elif hasattr(self, "_recent_files"):
-            if file_path not in self._recent_files:
-                self._recent_files.insert(0, file_path)
-                max_files = getattr(self, "_max_recent_files", 10)
-                self._recent_files = self._recent_files[:max_files]
+        # Remove file if it already exists (to move it to front)
+        if file_path in self._recent_files:
+            self._recent_files.remove(file_path)
+        # Add file to front of list
+        self._recent_files.insert(0, file_path)
+        self._recent_files = self._recent_files[: self._max_recent_files]
 
     def get_recent_files(self) -> list[str]:
         """Get list of recent files."""
-        if self._file_io:
-            return self._file_io.get_recent_files()
-        return getattr(self, "_recent_files", [])
+        return self._recent_files
 
     # ==================== Image Operation Delegation ====================
 
     def load_image_sequence(self, directory: str) -> list[str]:
         """Load image sequence from directory."""
-        if self._image:
-            return self._image.load_image_sequence(directory)
-
-        # Fallback implementation
         try:
             path = Path(directory)
             if not path.exists() or not path.is_dir():
@@ -496,58 +485,37 @@ class DataService:
 
     def set_current_image_by_frame(self, view: Any, frame: int) -> None:
         """Set current image by frame number."""
-        if self._image:
-            self._image.set_current_image_by_frame(view, frame)
+        # No-op implementation for consolidated service
+        pass
 
     def load_current_image(self, view: Any) -> "QImage | None":
         """Load current image for view."""
-        if self._image:
-            return self._image.load_current_image(view)
         return None
 
     def clear_image_cache(self) -> None:
         """Clear the image cache."""
-        if self._image:
-            self._image.clear_cache()
-        elif hasattr(self, "_image_cache"):
-            self._image_cache.clear()
+        self._image_cache.clear()
 
     def _add_to_cache(self, key: str, value: Any) -> None:
         """Add an item to the image cache (thread-safe)."""
         with self._lock:
-            if hasattr(self, "_image_cache"):
-                # Trim cache if it exceeds max size
-                if len(self._image_cache) >= getattr(self, "_max_cache_size", 100):
-                    # Remove oldest item (first key)
-                    if self._image_cache:
-                        oldest_key = next(iter(self._image_cache))
-                        del self._image_cache[oldest_key]
-                self._image_cache[key] = value
+            # Trim cache if it exceeds max size
+            if len(self._image_cache) >= self._max_cache_size:
+                # Remove oldest item (first key)
+                if self._image_cache:
+                    oldest_key = next(iter(self._image_cache))
+                    del self._image_cache[oldest_key]
+            self._image_cache[key] = value
 
     def set_cache_size(self, size: int) -> None:
         """Set maximum cache size."""
-        if self._image:
-            self._image.set_cache_size(size)
+        self._max_cache_size = size
 
     # ==================== Legacy Methods (Minimal) ====================
 
-    def _load_track_data_legacy(self, parent_widget: "QWidget") -> CurveDataList | None:
-        """Legacy load implementation."""
-        # Minimal legacy implementation
-        return None
-
-    def _save_track_data_legacy(self, parent_widget: "QWidget", data: CurveDataList, label: str, color: str) -> bool:
-        """Legacy save implementation."""
-        # Minimal legacy implementation
-        return False
-
     # Keep these minimal legacy methods for compatibility
     def _load_json(self, file_path: str) -> CurveDataList:
-        """Legacy JSON load (delegates if possible)."""
-        if self._file_io:
-            return self._file_io.load_json(file_path)
-
-        # Fallback implementation
+        """Load JSON file implementation."""
         try:
             with open(file_path, encoding="utf-8") as f:
                 data = json.load(f)
@@ -601,11 +569,7 @@ class DataService:
             return []
 
     def _save_json(self, file_path: str, data: CurveDataList, label: str, color: str) -> bool:
-        """Legacy JSON save (delegates if possible)."""
-        if self._file_io:
-            return self._file_io.save_json(file_path, data, label, color)
-
-        # Fallback implementation
+        """Save JSON file implementation."""
         try:
             # Convert CurveDataList to JSON format
             json_data = {
@@ -644,11 +608,7 @@ class DataService:
             return False
 
     def _load_csv(self, file_path: str) -> CurveDataList:
-        """Legacy CSV load (delegates if possible)."""
-        if self._file_io:
-            return self._file_io.load_csv(file_path)
-
-        # Fallback implementation
+        """Load CSV file implementation."""
         try:
             curve_data = []
 
@@ -715,11 +675,7 @@ class DataService:
             return []
 
     def _save_csv(self, file_path: str, data: CurveDataList, include_header: bool = True) -> bool:
-        """Legacy CSV save (delegates if possible)."""
-        if self._file_io:
-            return self._file_io.save_csv(file_path, data, include_header)
-
-        # Fallback implementation
+        """Save CSV file implementation."""
         try:
             # Ensure directory exists
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)

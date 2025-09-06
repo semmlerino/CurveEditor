@@ -19,44 +19,20 @@ Core Services (4 total):
 """
 
 import logging
-import os
 import threading
-from typing import Any
 
 from services.data_service import DataService
 from services.interaction_service import InteractionService
 from services.transform_service import Transform, TransformService, ViewState
 from services.ui_service import UIService
 
-# Import new decomposed services (Sprint 8)
-# Note: Always import these classes so they're available for the getters
-# The getters will check USE_NEW_SERVICES flag before instantiating
-try:
-    from services.event_handler import EventHandlerService  # noqa: F401
-    from services.history_service import HistoryService  # noqa: F401
-    from services.point_manipulation import PointManipulationService  # noqa: F401
-    from services.selection_service import SelectionService  # noqa: F401
-
-    _SPRINT8_SERVICES_AVAILABLE = True
-except ImportError as e:
-    _SPRINT8_SERVICES_AVAILABLE = False
-    logger = logging.getLogger(__name__)
-    logger.debug(f"Sprint 8 services not available: {e}")
-
-# Feature flag for gradual migration to new services
-USE_NEW_SERVICES = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
+# Sprint 8 services have been removed in favor of the consolidated 4-service architecture
 
 # Service instances (singleton pattern)
 _data_service: DataService | None = None
 _interaction_service: InteractionService | None = None
 _transform_service: TransformService | None = None
 _ui_service: UIService | None = None
-
-# New decomposed service instances (Sprint 8)
-_event_handler_service: Any | None = None
-_selection_service: Any | None = None
-_point_manipulation_service: Any | None = None
-_history_service: Any | None = None
 
 # Thread lock for service initialization
 _service_lock = threading.Lock()
@@ -82,15 +58,9 @@ __all__ = [
     "get_data_service",
     "get_interaction_service",
     "get_ui_service",
-    # New decomposed service getters (Sprint 8)
-    "get_event_handler_service",
-    "get_selection_service",
-    "get_point_manipulation_service",
-    "get_history_service",
+    "get_history_service",  # Backward compatibility alias
     # Utility
     "get_module_logger",
-    # Feature flag
-    "USE_NEW_SERVICES",
 ]
 
 
@@ -130,58 +100,9 @@ def get_ui_service() -> UIService:
     return _ui_service
 
 
-# New decomposed service getters (Sprint 8)
-def get_event_handler_service() -> Any:
-    """Get the singleton EventHandlerService instance (thread-safe)."""
-    global _event_handler_service
-    if not USE_NEW_SERVICES:
-        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
-    if not _SPRINT8_SERVICES_AVAILABLE:
-        raise ImportError("Sprint 8 services not available")
-    with _service_lock:
-        if _event_handler_service is None:
-            _event_handler_service = EventHandlerService()
-    return _event_handler_service
-
-
-def get_selection_service() -> Any:
-    """Get the singleton SelectionService instance (thread-safe)."""
-    global _selection_service
-    if not USE_NEW_SERVICES:
-        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
-    if not _SPRINT8_SERVICES_AVAILABLE:
-        raise ImportError("Sprint 8 services not available")
-    with _service_lock:
-        if _selection_service is None:
-            _selection_service = SelectionService()
-    return _selection_service
-
-
-def get_point_manipulation_service() -> Any:
-    """Get the singleton PointManipulationService instance (thread-safe)."""
-    global _point_manipulation_service
-    if not USE_NEW_SERVICES:
-        raise RuntimeError("Sprint 8 services not enabled. Set USE_NEW_SERVICES=true")
-    if not _SPRINT8_SERVICES_AVAILABLE:
-        raise ImportError("Sprint 8 services not available")
-    with _service_lock:
-        if _point_manipulation_service is None:
-            _point_manipulation_service = PointManipulationService()
-    return _point_manipulation_service
-
-
-def get_history_service() -> Any:
-    """Get the singleton HistoryService instance (thread-safe)."""
-    global _history_service
-    if not USE_NEW_SERVICES:
-        # Fall back to InteractionService for backward compatibility
-        return get_interaction_service()
-    if not _SPRINT8_SERVICES_AVAILABLE:
-        raise ImportError("Sprint 8 services not available")
-    with _service_lock:
-        if _history_service is None:
-            _history_service = HistoryService()
-    return _history_service
+def get_history_service() -> InteractionService:
+    """Get the InteractionService for history operations (backward compatibility)."""
+    return get_interaction_service()
 
 
 def get_module_logger(name: str | None = None) -> logging.Logger:

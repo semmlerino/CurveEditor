@@ -48,6 +48,99 @@ def test_main_window() -> TestMainWindow:
     return TestMainWindow()
 
 
+# Factory Fixtures (Following Testing Guide Best Practices)
+
+
+@pytest.fixture
+def make_test_curve_view():
+    """Factory for creating TestCurveView instances with custom data.
+
+    Usage:
+        def test_something(make_test_curve_view):
+            view = make_test_curve_view()  # Default
+            view_with_data = make_test_curve_view(
+                curve_data=[(1, 100, 200), (2, 300, 400)]
+            )
+
+    Returns:
+        Factory function that creates TestCurveView instances
+    """
+
+    def _make_test_curve_view(**kwargs):
+        return TestCurveView(**kwargs)
+
+    return _make_test_curve_view
+
+
+@pytest.fixture
+def make_point():
+    """Factory for creating Point4 tuples.
+
+    Usage:
+        def test_points(make_point):
+            point1 = make_point(1, 100, 200)  # frame, x, y
+            point2 = make_point(2, 300, 400, "keyframe")  # with status
+
+    Returns:
+        Factory function that creates Point4 tuples
+    """
+
+    def _make_point(frame: int, x: float, y: float, status: str = "normal"):
+        return (frame, x, y, status)
+
+    return _make_point
+
+
+@pytest.fixture
+def make_curve_data():
+    """Factory for creating curve data lists.
+
+    Usage:
+        def test_curves(make_curve_data):
+            simple_curve = make_curve_data(3)  # 3 points
+            complex_curve = make_curve_data(
+                10,
+                start_frame=5,
+                x_multiplier=2.0
+            )
+
+    Returns:
+        Factory function that creates curve data lists
+    """
+
+    def _make_curve_data(
+        num_points: int = 5,
+        start_frame: int = 1,
+        x_multiplier: float = 100.0,
+        y_multiplier: float = 200.0,
+        status: str = "normal",
+    ):
+        return [(start_frame + i, i * x_multiplier, i * y_multiplier, status) for i in range(num_points)]
+
+    return _make_curve_data
+
+
+@pytest.fixture
+def make_test_main_window():
+    """Factory for creating TestMainWindow instances with custom settings.
+
+    Usage:
+        def test_windows(make_test_main_window):
+            window = make_test_main_window()  # Default
+            custom_window = make_test_main_window(
+                default_directory="/custom/path"
+            )
+
+    Returns:
+        Factory function that creates TestMainWindow instances
+    """
+
+    def _make_test_main_window(**kwargs):
+        return TestMainWindow(**kwargs)
+
+    return _make_test_main_window
+
+
 @pytest.fixture
 def test_main_window_with_data() -> TestMainWindow:
     """Create a test main window with sample data.
@@ -65,7 +158,7 @@ def test_curve_renderer():
     Returns:
         CurveRenderer: A renderer component for testing
     """
-    from ui.components import CurveRenderer
+    from rendering import CurveRenderer
 
     return CurveRenderer()
 

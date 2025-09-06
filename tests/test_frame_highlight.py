@@ -105,17 +105,15 @@ class TestFramePointHighlighting:
         qtbot.wait(10)  # Give Qt time to process the update
 
         # The point at frame 10 should be painted with current_frame_point_color
-        # and larger radius - this is verified visually, but we can check the logic
-        # by examining what _paint_points would do
+        # and larger radius. This is handled by OptimizedCurveRenderer.
 
         # Get the point at frame 10
         frame_10_point = curve_widget.curve_data[2]  # Index 2 is frame 10
         assert frame_10_point[0] == 10
 
-        # In the paint logic, this point should be identified as current frame
-        # The actual painting happens in _paint_points which checks:
-        # is_current_frame = frame == current_frame
-        # And then uses current_frame_point_color and larger radius
+        # In the OptimizedCurveRenderer, this point is identified as current frame
+        # The renderer checks: is_current_frame = frame == current_frame
+        # And then uses current_frame_point_color (magenta) and larger radius
 
     def test_frame_spinbox_change_updates_highlight(self, main_window, qtbot):
         """Test that changing frame via spinbox updates point highlighting."""
@@ -191,6 +189,13 @@ class TestFramePointHighlighting:
         """Test that playback updates point highlighting frame by frame."""
         # Start at frame 1
         main_window.frame_spinbox.setValue(1)
+
+        # Set up playback state for oscillating playback
+        from ui.main_window import PlaybackMode
+
+        main_window.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+        main_window.playback_state.min_frame = 1
+        main_window.playback_state.max_frame = 10
 
         # Simulate playback timer tick
         main_window._on_playback_timer()

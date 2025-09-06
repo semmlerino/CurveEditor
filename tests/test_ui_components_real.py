@@ -119,12 +119,13 @@ class TestModernCard:
         assert card.title == ""
         assert not hasattr(card, "title_label")
 
-    def test_adding_widgets_to_card(self, app):
+    def test_adding_widgets_to_card(self, app, qtbot):
         """Test adding widgets to card content."""
         card = ModernCard("Test")
 
         # Add a widget
         widget = QWidget()
+        qtbot.addWidget(widget)
         card.addWidget(widget)
 
         # Check it was added to content layout
@@ -157,9 +158,11 @@ class TestModernWidgets:
             app = QApplication([])
         return app
 
-    def test_loading_spinner(self, app):
+    def test_loading_spinner(self, app, qtbot):
         """Test modern loading spinner."""
         parent = QWidget()
+        qtbot.addWidget(parent)
+        parent.show()  # Show parent so child visibility works correctly
         spinner = ModernLoadingSpinner(parent)
 
         assert spinner.parent() == parent
@@ -167,15 +170,18 @@ class TestModernWidgets:
 
         # Start spinning
         spinner.start()
+        app.processEvents()  # Process Qt events
         assert spinner.isVisible()
 
         # Stop spinning
         spinner.stop()
+        app.processEvents()  # Process Qt events
         assert not spinner.isVisible()
 
-    def test_progress_bar(self, app):
+    def test_progress_bar(self, app, qtbot):
         """Test modern progress bar."""
         parent = QWidget()
+        qtbot.addWidget(parent)
         progress = ModernProgressBar(parent)
 
         # Test setting value
@@ -184,16 +190,16 @@ class TestModernWidgets:
 
         # Test setting text
         progress.setText("Loading...")
-        assert hasattr(progress, "text_label")
-        assert progress.text_label.text() == "Loading..."
+        assert progress.text() == "Loading..."
 
         # Test indeterminate mode
         progress.setIndeterminate(True)
         assert progress._indeterminate is True
 
-    def test_toast_notification(self, app):
+    def test_toast_notification(self, app, qtbot):
         """Test modern toast notification."""
         parent = QWidget()
+        qtbot.addWidget(parent)
         toast = ModernToast("Test message", "success", 1000, parent)
 
         assert toast.message == "Test message"
@@ -293,12 +299,13 @@ class TestPerformanceMode:
             app = QApplication([])
         return app
 
-    def test_performance_mode_toggle(self, app):
+    def test_performance_mode_toggle(self, app, qtbot):
         """Test toggling performance mode."""
         from ui.modernized_main_window import ModernizedMainWindow
 
         # Create window
         window = ModernizedMainWindow()
+        qtbot.addWidget(window)
 
         # Initial state
         assert window.animations_enabled is True
@@ -311,13 +318,14 @@ class TestPerformanceMode:
         window._toggle_performance_mode(False)
         assert window.animations_enabled is True
 
-    def test_performance_mode_disables_effects(self, app):
+    def test_performance_mode_disables_effects(self, app, qtbot):
         """Test that performance mode disables graphics effects."""
         from PySide6.QtWidgets import QGraphicsDropShadowEffect, QPushButton
 
         from ui.modernized_main_window import ModernizedMainWindow
 
         window = ModernizedMainWindow()
+        qtbot.addWidget(window)
 
         # Add a widget with effect
         button = QPushButton("Test", window)
@@ -348,20 +356,19 @@ class TestGroupBoxToModernCard:
             app = QApplication([])
         return app
 
-    def test_timeline_panel_uses_moderncard(self, app):
+    def test_timeline_panel_uses_moderncard(self, app, qtbot):
         """Test that timeline panel uses ModernCard when available."""
         from ui.main_window import MainWindow
 
         # Create main window
         window = MainWindow()
+        qtbot.addWidget(window)
 
-        # Check if ModernCard is being used for panels
-        # The panels should either be ModernCard or QGroupBox (fallback)
-        timeline_panel = window._create_timeline_panel()
-
-        # It should be a widget with children
-        assert timeline_panel is not None
-        assert isinstance(timeline_panel, QWidget)
+        # Check if timeline components are properly created in toolbar
+        # The actual timeline controls are created in _init_toolbar
+        assert hasattr(window, "timeline_tabs")
+        assert window.timeline_tabs is not None
+        assert isinstance(window.timeline_tabs, QWidget)
 
 
 if __name__ == "__main__":

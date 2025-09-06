@@ -1,43 +1,46 @@
 #!/usr/bin/env python
 """
-Cleaned InteractionService for CurveEditor.
+Consolidated InteractionService for CurveEditor.
 
-This service now delegates all functionality to specialized services:
-- EventHandlerService: Mouse and keyboard event handling
-- SelectionService: Point selection management
-- PointManipulationService: Point editing operations
-- HistoryService: Undo/redo operations
+This service handles all user interactions including:
+- Mouse and keyboard event handling
+- Point selection management
+- Point editing operations
+- Undo/redo history management
+- Spatial indexing for efficient point lookups
 
-This is a coordination service that routes interactions to appropriate handlers.
+This is the consolidated implementation without Sprint 8 delegation.
 """
 
 from __future__ import annotations
 
 import logging
-import os
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QRubberBand
 
 from core.spatial_index import PointIndex
-from services.interaction_service_adapter import InteractionServiceAdapter
+from services.transform_service import TransformService
 
 if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 logger = logging.getLogger("interaction_service")
 
+# Create a module-level transform service instance to avoid import cycle
+_transform_service = TransformService()
+
 
 class InteractionService:
     """
-    Cleaned interaction service that delegates to specialized services.
+    Consolidated interaction service for handling all user interactions.
 
-    This service coordinates user interactions by delegating to:
-    - EventHandlerService for input processing
-    - SelectionService for selection state
-    - PointManipulationService for point edits
-    - HistoryService for undo/redo
+    This service manages:
+    - Mouse and keyboard event processing
+    - Point selection and manipulation
+    - Undo/redo history
+    - Spatial indexing for efficient point queries
     """
 
     def __init__(self) -> None:
@@ -55,100 +58,34 @@ class InteractionService:
         # Spatial index for efficient point lookups
         self._point_index = PointIndex(grid_width=20, grid_height=20)
 
-        # History state for consolidated mode
+        # History state
         self._history: list[dict[str, Any]] = []
         self._current_index: int = -1
         self._max_history_size: int = 100
 
-        # Check if new services should be used
-        self.use_new_services = os.environ.get("USE_NEW_SERVICES", "false").lower() == "true"
-
-        if self.use_new_services:
-            logger.info("InteractionService using new delegated services")
-        else:
-            logger.info("InteractionService using consolidated implementation with history and spatial indexing")
+        logger.info("InteractionService initialized with history and spatial indexing")
 
     # ==================== Main Event Handlers (Delegate to Adapter) ====================
 
     def handle_mouse_press(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
-        """
-        Handle mouse press events.
-
-        Delegates to EventHandlerService via adapter when USE_NEW_SERVICES=true.
-        Otherwise uses consolidated implementation.
-        """
-        if self.use_new_services:
-            # Try delegation to new services
-            if InteractionServiceAdapter.handle_mouse_press_delegated(self, view, event):
-                return
-            logger.warning("Mouse press not handled by Sprint 8 services")
-        else:
-            # Consolidated implementation
-            self._handle_mouse_press_consolidated(view, event)
+        """Handle mouse press events."""
+        self._handle_mouse_press_consolidated(view, event)
 
     def handle_mouse_move(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
-        """
-        Handle mouse move events.
-
-        Delegates to EventHandlerService via adapter when USE_NEW_SERVICES=true.
-        Otherwise uses consolidated implementation.
-        """
-        if self.use_new_services:
-            # Try delegation to new services
-            if InteractionServiceAdapter.handle_mouse_move_delegated(self, view, event):
-                return
-            logger.warning("Mouse move not handled by Sprint 8 services")
-        else:
-            # Consolidated implementation
-            self._handle_mouse_move_consolidated(view, event)
+        """Handle mouse move events."""
+        self._handle_mouse_move_consolidated(view, event)
 
     def handle_mouse_release(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
-        """
-        Handle mouse release events.
-
-        Delegates to EventHandlerService via adapter when USE_NEW_SERVICES=true.
-        Otherwise uses consolidated implementation.
-        """
-        if self.use_new_services:
-            # Try delegation to new services
-            if InteractionServiceAdapter.handle_mouse_release_delegated(self, view, event):
-                return
-            logger.warning("Mouse release not handled by Sprint 8 services")
-        else:
-            # Consolidated implementation
-            self._handle_mouse_release_consolidated(view, event)
+        """Handle mouse release events."""
+        self._handle_mouse_release_consolidated(view, event)
 
     def handle_wheel_event(self, view: CurveViewProtocol, event: QWheelEvent) -> None:
-        """
-        Handle mouse wheel events.
-
-        Delegates to EventHandlerService via adapter when USE_NEW_SERVICES=true.
-        Otherwise uses consolidated implementation.
-        """
-        if self.use_new_services:
-            # Try delegation to new services
-            if InteractionServiceAdapter.handle_wheel_event_delegated(self, view, event):
-                return
-            logger.warning("Wheel event not handled by Sprint 8 services")
-        else:
-            # Consolidated implementation
-            self._handle_wheel_event_consolidated(view, event)
+        """Handle mouse wheel events."""
+        self._handle_wheel_event_consolidated(view, event)
 
     def handle_key_event(self, view: CurveViewProtocol, event: QKeyEvent) -> None:
-        """
-        Handle keyboard events.
-
-        Delegates to EventHandlerService via adapter when USE_NEW_SERVICES=true.
-        Otherwise uses consolidated implementation.
-        """
-        if self.use_new_services:
-            # Try delegation to new services
-            if InteractionServiceAdapter.handle_key_event_delegated(self, view, event):
-                return
-            logger.warning("Key event not handled by Sprint 8 services")
-        else:
-            # Consolidated implementation
-            self._handle_key_event_consolidated(view, event)
+        """Handle keyboard events."""
+        self._handle_key_event_consolidated(view, event)
 
     # ==================== Consolidated Implementation Methods ====================
 
@@ -226,9 +163,7 @@ class InteractionService:
                 delta_y = pos.y() - view.last_drag_pos.y()
 
                 # Convert screen delta to curve coordinates
-                from services import get_transform_service
-
-                transform_service = get_transform_service()
+                transform_service = _transform_service
                 view_state = transform_service.create_view_state(view)
                 transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -292,9 +227,7 @@ class InteractionService:
                 # Find points in rectangle
                 selected_count = 0
                 if hasattr(view, "curve_data"):
-                    from services import get_transform_service
-
-                    transform_service = get_transform_service()
+                    transform_service = _transform_service
                     view_state = transform_service.create_view_state(view)
                     transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -302,7 +235,7 @@ class InteractionService:
                         view.selected_points = set()
 
                     for i, point in enumerate(view.curve_data):
-                        screen_x, screen_y = transform.curve_to_screen(point[1], point[2])
+                        screen_x, screen_y = transform.data_to_screen(point[1], point[2])
                         if rect.contains(int(screen_x), int(screen_y)):
                             view.selected_points.add(i)
                             selected_count += 1
@@ -373,9 +306,7 @@ class InteractionService:
                 delta_y = nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
 
                 # Convert to curve coordinates
-                from services import get_transform_service
-
-                transform_service = get_transform_service()
+                transform_service = _transform_service
                 view_state = transform_service.create_view_state(view)
                 transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -418,36 +349,21 @@ class InteractionService:
 
     def get_memory_stats(self) -> dict[str, Any]:
         """
-        Get memory statistics from history service.
+        Get memory statistics from history.
 
         Returns:
             Dictionary with memory usage information
         """
-        if self.use_new_services:
-            # Get from new HistoryService
-            from services.history_service import HistoryService
+        import sys
 
-            history_service = HistoryService()
-            stats = history_service.get_history_stats()
-            return {
-                "total_states": stats.total_entries,
-                "current_index": stats.current_position,
-                "memory_mb": stats.memory_usage_mb,
-                "can_undo": stats.can_undo,
-                "can_redo": stats.can_redo,
-            }
-        else:
-            # Consolidated implementation
-            import sys
-
-            memory_mb = sum(sys.getsizeof(state) for state in self._history) / (1024 * 1024)
-            return {
-                "total_states": len(self._history),
-                "current_index": self._current_index,
-                "memory_mb": memory_mb,
-                "can_undo": self.can_undo(),
-                "can_redo": self.can_redo(),
-            }
+        memory_mb = sum(sys.getsizeof(state) for state in self._history) / (1024 * 1024)
+        return {
+            "total_states": len(self._history),
+            "current_index": self._current_index,
+            "memory_mb": memory_mb,
+            "can_undo": self.can_undo(),
+            "can_redo": self.can_redo(),
+        }
 
     # ==================== Legacy Compatibility Methods ====================
 
@@ -564,17 +480,10 @@ class InteractionService:
 
     def clear_history(self, main_window: Any) -> None:
         """Clear all history."""
-        if self.use_new_services:
-            from services.history_service import HistoryService
-
-            history_service = HistoryService()
-            history_service.clear_history()
-        else:
-            # Consolidated implementation
-            self._history.clear()
-            self._current_index = -1
-            logger.debug("History cleared")
-            self.update_history_buttons(main_window)
+        self._history.clear()
+        self._current_index = -1
+        logger.debug("History cleared")
+        self.update_history_buttons(main_window)
 
     def update_history_buttons(self, main_window: Any) -> None:
         """Update undo/redo button states."""
@@ -601,117 +510,99 @@ class InteractionService:
 
     def find_point_at(self, view: CurveViewProtocol, x: float, y: float) -> int:
         """Find point at given coordinates using spatial indexing for O(1) performance."""
-        if self.use_new_services:
-            from services.selection_service import SelectionService
+        if not hasattr(view, "curve_data"):
+            return -1
 
-            selection_service = SelectionService()
-            return selection_service.find_point_at_position(view, x, y, 5.0)
-        else:
-            # Optimized consolidated behavior using spatial indexing
-            if not hasattr(view, "curve_data"):
-                return -1
+        transform_service = _transform_service
 
-            from services import get_transform_service
+        # Create transform for coordinate conversion
+        view_state = transform_service.create_view_state(view)
+        transform = transform_service.create_transform_from_view_state(view_state)
 
-            transform_service = get_transform_service()
-
-            # Create transform for coordinate conversion
-            view_state = transform_service.create_view_state(view)
-            transform = transform_service.create_transform_from_view_state(view_state)
-
-            # Use spatial index for O(1) lookup instead of O(n) linear search
-            threshold = 5.0  # Threshold in screen pixels
-            return self._point_index.find_point_at_position(view, transform, x, y, threshold)
+        # Use spatial index for O(1) lookup instead of O(n) linear search
+        threshold = 5.0  # Threshold in screen pixels
+        return self._point_index.find_point_at_position(view, transform, x, y, threshold)
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
-        """Alias for find_point_at with tolerance parameter."""
-        return self.find_point_at(view, x, y)
+        """Find point at position with tolerance parameter."""
+        if not hasattr(view, "curve_data"):
+            return -1
+
+        transform_service = _transform_service
+
+        # Create transform for coordinate conversion
+        view_state = transform_service.create_view_state(view)
+        transform = transform_service.create_transform_from_view_state(view_state)
+
+        # Use spatial index with specified tolerance
+        return self._point_index.find_point_at_position(view, transform, x, y, tolerance)
 
     def select_point_by_index(
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, add_to_selection: bool = False
     ) -> bool:
-        """Select point by index (delegates to SelectionService)."""
-        if self.use_new_services:
-            from services.selection_service import SelectionService
-
-            selection_service = SelectionService()
-            return selection_service.select_point_by_index(view, idx, add_to_selection)
-        else:
-            # Default consolidated behavior
-            if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
-                if not add_to_selection:
-                    view.selected_points.clear()
-                view.selected_points.add(idx)
-                view.selected_point_idx = idx
-                view.update()
-                return True
+        """Select point by index."""
+        if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+            if not add_to_selection:
+                view.selected_points.clear()
+            view.selected_points.add(idx)
+            view.selected_point_idx = idx
+            view.update()
+            return True
         return False
 
     def clear_selection(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
-        """Clear selection (delegates to SelectionService)."""
-        if self.use_new_services:
-            from services.selection_service import SelectionService
-
-            selection_service = SelectionService()
-            selection_service.clear_selection(view)
-        else:
-            # Default consolidated behavior
-            view.selected_points.clear()
-            view.selected_point_idx = -1
-            view.update()
+        """Clear selection."""
+        view.selected_points.clear()
+        view.selected_point_idx = -1
+        view.update()
 
     def select_all_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> int:
-        """Select all points (delegates to SelectionService)."""
-        if self.use_new_services:
-            from services.selection_service import SelectionService
-
-            selection_service = SelectionService()
-            selection_service.select_all(view)
-            return len(view.selected_points) if hasattr(view, "selected_points") else 0
-        else:
-            # Default consolidated behavior
-            if hasattr(view, "curve_data") and view.curve_data:
-                view.selected_points = set(range(len(view.curve_data)))
-                view.selected_point_idx = 0 if view.curve_data else -1
-                view.update()
-                return len(view.selected_points)
-            return 0
+        """Select all points."""
+        if hasattr(view, "curve_data") and view.curve_data:
+            view.selected_points = set(range(len(view.curve_data)))
+            view.selected_point_idx = 0 if view.curve_data else -1
+            view.update()
+            return len(view.selected_points)
         return 0
 
     def update_point_position(
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, x: float, y: float
     ) -> bool:
-        """Update point position (delegates to PointManipulationService)."""
-        if self.use_new_services:
-            from services.point_manipulation import PointManipulationService
-
-            manipulation_service = PointManipulationService()
-            change = manipulation_service.update_point_position(view, idx, x, y)
-            return change is not None
-        else:
-            # Default consolidated behavior
-            if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
-                point = view.curve_data[idx]
-                # Preserve frame and status, update x and y
-                if len(point) >= 4:
-                    view.curve_data[idx] = (point[0], x, y, point[3])
-                elif len(point) == 3:
-                    view.curve_data[idx] = (point[0], x, y)
-                view.update()
-                return True
+        """Update point position."""
+        if hasattr(view, "curve_data") and 0 <= idx < len(view.curve_data):
+            point = view.curve_data[idx]
+            # Preserve frame and status, update x and y
+            if len(point) >= 4:
+                view.curve_data[idx] = (point[0], x, y, point[3])
+            elif len(point) == 3:
+                view.curve_data[idx] = (point[0], x, y)
+            view.update()
+            return True
         return False
 
     def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
-        """Delete selected points (delegates to PointManipulationService)."""
-        if self.use_new_services:
-            from services.point_manipulation import PointManipulationService
+        """Delete selected points."""
+        if hasattr(view, "selected_points") and hasattr(view, "curve_data"):
+            if view.selected_points:
+                # Store current state for undo
+                self.add_to_history(main_window)
 
-            manipulation_service = PointManipulationService()
-            if hasattr(view, "selected_points"):
+                # Delete points in reverse order to maintain indices
                 for idx in sorted(view.selected_points, reverse=True):
-                    manipulation_service.delete_point(view, idx)
+                    if 0 <= idx < len(view.curve_data):
+                        del view.curve_data[idx]
+
+                # Clear selection
                 view.selected_points.clear()
-                view.update()
+                if hasattr(view, "selected_point_idx"):
+                    view.selected_point_idx = -1
+
+                # Clear spatial index since points changed
+                self.clear_spatial_index()
+
+                # Update view
+                if hasattr(view, "update"):
+                    view.update()
 
     # ==================== UI Update Methods ====================
 
@@ -797,44 +688,34 @@ class InteractionService:
 
     def select_points_in_rect(self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: Any) -> int:
         """Select points in rectangle using spatial indexing for O(1) performance."""
-        if self.use_new_services:
-            from services.selection_service import SelectionService
+        if not hasattr(view, "curve_data"):
+            return 0
 
-            selection_service = SelectionService()
-            return selection_service.select_points_in_rect(view, rect)
+        transform_service = _transform_service
+
+        # Create transform for coordinate conversion
+        view_state = transform_service.create_view_state(view)
+        transform = transform_service.create_transform_from_view_state(view_state)
+
+        # Use spatial index for O(1) rectangular selection
+        point_indices = self._point_index.get_points_in_rect(
+            view, transform, rect.left(), rect.top(), rect.right(), rect.bottom()
+        )
+
+        view.selected_points.clear()
+        for idx in point_indices:
+            view.selected_points.add(idx)
+
+        selected_count = len(point_indices)
+
+        # Update selected index
+        if view.selected_points:
+            view.selected_point_idx = min(view.selected_points)
         else:
-            # Optimized consolidated behavior using spatial indexing
-            if not hasattr(view, "curve_data"):
-                return 0
+            view.selected_point_idx = -1
 
-            from services import get_transform_service
-
-            transform_service = get_transform_service()
-
-            # Create transform for coordinate conversion
-            view_state = transform_service.create_view_state(view)
-            transform = transform_service.create_transform_from_view_state(view_state)
-
-            # Use spatial index for O(1) rectangular selection
-            point_indices = self._point_index.get_points_in_rect(
-                view, transform, rect.left(), rect.top(), rect.right(), rect.bottom()
-            )
-
-            view.selected_points.clear()
-            for idx in point_indices:
-                view.selected_points.add(idx)
-
-            selected_count = len(point_indices)
-
-            # Update selected index
-            if view.selected_points:
-                view.selected_point_idx = min(view.selected_points)
-            else:
-                view.selected_point_idx = -1
-
-            view.update()
-            return selected_count
-        return 0
+        view.update()
+        return selected_count
 
     def restore_state(self, main_window: Any, state: Any) -> None:
         """Restore a saved state."""
@@ -928,38 +809,29 @@ class InteractionService:
         if not hasattr(view, "selected_points") or not view.selected_points:
             return False
 
-        if self.use_new_services:
-            from services.point_manipulation import PointManipulationService
+        if not hasattr(view, "curve_data"):
+            return False
 
-            manipulation_service = PointManipulationService()
-            indices = list(view.selected_points)
-            change = manipulation_service.nudge_points(view, indices, dx, dy)
-            return change is not None
-        else:
-            # Default consolidated behavior
-            if not hasattr(view, "curve_data"):
-                return False
+        success = False
+        for idx in view.selected_points:
+            if 0 <= idx < len(view.curve_data):
+                point = view.curve_data[idx]
+                # Preserve frame and status, update x and y
+                if len(point) >= 4:
+                    new_x = point[1] + dx
+                    new_y = point[2] + dy
+                    view.curve_data[idx] = (point[0], new_x, new_y, point[3])
+                    success = True
+                elif len(point) == 3:
+                    new_x = point[1] + dx
+                    new_y = point[2] + dy
+                    view.curve_data[idx] = (point[0], new_x, new_y)
+                    success = True
 
-            success = False
-            for idx in view.selected_points:
-                if 0 <= idx < len(view.curve_data):
-                    point = view.curve_data[idx]
-                    # Preserve frame and status, update x and y
-                    if len(point) >= 4:
-                        new_x = point[1] + dx
-                        new_y = point[2] + dy
-                        view.curve_data[idx] = (point[0], new_x, new_y, point[3])
-                        success = True
-                    elif len(point) == 3:
-                        new_x = point[1] + dx
-                        new_y = point[2] + dy
-                        view.curve_data[idx] = (point[0], new_x, new_y)
-                        success = True
+        if success:
+            view.update()
 
-            if success:
-                view.update()
-
-            return success
+        return success
 
     # ==================== History Query Methods ====================
 

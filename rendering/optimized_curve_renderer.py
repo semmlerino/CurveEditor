@@ -368,7 +368,7 @@ class OptimizedCurveRenderer:
         visible_indices = self._cached_visible_indices
 
         # Early exit if no points are visible
-        if len(visible_indices) == 0:
+        if visible_indices is None or len(visible_indices) == 0:
             logger.warning(f"No visible points after culling! Total points: {len(screen_points)}, Viewport: {viewport}")
             if len(screen_points) > 0:
                 logger.warning(f"Sample screen points: {screen_points[:3]}")
@@ -377,6 +377,8 @@ class OptimizedCurveRenderer:
         # Validate indices are within bounds
         max_index = len(screen_points) - 1
         if max_index >= 0:
+            # At this point visible_indices is guaranteed to not be None due to check above
+            assert visible_indices is not None
             visible_indices = visible_indices[visible_indices <= max_index]
 
         # Apply level of detail
@@ -421,22 +423,43 @@ class OptimizedCurveRenderer:
     def _render_point_markers_optimized(
         self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
     ) -> None:
-        """Render point markers with selection batching."""
+        """Render point markers with selection and current frame highlighting."""
         if len(screen_points) == 0:
             return
 
         point_radius = getattr(curve_view, "point_radius", 5)
         selected_points = getattr(curve_view, "selected_points", set())
 
-        # Batch points by selection state for efficient rendering
+        # Get current frame from main window if available
+        current_frame = 1
+        if hasattr(curve_view, "main_window") and curve_view.main_window:
+            if hasattr(curve_view.main_window, "state_manager"):
+                current_frame = curve_view.main_window.state_manager.current_frame
+
+        # Get the curve data to check frame numbers
+        points_data = getattr(curve_view, "points", [])
+
+        # Batch points by state for efficient rendering
         normal_points = []
         selected_points_list = []
+        current_frame_points = []
 
         for i, screen_pos in enumerate(screen_points):
             # Map back to original index (accounting for LOD step)
             original_idx = visible_indices[i * step] if i * step < len(visible_indices) else -1
 
-            if original_idx in selected_points:
+            # Check if this point is on the current frame
+            is_current_frame = False
+            if 0 <= original_idx < len(points_data):
+                point_data = points_data[original_idx]
+                # Extract frame from point tuple (frame is first element)
+                if len(point_data) >= 3:
+                    frame = point_data[0]
+                    is_current_frame = frame == current_frame
+
+            if is_current_frame:
+                current_frame_points.append(screen_pos)
+            elif original_idx in selected_points:
                 selected_points_list.append(screen_pos)
             else:
                 normal_points.append(screen_pos)
@@ -455,6 +478,13 @@ class OptimizedCurveRenderer:
             painter.setBrush(QBrush(QColor(255, 255, 0)))  # Yellow for selected
             for pos in selected_points_list:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+
+        # Draw current frame points with larger radius and magenta color
+        if current_frame_points:
+            painter.setBrush(QBrush(QColor(255, 0, 255)))  # Magenta for current frame
+            current_frame_radius = point_radius + 3  # Larger radius for current frame
+            for pos in current_frame_points:
+                painter.drawEllipse(QPointF(pos[0], pos[1]), current_frame_radius, current_frame_radius)
 
     def _render_frame_numbers_optimized(
         self, painter: QPainter, curve_view: Any, screen_points: np.ndarray, visible_indices: np.ndarray, step: int
@@ -614,7 +644,7 @@ class OptimizedCurveRenderer:
                 self._render_quality = RenderQuality.HIGH
                 logger.info(f"Quality increased to HIGH (FPS: {current_fps:.1f})")
 
-    def get_performance_stats(self) -> dict[str, float]:
+    def get_performance_stats(self) -> dict[str, float | int | bool | str]:
         """Get current performance statistics."""
         avg_time = self._total_render_time / max(1, self._render_count)
         return {

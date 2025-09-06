@@ -81,10 +81,7 @@ class TimelineUIComponents:
 
         # Playback controls
         self.play_button: QPushButton | None = None
-        self.prev_frame_button: QPushButton | None = None
-        self.next_frame_button: QPushButton | None = None
-        self.first_frame_button: QPushButton | None = None
-        self.last_frame_button: QPushButton | None = None
+        # NOTE: Removed orphaned frame navigation buttons - they were never added to UI
 
         # Image navigation
         self.prev_image_button: QPushButton | None = None
@@ -93,6 +90,10 @@ class TimelineUIComponents:
         # Timeline components
         self.playback_timer: QTimer | None = None
         self.frame_marker: Any | None = None  # TimelineFrameMarker
+
+        # Frame controls
+        self.frame_spinbox: QSpinBox | None = None
+        self.fps_spinbox: QSpinBox | None = None
 
         # Labels
         self.frame_label: QLabel | None = None
@@ -138,6 +139,10 @@ class VisualizationUIComponents:
         self.center_on_point_button: QPushButton | None = None
         self.opacity_slider: QSlider | None = None
 
+        # Rendering controls
+        self.point_size_slider: QSlider | None = None
+        self.line_width_slider: QSlider | None = None
+
         # Display components
         self.nudge_indicator: QWidget | None = None
 
@@ -148,8 +153,8 @@ class PointEditUIComponents:
     def __init__(self) -> None:
         # Point editing controls
         self.update_point_button: QPushButton | None = None
-        self.x_edit: QLineEdit | None = None
-        self.y_edit: QLineEdit | None = None
+        self.x_edit: QDoubleSpinBox | None = None  # Changed from QLineEdit to match MainWindow
+        self.y_edit: QDoubleSpinBox | None = None  # Changed from QLineEdit to match MainWindow
         self.type_edit: QLineEdit | None = None
 
         # Point display settings
@@ -308,21 +313,7 @@ class UIComponents:
     def play_button(self) -> QPushButton | None:
         return self.timeline.play_button
 
-    @property
-    def prev_frame_button(self) -> QPushButton | None:
-        return self.timeline.prev_frame_button
-
-    @property
-    def next_frame_button(self) -> QPushButton | None:
-        return self.timeline.next_frame_button
-
-    @property
-    def first_frame_button(self) -> QPushButton | None:
-        return self.timeline.first_frame_button
-
-    @property
-    def last_frame_button(self) -> QPushButton | None:
-        return self.timeline.last_frame_button
+    # NOTE: Removed orphaned frame navigation button properties - buttons never existed in UI
 
     @property
     def prev_image_button(self) -> QPushButton | None:
@@ -347,6 +338,14 @@ class UIComponents:
     @property
     def frame_info_label(self) -> QLabel | None:
         return self.timeline.frame_info_label
+
+    @property
+    def frame_spinbox(self) -> QSpinBox | None:
+        return self.timeline.frame_spinbox
+
+    @property
+    def fps_spinbox(self) -> QSpinBox | None:
+        return self.timeline.fps_spinbox
 
     # =========================================================================
     # STATUS COMPONENT ACCESS
@@ -432,6 +431,14 @@ class UIComponents:
     def nudge_indicator(self) -> QWidget | None:
         return self.visualization.nudge_indicator
 
+    @property
+    def point_size_slider(self) -> QSlider | None:
+        return self.visualization.point_size_slider
+
+    @property
+    def line_width_slider(self) -> QSlider | None:
+        return self.visualization.line_width_slider
+
     # =========================================================================
     # POINT EDIT COMPONENT ACCESS
     # =========================================================================
@@ -441,11 +448,11 @@ class UIComponents:
         return self.point_edit.update_point_button
 
     @property
-    def x_edit(self) -> QLineEdit | None:
+    def x_edit(self) -> QDoubleSpinBox | None:
         return self.point_edit.x_edit
 
     @property
-    def y_edit(self) -> QLineEdit | None:
+    def y_edit(self) -> QDoubleSpinBox | None:
         return self.point_edit.y_edit
 
     @property

@@ -3,10 +3,11 @@
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QKeyEvent, QPixmap
+from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 
 from core.point_types import safe_extract_point
+from tests.qt_test_helpers import ThreadSafeTestImage
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -66,7 +67,7 @@ class TestKeyboardShortcuts:
     def test_f_key_fits_background_image(self, curve_widget: CurveViewWidget):
         """Test that F key fits background image to view."""
         # Create a background image
-        pixmap = QPixmap(1920, 1080)
+        pixmap = ThreadSafeTestImage(1920, 1080)
         curve_widget.background_image = pixmap
         curve_widget.image_width = 1920
         curve_widget.image_height = 1080
@@ -141,16 +142,16 @@ class TestKeyboardShortcuts:
         # Verify all points are selected
         assert len(curve_widget.selected_indices) == len(curve_widget.curve_data)
 
-    def test_arrow_keys_nudge_selected(self, curve_widget: CurveViewWidget):
-        """Test that arrow keys nudge selected points."""
+    def test_numpad_keys_nudge_selected(self, curve_widget: CurveViewWidget):
+        """Test that numpad keys nudge selected points."""
         # Select a point
         curve_widget.selected_indices = {0}
 
         # Get original position
         _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])
 
-        # Press Right arrow
-        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
+        # Press Numpad 6 (right)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.KeypadModifier)
         curve_widget.keyPressEvent(event)
 
         # Verify X position changed
@@ -158,11 +159,28 @@ class TestKeyboardShortcuts:
         assert new_x > original_x
         assert new_y == original_y
 
-        # Press Up arrow
-        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Up, Qt.KeyboardModifier.NoModifier)
+        # Press Numpad 8 (up)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_8, Qt.KeyboardModifier.KeypadModifier)
         curve_widget.keyPressEvent(event)
 
         # Verify Y position changed
         _, final_x, final_y, _ = safe_extract_point(curve_widget.curve_data[0])
         assert final_x == new_x
         assert final_y < new_y  # Y decreases when going up
+
+    def test_arrow_keys_pass_through_for_frame_navigation(self, curve_widget: CurveViewWidget):
+        """Test that arrow keys are passed through to parent for frame navigation."""
+        # Select a point to confirm they don't get nudged
+        curve_widget.selected_indices = {0}
+
+        # Get original position
+        _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])
+
+        # Press Right arrow - should NOT nudge the point
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify point position did NOT change (arrow keys don't nudge anymore)
+        _, new_x, new_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert new_x == original_x
+        assert new_y == original_y

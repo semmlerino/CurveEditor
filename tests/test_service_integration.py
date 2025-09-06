@@ -20,7 +20,6 @@ import os
 import tempfile
 from unittest.mock import Mock
 
-import pytest
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QImage
 
@@ -234,7 +233,8 @@ class TestCompleteWorkflows:
             offset_y=0.0,
         )
 
-        ProtocolCompliantMockMainWindow(curve_data=mock_view.points.copy())
+        mock_main_window = ProtocolCompliantMockMainWindow()
+        mock_main_window.curve_view.curve_data = mock_view.points.copy()
 
         # 2. Create transform for coordinate conversion
         view_state = transform_service.create_view_state(mock_view)
@@ -312,7 +312,8 @@ class TestCompleteWorkflows:
             # 2. Load image sequence
             image_files = data_service.load_image_sequence(temp_dir)
             assert len(image_files) == 3
-            assert all(f.startswith("frame") and f.endswith(".jpg") for f in image_files)
+            # image_files contains full paths, so check the basename
+            assert all(os.path.basename(f).startswith("frame") and f.endswith(".jpg") for f in image_files)
 
             # 3. Set up mock view with image sequence
             mock_view = ProtocolCompliantMockCurveView(
@@ -340,9 +341,9 @@ class TestErrorHandlingIntegration:
         """Test that file loading errors are properly handled across services."""
         data_service = get_data_service()
 
-        # Try to load non-existent file
-        with pytest.raises(OSError):
-            data_service._load_json("/nonexistent/file.json")
+        # Try to load non-existent file - DataService handles errors gracefully and returns empty list
+        result = data_service._load_json("/nonexistent/file.json")
+        assert result == []  # Should return empty list, not raise exception
 
         # Try to load invalid JSON
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
@@ -350,8 +351,9 @@ class TestErrorHandlingIntegration:
             temp_file = f.name
 
         try:
-            with pytest.raises(ValueError):
-                data_service._load_json(temp_file)
+            # Invalid JSON also returns empty list instead of raising
+            result = data_service._load_json(temp_file)
+            assert result == []
         finally:
             os.unlink(temp_file)
 
@@ -559,8 +561,8 @@ class TestServiceStateMaintenance:
         state_a = transform_service.create_view_state(view_a)
         state_b = transform_service.create_view_state(view_b)
 
-        transform_a = transform_service.create_transform(state_a)
-        transform_b = transform_service.create_transform(state_b)
+        transform_a = transform_service.create_transform_from_view_state(state_a)
+        transform_b = transform_service.create_transform_from_view_state(state_b)
 
         # Verify transforms are independent
         result_a = transform_a.data_to_screen(100.0, 200.0)

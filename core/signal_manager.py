@@ -17,20 +17,21 @@ import logging
 import weakref
 from collections.abc import Callable
 from contextlib import contextmanager
-from typing import Any
+from typing import cast, final
 
 from PySide6.QtCore import QObject, Signal, SignalInstance
 
 logger = logging.getLogger("signal_manager")
 
 
+@final
 class SignalConnection:
     """Represents a single signal connection that can be cleanly disconnected."""
 
     def __init__(
         self,
         signal: Signal | SignalInstance,
-        slot: Callable[..., Any],
+        slot: Callable[..., None],
         signal_name: str | None = None,
     ):
         """Initialize a signal connection.
@@ -56,9 +57,9 @@ class SignalConnection:
             return True
 
         try:
-            # Type checking workaround - both Signal and SignalInstance have connect
-            signal_obj = self.signal  # type: ignore
-            signal_obj.connect(self.slot)
+            # Cast to SignalInstance to access connect method
+            signal_instance = cast(SignalInstance, self.signal)
+            _ = signal_instance.connect(self.slot)
             self.connected = True
             logger.debug(f"Connected signal: {self.signal_name}")
             return True
@@ -76,9 +77,9 @@ class SignalConnection:
             return True
 
         try:
-            # Type checking workaround - both Signal and SignalInstance have disconnect
-            signal_obj = self.signal  # type: ignore
-            signal_obj.disconnect(self.slot)
+            # Cast to SignalInstance to access disconnect method
+            signal_instance = cast(SignalInstance, self.signal)
+            _ = signal_instance.disconnect(self.slot)
             self.connected = False
             logger.debug(f"Disconnected signal: {self.signal_name}")
             return True
@@ -109,7 +110,7 @@ class SignalManager:
 
             # Try to hook into the owner's destruction
             if hasattr(owner, "destroyed"):
-                owner.destroyed.connect(self.disconnect_all)
+                _ = owner.destroyed.connect(self.disconnect_all)
 
     def _owner_destroyed(self, _: weakref.ReferenceType[QObject]) -> None:
         """Called when the owner widget is destroyed."""
@@ -119,7 +120,7 @@ class SignalManager:
     def connect(
         self,
         signal: Signal | SignalInstance,
-        slot: Callable[..., Any],
+        slot: Callable[..., None],
         signal_name: str | None = None,
     ) -> SignalConnection:
         """Connect a signal and track the connection.
@@ -181,7 +182,7 @@ class SignalManager:
     def temporary_connection(
         self,
         signal: Signal | SignalInstance,
-        slot: Callable[..., Any],
+        slot: Callable[..., None],
         signal_name: str | None = None,
     ):
         """Context manager for temporary signal connections.
@@ -204,7 +205,7 @@ class SignalManager:
         try:
             yield connection
         finally:
-            self.disconnect(connection)
+            _ = self.disconnect(connection)
 
 
 class ManagedWidget:
@@ -224,6 +225,8 @@ class ManagedWidget:
                 )
     """
 
+    signal_manager: SignalManager
+
     def __init__(self):
         """Initialize the managed widget mixin."""
         self.signal_manager = SignalManager(self if isinstance(self, QObject) else None)
@@ -232,62 +235,3 @@ class ManagedWidget:
         """Ensure signals are disconnected on destruction."""
         if hasattr(self, "signal_manager"):
             self.signal_manager.disconnect_all()
-
-
-def create_safe_connection(
-    signal: Signal | SignalInstance,
-    slot: Callable[..., Any],
-    owner: QObject | None = None,
-    signal_name: str | None = None,
-) -> SignalConnection:
-    """Create a safe signal connection that auto-disconnects.
-
-    This is a convenience function for creating single connections
-    that will be automatically cleaned up when the owner is destroyed.
-
-    Args:
-        signal: The Qt signal
-        slot: The slot function to connect to
-        owner: The widget that owns this connection (optional)
-        signal_name: Optional name for debugging
-
-    Returns:
-        SignalConnection: The connection object
-    """
-    manager = SignalManager(owner)
-    return manager.connect(signal, slot, signal_name)
-
-
-def replace_lambda_with_method(
-    widget: QObject,
-    signal: Signal | SignalInstance,
-    method_name: str,
-    *args: Any,
-    **kwargs: Any,
-) -> SignalConnection:
-    """Replace a lambda connection with a proper method connection.
-
-    This helps avoid memory leaks from lambdas capturing references.
-
-    Args:
-        widget: The widget containing the method
-        signal: The signal to connect
-        method_name: Name of the method to call
-        *args: Arguments to pass to the method
-        **kwargs: Keyword arguments to pass to the method
-
-    Returns:
-        SignalConnection: The connection object
-    """
-    method = getattr(widget, method_name)
-
-    if args or kwargs:
-        # Create a wrapper that passes the arguments
-        def wrapper():
-            return method(*args, **kwargs)
-
-        slot = wrapper
-    else:
-        slot = method
-
-    return create_safe_connection(signal, slot, widget, f"{widget.__class__.__name__}.{method_name}")

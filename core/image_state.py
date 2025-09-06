@@ -15,31 +15,14 @@ import logging
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, TypeGuard
+from typing import TYPE_CHECKING, TypeGuard, cast, override
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
     from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
-
-try:
-    from PySide6.QtGui import QPixmap
-except ImportError:
-    # Stub for when PySide6 is not available
-    class QPixmap:
-        def __init__(self, *args: object) -> None:
-            pass
-
-        def isNull(self) -> bool:
-            return True
-
-        def width(self) -> int:
-            return 0
-
-        def height(self) -> int:
-            return 0
-
+from core.type_aliases import QtPixmap as QPixmap
 
 # Configure logger for this module
 logger = logging.getLogger("image_state")
@@ -152,7 +135,6 @@ class ImageState:
     loading_state: ImageLoadingState
     sequence_info: ImageSequenceInfo
     display_info: ImageDisplayInfo
-    _state_change_callbacks: list[Callable[[], None]]
 
     def __init__(self) -> None:
         """Initialize image state with default values."""
@@ -406,7 +388,7 @@ class ImageState:
 
         # Sync display state
         if hasattr(curve_view, "background_image"):
-            background_image = getattr(curve_view, "background_image")
+            background_image = cast(QPixmap | None, getattr(curve_view, "background_image"))
             if background_image and not background_image.isNull():
                 filepath = self.sequence_info.current_filepath or ""
                 self.set_image_loaded(background_image, filepath)
@@ -475,7 +457,7 @@ class ImageState:
 
     # === Debug and Inspection ===
 
-    def get_state_summary(self) -> dict[str, Any]:
+    def get_state_summary(self) -> dict[str, str | int | float | tuple[int, int] | tuple[float, float] | bool | None]:
         """
         Get a summary of the current state for debugging.
 
@@ -498,6 +480,7 @@ class ImageState:
             "timeline_message": self.get_timeline_message(),
         }
 
+    @override
     def __str__(self) -> str:
         """String representation for debugging."""
         return (

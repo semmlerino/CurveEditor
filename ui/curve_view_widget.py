@@ -26,11 +26,9 @@ Architecture:
 from __future__ import annotations
 
 import logging
-import math
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import (
-    QPoint,
     QPointF,
     QRect,
     QRectF,
@@ -39,17 +37,13 @@ from PySide6.QtCore import (
     Signal,
 )
 from PySide6.QtGui import (
-    QBrush,
     QColor,
-    QFont,
-    QFontMetrics,
     QKeyEvent,
     QMouseEvent,
     QPainter,
     QPaintEvent,
     QPen,
     QPixmap,
-    QPolygonF,
     QWheelEvent,
 )
 from PySide6.QtWidgets import QRubberBand, QWidget
@@ -87,6 +81,11 @@ class CurveViewWidget(QWidget):
 
     This widget provides a complete curve editing interface with optimized
     rendering, interaction handling, and service integration.
+
+    IMPORTANT ARCHITECTURE NOTE:
+    All rendering is delegated to OptimizedCurveRenderer for performance.
+    This widget does NOT implement its own painting methods - the renderer
+    handles everything including background, grid, lines, points, etc.
 
     Signals:
         point_selected: Emitted when a point is selected (index: int)
@@ -232,9 +231,9 @@ class CurveViewWidget(QWidget):
             "• Delete: Remove selected points\n"
             "• Ctrl+A: Select all points\n"
             "• Escape: Clear selection\n"
-            "• Arrow keys: Nudge selected points\n"
-            "• Shift+Arrow: Nudge by 10x amount\n"
-            "• Ctrl+Arrow: Nudge by 0.1x amount"
+            "• Numpad 2/4/6/8: Nudge selected points (down/left/right/up)\n"
+            "• Shift+Numpad: Nudge by 10x amount\n"
+            "• Ctrl+Numpad: Nudge by 0.1x amount"
         )
         self.setToolTip(tooltip_text)
 
@@ -387,9 +386,14 @@ class CurveViewWidget(QWidget):
             display_width = self.background_image.width()
             display_height = self.background_image.height()
 
+        logger.info(
+            f"[TRANSFORM] Display dimensions: {display_width}x{display_height}, zoom_factor: {self.zoom_factor}"
+        )
+
         # Calculate centering offsets
         widget_width = self.width()
         widget_height = self.height()
+        logger.info(f"[TRANSFORM] Widget dimensions: {widget_width}x{widget_height}")
 
         # Base scale to fit content in widget
         scale_x = widget_width / display_width if display_width > 0 else 1.0
@@ -464,11 +468,37 @@ class CurveViewWidget(QWidget):
         transform = self.get_transform()
         return transform.screen_to_data(pos.x(), pos.y())
 
+    def screen_to_data_qpoint(self, pos: QPointF) -> QPointF:
+        """
+        Convert screen coordinates to data coordinates as QPointF.
+
+        Args:
+            pos: Screen position
+
+        Returns:
+            Data coordinates as QPointF
+        """
+        transform = self.get_transform()
+        return transform.screen_to_data_qpoint(pos)
+
     # Painting
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """
         Paint the widget content using OptimizedCurveRenderer for 47x performance.
+
+        CRITICAL ARCHITECTURE DECISION:
+        This method delegates ALL rendering to OptimizedCurveRenderer.
+        Do NOT implement paint methods directly in this widget - all painting
+        logic should be in the renderer for performance and consistency.
+
+        The renderer handles:
+        - Background image rendering
+        - Grid overlay
+        - Curve lines and segments
+        - Point markers (with shapes, colors, selection, current frame highlight)
+        - Velocity vectors
+        - Labels and overlays
 
         Args:
             event: Paint event with exposed region
@@ -479,8 +509,8 @@ class CurveViewWidget(QWidget):
         # Clear background
         painter.fillRect(event.rect(), QColor(30, 30, 30))
 
-        # Use the optimized renderer for massive performance improvement
-        # This replaces all the manual _paint_* methods with vectorized operations
+        # DELEGATE ALL RENDERING TO OPTIMIZED RENDERER
+        # This is the ONLY rendering path - do not add paint methods to this widget
         self._optimized_renderer.render(painter, event, self)
 
         # Draw overlay elements that aren't handled by the renderer
@@ -493,384 +523,6 @@ class CurveViewWidget(QWidget):
         # Draw hover indicator
         if self.hover_index >= 0:
             self._paint_hover_indicator(painter)
-
-    def _paint_background(self, painter: QPainter, rect: QRect) -> None:
-        """Paint background image if available."""
-        if not self.background_image:
-            return
-
-        painter.save()
-        painter.setOpacity(self.background_opacity)
-
-        # Get image position from transform (top-left corner)
-        transform = self.get_transform()
-        img_x, img_y = transform.data_to_screen(0, 0)
-
-        # Calculate scaled dimensions
-        scale = transform.get_parameters()["scale"]
-        scaled_width = int(self.background_image.width() * scale)
-        scaled_height = int(self.background_image.height() * scale)
-
-        # Draw scaled image
-        target_rect = QRect(int(img_x), int(img_y), scaled_width, scaled_height)
-
-        # Only draw if intersects with exposed area
-        if target_rect.intersects(rect):
-            painter.drawPixmap(target_rect, self.background_image)
-
-        painter.restore()
-
-    def _paint_grid(self, painter: QPainter, rect: QRect) -> None:
-        """Paint grid overlay."""
-        painter.save()
-
-        pen = QPen(self.grid_color)
-        pen.setWidth(self.grid_line_width)
-        painter.setPen(pen)
-
-        # Calculate grid spacing based on zoom
-        base_spacing = self.grid_size
-        zoom = self.zoom_factor
-
-        # Adaptive grid spacing
-        if zoom < 0.5:
-            spacing = base_spacing * 4
-        elif zoom < 1.0:
-            spacing = base_spacing * 2
-        elif zoom > 2.0:
-            spacing = base_spacing / 2
-        else:
-            spacing = base_spacing
-
-        # Draw vertical lines
-        left = rect.left()
-        right = rect.right()
-        top = rect.top()
-        bottom = rect.bottom()
-
-        x = left - (left % spacing)
-        while x <= right:
-            painter.drawLine(int(x), top, int(x), bottom)
-            x += spacing
-
-        # Draw horizontal lines
-        y = top - (top % spacing)
-        while y <= bottom:
-            painter.drawLine(left, int(y), right, int(y))
-            y += spacing
-
-        painter.restore()
-
-    def _paint_lines(self, painter: QPainter, rect: QRect) -> None:
-        """Paint lines connecting curve points."""
-        if len(self.curve_data) < 2:
-            return
-
-        painter.save()
-
-        # Update screen points cache if needed
-        self._update_screen_points_cache()
-
-        # Set pen for lines
-        pen = QPen(self.line_color)
-        pen.setWidth(self.line_width)
-        painter.setPen(pen)
-
-        # Draw lines between consecutive points
-        for i in range(len(self.curve_data) - 1):
-            if i in self._screen_points_cache and i + 1 in self._screen_points_cache:
-                p1 = self._screen_points_cache[i]
-                p2 = self._screen_points_cache[i + 1]
-
-                # Check if line intersects visible area (simple bounding box check)
-                line_rect = QRectF(p1, p2).normalized()
-                if line_rect.intersects(QRectF(rect)):
-                    # Use different style for selected segments
-                    if i in self.selected_indices or i + 1 in self.selected_indices:
-                        pen.setColor(self.selected_line_color)
-                        pen.setWidth(self.selected_line_width)
-                        painter.setPen(pen)
-                        painter.drawLine(p1, p2)
-                        # Reset pen
-                        pen.setColor(self.line_color)
-                        pen.setWidth(self.line_width)
-                        painter.setPen(pen)
-                    else:
-                        painter.drawLine(p1, p2)
-
-        painter.restore()
-
-    def _draw_circle_point(self, painter: QPainter, pos: QPointF, radius: int, color: QColor) -> None:
-        """Draw a circular point."""
-        painter.setBrush(QBrush(color))
-        painter.setPen(QPen(Qt.PenStyle.NoPen))
-        painter.drawEllipse(pos, radius, radius)
-
-    def _draw_square_point(self, painter: QPainter, pos: QPointF, radius: int, color: QColor) -> None:
-        """Draw a square point."""
-        painter.setBrush(QBrush(color))
-        painter.setPen(QPen(Qt.PenStyle.NoPen))
-
-        # Create square centered on position
-        half_size = radius
-        rect = QRect(int(pos.x() - half_size), int(pos.y() - half_size), half_size * 2, half_size * 2)
-        painter.drawRect(rect)
-
-    def _draw_triangle_point(self, painter: QPainter, pos: QPointF, radius: int, color: QColor) -> None:
-        """Draw a triangular point."""
-        painter.setBrush(QBrush(color))
-        painter.setPen(QPen(Qt.PenStyle.NoPen))
-
-        # Create triangle pointing upward, centered on position
-        height = int(radius * 1.5)  # Make triangle slightly taller
-        half_width = radius
-
-        triangle = QPolygonF(
-            [
-                QPointF(pos.x(), pos.y() - height),  # Top point
-                QPointF(pos.x() - half_width, pos.y() + height / 2),  # Bottom left
-                QPointF(pos.x() + half_width, pos.y() + height / 2),  # Bottom right
-            ]
-        )
-        painter.drawPolygon(triangle)
-
-    def _draw_selection_outline(self, painter: QPainter, pos: QPointF, radius: int, shape_type: str) -> None:
-        """Draw selection outline for any point shape."""
-        painter.setBrush(Qt.BrushStyle.NoBrush)
-        painter.setPen(QPen(QColor(255, 255, 255), 3))  # Thicker white outline
-
-        outline_radius = radius + 3
-
-        if shape_type == "square":
-            # Draw square outline
-            half_size = outline_radius
-            rect = QRect(int(pos.x() - half_size), int(pos.y() - half_size), half_size * 2, half_size * 2)
-            painter.drawRect(rect)
-        elif shape_type == "triangle":
-            # Draw triangle outline
-            height = int(outline_radius * 1.5)
-            half_width = outline_radius
-
-            triangle = QPolygonF(
-                [
-                    QPointF(pos.x(), pos.y() - height),
-                    QPointF(pos.x() - half_width, pos.y() + height / 2),
-                    QPointF(pos.x() + half_width, pos.y() + height / 2),
-                ]
-            )
-            painter.drawPolygon(triangle)
-        else:
-            # Default to circle outline
-            painter.drawEllipse(pos, outline_radius, outline_radius)
-
-    def _paint_points(self, painter: QPainter, rect: QRect) -> None:
-        """Paint curve points with shape and color differentiation for accessibility."""
-        if not self.curve_data:
-            return
-
-        painter.save()
-
-        # Update caches
-        self._update_screen_points_cache()
-        self._update_visible_indices(rect)
-
-        # Get current frame from main window if available
-        current_frame = 1
-        if self.main_window and hasattr(self.main_window, "state_manager"):
-            current_frame = self.main_window.state_manager.current_frame
-            logger.debug(f"[FRAME] Current frame for highlighting: {current_frame}")
-
-        # Draw points with shape and color differentiation
-        for idx in self._visible_indices_cache:
-            if idx in self._screen_points_cache:
-                pos = self._screen_points_cache[idx]
-
-                # Get point data
-                point_data = self.curve_data[idx]
-                frame, _, _, status = safe_extract_point(point_data)
-
-                # Determine point style based on status, selection, and current frame
-                is_current_frame = frame == current_frame
-                is_selected = idx in self.selected_indices
-
-                # Determine shape and color based on status
-                if status == "keyframe":
-                    shape_type = "square"
-                    color = self.keyframe_point_color
-                elif status == "interpolated":
-                    shape_type = "triangle"
-                    color = self.interpolated_point_color
-                else:
-                    shape_type = "circle"
-                    color = self.point_color
-
-                # Override color for selected points (but keep shape)
-                if is_selected:
-                    color = self.selected_point_color
-
-                # Override color for current frame (but keep shape)
-                if is_current_frame:
-                    color = self.current_frame_point_color
-
-                # Determine radius - current frame gets larger size
-                if is_current_frame:
-                    radius = self.selected_point_radius + 3  # Even larger for current frame
-                    logger.debug(f"[FRAME] Highlighting point at frame {frame} with larger size")
-                elif is_selected:
-                    radius = self.selected_point_radius
-                else:
-                    radius = self.point_radius
-
-                # Draw the point with appropriate shape
-                if shape_type == "square":
-                    self._draw_square_point(painter, pos, radius, color)
-                elif shape_type == "triangle":
-                    self._draw_triangle_point(painter, pos, radius, color)
-                else:  # circle
-                    self._draw_circle_point(painter, pos, radius, color)
-
-                # Draw selection outline if selected
-                if is_selected:
-                    self._draw_selection_outline(painter, pos, radius, shape_type)
-
-        painter.restore()
-
-    def _paint_velocity_vectors(self, painter: QPainter, rect: QRect) -> None:
-        """Paint velocity vectors between points."""
-        if len(self.curve_data) < 2:
-            return
-
-        painter.save()
-
-        pen = QPen(QColor(100, 200, 255, 150))
-        pen.setWidth(2)
-        painter.setPen(pen)
-
-        # Update screen cache
-        self._update_screen_points_cache()
-
-        for i in range(len(self.curve_data) - 1):
-            if i in self._screen_points_cache and i + 1 in self._screen_points_cache:
-                p1 = self._screen_points_cache[i]
-                p2 = self._screen_points_cache[i + 1]
-
-                # Calculate velocity vector
-                dx = p2.x() - p1.x()
-                dy = p2.y() - p1.y()
-
-                # Normalize and scale
-                length = math.sqrt(dx * dx + dy * dy)
-                if length > 0:
-                    scale = min(30, length * 0.3)
-                    dx = (dx / length) * scale
-                    dy = (dy / length) * scale
-
-                    # Draw arrow from point
-                    end = QPointF(p1.x() + dx, p1.y() + dy)
-                    painter.drawLine(p1, end)
-
-                    # Draw arrowhead
-                    angle = math.atan2(dy, dx)
-                    arrow_length = 8
-                    arrow_angle = 0.5
-
-                    left_x = end.x() - arrow_length * math.cos(angle - arrow_angle)
-                    left_y = end.y() - arrow_length * math.sin(angle - arrow_angle)
-                    right_x = end.x() - arrow_length * math.cos(angle + arrow_angle)
-                    right_y = end.y() - arrow_length * math.sin(angle + arrow_angle)
-
-                    painter.drawLine(end, QPointF(left_x, left_y))
-                    painter.drawLine(end, QPointF(right_x, right_y))
-
-        painter.restore()
-
-    def _paint_labels(self, painter: QPainter, rect: QRect) -> None:
-        """Paint point labels and frame numbers."""
-        if not self.curve_data:
-            return
-
-        painter.save()
-
-        font = QFont("Arial", 9)
-        painter.setFont(font)
-        painter.setPen(QPen(QColor(255, 255, 255)))
-
-        metrics = QFontMetrics(font)
-
-        # Update caches
-        self._update_screen_points_cache()
-        self._update_visible_indices(rect)
-
-        for idx in self._visible_indices_cache:
-            if idx in self._screen_points_cache:
-                pos = self._screen_points_cache[idx]
-                point_data = self.curve_data[idx]
-                frame, x, y, _ = safe_extract_point(point_data)
-
-                # Build label text
-                if self.show_all_frame_numbers or idx in self.selected_indices:
-                    label = f"F{frame}"
-
-                    if self.show_labels and idx in self.selected_indices:
-                        label += f"\n({x:.1f}, {y:.1f})"
-
-                    # Draw text with background for readability
-                    text_rect = metrics.boundingRect(label)
-                    text_pos = QPoint(int(pos.x() + 10), int(pos.y() - 10))
-
-                    # Draw background
-                    painter.fillRect(
-                        text_pos.x() - 2,
-                        text_pos.y() - text_rect.height(),
-                        text_rect.width() + 4,
-                        text_rect.height() + 4,
-                        QColor(0, 0, 0, 180),
-                    )
-
-                    # Draw text
-                    painter.drawText(text_pos, label)
-
-        painter.restore()
-
-    def _paint_info_overlay(self, painter: QPainter) -> None:
-        """Paint information overlay in corner."""
-        painter.save()
-
-        # Setup text
-        font = QFont("Arial", 10)
-        painter.setFont(font)
-        painter.setPen(QPen(QColor(255, 255, 255)))
-
-        # Build info text
-        info_lines = []
-
-        if self.curve_data:
-            info_lines.append(f"Points: {len(self.curve_data)}")
-
-        if self.selected_indices:
-            info_lines.append(f"Selected: {len(self.selected_indices)}")
-
-        info_lines.append(f"Zoom: {self.zoom_factor:.1f}x")
-
-        if self.hover_index >= 0 and self.hover_index < len(self.curve_data):
-            point = self.curve_data[self.hover_index]
-            frame, x, y, _ = safe_extract_point(point)
-            info_lines.append(f"Hover: F{frame} ({x:.1f}, {y:.1f})")
-
-        # Draw background box
-        metrics = QFontMetrics(font)
-        max_width = max(metrics.horizontalAdvance(line) for line in info_lines) if info_lines else 0
-        total_height = len(info_lines) * (metrics.height() + 2)
-
-        painter.fillRect(10, 10, max_width + 20, total_height + 10, QColor(0, 0, 0, 180))
-
-        # Draw text
-        y = 25
-        for line in info_lines:
-            painter.drawText(20, y, line)
-            y += metrics.height() + 2
-
-        painter.restore()
 
     def _paint_hover_indicator(self, painter: QPainter) -> None:
         """Paint hover indicator for point under mouse."""
@@ -1077,7 +729,7 @@ class CurveViewWidget(QWidget):
             Escape: Clear selection
             C: Center view on selected points
             F: Fit background image to view
-            Arrow keys: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
+            Numpad 2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
 
         Args:
             event: Key event
@@ -1093,20 +745,26 @@ class CurveViewWidget(QWidget):
         # Debug logging to verify key events are received
         logger.debug(f"[KEYPRESS] Key: {key}, Modifiers: {modifiers}, HasFocus: {self.hasFocus()}")
 
+        # Check if this is a numpad key
+        is_numpad = bool(modifiers & Qt.KeyboardModifier.KeypadModifier)
+
         # Delete selected points
         if key == Qt.Key.Key_Delete and self.selected_indices:
             self._delete_selected_points()
+            event.accept()
 
         # Select all
         elif key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
             self._select_all()
+            event.accept()
 
         # Deselect all
         elif key == Qt.Key.Key_Escape:
             self._clear_selection()
+            event.accept()
 
         # Center on selected points
-        elif key == Qt.Key.Key_C and not modifiers:
+        elif key == Qt.Key.Key_C and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
             logger.info(f"[KEY_C] C key pressed! Selected indices: {self.selected_indices}")
             if self.selected_indices:
                 logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
@@ -1118,44 +776,50 @@ class CurveViewWidget(QWidget):
                 event.ignore()
 
         # Fit background image to view
-        elif key == Qt.Key.Key_F and not modifiers:
+        elif key == Qt.Key.Key_F and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
             if self.background_image:
                 self.fit_to_background_image()
                 logger.debug("[VIEW] Fitted background image to view")
+                event.accept()
+            else:
+                event.ignore()
 
-        # Nudge selected points
-        elif self.selected_indices:
+        # Nudge selected points using numpad keys
+        elif self.selected_indices and is_numpad:
+            # Check if it's a numpad number key for nudging
+            handled = False
+
+            # Calculate nudge amount based on modifiers (ignoring KeypadModifier)
             nudge_amount = DEFAULT_NUDGE_AMOUNT
-            if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            clean_modifiers = modifiers & ~Qt.KeyboardModifier.KeypadModifier
+            if clean_modifiers & Qt.KeyboardModifier.ShiftModifier:
                 nudge_amount = 10.0
-            elif modifiers & Qt.KeyboardModifier.ControlModifier:
+            elif clean_modifiers & Qt.KeyboardModifier.ControlModifier:
                 nudge_amount = 0.1
 
-            if key == Qt.Key.Key_Left:
+            if key == Qt.Key.Key_4:  # Numpad 4 - left
                 self._nudge_selected(-nudge_amount, 0)
-            elif key == Qt.Key.Key_Right:
+                handled = True
+            elif key == Qt.Key.Key_6:  # Numpad 6 - right
                 self._nudge_selected(nudge_amount, 0)
-            elif key == Qt.Key.Key_Up:
+                handled = True
+            elif key == Qt.Key.Key_8:  # Numpad 8 - up
                 self._nudge_selected(0, -nudge_amount)
-            elif key == Qt.Key.Key_Down:
+                handled = True
+            elif key == Qt.Key.Key_2:  # Numpad 2 - down
                 self._nudge_selected(0, nudge_amount)
+                handled = True
 
-        self.update()
+            if handled:
+                self.update()
+                event.accept()
+            else:
+                event.ignore()
 
-        # Accept the event if we handled it
-        if key in [
-            Qt.Key.Key_Delete,
-            Qt.Key.Key_Escape,
-            Qt.Key.Key_C,
-            Qt.Key.Key_F,
-            Qt.Key.Key_Left,
-            Qt.Key.Key_Right,
-            Qt.Key.Key_Up,
-            Qt.Key.Key_Down,
-        ]:
-            event.accept()
-        elif key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
-            event.accept()
+        # For arrow keys, always pass them through to parent for frame navigation
+        elif key in [Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down]:
+            event.ignore()  # Let parent handle arrow keys for frame navigation
+
         else:
             event.ignore()  # Let parent handle unrecognized keys
 
@@ -1232,6 +896,7 @@ class CurveViewWidget(QWidget):
         # Get actual image dimensions
         img_width = self.background_image.width()
         img_height = self.background_image.height()
+        logger.info(f"[FIT_BG] Image dimensions: {img_width}x{img_height}")
 
         if img_width <= 0 or img_height <= 0:
             return
@@ -1239,40 +904,54 @@ class CurveViewWidget(QWidget):
         # Get widget dimensions
         widget_width = self.width()
         widget_height = self.height()
+        logger.info(f"[FIT_BG] Widget dimensions: {widget_width}x{widget_height}")
 
         if widget_width <= 0 or widget_height <= 0:
             return
 
         # Calculate the scale needed to fit the image
         # We want to fit the entire image, so use the smaller scale
-        margin = 0.95  # Use 95% of the widget space
+        # Apply 95% margin for visual breathing room
+        margin = 0.95
         scale_x = (widget_width * margin) / img_width
         scale_y = (widget_height * margin) / img_height
         desired_scale = min(scale_x, scale_y)
+        logger.info(
+            f"[FIT_BG] Calculated desired_scale: {desired_scale} (scale_x={scale_x}, scale_y={scale_y}, margin={margin})"
+        )
 
-        # The transform system applies: total_scale = base_scale * zoom_factor
-        # where base_scale = min(widget/display) * 0.9
-        # We need to calculate what zoom_factor gives us the desired_scale
+        # The transform system uses zoom_factor directly as the scale
+        # So we can set zoom_factor to our desired_scale directly
+        old_zoom = self.zoom_factor
+        self.zoom_factor = desired_scale
+        logger.info(f"[FIT_BG] Set zoom_factor: {old_zoom} -> {self.zoom_factor}")
 
-        # Calculate what the base scale would be
-        base_scale_x = widget_width / img_width
-        base_scale_y = widget_height / img_height
-        base_scale = min(base_scale_x, base_scale_y) * 0.9
-
-        # Calculate the zoom_factor we need
-        if base_scale > 0:
-            self.zoom_factor = desired_scale / base_scale
-        else:
-            self.zoom_factor = DEFAULT_ZOOM_FACTOR
-
-        # Reset pan offsets to center the image
-        self.pan_offset_x = 0
-        self.pan_offset_y = 0
+        # Reset manual offsets
+        old_manual_x, old_manual_y = self.manual_offset_x, self.manual_offset_y
         self.manual_offset_x = 0
         self.manual_offset_y = 0
+        logger.info(f"[FIT_BG] Reset manual offsets: ({old_manual_x}, {old_manual_y}) -> (0, 0)")
+
+        # Reset pan offsets - let Transform's automatic centering handle positioning
+        old_pan_x, old_pan_y = self.pan_offset_x, self.pan_offset_y
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        logger.info(f"[FIT_BG] Reset pan offsets: ({old_pan_x}, {old_pan_y}) -> (0, 0)")
 
         # Invalidate caches and update
         self._invalidate_caches()
+
+        # Debug the transform after setting everything up
+        transform = self.get_transform()
+        params = transform.get_parameters()
+        logger.info(f"[FIT_BG] Final transform scale: {params['scale']}")
+        logger.info(f"[FIT_BG] Final center offsets: ({params['center_offset_x']}, {params['center_offset_y']})")
+        logger.info(f"[FIT_BG] Final pan offsets: ({params['pan_offset_x']}, {params['pan_offset_y']})")
+
+        # Test image positioning
+        top_left_x, top_left_y = transform.data_to_screen(0, 0)
+        logger.info(f"[FIT_BG] Image top-left will be at: ({top_left_x}, {top_left_y})")
+
         self.update()
 
         # Emit signals
@@ -1637,7 +1316,7 @@ class CurveViewWidget(QWidget):
                 self.update()
 
     @property
-    def points(self) -> list:
+    def points(self) -> list[tuple[int, float, float] | tuple[int, float, float, str | bool]]:
         """Compatibility property for InteractionService.
 
         Returns curve_data for backward compatibility.
@@ -1645,7 +1324,7 @@ class CurveViewWidget(QWidget):
         return self.curve_data
 
     @points.setter
-    def points(self, value: list) -> None:
+    def points(self, value: list[tuple[int, float, float] | tuple[int, float, float, str | bool]]) -> None:
         """Set points data (compatibility with InteractionService)."""
         self.set_curve_data(value)
 
@@ -1667,7 +1346,7 @@ if __name__ == "__main__":
     curve_widget = CurveViewWidget()
 
     # Set some test data
-    test_data = [
+    test_data: list[tuple[int, float, float] | tuple[int, float, float, str]] = [
         (0, 100.0, 100.0),
         (10, 200.0, 150.0, "keyframe"),
         (20, 300.0, 200.0),

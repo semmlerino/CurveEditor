@@ -214,12 +214,17 @@ class ModernProgressBar(QWidget):
         self._max_value = 100
         self._text = ""
         self._color = QColor("#007bff")
+        self._indeterminate = False
         self.setFixedHeight(24)
 
     def setValue(self, value: int):
         """Set progress value."""
         self._value = min(value, self._max_value)
         self.update()
+
+    def value(self) -> int:
+        """Get current progress value."""
+        return self._value
 
     def setMaximum(self, maximum: int):
         """Set maximum value."""
@@ -231,9 +236,18 @@ class ModernProgressBar(QWidget):
         self._text = text
         self.update()
 
+    def text(self) -> str:
+        """Get current progress text."""
+        return self._text
+
     def setColor(self, color: QColor):
         """Set progress bar color."""
         self._color = color
+        self.update()
+
+    def setIndeterminate(self, indeterminate: bool):
+        """Set indeterminate mode."""
+        self._indeterminate = indeterminate
         self.update()
 
     def paintEvent(self, event):

@@ -267,6 +267,18 @@ class UIService:
 
     # ==================== Status Bar Methods ====================
 
+    def show_status_message(
+        self, main_window: "MainWindowProtocol", message: str, timeout: int = DEFAULT_STATUS_TIMEOUT
+    ) -> None:
+        """Show status message (alias for set_temporary_status).
+
+        Args:
+            main_window: Main window with status bar
+            message: Status message to display
+            timeout: Timeout in milliseconds (default 3 seconds)
+        """
+        self.set_temporary_status(main_window, message, timeout)
+
     def set_status(self, main_window: "MainWindowProtocol", message: str, timeout: int = 0) -> None:
         """Set status bar message.
 

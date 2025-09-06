@@ -8,8 +8,6 @@ to ensure consistency and reduce type errors.
 from collections.abc import Callable
 from typing import (
     TYPE_CHECKING,
-    Any,
-    Protocol,
     TypeVar,
 )
 
@@ -94,8 +92,8 @@ type ImageFormat = str  # "png", "jpg", etc.
 # ==================== Service Types ====================
 
 # Service state
-type ServiceState = dict[str, Any]
-type ServiceConfig = dict[str, Any]
+type ServiceState = dict[str, str | int | float | bool | None]
+type ServiceConfig = dict[str, str | int | float | bool | None]
 
 # History types
 type HistoryState = CurveData
@@ -134,103 +132,10 @@ WidgetT = TypeVar("WidgetT", bound="QWidget")
 # ==================== Protocol Types ====================
 
 
-class SupportsTransform(Protocol):
-    """Protocol for objects that support coordinate transformation."""
-
-    def device_to_curve(self, x: float, y: float) -> Coordinate: ...
-    def curve_to_device(self, x: float, y: float) -> IntCoordinate: ...
-    def get_scale(self) -> ScaleFactors: ...
-    def get_offset(self) -> OffsetValues: ...
-
-
-class SupportsPoints(Protocol):
-    """Protocol for objects that have point data."""
-
-    @property
-    def points(self) -> CurveData: ...
-
-    @points.setter
-    def points(self, value: CurveData) -> None: ...
-
-    @property
-    def selected_points(self) -> SelectionSet: ...
-
-
-class SupportsUpdate(Protocol):
-    """Protocol for objects that can be updated/refreshed."""
-
-    def update(self) -> None: ...
-    def repaint(self) -> None: ...
-
-
-class SupportsFile(Protocol):
-    """Protocol for objects that support file operations."""
-
-    def load(self, path: FilePath) -> bool: ...
-    def save(self, path: FilePath) -> bool: ...
-    def get_file_path(self) -> FilePath | None: ...
-
-
 # ==================== Utility Functions ====================
 
 
-def is_point_with_status(point: PointType) -> bool:
-    """Check if a point has status information."""
-    return len(point) > 3
-
-
-def get_point_coordinates(point: PointType) -> Coordinate:
-    """Extract x, y coordinates from a point."""
-    return (point[1], point[2])
-
-
-def get_point_frame(point: PointType) -> Frame:
-    """Extract frame number from a point."""
-    return point[0]
-
-
-def create_point(frame: Frame, x: float, y: float, status: str | bool | None = None) -> PointType:
-    """Create a point tuple with optional status."""
-    if status is not None:
-        return (frame, x, y, status)
-    return (frame, x, y)
-
-
 # ==================== Type Guards ====================
-
-
-def is_curve_data(data: Any) -> bool:
-    """Type guard for CurveData."""
-    if not isinstance(data, list):
-        return False
-    if not data:
-        return True  # Empty list is valid
-
-    first = data[0]
-    if not isinstance(first, tuple):
-        return False
-    if len(first) < 3:
-        return False
-    if not isinstance(first[0], int):
-        return False
-    if not isinstance(first[1], int | float):
-        return False
-    if not isinstance(first[2], int | float):
-        return False
-
-    return True
-
-
-def is_valid_color(color: Any) -> bool:
-    """Type guard for color values."""
-    if isinstance(color, str):
-        # Check hex color
-        return color.startswith("#") and len(color) in (7, 9)
-    if isinstance(color, tuple):
-        if len(color) not in (3, 4):
-            return False
-        return all(isinstance(c, int) and 0 <= c <= 255 for c in color)
-    return False
 
 
 # ==================== Constants ====================

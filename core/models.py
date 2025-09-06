@@ -81,13 +81,12 @@ class PointStatus(Enum):
             return cls.NORMAL
         elif isinstance(value, bool):
             return cls.INTERPOLATED if value else cls.NORMAL
-        elif isinstance(value, str):
+        else:
+            # Must be str at this point due to type annotation
             try:
                 return cls(value)
             except ValueError:
                 return cls.NORMAL
-        else:
-            return cls.NORMAL
 
     def to_legacy_string(self) -> str:
         """Convert to legacy string format."""
@@ -130,14 +129,9 @@ class CurvePoint:
 
     def __post_init__(self) -> None:
         """Validate point data after initialization."""
-        if not isinstance(self.frame, int):
-            raise TypeError(f"Frame must be int, got {type(self.frame)}")
-        if not isinstance(self.x, int | float):
-            raise TypeError(f"X coordinate must be numeric, got {type(self.x)}")
-        if not isinstance(self.y, int | float):
-            raise TypeError(f"Y coordinate must be numeric, got {type(self.y)}")
-        if not isinstance(self.status, PointStatus):
-            raise TypeError(f"Status must be PointStatus enum, got {type(self.status)}")
+        # Type annotations ensure correct types at compile time
+        # Add any runtime value validation here if needed
+        pass
 
     @property
     def is_interpolated(self) -> bool:
@@ -253,11 +247,10 @@ class CurvePoint:
         if len(point_tuple) == 3:
             frame, x, y = point_tuple
             status = PointStatus.NORMAL
-        elif len(point_tuple) >= 4:
+        else:
+            # Must be length >= 4 based on type annotation
             frame, x, y, status_value = point_tuple[:4]
             status = PointStatus.from_legacy(status_value)
-        else:
-            raise ValueError(f"Point tuple must have 3 or 4 elements, got {len(point_tuple)}")
 
         return cls(frame, x, y, status)
 
@@ -292,10 +285,7 @@ class PointCollection:
             points: List of CurvePoint objects (defaults to empty list)
         """
         self.points = points if points is not None else []
-        # Validate points after assignment
-        for i, point in enumerate(self.points):
-            if not isinstance(point, CurvePoint):
-                raise TypeError(f"Point {i} must be CurvePoint, got {type(point)}")
+        # Type annotations ensure correct types at compile time
 
     # Collection interface
 

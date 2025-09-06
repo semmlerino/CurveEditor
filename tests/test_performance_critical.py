@@ -377,7 +377,7 @@ class TestRealisticWorkflowPerformance:
                 assert len(screen_coords) == 2
 
             # Save processed data
-            self.data_service._save_json(output_file, smoothed_data)
+            self.data_service._save_json(output_file, smoothed_data, "test_curve", "#FF0000")
 
             return len(smoothed_data)
 

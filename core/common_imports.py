@@ -20,7 +20,6 @@ from pathlib import Path
 from typing import (
     TYPE_CHECKING,
     Any,
-    Optional,
     Protocol,
     TypeGuard,
     TypeVar,
@@ -52,7 +51,6 @@ __all__ = [
     # Typing
     "TYPE_CHECKING",
     "Any",
-    "Optional",
     "Protocol",
     "TypeVar",
     "TypeGuard",

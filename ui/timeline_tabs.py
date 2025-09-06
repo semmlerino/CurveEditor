@@ -10,7 +10,7 @@ Supports horizontal scrolling for many frames with performance optimizations.
 import logging
 
 from PySide6.QtCore import Qt, QTimer, Signal
-from PySide6.QtGui import QKeyEvent, QResizeEvent, QWheelEvent
+from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -155,14 +155,18 @@ class TimelineTabWidget(QWidget):
             }
         """)
 
-        # State
+        # State - start with minimal range, will be updated when data is loaded
         self.current_frame = 1
-        self.total_frames = 100
+        self.total_frames = 1
         self.min_frame = 1
-        self.max_frame = 100
+        self.max_frame = 1
 
         # Tab management
         self.frame_tabs: dict[FrameNumber, FrameTab] = {}
+
+        # Scrubbing state
+        self.is_scrubbing = False
+        self.scrub_start_frame = 1
 
         # Performance optimization
         self.status_cache = FrameStatusCache()
@@ -172,6 +176,9 @@ class TimelineTabWidget(QWidget):
 
         # Setup UI
         self._setup_ui()
+
+        # Enable mouse tracking for scrubbing
+        self.setMouseTracking(True)
 
     def _setup_ui(self):
         """Setup the timeline UI components."""
@@ -472,3 +479,73 @@ class TimelineTabWidget(QWidget):
             event.accept()
         else:
             super().keyPressEvent(event)
+
+    def mousePressEvent(self, event: QMouseEvent):
+        """Start scrubbing when mouse is pressed."""
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Calculate which frame was clicked based on mouse position
+            frame = self._get_frame_from_position(event.pos().x())
+            if frame is not None:
+                self.is_scrubbing = True
+                self.scrub_start_frame = frame
+                self.set_current_frame(frame)
+                event.accept()
+                return
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event: QMouseEvent):
+        """Update frame while scrubbing."""
+        if self.is_scrubbing:
+            # Calculate frame from mouse position
+            frame = self._get_frame_from_position(event.pos().x())
+            if frame is not None and frame != self.current_frame:
+                self.set_current_frame(frame)
+            event.accept()
+        else:
+            super().mouseMoveEvent(event)
+
+    def mouseReleaseEvent(self, event: QMouseEvent):
+        """Stop scrubbing when mouse is released."""
+        if event.button() == Qt.MouseButton.LeftButton and self.is_scrubbing:
+            self.is_scrubbing = False
+            event.accept()
+        else:
+            super().mouseReleaseEvent(event)
+
+    def _get_frame_from_position(self, x: int) -> int | None:
+        """Calculate which frame corresponds to the given x position.
+
+        Args:
+            x: X coordinate in widget coordinates
+
+        Returns:
+            Frame number or None if position is invalid
+        """
+        # Get the scroll area's viewport position
+        if hasattr(self, "scroll_area") and self.scroll_area:
+            # Adjust x for scroll position
+            scroll_x = self.scroll_area.horizontalScrollBar().value()
+            x += scroll_x
+
+        # Check each tab to see if position falls within it
+        for frame, tab in self.frame_tabs.items():
+            tab_x = tab.x()
+            tab_width = tab.width()
+            if tab_x <= x < tab_x + tab_width:
+                return frame
+
+        # If not on a specific tab, calculate based on tab width
+        if self.frame_tabs:
+            # Get average tab width
+            first_tab = next(iter(self.frame_tabs.values()))
+            tab_width = first_tab.width() + self.TAB_SPACING
+
+            # Calculate frame based on position
+            frame_index = x // tab_width
+            frame = self.min_frame + frame_index
+
+            # Clamp to valid range
+            if self.min_frame <= frame <= self.max_frame:
+                return frame
+
+        return None

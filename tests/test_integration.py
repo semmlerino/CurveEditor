@@ -335,8 +335,9 @@ class TestHistoryIntegration(TestServiceIntegration):
         # Stats may be None if history not fully implemented
         if stats:
             # If we have stats, verify they're reasonable
-            assert hasattr(stats, "total_entries")
-            assert hasattr(stats, "current_position")
+            # Note: stats is a dict with 'total_states', not an object with 'total_entries'
+            assert "total_states" in stats or hasattr(stats, "total_entries")
+            assert "current_index" in stats or hasattr(stats, "current_position")
 
 
 class TestErrorRecoveryIntegration(TestServiceIntegration):

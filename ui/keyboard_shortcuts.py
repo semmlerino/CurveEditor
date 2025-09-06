@@ -76,11 +76,15 @@ class ShortcutManager(QObject):
             "smooth_curve": ("Ctrl+M", self._on_smooth_curve),
             "filter_curve": ("Ctrl+F", self._on_filter_curve),
             "analyze_curve": ("Ctrl+L", self._on_analyze_curve),
-            # Navigation - Moved to use Alt modifier to avoid conflicts
-            "next_frame": ("Alt+Right", self._on_next_frame),
-            "prev_frame": ("Alt+Left", self._on_prev_frame),
+            # Navigation - Primary shortcuts use arrow keys, Alt+Arrow as secondary
+            "next_frame": ("Right", self._on_next_frame),
+            "prev_frame": ("Left", self._on_prev_frame),
+            "next_frame_alt": ("Alt+Right", self._on_next_frame),
+            "prev_frame_alt": ("Alt+Left", self._on_prev_frame),
             "first_frame": ("Home", self._on_first_frame),
             "last_frame": ("End", self._on_last_frame),
+            # Playback controls
+            "oscillate_playback": ("Space", self._on_oscillate_playback),
         }
 
         # Register all default shortcuts
@@ -307,7 +311,20 @@ class ShortcutManager(QObject):
     def _on_first_frame(self) -> None:
         """Handle first frame shortcut."""
         logger.debug("First frame shortcut activated")
+        # Trigger frame navigation through parent widget
+        if hasattr(self.parent_widget, "_on_first_frame"):
+            self.parent_widget._on_first_frame()
 
     def _on_last_frame(self) -> None:
         """Handle last frame shortcut."""
         logger.debug("Last frame shortcut activated")
+        # Trigger frame navigation through parent widget
+        if hasattr(self.parent_widget, "_on_last_frame"):
+            self.parent_widget._on_last_frame()
+
+    def _on_oscillate_playback(self) -> None:
+        """Handle oscillating playback toggle shortcut (spacebar)."""
+        logger.debug("Oscillating playback toggle shortcut activated")
+        # Trigger oscillating playback through parent widget
+        if hasattr(self.parent_widget, "_toggle_oscillating_playback"):
+            self.parent_widget._toggle_oscillating_playback()

@@ -15,6 +15,7 @@ All file operations in CurveEditor should use these validation functions.
 import logging
 import os
 from pathlib import Path
+from typing import final
 
 logger = logging.getLogger("path_security")
 
@@ -25,6 +26,7 @@ class PathSecurityError(Exception):
     pass
 
 
+@final
 class PathSecurityConfig:
     """Configuration for path security validation."""
 
@@ -236,7 +238,7 @@ def is_safe_to_write(file_path: str | Path) -> bool:
         True if safe to write, False otherwise
     """
     try:
-        validate_file_path(file_path, operation_type="export_files", allow_create=True, require_exists=False)
+        _ = validate_file_path(file_path, operation_type="export_files", allow_create=True, require_exists=False)
         return True
     except PathSecurityError:
         return False
@@ -255,7 +257,7 @@ def is_safe_to_read(file_path: str | Path, operation_type: str = "data_files") -
         True if safe to read, False otherwise
     """
     try:
-        validate_file_path(file_path, operation_type=operation_type, allow_create=False, require_exists=True)
+        _ = validate_file_path(file_path, operation_type=operation_type, allow_create=False, require_exists=True)
         return True
     except PathSecurityError:
         return False

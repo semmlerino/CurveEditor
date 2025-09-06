@@ -105,56 +105,6 @@ class VoidSignalProtocol(Protocol):
 VoidSignal = VoidSignalProtocol
 
 
-class BaseSignalConnector:
-    """Base class for signal connection operations.
-
-    This class wraps the signal connection functionality to provide a consistent
-    interface for signal connector modules. It acts as a bridge between the
-    SignalRegistry and the specialized signal connector classes.
-
-    The class takes a connection function at initialization and provides the
-    _connect_signal method that is expected by all signal connector classes.
-    """
-
-    def __init__(self, connect_func: Callable[..., bool]) -> None:
-        """Initialize the signal connector with a connection function.
-
-        Args:
-            connect_func: The function to use for connecting signals.
-                         Should match the signature of SignalRegistry._connect_signal
-        """
-        self._connect_signal: Callable[..., bool] = connect_func
-
-
-class SignalConnectorProtocol(Protocol):
-    """Protocol defining the interface for signal connector objects.
-
-    This protocol defines what methods signal connector classes expect
-    from their registry parameter. It ensures type safety and provides
-    clear documentation of the required interface.
-    """
-
-    def _connect_signal(
-        self,
-        main_window: object,  # MainWindow
-        signal: object,  # Qt Signal
-        slot: Callable[..., None],
-        signal_name: str | None = None,
-    ) -> bool:
-        """Connect a signal to a slot with tracking and error handling.
-
-        Args:
-            main_window: The main application window
-            signal: The signal to connect
-            slot: The slot function to connect to
-            signal_name: Optional name for the signal for tracking
-
-        Returns:
-            bool: True if connection was successful, False otherwise
-        """
-        ...
-
-
 # For runtime usage (when not type checking)
 if not TYPE_CHECKING:
     # At runtime, signals are created by Qt, so we just use the base protocol

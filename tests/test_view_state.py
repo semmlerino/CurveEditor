@@ -96,12 +96,16 @@ class TestViewState:
         mock_curve_view.image_width = 1920
         mock_curve_view.image_height = 1080
         mock_curve_view.zoom_factor = 2.0
-        mock_curve_view.offset_x = 50.0
-        mock_curve_view.offset_y = 25.0
+        mock_curve_view.pan_offset_x = 50.0  # ViewState looks for pan_offset_x first
+        mock_curve_view.pan_offset_y = 25.0  # ViewState looks for pan_offset_y first
+        mock_curve_view.offset_x = 50.0  # Fallback value
+        mock_curve_view.offset_y = 25.0  # Fallback value
         mock_curve_view.scale_to_image = True
         mock_curve_view.flip_y_axis = False
-        mock_curve_view.x_offset = 10.0
-        mock_curve_view.y_offset = 15.0
+        mock_curve_view.manual_offset_x = 10.0  # ViewState looks for manual_offset_x first
+        mock_curve_view.manual_offset_y = 15.0  # ViewState looks for manual_offset_y first
+        mock_curve_view.x_offset = 10.0  # Fallback value
+        mock_curve_view.y_offset = 15.0  # Fallback value
         mock_curve_view.background_image = None
 
         # Create ViewState from mock CurveView

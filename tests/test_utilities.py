@@ -75,6 +75,12 @@ class TestCurveView:
             if hasattr(self, key):
                 setattr(self, key, value)
 
+        # Sync offset attributes (ViewState looks for pan_offset_x/y first)
+        if "offset_x" in kwargs:
+            self.pan_offset_x = self.offset_x
+        if "offset_y" in kwargs:
+            self.pan_offset_y = self.offset_y
+
         # Sync points with curve_data if points were provided
         if "points" in kwargs:
             self.curve_data = self.points.copy()

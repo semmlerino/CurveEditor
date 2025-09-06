@@ -364,10 +364,14 @@ class ModernizedMainWindow(MainWindow):
             for widget_name in ["curve_container"]:
                 widget = getattr(self, widget_name, None)
                 if widget and widget in self.fade_animations:
-                    fade_anim = self.fade_animations[widget]
-                    fade_anim.setStartValue(0.0)
-                    fade_anim.setEndValue(1.0)
-                    fade_anim.start()
+                    try:
+                        fade_anim = self.fade_animations[widget]
+                        fade_anim.setStartValue(0.0)
+                        fade_anim.setEndValue(1.0)
+                        fade_anim.start()
+                    except RuntimeError:
+                        # Animation object may have been deleted during teardown
+                        pass
 
         # Delay welcome animation slightly
         QTimer.singleShot(500, show_welcome)

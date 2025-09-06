@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 import threading
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
@@ -26,6 +26,10 @@ class PointIndex:
     Divides the screen space into a grid and stores point indices in each cell
     for O(1) lookup performance instead of O(n) linear search.
     """
+
+    grid_width: int
+    grid_height: int
+    _lock: threading.RLock
 
     def __init__(self, grid_width: int = 20, grid_height: int = 20):
         """
@@ -88,7 +92,7 @@ class PointIndex:
         Returns:
             List of (grid_x, grid_y) tuples
         """
-        cells = []
+        cells: list[tuple[int, int]] = []
         for dx in range(-radius, radius + 1):
             for dy in range(-radius, radius + 1):
                 nx = grid_x + dx
@@ -179,7 +183,11 @@ class PointIndex:
         grid_x, grid_y = self._get_cell_coords(x, y)
 
         # Check nearby cells (threshold might span multiple cells)
-        cell_radius = max(1, int(threshold / min(self.cell_width, self.cell_height)) + 1)
+        cell_radius = (
+            max(1, int(threshold / min(self.cell_width, self.cell_height)) + 1)
+            if self.cell_width > 0 and self.cell_height > 0
+            else 1
+        )
         nearby_cells = self._get_nearby_cells(grid_x, grid_y, cell_radius)
 
         closest_idx = -1
@@ -194,16 +202,17 @@ class PointIndex:
                             point = view.curve_data[point_idx]
                             if len(point) >= 3:
                                 # Convert to screen coordinates
+                                screen_px: float
+                                screen_py: float
                                 screen_px, screen_py = transform.data_to_screen(point[1], point[2])
 
                                 # Calculate distance
-                                distance = ((screen_px - x) ** 2 + (screen_py - y) ** 2) ** 0.5
+                                distance: float = ((screen_px - x) ** 2 + (screen_py - y) ** 2) ** 0.5
 
                                 # Check if within threshold and closer than previous
                                 if distance <= threshold and distance < closest_distance:
                                     closest_distance = distance
                                     closest_idx = point_idx
-
         return closest_idx
 
     def get_points_in_rect(
@@ -237,7 +246,7 @@ class PointIndex:
         top_left_cell = self._get_cell_coords(left, top)
         bottom_right_cell = self._get_cell_coords(right, bottom)
 
-        result_indices = []
+        result_indices: list[int] = []
 
         # Check all cells in the rectangle
         with self._lock:
@@ -258,7 +267,7 @@ class PointIndex:
 
         return result_indices
 
-    def get_stats(self) -> dict[str, Any]:
+    def get_stats(self) -> dict[str, int | float | tuple[int, int] | tuple[float, float] | str | None]:
         """
         Get spatial index statistics.
 

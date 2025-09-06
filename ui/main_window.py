@@ -20,6 +20,8 @@ Key architecture components:
 import logging
 import sys
 import threading
+from dataclasses import dataclass
+from enum import Enum, auto
 from typing import Any
 
 # Import PySide6 modules
@@ -34,7 +36,6 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDoubleSpinBox,
     QFrame,
-    QGroupBox,
     QHBoxLayout,
     QInputDialog,
     QLabel,
@@ -55,13 +56,35 @@ from PySide6.QtWidgets import (
 from .curve_view_widget import CurveViewWidget
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
-from .ui_constants import MAX_HISTORY_SIZE
 
 # Import refactored components
+from .ui_components import UIComponents
+from .ui_constants import MAX_HISTORY_SIZE
 from .ui_scaling import UIScaling
+from .widget_factory import WidgetGroupFactory
 
 # Configure logger for this module
 logger = logging.getLogger("main_window")
+
+
+class PlaybackMode(Enum):
+    """Enumeration for oscillating playback modes."""
+
+    STOPPED = auto()
+    PLAYING_FORWARD = auto()
+    PLAYING_BACKWARD = auto()
+
+
+@dataclass
+class PlaybackState:
+    """State management for oscillating timeline playback."""
+
+    mode: PlaybackMode = PlaybackMode.STOPPED
+    fps: int = 12
+    current_frame: int = 1
+    min_frame: int = 1
+    max_frame: int = 100
+    loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
 
 
 class FileLoadWorker(QObject):
@@ -200,11 +223,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     total_frames_label: QLabel | None = None
     frame_slider: QSlider | None = None
     timeline_tabs: Any = None  # TimelineTabWidget - imported dynamically
-    btn_first_frame: QPushButton | None = None
-    btn_prev_frame: QPushButton | None = None
-    btn_play_pause: QPushButton | None = None
-    btn_next_frame: QPushButton | None = None
-    btn_last_frame: QPushButton | None = None
+    # Removed orphaned playback button attributes - they were never used
+    btn_play_pause: QPushButton | None = None  # Used for playback control (not visible but functional)
     fps_spinbox: QSpinBox | None = None
     playback_timer: QTimer | None = None
     curve_widget: Any = None  # CurveViewWidget
@@ -240,6 +260,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize UI scaling
         self.ui_scaling = UIScaling()
 
+        # Initialize UI components container for organized widget management
+        self.ui = UIComponents(self)
+
         # Initialize UI components
         self._init_actions()
         self._init_toolbar()
@@ -267,6 +290,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.image_directory: str | None = None
         self.image_filenames: list[str] = []
         self.current_image_idx: int = 0
+
+        # Initialize playback timer for oscillating timeline playback
+        self.playback_timer = QTimer(self)
+        self.playback_timer.timeout.connect(self._on_playback_timer)
+
+        # Initialize playback state for oscillating playback
+        self.playback_state = PlaybackState()
 
         # Connect state manager signals
         self._connect_signals()
@@ -371,6 +401,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_spinbox.setMaximum(1000)
         self.frame_spinbox.setValue(1)
         toolbar.addWidget(self.frame_spinbox)
+        self.ui.timeline.frame_spinbox = self.frame_spinbox  # Map to timeline group
         toolbar.addSeparator()
 
         # Add view option checkboxes to toolbar
@@ -386,71 +417,66 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.show_info_cb.setChecked(True)
         toolbar.addWidget(self.show_info_cb)
 
-        # Create UI elements that were in side panels (not added to UI, but needed for compatibility)
+        # Create widgets needed for UIComponents compatibility (even though not all are added to toolbar)
+        # These widgets are required for the Component Container Pattern to work correctly
+
+        # Point editing widgets (used in properties panel if it exists)
         self.point_x_spinbox = QDoubleSpinBox()
         self.point_x_spinbox.setRange(-10000, 10000)
         self.point_x_spinbox.setDecimals(3)
         self.point_x_spinbox.setEnabled(False)
+        self.ui.point_edit.x_edit = self.point_x_spinbox
 
         self.point_y_spinbox = QDoubleSpinBox()
         self.point_y_spinbox.setRange(-10000, 10000)
         self.point_y_spinbox.setDecimals(3)
         self.point_y_spinbox.setEnabled(False)
+        self.ui.point_edit.y_edit = self.point_y_spinbox
 
+        # Visualization sliders (used in properties panel if it exists)
         self.point_size_slider = QSlider(Qt.Orientation.Horizontal)
         self.point_size_slider.setMinimum(2)
         self.point_size_slider.setMaximum(20)
         self.point_size_slider.setValue(6)
+        self.ui.visualization.point_size_slider = self.point_size_slider
 
         self.line_width_slider = QSlider(Qt.Orientation.Horizontal)
         self.line_width_slider.setMinimum(1)
         self.line_width_slider.setMaximum(10)
         self.line_width_slider.setValue(2)
+        self.ui.visualization.line_width_slider = self.line_width_slider
 
-        # Create playback controls (not added to UI, but needed for compatibility)
-        self.btn_first_frame = QPushButton()
-        self.btn_first_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
-
-        self.btn_prev_frame = QPushButton()
-        self.btn_prev_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
-
+        # Keep btn_play_pause as it's used for playback functionality (though not visible)
         self.btn_play_pause = QPushButton()
         self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.btn_play_pause.setCheckable(True)
+        self.ui.timeline.play_button = self.btn_play_pause  # Map to timeline group
 
-        self.btn_next_frame = QPushButton()
-        self.btn_next_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
-
-        self.btn_last_frame = QPushButton()
-        self.btn_last_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
+        # NOTE: Removed other playback buttons (first/prev/next/last) - they were truly orphaned
 
         self.fps_spinbox = QSpinBox()
         self.fps_spinbox.setMinimum(1)
         self.fps_spinbox.setMaximum(120)
         self.fps_spinbox.setValue(24)
         self.fps_spinbox.setSuffix(" fps")
+        self.ui.timeline.fps_spinbox = self.fps_spinbox  # Map to timeline group
 
         self.frame_slider = QSlider(Qt.Orientation.Horizontal)
         self.frame_slider.setMinimum(1)
         self.frame_slider.setMaximum(1000)
         self.frame_slider.setValue(1)
+        self.ui.timeline.timeline_slider = self.frame_slider  # Map to timeline group
 
-        # Create timeline tabs widget here in actual initialization
-        self.timeline_tabs = None  # Initialize to None first
-        try:
-            from ui.timeline_tabs import TimelineTabWidget
-
-            self.timeline_tabs = TimelineTabWidget()
-            # Connections will be set up later when handlers are available
-            logger.info("Timeline tabs widget created successfully in main init")
-        except Exception as e:
-            logger.warning(f"Could not create timeline tabs widget in main init: {e}")
-            self.timeline_tabs = None
+        # NOTE: timeline_tabs creation moved to _init_central_widget where it's actually used
 
         self.total_frames_label = QLabel("1")
+        self.ui.status.info_label = self.total_frames_label  # Map to status group
         self.point_count_label = QLabel("Points: 0")
+        self.ui.status.quality_score_label = self.point_count_label  # Map to status group
         self.selected_count_label = QLabel("Selected: 0")
+        self.ui.status.quality_coverage_label = self.selected_count_label  # Map to status group
         self.bounds_label = QLabel("Bounds: N/A")
+        self.ui.status.quality_consistency_label = self.bounds_label  # Map to status group
 
         # Add stretch to push remaining items to the right
         spacer = QWidget()
@@ -471,6 +497,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Add curve container with stretch factor so it expands
         main_layout.addWidget(self.curve_container, stretch=1)  # Takes all available space
 
+        # Create timeline tabs widget here where it's actually used
+        self.timeline_tabs = None  # Initialize to None first
+        try:
+            from ui.timeline_tabs import TimelineTabWidget
+
+            self.timeline_tabs = TimelineTabWidget()
+            # Connections will be set up later when handlers are available
+            logger.info("Timeline tabs widget created successfully")
+        except Exception as e:
+            logger.warning(f"Could not create timeline tabs widget: {e}")
+            self.timeline_tabs = None
+
         # Add timeline tabs widget if available - no stretch so it stays fixed height
         if self.timeline_tabs:
             self.timeline_tabs.setMinimumHeight(60)  # Ensure timeline gets its minimum space
@@ -480,117 +518,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Set the central widget
         self.setCentralWidget(central_widget)
-
-    def _create_timeline_panel(self) -> QWidget:
-        """Create the timeline control panel."""
-        widget = QWidget()
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(5, 5, 5, 5)
-
-        # Timeline group - use ModernCard if available
-        try:
-            from ui.modern_widgets import ModernCard
-
-            timeline_group = ModernCard("Timeline")
-            timeline_layout = timeline_group.content_layout
-        except ImportError:
-            timeline_group = QGroupBox("Timeline")
-            timeline_layout = QVBoxLayout()
-
-        # Frame controls
-        frame_layout = QHBoxLayout()
-        frame_layout.addWidget(QLabel("Frame:"))
-
-        self.frame_spinbox = QSpinBox()
-        self.frame_spinbox.setMinimum(1)
-        self.frame_spinbox.setMaximum(1000)
-        self.frame_spinbox.setValue(1)
-        self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
-        frame_layout.addWidget(self.frame_spinbox)
-
-        frame_layout.addWidget(QLabel("/"))
-
-        self.total_frames_label = QLabel("1")
-        frame_layout.addWidget(self.total_frames_label)
-        frame_layout.addStretch()
-
-        timeline_layout.addLayout(frame_layout)
-
-        # Frame slider
-        self.frame_slider = QSlider(Qt.Orientation.Horizontal)
-        self.frame_slider.setMinimum(1)
-        self.frame_slider.setMaximum(1000)
-        self.frame_slider.setValue(1)
-        self.frame_slider.valueChanged.connect(self._on_slider_changed)
-        timeline_layout.addWidget(self.frame_slider)
-
-        # NOTE: This _create_timeline_panel method is never called
-        # The actual timeline tabs are created in __init__ around line 426-434
-        # This entire method contains duplicate/unused code and could be removed
-
-        # Playback controls
-        playback_layout = QHBoxLayout()
-
-        self.btn_first_frame = QPushButton()
-        self.btn_first_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
-        self.btn_first_frame.setToolTip("Go to first frame")
-        self.btn_first_frame.clicked.connect(self._on_first_frame)
-        playback_layout.addWidget(self.btn_first_frame)
-
-        self.btn_prev_frame = QPushButton()
-        self.btn_prev_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
-        self.btn_prev_frame.setToolTip("Previous frame")
-        self.btn_prev_frame.clicked.connect(self._on_prev_frame)
-        playback_layout.addWidget(self.btn_prev_frame)
-
-        self.btn_play_pause = QPushButton()
-        self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.btn_play_pause.setCheckable(True)
-        self.btn_play_pause.setToolTip("Play/Pause")
-        self.btn_play_pause.toggled.connect(self._on_play_pause)
-        playback_layout.addWidget(self.btn_play_pause)
-
-        self.btn_next_frame = QPushButton()
-        self.btn_next_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
-        self.btn_next_frame.setToolTip("Next frame")
-        self.btn_next_frame.clicked.connect(self._on_next_frame)
-        playback_layout.addWidget(self.btn_next_frame)
-
-        self.btn_last_frame = QPushButton()
-        self.btn_last_frame.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
-        self.btn_last_frame.setToolTip("Go to last frame")
-        self.btn_last_frame.clicked.connect(self._on_last_frame)
-        playback_layout.addWidget(self.btn_last_frame)
-
-        timeline_layout.addLayout(playback_layout)
-
-        # Frame rate control
-        fps_layout = QHBoxLayout()
-        fps_layout.addWidget(QLabel("FPS:"))
-
-        self.fps_spinbox = QSpinBox()
-        self.fps_spinbox.setMinimum(1)
-        self.fps_spinbox.setMaximum(120)
-        self.fps_spinbox.setValue(24)
-        self.fps_spinbox.setSuffix(" fps")
-        self.fps_spinbox.valueChanged.connect(self._on_fps_changed)
-        fps_layout.addWidget(self.fps_spinbox)
-        fps_layout.addStretch()
-
-        timeline_layout.addLayout(fps_layout)
-
-        if not hasattr(timeline_group, "content_layout"):
-            timeline_group.setLayout(timeline_layout)
-        layout.addWidget(timeline_group)
-
-        # Add stretch to push everything to the top
-        layout.addStretch()
-
-        # Playback timer for animation
-        self.playback_timer = QTimer(self)
-        self.playback_timer.timeout.connect(self._on_playback_timer)
-
-        return widget
 
     def _create_curve_view_container(self) -> QWidget:
         """Create the container for the curve view."""
@@ -623,15 +550,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         layout = QVBoxLayout(widget)
         layout.setContentsMargins(5, 5, 5, 5)
 
-        # Point Properties group - use ModernCard if available
-        try:
-            from ui.modern_widgets import ModernCard
-
-            point_group = ModernCard("Point Properties")
-            point_layout = point_group.content_layout
-        except ImportError:
-            point_group = QGroupBox("Point Properties")
-            point_layout = QVBoxLayout()
+        # Point Properties group
+        point_group, point_layout = WidgetGroupFactory.create_group("Point Properties")
 
         # Selected point info
         self.selected_point_label = QLabel("No point selected")
@@ -655,19 +575,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         point_layout.addLayout(pos_layout)
 
-        if not hasattr(point_group, "content_layout"):
-            point_group.setLayout(point_layout)
         layout.addWidget(point_group)
 
-        # View Settings group - use ModernCard if available
-        try:
-            from ui.modern_widgets import ModernCard
-
-            view_group = ModernCard("View Settings")
-            view_layout = view_group.content_layout
-        except ImportError:
-            view_group = QGroupBox("View Settings")
-            view_layout = QVBoxLayout()
+        # View Settings group
+        view_group, view_layout = WidgetGroupFactory.create_group("View Settings")
 
         # Display options
         self.show_background_cb = QCheckBox("Show Background")
@@ -717,19 +628,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         view_layout.addLayout(line_layout)
 
-        if not hasattr(view_group, "content_layout"):
-            view_group.setLayout(view_layout)
         layout.addWidget(view_group)
 
-        # Curve Info group - use ModernCard if available
-        try:
-            from ui.modern_widgets import ModernCard
-
-            info_group = ModernCard("Curve Information")
-            info_layout = info_group.content_layout
-        except ImportError:
-            info_group = QGroupBox("Curve Information")
-            info_layout = QVBoxLayout()
+        # Curve Info group
+        info_group, info_layout = WidgetGroupFactory.create_group("Curve Information")
 
         self.point_count_label = QLabel("Points: 0")
         info_layout.addWidget(self.point_count_label)
@@ -741,8 +643,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.bounds_label.setWordWrap(True)
         info_layout.addWidget(self.bounds_label)
 
-        if not hasattr(info_group, "content_layout"):
-            info_group.setLayout(info_layout)
         layout.addWidget(info_group)
 
         # Add stretch
@@ -990,14 +890,36 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @Slot()
     def _on_playback_timer(self) -> None:
-        """Handle playback timer tick."""
-        if self.frame_spinbox:
-            current = self.frame_spinbox.value()
-            if current >= self.frame_spinbox.maximum():
-                # Loop back to start
-                self.frame_spinbox.setValue(1)
+        """Handle oscillating playback timer tick."""
+        # Only handle oscillating playback if mode is not stopped
+        if self.playback_state.mode == PlaybackMode.STOPPED:
+            return
+
+        current = self._get_current_frame()
+
+        if self.playback_state.mode == PlaybackMode.PLAYING_FORWARD:
+            # Move forward
+            if current >= self.playback_state.max_frame:
+                # Hit upper boundary - reverse direction
+                self.playback_state.mode = PlaybackMode.PLAYING_BACKWARD
+                next_frame = max(current - 1, self.playback_state.min_frame)
             else:
-                self.frame_spinbox.setValue(current + 1)
+                next_frame = current + 1
+
+        elif self.playback_state.mode == PlaybackMode.PLAYING_BACKWARD:
+            # Move backward
+            if current <= self.playback_state.min_frame:
+                # Hit lower boundary - reverse direction
+                self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+                next_frame = min(current + 1, self.playback_state.max_frame)
+            else:
+                next_frame = current - 1
+        else:
+            # Fallback - shouldn't happen
+            return
+
+        # Update frame and UI
+        self._set_current_frame(next_frame)
 
     @Slot(int)
     def _on_fps_changed(self, value: int) -> None:
@@ -1006,6 +928,116 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             interval = int(1000 / value)
             self.playback_timer.setInterval(interval)
         self.frame_rate_changed.emit(value)
+
+    # ================ Oscillating Timeline Playback Methods ================
+
+    def _toggle_oscillating_playback(self) -> None:
+        """Toggle oscillating playback on spacebar press."""
+        if self.playback_state.mode == PlaybackMode.STOPPED:
+            self._start_oscillating_playback()
+        else:
+            self._stop_oscillating_playback()
+
+    def _start_oscillating_playback(self) -> None:
+        """Start oscillating timeline playback."""
+        # Update frame boundaries from current data
+        self._update_playback_bounds()
+
+        # Get FPS from UI or use default
+        fps = 12  # Default
+        if self.fps_spinbox:
+            fps = self.fps_spinbox.value()
+
+        # Set FPS-based timer interval
+        interval = int(1000 / fps)  # Convert to milliseconds
+
+        # Start forward playback
+        self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+        self.playback_state.current_frame = self._get_current_frame()
+
+        # Start the timer
+        if self.playback_timer:
+            self.playback_timer.start(interval)
+
+        logger.info(
+            f"Started oscillating playback at {fps} FPS (bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
+        )
+
+    def _stop_oscillating_playback(self) -> None:
+        """Stop oscillating timeline playback."""
+        if self.playback_timer:
+            self.playback_timer.stop()
+
+        self.playback_state.mode = PlaybackMode.STOPPED
+        logger.info("Stopped oscillating playback")
+
+    def _update_playback_bounds(self) -> None:
+        """Update playbook frame bounds based on current data."""
+        # Get bounds from data service if available
+        try:
+            if (
+                hasattr(self, "curve_view")
+                and self.curve_view
+                and hasattr(self.curve_view, "curve_data")
+                and self.curve_view.curve_data
+            ):
+                # Calculate frame bounds directly from curve data
+                frames = [int(point.frame) for point in self.curve_view.curve_data if hasattr(point, "frame")]
+                if frames:
+                    self.playback_state.min_frame = max(1, min(frames))
+                    self.playback_state.max_frame = max(frames)
+                else:
+                    self.playback_state.min_frame = 1
+                    self.playback_state.max_frame = 100
+            else:
+                # Use timeline widget bounds if available
+                if hasattr(self, "timeline_tabs") and self.timeline_tabs:
+                    self.playback_state.min_frame = getattr(self.timeline_tabs, "min_frame", 1)
+                    self.playback_state.max_frame = getattr(self.timeline_tabs, "max_frame", 100)
+                else:
+                    # Default bounds
+                    self.playback_state.min_frame = 1
+                    self.playback_state.max_frame = 100
+        except Exception as e:
+            # Fallback to default bounds on any error
+            logger.warning(f"Error getting playback bounds, using defaults: {e}")
+            self.playback_state.min_frame = 1
+            self.playback_state.max_frame = 100
+
+        # Ensure current frame is within bounds
+        current = self._get_current_frame()
+        if current < self.playback_state.min_frame:
+            self._set_current_frame(self.playback_state.min_frame)
+        elif current > self.playback_state.max_frame:
+            self._set_current_frame(self.playback_state.max_frame)
+
+    def _get_current_frame(self) -> int:
+        """Get the current frame number."""
+        if self.frame_spinbox:
+            return self.frame_spinbox.value()
+        return 1
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Set the current frame with UI updates."""
+        # Update internal state
+        self.playback_state.current_frame = frame
+
+        # Update spinbox which triggers other UI updates
+        if self.frame_spinbox:
+            self.frame_spinbox.setValue(frame)
+
+        # Update timeline widget if available
+        if hasattr(self, "timeline_tabs") and self.timeline_tabs:
+            if hasattr(self.timeline_tabs, "set_current_frame"):
+                self.timeline_tabs.set_current_frame(frame)
+            elif hasattr(self.timeline_tabs, "current_frame"):
+                self.timeline_tabs.current_frame = frame
+
+        # Update curve view if available (for frame highlighting)
+        if hasattr(self, "curve_view") and self.curve_view:
+            # Update MainWindow's current image index (0-based)
+            self.current_image_idx = frame - 1
+            self.curve_view.update()
 
     @Slot(int)
     def _on_timeline_tab_clicked(self, frame: int) -> None:
@@ -1591,8 +1623,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if not self.curve_widget:
             return
 
-        self.curve_widget.show_background = self.show_background_cb.isChecked()
-        self.curve_widget.show_grid = self.show_grid_cb.isChecked()
+        if self.show_background_cb:
+            self.curve_widget.show_background = self.show_background_cb.isChecked()
+        if self.show_grid_cb:
+            self.curve_widget.show_grid = self.show_grid_cb.isChecked()
         # Note: show_info_cb controls info overlay display - might need implementation
         self.curve_widget.update()
 
@@ -1603,7 +1637,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget.point_radius = value
             self.curve_widget.selected_point_radius = value + 2
             self.curve_widget.update()
-        self.point_size_label.setText(str(value))
+        if self.point_size_label:
+            self.point_size_label.setText(str(value))
 
     @Slot(int)
     def _update_curve_line_width(self, value: int) -> None:
@@ -1612,19 +1647,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget.line_width = value
             self.curve_widget.selected_line_width = value + 1
             self.curve_widget.update()
-        self.line_width_label.setText(str(value))
+        if self.line_width_label:
+            self.line_width_label.setText(str(value))
 
     # ==================== Frame Navigation Handlers ====================
 
     def _on_state_frame_changed(self, frame: int) -> None:
         """Handle frame change from state manager."""
         # Update UI controls
-        self.frame_spinbox.blockSignals(True)
-        self.frame_slider.blockSignals(True)
-        self.frame_spinbox.setValue(frame)
-        self.frame_slider.setValue(frame)
-        self.frame_spinbox.blockSignals(False)
-        self.frame_slider.blockSignals(False)
+        if self.frame_spinbox:
+            self.frame_spinbox.blockSignals(True)
+            self.frame_spinbox.setValue(frame)
+            self.frame_spinbox.blockSignals(False)
+        if self.frame_slider:
+            self.frame_slider.blockSignals(True)
+            self.frame_slider.setValue(frame)
+            self.frame_slider.blockSignals(False)
 
         # Update curve widget if it handles frame-based display
         # This would be for showing different frames of animation data

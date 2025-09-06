@@ -82,7 +82,7 @@ def create_benchmark_data(size: int) -> list[tuple[int, float, float, str]]:
 class TestApplicationStartupBenchmarks:
     """Benchmark application startup performance."""
 
-    def test_main_window_creation_time(self, qapp: QApplication, benchmark_context: dict[str, Any]) -> None:
+    def test_main_window_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, Any]) -> None:
         """Benchmark MainWindow creation time."""
         result = BenchmarkResult("MainWindow Creation")
 
@@ -92,6 +92,7 @@ class TestApplicationStartupBenchmarks:
 
         # Create MainWindow
         window = MainWindow()
+        qtbot.addWidget(window)
         window.show()
         qapp.processEvents()
 
@@ -113,7 +114,7 @@ class TestApplicationStartupBenchmarks:
         benchmark_context["results"].append(result)
         print(f"\n{result}")
 
-    def test_curve_widget_creation_time(self, qapp: QApplication, benchmark_context: dict[str, Any]) -> None:
+    def test_curve_widget_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, Any]) -> None:
         """Benchmark CurveViewWidget creation time."""
         result = BenchmarkResult("CurveViewWidget Creation")
 
@@ -122,7 +123,8 @@ class TestApplicationStartupBenchmarks:
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Create CurveViewWidget
-        CurveViewWidget()
+        widget = CurveViewWidget()
+        qtbot.addWidget(widget)
 
         # End timing
         result.end_time = time.perf_counter()
@@ -140,9 +142,10 @@ class TestDataProcessingBenchmarks:
     """Benchmark data loading and processing performance."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
         """Create MainWindow for benchmarking."""
         window = MainWindow()
+        qtbot.addWidget(window)
         window.show()
         qapp.processEvents()
         yield window
@@ -259,9 +262,10 @@ class TestUIRenderingBenchmarks:
     """Benchmark UI rendering and interaction performance."""
 
     @pytest.fixture
-    def main_window_with_data(self, qapp: QApplication) -> Generator[MainWindow, None, None]:
+    def main_window_with_data(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
         """Create MainWindow with test data."""
         window = MainWindow()
+        qtbot.addWidget(window)
         window.show()
         qapp.processEvents()
 
@@ -366,9 +370,10 @@ class TestMemoryUsageBenchmarks:
     """Benchmark memory usage patterns."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
         """Create MainWindow for memory testing."""
         window = MainWindow()
+        qtbot.addWidget(window)
         window.show()
         qapp.processEvents()
         yield window
@@ -459,9 +464,10 @@ class TestServicePerformanceBenchmarks:
     """Benchmark service operation efficiency."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
         """Create MainWindow for service testing."""
         window = MainWindow()
+        qtbot.addWidget(window)
         window.show()
         qapp.processEvents()
         yield window

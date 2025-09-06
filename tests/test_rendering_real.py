@@ -73,7 +73,7 @@ class TestViewportCuller:
             [
                 [100, 100],  # Inside
                 [305, 100],  # Just outside, but within padding
-                [350, 100],  # Outside even with padding
+                [351, 100],  # Outside even with padding (350 is exactly at boundary)
             ]
         )
 
@@ -284,7 +284,13 @@ class TestOptimizedCurveRenderer:
             def get_transform(self):
                 from services.transform_service import Transform
 
-                return Transform(scale=self.zoom_factor, pan_offset_x=self.pan_offset_x, pan_offset_y=self.pan_offset_y)
+                return Transform(
+                    scale=self.zoom_factor,
+                    center_offset_x=0.0,
+                    center_offset_y=0.0,
+                    pan_offset_x=self.pan_offset_x,
+                    pan_offset_y=self.pan_offset_y,
+                )
 
         curve_view = MockCurveView()
 
@@ -308,7 +314,7 @@ class TestRenderingIntegration:
         from services.transform_service import Transform
 
         # Create transform with zoom and offset
-        transform = Transform(scale=2.0, pan_offset_x=100, pan_offset_y=50)
+        transform = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0, pan_offset_x=100, pan_offset_y=50)
 
         # Create points in data coordinates
         data_points = np.array(
@@ -339,8 +345,8 @@ class TestRenderingIntegration:
 
     def test_lod_maintains_curve_shape(self):
         """Test that LOD subsampling maintains curve shape."""
-        # Create a sine wave
-        x = np.linspace(0, 4 * np.pi, 1000)
+        # Create a sine wave with more points than NORMAL threshold
+        x = np.linspace(0, 4 * np.pi, 1500)  # Use 1500 points to ensure LOD kicks in
         y = np.sin(x) * 100 + 200
         # Variable 'points' was unused - removed
 

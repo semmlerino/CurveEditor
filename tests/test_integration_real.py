@@ -5,7 +5,7 @@ Tests actual component interactions without mocking.
 """
 
 import pytest
-from PySide6.QtCore import QPointF, Qt
+from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QImage, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QApplication
 
@@ -82,22 +82,15 @@ class TestServiceIntegration:
         interaction_service = get_interaction_service()
         transform_service = get_transform_service()
 
-        # Create a transform
-        transform = transform_service.create_transform(scale=2.0)
-
         # Create mock view with points
         class MockView:
             def __init__(self):
-                self.points = [
+                self.curve_data = [
                     (1, 100, 100),
                     (2, 200, 200),
                     (3, 300, 300),
                 ]
                 self.selected_points = set()
-                self.transform = transform
-
-            def get_transform(self):
-                return self.transform
 
             def width(self):
                 return 800
@@ -107,8 +100,11 @@ class TestServiceIntegration:
 
         view = MockView()
 
+        # Create transform using the same method as the interaction service
+        view_state = transform_service.create_view_state(view)
+        transform = transform_service.create_transform_from_view_state(view_state)
+
         # Test finding point at screen position
-        # Point (100, 100) should be at screen (200, 200) with scale=2
         screen_x, screen_y = transform.data_to_screen(100, 100)
 
         # Find point at this position
@@ -316,11 +312,12 @@ class TestUIIntegration:
             app = QApplication([])
         return app
 
-    def test_main_window_creation(self, app):
+    def test_main_window_creation(self, app, qtbot):
         """Test creating main window with all components."""
         from ui.main_window import MainWindow
 
         window = MainWindow()
+        qtbot.addWidget(window)
 
         # Check that main components exist (simplified UI)
         assert window.curve_widget is not None
@@ -330,11 +327,12 @@ class TestUIIntegration:
         # Check window can be created without errors
         assert not window.isVisible()  # Window not shown yet but created successfully
 
-    def test_modernized_window_creation(self, app):
+    def test_modernized_window_creation(self, app, qtbot):
         """Test creating modernized main window."""
         from ui.modernized_main_window import ModernizedMainWindow
 
         window = ModernizedMainWindow()
+        qtbot.addWidget(window)
 
         # Check modern features
         assert hasattr(window, "theme_manager")
@@ -342,11 +340,12 @@ class TestUIIntegration:
         assert hasattr(window, "keyboard_hints")
         assert window.current_theme == "dark"  # Default theme
 
-    def test_curve_widget_with_services(self, app):
+    def test_curve_widget_with_services(self, app, qtbot):
         """Test CurveViewWidget with service integration."""
         from ui.curve_view_widget import CurveViewWidget
 
         widget = CurveViewWidget()
+        qtbot.addWidget(widget)
 
         # Set some test data
         widget.curve_data = [
@@ -364,7 +363,7 @@ class TestUIIntegration:
         assert isinstance(screen_point, QPointF)
 
         # Test screen to data conversion
-        data_point = widget.screen_to_data(screen_point)
+        data_point = widget.screen_to_data_qpoint(screen_point)
         assert abs(data_point.x() - 100) < 0.001
         assert abs(data_point.y() - 100) < 0.001
 
@@ -380,11 +379,12 @@ class TestEndToEndWorkflow:
             app = QApplication([])
         return app
 
-    def test_zoom_workflow(self, app):
+    def test_zoom_workflow(self, app, qtbot):
         """Test complete zoom workflow from mouse wheel to rendering."""
         from ui.curve_view_widget import CurveViewWidget
 
         widget = CurveViewWidget()
+        qtbot.addWidget(widget)
         widget.curve_data = [(1, 100, 100), (2, 200, 200)]
 
         initial_zoom = widget.zoom_factor
@@ -393,8 +393,8 @@ class TestEndToEndWorkflow:
         wheel_event = QWheelEvent(
             QPointF(400, 300),  # Position
             QPointF(400, 300),  # Global position
-            QPointF(0, 120),  # Pixel delta (positive = zoom in)
-            QPointF(0, 15),  # Angle delta
+            QPoint(0, 120),  # Pixel delta (positive = zoom in) - needs QPoint
+            QPoint(0, 15),  # Angle delta - needs QPoint
             Qt.MouseButton.NoButton,
             Qt.KeyboardModifier.NoModifier,
             Qt.ScrollPhase.NoScrollPhase,
@@ -410,11 +410,12 @@ class TestEndToEndWorkflow:
         transform = widget.get_transform()
         assert transform.scale == widget.zoom_factor
 
-    def test_selection_workflow(self, app):
+    def test_selection_workflow(self, app, qtbot):
         """Test complete selection workflow."""
         from ui.curve_view_widget import CurveViewWidget
 
         widget = CurveViewWidget()
+        qtbot.addWidget(widget)
         widget.curve_data = [
             (1, 100, 100),
             (2, 200, 200),
@@ -441,11 +442,12 @@ class TestEndToEndWorkflow:
         # First point should be selected
         assert 0 in widget.selected_points
 
-    def test_pan_workflow(self, app):
+    def test_pan_workflow(self, app, qtbot):
         """Test complete pan workflow."""
         from ui.curve_view_widget import CurveViewWidget
 
         widget = CurveViewWidget()
+        qtbot.addWidget(widget)
         widget.curve_data = [(1, 100, 100)]
 
         initial_pan_x = widget.pan_offset_x
