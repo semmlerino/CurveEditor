@@ -213,6 +213,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     point_y_spinbox: QDoubleSpinBox | None = None
     show_background_cb: QCheckBox | None = None
     show_grid_cb: QCheckBox | None = None
+    show_info_cb: QCheckBox | None = None
+    point_size_label: QLabel | None = None
+    line_width_label: QLabel | None = None
+    point_size_slider: QSlider | None = None
+    line_width_slider: QSlider | None = None
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the MainWindow with enhanced UI functionality."""
@@ -254,6 +259,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize background thread management
         self.file_load_thread: QThread | None = None
         self.file_load_worker: FileLoadWorker | None = None
+
+        # Initialize centering state
+        self.auto_center_enabled: bool = False
+
+        # Initialize image sequence state
+        self.image_directory: str | None = None
+        self.image_filenames: list[str] = []
+        self.current_image_idx: int = 0
 
         # Connect state manager signals
         self._connect_signals()
@@ -793,11 +806,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.curve_widget.zoom_changed.connect(self._on_curve_zoom_changed)
 
         # Connect view options to curve widget
-        self.show_background_cb.stateChanged.connect(self._update_curve_view_options)
-        self.show_grid_cb.stateChanged.connect(self._update_curve_view_options)
-        self.show_info_cb.stateChanged.connect(self._update_curve_view_options)
-        self.point_size_slider.valueChanged.connect(self._update_curve_point_size)
-        self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
+        if self.show_background_cb:
+            self.show_background_cb.stateChanged.connect(self._update_curve_view_options)
+        if self.show_grid_cb:
+            self.show_grid_cb.stateChanged.connect(self._update_curve_view_options)
+        if self.show_info_cb:
+            self.show_info_cb.stateChanged.connect(self._update_curve_view_options)
+        if self.point_size_slider:
+            self.point_size_slider.valueChanged.connect(self._update_curve_point_size)
+        if self.line_width_slider:
+            self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
 
     def _connect_actions(self) -> None:
         """Connect actions to their handlers."""
@@ -819,13 +837,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
         # Only set tab order for widgets that are actually in the UI
-        # Toolbar controls
-        self.setTabOrder(self.frame_spinbox, self.show_background_cb)
-        self.setTabOrder(self.show_background_cb, self.show_grid_cb)
-        self.setTabOrder(self.show_grid_cb, self.show_info_cb)
+        # Toolbar controls - check for None values
+        if self.frame_spinbox and self.show_background_cb:
+            self.setTabOrder(self.frame_spinbox, self.show_background_cb)
+        if self.show_background_cb and self.show_grid_cb:
+            self.setTabOrder(self.show_background_cb, self.show_grid_cb)
+        if hasattr(self, "show_info_cb") and self.show_grid_cb and self.show_info_cb:
+            self.setTabOrder(self.show_grid_cb, self.show_info_cb)
 
         # Curve view widget (main area)
-        if self.curve_widget:
+        if self.curve_widget and hasattr(self, "show_info_cb") and self.show_info_cb:
             self.setTabOrder(self.show_info_cb, self.curve_widget)
 
         logger.debug("Tab order configured for keyboard navigation")
@@ -877,9 +898,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _on_frame_changed(self, value: int) -> None:
         """Handle frame spinbox value change."""
         logger.debug(f"[FRAME] Frame changed to: {value}")
-        self.frame_slider.blockSignals(True)
-        self.frame_slider.setValue(value)
-        self.frame_slider.blockSignals(False)
+        if self.frame_slider:
+            self.frame_slider.blockSignals(True)
+            self.frame_slider.setValue(value)
+            self.frame_slider.blockSignals(False)
 
         # Update timeline tabs if available
         if self.timeline_tabs:
@@ -900,9 +922,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot(int)
     def _on_slider_changed(self, value: int) -> None:
         """Handle frame slider value change."""
-        self.frame_spinbox.blockSignals(True)
-        self.frame_spinbox.setValue(value)
-        self.frame_spinbox.blockSignals(False)
+        if self.frame_spinbox:
+            self.frame_spinbox.blockSignals(True)
+            self.frame_spinbox.setValue(value)
+            self.frame_spinbox.blockSignals(False)
 
         # Update timeline tabs if available
         if self.timeline_tabs:
@@ -922,57 +945,64 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def _on_first_frame(self) -> None:
         """Go to first frame."""
-        self.frame_spinbox.setValue(1)
+        if self.frame_spinbox:
+            self.frame_spinbox.setValue(1)
 
     @Slot()
     def _on_prev_frame(self) -> None:
         """Go to previous frame."""
-        current = self.frame_spinbox.value()
-        if current > 1:
-            self.frame_spinbox.setValue(current - 1)
+        if self.frame_spinbox:
+            current = self.frame_spinbox.value()
+            if current > 1:
+                self.frame_spinbox.setValue(current - 1)
 
     @Slot()
     def _on_next_frame(self) -> None:
         """Go to next frame."""
-        current = self.frame_spinbox.value()
-        if current < self.frame_spinbox.maximum():
-            self.frame_spinbox.setValue(current + 1)
+        if self.frame_spinbox:
+            current = self.frame_spinbox.value()
+            if current < self.frame_spinbox.maximum():
+                self.frame_spinbox.setValue(current + 1)
 
     @Slot()
     def _on_last_frame(self) -> None:
         """Go to last frame."""
-        self.frame_spinbox.setValue(self.frame_spinbox.maximum())
+        if self.frame_spinbox:
+            self.frame_spinbox.setValue(self.frame_spinbox.maximum())
 
     @Slot(bool)
     def _on_play_pause(self, checked: bool) -> None:
         """Handle play/pause toggle."""
         if checked:
             # Start playback
-            fps = self.fps_spinbox.value()
-            interval = int(1000 / fps)  # Convert FPS to milliseconds
-            self.playback_timer.start(interval)
-            self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+            if self.fps_spinbox and self.playback_timer and self.btn_play_pause:
+                fps = self.fps_spinbox.value()
+                interval = int(1000 / fps)  # Convert FPS to milliseconds
+                self.playback_timer.start(interval)
+                self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
             self.play_toggled.emit(True)
         else:
             # Stop playback
-            self.playback_timer.stop()
-            self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+            if self.playback_timer and self.btn_play_pause:
+                self.playback_timer.stop()
+                self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
             self.play_toggled.emit(False)
 
     @Slot()
     def _on_playback_timer(self) -> None:
         """Handle playback timer tick."""
-        current = self.frame_spinbox.value()
-        if current >= self.frame_spinbox.maximum():
-            # Loop back to start
-            self.frame_spinbox.setValue(1)
-        else:
-            self.frame_spinbox.setValue(current + 1)
+        if self.frame_spinbox:
+            current = self.frame_spinbox.value()
+            if current >= self.frame_spinbox.maximum():
+                # Loop back to start
+                self.frame_spinbox.setValue(1)
+            else:
+                self.frame_spinbox.setValue(current + 1)
 
     @Slot(int)
     def _on_fps_changed(self, value: int) -> None:
         """Handle FPS change."""
-        if self.playback_timer.isActive():
+        if self.playback_timer and self.playback_timer.isActive():
             interval = int(1000 / value)
             self.playback_timer.setInterval(interval)
         self.frame_rate_changed.emit(value)
@@ -981,7 +1011,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _on_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click to navigate to frame."""
         # Update spinbox and slider (which will trigger frame change)
-        self.frame_spinbox.setValue(frame)
+        if self.frame_spinbox:
+            self.frame_spinbox.setValue(frame)
         logger.debug(f"Timeline tab clicked: navigating to frame {frame}")
 
     @Slot(int)
@@ -998,9 +1029,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Now handled by dedicated curve widget handlers
         self._update_curve_view_options()
         logger.debug(
-            f"View options changed - Background: {self.show_background_cb.isChecked()}, "
-            f"Grid: {self.show_grid_cb.isChecked()}, "
-            f"Info: {self.show_info_cb.isChecked()}"
+            f"View options changed - Background: {self.show_background_cb.isChecked() if self.show_background_cb else False}, "
+            f"Grid: {self.show_grid_cb.isChecked() if self.show_grid_cb else True}, "
+            f"Info: {self.show_info_cb.isChecked() if self.show_info_cb else True}"
         )
 
     @Slot(int)
@@ -1111,9 +1142,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         tracking_file_path = str(tracking_file) if tracking_file.exists() else None
         image_dir_path = str(footage_dir) if footage_dir.exists() else None
 
-        if not tracking_file_path and not image_dir_path:
-            logger.debug("No burger tracking data or footage found")
-            return
+        # For debugging: Always try to load burger sequence
+        if not image_dir_path:
+            # Try to find it in different locations
+            possible_dirs = [base_dir / "footage" / "Burger", base_dir / "Data" / "burger", base_dir / "Burger"]
+            for dir_path in possible_dirs:
+                if dir_path.exists() and dir_path.is_dir():
+                    image_dir_path = str(dir_path)
+                    logger.info(f"Found burger footage at: {image_dir_path}")
+                    break
+
+        # Always proceed with loading if we have at least the image directory
+        if not image_dir_path:
+            logger.warning("No burger footage found in any expected location")
+            logger.debug(f"Checked: {base_dir}/footage/Burger, {base_dir}/Data/burger, {base_dir}/Burger")
+            # Still continue to attempt loading from default location
+            image_dir_path = str(footage_dir)  # Use default even if it doesn't exist
 
         # Clean up any existing thread
         self._cleanup_file_load_thread()
@@ -1202,6 +1246,33 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.image_filenames = image_files
             self.current_image_idx = 0
 
+            # Update frame range to match image sequence exactly
+            # The frame range should match the number of images, not extend beyond
+            num_images = len(image_files)
+            try:
+                if self.frame_spinbox:
+                    self.frame_spinbox.setMaximum(num_images)
+                if self.frame_slider:
+                    self.frame_slider.setMaximum(num_images)
+                if self.total_frames_label:
+                    self.total_frames_label.setText(str(num_images))
+                logger.info(f"Set frame range to match {num_images} images (1-{num_images})")
+            except RuntimeError:
+                # Widgets may have been deleted during application shutdown
+                pass
+
+            # Update timeline tabs if available
+            if hasattr(self, "timeline_tabs") and self.timeline_tabs:
+                try:
+                    self.timeline_tabs.set_frame_range(1, num_images)
+                    logger.info(f"Updated timeline tabs frame range to 1-{num_images}")
+                except (AttributeError, RuntimeError) as e:
+                    logger.warning(f"Could not update timeline tabs: {e}")
+
+            # Update state manager if available
+            if hasattr(self, "state_manager") and self.state_manager:
+                self.state_manager.set_image_files(image_files)
+
             # Load the first image as background
             if image_files:
                 from pathlib import Path
@@ -1221,6 +1292,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     logger.info(f"Loaded background image: {image_files[0]} ({pixmap.width()}x{pixmap.height()})")
 
             logger.info(f"Loaded {len(image_files)} images from background thread")
+
+            # Ensure background checkbox is checked when images are loaded
+            if self.show_background_cb and image_files:
+                self.show_background_cb.setChecked(True)
+                logger.info("Enabled background display for loaded images")
 
     def _on_file_load_progress(self, progress: int, message: str) -> None:
         """Handle file loading progress updates."""
@@ -1652,14 +1728,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.curve_view = curve_view
         logger.info("Legacy curve view reference set")
 
-    def get_view_options(self) -> dict:
+    def get_view_options(self) -> dict[str, Any]:
         """Get current view options."""
         return {
-            "show_background": self.show_background_cb.isChecked(),
-            "show_grid": self.show_grid_cb.isChecked(),
-            "show_info": self.show_info_cb.isChecked(),
-            "point_size": self.point_size_slider.value(),
-            "line_width": self.line_width_slider.value(),
+            "show_background": self.show_background_cb.isChecked() if self.show_background_cb else False,
+            "show_grid": self.show_grid_cb.isChecked() if self.show_grid_cb else True,
+            "show_info": self.show_info_cb.isChecked() if self.show_info_cb else True,
+            "point_size": self.point_size_slider.value() if self.point_size_slider else 5,
+            "line_width": self.line_width_slider.value() if self.line_width_slider else 2,
         }
 
     def set_centering_enabled(self, enabled: bool) -> None:
@@ -1669,8 +1745,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             enabled: Whether to enable auto-centering
         """
         # Store the centering state
-        if hasattr(self, "state_manager"):
-            self.state_manager.auto_center_enabled = enabled
+        self.auto_center_enabled = enabled
 
         # Update the curve widget if available
         if hasattr(self, "curve_widget") and self.curve_widget:
@@ -1715,7 +1790,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             selected_indices = list(range(len(curve_data)))
 
         # Get smoothing window size from user
-        from services.ui_service import get_ui_service
+        from services import get_ui_service
 
         ui_service = get_ui_service()
         if ui_service:
