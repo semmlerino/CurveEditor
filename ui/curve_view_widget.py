@@ -140,6 +140,8 @@ class CurveViewWidget(QWidget):
         self.pan_offset_y: float = 0.0
         self.manual_offset_x: float = 0.0
         self.manual_offset_y: float = 0.0
+        # For tracking data from video, Y=0 is at top, Y increases downward
+        # Qt's coordinate system also has Y=0 at top, so we don't need to flip
         self.flip_y_axis: bool = False
         self.scale_to_image: bool = True
 
@@ -402,12 +404,18 @@ class CurveViewWidget(QWidget):
         from services import get_transform_service
 
         # Calculate display dimensions
-        display_width = self.image_width
-        display_height = self.image_height
+        # When Y-flip is enabled (for pixel tracking), use widget dimensions for coordinate system
+        # Otherwise use image dimensions for traditional image-based coordinates
+        if self.flip_y_axis:
+            display_width = self.width()
+            display_height = self.height()
+        else:
+            display_width = self.image_width
+            display_height = self.image_height
 
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
+            if self.background_image:
+                display_width = self.background_image.width()
+                display_height = self.background_image.height()
 
         logger.info(
             f"[TRANSFORM] Display dimensions: {display_width}x{display_height}, zoom_factor: {self.zoom_factor}"
@@ -707,7 +715,12 @@ class CurveViewWidget(QWidget):
         elif self.pan_active and self.last_mouse_pos:
             delta = pos - self.last_mouse_pos
             self.pan_offset_x += delta.x()
-            self.pan_offset_y += delta.y()
+            # When Y-axis is flipped, invert the pan direction for Y
+            # This ensures the curve follows the mouse drag direction
+            if self.flip_y_axis:
+                self.pan_offset_y -= delta.y()
+            else:
+                self.pan_offset_y += delta.y()
             self.last_mouse_pos = pos
             self._invalidate_caches()
             self.update()
@@ -774,7 +787,13 @@ class CurveViewWidget(QWidget):
 
             offset = pos - new_screen_pos
             self.pan_offset_x += offset.x()
-            self.pan_offset_y += offset.y()
+
+            # When Y-axis is flipped, invert the pan adjustment for Y
+            # This ensures zoom keeps the point under cursor stationary
+            if self.flip_y_axis:
+                self.pan_offset_y -= offset.y()
+            else:
+                self.pan_offset_y += offset.y()
 
             # Invalidate caches again after pan adjustment
             self._invalidate_caches()
@@ -979,6 +998,26 @@ class CurveViewWidget(QWidget):
             logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
             self.center_on_frame(frame)
 
+    def setup_for_pixel_tracking(self) -> None:
+        """Set up the view for pixel-coordinate tracking data.
+
+        This ensures that tracking data coordinates map 1:1 to image pixels.
+        """
+        # Reset transformations for pixel coordinates
+        self.zoom_factor = 1.0
+        self.pan_offset_x = 0.0
+        self.pan_offset_y = 0.0
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+
+        # Ensure we're using pixel coordinates
+        self.scale_to_image = False  # Don't apply additional image scaling
+        self.flip_y_axis = True  # Tracking data uses mathematical coordinates (Y=0 at bottom)
+
+        logger.info("[COORD] Set up view for pixel-coordinate tracking data")
+        self._invalidate_caches()
+        self.update()
+
     def fit_to_background_image(self) -> None:
         """Fit the background image fully in view."""
         if not self.background_image:
@@ -1039,8 +1078,13 @@ class CurveViewWidget(QWidget):
         logger.info(f"[FIT_BG] Final center offsets: ({params['center_offset_x']}, {params['center_offset_y']})")
         logger.info(f"[FIT_BG] Final pan offsets: ({params['pan_offset_x']}, {params['pan_offset_y']})")
 
-        # Test image positioning
-        top_left_x, top_left_y = transform.data_to_screen(0, 0)
+        # Test image positioning - account for Y-flip
+        if self.flip_y_axis:
+            # With Y-flip, image top is at Y=image_height in data space
+            top_left_x, top_left_y = transform.data_to_screen(0, img_height)
+        else:
+            # Without Y-flip, image top is at Y=0 in data space
+            top_left_x, top_left_y = transform.data_to_screen(0, 0)
         logger.info(f"[FIT_BG] Image top-left will be at: ({top_left_x}, {top_left_y})")
 
         self.update()
@@ -1083,7 +1127,12 @@ class CurveViewWidget(QWidget):
             old_pan_x = self.pan_offset_x
             old_pan_y = self.pan_offset_y
             self.pan_offset_x += offset.x()
-            self.pan_offset_y += offset.y()
+            # When Y-axis is flipped, invert the pan adjustment for Y
+            # This ensures centering works consistently with panning behavior
+            if self.flip_y_axis:
+                self.pan_offset_y -= offset.y()
+            else:
+                self.pan_offset_y += offset.y()
             logger.debug(
                 f"[CENTER] Pan offset changed from ({old_pan_x:.2f}, {old_pan_y:.2f}) to ({self.pan_offset_x:.2f}, {self.pan_offset_y:.2f})"
             )
@@ -1113,7 +1162,12 @@ class CurveViewWidget(QWidget):
             # Adjust pan
             offset = widget_center - screen_pos
             self.pan_offset_x += offset.x()
-            self.pan_offset_y += offset.y()
+            # When Y-axis is flipped, invert the pan adjustment for Y
+            # This ensures centering works consistently with panning behavior
+            if self.flip_y_axis:
+                self.pan_offset_y -= offset.y()
+            else:
+                self.pan_offset_y += offset.y()
 
             logger.debug(f"[CENTER] View centered on frame {frame}")
 
@@ -1363,6 +1417,14 @@ class CurveViewWidget(QWidget):
             pixmap: Background image pixmap or None
         """
         self.background_image = pixmap
+
+        # Update image dimensions to match the actual image
+        # This ensures tracking data coordinates map correctly to image pixels
+        if pixmap:
+            self.image_width = pixmap.width()
+            self.image_height = pixmap.height()
+            logger.info(f"[COORD] Set image dimensions to {self.image_width}x{self.image_height} from background image")
+
         self._invalidate_caches()
         self.update()
 
@@ -1373,12 +1435,18 @@ class CurveViewWidget(QWidget):
         Returns:
             ViewState object with current parameters
         """
-        display_width = self.image_width
-        display_height = self.image_height
+        # When Y-flip is enabled (for pixel tracking), use widget dimensions for coordinate system
+        # Otherwise use image dimensions for traditional image-based coordinates
+        if self.flip_y_axis:
+            display_width = self.width()
+            display_height = self.height()
+        else:
+            display_width = self.image_width
+            display_height = self.image_height
 
-        if self.background_image:
-            display_width = self.background_image.width()
-            display_height = self.background_image.height()
+            if self.background_image:
+                display_width = self.background_image.width()
+                display_height = self.background_image.height()
 
         return ViewState(
             display_width=display_width,
