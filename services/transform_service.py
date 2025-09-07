@@ -269,25 +269,25 @@ class Transform:
             x *= self._parameters["image_scale_x"]
             y *= self._parameters["image_scale_y"]
 
-        # Step 2: Apply Y-axis flipping if enabled
-        if self.flip_y and self.display_height > 0:
-            y = self.display_height - y
-
-        # Step 3: Apply main scaling
+        # Step 2: Apply main scaling
         x *= self.scale
         y *= self.scale
 
-        # Step 4: Apply centering offset
+        # Step 3: Apply centering offset
         x += self._parameters["center_offset_x"]
         y += self._parameters["center_offset_y"]
 
-        # Step 5: Apply pan offset
+        # Step 4: Apply pan offset
         x += self._parameters["pan_offset_x"]
         y += self._parameters["pan_offset_y"]
 
-        # Step 6: Apply manual offset
+        # Step 5: Apply manual offset
         x += self._parameters["manual_offset_x"]
         y += self._parameters["manual_offset_y"]
+
+        # Step 6: Apply Y-axis flipping if enabled (last step)
+        if self.flip_y and self.display_height > 0:
+            y = self.display_height - y
 
         return (x, y)
 
@@ -302,26 +302,26 @@ class Transform:
         Returns:
             Tuple of (data_x, data_y)
         """
-        # Reverse Step 6: Remove manual offset
+        # Reverse Step 6: Reverse Y-axis flipping if enabled (first in reverse)
+        if self.flip_y and self.display_height > 0:
+            y = self.display_height - y
+
+        # Reverse Step 5: Remove manual offset
         x -= self._parameters["manual_offset_x"]
         y -= self._parameters["manual_offset_y"]
 
-        # Reverse Step 5: Remove pan offset
+        # Reverse Step 4: Remove pan offset
         x -= self._parameters["pan_offset_x"]
         y -= self._parameters["pan_offset_y"]
 
-        # Reverse Step 4: Remove centering offset
+        # Reverse Step 3: Remove centering offset
         x -= self._parameters["center_offset_x"]
         y -= self._parameters["center_offset_y"]
 
-        # Reverse Step 3: Remove main scaling
+        # Reverse Step 2: Remove main scaling
         if self.scale != 0:
             x /= self.scale
             y /= self.scale
-
-        # Reverse Step 2: Reverse Y-axis flipping if enabled
-        if self.flip_y and self.display_height > 0:
-            y = self.display_height - y
 
         # Reverse Step 1: Remove image scaling if enabled
         if self.scale_to_image:
@@ -391,8 +391,20 @@ class Transform:
         scale = view_state.zoom_factor
 
         # Calculate center offsets
-        center_offset_x = (view_state.widget_width - view_state.display_width * scale) / 2
-        center_offset_y = (view_state.widget_height - view_state.display_height * scale) / 2
+        # In pixel tracking mode (flip_y_axis=True), skip centering for direct pixel-to-pixel mapping
+        # Otherwise, apply centering if there's a background image
+        if view_state.flip_y_axis:
+            # Pixel tracking mode - no centering offsets
+            center_offset_x = 0.0
+            center_offset_y = 0.0
+        elif view_state.background_image is not None:
+            # Traditional mode with background image - apply centering
+            center_offset_x = (view_state.widget_width - view_state.display_width * scale) / 2
+            center_offset_y = (view_state.widget_height - view_state.display_height * scale) / 2
+        else:
+            # No background image - don't apply image-based centering
+            center_offset_x = 0.0
+            center_offset_y = 0.0
 
         # Calculate image scale factors
         image_scale_x = view_state.display_width / view_state.image_width if view_state.image_width > 0 else 1.0
