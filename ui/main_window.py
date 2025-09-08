@@ -41,6 +41,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QDockWidget,
     QDoubleSpinBox,
     QFrame,
     QInputDialog,
@@ -62,6 +63,7 @@ from PySide6.QtWidgets import (
 from .curve_view_widget import CurveViewWidget
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
+from .tracking_points_panel import TrackingPointsPanel
 
 # Import refactored components
 from .ui_components import UIComponents
@@ -92,8 +94,8 @@ class PlaybackState:
     loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
 
 
-class FileLoadWorker(QObject):
-    """Worker class for loading files in a background thread."""
+class FileLoadSignals(QObject):
+    """Signal emitter for thread-safe communication from Python thread to Qt main thread."""
 
     # Signals for communicating with main thread
     tracking_data_loaded: Signal = Signal(list)  # Emits list of tracking data points
@@ -102,18 +104,44 @@ class FileLoadWorker(QObject):
     error_occurred: Signal = Signal(str)  # Emits error message
     finished: Signal = Signal()  # Emits when all loading is complete
 
-    def __init__(self, tracking_file_path: str | None = None, image_dir_path: str | None = None):
-        """Initialize worker with file paths to load."""
-        super().__init__()
-        self.tracking_file_path: str | None = tracking_file_path
-        self.image_dir_path: str | None = image_dir_path
+
+class FileLoadWorker:
+    """Worker class for loading files in a Python background thread (not QThread)."""
+
+    def __init__(self, signals: FileLoadSignals):
+        """Initialize worker with signal emitter."""
+        self.signals = signals  # QObject for emitting signals
+        self.tracking_file_path: str | None = None
+        self.image_dir_path: str | None = None
         self._should_stop: bool = False
+        self._work_ready: bool = False
+        self._work_ready_lock: threading.Lock = threading.Lock()
         self._stop_lock: threading.Lock = threading.Lock()
+        self._thread: threading.Thread | None = None
 
     def stop(self) -> None:
         """Request the worker to stop processing."""
         with self._stop_lock:
             self._should_stop = True
+        # Wait for thread to finish if it's running
+        if self._thread and self._thread.is_alive():
+            self._thread.join(timeout=2.0)
+
+    def start_work(self, tracking_file_path: str | None, image_dir_path: str | None) -> None:
+        """Start new file loading work in a Python thread."""
+        # Stop any existing work
+        self.stop()
+
+        # Set new work parameters
+        self.tracking_file_path = tracking_file_path
+        self.image_dir_path = image_dir_path
+        with self._work_ready_lock:
+            self._work_ready = True
+        self._should_stop = False
+
+        # Start new thread
+        self._thread = threading.Thread(target=self.run, daemon=True)
+        self._thread.start()
 
     def _check_should_stop(self) -> bool:
         """Thread-safe check of stop flag."""
@@ -121,12 +149,14 @@ class FileLoadWorker(QObject):
             return self._should_stop
 
     def run(self) -> None:
-        """Main worker method that runs in background thread."""
-        current_thread = QThread.currentThread()
-        main_thread = QApplication.instance().thread() if QApplication.instance() else None
-        logger.info(
-            f"[THREAD-DEBUG] Worker.run() starting in thread: {current_thread} (main={current_thread == main_thread})"
-        )
+        """Main worker method that runs in background Python thread."""
+        # Check if there's work ready
+        with self._work_ready_lock:
+            if not self._work_ready:
+                return  # No work to do
+            self._work_ready = False
+
+        logger.info(f"[PYTHON-THREAD] Worker.run() starting in Python thread: {threading.current_thread().name}")
         try:
             total_tasks = 0
             current_task = 0
@@ -138,82 +168,116 @@ class FileLoadWorker(QObject):
                 total_tasks += 1
 
             if total_tasks == 0:
-                self.finished.emit()
+                self.signals.finished.emit()
                 return
 
             # Load tracking data if requested
             if self.tracking_file_path and not self._check_should_stop():
-                self.progress_updated.emit(0, "Loading tracking data...")
+                self.signals.progress_updated.emit(0, "Loading tracking data...")
                 try:
                     # Directly load the file without creating DataService in worker thread
-                    data = self._load_2dtrack_data_direct(self.tracking_file_path)
+                    # 3DEqualizer uses bottom-origin coordinates, need to flip for screen display
+                    data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
                     if data:
                         logger.info(
-                            f"[THREAD-DEBUG] Emitting tracking_data_loaded from thread: {QThread.currentThread()}"
+                            f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
                         )
-                    self.tracking_data_loaded.emit(data)
+                    self.signals.tracking_data_loaded.emit(data)
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
-                    self.progress_updated.emit(progress, f"Loaded {len(data) if data else 0} tracking points")
+                    self.signals.progress_updated.emit(progress, f"Loaded {len(data) if data else 0} tracking points")
                 except Exception as e:
-                    self.error_occurred.emit(f"Failed to load tracking data: {str(e)}")
+                    self.signals.error_occurred.emit(f"Failed to load tracking data: {str(e)}")
 
             # Load image sequence if requested
             if self.image_dir_path and not self._check_should_stop():
-                self.progress_updated.emit(int((current_task / total_tasks) * 100), "Loading image sequence...")
+                self.signals.progress_updated.emit(int((current_task / total_tasks) * 100), "Loading image sequence...")
                 try:
                     # Directly scan for image files without creating DataService
                     image_files = self._scan_image_directory(self.image_dir_path)
                     if image_files:
                         logger.info(
-                            f"[THREAD-DEBUG] Emitting image_sequence_loaded from thread: {QThread.currentThread()}"
+                            f"[PYTHON-THREAD] Emitting image_sequence_loaded from Python thread: {threading.current_thread().name}"
                         )
-                        self.image_sequence_loaded.emit(self.image_dir_path, image_files)
+                        self.signals.image_sequence_loaded.emit(self.image_dir_path, image_files)
                     current_task += 1
-                    self.progress_updated.emit(100, f"Loaded {len(image_files) if image_files else 0} images")
+                    self.signals.progress_updated.emit(100, f"Loaded {len(image_files) if image_files else 0} images")
                 except Exception as e:
-                    self.error_occurred.emit(f"Failed to load image sequence: {str(e)}")
+                    self.signals.error_occurred.emit(f"Failed to load image sequence: {str(e)}")
 
         except Exception as e:
-            self.error_occurred.emit(f"Unexpected error in file loading: {str(e)}")
+            self.signals.error_occurred.emit(f"Unexpected error in file loading: {str(e)}")
         finally:
-            logger.info("[THREAD-DEBUG] About to emit finished signal")
-            logger.info(f"[THREAD-DEBUG] Current thread: {QThread.currentThread()}")
-            logger.info(f"[THREAD-DEBUG] Worker thread: {self.thread()}")
-            logger.info(f"[THREAD-DEBUG] finished signal: {self.finished}")
-
-            # Check receivers
-            try:
-                # Try to get receiver count (this might not work in all PySide versions)
-                logger.info("[THREAD-DEBUG] Checking signal receivers...")
-            except Exception as e:
-                logger.info(f"[THREAD-DEBUG] Could not check receivers: {e}")
-
-            self.finished.emit()
-            logger.info("[THREAD-DEBUG] finished.emit() completed")
+            logger.info("[PYTHON-THREAD] About to emit finished signal")
+            logger.info(f"[PYTHON-THREAD] Current Python thread: {threading.current_thread().name}")
+            self.signals.finished.emit()
+            logger.info("[PYTHON-THREAD] finished.emit() completed")
 
     def _load_2dtrack_data_direct(
-        self, file_path: str
+        self, file_path: str, flip_y: bool = False, image_height: float = 720
     ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
-        """Load 2D tracking data directly without using DataService."""
+        """Load 2D tracking data directly without using DataService.
+
+        Handles 2DTrackData.txt format with 4-line header:
+        Line 1: Version
+        Line 2: Identifier 1
+        Line 3: Identifier 2
+        Line 4: Number of points
+        Lines 5+: frame_number x_coordinate y_coordinate [status]
+
+        Args:
+            file_path: Path to the tracking data file
+            flip_y: If True, flip Y coordinates (image_height - y)
+            image_height: Height of the image for Y-flip calculation
+        """
         data = []
         try:
             with open(file_path) as f:
-                for line in f:
+                lines = f.readlines()
+
+                # Detect if this is a 2DTrackData.txt format file by checking first few lines
+                has_header = False
+                if len(lines) > 4:
+                    # Check if line 4 looks like a point count and line 5 starts with data
+                    try:
+                        # Try to parse line 4 as a single integer (point count)
+                        int(lines[3].strip())
+                        # Try to parse line 5 as data (frame x y)
+                        parts = lines[4].strip().split()
+                        if len(parts) >= 3:
+                            int(parts[0])
+                            float(parts[1])
+                            float(parts[2])
+                            has_header = True
+                    except (ValueError, IndexError):
+                        pass
+
+                # Process lines, skipping header if detected
+                start_line = 4 if has_header else 0
+                for line in lines[start_line:]:
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
                     parts = line.split()
                     if len(parts) >= 3:
-                        frame = int(parts[0])
-                        x = float(parts[1])
-                        y = float(parts[2])
-                        # Handle optional status field
-                        if len(parts) >= 4:
-                            status = parts[3]
-                            data.append((frame, x, y, status))
-                        else:
-                            data.append((frame, x, y))
+                        try:
+                            frame = int(parts[0])
+                            x = float(parts[1])
+                            y = float(parts[2])
+
+                            # Flip Y coordinate if requested (3DEqualizer convention)
+                            if flip_y:
+                                y = image_height - y
+
+                            # Handle optional status field
+                            if len(parts) >= 4:
+                                status = parts[3]
+                                data.append((frame, x, y, status))
+                            else:
+                                data.append((frame, x, y))
+                        except ValueError:
+                            # Skip lines that can't be parsed as data
+                            continue
         except Exception as e:
             logger.error(f"Error loading tracking data: {e}")
             raise
@@ -293,6 +357,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize UI components container for organized widget management
         self.ui: UIComponents = UIComponents(self)
 
+        # Multi-point tracking data
+        self.tracked_data: dict[str, list] = {}  # All tracking points
+        self.active_points: list[str] = []  # Currently selected points
+
         # Initialize UI components
         self._init_actions()
         self._init_toolbar()
@@ -310,8 +378,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.max_history_size: int = MAX_HISTORY_SIZE
 
         # Initialize background thread management
-        self.file_load_thread: QThread | None = None
         self.file_load_worker: FileLoadWorker | None = None
+        self.file_load_signals: FileLoadSignals | None = None
+
+        # Initialize persistent worker and thread for Keep Worker Alive strategy
+        self._init_persistent_worker()
 
         # Initialize centering state
         self.auto_center_enabled: bool = False
@@ -352,6 +423,25 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._toggle_tooltips()
 
         logger.info("MainWindow initialized successfully")
+
+    def _init_persistent_worker(self) -> None:
+        """Initialize worker with Python threading (no QThread)."""
+        logger.info("[PYTHON-THREAD] Initializing file loader with Python threading")
+
+        # Create signal emitter (stays in main thread)
+        self.file_load_signals = FileLoadSignals()
+
+        # Create worker (plain Python class, not QObject)
+        self.file_load_worker = FileLoadWorker(self.file_load_signals)
+
+        # Connect signals (emitter is in main thread, so this is safe)
+        self.file_load_signals.tracking_data_loaded.connect(self._on_tracking_data_loaded)
+        self.file_load_signals.image_sequence_loaded.connect(self._on_image_sequence_loaded)
+        self.file_load_signals.progress_updated.connect(self._on_file_load_progress)
+        self.file_load_signals.error_occurred.connect(self._on_file_load_error)
+        self.file_load_signals.finished.connect(self._on_file_load_finished)
+
+        logger.info("[PYTHON-THREAD] File loader initialized with Python threading")
 
     def _init_actions(self) -> None:
         """Initialize all QActions for menus and toolbars."""
@@ -580,7 +670,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         layout.addWidget(self.curve_widget)
 
         # Set focus to curve widget after creation
-        QTimer.singleShot(100, lambda: self.curve_widget.setFocus() if self.curve_widget else None)
+        def set_focus_safe():
+            try:
+                if hasattr(self, "curve_widget") and self.curve_widget:
+                    self.curve_widget.setFocus()
+            except RuntimeError:
+                # Widget was deleted (C++ object destroyed)
+                pass
+
+        QTimer.singleShot(100, set_focus_safe)
 
         logger.info("CurveViewWidget created and integrated")
 
@@ -588,8 +686,26 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _init_dock_widgets(self) -> None:
         """Initialize dock widgets (optional, for future expansion)."""
-        # Can add dockable panels here if needed
-        pass
+        # Create tracking points panel dock widget
+        self.tracking_panel_dock = QDockWidget("Tracking Points", self)
+        self.tracking_panel = TrackingPointsPanel()
+        self.tracking_panel_dock.setWidget(self.tracking_panel)
+
+        # Set dock widget properties
+        self.tracking_panel_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
+        self.tracking_panel_dock.setVisible(True)  # Make visible by default
+
+        # Connect signals for tracking point management
+        self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
+        self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
+        self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
+        self.tracking_panel.point_deleted.connect(self._on_point_deleted)
+        self.tracking_panel.point_renamed.connect(self._on_point_renamed)
+
+        logger.info("Tracking points panel dock widget initialized")
 
     def _init_status_bar(self) -> None:
         """Initialize the status bar with additional widgets."""
@@ -1053,6 +1169,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Clear curve widget data
         if self.curve_widget:
             self.curve_widget.set_curve_data([])
+            self._update_tracking_panel()
 
         self.state_manager.reset_to_defaults()
         self._update_ui_state()
@@ -1067,12 +1184,78 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             if not self.services.confirm_action("Current curve has unsaved changes. Continue?", self):
                 return
 
+        # Try to load as multi-point tracking data first
+
+        from PySide6.QtWidgets import QFileDialog
+
+        file_path, _ = QFileDialog.getOpenFileName(
+            self,
+            "Open Tracking Data",
+            "",
+            "Text Files (*.txt);;JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
+        )
+
+        if not file_path:
+            return
+
+        # Check if it's a multi-point file
+        if file_path.endswith(".txt"):
+            # Try loading as multi-point format
+            from services import get_data_service
+
+            data_service = get_data_service()
+            tracked_data = data_service.load_tracked_data(file_path)
+
+            if tracked_data:
+                # Successfully loaded multi-point data
+                self.tracked_data = tracked_data
+                self.active_points = list(tracked_data.keys())[:1]  # Select first point
+
+                # Set up view for pixel-coordinate tracking data BEFORE displaying
+                if self.curve_widget:
+                    self.curve_widget.setup_for_pixel_tracking()
+
+                self._update_tracking_panel()
+                self._update_curve_display()
+
+                # Update frame range based on first trajectory
+                if self.active_points and self.active_points[0] in self.tracked_data:
+                    trajectory = self.tracked_data[self.active_points[0]]
+                    if trajectory:
+                        max_frame = max(point[0] for point in trajectory)
+                        if self.frame_slider:
+                            self.frame_slider.setMaximum(max_frame)
+                        if self.frame_spinbox:
+                            self.frame_spinbox.setMaximum(max_frame)
+                        if self.total_frames_label:
+                            self.total_frames_label.setText(str(max_frame))
+                        self.state_manager.total_frames = max_frame
+                return
+
+        # Fall back to single curve loading
         # Load data using service facade
-        data = self.services.load_track_data(self)
+        data = (
+            self.services.load_track_data_from_file(file_path)
+            if hasattr(self.services, "load_track_data_from_file")
+            else []
+        )
+        if not data and file_path:
+            # Try direct loading
+            from services import get_data_service
+
+            data_service = get_data_service()
+            if file_path.endswith(".json"):
+                data = data_service._load_json(file_path)
+            elif file_path.endswith(".csv"):
+                data = data_service._load_csv(file_path)
+            elif file_path.endswith(".txt"):
+                data = data_service._load_2dtrack_data(file_path)
+
         if data:
             # Update curve widget with new data
             if self.curve_widget:
                 self.curve_widget.set_curve_data(data)
+                self._update_tracking_panel()
 
             # Update state manager
             self.state_manager.set_track_data(data, mark_modified=False)
@@ -1125,11 +1308,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Get the current working directory
         base_dir = Path(__file__).parent.parent
 
-        # Check for tracking data file
-        tracking_file = base_dir / "2DTrackData.txt"
+        # Check for tracking data file - try v2 first, then v1
+        tracking_file = base_dir / "2DTrackDatav2.txt"
         if not tracking_file.exists():
-            # Also check in footage directory
-            tracking_file = base_dir / "footage" / "Burger" / "2DTrackData.txt"
+            tracking_file = base_dir / "2DTrackData.txt"
+            if not tracking_file.exists():
+                # Also check in footage directory
+                tracking_file = base_dir / "footage" / "Burger" / "2DTrackDatav2.txt"
+                if not tracking_file.exists():
+                    tracking_file = base_dir / "footage" / "Burger" / "2DTrackData.txt"
 
         # Check for burger footage directory
         footage_dir = base_dir / "footage" / "Burger"
@@ -1155,137 +1342,28 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Still continue to attempt loading from default location
             image_dir_path = str(footage_dir)  # Use default even if it doesn't exist
 
-        # Clean up any existing thread
-        self._cleanup_file_load_thread()
+        # Start new work in Python thread
+        if not self.file_load_worker:
+            logger.error("[PYTHON-THREAD] Worker not initialized! This should not happen.")
+            return
 
-        # Create worker and thread
-        logger.info(f"[THREAD-DEBUG] Creating FileLoadWorker and QThread in thread: {QThread.currentThread()}")
-        self.file_load_worker = FileLoadWorker(tracking_file_path, image_dir_path)
-        self.file_load_thread = QThread()
-        logger.info(
-            f"[THREAD-DEBUG] Worker created at {self.file_load_worker}, thread created at {self.file_load_thread}"
-        )
+        logger.info("[PYTHON-THREAD] Starting file loading in Python thread")
 
-        # Move worker to thread FIRST
-        logger.info("[THREAD-DEBUG] Moving worker to thread BEFORE connecting signals")
-        logger.info(f"[THREAD-DEBUG] Worker thread before move: {self.file_load_worker.thread()}")
-        self.file_load_worker.moveToThread(self.file_load_thread)
-        logger.info(f"[THREAD-DEBUG] Worker moved to thread {self.file_load_worker.thread()}")
+        # Start work in new Python thread
+        self.file_load_worker.start_work(tracking_file_path, image_dir_path)
 
-        # NOW connect signals AFTER worker is in its thread
-        logger.info("[THREAD-DEBUG] Connecting signals AFTER moveToThread")
-        logger.info(f"[THREAD-DEBUG] MainWindow thread: {self.thread()}")
-        logger.info(f"[THREAD-DEBUG] Worker thread after move: {self.file_load_worker.thread()}")
-        logger.info(f"[THREAD-DEBUG] Receiver (self) thread: {self.thread()}")
-
-        # Connect with detailed logging
-        conn1 = self.file_load_worker.tracking_data_loaded.connect(
-            self._on_tracking_data_loaded, Qt.ConnectionType.QueuedConnection
-        )
-        logger.info(f"[THREAD-DEBUG] tracking_data_loaded connection result: {conn1}")
-
-        conn2 = self.file_load_worker.image_sequence_loaded.connect(
-            self._on_image_sequence_loaded, Qt.ConnectionType.QueuedConnection
-        )
-        logger.info(f"[THREAD-DEBUG] image_sequence_loaded connection result: {conn2}")
-
-        conn3 = self.file_load_worker.progress_updated.connect(
-            self._on_file_load_progress, Qt.ConnectionType.QueuedConnection
-        )
-        logger.info(f"[THREAD-DEBUG] progress_updated connection result: {conn3}")
-
-        conn4 = self.file_load_worker.error_occurred.connect(
-            self._on_file_load_error, Qt.ConnectionType.QueuedConnection
-        )
-        logger.info(f"[THREAD-DEBUG] error_occurred connection result: {conn4}")
-
-        # Extra debug for the problematic finished signal
-        logger.info("[THREAD-DEBUG] About to connect finished signal:")
-        logger.info(f"[THREAD-DEBUG]   self class: {self.__class__.__name__}")
-        logger.info(f"[THREAD-DEBUG]   Worker is now in thread: {self.file_load_worker.thread()}")
-        logger.info(f"[THREAD-DEBUG]   MainWindow is in thread: {self.thread()}")
-        logger.info(f"[THREAD-DEBUG]   Are they different? {self.file_load_worker.thread() != self.thread()}")
-
-        # Check if it's recognized as a slot
-        try:
-            meta_object = self.metaObject()
-            method_name = "_on_file_load_finished"
-            for i in range(meta_object.methodCount()):
-                method = meta_object.method(i)
-                if method.name() == method_name.encode():
-                    logger.info(f"[THREAD-DEBUG]   Found slot {method_name} in metaObject, type: {method.methodType()}")
-                    break
-            else:
-                logger.info(f"[THREAD-DEBUG]   WARNING: {method_name} NOT found as slot in metaObject!")
-        except Exception as e:
-            logger.info(f"[THREAD-DEBUG]   Could not check metaObject: {e}")
-
-        # WORKAROUND: QueuedConnection doesn't work properly with Python slots in PySide6
-        # Use lambda + invokeMethod to force execution in main thread
-        from PySide6.QtCore import QMetaObject
-
-        conn5 = self.file_load_worker.finished.connect(
-            lambda: QMetaObject.invokeMethod(self, "_on_file_load_finished", Qt.ConnectionType.QueuedConnection)
-        )
-        logger.info(f"[THREAD-DEBUG] finished connection result (using invokeMethod): {conn5}")
-        logger.info(f"[THREAD-DEBUG] Connection made with worker in thread: {self.file_load_worker.thread()}")
-
-        logger.info("[THREAD-DEBUG] All signals connected")
-
-        # Connect thread signals with proper cleanup chain
-        _ = self.file_load_thread.started.connect(self.file_load_worker.run)
-        # Don't automatically quit thread or delete worker - let _on_file_load_finished handle it
-        # This ensures _on_file_load_finished runs in main thread before cleanup
-        logger.info("[THREAD-DEBUG] NOT connecting automatic cleanup - will handle in _on_file_load_finished")
-
-        # Thread can still delete itself when finished
-        if self.file_load_thread:
-            _ = self.file_load_thread.finished.connect(
-                self.file_load_thread.deleteLater, Qt.ConnectionType.QueuedConnection
-            )
-
-        # Start the background loading
-        self.status_label.setText("Loading files in background...")
-        logger.info(f"[THREAD-DEBUG] Starting thread {self.file_load_thread}")
-        self.file_load_thread.start()
-        logger.info(f"[THREAD-DEBUG] Thread started, is running: {self.file_load_thread.isRunning()}")
-        logger.info("Started background file loading thread")
+        logger.info("[PYTHON-THREAD] File loading started in Python thread")
 
     def _cleanup_file_load_thread(self) -> None:
-        """Clean up existing file load thread and worker."""
-        logger.info(f"[THREAD-DEBUG] _cleanup_file_load_thread called from thread: {QThread.currentThread()}")
+        """Clean up file loading thread - stops Python thread if running."""
+        logger.info("[PYTHON-THREAD] _cleanup_file_load_thread called - stopping Python thread if running")
         if self.file_load_worker:
-            # Disconnect signals FIRST to prevent further updates
-            try:
-                logger.info(f"[THREAD-DEBUG] Disconnecting signals from worker in thread: {QThread.currentThread()}")
-                _ = self.file_load_worker.tracking_data_loaded.disconnect()
-                _ = self.file_load_worker.image_sequence_loaded.disconnect()
-                _ = self.file_load_worker.progress_updated.disconnect()
-                _ = self.file_load_worker.error_occurred.disconnect()
-                _ = self.file_load_worker.finished.disconnect()
-            except RuntimeError:
-                # Already disconnected or worker deleted, safe to ignore
-                pass
-
-            # Then stop the worker
-            logger.info("[THREAD-DEBUG] Stopping worker")
             self.file_load_worker.stop()
-            self.file_load_worker = None
+        return
 
-        if self.file_load_thread:
-            try:
-                if self.file_load_thread.isRunning():
-                    self.file_load_thread.quit()
-                    # Wait longer for graceful shutdown
-                    if not self.file_load_thread.wait(5000):  # Wait up to 5 seconds
-                        # Don't terminate - log warning and let it finish naturally
-                        logger.warning("File load thread did not quit gracefully within 5 seconds")
-            except RuntimeError:
-                # Thread's C++ object already deleted, safe to ignore
-                pass
-            finally:
-                # Always set to None to avoid memory leak
-                self.file_load_thread = None
+        # [REMOVED: Dead code block that was part of old QThread implementation]
+
+    # REMOVED DUPLICATE _cleanup_file_load_thread - see above for the correct implementation
 
     @Slot(list)
     def _on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
@@ -1301,7 +1379,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             for i in range(min(3, len(data))):
                 logger.debug(f"[DATA] Point {i}: {data[i]}")
 
+            # Set up view for pixel-coordinate tracking data BEFORE setting data
+            self.curve_widget.setup_for_pixel_tracking()
             self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
+            # self._update_point_list_data()  # Method doesn't exist
             self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
             logger.info(f"Loaded {len(data)} tracking points from background thread")
 
@@ -1407,39 +1488,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @Slot()
     def _on_file_load_finished(self) -> None:
-        """Handle file loading completion."""
-        current_thread = QThread.currentThread()
-        main_thread = QApplication.instance().thread() if QApplication.instance() else None
-        logger.info(
-            f"[THREAD-DEBUG] _on_file_load_finished executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
-
-        if current_thread != main_thread:
-            # WORKAROUND: If called from wrong thread, reschedule to main thread
-            logger.info("[THREAD-DEBUG] _on_file_load_finished in wrong thread, rescheduling to main thread")
-            from PySide6.QtCore import QTimer
-
-            QTimer.singleShot(0, self._on_file_load_finished_impl)
-            return
-
-        # If in main thread, call implementation directly
-        self._on_file_load_finished_impl()
-
-    def _on_file_load_finished_impl(self) -> None:
-        """Implementation of file load finished handler (runs in main thread)."""
+        """Handle file loading completion - worker ready for next load."""
         self.status_label.setText("File loading completed")
-        logger.info("Background file loading finished")
-
-        # Now handle cleanup from main thread
-        if self.file_load_worker:
-            logger.info("[THREAD-DEBUG] Scheduling worker deletion")
-            self.file_load_worker.deleteLater()
-            self.file_load_worker = None
-
-        if self.file_load_thread:
-            logger.info("[THREAD-DEBUG] Quitting thread")
-            self.file_load_thread.quit()
-            # Thread will delete itself via finished.connect(deleteLater)
+        logger.info("[PYTHON-THREAD] File loading finished - worker ready for next load")
+        # Mark loading as complete but keep worker alive for reuse
+        self._file_loading = False
 
     def _update_background_image_for_frame(self, frame: int) -> None:
         """Update the background image based on the current frame."""
@@ -1719,6 +1772,59 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager.zoom_level = zoom
         self._update_zoom_label()
 
+    # ==================== Tracking Points Panel Handlers ====================
+
+    def _on_tracking_points_selected(self, point_names: list[str]) -> None:
+        """Handle selection of tracking points from panel."""
+        self.active_points = point_names
+        self._update_curve_display()
+
+    def _on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
+        """Handle visibility change for a tracking point."""
+        # Update display to show/hide the trajectory
+        self._update_curve_display()
+
+    def _on_point_color_changed(self, point_name: str, color: str) -> None:
+        """Handle color change for a tracking point."""
+        # Update display with new color
+        self._update_curve_display()
+
+    def _on_point_deleted(self, point_name: str) -> None:
+        """Handle deletion of a tracking point."""
+        if point_name in self.tracked_data:
+            del self.tracked_data[point_name]
+            if point_name in self.active_points:
+                self.active_points.remove(point_name)
+            self._update_tracking_panel()
+            self._update_curve_display()
+
+    def _on_point_renamed(self, old_name: str, new_name: str) -> None:
+        """Handle renaming of a tracking point."""
+        if old_name in self.tracked_data:
+            self.tracked_data[new_name] = self.tracked_data.pop(old_name)
+            if old_name in self.active_points:
+                idx = self.active_points.index(old_name)
+                self.active_points[idx] = new_name
+            self._update_tracking_panel()
+
+    def _update_tracking_panel(self) -> None:
+        """Update tracking panel with current tracking data."""
+        if hasattr(self, "tracking_panel"):
+            self.tracking_panel.set_tracked_data(self.tracked_data)
+
+    def _update_curve_display(self) -> None:
+        """Update curve display with selected tracking points."""
+        if not self.curve_widget:
+            return
+
+        # For now, display the first selected point's trajectory
+        # TODO: Support multiple trajectory display
+        if self.active_points and self.active_points[0] in self.tracked_data:
+            trajectory = self.tracked_data[self.active_points[0]]
+            self.curve_widget.set_curve_data(trajectory)
+        else:
+            self.curve_widget.set_curve_data([])
+
     # ==================== View Options Handlers ====================
 
     def _update_curve_view_options(self) -> None:
@@ -1987,6 +2093,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
             # Set the new data
             self.curve_widget.set_curve_data(new_curve_data)
+            # self._update_point_list_data()  # Method doesn't exist
 
             # Mark as modified
             # state_manager is always initialized in __init__
@@ -2000,10 +2107,27 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         else:
             _ = QMessageBox.warning(self, "Service Error", "Data service not available for smoothing.")
 
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events for custom shortcuts."""
+        # Tab key toggles tracking panel dock visibility
+        if event.key() == Qt.Key.Key_Tab:
+            if hasattr(self, "tracking_panel_dock"):
+                self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
+                event.accept()
+                return
+
+        # Pass to parent for default handling
+        super().keyPressEvent(event)
+
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
-        # Clean up any running background threads
-        self._cleanup_file_load_thread()
+        logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
+
+        # Stop the worker thread
+        if hasattr(self, "file_load_worker") and self.file_load_worker:
+            self.file_load_worker.stop()
+
+        logger.info("[KEEP-ALIVE] Worker and thread cleaned up")
 
         # Accept the close event
         event.accept()

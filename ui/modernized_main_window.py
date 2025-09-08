@@ -338,23 +338,31 @@ class ModernizedMainWindow(MainWindow):
         """Show welcome animation on startup."""
 
         def show_welcome():
-            # Create welcome toast
-            toast = ModernToast("Welcome to CurveEditor! Press F1 for keyboard shortcuts.", "info", 4000, self)
-            toast.move(self.width() - toast.width() - 20, 60)
-            toast.show_toast()
+            try:
+                # Check if window still exists
+                if not self or not self.isVisible():
+                    return
 
-            # Animate main panel with fade-in (only curve container now)
-            for widget_name in ["curve_container"]:
-                widget = getattr(self, widget_name, None)
-                if widget and widget in self.fade_animations:
-                    try:
-                        fade_anim = self.fade_animations[widget]
-                        fade_anim.setStartValue(0.0)
-                        fade_anim.setEndValue(1.0)
-                        fade_anim.start()
-                    except RuntimeError:
-                        # Animation object may have been deleted during teardown
-                        pass
+                # Create welcome toast
+                toast = ModernToast("Welcome to CurveEditor! Press F1 for keyboard shortcuts.", "info", 4000, self)
+                toast.move(self.width() - toast.width() - 20, 60)
+                toast.show_toast()
+
+                # Animate main panel with fade-in (only curve container now)
+                for widget_name in ["curve_container"]:
+                    widget = getattr(self, widget_name, None)
+                    if widget and widget in self.fade_animations:
+                        try:
+                            fade_anim = self.fade_animations[widget]
+                            fade_anim.setStartValue(0.0)
+                            fade_anim.setEndValue(1.0)
+                            fade_anim.start()
+                        except RuntimeError:
+                            # Animation object may have been deleted during teardown
+                            pass
+            except RuntimeError:
+                # Window was deleted
+                pass
 
         # Delay welcome animation slightly
         QTimer.singleShot(500, show_welcome)
@@ -711,8 +719,6 @@ class ModernizedMainWindow(MainWindow):
     def _on_file_load_finished_impl(self):
         """Actual implementation of file load finished handler."""
         logger.info("[WORKAROUND] _on_file_load_finished_impl executing in main thread")
-        # Call parent's impl directly to avoid re-checking thread
-        super()._on_file_load_finished_impl()
 
         # Hide loading indicators
         if hasattr(self, "loading_spinner") and self.loading_spinner is not None:

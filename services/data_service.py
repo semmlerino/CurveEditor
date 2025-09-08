@@ -414,7 +414,7 @@ class DataService:
             parent_widget,
             "Load Track Data",
             self._last_directory,
-            "JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
+            "JSON Files (*.json);;CSV Files (*.csv);;Text Files (*.txt);;All Files (*.*)",
         )
 
         if not file_path:
@@ -427,12 +427,17 @@ class DataService:
             return self._load_json(file_path)
         elif file_path.endswith(".csv"):
             return self._load_csv(file_path)
+        elif file_path.endswith(".txt"):
+            return self._load_2dtrack_data(file_path)
         else:
-            # Try JSON first, then CSV
+            # Try to detect format by content
             try:
                 return self._load_json(file_path)
             except Exception:
-                return self._load_csv(file_path)
+                try:
+                    return self._load_2dtrack_data(file_path)
+                except Exception:
+                    return self._load_csv(file_path)
 
     def save_track_data(
         self, parent_widget: "QWidget", data: CurveDataList, label: str = "Track", color: str = "#FF0000"
@@ -623,6 +628,147 @@ class DataService:
             if self._logger:
                 self._logger.log_error(f"Failed to save JSON file {file_path}: {e}")
             return False
+
+    def load_tracked_data(self, file_path: str) -> dict[str, CurveDataList]:
+        """Load 2DTrackDatav2 format with multiple tracking points.
+
+        Returns a dictionary where keys are point names and values are trajectories.
+
+        Format for each point:
+        - Version number line (e.g., "12")
+        - Point name line (e.g., "Point1" or "Point02")
+        - Identifier line (e.g., "0")
+        - Point count line (e.g., "37")
+        - Data lines: frame_number x_coordinate y_coordinate
+        """
+        tracked_data = {}
+
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                lines = f.readlines()
+
+            i = 0
+            while i < len(lines):
+                # Look for point name lines (e.g., "Point1", "Point02")
+                line = lines[i].strip()
+
+                if line.startswith("Point"):
+                    # Found a point name
+                    point_name = line
+
+                    # Check if we have the required header lines after it
+                    if i - 1 >= 0 and i + 2 < len(lines):
+                        try:
+                            # The format is:
+                            # version (line before point name)
+                            # point_name (current line)
+                            # identifier (next line)
+                            # count (line after identifier)
+                            _ = lines[i + 1].strip()  # identifier - not used
+                            point_count = int(lines[i + 2].strip())
+
+                            # Read the trajectory data starting from i+3
+                            trajectory = []
+                            data_start = i + 3
+
+                            for j in range(data_start, min(data_start + point_count, len(lines))):
+                                data_line = lines[j].strip()
+                                if not data_line:
+                                    continue
+
+                                parts = data_line.split()
+                                if len(parts) >= 3:
+                                    try:
+                                        frame = int(parts[0])
+                                        x = float(parts[1])
+                                        y = float(parts[2])
+                                        # Apply Y-flip for 3DEqualizer coordinates (bottom-origin to top-origin)
+                                        y = 720 - y
+                                        trajectory.append((frame, x, y))
+                                    except (ValueError, IndexError):
+                                        continue
+
+                            # Store the trajectory
+                            if trajectory:
+                                tracked_data[point_name] = trajectory
+
+                            # Move past this point's data
+                            i = data_start + point_count
+                            continue
+
+                        except (ValueError, IndexError):
+                            pass
+
+                i += 1
+
+            if self._logger:
+                self._logger.log_info(f"Loaded {len(tracked_data)} tracking points from {file_path}")
+
+            return tracked_data
+
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to load tracked data: {e}")
+            return {}
+
+    def _load_2dtrack_data(self, file_path: str) -> CurveDataList:
+        """Load 2DTrackData.txt format file (single curve).
+
+        Format:
+        Line 1: Version (e.g., "1")
+        Line 2: Identifier 1 (e.g., "07")
+        Line 3: Identifier 2 (e.g., "0")
+        Line 4: Number of points (e.g., "37")
+        Lines 5+: frame_number x_coordinate y_coordinate
+        """
+        try:
+            curve_data = []
+
+            with open(file_path, encoding="utf-8") as f:
+                lines = f.readlines()
+
+                # Skip the 4-line header
+                if len(lines) > 4:
+                    # Parse data lines starting from line 5 (index 4)
+                    for line_num, line in enumerate(lines[4:], start=5):
+                        line = line.strip()
+                        if not line or line.startswith("#"):
+                            continue
+
+                        parts = line.split()
+                        if len(parts) >= 3:
+                            try:
+                                frame = int(parts[0])
+                                x = float(parts[1])
+                                y = float(parts[2])
+                                # Apply Y-flip for 3DEqualizer coordinates (bottom-origin to top-origin)
+                                y = 720 - y
+
+                                # Optional status field
+                                status = "keyframe"
+                                if len(parts) >= 4:
+                                    status = parts[3]
+
+                                curve_data.append((frame, x, y, status))
+
+                            except (ValueError, IndexError) as e:
+                                if self._logger:
+                                    self._logger.log_error(f"Invalid data at line {line_num}: {e}")
+                                continue
+
+            if self._logger:
+                self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
+
+            return curve_data
+
+        except FileNotFoundError:
+            if self._logger:
+                self._logger.log_error(f"File not found: {file_path}")
+            return []
+        except Exception as e:
+            if self._logger:
+                self._logger.log_error(f"Failed to load 2DTrackData file {file_path}: {e}")
+            return []
 
     def _load_csv(self, file_path: str) -> CurveDataList:
         """Load CSV file implementation."""

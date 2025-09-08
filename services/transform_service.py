@@ -391,16 +391,16 @@ class Transform:
         scale = view_state.zoom_factor
 
         # Calculate center offsets
-        # In pixel tracking mode with zoom=1.0, skip centering for direct pixel-to-pixel mapping
-        # With zoom != 1.0, we need centering to make zoom work properly around widget center
-        if view_state.flip_y_axis and scale == 1.0:
-            # Pixel tracking at 1:1 scale - no centering for direct pixel mapping
-            center_offset_x = 0.0
-            center_offset_y = 0.0
-        elif view_state.flip_y_axis:
-            # Pixel tracking with zoom - center based on widget dimensions
-            center_offset_x = (view_state.widget_width - view_state.widget_width * scale) / 2
-            center_offset_y = (view_state.widget_height - view_state.widget_height * scale) / 2
+        # For direct pixel tracking (no flip, no scale_to_image), handle zoom centering
+        if not view_state.flip_y_axis and not view_state.scale_to_image:
+            if scale == 1.0:
+                # Direct 1:1 pixel mapping
+                center_offset_x = 0.0
+                center_offset_y = 0.0
+            else:
+                # Zoom centering for pixel tracking
+                center_offset_x = (view_state.widget_width - view_state.widget_width * scale) / 2
+                center_offset_y = (view_state.widget_height - view_state.widget_height * scale) / 2
         elif view_state.background_image is not None:
             # Traditional mode with background image - apply centering
             center_offset_x = (view_state.widget_width - view_state.display_width * scale) / 2

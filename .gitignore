@@ -23,3 +23,10 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 .hypothesis/
+
+# Test outputs and development files
+test_scripts/
+test_images_output/
+crash_debug*.log
+diagnose_*.py
+FIX_*.sh

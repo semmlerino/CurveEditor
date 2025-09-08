@@ -599,8 +599,15 @@ class OptimizedCurveRenderer:
         print("[RENDERER_BG] Using transform-based rendering")
         transform = curve_view.get_transform()
 
-        # Get image position and calculate scaled dimensions (matches _paint_background method)
-        top_left_x, top_left_y = transform.data_to_screen(0, 0)
+        # Get image position - account for Y-flip
+        # When Y-flip is enabled, the image's top-left in data space is at (0, image_height)
+        # When Y-flip is disabled, the image's top-left in data space is at (0, 0)
+        if transform.flip_y:
+            # With Y-flip, image top is at Y=image_height in data space
+            top_left_x, top_left_y = transform.data_to_screen(0, background_image.height())
+        else:
+            # Without Y-flip, image top is at Y=0 in data space
+            top_left_x, top_left_y = transform.data_to_screen(0, 0)
 
         # Calculate scaled dimensions directly like _paint_background does
         scale = transform.get_parameters()["scale"]

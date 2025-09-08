@@ -458,6 +458,8 @@ class CurveViewWidget(QWidget):
             manual_x_offset=self.manual_offset_x,
             manual_y_offset=self.manual_offset_y,
             background_image=self.background_image,
+            image_width=self.image_width,
+            image_height=self.image_height,
         )
 
         # Use cached transform service - this enables 99.9% cache hits
@@ -1001,20 +1003,25 @@ class CurveViewWidget(QWidget):
     def setup_for_pixel_tracking(self) -> None:
         """Set up the view for pixel-coordinate tracking data.
 
-        This ensures that tracking data coordinates map 1:1 to image pixels.
+        Tracking data from 3DEqualizer is in the same coordinate space
+        as the background image (1280x720), so it should scale with the image.
         """
-        # Reset transformations for pixel coordinates
-        self.zoom_factor = 1.0
-        self.pan_offset_x = 0.0
-        self.pan_offset_y = 0.0
+        # Don't reset zoom if we already have a background image
+        # The zoom should match the background image scale
+        if not self.background_image:
+            # Only reset if no background loaded yet
+            self.zoom_factor = 1.0
+            self.pan_offset_x = 0.0
+            self.pan_offset_y = 0.0
+
         self.manual_offset_x = 0.0
         self.manual_offset_y = 0.0
 
-        # Ensure we're using pixel coordinates
-        self.scale_to_image = False  # Don't apply additional image scaling
-        self.flip_y_axis = True  # Tracking data uses mathematical coordinates (Y=0 at bottom)
+        # Keep scale_to_image TRUE so tracking scales with background
+        self.scale_to_image = True  # Scale tracking with background image
+        self.flip_y_axis = False  # Tracking data uses screen coordinates (Y=0 at top)
 
-        logger.info("[COORD] Set up view for pixel-coordinate tracking data")
+        logger.info(f"[COORD] Set up view for tracking data (zoom={self.zoom_factor:.3f}, scales with background)")
         self._invalidate_caches()
         self.update()
 

@@ -86,3 +86,7 @@ BoundingBox = tuple[float, float, float, float]  # (min_x, max_x, min_y, max_y)
 
 # History types - more specific than Any
 HistoryState = dict[str, CurveDataList | str | int | float | bool]  # State snapshot for undo/redo
+
+# Multi-point tracking types
+TrackingPointData = dict[str, CurveDataList | str | bool]  # Single tracking point with metadata
+TrackedData = dict[str, TrackingPointData]  # All tracking points keyed by name
