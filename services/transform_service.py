@@ -232,12 +232,12 @@ class Transform:
     @property
     def flip_y(self) -> bool:
         """Check if Y-axis should be flipped."""
-        return self._parameters["flip_y"]
+        return bool(self._parameters["flip_y"])
 
     @property
     def display_height(self) -> int:
         """Get the display height."""
-        return self._parameters["display_height"]
+        return int(self._parameters["display_height"])
 
     @property
     def image_scale(self) -> tuple[float, float]:
@@ -247,11 +247,12 @@ class Transform:
     @property
     def scale_to_image(self) -> bool:
         """Check if scaling to image dimensions is enabled."""
-        return self._parameters["scale_to_image"]
+        return bool(self._parameters["scale_to_image"])
 
     def get_parameters(self) -> dict[str, object]:
         """Get all transformation parameters as a dictionary."""
-        return self._parameters.copy()
+        # Return as dict[str, object] to match the declared return type
+        return dict(self._parameters)
 
     def data_to_screen(self, x: float, y: float) -> tuple[float, float]:
         """
@@ -363,25 +364,32 @@ class Transform:
             "scale_to_image": "scale_to_image",
         }
 
-        # Update parameters
+        # Update parameters with proper type casting
         for key, value in kwargs.items():
             if key in param_mapping:
-                new_params[param_mapping[key]] = value
+                param_key = param_mapping[key]
+                # Cast based on the parameter type
+                if param_key in ["flip_y", "scale_to_image"]:
+                    new_params[param_key] = bool(value)
+                elif param_key == "display_height":
+                    new_params[param_key] = int(value)
+                else:
+                    new_params[param_key] = float(value)
 
-        # Create new Transform instance
+        # Create new Transform instance with proper type casting
         return Transform(
-            scale=new_params["scale"],
-            center_offset_x=new_params["center_offset_x"],
-            center_offset_y=new_params["center_offset_y"],
-            pan_offset_x=new_params["pan_offset_x"],
-            pan_offset_y=new_params["pan_offset_y"],
-            manual_offset_x=new_params["manual_offset_x"],
-            manual_offset_y=new_params["manual_offset_y"],
-            flip_y=new_params["flip_y"],
-            display_height=new_params["display_height"],
-            image_scale_x=new_params["image_scale_x"],
-            image_scale_y=new_params["image_scale_y"],
-            scale_to_image=new_params["scale_to_image"],
+            scale=float(new_params["scale"]),
+            center_offset_x=float(new_params["center_offset_x"]),
+            center_offset_y=float(new_params["center_offset_y"]),
+            pan_offset_x=float(new_params["pan_offset_x"]),
+            pan_offset_y=float(new_params["pan_offset_y"]),
+            manual_offset_x=float(new_params["manual_offset_x"]),
+            manual_offset_y=float(new_params["manual_offset_y"]),
+            flip_y=bool(new_params["flip_y"]),
+            display_height=int(new_params["display_height"]),
+            image_scale_x=float(new_params["image_scale_x"]),
+            image_scale_y=float(new_params["image_scale_y"]),
+            scale_to_image=bool(new_params["scale_to_image"]),
         )
 
     @classmethod
@@ -508,13 +516,37 @@ class TransformService:
         Returns:
             Transform instance
         """
+        # Extract and properly type the optional parameters
+        manual_offset_x_val = kwargs.get("manual_offset_x", 0.0)
+        manual_offset_y_val = kwargs.get("manual_offset_y", 0.0)
+        flip_y_val = kwargs.get("flip_y", False)
+        display_height_val = kwargs.get("display_height", 720)
+        image_scale_x_val = kwargs.get("image_scale_x", 1.0)
+        image_scale_y_val = kwargs.get("image_scale_y", 1.0)
+        scale_to_image_val = kwargs.get("scale_to_image", False)
+
+        # Cast to proper types
+        manual_offset_x = float(manual_offset_x_val) if manual_offset_x_val is not None else 0.0
+        manual_offset_y = float(manual_offset_y_val) if manual_offset_y_val is not None else 0.0
+        flip_y = bool(flip_y_val) if flip_y_val is not None else False
+        display_height = int(display_height_val) if display_height_val is not None else 720
+        image_scale_x = float(image_scale_x_val) if image_scale_x_val is not None else 1.0
+        image_scale_y = float(image_scale_y_val) if image_scale_y_val is not None else 1.0
+        scale_to_image = bool(scale_to_image_val) if scale_to_image_val is not None else False
+
         return Transform(
             scale=scale,
             center_offset_x=center_offset[0],
             center_offset_y=center_offset[1],
             pan_offset_x=pan_offset[0],
             pan_offset_y=pan_offset[1],
-            **kwargs,
+            manual_offset_x=manual_offset_x,
+            manual_offset_y=manual_offset_y,
+            flip_y=flip_y,
+            display_height=display_height,
+            image_scale_x=image_scale_x,
+            image_scale_y=image_scale_y,
+            scale_to_image=scale_to_image,
         )
 
     def clear_cache(self) -> None:
