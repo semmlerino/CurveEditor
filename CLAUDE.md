@@ -160,6 +160,42 @@ class HasCurrentFrame(Protocol):
 - Cache initialization checks
 - Optional debug flags
 
+## Basedpyright Type Ignores
+
+### Use `pyright: ignore` with Specific Rules
+```python
+# BAD - Old style, less safe
+data = something()  # type: ignore
+
+# BAD - Blanket ignore without rule
+self.curve_widget.set_curve_data(data)  # pyright: ignore
+
+# GOOD - Basedpyright preferred with specific rule
+self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
+```
+
+### Common Diagnostic Rules
+- **reportArgumentType**: Argument type mismatches
+- **reportReturnType**: Return type mismatches
+- **reportAssignmentType**: Assignment incompatibilities
+- **reportOptionalMemberAccess**: Accessing potentially None attributes
+- **reportUnknownVariableType**: Unknown variable types
+- **reportUnknownMemberType**: Unknown class/instance member types
+
+### Enforced in Configuration
+```json
+// basedpyrightconfig.json
+{
+  "reportIgnoreCommentWithoutRule": "error"  // Requires specific rules
+}
+```
+
+### Better Alternatives to Type Ignores
+1. **Type Casting**: `cast(TargetType, value)`
+2. **Fix Root Cause**: Update protocols and type definitions
+3. **Union Types**: Handle multiple possibilities explicitly
+4. **Type Guards**: Use isinstance() or custom type guards
+
 ## Integration Pitfalls
 
 ### Silent Attribute Creation
@@ -224,6 +260,7 @@ from ui.main_window import MainWindow
 3. Check syntax first: `python3 -m py_compile <file>`
 4. Validate before integration to prevent silent failures
 5. Prefer None checks over hasattr() for type safety
+6. Use `pyright: ignore[rule]` not `type: ignore` for suppressions
 
 ---
 *Last Updated: January 2025*
