@@ -467,7 +467,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.ui: UIComponents = UIComponents(self)
 
         # Multi-point tracking data
-        self.tracked_data: dict[str, list] = {}  # All tracking points
+        self.tracked_data: dict[
+            str, list[tuple[int, float, float] | tuple[int, float, float, str]]
+        ] = {}  # All tracking points
         self.active_points: list[str] = []  # Currently selected points
 
         # Initialize UI components
@@ -489,6 +491,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize background thread management
         self.file_load_worker: FileLoadWorker | None = None
         self.file_load_signals: FileLoadSignals | None = None
+        self._file_loading: bool = False  # Track if file loading is in progress
 
         # Initialize persistent worker and thread for Keep Worker Alive strategy
         self._init_persistent_worker()
@@ -1344,31 +1347,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Fall back to single curve loading
         # Load data using service facade
-        data = (
-            self.services.load_track_data_from_file(file_path)
-            if hasattr(self.services, "load_track_data_from_file")
-            else []
-        )
-        if not data and file_path:
-            # Try direct loading
-            from services import get_data_service
-
-            data_service = get_data_service()
-            if file_path.endswith(".json"):
-                data = data_service._load_json(file_path)
-            elif file_path.endswith(".csv"):
-                data = data_service._load_csv(file_path)
-            elif file_path.endswith(".txt"):
-                data = data_service._load_2dtrack_data(file_path)
+        data = self.services.load_track_data_from_file(file_path) if file_path else None
 
         if data:
             # Update curve widget with new data
             if self.curve_widget:
-                self.curve_widget.set_curve_data(data)
+                self.curve_widget.set_curve_data(data)  # type: ignore[arg-type]
                 self._update_tracking_panel()
 
             # Update state manager
-            self.state_manager.set_track_data(data, mark_modified=False)
+            self.state_manager.set_track_data(data, mark_modified=False)  # type: ignore[arg-type]
 
             # Update frame range based on loaded data
             if data:
@@ -1383,7 +1371,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.state_manager.total_frames = max_frame
 
                 # Update timeline tabs with frame range and point data
-                self._update_timeline_tabs(data)
+                self._update_timeline_tabs(data)  # type: ignore[arg-type]
 
             self._update_ui_state()
             self.status_label.setText("File loaded successfully")
@@ -1397,7 +1385,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         else:
             # Get current data from curve widget
             data = self._get_current_curve_data()
-            if self.services.save_track_data(data, self):
+            if self.services.save_track_data(data, self):  # type: ignore[arg-type]
                 self.state_manager.is_modified = False
                 self.status_label.setText("File saved successfully")
 
@@ -1407,7 +1395,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle save as action."""
         # Get current data from curve widget
         data = self._get_current_curve_data()
-        if self.services.save_track_data(data, self):
+        if self.services.save_track_data(data, self):  # type: ignore[arg-type]
             self.state_manager.is_modified = False
             self.status_label.setText("File saved successfully")
 

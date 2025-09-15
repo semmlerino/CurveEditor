@@ -250,6 +250,27 @@ class ServiceFacade:
             return self._file_service.load_track_data(widget)
         return None
 
+    def load_track_data_from_file(
+        self, file_path: str
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None:
+        """Load track data from a specific file path.
+
+        Args:
+            file_path: Path to the file to load
+
+        Returns:
+            Track data or None if loading fails
+        """
+        if self._data_service:
+            # Determine file type and load appropriately
+            if file_path.endswith(".json"):
+                return self._data_service.load_json(file_path)
+            elif file_path.endswith(".csv"):
+                return self._data_service.load_csv(file_path)
+            elif file_path.endswith(".txt"):
+                return self._data_service.load_2dtrack_data(file_path)
+        return None
+
     def save_track_data(
         self,
         data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],

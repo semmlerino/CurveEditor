@@ -93,6 +93,18 @@ class DataService:
         """
         return self._load_json(filepath)
 
+    def load_2dtrack_data(self, filepath: str) -> CurveDataList:
+        """
+        Public method to load 2D track data file programmatically.
+
+        Args:
+            filepath: Path to 2D track data file
+
+        Returns:
+            List of curve data points
+        """
+        return self._load_2dtrack_data(filepath)
+
     def save_json(self, filepath: str, data: CurveDataList) -> bool:
         """
         Public method to save data as JSON programmatically.
