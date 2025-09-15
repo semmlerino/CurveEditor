@@ -19,6 +19,8 @@ import logging
 from typing import TYPE_CHECKING, Protocol, cast
 
 from core.image_state import ImageState
+from core.type_aliases import CurveDataList
+from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 if TYPE_CHECKING:
     from services.data_service import DataService
@@ -27,28 +29,19 @@ if TYPE_CHECKING:
     from services.ui_service import UIService
 
 
-class MainWindowProtocol(Protocol):
-    """Protocol for main window objects."""
+if TYPE_CHECKING:
+    from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
+    from PySide6.QtWidgets import QWidget
 
-    def __init__(self) -> None: ...
+    class WidgetProtocol(Protocol):
+        """Protocol for Qt widget objects."""
 
+        def __init__(self) -> None: ...
 
-class CurveViewProtocol(Protocol):
-    """Protocol for curve view objects."""
+    class EventProtocol(Protocol):
+        """Protocol for Qt event objects."""
 
-    def __init__(self) -> None: ...
-
-
-class WidgetProtocol(Protocol):
-    """Protocol for Qt widget objects."""
-
-    def __init__(self) -> None: ...
-
-
-class EventProtocol(Protocol):
-    """Protocol for Qt event objects."""
-
-    def __init__(self) -> None: ...
+        def __init__(self) -> None: ...
 
 
 # Import the consolidated services
@@ -120,11 +113,7 @@ class ServiceFacade:
         self._transform_service = get_transform_service() if get_transform_service else None
         self._data_service = get_data_service() if get_data_service else None
         self._interaction_service = get_interaction_service() if get_interaction_service else None
-        # Fix for possibly unbound get_ui_service
-        try:
-            self._ui_service = get_ui_service() if get_ui_service else None
-        except NameError:
-            self._ui_service = None
+        self._ui_service = get_ui_service() if get_ui_service else None  # pyright: ignore[reportPossiblyUnboundVariable]
 
         # Initialize state management
         self.image_state = ImageState()
@@ -244,10 +233,13 @@ class ServiceFacade:
         """Load track data from file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:
-            return self._data_service.load_track_data(widget)
+            # Cast protocol to QWidget for service compatibility
+            result = self._data_service.load_track_data(cast("QWidget", widget))
+            return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
         elif self._file_service and widget:
             # Fallback to legacy service
-            return self._file_service.load_track_data(widget)
+            result = self._file_service.load_track_data(cast("QWidget", widget))
+            return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
         return None
 
     def load_track_data_from_file(
@@ -264,11 +256,14 @@ class ServiceFacade:
         if self._data_service:
             # Determine file type and load appropriately
             if file_path.endswith(".json"):
-                return self._data_service.load_json(file_path)
+                result = self._data_service.load_json(file_path)
+                return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
             elif file_path.endswith(".csv"):
-                return self._data_service.load_csv(file_path)
+                result = self._data_service.load_csv(file_path)
+                return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
             elif file_path.endswith(".txt"):
-                return self._data_service.load_2dtrack_data(file_path)
+                result = self._data_service.load_2dtrack_data(file_path)
+                return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None, result)
         return None
 
     def save_track_data(
@@ -279,10 +274,11 @@ class ServiceFacade:
         """Save track data to file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:
-            return self._data_service.save_track_data(widget, data)
+            # Cast protocol to QWidget and data to CurveDataList for service compatibility
+            return self._data_service.save_track_data(cast("QWidget", widget), cast("CurveDataList", data))
         elif self._file_service and widget:
             # Fallback to legacy service
-            return self._file_service.save_track_data(widget, data)
+            return self._file_service.save_track_data(cast("QWidget", widget), cast("CurveDataList", data))
         return False
 
     def load_image_sequence(self, directory: str) -> list[str]:
@@ -311,27 +307,27 @@ class ServiceFacade:
     def handle_mouse_press(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse press event."""
         if self._interaction_service:
-            self._interaction_service.handle_mouse_press(view, event)
+            self._interaction_service.handle_mouse_press(view, cast("QMouseEvent", cast(object, event)))
 
     def handle_mouse_move(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse move event."""
         if self._interaction_service:
-            self._interaction_service.handle_mouse_move(view, event)
+            self._interaction_service.handle_mouse_move(view, cast("QMouseEvent", cast(object, event)))
 
     def handle_mouse_release(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse release event."""
         if self._interaction_service:
-            self._interaction_service.handle_mouse_release(view, event)
+            self._interaction_service.handle_mouse_release(view, cast("QMouseEvent", cast(object, event)))
 
     def handle_wheel_event(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle mouse wheel event."""
         if self._interaction_service:
-            self._interaction_service.handle_wheel_event(view, event)
+            self._interaction_service.handle_wheel_event(view, cast("QWheelEvent", cast(object, event)))
 
     def handle_key_press(self, view: CurveViewProtocol, event: EventProtocol) -> None:
         """Handle key press event."""
         if self._interaction_service:
-            self._interaction_service.handle_key_press(view, event)
+            self._interaction_service.handle_key_press(view, cast("QKeyEvent", cast(object, event)))
 
     def add_to_history(self) -> None:
         """Add current state to history."""
@@ -368,39 +364,39 @@ class ServiceFacade:
         """Show error message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            self._ui_service.show_error(widget, message)
+            self._ui_service.show_error(cast("QWidget", widget), message)
 
     def show_warning(self, message: str, parent: WidgetProtocol | None = None) -> None:
         """Show warning message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            self._ui_service.show_warning(widget, message)
+            self._ui_service.show_warning(cast("QWidget", widget), message)
 
     def show_info(self, message: str, parent: WidgetProtocol | None = None) -> None:
         """Show information message dialog."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            self._ui_service.show_info(widget, message)
+            self._ui_service.show_info(cast("QWidget", widget), message)
 
     def confirm_action(self, message: str, parent: WidgetProtocol | None = None) -> bool:
         """Ask for confirmation from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            return self._ui_service.confirm_action(widget, message)
+            return self._ui_service.confirm_action(cast("QWidget", widget), message)
         return False
 
     def get_smooth_window_size(self, parent: WidgetProtocol | None = None) -> int | None:
         """Get smoothing window size from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            return self._ui_service.get_smooth_window_size(widget)
+            return self._ui_service.get_smooth_window_size(cast("QWidget", widget))
         return None
 
     def get_filter_params(self, parent: WidgetProtocol | None = None) -> tuple[str, int] | None:
         """Get filter parameters from user."""
         widget = parent or self.main_window
         if self._ui_service and widget:
-            return self._ui_service.get_filter_params(widget)
+            return self._ui_service.get_filter_params(cast("QWidget", widget))
         return None
 
     def set_status(self, message: str, timeout: int = 0) -> None:
@@ -462,7 +458,7 @@ class ServiceFacade:
         self._transform_service = get_transform_service() if get_transform_service else None
         self._data_service = get_data_service() if get_data_service else None
         self._interaction_service = get_interaction_service() if get_interaction_service else None
-        self._ui_service = get_ui_service() if get_ui_service else None
+        self._ui_service = get_ui_service() if get_ui_service else None  # pyright: ignore[reportPossiblyUnboundVariable]
 
         self.logger.info(f"Services refreshed. Available: {self.get_available_services()}")
 
