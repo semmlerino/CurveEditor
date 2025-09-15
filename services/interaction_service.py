@@ -28,18 +28,20 @@ from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
 
+    from services.transform_service import TransformService
+
 logger = logging.getLogger("interaction_service")
 
 # Lazy singleton access to avoid circular import
-_transform_service = None
+_transform_service: TransformService | None = None
 
 
-def _get_transform_service():
+def _get_transform_service() -> TransformService:
     """Get transform service singleton (lazy initialization)."""
     global _transform_service
     if _transform_service is None:
         # Import here to avoid circular import
-        from services import get_transform_service
+        from services import get_transform_service  # type: ignore[import]
 
         _transform_service = get_transform_service()
     return _transform_service

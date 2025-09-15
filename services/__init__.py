@@ -22,7 +22,7 @@ import logging
 import threading
 
 from services.data_service import DataService
-from services.interaction_service import InteractionService
+from services.interaction_service import InteractionService  # type: ignore[import]
 from services.service_protocols import (
     BatchEditableProtocol,
     CurveViewProtocol,

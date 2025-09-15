@@ -16,7 +16,9 @@ Consolidated Services:
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, cast
+
+from core.image_state import ImageState
 
 if TYPE_CHECKING:
     from services.data_service import DataService
@@ -49,22 +51,10 @@ class EventProtocol(Protocol):
     def __init__(self) -> None: ...
 
 
-# Import core state management
-try:
-    from core.image_state import ImageState
-except ImportError:
-    # Stub for startup
-    class ImageState:
-        def __init__(self):
-            pass
-
-        def sync_from_main_window(self, window):
-            pass
-
-
 # Import the consolidated services
 try:
-    from services.transform_service import Transform, TransformService, ViewState, get_transform_service
+    from services import get_transform_service
+    from services.transform_service import Transform, TransformService, ViewState
 except ImportError:
     if not TYPE_CHECKING:
         TransformService = None
@@ -87,11 +77,12 @@ except ImportError:
     get_interaction_service = None
 
 try:
-    from services.ui_service import UIService, get_ui_service
+    from services import get_ui_service
+    from services.ui_service import UIService
 except ImportError:
     if not TYPE_CHECKING:
         UIService = None
-    get_ui_service = None
+        get_ui_service = None
 
 # Legacy services are now part of the consolidated services
 # FileService functionality -> DataService
@@ -129,7 +120,11 @@ class ServiceFacade:
         self._transform_service = get_transform_service() if get_transform_service else None
         self._data_service = get_data_service() if get_data_service else None
         self._interaction_service = get_interaction_service() if get_interaction_service else None
-        self._ui_service = get_ui_service() if get_ui_service else None
+        # Fix for possibly unbound get_ui_service
+        try:
+            self._ui_service = get_ui_service() if get_ui_service else None
+        except NameError:
+            self._ui_service = None
 
         # Initialize state management
         self.image_state = ImageState()
@@ -154,7 +149,7 @@ class ServiceFacade:
     def create_transform(self, view_state: ViewState) -> Transform | None:
         """Create a Transform from a ViewState."""
         if self._transform_service:
-            return self._transform_service.create_transform(view_state)
+            return self._transform_service.create_transform_from_view_state(view_state)
         return None
 
     def transform_to_screen(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
@@ -186,31 +181,66 @@ class ServiceFacade:
     ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply smoothing to curve data."""
         if self._data_service:
-            return self._data_service.smooth_moving_average(data, window_size)
+            from core.type_aliases import CurveDataList
+
+            # Convert to CurveDataList for service call
+            curve_data = cast(CurveDataList, data)
+            result = self._data_service.smooth_moving_average(curve_data, window_size)
+            # Convert back to expected return type
+            return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]], result)
         return data
 
-    def filter_curve(self, data: list[tuple], filter_type: str = "median", param: int = 5) -> list[tuple]:
+    def filter_curve(
+        self,
+        data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],
+        filter_type: str = "median",
+        param: int = 5,
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply filtering to curve data."""
         if self._data_service:
+            from core.type_aliases import CurveDataList
+
+            # Convert to CurveDataList for service call
+            curve_data = cast(CurveDataList, data)
             if filter_type.lower() == "median":
-                return self._data_service.filter_median(data, param)
+                result = self._data_service.filter_median(curve_data, param)
             elif filter_type.lower() == "butterworth":
-                return self._data_service.filter_butterworth(data, param / 100.0)
+                result = self._data_service.filter_butterworth(curve_data, param / 100.0)
+            else:
+                return data
+            # Convert back to expected return type
+            return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]], result)
         return data
 
-    def fill_gaps(self, data: list[tuple], max_gap: int = 10) -> list[tuple]:
+    def fill_gaps(
+        self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], max_gap: int = 10
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Fill gaps in curve data."""
         if self._data_service:
-            return self._data_service.fill_gaps(data, max_gap)
+            from core.type_aliases import CurveDataList
+
+            # Convert to CurveDataList for service call
+            curve_data = cast(CurveDataList, data)
+            result = self._data_service.fill_gaps(curve_data, max_gap)
+            # Convert back to expected return type
+            return cast(list[tuple[int, float, float]] | list[tuple[int, float, float, str]], result)
         return data
 
-    def detect_outliers(self, data: list[tuple], threshold: float = 2.0) -> list[int]:
+    def detect_outliers(
+        self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]], threshold: float = 2.0
+    ) -> list[int]:
         """Detect outliers in curve data."""
         if self._data_service:
-            return self._data_service.detect_outliers(data, threshold)
+            from core.type_aliases import CurveDataList
+
+            # Convert to CurveDataList for service call
+            curve_data = cast(CurveDataList, data)
+            return self._data_service.detect_outliers(curve_data, threshold)
         return []
 
-    def load_track_data(self, parent_widget: WidgetProtocol | None = None) -> list[tuple] | None:
+    def load_track_data(
+        self, parent_widget: WidgetProtocol | None = None
+    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | None:
         """Load track data from file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:
@@ -220,7 +250,11 @@ class ServiceFacade:
             return self._file_service.load_track_data(widget)
         return None
 
-    def save_track_data(self, data: list[tuple], parent_widget: WidgetProtocol | None = None) -> bool:
+    def save_track_data(
+        self,
+        data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]],
+        parent_widget: WidgetProtocol | None = None,
+    ) -> bool:
         """Save track data to file."""
         widget = parent_widget or self.main_window
         if self._data_service and widget:

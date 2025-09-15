@@ -22,10 +22,10 @@ if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
 
 try:
-    from PySide6.QtCore import QPointF
+    from PySide6.QtCore import QPointF  # type: ignore[import-not-found]
 except ImportError:
     # Stub for when PySide6 is not available
-    class QPointF:
+    class QPointF:  # type: ignore[no-redef]
         def __init__(self, x: float = 0, y: float = 0) -> None:
             self._x: float = x
             self._y: float = y
