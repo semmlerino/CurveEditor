@@ -1352,11 +1352,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if data:
             # Update curve widget with new data
             if self.curve_widget:
-                self.curve_widget.set_curve_data(data)  # type: ignore[arg-type]
+                self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
                 self._update_tracking_panel()
 
             # Update state manager
-            self.state_manager.set_track_data(data, mark_modified=False)  # type: ignore[arg-type]
+            self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
             # Update frame range based on loaded data
             if data:
@@ -1371,7 +1371,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.state_manager.total_frames = max_frame
 
                 # Update timeline tabs with frame range and point data
-                self._update_timeline_tabs(data)  # type: ignore[arg-type]
+                self._update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
 
             self._update_ui_state()
             self.status_label.setText("File loaded successfully")
@@ -1385,7 +1385,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         else:
             # Get current data from curve widget
             data = self._get_current_curve_data()
-            if self.services.save_track_data(data, self):  # type: ignore[arg-type]
+            if self.services.save_track_data(data, self):  # pyright: ignore[reportArgumentType]
                 self.state_manager.is_modified = False
                 self.status_label.setText("File saved successfully")
 
