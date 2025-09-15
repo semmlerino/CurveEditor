@@ -41,7 +41,6 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
-    QDockWidget,
     QDoubleSpinBox,
     QFrame,
     QInputDialog,
@@ -63,8 +62,8 @@ from PySide6.QtWidgets import (
 from .curve_view_widget import CurveViewWidget
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
-from .tracking_points_panel import TrackingPointsPanel
 
+# from .tracking_points_panel import TrackingPointsPanel  # TODO: Missing module
 # Import refactored components
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
@@ -686,24 +685,26 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _init_dock_widgets(self) -> None:
         """Initialize dock widgets (optional, for future expansion)."""
-        # Create tracking points panel dock widget
-        self.tracking_panel_dock = QDockWidget("Tracking Points", self)
-        self.tracking_panel = TrackingPointsPanel()
-        self.tracking_panel_dock.setWidget(self.tracking_panel)
-
-        # Set dock widget properties
-        self.tracking_panel_dock.setAllowedAreas(
-            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
-        )
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
-        self.tracking_panel_dock.setVisible(True)  # Make visible by default
-
-        # Connect signals for tracking point management
-        self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
-        self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
-        self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
-        self.tracking_panel.point_deleted.connect(self._on_point_deleted)
-        self.tracking_panel.point_renamed.connect(self._on_point_renamed)
+        # TODO: TrackingPointsPanel module is missing - commented out for now
+        # # Create tracking points panel dock widget
+        # self.tracking_panel_dock = QDockWidget("Tracking Points", self)
+        # self.tracking_panel = TrackingPointsPanel()
+        # self.tracking_panel_dock.setWidget(self.tracking_panel)
+        #
+        # # Set dock widget properties
+        # self.tracking_panel_dock.setAllowedAreas(
+        #     Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        # )
+        # self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
+        # self.tracking_panel_dock.setVisible(True)  # Make visible by default
+        #
+        # # Connect signals for tracking point management
+        # self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
+        # self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
+        # self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
+        # self.tracking_panel.point_deleted.connect(self._on_point_deleted)
+        # self.tracking_panel.point_renamed.connect(self._on_point_renamed)
+        pass
 
         logger.info("Tracking points panel dock widget initialized")
 
@@ -1169,7 +1170,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Clear curve widget data
         if self.curve_widget:
             self.curve_widget.set_curve_data([])
-            self._update_tracking_panel()
+            # self._update_tracking_panel()  # TODO: Tracking panel disabled
 
         self.state_manager.reset_to_defaults()
         self._update_ui_state()
@@ -1215,7 +1216,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 if self.curve_widget:
                     self.curve_widget.setup_for_pixel_tracking()
 
-                self._update_tracking_panel()
+                # self._update_tracking_panel()  # TODO: Tracking panel disabled
                 self._update_curve_display()
 
                 # Update frame range based on first trajectory
@@ -1255,7 +1256,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Update curve widget with new data
             if self.curve_widget:
                 self.curve_widget.set_curve_data(data)
-                self._update_tracking_panel()
+                # self._update_tracking_panel()  # TODO: Tracking panel disabled
 
             # Update state manager
             self.state_manager.set_track_data(data, mark_modified=False)
@@ -1795,7 +1796,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             del self.tracked_data[point_name]
             if point_name in self.active_points:
                 self.active_points.remove(point_name)
-            self._update_tracking_panel()
+            # self._update_tracking_panel()  # TODO: Tracking panel disabled
             self._update_curve_display()
 
     def _on_point_renamed(self, old_name: str, new_name: str) -> None:
@@ -1805,12 +1806,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             if old_name in self.active_points:
                 idx = self.active_points.index(old_name)
                 self.active_points[idx] = new_name
-            self._update_tracking_panel()
+            # self._update_tracking_panel()  # TODO: Tracking panel disabled
 
     def _update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
-        if hasattr(self, "tracking_panel"):
-            self.tracking_panel.set_tracked_data(self.tracked_data)
+        # TODO: Tracking panel disabled
+        # if hasattr(self, "tracking_panel"):
+        #     self.tracking_panel.set_tracked_data(self.tracked_data)
+        pass
 
     def _update_curve_display(self) -> None:
         """Update curve display with selected tracking points."""
@@ -2111,10 +2114,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle key press events for custom shortcuts."""
         # Tab key toggles tracking panel dock visibility
         if event.key() == Qt.Key.Key_Tab:
-            if hasattr(self, "tracking_panel_dock"):
-                self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
-                event.accept()
-                return
+            # TODO: Tracking panel disabled
+            # if hasattr(self, "tracking_panel_dock"):
+            #     self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
+            pass
+            event.accept()
+            return
 
         # Pass to parent for default handling
         super().keyPressEvent(event)
