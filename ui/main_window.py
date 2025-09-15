@@ -41,6 +41,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
+    QDockWidget,
     QDoubleSpinBox,
     QFrame,
     QInputDialog,
@@ -62,8 +63,8 @@ from PySide6.QtWidgets import (
 from .curve_view_widget import CurveViewWidget
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
+from .tracking_points_panel import TrackingPointsPanel
 
-# from .tracking_points_panel import TrackingPointsPanel  # TODO: Missing module
 # Import refactored components
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
@@ -98,6 +99,7 @@ class FileLoadSignals(QObject):
 
     # Signals for communicating with main thread
     tracking_data_loaded: Signal = Signal(list)  # Emits list of tracking data points
+    multi_point_data_loaded: Signal = Signal(dict)  # Emits dict of multi-point tracking data
     image_sequence_loaded: Signal = Signal(str, list)  # Emits directory path and list of filenames
     progress_updated: Signal = Signal(int, str)  # Emits progress percentage and status message
     error_occurred: Signal = Signal(str)  # Emits error message
@@ -174,17 +176,56 @@ class FileLoadWorker:
             if self.tracking_file_path and not self._check_should_stop():
                 self.signals.progress_updated.emit(0, "Loading tracking data...")
                 try:
-                    # Directly load the file without creating DataService in worker thread
-                    # 3DEqualizer uses bottom-origin coordinates, need to flip for screen display
-                    data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
-                    if data:
-                        logger.info(
-                            f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
+                    # Check if it's a multi-point file
+                    is_multi_point = False
+                    try:
+                        with open(self.tracking_file_path) as f:
+                            content = f.read(500)  # Read first 500 chars to detect format
+                            # Multi-point files have "Point" followed by a name
+                            is_multi_point = "Point" in content and ("Point1" in content or "Point01" in content)
+                    except OSError:
+                        pass
+
+                    multi_data = {}
+                    data = []
+
+                    if is_multi_point:
+                        # Load as multi-point data
+                        multi_data = self._load_multi_point_data_direct(
+                            self.tracking_file_path, flip_y=True, image_height=720
                         )
-                    self.signals.tracking_data_loaded.emit(data)
+                        if multi_data:
+                            # Emit multi-point data signal
+                            self.signals.multi_point_data_loaded.emit(multi_data)
+
+                            # Also emit first point's data for compatibility
+                            first_point = list(multi_data.keys())[0] if multi_data else None
+                            data = multi_data.get(first_point, []) if first_point else []
+
+                            logger.info(
+                                f"[PYTHON-THREAD] Loaded {len(multi_data)} tracking points from multi-point file"
+                            )
+                    else:
+                        # Load as single-point data
+                        data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
+                        if data:
+                            logger.info(
+                                f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
+                            )
+                            self.signals.tracking_data_loaded.emit(data)
+
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
-                    self.signals.progress_updated.emit(progress, f"Loaded {len(data) if data else 0} tracking points")
+
+                    if is_multi_point and multi_data:
+                        total_points = sum(len(traj) for traj in multi_data.values())
+                        self.signals.progress_updated.emit(
+                            progress, f"Loaded {len(multi_data)} trajectories, {total_points} total points"
+                        )
+                    else:
+                        self.signals.progress_updated.emit(
+                            progress, f"Loaded {len(data) if data else 0} tracking points"
+                        )
                 except Exception as e:
                     self.signals.error_occurred.emit(f"Failed to load tracking data: {str(e)}")
 
@@ -281,6 +322,75 @@ class FileLoadWorker:
             logger.error(f"Error loading tracking data: {e}")
             raise
         return data
+
+    def _load_multi_point_data_direct(
+        self, file_path: str, flip_y: bool = False, image_height: float = 720
+    ) -> dict[str, list[tuple[int, float, float]]]:
+        """Load multi-point tracking data (2DTrackDatav2 format).
+
+        Returns a dictionary where keys are point names and values are trajectories.
+        """
+        tracked_data = {}
+
+        try:
+            with open(file_path, encoding="utf-8") as f:
+                lines = f.readlines()
+
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip()
+
+                # Look for point name lines (e.g., "Point1", "Point02")
+                if line.startswith("Point"):
+                    point_name = line
+
+                    # Check if we have the required header lines
+                    if i - 1 >= 0 and i + 2 < len(lines):
+                        try:
+                            # Format: version, point_name, identifier, count
+                            _ = lines[i + 1].strip()  # identifier
+                            point_count = int(lines[i + 2].strip())
+
+                            # Read trajectory data
+                            trajectory = []
+                            data_start = i + 3
+
+                            for j in range(data_start, min(data_start + point_count, len(lines))):
+                                data_line = lines[j].strip()
+                                if not data_line:
+                                    continue
+
+                                parts = data_line.split()
+                                if len(parts) >= 3:
+                                    try:
+                                        frame = int(parts[0])
+                                        x = float(parts[1])
+                                        y = float(parts[2])
+
+                                        # Flip Y coordinate if requested
+                                        if flip_y:
+                                            y = image_height - y
+
+                                        trajectory.append((frame, x, y))
+                                    except ValueError:
+                                        continue
+
+                            if trajectory:
+                                tracked_data[point_name] = trajectory
+
+                            # Move to next point
+                            i = data_start + point_count - 1
+                        except (ValueError, IndexError):
+                            pass
+
+                i += 1
+
+        except Exception as e:
+            logger.error(f"Error loading multi-point tracking data: {e}")
+            # Fall back to single point loading
+            return {}
+
+        return tracked_data
 
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""
@@ -435,6 +545,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Connect signals (emitter is in main thread, so this is safe)
         self.file_load_signals.tracking_data_loaded.connect(self._on_tracking_data_loaded)
+        self.file_load_signals.multi_point_data_loaded.connect(self._on_multi_point_data_loaded)
         self.file_load_signals.image_sequence_loaded.connect(self._on_image_sequence_loaded)
         self.file_load_signals.progress_updated.connect(self._on_file_load_progress)
         self.file_load_signals.error_occurred.connect(self._on_file_load_error)
@@ -685,26 +796,24 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _init_dock_widgets(self) -> None:
         """Initialize dock widgets (optional, for future expansion)."""
-        # TODO: TrackingPointsPanel module is missing - commented out for now
-        # # Create tracking points panel dock widget
-        # self.tracking_panel_dock = QDockWidget("Tracking Points", self)
-        # self.tracking_panel = TrackingPointsPanel()
-        # self.tracking_panel_dock.setWidget(self.tracking_panel)
-        #
-        # # Set dock widget properties
-        # self.tracking_panel_dock.setAllowedAreas(
-        #     Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
-        # )
-        # self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
-        # self.tracking_panel_dock.setVisible(True)  # Make visible by default
-        #
-        # # Connect signals for tracking point management
-        # self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
-        # self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
-        # self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
-        # self.tracking_panel.point_deleted.connect(self._on_point_deleted)
-        # self.tracking_panel.point_renamed.connect(self._on_point_renamed)
-        pass
+        # Create tracking points panel dock widget
+        self.tracking_panel_dock = QDockWidget("Tracking Points", self)
+        self.tracking_panel = TrackingPointsPanel()
+        self.tracking_panel_dock.setWidget(self.tracking_panel)
+
+        # Set dock widget properties
+        self.tracking_panel_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
+        self.tracking_panel_dock.setVisible(True)  # Make visible by default
+
+        # Connect signals for tracking point management
+        self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
+        self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
+        self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
+        self.tracking_panel.point_deleted.connect(self._on_point_deleted)
+        self.tracking_panel.point_renamed.connect(self._on_point_renamed)
 
         logger.info("Tracking points panel dock widget initialized")
 
@@ -1170,7 +1279,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Clear curve widget data
         if self.curve_widget:
             self.curve_widget.set_curve_data([])
-            # self._update_tracking_panel()  # TODO: Tracking panel disabled
+            self._update_tracking_panel()
 
         self.state_manager.reset_to_defaults()
         self._update_ui_state()
@@ -1216,7 +1325,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 if self.curve_widget:
                     self.curve_widget.setup_for_pixel_tracking()
 
-                # self._update_tracking_panel()  # TODO: Tracking panel disabled
+                self._update_tracking_panel()
                 self._update_curve_display()
 
                 # Update frame range based on first trajectory
@@ -1256,7 +1365,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Update curve widget with new data
             if self.curve_widget:
                 self.curve_widget.set_curve_data(data)
-                # self._update_tracking_panel()  # TODO: Tracking panel disabled
+                self._update_tracking_panel()
 
             # Update state manager
             self.state_manager.set_track_data(data, mark_modified=False)
@@ -1402,6 +1511,54 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 except RuntimeError:
                     # Widgets may have been deleted during application shutdown
                     pass
+
+    @Slot(dict)
+    def _on_multi_point_data_loaded(self, multi_data: dict[str, list[tuple[int, float, float]]]) -> None:
+        """Handle multi-point tracking data loaded in background thread."""
+        current_thread = QThread.currentThread()
+        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        logger.info(
+            f"[THREAD-DEBUG] _on_multi_point_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
+        )
+
+        if multi_data:
+            # Store the multi-point tracking data
+            self.tracked_data = multi_data
+            self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+
+            logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
+
+            # Update the tracking panel with the multi-point data
+            self._update_tracking_panel()
+
+            # Display the first point's trajectory
+            if self.active_points and self.curve_widget:
+                first_point = self.active_points[0]
+                if first_point in self.tracked_data:
+                    # Set up view for pixel-coordinate tracking data
+                    self.curve_widget.setup_for_pixel_tracking()
+                    trajectory = self.tracked_data[first_point]
+                    self.curve_widget.set_curve_data(trajectory)  # pyright: ignore[reportArgumentType]
+                    self.state_manager.set_track_data(trajectory, mark_modified=False)  # pyright: ignore[reportArgumentType]
+
+                    # Update frame range based on all trajectories
+                    max_frame = 0
+                    for traj in self.tracked_data.values():
+                        if traj:
+                            traj_max = max(point[0] for point in traj)
+                            max_frame = max(max_frame, traj_max)
+
+                    try:
+                        if self.frame_slider:
+                            self.frame_slider.setMaximum(max_frame)
+                        if self.frame_spinbox:
+                            self.frame_spinbox.setMaximum(max_frame)
+                        if self.total_frames_label:
+                            self.total_frames_label.setText(str(max_frame))
+                        self.state_manager.total_frames = max_frame
+                    except RuntimeError:
+                        # Widgets may have been deleted during application shutdown
+                        pass
 
     @Slot(str, list)
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
@@ -1796,7 +1953,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             del self.tracked_data[point_name]
             if point_name in self.active_points:
                 self.active_points.remove(point_name)
-            # self._update_tracking_panel()  # TODO: Tracking panel disabled
+            self._update_tracking_panel()
             self._update_curve_display()
 
     def _on_point_renamed(self, old_name: str, new_name: str) -> None:
@@ -1806,14 +1963,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             if old_name in self.active_points:
                 idx = self.active_points.index(old_name)
                 self.active_points[idx] = new_name
-            # self._update_tracking_panel()  # TODO: Tracking panel disabled
+            self._update_tracking_panel()
 
     def _update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
-        # TODO: Tracking panel disabled
-        # if hasattr(self, "tracking_panel"):
-        #     self.tracking_panel.set_tracked_data(self.tracked_data)
-        pass
+        if hasattr(self, "tracking_panel"):
+            self.tracking_panel.set_tracked_data(self.tracked_data)
 
     def _update_curve_display(self) -> None:
         """Update curve display with selected tracking points."""
