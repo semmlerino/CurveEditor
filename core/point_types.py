@@ -58,13 +58,14 @@ def is_point3(point: object) -> TypeGuard[Point3]:
         ...     frame, x, y = point  # Type checker knows this is safe
         ...     print(f"Frame {frame} at ({x}, {y})")
     """
-    return (
-        isinstance(point, tuple)
-        and len(point) == 3
-        and isinstance(point[0], int)
-        and isinstance(point[1], int | float)
-        and isinstance(point[2], int | float)
-    )
+    if not isinstance(point, tuple):
+        return False
+
+    # Direct length check on known tuple
+    if len(point) != 3:  # pyright: ignore[reportUnknownArgumentType]
+        return False
+
+    return isinstance(point[0], int) and isinstance(point[1], int | float) and isinstance(point[2], int | float)
 
 
 def is_point4(point: object) -> TypeGuard[Point4]:
@@ -83,10 +84,15 @@ def is_point4(point: object) -> TypeGuard[Point4]:
         ...     frame, x, y, status = point  # Type checker knows this is safe
         ...     print(f"Frame {frame} at ({x}, {y}) status: {status}")
     """
+    if not isinstance(point, tuple):
+        return False
+
+    # Direct length check on known tuple
+    if len(point) != 4:  # pyright: ignore[reportUnknownArgumentType]
+        return False
+
     return (
-        isinstance(point, tuple)
-        and len(point) == 4
-        and isinstance(point[0], int)
+        isinstance(point[0], int)
         and isinstance(point[1], int | float)
         and isinstance(point[2], int | float)
         and isinstance(point[3], str | bool)

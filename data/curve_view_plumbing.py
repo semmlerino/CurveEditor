@@ -44,7 +44,7 @@ def _get_curve_view(target: OperationTarget) -> CurveViewProtocol:
         return cast(CurveViewProtocol, target)
     elif hasattr(target, "curve_view"):
         # Target is a MainWindowProtocol, get its curve_view
-        curve_view = getattr(target, "curve_view")
+        curve_view = getattr(target, "curve_view")  # pyright: ignore[reportAny]
         if curve_view is None:
             raise ValueError("MainWindow's curve_view is None")
         return cast(CurveViewProtocol, curve_view)
@@ -87,7 +87,7 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                         call_args.append(next(arg_iter))
                     except StopIteration:
                         call_args.append(kw.get(p))
-                        kw.pop(p, None)
+                        _ = kw.pop(p, None)
             # Execute with error handling
             try:
                 # Call with only unconsumed kwargs
@@ -100,7 +100,7 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 # statusBar() is a QMainWindow method, always available
                 if main_window and getattr(main_window, "statusBar", None) is not None:
                     main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)  # type: ignore[attr-defined]  # Duck typing
-                _ = QMessageBox.critical(
+                _unused_result = QMessageBox.critical(
                     cast(QWidget, cast(object, main_window)),  # MainWindow inherits from QMainWindow -> QWidget
                     f"Error in {action_name}",
                     f"An error occurred during {action_name}:\n{e}",
@@ -112,8 +112,8 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 return None
             # Determine success and message
             if isinstance(result, tuple) and len(result) == 2:
-                success, msg = result
-                retval = result[0]
+                success, msg = result  # pyright: ignore[reportUnknownVariableType]
+                retval = result[0]  # pyright: ignore[reportUnknownVariableType]
             else:
                 success = bool(result)
                 msg = action_name
@@ -121,8 +121,8 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
             # Only finalize (restore state, history) if requested
             if success and record_history:
                 new_sel = sorted(getattr(curve_view, "selected_points", []))
-                finalize_data_change(curve_view, main_window, view_state, new_sel, original_primary, msg)
-            return retval
+                finalize_data_change(curve_view, main_window, view_state, new_sel, original_primary, msg)  # pyright: ignore[reportUnknownArgumentType]
+            return retval  # pyright: ignore[reportUnknownVariableType]
 
         return wrapper
 

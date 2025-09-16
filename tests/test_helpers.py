@@ -69,7 +69,7 @@ class ThreadSafeTestImage:
     for thread safety in tests.
     """
 
-    def __init__(self, width: int = 100, height: int = 100):
+    def __init__(self, width: int = 100, height: int = 100) -> None:
         """Create a thread-safe test image."""
         # Use QImage which is thread-safe, unlike QPixmap
         if HAS_QT:
@@ -296,15 +296,41 @@ class MockCurveView:
         # Main window reference (for OptimizedCurveRenderer compatibility)
         self.main_window = None
 
-        # View state
-        self.zoom_factor = 1.0
-        self.pan_offset_x = 0
-        self.pan_offset_y = 0
-        self.manual_offset_x = 0.0
-        self.manual_offset_y = 0.0
+        # CurveViewProtocol required attributes
+        self.current_image_idx: int = 0
+        self.points = self.curve_data  # Alias for curve_data
+
+        # Transform and positioning attributes
+        self.offset_x: float = 0.0
+        self.offset_y: float = 0.0
+        self.x_offset: float = 0.0  # Alias for offset_x
+        self.y_offset: float = 0.0  # Alias for offset_y
+        self.zoom_factor: float = 1.0
+        self.pan_offset_x: float = 0.0
+        self.pan_offset_y: float = 0.0
+        self.manual_offset_x: float = 0.0
+        self.manual_offset_y: float = 0.0
+
+        # Interaction state attributes
+        self.drag_active: bool = False
+        self.pan_active: bool = False
+        self.last_drag_pos = None  # QtPointF | None
+        self.last_pan_pos = None  # QtPointF | None
+
+        # Rubber band selection attributes
+        self.rubber_band = None  # QRubberBand | None
+        self.rubber_band_active: bool = False
+        self.rubber_band_origin = None  # QtPointF
+
+        # Visualization settings
+        self.show_grid: bool = False
+        self.show_background: bool = True
+        self.show_velocity_vectors: bool = False
+        self.show_all_frame_numbers: bool = False
 
         # Background image (for rendering tests compatibility)
         self.background_image = None
+        self.background_opacity: float = 1.0
 
         # Display properties
         self._width = 800
@@ -313,22 +339,16 @@ class MockCurveView:
         self.image_height = 600
         self.scale_to_image = True
         self.flip_y_axis = False
-
-        # Background
-        self.background_image = None
-        self.show_background = True
-        self.show_grid = False
+        self.debug_mode: bool = False
+        self.point_radius: int = 5
 
         # Interaction state
         self.update_called = False
         self.cursor = None
-        self.rubber_band = None
-        self.rubber_band_active = False
-        self.rubber_band_origin = None
-        self.pan_active = False
-        self.last_pan_pos = None
-        self.drag_active = False
-        self.last_drag_pos = None
+
+        # Mock signals for testing
+        self.point_selected = TestSignal()
+        self.point_moved = TestSignal()
 
         # Transform
         from services.transform_service import Transform
@@ -362,6 +382,15 @@ class MockCurveView:
     def unsetCursor(self):
         """Mock unsetCursor method."""
         self.cursor = None
+
+    def repaint(self) -> None:
+        """Mock repaint method."""
+        self.update_called = True
+
+    def findPointAt(self, pos) -> int:
+        """Mock findPointAt method."""
+        # Simple mock implementation
+        return -1
 
     def pan(self, dx: float, dy: float):
         """Apply pan offset."""

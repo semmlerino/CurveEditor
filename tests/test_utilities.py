@@ -26,15 +26,29 @@ class TestCurveView:
         self.points: list[Point4] = []  # Alias for service compatibility
         self.selected_points: set[int] = set()
         self.selected_point_idx: int = -1
+        self.current_image_idx: int = 0
 
         # View state
         self.zoom_factor: float = 1.0
         self.offset_x: float = 0.0
         self.offset_y: float = 0.0
+        self.x_offset: float = 0.0  # Protocol alias for offset_x
+        self.y_offset: float = 0.0  # Protocol alias for offset_y
         self.pan_offset_x: float = 0.0
         self.pan_offset_y: float = 0.0
         self.manual_offset_x: float = 0.0
         self.manual_offset_y: float = 0.0
+
+        # Interaction state attributes (required by CurveViewProtocol)
+        self.drag_active: bool = False
+        self.pan_active: bool = False
+        self.last_drag_pos: object = None  # QtPointF | None
+        self.last_pan_pos: object = None  # QtPointF | None
+
+        # Rubber band selection attributes (required by CurveViewProtocol)
+        self.rubber_band: object = None  # QRubberBand | None
+        self.rubber_band_active: bool = False
+        self.rubber_band_origin: object = None  # QtPointF
 
         # Display settings
         self.show_background: bool = True
@@ -68,6 +82,10 @@ class TestCurveView:
 
         # Signal mocks for service compatibility
         self.point_selected = MagicMock()  # Signal mock
+        self.point_moved = MagicMock()  # Signal mock
+
+        # Parent reference (required by CurveViewProtocol)
+        self.main_window: object = None  # MainWindowProtocol
 
         # Apply kwargs to override defaults
         for key, value in kwargs.items():
@@ -77,8 +95,10 @@ class TestCurveView:
         # Sync offset attributes (ViewState looks for pan_offset_x/y first)
         if "offset_x" in kwargs:
             self.pan_offset_x = self.offset_x
+            self.x_offset = self.offset_x  # Keep protocol alias in sync
         if "offset_y" in kwargs:
             self.pan_offset_y = self.offset_y
+            self.y_offset = self.offset_y  # Keep protocol alias in sync
 
         # Sync points with curve_data if points were provided
         if "points" in kwargs:
@@ -203,11 +223,50 @@ class TestCurveView:
 
         return Transform(self.zoom_factor, self.offset_x, self.offset_y)
 
-    def get_point_data(self, idx: int) -> tuple[int, float, float, object]:
+    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
         """Get point data by index."""
         if 0 <= idx < len(self.curve_data):
-            return self.curve_data[idx]
+            return self.curve_data[idx]  # pyright: ignore[reportReturnType]
         raise IndexError(f"Point index {idx} out of range")
+
+    # Additional protocol methods
+    def repaint(self) -> None:
+        """Repaint the view."""
+        pass
+
+    def setCursor(self, cursor: object) -> None:
+        """Set widget cursor."""
+        pass
+
+    def unsetCursor(self) -> None:
+        """Unset widget cursor."""
+        pass
+
+    def get_transform(self) -> object:
+        """Get transform object (alias for compatibility)."""
+        return self.get_current_transform()
+
+    def _invalidate_caches(self) -> None:
+        """Invalidate any cached data."""
+        pass
+
+    def toggleBackgroundVisible(self, visible: bool) -> None:
+        """Toggle background visibility."""
+        self.show_background = visible
+
+    def toggle_point_interpolation(self, idx: int) -> None:
+        """Toggle interpolation status of a point."""
+        pass
+
+    def setPoints(self, data: list[Point4], width: int, height: int) -> None:
+        """Set points with image dimensions (legacy compatibility)."""
+        self.set_curve_data(data)
+        self.image_width = width
+        self.image_height = height
+
+    def set_selected_indices(self, indices: list[int]) -> None:
+        """Set the selected point indices."""
+        self.selected_points = set(indices)
 
 
 class TestMainWindow:
@@ -229,8 +288,8 @@ class TestMainWindow:
 
         # State
         self.current_file: str | None = None
-        self.is_modified: bool = False
-        self.current_frame: int = 1
+        self._is_modified: bool = False
+        self._current_frame: int = 1
         self.fps: int = 24
         self.playing: bool = False
 
@@ -239,19 +298,55 @@ class TestMainWindow:
         self.status_bar.showMessage = MagicMock()
 
         # History management (for MainWindowProtocol compatibility)
-        self.history = []
-        self.history_index = -1
+        self.history: list[object] = []
+        self.history_index: int = -1
+        self.max_history_size: int = 50
+
+        # Protocol required attributes
+        self.selected_indices: list[int] = []
+        self.point_name: str = "Point"
+        self.point_color: str = "#FF0000"
+
+        # UI component references (required by MainWindowProtocol)
+        self.undo_button: object = None  # QPushButton | None
+        self.redo_button: object = None  # QPushButton | None
+        self.save_button: object = None  # QPushButton | None
+
+        # State manager (required by MainWindowProtocol)
+        self.state_manager = MagicMock()
+        self.state_manager.is_modified = False
+        self.state_manager.auto_center_enabled = True
 
     @property
-    def curve_data(self) -> list:
+    def curve_data(self) -> list[Point4]:
         """Delegate to curve_view's curve_data for MainWindowProtocol compatibility."""
         return self.curve_view.curve_data
 
     @curve_data.setter
-    def curve_data(self, value: list) -> None:
+    def curve_data(self, value: list[Point4]) -> None:
         """Set curve_data on curve_view for MainWindowProtocol compatibility."""
         self.curve_view.curve_data = value
         self.curve_view.points = value  # Keep in sync
+
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number."""
+        return self._current_frame
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set the current frame number."""
+        self._current_frame = value
+
+    @property
+    def is_modified(self) -> bool:
+        """Get modified state (proxy to state_manager.is_modified)."""
+        return self.state_manager.is_modified
+
+    @is_modified.setter
+    def is_modified(self, value: bool) -> None:
+        """Set modified state."""
+        self.state_manager.is_modified = value
 
     def _create_timeline_components(self):
         """Create timeline UI components."""
@@ -299,6 +394,35 @@ class TestMainWindow:
     def show_status_message(self, message: str, timeout: int = 2000) -> None:
         """Show status message."""
         self.status_bar.showMessage(message, timeout)
+
+    # Additional MainWindowProtocol methods
+    def restore_state(self, state: object) -> None:  # HistoryState
+        """Restore state from history."""
+        pass
+
+    def update_status(self, message: str) -> None:
+        """Update status bar message."""
+        self.show_status_message(message)
+
+    def setWindowTitle(self, title: str) -> None:
+        """Set window title."""
+        pass
+
+    def statusBar(self) -> object:  # QStatusBar
+        """Get status bar widget."""
+        return self.status_bar
+
+    def close(self) -> bool:
+        """Close the window."""
+        return True
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering on frame change."""
+        self.state_manager.auto_center_enabled = enabled
+
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation to selected points."""
+        pass
 
 
 class TestDataBuilder:

@@ -20,10 +20,10 @@ if TYPE_CHECKING:
 else:
     Transform = object
 
-# Use Any for NumPy array types to avoid type checker complexity
-# The actual NumPy operations will work correctly at runtime
-FloatArray = Any
-IntArray = Any
+# NumPy array type aliases - performance critical for vectorized operations
+# Using Any to suppress type checker warnings while maintaining runtime performance
+FloatArray = Any  # Float coordinate arrays (np.ndarray at runtime)
+IntArray = Any  # Integer index arrays (np.ndarray at runtime)
 from PySide6.QtCore import QPointF, QRectF, Qt  # noqa: E402
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen  # noqa: E402
 
@@ -85,7 +85,7 @@ class ViewportCuller:
         self._grid_size: float = GRID_CELL_SIZE  # Grid cell size for spatial indexing
         self._spatial_index: dict[tuple[int, int], list[int]] = {}
 
-    def update_spatial_index(self, points: FloatArray, viewport: QRectF) -> None:
+    def update_spatial_index(self, points: FloatArray, viewport: QRectF) -> None:  # pyright: ignore[reportUnusedParameter]
         """Update spatial index for the given points."""
         self._spatial_index.clear()
 
@@ -143,7 +143,7 @@ class ViewportCuller:
                             if viewport.contains(x, y):
                                 visible.append(idx)
 
-        return np.array(visible, dtype=int)  # pyright: ignore[reportPrivateImportUsage]
+        return np.array(visible, dtype=int)
 
     def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Simple viewport culling for smaller datasets."""
@@ -220,7 +220,7 @@ class VectorizedTransform:
     ) -> FloatArray:
         """Transform all points in a single vectorized operation."""
         if len(points) == 0:
-            return np.array([]).reshape(0, 2)  # pyright: ignore[reportPrivateImportUsage]
+            return np.array([]).reshape(0, 2)
 
         # Extract x and y coordinates
         x_coords = points[:, 1] if points.shape[1] > 1 else points[:, 0]
@@ -235,7 +235,7 @@ class VectorizedTransform:
             screen_y = height - screen_y
 
         # Stack coordinates into Nx2 array
-        return np.column_stack((screen_x, screen_y))  # pyright: ignore[reportPrivateImportUsage]
+        return np.column_stack((screen_x, screen_y))
 
 
 class OptimizedCurveRenderer:

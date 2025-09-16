@@ -4,7 +4,9 @@ Real integration tests for rendering pipeline without mocking.
 Tests actual rendering transformations and optimizations.
 """
 
-import numpy as np
+from typing import Any
+
+import numpy as np  # pyright: ignore[reportMissingTypeStubs]
 import pytest
 from PySide6.QtCore import QRectF
 from PySide6.QtGui import QColor
@@ -22,12 +24,12 @@ from tests.qt_test_helpers import create_test_image, safe_painter
 class TestViewportCuller:
     """Test viewport culling with real data."""
 
-    def test_spatial_index_creation(self):
+    def test_spatial_index_creation(self) -> None:
         """Test creating spatial index for points."""
         culler = ViewportCuller()
 
         # Create test points
-        points = np.array([[100, 100], [200, 200], [300, 300], [400, 400], [500, 500]])
+        points: Any = np.array([[100, 100], [200, 200], [300, 300], [400, 400], [500, 500]])  # pyright: ignore[reportUnknownMemberType]
 
         viewport = QRectF(0, 0, 600, 600)
 
@@ -35,14 +37,14 @@ class TestViewportCuller:
         culler.update_spatial_index(points, viewport)
 
         # Check that index was created
-        assert len(culler._spatial_index) > 0
+        assert len(culler._spatial_index) > 0  # pyright: ignore[reportPrivateUsage]
 
-    def test_visible_points_detection(self):
+    def test_visible_points_detection(self) -> None:
         """Test detecting visible points in viewport."""
         culler = ViewportCuller()
 
         # Create points - some inside, some outside viewport
-        points = np.array(
+        points: Any = np.array(  # pyright: ignore[reportUnknownMemberType]
             [
                 [50, 50],  # Inside
                 [150, 150],  # Inside
@@ -56,7 +58,7 @@ class TestViewportCuller:
         viewport = QRectF(0, 0, 300, 300)
 
         # Get visible points
-        visible_indices = culler.get_visible_points(points, viewport, padding=0)
+        visible_indices: Any = culler.get_visible_points(points, viewport, padding=0)
 
         # Should return indices of points inside viewport
         assert len(visible_indices) == 3
@@ -65,11 +67,11 @@ class TestViewportCuller:
         assert 2 in visible_indices  # Point at (250, 250)
         assert 3 not in visible_indices  # Point at (350, 350) is outside
 
-    def test_viewport_padding(self):
+    def test_viewport_padding(self) -> None:
         """Test that padding extends the viewport correctly."""
         culler = ViewportCuller()
 
-        points = np.array(
+        points: Any = np.array(  # pyright: ignore[reportUnknownMemberType]
             [
                 [100, 100],  # Inside
                 [305, 100],  # Just outside, but within padding
@@ -80,46 +82,52 @@ class TestViewportCuller:
         viewport = QRectF(0, 0, 300, 300)
 
         # Without padding
-        visible_no_pad = culler.get_visible_points(points, viewport, padding=0)
+        visible_no_pad: Any = culler.get_visible_points(points, viewport, padding=0)
         assert len(visible_no_pad) == 1
 
         # With padding
-        visible_with_pad = culler.get_visible_points(points, viewport, padding=50)
+        visible_with_pad: Any = culler.get_visible_points(points, viewport, padding=50)
         assert len(visible_with_pad) == 2  # Includes point at 305
 
-    def test_large_dataset_performance(self):
+    def test_large_dataset_performance(self) -> None:
         """Test spatial indexing performance with large dataset."""
         culler = ViewportCuller()
 
         # Create large dataset
-        np.random.seed(42)
-        points = np.random.rand(10000, 2) * 1000
+        np.random.seed(42)  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        points: Any = np.random.rand(10000, 2) * 1000  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
 
         viewport = QRectF(400, 400, 200, 200)
 
         # This should use spatial indexing (>1000 points)
-        visible_indices = culler.get_visible_points(points, viewport)
+        visible_indices: Any = culler.get_visible_points(points, viewport)
 
         # Should only return points in the viewport area
         for idx in visible_indices:
-            point = points[idx]
-            assert 400 <= point[0] <= 600
-            assert 400 <= point[1] <= 600
+            point = points[idx]  # pyright: ignore[reportUnknownVariableType]
+            assert 400 <= point[0] <= 600  # pyright: ignore[reportUnknownArgumentType]
+            assert 400 <= point[1] <= 600  # pyright: ignore[reportUnknownArgumentType]
 
 
 class TestLevelOfDetail:
     """Test level-of-detail system."""
 
-    def test_lod_thresholds(self):
+    def test_lod_thresholds(self) -> None:
         """Test LOD thresholds for different quality levels."""
         lod = LevelOfDetail()
 
         # Create test points
-        points = np.random.rand(5000, 2) * 500
+        points: Any = np.random.rand(5000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
 
         # Test different quality levels
+        draft_points: Any
+        draft_step: Any
         draft_points, draft_step = lod.get_lod_points(points, RenderQuality.DRAFT)
+        normal_points: Any
+        normal_step: Any
         normal_points, normal_step = lod.get_lod_points(points, RenderQuality.NORMAL)
+        high_points: Any
+        high_step: Any
         high_points, high_step = lod.get_lod_points(points, RenderQuality.HIGH)
 
         # Draft should show fewer points
@@ -132,14 +140,16 @@ class TestLevelOfDetail:
         assert normal_step > high_step
         assert high_step == 1
 
-    def test_lod_with_visible_indices(self):
+    def test_lod_with_visible_indices(self) -> None:
         """Test LOD with pre-filtered visible indices."""
         lod = LevelOfDetail()
 
-        points = np.random.rand(1000, 2) * 500
-        visible_indices = np.array([10, 20, 30, 40, 50, 100, 200, 300])
+        points: Any = np.random.rand(1000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        visible_indices: Any = np.array([10, 20, 30, 40, 50, 100, 200, 300])  # pyright: ignore[reportUnknownMemberType]
 
         # Apply LOD to visible points only
+        lod_points: Any
+        step: Any
         lod_points, step = lod.get_lod_points(points, RenderQuality.NORMAL, visible_indices)
 
         # Should subsample from visible points
@@ -149,10 +159,10 @@ class TestLevelOfDetail:
 class TestVectorizedTransform:
     """Test vectorized coordinate transformation."""
 
-    def test_batch_transformation(self):
+    def test_batch_transformation(self) -> None:
         """Test transforming multiple points in batch."""
         # Create test points (frame, x, y format)
-        points = np.array(
+        points: Any = np.array(  # pyright: ignore[reportUnknownMemberType]
             [
                 [1, 100, 200],
                 [2, 150, 250],
@@ -178,9 +188,9 @@ class TestVectorizedTransform:
         assert screen_points[0, 0] == 250
         assert screen_points[0, 1] == 500
 
-    def test_y_flip_transformation(self):
+    def test_y_flip_transformation(self) -> None:
         """Test Y-axis flipping in batch transformation."""
-        points = np.array(
+        points: Any = np.array(  # pyright: ignore[reportUnknownMemberType]
             [
                 [1, 100, 100],
                 [2, 200, 200],
@@ -196,9 +206,9 @@ class TestVectorizedTransform:
         assert screen_points[0, 1] == 500  # 600 - 100
         assert screen_points[1, 1] == 400  # 600 - 200
 
-    def test_empty_points_handling(self):
+    def test_empty_points_handling(self) -> None:
         """Test handling of empty point arrays."""
-        points = np.array([])
+        points: Any = np.array([])  # pyright: ignore[reportUnknownMemberType]
 
         screen_points = VectorizedTransform.transform_points_batch(points, zoom=1.0, offset_x=0, offset_y=0)
 
@@ -208,7 +218,7 @@ class TestVectorizedTransform:
 class TestOptimizedCurveRenderer:
     """Test the optimized curve renderer."""
 
-    def test_renderer_initialization(self):
+    def test_renderer_initialization(self) -> None:
         """Test renderer initialization with default settings."""
         renderer = OptimizedCurveRenderer()
 
@@ -217,7 +227,7 @@ class TestOptimizedCurveRenderer:
         assert renderer._fps_target == 30.0
         assert renderer.background_opacity == 1.0
 
-    def test_render_quality_settings(self):
+    def test_render_quality_settings(self) -> None:
         """Test setting render quality levels."""
         renderer = OptimizedCurveRenderer()
 
@@ -231,7 +241,7 @@ class TestOptimizedCurveRenderer:
         assert renderer._quality_auto_adjust is True
         assert renderer._fps_target == 60.0
 
-    def test_performance_stats(self):
+    def test_performance_stats(self) -> None:
         """Test getting performance statistics."""
         renderer = OptimizedCurveRenderer()
 
@@ -244,7 +254,7 @@ class TestOptimizedCurveRenderer:
         assert "current_quality" in stats
         assert "auto_quality" in stats
 
-    def test_render_with_real_painter(self):
+    def test_render_with_real_painter(self) -> None:
         """Test rendering with a real QPainter (to an image)."""
         renderer = OptimizedCurveRenderer()
 
@@ -253,7 +263,7 @@ class TestOptimizedCurveRenderer:
 
         # Create a mock curve view with minimal required attributes
         class MockCurveView:
-            def __init__(self):
+            def __init__(self) -> None:
                 self.points = [
                     (1, 100, 100),
                     (2, 200, 200),
@@ -261,7 +271,7 @@ class TestOptimizedCurveRenderer:
                 ]
                 self.show_background = False
                 self.show_grid = False
-                self.selected_points = set()
+                self.selected_points: set[int] = set()
                 self.point_radius = 5
                 self.selected_point_radius = 7
                 self.zoom_factor = 1.0
@@ -278,13 +288,13 @@ class TestOptimizedCurveRenderer:
                 self.background_image = None  # Required by renderer
                 self.show_all_frame_numbers = False  # Required by renderer
 
-            def width(self):
+            def width(self) -> int:
                 return self._width
 
-            def height(self):
+            def height(self) -> int:
                 return self._height
 
-            def get_transform(self):
+            def get_transform(self) -> object:
                 from services.transform_service import Transform
 
                 return Transform(
@@ -298,7 +308,7 @@ class TestOptimizedCurveRenderer:
         curve_view = MockCurveView()
 
         # Use safe painter context manager for guaranteed cleanup
-        with safe_painter(image) as painter:
+        with safe_painter(image) as painter:  # pyright: ignore[reportUnknownVariableType]
             # Render
             renderer.render(painter, None, curve_view)
 
@@ -312,7 +322,7 @@ class TestOptimizedCurveRenderer:
 class TestRenderingIntegration:
     """Integration tests for the complete rendering pipeline."""
 
-    def test_viewport_culling_with_transform(self):
+    def test_viewport_culling_with_transform(self) -> None:
         """Test that viewport culling works with transformed coordinates."""
         from services.transform_service import Transform
 
@@ -320,7 +330,7 @@ class TestRenderingIntegration:
         transform = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0, pan_offset_x=100, pan_offset_y=50)
 
         # Create points in data coordinates
-        data_points = np.array(
+        data_points: Any = np.array(  # pyright: ignore[reportUnknownMemberType]
             [
                 [1, 50, 50],  # Will be at (200, 150) in screen
                 [2, 100, 100],  # Will be at (300, 250) in screen
@@ -329,7 +339,7 @@ class TestRenderingIntegration:
         )
 
         # Transform to screen coordinates
-        screen_points = np.zeros((len(data_points), 2))
+        screen_points: Any = np.zeros((len(data_points), 2))  # pyright: ignore[reportUnknownMemberType]
         for i, point in enumerate(data_points):
             x, y = transform.data_to_screen(point[1], point[2])
             screen_points[i] = [x, y]
@@ -346,23 +356,26 @@ class TestRenderingIntegration:
         assert 1 in visible
         assert 2 not in visible  # Point at (500, 450) is outside
 
-    def test_lod_maintains_curve_shape(self):
+    def test_lod_maintains_curve_shape(self) -> None:
         """Test that LOD subsampling maintains curve shape."""
         # Create a sine wave with more points than NORMAL threshold
-        x = np.linspace(0, 4 * np.pi, 1500)  # Use 1500 points to ensure LOD kicks in
-        y = np.sin(x) * 100 + 200
-        # Variable 'points' was unused - removed
+        x: Any = np.linspace(
+            0, 4 * np.pi, 1500
+        )  # Use 1500 points to ensure LOD kicks in  # pyright: ignore[reportUnknownMemberType]
+        y: Any = np.sin(x) * 100 + 200  # pyright: ignore[reportUnknownMemberType]
 
         lod = LevelOfDetail()
 
         # Apply LOD
-        screen_points = np.column_stack([x * 50, y])
+        screen_points: Any = np.column_stack([x * 50, y])  # pyright: ignore[reportUnknownMemberType]
+        lod_points: Any
+        step: Any
         lod_points, step = lod.get_lod_points(screen_points, RenderQuality.NORMAL)
 
         # Check that we still have the general shape
         # Min and max should be preserved
-        assert abs(np.min(lod_points[:, 1]) - np.min(screen_points[:, 1])) < 10
-        assert abs(np.max(lod_points[:, 1]) - np.max(screen_points[:, 1])) < 10
+        assert abs(np.min(lod_points[:, 1]) - np.min(screen_points[:, 1])) < 10  # pyright: ignore[reportUnknownMemberType]
+        assert abs(np.max(lod_points[:, 1]) - np.max(screen_points[:, 1])) < 10  # pyright: ignore[reportUnknownMemberType]
 
         # Should have fewer points
         assert len(lod_points) < len(screen_points)

@@ -22,10 +22,10 @@ if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
 
 try:
-    from PySide6.QtCore import QPointF  # type: ignore[import-not-found]
+    from PySide6.QtCore import QPointF  # pyright: ignore[reportMissingTypeStubs]
 except ImportError:
     # Stub for when PySide6 is not available
-    class QPointF:  # type: ignore[no-redef]
+    class QPointF:  # pyright: ignore[reportRedeclaration]
         def __init__(self, x: float = 0, y: float = 0) -> None:
             self._x: float = x
             self._y: float = y
@@ -368,13 +368,13 @@ class Transform:
         for key, value in kwargs.items():
             if key in param_mapping:
                 param_key = param_mapping[key]
-                # Cast based on the parameter type
+                # Cast based on the parameter type with explicit type checking
                 if param_key in ["flip_y", "scale_to_image"]:
                     new_params[param_key] = bool(value)
                 elif param_key == "display_height":
-                    new_params[param_key] = int(value)
+                    new_params[param_key] = int(value)  # pyright: ignore[reportArgumentType]
                 else:
-                    new_params[param_key] = float(value)
+                    new_params[param_key] = float(value)  # pyright: ignore[reportArgumentType]
 
         # Create new Transform instance with proper type casting
         return Transform(
@@ -516,23 +516,15 @@ class TransformService:
         Returns:
             Transform instance
         """
-        # Extract and properly type the optional parameters
-        manual_offset_x_val = kwargs.get("manual_offset_x", 0.0)
-        manual_offset_y_val = kwargs.get("manual_offset_y", 0.0)
-        flip_y_val = kwargs.get("flip_y", False)
-        display_height_val = kwargs.get("display_height", 720)
-        image_scale_x_val = kwargs.get("image_scale_x", 1.0)
-        image_scale_y_val = kwargs.get("image_scale_y", 1.0)
-        scale_to_image_val = kwargs.get("scale_to_image", False)
-
-        # Cast to proper types
-        manual_offset_x = float(manual_offset_x_val) if manual_offset_x_val is not None else 0.0
-        manual_offset_y = float(manual_offset_y_val) if manual_offset_y_val is not None else 0.0
-        flip_y = bool(flip_y_val) if flip_y_val is not None else False
-        display_height = int(display_height_val) if display_height_val is not None else 720
-        image_scale_x = float(image_scale_x_val) if image_scale_x_val is not None else 1.0
-        image_scale_y = float(image_scale_y_val) if image_scale_y_val is not None else 1.0
-        scale_to_image = bool(scale_to_image_val) if scale_to_image_val is not None else False
+        # Extract and properly type the optional parameters with explicit defaults
+        # Use direct conversion with type ignores for dict.get() returning object
+        manual_offset_x = float(kwargs.get("manual_offset_x", 0.0))  # pyright: ignore[reportArgumentType]
+        manual_offset_y = float(kwargs.get("manual_offset_y", 0.0))  # pyright: ignore[reportArgumentType]
+        flip_y = bool(kwargs.get("flip_y", False))
+        display_height = int(kwargs.get("display_height", 720))  # pyright: ignore[reportArgumentType]
+        image_scale_x = float(kwargs.get("image_scale_x", 1.0))  # pyright: ignore[reportArgumentType]
+        image_scale_y = float(kwargs.get("image_scale_y", 1.0))  # pyright: ignore[reportArgumentType]
+        scale_to_image = bool(kwargs.get("scale_to_image", False))
 
         return Transform(
             scale=scale,

@@ -11,6 +11,32 @@ from services import get_data_service, get_transform_service
 from ui.main_window import FileLoadSignals, FileLoadWorker
 
 
+@pytest.fixture(autouse=True)
+def reset_services():
+    """Reset service singletons to ensure clean state for each test."""
+    import services
+
+    # Store original values
+    original = {
+        "_data_service": getattr(services, "_data_service", None),
+        "_transform_service": getattr(services, "_transform_service", None),
+        "_interaction_service": getattr(services, "_interaction_service", None),
+        "_ui_service": getattr(services, "_ui_service", None),
+    }
+
+    # Reset to None
+    services._data_service = None
+    services._transform_service = None
+    services._interaction_service = None
+    services._ui_service = None
+
+    yield
+
+    # Restore original values
+    for key, value in original.items():
+        setattr(services, key, value)
+
+
 class TestDataServiceYFlip:
     """Test DataService Y-flip functionality."""
 

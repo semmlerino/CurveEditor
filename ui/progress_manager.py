@@ -12,6 +12,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
+from typing import Any, cast
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
@@ -58,19 +59,19 @@ class ProgressWorker(QThread):
     """Worker thread for progress operations."""
 
     # Signals
-    progress_updated: Signal
-    message_updated: Signal
-    finished: Signal  # True if successful, False if cancelled
-    error_occurred: Signal
+    progress_updated = Signal(int)  # percentage
+    message_updated = Signal(str)  # message
+    finished = Signal(bool)  # True if successful, False if cancelled
+    error_occurred = Signal(str)  # error message
 
-    # Attributes
-    operation: Callable
+    # Attributes - will be initialized in __init__
+    operation: Callable[..., Any]
     args: tuple[object, ...]
     kwargs: dict[str, object]
     is_cancelled: bool
     result: object
 
-    def __init__(self, operation: Callable, *args: object, **kwargs: object) -> None:
+    def __init__(self, operation: Callable[..., Any], *args: object, **kwargs: object) -> None:
         """Initialize the worker with an operation to perform."""
         super().__init__()
         self.operation = operation
@@ -116,6 +117,7 @@ class ProgressWorker(QThread):
 class ProgressDialog(QProgressDialog):
     """Enhanced progress dialog with additional features."""
 
+    # Attributes - will be initialized in __init__
     info: ProgressInfo
     start_time: float
     last_update_time: float
@@ -195,6 +197,7 @@ class ProgressDialog(QProgressDialog):
 class StatusBarProgress(QWidget):
     """Progress widget for status bar."""
 
+    # Attributes - will be initialized in __init__
     label: QLabel
     progress_bar: QProgressBar
     cancel_button: QPushButton
@@ -251,10 +254,12 @@ class ProgressManager(QObject):
     """Manages progress indicators throughout the application."""
 
     # Signals
-    operation_started: Signal
-    operation_finished: Signal  # operation_name, success
+    operation_started = Signal(str)  # operation_name
+    operation_finished = Signal(str, bool)  # operation_name, success
 
-    # Attributes
+    # Attributes - will be initialized in __init__
+    active_operations: dict[str, ProgressWorker]
+    status_bar_widget: StatusBarProgress | None
     _busy_cursor_count: int
 
     def __init__(self, parent: QObject | None = None):
@@ -291,7 +296,12 @@ class ProgressManager(QObject):
             QApplication.restoreOverrideCursor()
 
     def show_progress_dialog(
-        self, info: ProgressInfo, operation: Callable, parent: QWidget | None = None, *args: object, **kwargs: object
+        self,
+        info: ProgressInfo,
+        operation: Callable[..., Any],
+        parent: QWidget | None = None,
+        *args: object,
+        **kwargs: object,
     ) -> object:
         """Show a progress dialog for an operation.
 
@@ -311,13 +321,13 @@ class ProgressManager(QObject):
         worker = ProgressWorker(operation, *args, **kwargs)
 
         # Connect signals
-        worker.progress_updated.connect(dialog.setValue)
-        worker.message_updated.connect(dialog.setLabelText)
-        worker.finished.connect(dialog.close)
-        worker.error_occurred.connect(lambda msg: self._handle_error(msg, dialog))
+        _ = worker.progress_updated.connect(dialog.setValue)
+        _ = worker.message_updated.connect(dialog.setLabelText)
+        _ = worker.finished.connect(dialog.close)
+        _ = worker.error_occurred.connect(lambda msg: self._handle_error(msg, dialog))
 
         if info.cancellable:
-            dialog.canceled.connect(worker.cancel)
+            _ = dialog.canceled.connect(worker.cancel)
 
         # Store worker
         operation_id = f"{info.title}_{time.time()}"
@@ -342,9 +352,9 @@ class ProgressManager(QObject):
     def show_status_progress(
         self,
         message: str,
-        operation: Callable,
+        operation: Callable[..., Any],
         cancellable: bool = False,
-        callback: Callable[[object], None] = None,
+        callback: Callable[[object], None] | None = None,
         *args: object,
         **kwargs: object,
     ) -> None:
@@ -374,17 +384,20 @@ class ProgressManager(QObject):
         worker = ProgressWorker(operation, *args, **kwargs)
 
         # Store callback for when operation finishes
-        def on_finished(success: bool):
-            self.status_bar_widget.hide_progress()
+        def on_finished(success: bool) -> None:
+            if self.status_bar_widget:
+                self.status_bar_widget.hide_progress()
             if success and callback:
                 callback(worker.result)
 
         # Connect signals
-        worker.progress_updated.connect(lambda v: self.status_bar_widget.update_progress(v))
-        worker.finished.connect(on_finished)
+        _ = worker.progress_updated.connect(
+            lambda v: self.status_bar_widget.update_progress(v) if self.status_bar_widget else None
+        )
+        _ = worker.finished.connect(on_finished)
 
-        if cancellable:
-            self.status_bar_widget.cancel_button.clicked.connect(worker.cancel)
+        if cancellable and self.status_bar_widget:
+            _ = self.status_bar_widget.cancel_button.clicked.connect(worker.cancel)
 
         # Start operation (non-blocking)
         worker.start()
@@ -397,7 +410,7 @@ class ProgressManager(QObject):
         # Could show error dialog here
         from PySide6.QtWidgets import QMessageBox
 
-        QMessageBox.critical(dialog.parent(), "Operation Failed", error_msg)
+        _ = QMessageBox.critical(cast(QWidget, dialog.parent()), "Operation Failed", error_msg)
 
     @Slot(str, int, int)
     def update_operation_progress(self, operation_id: str, current: int, total: int) -> None:
@@ -421,10 +434,12 @@ def get_progress_manager() -> ProgressManager:
 
 
 # Decorator for adding progress to functions
-def with_progress(title: str = "Processing...", message: str = "Please wait...", show_dialog: bool = True):
+def with_progress(
+    title: str = "Processing...", message: str = "Please wait...", show_dialog: bool = True
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     """Decorator to add progress indicator to a function."""
 
-    def decorator(func: Callable) -> Callable:
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         def wrapper(*args: object, **kwargs: object) -> object:
             manager = get_progress_manager()
 

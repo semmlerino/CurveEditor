@@ -335,8 +335,8 @@ class UIService:
         """
         for component_name in components:
             component = getattr(main_window, component_name, None)
-            if component is not None and callable(getattr(component, "setEnabled", None)):
-                component.setEnabled(enabled)
+            if component is not None and callable(getattr(component, "setEnabled", None)):  # pyright: ignore[reportAny]
+                component.setEnabled(enabled)  # pyright: ignore[reportAny]
 
     def update_button_states(self, main_window: "MainWindowProtocol") -> None:
         """Update the enabled state of various buttons based on application state.
@@ -367,7 +367,7 @@ class UIService:
         for button_name in selection_buttons:
             button = getattr(main_window, button_name, None)
             if button:
-                button.setEnabled(has_selection)
+                button.setEnabled(has_selection)  # pyright: ignore[reportAny]
 
     def update_window_title(
         self, main_window: "MainWindowProtocol", title: str | None = None, modified: bool = False
@@ -442,11 +442,11 @@ class UIService:
         for action_name, callback in actions.items():
             if action_name == "-":
                 # Add separator
-                menu.addSeparator()
+                _ = menu.addSeparator()
             else:
                 action = menu.addAction(action_name)
                 if callback:
-                    action.triggered.connect(callback)
+                    _ = action.triggered.connect(callback)
 
         return menu
 
@@ -465,6 +465,8 @@ class UIService:
         """
         # TODO: Implement proper filter dialog
         # For now, just show a placeholder message
+        _ = data  # Mark as intentionally unused
+        _ = indices  # Mark as intentionally unused
         self.show_info(parent, "Filter dialog not yet implemented")
         return None
 
@@ -483,6 +485,8 @@ class UIService:
         """
         # TODO: Implement proper fill gaps dialog
         # For now, just show a placeholder message
+        _ = data  # Mark as intentionally unused
+        _ = gaps  # Mark as intentionally unused
         self.show_info(parent, "Fill gaps dialog not yet implemented")
         return None
 
@@ -500,6 +504,7 @@ class UIService:
         """
         # TODO: Implement proper extrapolate dialog
         # For now, just show a placeholder message
+        _ = data  # Mark as intentionally unused
         self.show_info(parent, "Extrapolate dialog not yet implemented")
         return None
 
@@ -547,9 +552,9 @@ class UIService:
         button_layout = QHBoxLayout()
         button_layout.addStretch()
         close_button = QPushButton("Close")
-        close_button.clicked.connect(dialog.accept)
+        _ = close_button.clicked.connect(dialog.accept)
         button_layout.addWidget(close_button)
         layout.addLayout(button_layout)
 
         dialog.setLayout(layout)
-        dialog.exec()
+        _ = dialog.exec()

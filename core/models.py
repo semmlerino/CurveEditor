@@ -36,7 +36,7 @@ import math
 from collections.abc import Iterator
 from dataclasses import dataclass
 from enum import Enum
-from typing import overload
+from typing import TypeGuard, overload
 
 # Type aliases for backward compatibility and clarity
 FrameNumber = int
@@ -509,7 +509,7 @@ class PointCollection:
 # Type guards for validation
 
 
-def is_point_tuple(obj: object) -> bool:
+def is_point_tuple(obj: object) -> TypeGuard[LegacyPointTuple]:
     """Type guard for point tuple format.
 
     Args:
@@ -521,7 +521,9 @@ def is_point_tuple(obj: object) -> bool:
     if not isinstance(obj, tuple):
         return False
 
-    if len(obj) < 3 or len(obj) > 4:
+    # Use len() directly on the known tuple
+    obj_len = len(obj)  # pyright: ignore[reportUnknownArgumentType]
+    if obj_len < 3 or obj_len > 4:
         return False
 
     # Check frame (int), x (float), y (float)
@@ -532,16 +534,14 @@ def is_point_tuple(obj: object) -> bool:
     if not isinstance(obj[2], int | float):
         return False
 
-    # Check status if present
-    if len(obj) == 4:
-        status: object = obj[3]
-        if not isinstance(status, str | bool):
-            return False
+    # Check status if present (we know obj has 4 elements here)
+    if obj_len == 4 and not isinstance(obj[3], str | bool):
+        return False
 
     return True
 
 
-def is_points_list(obj: object) -> bool:
+def is_points_list(obj: object) -> TypeGuard[PointsList]:
     """Type guard for PointsList format.
 
     Args:
@@ -554,8 +554,8 @@ def is_points_list(obj: object) -> bool:
         return False
 
     # Type check each item individually to help type inference
-    for item in obj:
-        if not is_point_tuple(item):
+    for item in obj:  # pyright: ignore[reportUnknownVariableType]
+        if not is_point_tuple(item):  # pyright: ignore[reportUnknownArgumentType]
             return False
     return True
 

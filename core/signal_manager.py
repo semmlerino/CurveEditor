@@ -111,7 +111,9 @@ class SignalManager:
             # Try to hook into the owner's destruction
             destroyed_signal = getattr(owner, "destroyed", None)
             if destroyed_signal is not None:
-                _ = destroyed_signal.connect(self.disconnect_all)
+                # Cast to SignalInstance for type safety
+                signal_instance = cast(SignalInstance, destroyed_signal)
+                _ = signal_instance.connect(self.disconnect_all)
 
     def _owner_destroyed(self, _: weakref.ReferenceType[QObject]) -> None:
         """Called when the owner widget is destroyed."""
@@ -236,4 +238,6 @@ class ManagedWidget:
         """Ensure signals are disconnected on destruction."""
         signal_manager = getattr(self, "signal_manager", None)
         if signal_manager is not None:
-            signal_manager.disconnect_all()
+            # Cast to SignalManager for type safety
+            manager = cast(SignalManager, signal_manager)
+            manager.disconnect_all()

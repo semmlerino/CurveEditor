@@ -25,9 +25,13 @@ class ShortcutManager(QObject):
     """
 
     # Signals for shortcut activation
-    shortcut_activated = Signal(str)  # Emits shortcut name when activated
+    shortcut_activated: Signal = Signal(str)  # Emits shortcut name when activated
 
-    def __init__(self, parent: QWidget | None = None):
+    # Attributes - initialized in __init__
+    parent_widget: QWidget | None
+    shortcuts: dict[str, QShortcut]
+
+    def __init__(self, parent: QWidget | None = None) -> None:
         """
         Initialize the shortcut manager.
 
@@ -36,7 +40,7 @@ class ShortcutManager(QObject):
         """
         super().__init__(parent)
         self.parent_widget = parent
-        self.shortcuts: dict[str, QShortcut] = {}
+        self.shortcuts = {}
         self._setup_default_shortcuts()
 
         logger.info("ShortcutManager initialized")
@@ -89,7 +93,7 @@ class ShortcutManager(QObject):
 
         # Register all default shortcuts
         for name, (key_sequence, callback) in default_shortcuts.items():
-            self.register_shortcut(name, key_sequence, callback)
+            _ = self.register_shortcut(name, key_sequence, callback)
 
     def register_shortcut(self, name: str, key_sequence: str, callback: Callable[[], None]) -> bool:
         """
@@ -110,8 +114,8 @@ class ShortcutManager(QObject):
         try:
             # Create the shortcut
             shortcut = QShortcut(QKeySequence(key_sequence), self.parent_widget)
-            shortcut.activated.connect(callback)
-            shortcut.activated.connect(lambda: self.shortcut_activated.emit(name))
+            _ = shortcut.activated.connect(callback)
+            _ = shortcut.activated.connect(lambda: self.shortcut_activated.emit(name))
 
             # Store the shortcut
             if name in self.shortcuts:
@@ -168,7 +172,7 @@ class ShortcutManager(QObject):
         Returns:
             Dictionary mapping shortcut names to key sequences
         """
-        result = {}
+        result: dict[str, str] = {}
         for name, shortcut in self.shortcuts.items():
             result[name] = shortcut.key().toString()
         return result
@@ -271,8 +275,10 @@ class ShortcutManager(QObject):
         """Handle fit image shortcut (F key)."""
         logger.debug("Fit image shortcut activated")
         # Access the curve widget through parent (MainWindow)
-        if getattr(self.parent_widget, "curve_widget", None) is not None and self.parent_widget.curve_widget:
-            self.parent_widget.curve_widget.fit_to_background_image()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "curve_widget"):
+            curve_widget = getattr(self.parent_widget, "curve_widget", None)
+            if curve_widget is not None and hasattr(curve_widget, "fit_to_background_image"):
+                _ = curve_widget.fit_to_background_image()  # pyright: ignore[reportUnknownMemberType]
 
     def _on_reset_view(self) -> None:
         """Handle reset view shortcut."""
@@ -298,33 +304,43 @@ class ShortcutManager(QObject):
         """Handle next frame shortcut."""
         logger.debug("Next frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if getattr(self.parent_widget, "_on_next_frame", None) is not None:
-            self.parent_widget._on_next_frame()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "_on_next_frame"):
+            next_frame_method = getattr(self.parent_widget, "_on_next_frame", None)
+            if next_frame_method is not None and callable(next_frame_method):
+                _ = next_frame_method()  # pyright: ignore[reportUnknownMemberType]
 
     def _on_prev_frame(self) -> None:
         """Handle previous frame shortcut."""
         logger.debug("Previous frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if getattr(self.parent_widget, "_on_prev_frame", None) is not None:
-            self.parent_widget._on_prev_frame()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "_on_prev_frame"):
+            prev_frame_method = getattr(self.parent_widget, "_on_prev_frame", None)
+            if prev_frame_method is not None and callable(prev_frame_method):
+                _ = prev_frame_method()  # pyright: ignore[reportUnknownMemberType]
 
     def _on_first_frame(self) -> None:
         """Handle first frame shortcut."""
         logger.debug("First frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if getattr(self.parent_widget, "_on_first_frame", None) is not None:
-            self.parent_widget._on_first_frame()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "_on_first_frame"):
+            first_frame_method = getattr(self.parent_widget, "_on_first_frame", None)
+            if first_frame_method is not None and callable(first_frame_method):
+                _ = first_frame_method()  # pyright: ignore[reportUnknownMemberType]
 
     def _on_last_frame(self) -> None:
         """Handle last frame shortcut."""
         logger.debug("Last frame shortcut activated")
         # Trigger frame navigation through parent widget
-        if getattr(self.parent_widget, "_on_last_frame", None) is not None:
-            self.parent_widget._on_last_frame()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "_on_last_frame"):
+            last_frame_method = getattr(self.parent_widget, "_on_last_frame", None)
+            if last_frame_method is not None and callable(last_frame_method):
+                _ = last_frame_method()  # pyright: ignore[reportUnknownMemberType]
 
     def _on_oscillate_playback(self) -> None:
         """Handle oscillating playback toggle shortcut (spacebar)."""
         logger.debug("Oscillating playback toggle shortcut activated")
         # Trigger oscillating playback through parent widget
-        if getattr(self.parent_widget, "_toggle_oscillating_playback", None) is not None:
-            self.parent_widget._toggle_oscillating_playback()
+        if self.parent_widget is not None and hasattr(self.parent_widget, "_toggle_oscillating_playback"):
+            toggle_method = getattr(self.parent_widget, "_toggle_oscillating_playback", None)
+            if toggle_method is not None and callable(toggle_method):
+                _ = toggle_method()  # pyright: ignore[reportUnknownMemberType]

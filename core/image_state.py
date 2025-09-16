@@ -48,8 +48,8 @@ class ImageSequenceInfo:
 
     def __post_init__(self) -> None:
         """Initialize default values correctly and validate inputs."""
-        # Ensure filenames is always a list
-        if not isinstance(self.filenames, list):
+        # Ensure filenames is always a list (defensive programming)
+        if not isinstance(self.filenames, list):  # pyright: ignore[reportUnnecessaryIsInstance]
             self.filenames = []
 
         self.total_count = len(self.filenames)
@@ -417,7 +417,8 @@ class ImageState:
         # Sync from curve view if available
         curve_view = getattr(main_window, "curve_view", None)
         if curve_view is not None:
-            if _is_curve_view_protocol(curve_view):
+            # Type check for safety (getattr returns Any, but we check it)
+            if _is_curve_view_protocol(curve_view):  # pyright: ignore[reportAny]
                 self.sync_from_curve_view(curve_view)
             else:
                 logger.warning("curve_view object does not conform to CurveViewProtocol")

@@ -78,7 +78,7 @@ class ErrorDialog(QDialog):
         """Initialize the error dialog."""
         super().__init__(parent)
 
-        self.error_info = error_info
+        self.error_info: ErrorInfo = error_info
         self.setWindowTitle(error_info.title)
         self.setMinimumWidth(500)
 
@@ -134,13 +134,13 @@ class ErrorDialog(QDialog):
             layout.addSpacing(10)
 
             # Details button
-            self.details_button = QPushButton("Show Details ▼")
+            self.details_button: QPushButton = QPushButton("Show Details ▼")
             self.details_button.setCheckable(True)
             self.details_button.clicked.connect(self._toggle_details)
             layout.addWidget(self.details_button)
 
             # Details text area
-            self.details_text = QTextEdit()
+            self.details_text: QTextEdit = QTextEdit()
             self.details_text.setReadOnly(True)
             self.details_text.setMaximumHeight(200)
 
@@ -162,7 +162,7 @@ class ErrorDialog(QDialog):
 
         # Button box
         layout.addSpacing(10)
-        self.button_box = QDialogButtonBox()
+        self.button_box: QDialogButtonBox = QDialogButtonBox()
 
         # Add buttons based on options
         if self.error_info.can_retry:
@@ -230,8 +230,8 @@ class ErrorHandler(QObject):
     """Centralized error handling for the application."""
 
     # Signals
-    error_occurred = Signal(ErrorInfo)
-    error_logged = Signal(str, ErrorSeverity)
+    error_occurred: Signal = Signal(ErrorInfo)
+    error_logged: Signal = Signal(str, ErrorSeverity)
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the error handler."""
@@ -239,7 +239,7 @@ class ErrorHandler(QObject):
 
         # Error history for debugging
         self.error_history: list[ErrorInfo] = []
-        self.max_history_size = 100
+        self.max_history_size: int = 100
 
         # Recovery actions
         self.recovery_actions: dict[ErrorCategory, list[str]] = {

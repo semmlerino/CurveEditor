@@ -10,7 +10,7 @@ CurveView paintEvent method to improve maintainability and testability.
 try:
     from .optimized_curve_renderer import OptimizedCurveRenderer
 
-    CurveRenderer = OptimizedCurveRenderer  # type: ignore[misc]
+    CurveRenderer = OptimizedCurveRenderer  # pyright: ignore[reportAssignmentType]
 
     __all__ = ["CurveRenderer"]
 except ImportError:

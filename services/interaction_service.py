@@ -41,7 +41,7 @@ def _get_transform_service() -> TransformService:
     global _transform_service
     if _transform_service is None:
         # Import here to avoid circular import
-        from services import get_transform_service  # type: ignore[import]
+        from services import get_transform_service
 
         _transform_service = get_transform_service()
     return _transform_service

@@ -7,9 +7,9 @@ from typing import final
 
 from PySide6.QtCore import QRect
 
-from services import TransformService
 from services.data_service import DataService
 from services.interaction_service import InteractionService
+from services.transform_service import TransformService
 from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
 
 
@@ -17,14 +17,16 @@ from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolComplia
 class TestCurveService(unittest.TestCase):
     """Test cases for the CurveService class."""
 
-    # Initialize instance variables with proper defaults for type safety
-    mock_curve_view: ProtocolCompliantMockCurveView = None  # type: ignore[assignment]
-    mock_main_window: ProtocolCompliantMockMainWindow = None  # type: ignore[assignment]
-    interaction_service: InteractionService = None  # type: ignore[assignment]
-    transform_service: TransformService = None  # type: ignore[assignment]
-    data_service: DataService = None  # type: ignore[assignment]
+    def __init__(self, methodName: str = "runTest") -> None:  # noqa: N803
+        super().__init__(methodName)
+        # Initialize instance variables with proper defaults for type safety
+        self.mock_curve_view: ProtocolCompliantMockCurveView
+        self.mock_main_window: ProtocolCompliantMockMainWindow
+        self.interaction_service: InteractionService
+        self.transform_service: TransformService
+        self.data_service: DataService
 
-    def setUp(self) -> None:
+    def setUp(self) -> None:  # pyright: ignore[reportImplicitOverride]
         """Set up test fixtures for each test."""
         # Create protocol-compliant mock objects for CurveView and MainWindow
         self.mock_curve_view = ProtocolCompliantMockCurveView()
@@ -41,6 +43,15 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.offset_x = 0
         self.mock_curve_view.offset_y = 0
 
+        # Add missing protocol attributes to make it compatible
+        self.mock_curve_view.x_offset = 0
+        self.mock_curve_view.y_offset = 0
+        self.mock_curve_view.drag_active = False
+        self.mock_curve_view.pan_active = False
+        self.mock_curve_view.last_drag_pos = None
+        self.mock_curve_view.last_pan_pos = None
+        self.mock_curve_view.rubber_band = None
+
         self.mock_main_window = ProtocolCompliantMockMainWindow()
         self.mock_main_window.curve_view.curve_data = [
             (1, 100, 200, "keyframe"),
@@ -48,6 +59,15 @@ class TestCurveService(unittest.TestCase):
             (3, 200, 300, "keyframe"),
         ]
         self.mock_main_window.curve_view.points = self.mock_main_window.curve_view.curve_data
+
+        # Add missing protocol attributes
+        self.mock_main_window.selected_indices = []  # Changed to list to match protocol
+        self.mock_main_window.max_history_size = 100
+        self.mock_main_window.point_name = ""
+        self.mock_main_window.point_color = "blue"
+        self.mock_main_window.undo_button = None
+        self.mock_main_window.redo_button = None
+        self.mock_main_window.save_button = None
 
         # Additional properties needed for transformation tests
         # Set these through the internal interface if they don't exist
@@ -63,8 +83,12 @@ class TestCurveService(unittest.TestCase):
 
     def test_select_point_by_index(self) -> None:
         """Test selecting a point by its index."""
-        # Act
-        result = self.interaction_service.select_point_by_index(self.mock_curve_view, self.mock_main_window, 1)
+        # Act - Use pyright ignore for protocol compatibility
+        result = self.interaction_service.select_point_by_index(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            1,
+        )
 
         # Assert
         self.assertTrue(result)
@@ -76,7 +100,9 @@ class TestCurveService(unittest.TestCase):
         """Test selecting a point with invalid index."""
         # Act
         result = self.interaction_service.select_point_by_index(
-            self.mock_curve_view, self.mock_main_window, 10
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            10,
         )  # Out of range
 
         # Assert
@@ -86,7 +112,10 @@ class TestCurveService(unittest.TestCase):
     def test_select_all_points(self) -> None:
         """Test selecting all points."""
         # Act
-        count = self.interaction_service.select_all_points(self.mock_curve_view, self.mock_main_window)
+        count = self.interaction_service.select_all_points(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+        )
 
         # Assert
         self.assertEqual(count, 3)
@@ -101,7 +130,10 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.selected_point_idx = 0
 
         # Act
-        self.interaction_service.clear_selection(self.mock_curve_view, self.mock_main_window)
+        self.interaction_service.clear_selection(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+        )
 
         # Assert
         self.assertEqual(self.mock_curve_view.selected_points, set())
@@ -123,7 +155,7 @@ class TestCurveService(unittest.TestCase):
         transform_service = get_transform_service()
 
         # Create real transform to understand actual coordinate mapping
-        view_state = transform_service.create_view_state(self.mock_curve_view)
+        view_state = transform_service.create_view_state(self.mock_curve_view)  # pyright: ignore[reportArgumentType]
         real_transform = transform_service.create_transform_from_view_state(view_state)
 
         # Override the mock's get_current_transform to return the real transform
@@ -138,7 +170,11 @@ class TestCurveService(unittest.TestCase):
         rect = QRect(int(p1_transformed[0] - 10), int(p1_transformed[1] - 10), 20, 20)
 
         # Call the real method - no mocking!
-        count = self.interaction_service.select_points_in_rect(self.mock_curve_view, self.mock_main_window, rect)
+        count = self.interaction_service.select_points_in_rect(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            rect,
+        )
 
         # Verify the method worked correctly
         self.assertEqual(count, 1)
@@ -150,7 +186,11 @@ class TestCurveService(unittest.TestCase):
         """Test updating a point's position."""
         # Act
         result = self.interaction_service.update_point_position(
-            self.mock_curve_view, self.mock_main_window, 1, 160, 260
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            1,
+            160,
+            260,
         )
 
         # Assert
@@ -162,7 +202,11 @@ class TestCurveService(unittest.TestCase):
         """Test updating a point with invalid index."""
         # Act
         result = self.interaction_service.update_point_position(
-            self.mock_curve_view, self.mock_main_window, 10, 160, 260
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            10,
+            160,
+            260,
         )  # Out of range
 
         # Assert
@@ -175,8 +219,10 @@ class TestCurveService(unittest.TestCase):
         # Add necessary attributes for TransformationService (if not already present)
         self.mock_curve_view.flip_y_axis = True
         self.mock_curve_view.scale_to_image = False
-        self.mock_curve_view.center_offset_x = 0.0
-        self.mock_curve_view.center_offset_y = 0.0
+        if not hasattr(self.mock_curve_view, "center_offset_x"):
+            setattr(self.mock_curve_view, "center_offset_x", 0.0)
+        if not hasattr(self.mock_curve_view, "center_offset_y"):
+            setattr(self.mock_curve_view, "center_offset_y", 0.0)
 
         # Use the real CurveService method
         from services import get_transform_service
@@ -184,7 +230,7 @@ class TestCurveService(unittest.TestCase):
         transform_service = get_transform_service()
 
         # Get actual transformed coordinates for point 1 (150, 250)
-        view_state = transform_service.create_view_state(self.mock_curve_view)
+        view_state = transform_service.create_view_state(self.mock_curve_view)  # pyright: ignore[reportArgumentType]
         real_transform = transform_service.create_transform_from_view_state(view_state)
 
         # Override the mock's get_current_transform to return the real transform
@@ -193,7 +239,11 @@ class TestCurveService(unittest.TestCase):
         p1_transformed = real_transform.data_to_screen(150, 250)
 
         # Call find_point_at near the transformed coordinates of point 1
-        idx = self.interaction_service.find_point_at(self.mock_curve_view, p1_transformed[0], p1_transformed[1])
+        idx = self.interaction_service.find_point_at(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            p1_transformed[0],
+            p1_transformed[1],
+        )
 
         # Should find point 1 (index 1)
         self.assertEqual(idx, 1)
@@ -209,7 +259,11 @@ class TestCurveService(unittest.TestCase):
 
         # Use the real CurveService method at coordinates far from any points
         # Call find_point_at at coordinates that should be far from any transformed points
-        idx = self.interaction_service.find_point_at(self.mock_curve_view, 10000, 10000)
+        idx = self.interaction_service.find_point_at(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            10000,
+            10000,
+        )
 
         # Should return -1 (no point found)
         self.assertEqual(idx, -1)
@@ -222,7 +276,7 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.offset_y = 20
 
         # Act
-        self.interaction_service.reset_view(self.mock_curve_view)
+        self.interaction_service.reset_view(self.mock_curve_view)  # pyright: ignore[reportArgumentType]
 
         # Assert
         # Verify ZoomOperations.reset_view was called
@@ -238,7 +292,12 @@ class TestCurveService(unittest.TestCase):
 
         # Act
         dx, dy = 5.0, 10.0
-        result = self.interaction_service.nudge_selected_points(self.mock_curve_view, self.mock_main_window, dx, dy)
+        result = self.interaction_service.nudge_selected_points(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            dx,
+            dy,
+        )
 
         # Assert
         self.assertTrue(result)
@@ -272,7 +331,12 @@ class TestCurveService(unittest.TestCase):
         self.mock_curve_view.selected_points = set()  # No selection
 
         # Act
-        result = self.interaction_service.nudge_selected_points(self.mock_curve_view, self.mock_main_window, 5.0, 10.0)
+        result = self.interaction_service.nudge_selected_points(
+            self.mock_curve_view,  # pyright: ignore[reportArgumentType]
+            self.mock_main_window,  # pyright: ignore[reportArgumentType]
+            5.0,
+            10.0,
+        )
 
         # Assert
         self.assertFalse(result)

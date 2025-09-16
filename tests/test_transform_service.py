@@ -549,6 +549,9 @@ class TestTransform:
 
     def test_transform_from_view_state(self) -> None:
         """Test creating Transform from ViewState."""
+        # Create a mock background image to trigger center offset calculation
+        mock_background = object()  # Non-None value to trigger the calculation
+
         view_state = ViewState(
             display_width=1920,
             display_height=1080,
@@ -563,6 +566,7 @@ class TestTransform:
             scale_to_image=True,
             image_width=1280,
             image_height=720,
+            background_image=mock_background,
         )
 
         transform = Transform.from_view_state(view_state)

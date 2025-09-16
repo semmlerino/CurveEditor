@@ -199,7 +199,7 @@ def batch_smoothness_adjustment(
     curve_data: CurveDataList,
     indices: Sequence[int],
     smoothness_factor: float,
-    curve_view: CurveViewProtocol | None = None,  # noqa: ARG001
+    curve_view: CurveViewProtocol | None = None,  # pyright: ignore[reportUnusedParameter]
 ) -> CurveDataList:
     """Adjust the smoothness of a selection of points using moving average.
 

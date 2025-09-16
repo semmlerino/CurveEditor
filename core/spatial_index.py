@@ -9,12 +9,15 @@ lookups instead of O(n) linear search.
 from __future__ import annotations
 
 import logging
+import math
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
     from services.transform_service import Transform
+
+from core.type_aliases import CurveDataList
 
 logger = logging.getLogger("spatial_index")
 
@@ -138,7 +141,9 @@ class PointIndex:
             # Build index from curve data
             curve_data = getattr(view, "curve_data", None)
             if curve_data:
-                for idx, point in enumerate(curve_data):
+                # Type-safe curve data access
+                typed_curve_data = cast(CurveDataList, curve_data)
+                for idx, point in enumerate(typed_curve_data):
                     if len(point) >= 3:
                         # Convert data point to screen coordinates
                         screen_x, screen_y = transform.data_to_screen(point[1], point[2])
@@ -181,6 +186,9 @@ class PointIndex:
         if not curve_data:
             return -1
 
+        # Type-safe curve data access
+        typed_curve_data = cast(CurveDataList, curve_data)
+
         # Get grid cell for position
         grid_x, grid_y = self._get_cell_coords(x, y)
 
@@ -193,23 +201,25 @@ class PointIndex:
         nearby_cells = self._get_nearby_cells(grid_x, grid_y, cell_radius)
 
         closest_idx = -1
-        closest_distance = float("inf")
+        closest_distance: float = float("inf")
 
         # Check points in nearby cells
         with self._lock:
             for cell_key in nearby_cells:
                 if cell_key in self._grid:
                     for point_idx in self._grid[cell_key]:
-                        if point_idx < len(curve_data):
-                            point = curve_data[point_idx]
+                        if point_idx < len(typed_curve_data):
+                            point = typed_curve_data[point_idx]
                             if len(point) >= 3:
                                 # Convert to screen coordinates
                                 screen_coords = transform.data_to_screen(point[1], point[2])
                                 screen_px: float = screen_coords[0]
                                 screen_py: float = screen_coords[1]
 
-                                # Calculate distance
-                                distance: float = ((screen_px - x) ** 2 + (screen_py - y) ** 2) ** 0.5
+                                # Calculate distance using math.sqrt for type safety
+                                dx = float(screen_px - x)
+                                dy = float(screen_py - y)
+                                distance = math.sqrt(dx * dx + dy * dy)
 
                                 # Check if within threshold and closer than previous
                                 if distance <= threshold and distance < closest_distance:
@@ -239,6 +249,9 @@ class PointIndex:
         if not curve_data:
             return []
 
+        # Type-safe curve data access
+        typed_curve_data = cast(CurveDataList, curve_data)
+
         # Ensure proper bounds
         left = min(x1, x2)
         right = max(x1, x2)
@@ -258,8 +271,8 @@ class PointIndex:
                     cell_key = (gx, gy)
                     if cell_key in self._grid:
                         for point_idx in self._grid[cell_key]:
-                            if point_idx < len(curve_data):
-                                point = curve_data[point_idx]
+                            if point_idx < len(typed_curve_data):
+                                point = typed_curve_data[point_idx]
                                 if len(point) >= 3:
                                     # Convert to screen coordinates
                                     screen_px, screen_py = transform.data_to_screen(point[1], point[2])

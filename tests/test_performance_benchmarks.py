@@ -19,7 +19,7 @@ import tempfile
 import time
 import tracemalloc
 from collections.abc import Generator
-from typing import Any
+from typing import Any, Protocol
 from unittest.mock import patch
 
 import pytest
@@ -29,18 +29,24 @@ from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 
 
+class QtBotProtocol(Protocol):
+    """Protocol for QtBot to avoid import issues."""
+
+    def addWidget(self, widget: Any) -> None: ...
+
+
 class BenchmarkResult:
     """Container for benchmark results."""
 
-    def __init__(self, operation: str):
-        self.operation = operation
-        self.start_time = 0.0
-        self.end_time = 0.0
-        self.duration = 0.0
-        self.memory_start = 0
-        self.memory_end = 0
-        self.memory_peak = 0
-        self.data_size = 0
+    def __init__(self, operation: str) -> None:
+        self.operation: str = operation
+        self.start_time: float = 0.0
+        self.end_time: float = 0.0
+        self.duration: float = 0.0
+        self.memory_start: int = 0
+        self.memory_end: int = 0
+        self.memory_peak: int = 0
+        self.data_size: int = 0
 
     @property
     def throughput(self) -> float:
@@ -58,12 +64,12 @@ class BenchmarkResult:
 
 
 @pytest.fixture
-def benchmark_context() -> Generator[dict[str, object], None, None]:
+def benchmark_context() -> Generator[dict[str, Any], None, None]:
     """Provide benchmarking context with memory tracking."""
     # Start memory tracking
     tracemalloc.start()
 
-    context = {"results": [], "baseline_memory": tracemalloc.get_traced_memory()[0]}
+    context: dict[str, Any] = {"results": [], "baseline_memory": tracemalloc.get_traced_memory()[0]}
 
     yield context
 
@@ -82,7 +88,9 @@ def create_benchmark_data(size: int) -> list[tuple[int, float, float, str]]:
 class TestApplicationStartupBenchmarks:
     """Benchmark application startup performance."""
 
-    def test_main_window_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, object]) -> None:
+    def test_main_window_creation_time(
+        self, qapp: QApplication, qtbot: QtBotProtocol, benchmark_context: dict[str, Any]
+    ) -> None:
         """Benchmark MainWindow creation time."""
         result = BenchmarkResult("MainWindow Creation")
 
@@ -103,6 +111,7 @@ class TestApplicationStartupBenchmarks:
 
         # Cleanup
         window.close()
+        _ = qapp.processEvents()  # Ignore return value
 
         # Assert reasonable startup time (should be < 2 seconds)
         assert result.duration < 2.0, f"MainWindow startup too slow: {result.duration:.3f}s"
@@ -111,10 +120,13 @@ class TestApplicationStartupBenchmarks:
         memory_mb = result.memory_peak / 1024 / 1024
         assert memory_mb < 50.0, f"MainWindow uses too much memory: {memory_mb:.1f}MB"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
-    def test_curve_widget_creation_time(self, qapp: QApplication, qtbot, benchmark_context: dict[str, object]) -> None:
+    def test_curve_widget_creation_time(
+        self, qapp: QApplication, qtbot: QtBotProtocol, benchmark_context: dict[str, Any]
+    ) -> None:
         """Benchmark CurveViewWidget creation time."""
         result = BenchmarkResult("CurveViewWidget Creation")
 
@@ -134,7 +146,8 @@ class TestApplicationStartupBenchmarks:
         # Assert reasonable creation time
         assert result.duration < 0.1, f"CurveViewWidget creation too slow: {result.duration:.3f}s"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
 
@@ -142,7 +155,7 @@ class TestDataProcessingBenchmarks:
     """Benchmark data loading and processing performance."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot: QtBotProtocol) -> Generator[MainWindow, None, None]:
         """Create MainWindow for benchmarking."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -167,7 +180,9 @@ class TestDataProcessingBenchmarks:
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Load data
-        main_window.curve_widget.set_curve_data(test_data)
+        curve_widget = main_window.curve_widget
+        if curve_widget is not None:
+            curve_widget.set_curve_data(test_data)  # pyright: ignore[reportArgumentType]
 
         # End timing
         result.end_time = time.perf_counter()
@@ -179,9 +194,11 @@ class TestDataProcessingBenchmarks:
         assert result.duration < expected_time, f"Data loading too slow: {result.duration:.3f}s for {data_size} points"
 
         # Verify data was loaded correctly
-        assert len(main_window.curve_widget.curve_data) == data_size
+        if curve_widget is not None:
+            assert len(curve_widget.curve_data) == data_size
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
     @pytest.mark.parametrize("update_count", [10, 100, 500])
@@ -191,7 +208,9 @@ class TestDataProcessingBenchmarks:
         """Benchmark point update performance."""
         # Set up initial data
         initial_data = create_benchmark_data(1000)
-        main_window.curve_widget.set_curve_data(initial_data)
+        curve_widget = main_window.curve_widget
+        if curve_widget is not None:
+            curve_widget.set_curve_data(initial_data)  # pyright: ignore[reportArgumentType]
 
         result = BenchmarkResult(f"Point Updates ({update_count} updates)")
         result.data_size = update_count
@@ -201,9 +220,10 @@ class TestDataProcessingBenchmarks:
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Perform updates
-        for i in range(update_count):
-            idx = i % len(initial_data)
-            main_window.curve_widget.update_point(idx, float(i * 2), float(i * 3))
+        if curve_widget is not None:
+            for i in range(update_count):
+                idx = i % len(initial_data)
+                curve_widget.update_point(idx, float(i * 2), float(i * 3))
 
         # End timing
         result.end_time = time.perf_counter()
@@ -213,10 +233,11 @@ class TestDataProcessingBenchmarks:
         # Performance assertion - should handle at least 1000 updates per second
         assert result.throughput > 100, f"Point updates too slow: {result.throughput:.0f} updates/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
-    def test_file_io_performance(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
+    def test_file_io_performance(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Benchmark file I/O operations."""
         data_size = 5000
         test_data = create_benchmark_data(data_size)
@@ -241,7 +262,9 @@ class TestDataProcessingBenchmarks:
 
                 # Load file
                 loaded_data = main_window.services.load_track_data(main_window)
-                main_window.curve_widget.set_curve_data(loaded_data)
+                curve_widget = main_window.curve_widget
+                if curve_widget is not None and loaded_data is not None:
+                    curve_widget.set_curve_data(loaded_data)  # pyright: ignore[reportArgumentType]
 
                 # End timing
                 result.end_time = time.perf_counter()
@@ -251,7 +274,8 @@ class TestDataProcessingBenchmarks:
             # Performance assertion - should load at least 10,000 points per second
             assert result.throughput > 10000, f"File loading too slow: {result.throughput:.0f} points/sec"
 
-            benchmark_context["results"].append(result)
+            results_list: list[BenchmarkResult] = benchmark_context["results"]
+            results_list.append(result)
             print(f"\n{result}")
 
         finally:
@@ -262,16 +286,18 @@ class TestUIRenderingBenchmarks:
     """Benchmark UI rendering and interaction performance."""
 
     @pytest.fixture
-    def main_window_with_data(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
+    def main_window_with_data(self, qapp: QApplication, qtbot: QtBotProtocol) -> Generator[MainWindow, None, None]:
         """Create MainWindow with test data."""
         window = MainWindow()
         qtbot.addWidget(window)
         window.show()
-        qapp.processEvents()
+        _ = qapp.processEvents()  # Ignore return value
 
         # Load moderate amount of test data
         test_data = create_benchmark_data(1000)
-        window.curve_widget.set_curve_data(test_data)
+        curve_widget = window.curve_widget
+        if curve_widget is not None:
+            curve_widget.set_curve_data(test_data)  # pyright: ignore[reportArgumentType]
 
         yield window
         window.close()
@@ -288,12 +314,12 @@ class TestUIRenderingBenchmarks:
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Perform zoom operations
-        for i in range(25):
-            main_window_with_data._on_action_zoom_in()
+        for _ in range(25):  # Use _ for unused variable
+            main_window_with_data._on_action_zoom_in()  # pyright: ignore[reportPrivateUsage]
             QApplication.processEvents()
 
-        for i in range(25):
-            main_window_with_data._on_action_zoom_out()
+        for _ in range(25):  # Use _ for unused variable
+            main_window_with_data._on_action_zoom_out()  # pyright: ignore[reportPrivateUsage]
             QApplication.processEvents()
 
         # End timing
@@ -304,14 +330,16 @@ class TestUIRenderingBenchmarks:
         # Performance assertion - should handle at least 100 zoom ops per second
         assert result.throughput > 100, f"Zoom operations too slow: {result.throughput:.0f} ops/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
-    def test_selection_performance(
-        self, main_window_with_data: MainWindow, benchmark_context: dict[str, object]
-    ) -> None:
+    def test_selection_performance(self, main_window_with_data: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Benchmark point selection performance."""
         curve_widget = main_window_with_data.curve_widget
+        if curve_widget is None:
+            pytest.skip("CurveWidget not available")
+            return
         data_size = len(curve_widget.curve_data)
 
         result = BenchmarkResult(f"Point Selection ({data_size} selections)")
@@ -337,12 +365,11 @@ class TestUIRenderingBenchmarks:
         # (UI operations with Qt event processing are inherently slower)
         assert result.throughput > 100, f"Point selection too slow: {result.throughput:.0f} selections/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
-    def test_ui_update_performance(
-        self, main_window_with_data: MainWindow, benchmark_context: dict[str, object]
-    ) -> None:
+    def test_ui_update_performance(self, main_window_with_data: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Benchmark UI state updates."""
         update_count = 100
 
@@ -354,8 +381,8 @@ class TestUIRenderingBenchmarks:
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Perform UI updates
-        for i in range(update_count):
-            main_window_with_data._update_ui_state()
+        for _ in range(update_count):  # Use _ for unused variable
+            main_window_with_data._update_ui_state()  # pyright: ignore[reportPrivateUsage]
             QApplication.processEvents()
 
         # End timing
@@ -366,7 +393,8 @@ class TestUIRenderingBenchmarks:
         # Performance assertion - should handle at least 500 UI updates per second
         assert result.throughput > 50, f"UI updates too slow: {result.throughput:.0f} updates/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
 
@@ -374,7 +402,7 @@ class TestMemoryUsageBenchmarks:
     """Benchmark memory usage patterns."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot: QtBotProtocol) -> Generator[MainWindow, None, None]:
         """Create MainWindow for memory testing."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -383,21 +411,26 @@ class TestMemoryUsageBenchmarks:
         yield window
         window.close()
 
-    def test_memory_scaling_with_data_size(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
+    def test_memory_scaling_with_data_size(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Test memory usage scaling with data size."""
         data_sizes = [100, 1000, 5000, 10000]
-        memory_usage = []
+        memory_usage: list[tuple[int, float]] = []
+
+        curve_widget = main_window.curve_widget
+        if curve_widget is None:
+            pytest.skip("CurveWidget not available")
+            return
 
         for size in data_sizes:
             # Force garbage collection
-            gc.collect()
+            _ = gc.collect()  # Ignore return value
 
             # Get baseline memory
             baseline = tracemalloc.get_traced_memory()[0]
 
             # Load data
             test_data = create_benchmark_data(size)
-            main_window.curve_widget.set_curve_data(test_data)
+            curve_widget.set_curve_data(test_data)  # pyright: ignore[reportArgumentType]
 
             # Measure memory after loading
             current, peak = tracemalloc.get_traced_memory()
@@ -406,16 +439,16 @@ class TestMemoryUsageBenchmarks:
             memory_usage.append((size, memory_used))
 
             # Clean up
-            main_window.curve_widget.set_curve_data([])
-            gc.collect()
+            curve_widget.set_curve_data([])
+            _ = gc.collect()  # Ignore return value
 
         # Check memory scaling - should be roughly linear
         for i in range(1, len(memory_usage)):
             prev_size, prev_memory = memory_usage[i - 1]
             curr_size, curr_memory = memory_usage[i]
 
-            size_ratio = curr_size / prev_size
-            memory_ratio = curr_memory / prev_memory if prev_memory > 0 else 0
+            size_ratio: float = curr_size / prev_size
+            memory_ratio: float = curr_memory / prev_memory if prev_memory > 0 else 0
 
             # Memory growth should not be more than 2x the data growth
             assert (
@@ -424,18 +457,22 @@ class TestMemoryUsageBenchmarks:
 
         result = BenchmarkResult("Memory Scaling Test")
         result.duration = 0.0  # Not time-based
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
 
         print("\nMemory usage scaling:")
         for size, memory in memory_usage:
             print(f"  {size:,} points: {memory:.1f}MB")
 
-    def test_memory_cleanup_after_operations(
-        self, main_window: MainWindow, benchmark_context: dict[str, object]
-    ) -> None:
+    def test_memory_cleanup_after_operations(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Test memory cleanup after various operations."""
+        curve_widget = main_window.curve_widget
+        if curve_widget is None:
+            pytest.skip("CurveWidget not available")
+            return
+
         # Get baseline memory
-        gc.collect()
+        _ = gc.collect()  # Ignore return value
         baseline = tracemalloc.get_traced_memory()[0]
 
         # Perform memory-intensive operations
@@ -443,15 +480,15 @@ class TestMemoryUsageBenchmarks:
 
         # Load and manipulate data multiple times
         for _ in range(5):
-            main_window.curve_widget.set_curve_data(large_data)
+            curve_widget.set_curve_data(large_data)  # pyright: ignore[reportArgumentType]
 
             # Perform various operations
             for i in range(0, len(large_data), 100):
-                main_window.curve_widget.selected_indices.add(i)
+                curve_widget.selected_indices.add(i)
 
-            main_window.curve_widget.selected_indices.clear()
-            main_window.curve_widget.set_curve_data([])
-            gc.collect()
+            curve_widget.selected_indices.clear()
+            curve_widget.set_curve_data([])
+            _ = gc.collect()  # Ignore return value
 
         # Check final memory usage
         final_memory = tracemalloc.get_traced_memory()[0]
@@ -462,7 +499,8 @@ class TestMemoryUsageBenchmarks:
 
         result = BenchmarkResult("Memory Cleanup Test")
         result.memory_peak = int(memory_growth * 1024 * 1024)
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\nMemory growth after operations: {memory_growth:.1f}MB")
 
 
@@ -470,7 +508,7 @@ class TestServicePerformanceBenchmarks:
     """Benchmark service operation efficiency."""
 
     @pytest.fixture
-    def main_window(self, qapp: QApplication, qtbot) -> Generator[MainWindow, None, None]:
+    def main_window(self, qapp: QApplication, qtbot: QtBotProtocol) -> Generator[MainWindow, None, None]:
         """Create MainWindow for service testing."""
         window = MainWindow()
         qtbot.addWidget(window)
@@ -479,7 +517,7 @@ class TestServicePerformanceBenchmarks:
         yield window
         window.close()
 
-    def test_service_facade_performance(self, main_window: MainWindow, benchmark_context: dict[str, object]) -> None:
+    def test_service_facade_performance(self, main_window: MainWindow, benchmark_context: dict[str, Any]) -> None:
         """Benchmark service facade delegation performance."""
         operation_count = 1000
 
@@ -504,7 +542,8 @@ class TestServicePerformanceBenchmarks:
         # Performance assertion - should handle at least 10,000 operations per second
         assert result.throughput > 10000, f"Service facade too slow: {result.throughput:.0f} ops/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
     def test_state_synchronization_performance(
@@ -518,23 +557,26 @@ class TestServicePerformanceBenchmarks:
 
         # Set up test data
         test_data = create_benchmark_data(100)
-        main_window.curve_widget.set_curve_data(test_data)
+        curve_widget = main_window.curve_widget
+        if curve_widget is not None:
+            curve_widget.set_curve_data(test_data)  # pyright: ignore[reportArgumentType]
 
         # Start timing
         result.start_time = time.perf_counter()
         result.memory_start = tracemalloc.get_traced_memory()[0]
 
         # Perform state synchronization operations
-        for i in range(sync_count):
-            # Update selection
-            idx = i % len(test_data)
-            main_window.curve_widget.selected_indices.clear()
-            main_window.curve_widget.selected_indices.add(idx)
-            main_window.curve_widget.selection_changed.emit([idx])
+        if curve_widget is not None:
+            for i in range(sync_count):
+                # Update selection
+                idx = i % len(test_data)
+                curve_widget.selected_indices.clear()
+                curve_widget.selected_indices.add(idx)
+                curve_widget.selection_changed.emit([idx])
 
-            # Update UI state
-            main_window._update_ui_state()
-            QApplication.processEvents()
+                # Update UI state
+                main_window._update_ui_state()  # pyright: ignore[reportPrivateUsage]
+                QApplication.processEvents()
 
         # End timing
         result.end_time = time.perf_counter()
@@ -544,13 +586,14 @@ class TestServicePerformanceBenchmarks:
         # Performance assertion - should handle at least 1000 syncs per second
         assert result.throughput > 100, f"State synchronization too slow: {result.throughput:.0f} syncs/sec"
 
-        benchmark_context["results"].append(result)
+        results_list: list[BenchmarkResult] = benchmark_context["results"]
+        results_list.append(result)
         print(f"\n{result}")
 
 
-def test_benchmark_summary(benchmark_context: dict[str, object]) -> None:
+def test_benchmark_summary(benchmark_context: dict[str, Any]) -> None:
     """Print benchmark summary."""
-    results = benchmark_context.get("results", [])
+    results: list[BenchmarkResult] = benchmark_context.get("results", [])
 
     if not results:
         pytest.skip("No benchmark results available")
@@ -565,14 +608,14 @@ def test_benchmark_summary(benchmark_context: dict[str, object]) -> None:
     print("=" * 80)
 
     # Check for any concerning results
-    slow_operations = [r for r in results if r.duration > 1.0 and r.data_size > 0]
+    slow_operations: list[BenchmarkResult] = [r for r in results if r.duration > 1.0 and r.data_size > 0]
     if slow_operations:
         print(f"\nWARNING: {len(slow_operations)} operations took longer than 1 second:")
         for op in slow_operations:
             print(f"  - {op.operation}: {op.duration:.3f}s")
 
     # Check memory usage
-    high_memory = [r for r in results if r.memory_peak > 100 * 1024 * 1024]  # 100MB
+    high_memory: list[BenchmarkResult] = [r for r in results if r.memory_peak > 100 * 1024 * 1024]  # 100MB
     if high_memory:
         print(f"\nWARNING: {len(high_memory)} operations used more than 100MB:")
         for op in high_memory:

@@ -49,73 +49,76 @@ from core.models import (
 
 # For Qt mocking in image state tests
 try:
-    from tests.qt_test_helpers import ThreadSafeTestImage
+    from tests.qt_test_helpers import ThreadSafeTestImage as QTThreadSafeTestImage
+
+    # Create local alias to avoid type conflicts
+    ThreadSafeTestImage = QTThreadSafeTestImage  # pyright: ignore[reportAssignmentType]
 except ImportError:
     # Create a mock ThreadSafeTestImage for testing when dependencies are not available
     class ThreadSafeTestImage:
-        def __init__(self, width=100, height=100):
-            self._null = width == 0 and height == 0
-            self._width = width
-            self._height = height
+        def __init__(self, width: int = 100, height: int = 100) -> None:
+            self._null: bool = width == 0 and height == 0
+            self._width: int = width
+            self._height: int = height
 
-        def isNull(self):
+        def isNull(self) -> bool:
             return self._null
 
-        def width(self):
+        def width(self) -> int:
             return self._width
 
-        def height(self):
+        def height(self) -> int:
             return self._height
 
 
 class TestPointStatus:
     """Comprehensive tests for PointStatus enum."""
 
-    def test_enum_values(self):
+    def test_enum_values(self) -> None:
         """Test that enum has correct string values."""
         assert PointStatus.NORMAL.value == "normal"
         assert PointStatus.INTERPOLATED.value == "interpolated"
         assert PointStatus.KEYFRAME.value == "keyframe"
 
-    def test_from_legacy_none(self):
+    def test_from_legacy_none(self) -> None:
         """Test conversion from None value."""
         result = PointStatus.from_legacy(None)
         assert result == PointStatus.NORMAL
 
-    def test_from_legacy_bool_true(self):
+    def test_from_legacy_bool_true(self) -> None:
         """Test conversion from boolean True."""
         result = PointStatus.from_legacy(True)
         assert result == PointStatus.INTERPOLATED
 
-    def test_from_legacy_bool_false(self):
+    def test_from_legacy_bool_false(self) -> None:
         """Test conversion from boolean False."""
         result = PointStatus.from_legacy(False)
         assert result == PointStatus.NORMAL
 
-    def test_from_legacy_valid_strings(self):
+    def test_from_legacy_valid_strings(self) -> None:
         """Test conversion from valid string values."""
         assert PointStatus.from_legacy("normal") == PointStatus.NORMAL
         assert PointStatus.from_legacy("interpolated") == PointStatus.INTERPOLATED
         assert PointStatus.from_legacy("keyframe") == PointStatus.KEYFRAME
 
-    def test_from_legacy_invalid_string(self):
+    def test_from_legacy_invalid_string(self) -> None:
         """Test conversion from invalid string falls back to NORMAL."""
         result = PointStatus.from_legacy("invalid_status")
         assert result == PointStatus.NORMAL
 
-    def test_from_legacy_invalid_type(self):
+    def test_from_legacy_invalid_type(self) -> None:
         """Test conversion from invalid types falls back to NORMAL."""
-        assert PointStatus.from_legacy(123) == PointStatus.NORMAL
-        assert PointStatus.from_legacy([]) == PointStatus.NORMAL
-        assert PointStatus.from_legacy({}) == PointStatus.NORMAL
+        assert PointStatus.from_legacy(123) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
+        assert PointStatus.from_legacy([]) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
+        assert PointStatus.from_legacy({}) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
 
-    def test_to_legacy_string(self):
+    def test_to_legacy_string(self) -> None:
         """Test conversion to legacy string format."""
         assert PointStatus.NORMAL.to_legacy_string() == "normal"
         assert PointStatus.INTERPOLATED.to_legacy_string() == "interpolated"
         assert PointStatus.KEYFRAME.to_legacy_string() == "keyframe"
 
-    def test_to_legacy_bool(self):
+    def test_to_legacy_bool(self) -> None:
         """Test conversion to legacy boolean format."""
         assert PointStatus.NORMAL.to_legacy_bool() is False
         assert PointStatus.INTERPOLATED.to_legacy_bool() is True
@@ -127,7 +130,7 @@ class TestCurvePoint:
 
     # === Creation and Validation Tests ===
 
-    def test_point_creation_minimal(self):
+    def test_point_creation_minimal(self) -> None:
         """Test creating point with minimal required parameters."""
         point = CurvePoint(100, 1920.0, 1080.0)
         assert point.frame == 100
@@ -135,7 +138,7 @@ class TestCurvePoint:
         assert point.y == 1080.0
         assert point.status == PointStatus.NORMAL
 
-    def test_point_creation_with_status(self):
+    def test_point_creation_with_status(self) -> None:
         """Test creating point with explicit status."""
         point = CurvePoint(101, 1921.0, 1081.0, PointStatus.INTERPOLATED)
         assert point.frame == 101
@@ -143,7 +146,7 @@ class TestCurvePoint:
         assert point.y == 1081.0
         assert point.status == PointStatus.INTERPOLATED
 
-    def test_point_creation_integer_coordinates(self):
+    def test_point_creation_integer_coordinates(self) -> None:
         """Test point creation accepts integer coordinates."""
         point = CurvePoint(100, 1920, 1080)
         assert point.frame == 100
@@ -152,51 +155,51 @@ class TestCurvePoint:
         assert isinstance(point.x, int)  # Preserved as int
         assert isinstance(point.y, int)
 
-    def test_point_validation_frame_type(self):
+    def test_point_validation_frame_type(self) -> None:
         """Test frame validation rejects non-integer types."""
         with pytest.raises(TypeError, match="Frame must be int"):
-            CurvePoint(100.5, 1920.0, 1080.0)
+            _ = CurvePoint(100.5, 1920.0, 1080.0)  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(TypeError, match="Frame must be int"):
-            CurvePoint("100", 1920.0, 1080.0)
+            _ = CurvePoint("100", 1920.0, 1080.0)  # pyright: ignore[reportArgumentType]
 
-    def test_point_validation_coordinate_types(self):
+    def test_point_validation_coordinate_types(self) -> None:
         """Test coordinate validation rejects non-numeric types."""
         with pytest.raises(TypeError, match="X coordinate must be numeric"):
-            CurvePoint(100, "1920", 1080.0)
+            _ = CurvePoint(100, "1920", 1080.0)  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(TypeError, match="Y coordinate must be numeric"):
-            CurvePoint(100, 1920.0, "1080")
+            _ = CurvePoint(100, 1920.0, "1080")  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(TypeError, match="X coordinate must be numeric"):
-            CurvePoint(100, None, 1080.0)
+            _ = CurvePoint(100, None, 1080.0)  # pyright: ignore[reportArgumentType]
 
-    def test_point_validation_status_type(self):
+    def test_point_validation_status_type(self) -> None:
         """Test status validation rejects non-PointStatus types."""
         with pytest.raises(TypeError, match="Status must be PointStatus enum"):
-            CurvePoint(100, 1920.0, 1080.0, "invalid")
+            _ = CurvePoint(100, 1920.0, 1080.0, "invalid")  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(TypeError, match="Status must be PointStatus enum"):
-            CurvePoint(100, 1920.0, 1080.0, True)
+            _ = CurvePoint(100, 1920.0, 1080.0, True)  # pyright: ignore[reportArgumentType]
 
     # === Immutability Tests ===
 
-    def test_point_immutability(self):
+    def test_point_immutability(self) -> None:
         """Test that CurvePoint is immutable (frozen dataclass)."""
         point = CurvePoint(100, 1920.0, 1080.0)
 
         with pytest.raises(AttributeError):
-            point.frame = 101
+            point.frame = 101  # pyright: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(AttributeError):
-            point.x = 1921.0
+            point.x = 1921.0  # pyright: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(AttributeError):
-            point.status = PointStatus.INTERPOLATED
+            point.status = PointStatus.INTERPOLATED  # pyright: ignore[reportAttributeAccessIssue]
 
     # === Property Tests ===
 
-    def test_is_interpolated_property(self):
+    def test_is_interpolated_property(self) -> None:
         """Test is_interpolated property."""
         normal_point = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
         interp_point = CurvePoint(101, 1921.0, 1081.0, PointStatus.INTERPOLATED)
@@ -206,7 +209,7 @@ class TestCurvePoint:
         assert interp_point.is_interpolated
         assert not keyframe_point.is_interpolated
 
-    def test_is_keyframe_property(self):
+    def test_is_keyframe_property(self) -> None:
         """Test is_keyframe property."""
         normal_point = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
         interp_point = CurvePoint(101, 1921.0, 1081.0, PointStatus.INTERPOLATED)
@@ -216,7 +219,7 @@ class TestCurvePoint:
         assert not interp_point.is_keyframe
         assert keyframe_point.is_keyframe
 
-    def test_coordinates_property(self):
+    def test_coordinates_property(self) -> None:
         """Test coordinates property returns (x, y) tuple."""
         point = CurvePoint(100, 1920.0, 1080.0)
         coords = point.coordinates
@@ -225,20 +228,20 @@ class TestCurvePoint:
 
     # === Distance Calculation Tests ===
 
-    def test_distance_to_same_point(self):
+    def test_distance_to_same_point(self) -> None:
         """Test distance to identical point is zero."""
         point1 = CurvePoint(100, 1920.0, 1080.0)
         point2 = CurvePoint(100, 1920.0, 1080.0)
         assert point1.distance_to(point2) == 0.0
 
-    def test_distance_to_different_point(self):
+    def test_distance_to_different_point(self) -> None:
         """Test distance calculation between different points."""
         point1 = CurvePoint(100, 0.0, 0.0)
         point2 = CurvePoint(101, 3.0, 4.0)
         distance = point1.distance_to(point2)
         assert distance == 5.0  # 3-4-5 right triangle
 
-    def test_distance_calculation_accuracy(self):
+    def test_distance_calculation_accuracy(self) -> None:
         """Test distance calculation with floating point coordinates."""
         point1 = CurvePoint(100, 1.5, 2.5)
         point2 = CurvePoint(101, 4.5, 6.5)
@@ -247,7 +250,7 @@ class TestCurvePoint:
 
     # === Immutable Update Tests ===
 
-    def test_with_status(self):
+    def test_with_status(self) -> None:
         """Test creating new point with different status."""
         original = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
         updated = original.with_status(PointStatus.INTERPOLATED)
@@ -258,7 +261,7 @@ class TestCurvePoint:
         assert updated.status == PointStatus.INTERPOLATED
         assert original.status == PointStatus.NORMAL  # Original unchanged
 
-    def test_with_coordinates(self):
+    def test_with_coordinates(self) -> None:
         """Test creating new point with different coordinates."""
         original = CurvePoint(100, 1920.0, 1080.0)
         updated = original.with_coordinates(1921.0, 1081.0)
@@ -270,7 +273,7 @@ class TestCurvePoint:
         assert original.x == 1920.0  # Original unchanged
         assert original.y == 1080.0
 
-    def test_with_frame(self):
+    def test_with_frame(self) -> None:
         """Test creating new point with different frame."""
         original = CurvePoint(100, 1920.0, 1080.0)
         updated = original.with_frame(101)
@@ -283,7 +286,7 @@ class TestCurvePoint:
 
     # === Serialization Tests ===
 
-    def test_to_tuple3(self):
+    def test_to_tuple3(self) -> None:
         """Test conversion to 3-tuple format."""
         point = CurvePoint(100, 1920.0, 1080.0, PointStatus.KEYFRAME)
         tuple3 = point.to_tuple3()
@@ -291,21 +294,21 @@ class TestCurvePoint:
         assert isinstance(tuple3, tuple)
         assert len(tuple3) == 3
 
-    def test_to_tuple4(self):
+    def test_to_tuple4(self) -> None:
         """Test conversion to 4-tuple format."""
         point = CurvePoint(100, 1920.0, 1080.0, PointStatus.INTERPOLATED)
         tuple4 = point.to_tuple4()
         assert tuple4 == (100, 1920.0, 1080.0, "interpolated")
         assert len(tuple4) == 4
 
-    def test_to_legacy_tuple_normal(self):
+    def test_to_legacy_tuple_normal(self) -> None:
         """Test legacy tuple conversion for normal points returns 3-tuple."""
         point = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
         legacy = point.to_legacy_tuple()
         assert legacy == (100, 1920.0, 1080.0)
         assert len(legacy) == 3
 
-    def test_to_legacy_tuple_non_normal(self):
+    def test_to_legacy_tuple_non_normal(self) -> None:
         """Test legacy tuple conversion for non-normal points returns 4-tuple."""
         interp_point = CurvePoint(100, 1920.0, 1080.0, PointStatus.INTERPOLATED)
         keyframe_point = CurvePoint(101, 1921.0, 1081.0, PointStatus.KEYFRAME)
@@ -320,7 +323,7 @@ class TestCurvePoint:
 
     # === Deserialization Tests ===
 
-    def test_from_tuple_3_elements(self):
+    def test_from_tuple_3_elements(self) -> None:
         """Test creation from 3-tuple."""
         point = CurvePoint.from_tuple((100, 1920.0, 1080.0))
         assert point.frame == 100
@@ -328,7 +331,7 @@ class TestCurvePoint:
         assert point.y == 1080.0
         assert point.status == PointStatus.NORMAL
 
-    def test_from_tuple_4_elements_string(self):
+    def test_from_tuple_4_elements_string(self) -> None:
         """Test creation from 4-tuple with string status."""
         point = CurvePoint.from_tuple((100, 1920.0, 1080.0, "interpolated"))
         assert point.frame == 100
@@ -336,7 +339,7 @@ class TestCurvePoint:
         assert point.y == 1080.0
         assert point.status == PointStatus.INTERPOLATED
 
-    def test_from_tuple_4_elements_bool(self):
+    def test_from_tuple_4_elements_bool(self) -> None:
         """Test creation from 4-tuple with boolean status."""
         point_true = CurvePoint.from_tuple((100, 1920.0, 1080.0, True))
         point_false = CurvePoint.from_tuple((101, 1921.0, 1081.0, False))
@@ -344,17 +347,17 @@ class TestCurvePoint:
         assert point_true.status == PointStatus.INTERPOLATED
         assert point_false.status == PointStatus.NORMAL
 
-    def test_from_tuple_invalid_length(self):
+    def test_from_tuple_invalid_length(self) -> None:
         """Test creation from invalid tuple length raises error."""
         with pytest.raises(ValueError, match="must have 3 or 4 elements"):
-            CurvePoint.from_tuple((100, 1920.0))
+            CurvePoint.from_tuple((100, 1920.0))  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(ValueError, match="must have 3 or 4 elements"):
-            CurvePoint.from_tuple((100,))
+            CurvePoint.from_tuple((100,))  # pyright: ignore[reportArgumentType]
 
-    def test_from_tuple_extra_elements_ignored(self):
+    def test_from_tuple_extra_elements_ignored(self) -> None:
         """Test creation from tuple with extra elements ignores them."""
-        point = CurvePoint.from_tuple((100, 1920.0, 1080.0, "keyframe", "extra", "data"))
+        point = CurvePoint.from_tuple((100, 1920.0, 1080.0, "keyframe", "extra", "data"))  # pyright: ignore[reportArgumentType]
         assert point.frame == 100
         assert point.x == 1920.0
         assert point.y == 1080.0
@@ -362,7 +365,7 @@ class TestCurvePoint:
 
     # === Boundary Value Tests ===
 
-    def test_extreme_frame_values(self):
+    def test_extreme_frame_values(self) -> None:
         """Test points with extreme frame values."""
         min_frame = CurvePoint(-(2**31), 0.0, 0.0)
         max_frame = CurvePoint(2**31 - 1, 0.0, 0.0)
@@ -370,7 +373,7 @@ class TestCurvePoint:
         assert min_frame.frame == -(2**31)
         assert max_frame.frame == 2**31 - 1
 
-    def test_extreme_coordinate_values(self):
+    def test_extreme_coordinate_values(self) -> None:
         """Test points with extreme coordinate values."""
         large_coords = CurvePoint(100, 1e10, -1e10)
         small_coords = CurvePoint(101, 1e-10, -1e-10)
@@ -380,7 +383,7 @@ class TestCurvePoint:
         assert small_coords.x == 1e-10
         assert small_coords.y == -1e-10
 
-    def test_zero_coordinates(self):
+    def test_zero_coordinates(self) -> None:
         """Test points at origin."""
         origin = CurvePoint(0, 0.0, 0.0)
         assert origin.x == 0.0
@@ -389,7 +392,7 @@ class TestCurvePoint:
 
     # === Equality and Hashing Tests ===
 
-    def test_point_equality(self):
+    def test_point_equality(self) -> None:
         """Test point equality comparison."""
         point1 = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
         point2 = CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL)
@@ -398,7 +401,7 @@ class TestCurvePoint:
         assert point1 == point2
         assert point1 != point3
 
-    def test_point_hashable(self):
+    def test_point_hashable(self) -> None:
         """Test that points can be used in sets and as dict keys."""
         point1 = CurvePoint(100, 1920.0, 1080.0)
         point2 = CurvePoint(101, 1921.0, 1081.0)
@@ -415,13 +418,13 @@ class TestPointCollection:
 
     # === Creation and Validation Tests ===
 
-    def test_empty_collection_creation(self):
+    def test_empty_collection_creation(self) -> None:
         """Test creating empty point collection."""
         collection = PointCollection([])
         assert len(collection) == 0
         assert not collection
 
-    def test_collection_creation_with_points(self):
+    def test_collection_creation_with_points(self) -> None:
         """Test creating collection with initial points."""
         points = [CurvePoint(100, 1920.0, 1080.0), CurvePoint(101, 1921.0, 1081.0, PointStatus.INTERPOLATED)]
         collection = PointCollection(points)
@@ -431,17 +434,17 @@ class TestPointCollection:
         assert collection[0] == points[0]
         assert collection[1] == points[1]
 
-    def test_collection_validation_invalid_points(self):
+    def test_collection_validation_invalid_points(self) -> None:
         """Test collection validation rejects invalid point types."""
         with pytest.raises(TypeError, match="Point 1 must be CurvePoint"):
-            PointCollection([CurvePoint(100, 1920.0, 1080.0), (101, 1921.0, 1081.0)])
+            _ = PointCollection([CurvePoint(100, 1920.0, 1080.0), (101, 1921.0, 1081.0)])  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(TypeError, match="Point 1 must be CurvePoint"):
-            PointCollection([CurvePoint(100, 1920.0, 1080.0), "invalid"])
+            _ = PointCollection([CurvePoint(100, 1920.0, 1080.0), "invalid"])  # pyright: ignore[reportArgumentType]
 
     # === Collection Interface Tests ===
 
-    def test_iteration(self):
+    def test_iteration(self) -> None:
         """Test collection iteration."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -452,7 +455,7 @@ class TestPointCollection:
         iterated_points = list(collection)
         assert iterated_points == points
 
-    def test_indexing_single(self):
+    def test_indexing_single(self) -> None:
         """Test single item indexing."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -464,7 +467,7 @@ class TestPointCollection:
         assert collection[1] == points[1]
         assert collection[-1] == points[1]
 
-    def test_indexing_slice(self):
+    def test_indexing_slice(self) -> None:
         """Test slice indexing returns new collection."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -479,7 +482,7 @@ class TestPointCollection:
         assert slice_result[0] == points[1]
         assert slice_result[1] == points[2]
 
-    def test_boolean_evaluation(self):
+    def test_boolean_evaluation(self) -> None:
         """Test boolean evaluation of collection."""
         empty_collection = PointCollection([])
         non_empty_collection = PointCollection([CurvePoint(100, 1920.0, 1080.0)])
@@ -489,17 +492,17 @@ class TestPointCollection:
 
     # === Query Methods Tests ===
 
-    def test_frame_range_empty(self):
+    def test_frame_range_empty(self) -> None:
         """Test frame range for empty collection."""
         collection = PointCollection([])
         assert collection.frame_range is None
 
-    def test_frame_range_single_point(self):
+    def test_frame_range_single_point(self) -> None:
         """Test frame range for single point."""
         collection = PointCollection([CurvePoint(100, 1920.0, 1080.0)])
         assert collection.frame_range == (100, 100)
 
-    def test_frame_range_multiple_points(self):
+    def test_frame_range_multiple_points(self) -> None:
         """Test frame range for multiple points."""
         points = [
             CurvePoint(50, 1920.0, 1080.0),
@@ -509,17 +512,17 @@ class TestPointCollection:
         collection = PointCollection(points)
         assert collection.frame_range == (50, 100)
 
-    def test_coordinate_bounds_empty(self):
+    def test_coordinate_bounds_empty(self) -> None:
         """Test coordinate bounds for empty collection."""
         collection = PointCollection([])
         assert collection.coordinate_bounds is None
 
-    def test_coordinate_bounds_single_point(self):
+    def test_coordinate_bounds_single_point(self) -> None:
         """Test coordinate bounds for single point."""
         collection = PointCollection([CurvePoint(100, 1920.0, 1080.0)])
         assert collection.coordinate_bounds == (1920.0, 1920.0, 1080.0, 1080.0)
 
-    def test_coordinate_bounds_multiple_points(self):
+    def test_coordinate_bounds_multiple_points(self) -> None:
         """Test coordinate bounds for multiple points."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -530,7 +533,7 @@ class TestPointCollection:
         bounds = collection.coordinate_bounds
         assert bounds == (1800.0, 2000.0, 1000.0, 1200.0)
 
-    def test_get_keyframes(self):
+    def test_get_keyframes(self) -> None:
         """Test filtering keyframe points."""
         points = [
             CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL),
@@ -541,10 +544,12 @@ class TestPointCollection:
         keyframes = collection.get_keyframes()
 
         assert len(keyframes) == 2  # NORMAL and KEYFRAME are keyframes
-        assert keyframes[0].status == PointStatus.NORMAL
-        assert keyframes[1].status == PointStatus.KEYFRAME
+        first_keyframe = keyframes[0]
+        second_keyframe = keyframes[1]
+        assert first_keyframe.status == PointStatus.NORMAL
+        assert second_keyframe.status == PointStatus.KEYFRAME
 
-    def test_get_interpolated(self):
+    def test_get_interpolated(self) -> None:
         """Test filtering interpolated points."""
         points = [
             CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL),
@@ -555,14 +560,15 @@ class TestPointCollection:
         interpolated = collection.get_interpolated()
 
         assert len(interpolated) == 1
-        assert interpolated[0].status == PointStatus.INTERPOLATED
+        first_interp = interpolated[0]
+        assert first_interp.status == PointStatus.INTERPOLATED
 
-    def test_find_closest_to_frame_empty(self):
+    def test_find_closest_to_frame_empty(self) -> None:
         """Test finding closest point in empty collection."""
         collection = PointCollection([])
         assert collection.find_closest_to_frame(100) is None
 
-    def test_find_closest_to_frame(self):
+    def test_find_closest_to_frame(self) -> None:
         """Test finding point closest to target frame."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -572,12 +578,12 @@ class TestPointCollection:
         collection = PointCollection(points)
 
         closest = collection.find_closest_to_frame(105)
-        assert closest.frame == 100  # Closer than 110
+        assert closest is not None and closest.frame == 100  # Closer than 110
 
         closest = collection.find_closest_to_frame(95)
-        assert closest.frame == 100  # Closer than 90
+        assert closest is not None and closest.frame == 100  # Closer than 90
 
-    def test_find_at_frame(self):
+    def test_find_at_frame(self) -> None:
         """Test finding all points at specific frame."""
         points = [
             CurvePoint(100, 1920.0, 1080.0),
@@ -600,7 +606,7 @@ class TestPointCollection:
 
     # === Modification Methods Tests ===
 
-    def test_with_status_updates(self):
+    def test_with_status_updates(self) -> None:
         """Test creating collection with status updates."""
         points = [
             CurvePoint(100, 1920.0, 1080.0, PointStatus.NORMAL),
@@ -613,14 +619,20 @@ class TestPointCollection:
         updated = collection.with_status_updates(updates)
 
         # Original unchanged
-        assert collection[0].status == PointStatus.NORMAL
-        assert collection[1].status == PointStatus.NORMAL
-        assert collection[2].status == PointStatus.NORMAL
+        orig_0 = collection[0]
+        orig_1 = collection[1]
+        orig_2 = collection[2]
+        assert orig_0.status == PointStatus.NORMAL
+        assert orig_1.status == PointStatus.NORMAL
+        assert orig_2.status == PointStatus.NORMAL
 
         # Updated collection has changes
-        assert updated[0].status == PointStatus.INTERPOLATED
-        assert updated[1].status == PointStatus.NORMAL  # Unchanged
-        assert updated[2].status == PointStatus.KEYFRAME
+        upd_0 = updated[0]
+        upd_1 = updated[1]
+        upd_2 = updated[2]
+        assert upd_0.status == PointStatus.INTERPOLATED
+        assert upd_1.status == PointStatus.NORMAL  # Unchanged
+        assert upd_2.status == PointStatus.KEYFRAME
 
     def test_with_coordinate_updates(self):
         """Test creating collection with coordinate updates."""
@@ -635,12 +647,16 @@ class TestPointCollection:
         updated = collection.with_coordinate_updates(updates)
 
         # Original unchanged
-        assert collection[0].coordinates == (1920.0, 1080.0)
+        orig_coord_0 = collection[0]
+        assert orig_coord_0.coordinates == (1920.0, 1080.0)
 
         # Updated collection has changes
-        assert updated[0].coordinates == (2000.0, 1200.0)
-        assert updated[1].coordinates == (1921.0, 1081.0)  # Unchanged
-        assert updated[2].coordinates == (1800.0, 900.0)
+        upd_coord_0 = updated[0]
+        upd_coord_1 = updated[1]
+        upd_coord_2 = updated[2]
+        assert upd_coord_0.coordinates == (2000.0, 1200.0)
+        assert upd_coord_1.coordinates == (1921.0, 1081.0)  # Unchanged
+        assert upd_coord_2.coordinates == (1800.0, 900.0)
 
     def test_sorted_by_frame(self):
         """Test sorting collection by frame number."""
@@ -653,12 +669,16 @@ class TestPointCollection:
         sorted_collection = collection.sorted_by_frame()
 
         # Original unchanged
-        assert collection[0].frame == 102
+        orig_frame_0 = collection[0]
+        assert orig_frame_0.frame == 102
 
         # Sorted collection is ordered
-        assert sorted_collection[0].frame == 100
-        assert sorted_collection[1].frame == 101
-        assert sorted_collection[2].frame == 102
+        sorted_0 = sorted_collection[0]
+        sorted_1 = sorted_collection[1]
+        sorted_2 = sorted_collection[2]
+        assert sorted_0.frame == 100
+        assert sorted_1.frame == 101
+        assert sorted_2.frame == 102
 
     # === Conversion Methods Tests ===
 
@@ -804,10 +824,10 @@ class TestUtilityFunctions:
         assert result_true == (100, 1920.0, 1080.0, "interpolated")
         assert result_false == (100, 1920.0, 1080.0, "normal")
 
-    def test_normalize_legacy_point_invalid(self):
+    def test_normalize_legacy_point_invalid(self) -> None:
         """Test normalizing invalid point raises error."""
         with pytest.raises(ValueError, match="Invalid point format"):
-            normalize_legacy_point((100, 1920.0))
+            normalize_legacy_point((100, 1920.0))  # pyright: ignore[reportArgumentType]
 
     def test_convert_to_curve_point(self):
         """Test converting tuples to CurvePoint."""
@@ -915,7 +935,7 @@ class TestImageSequenceInfo:
     def test_post_init_validation(self):
         """Test __post_init__ ensures filenames is list."""
         # Test with non-list filenames
-        info = ImageSequenceInfo(filenames="not_a_list")
+        info = ImageSequenceInfo(filenames="not_a_list")  # pyright: ignore[reportArgumentType]
         assert info.filenames == []
         assert info.total_count == 0
 
@@ -978,7 +998,7 @@ class TestImageDisplayInfo:
     def test_creation_with_pixmap(self):
         """Test creation with ThreadSafeTestImage."""
         pixmap = ThreadSafeTestImage(100, 200)
-        info = ImageDisplayInfo(pixmap=pixmap, width=100, height=200, filepath="/test/image.jpg")
+        info = ImageDisplayInfo(pixmap=pixmap, width=100, height=200, filepath="/test/image.jpg")  # pyright: ignore[reportArgumentType]
 
         assert info.pixmap == pixmap
         assert info.width == 100
@@ -998,7 +1018,7 @@ class TestImageDisplayInfo:
 
         # Valid pixmap
         valid_pixmap = ThreadSafeTestImage(100, 100)
-        info3 = ImageDisplayInfo(pixmap=valid_pixmap)
+        info3 = ImageDisplayInfo(pixmap=valid_pixmap)  # pyright: ignore[reportArgumentType]
         assert info3.is_loaded
 
     def test_has_error_property(self):
@@ -1130,7 +1150,7 @@ class TestImageState:
         pixmap = ThreadSafeTestImage(100, 100)
         filepath = "/test/image.jpg"
 
-        state.set_image_loaded(pixmap, filepath)
+        state.set_image_loaded(pixmap, filepath)  # pyright: ignore[reportArgumentType]
 
         assert state.has_image_displayed()
         assert state.loading_state == ImageLoadingState.IMAGE_LOADED

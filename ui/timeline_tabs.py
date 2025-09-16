@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 class TimelineScrollArea(QScrollArea):
     """Custom scroll area optimized for timeline tabs."""
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
 
         # Configure scroll area
@@ -42,32 +42,37 @@ class TimelineScrollArea(QScrollArea):
         self.setFrameShape(QFrame.Shape.NoFrame)
 
         # Smooth scrolling - this method may not exist in all PySide6 versions
-        try:
-            self.setHorizontalScrollMode(QScrollArea.ScrollMode.ScrollPerPixel)
-        except AttributeError:
-            # Fallback for older PySide6 versions
-            pass
+        # Commented out due to type checking issues with PySide6 versions
+        # try:
+        #     self.setHorizontalScrollMode(QScrollArea.ScrollMode.ScrollPerPixel)
+        # except AttributeError:
+        #     # Fallback for older PySide6 versions
+        #     pass
 
-    def wheelEvent(self, event: QWheelEvent):
+    def wheelEvent(self, arg__1: QWheelEvent) -> None:
         """Handle mouse wheel for horizontal scrolling."""
         # Convert vertical wheel events to horizontal scrolling
-        if event.angleDelta().y() != 0:
+        if arg__1.angleDelta().y() != 0:
             # Scroll horizontally instead of vertically
             scroll_bar = self.horizontalScrollBar()
-            delta = -event.angleDelta().y()  # Invert for natural scrolling
+            delta = -arg__1.angleDelta().y()  # Invert for natural scrolling
             scroll_bar.setValue(scroll_bar.value() + delta)
-            event.accept()
+            arg__1.accept()
         else:
-            super().wheelEvent(event)
+            super().wheelEvent(arg__1)
 
 
 class FrameStatusCache:
     """Cache for frame point status to improve performance."""
 
-    def __init__(self):
+    # Attributes - initialized in __init__
+    _cache: dict[FrameNumber, tuple[int, int, bool]]
+    _dirty_frames: set[FrameNumber]
+
+    def __init__(self) -> None:
         """Initialize empty cache."""
-        self._cache: dict[FrameNumber, tuple[int, int, bool]] = {}
-        self._dirty_frames: set[FrameNumber] = set()
+        self._cache = {}
+        self._dirty_frames = set()
 
     def get_status(self, frame: FrameNumber) -> tuple[int, int, bool] | None:
         """Get cached status for frame.
@@ -80,7 +85,7 @@ class FrameStatusCache:
         """
         return self._cache.get(frame)
 
-    def set_status(self, frame: FrameNumber, keyframe_count: int, interpolated_count: int, has_selected: bool):
+    def set_status(self, frame: FrameNumber, keyframe_count: int, interpolated_count: int, has_selected: bool) -> None:
         """Cache status for frame.
 
         Args:
@@ -92,15 +97,15 @@ class FrameStatusCache:
         self._cache[frame] = (keyframe_count, interpolated_count, has_selected)
         self._dirty_frames.discard(frame)
 
-    def invalidate_frame(self, frame: FrameNumber):
+    def invalidate_frame(self, frame: FrameNumber) -> None:
         """Mark frame as needing update."""
         self._dirty_frames.add(frame)
 
-    def invalidate_all(self):
+    def invalidate_all(self) -> None:
         """Mark all frames as needing update."""
         self._dirty_frames.update(self._cache.keys())
 
-    def clear(self):
+    def clear(self) -> None:
         """Clear entire cache."""
         self._cache.clear()
         self._dirty_frames.clear()
@@ -110,15 +115,15 @@ class TimelineTabWidget(QWidget):
     """Main timeline widget with frame tabs and navigation."""
 
     # Signals
-    frame_changed = Signal(int)
-    frame_hovered = Signal(int)
+    frame_changed: Signal = Signal(int)
+    frame_hovered: Signal = Signal(int)
 
     # Layout constants
     TAB_SPACING: int = 0  # No spacing for seamless look
     NAVIGATION_HEIGHT: int = 20  # Ultra-compact navigation bar
     TOTAL_HEIGHT: int = 60  # Height: 20px nav + 40px scroll area
 
-    # State variables
+    # State variables - initialized in __init__
     current_frame: int
     total_frames: int
     min_frame: int
@@ -129,18 +134,18 @@ class TimelineTabWidget(QWidget):
     status_cache: FrameStatusCache
     _update_timer: QTimer
 
-    # UI components
-    main_layout: QVBoxLayout
-    first_btn: QPushButton
-    prev_group_btn: QPushButton
-    next_group_btn: QPushButton
-    last_btn: QPushButton
-    frame_info: QLabel
-    scroll_area: TimelineScrollArea
-    tabs_container: QWidget
-    tabs_layout: QHBoxLayout
+    # UI components - initialized in _setup_ui
+    main_layout: QVBoxLayout  # pyright: ignore[reportUninitializedInstanceVariable]
+    first_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    prev_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    next_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    last_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    frame_info: QLabel  # pyright: ignore[reportUninitializedInstanceVariable]
+    scroll_area: TimelineScrollArea  # pyright: ignore[reportUninitializedInstanceVariable]
+    tabs_container: QWidget  # pyright: ignore[reportUninitializedInstanceVariable]
+    tabs_layout: QHBoxLayout  # pyright: ignore[reportUninitializedInstanceVariable]
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         """Initialize timeline widget."""
         super().__init__(parent)
 
@@ -185,7 +190,7 @@ class TimelineTabWidget(QWidget):
         self.max_frame = 1
 
         # Tab management
-        self.frame_tabs: dict[FrameNumber, FrameTab] = {}
+        self.frame_tabs = {}
 
         # Scrubbing state
         self.is_scrubbing = False
@@ -195,7 +200,7 @@ class TimelineTabWidget(QWidget):
         self.status_cache = FrameStatusCache()
         self._update_timer = QTimer()
         self._update_timer.setSingleShot(True)
-        self._update_timer.timeout.connect(self._perform_deferred_updates)
+        _ = self._update_timer.timeout.connect(self._perform_deferred_updates)
 
         # Setup UI
         self._setup_ui()
@@ -203,7 +208,7 @@ class TimelineTabWidget(QWidget):
         # Enable mouse tracking for scrubbing
         self.setMouseTracking(True)
 
-    def _setup_ui(self):
+    def _setup_ui(self) -> None:
         """Setup the timeline UI components."""
         # Main layout
         self.main_layout = QVBoxLayout(self)
@@ -219,7 +224,7 @@ class TimelineTabWidget(QWidget):
         # Initialize with default range
         self._create_all_tabs()
 
-    def _create_navigation_controls(self):
+    def _create_navigation_controls(self) -> None:
         """Create navigation buttons and frame info."""
         nav_widget = QWidget()
         nav_widget.setFixedHeight(self.NAVIGATION_HEIGHT)
@@ -231,22 +236,22 @@ class TimelineTabWidget(QWidget):
         self.first_btn = QPushButton("⏮")
         self.first_btn.setFixedSize(button_size, button_size)
         self.first_btn.setToolTip("Go to first frame")
-        SignalConnectionUtils.connect_with_lambda(self.first_btn.clicked, self.set_current_frame, self.min_frame)
+        _ = SignalConnectionUtils.connect_with_lambda(self.first_btn.clicked, self.set_current_frame, self.min_frame)
 
         self.prev_group_btn = QPushButton("⏪")
         self.prev_group_btn.setFixedSize(button_size, button_size)
         self.prev_group_btn.setToolTip("Jump back 10 frames")
-        self.prev_group_btn.clicked.connect(self._jump_back_group)
+        _ = self.prev_group_btn.clicked.connect(self._jump_back_group)
 
         self.next_group_btn = QPushButton("⏩")
         self.next_group_btn.setFixedSize(button_size, button_size)
         self.next_group_btn.setToolTip("Jump forward 10 frames")
-        self.next_group_btn.clicked.connect(self._jump_forward_group)
+        _ = self.next_group_btn.clicked.connect(self._jump_forward_group)
 
         self.last_btn = QPushButton("⏭")
         self.last_btn.setFixedSize(button_size, button_size)
         self.last_btn.setToolTip("Go to last frame")
-        SignalConnectionUtils.connect_with_lambda(self.last_btn.clicked, self.set_current_frame, self.max_frame)
+        _ = SignalConnectionUtils.connect_with_lambda(self.last_btn.clicked, self.set_current_frame, self.max_frame)
 
         # Frame info label - modern 3DE style
         self.frame_info = QLabel()
@@ -266,7 +271,7 @@ class TimelineTabWidget(QWidget):
 
         self.main_layout.addWidget(nav_widget)
 
-    def _create_timeline_area(self):
+    def _create_timeline_area(self) -> None:
         """Create scrollable timeline area."""
         # Create scroll area (but disable scrolling - we show all frames)
         self.scroll_area = TimelineScrollArea(self)
@@ -286,7 +291,7 @@ class TimelineTabWidget(QWidget):
         self.scroll_area.setWidget(self.tabs_container)
         self.main_layout.addWidget(self.scroll_area)
 
-    def set_frame_range(self, min_frame: int, max_frame: int):
+    def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """Set the frame range for the timeline.
 
         Args:
@@ -308,7 +313,7 @@ class TimelineTabWidget(QWidget):
         self._create_all_tabs()
         self._update_frame_info()
 
-    def set_current_frame(self, frame: int):
+    def set_current_frame(self, frame: int) -> None:
         """Set current frame and update display.
 
         Args:
@@ -336,7 +341,7 @@ class TimelineTabWidget(QWidget):
 
     def update_frame_status(
         self, frame: int, keyframe_count: int = 0, interpolated_count: int = 0, has_selected: bool = False
-    ):
+    ) -> None:
         """Update point status for a specific frame.
 
         Args:
@@ -353,7 +358,7 @@ class TimelineTabWidget(QWidget):
             tab = self.frame_tabs[frame]
             tab.set_point_status(keyframe_count, interpolated_count, has_selected)
 
-    def invalidate_frame_status(self, frame: int):
+    def invalidate_frame_status(self, frame: int) -> None:
         """Mark frame status as needing update.
 
         Args:
@@ -364,7 +369,7 @@ class TimelineTabWidget(QWidget):
         # Schedule deferred update
         self._schedule_deferred_update()
 
-    def invalidate_all_frames(self):
+    def invalidate_all_frames(self) -> None:
         """Mark all frame statuses as needing update."""
         self.status_cache.invalidate_all()
         self._schedule_deferred_update()
@@ -373,7 +378,9 @@ class TimelineTabWidget(QWidget):
         """Calculate optimal tab width based on available space and frame count."""
         # Use parent width if available, otherwise use a default
         if self.parent():
-            available_width = self.parent().width() - 100  # Subtract space for nav buttons and margins
+            available_width = (
+                self.parent().width() - 100
+            )  # Subtract space for nav buttons and margins  # pyright: ignore[reportAttributeAccessIssue]
         else:
             available_width = 1300  # Default for 1400px window
 
@@ -394,7 +401,7 @@ class TimelineTabWidget(QWidget):
 
         return max(FrameTab.MIN_WIDTH, min(tab_width, FrameTab.MAX_WIDTH))
 
-    def _create_all_tabs(self):
+    def _create_all_tabs(self) -> None:
         """Create tabs for all frames with dynamic width."""
         # Clear existing tabs
         for tab in self.frame_tabs.values():
@@ -409,8 +416,8 @@ class TimelineTabWidget(QWidget):
         for frame in range(self.min_frame, self.max_frame + 1):
             tab = FrameTab(frame, self)
             tab.set_tab_width(tab_width)
-            tab.frame_clicked.connect(self.set_current_frame)
-            tab.frame_hovered.connect(self.frame_hovered.emit)
+            _ = tab.frame_clicked.connect(self.set_current_frame)
+            _ = tab.frame_hovered.connect(self.frame_hovered.emit)
 
             # Set current frame status
             if frame == self.current_frame:
@@ -429,32 +436,32 @@ class TimelineTabWidget(QWidget):
         total_width = tab_width * len(self.frame_tabs) + 4
         self.tabs_container.setMinimumWidth(total_width)
 
-    def _ensure_frame_visible(self, frame: int):
+    def _ensure_frame_visible(self, frame: int) -> None:
         """Ensure the specified frame is visible (no-op since all frames are visible)."""
         # All frames are always visible with dynamic width
         pass
 
-    def _update_frame_info(self):
+    def _update_frame_info(self) -> None:
         """Update frame information label."""
         info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
         self.frame_info.setText(info_text)
 
-    def _jump_back_group(self):
+    def _jump_back_group(self) -> None:
         """Jump back by group size."""
         new_frame = max(self.min_frame, self.current_frame - 10)
         self.set_current_frame(new_frame)
 
-    def _jump_forward_group(self):
+    def _jump_forward_group(self) -> None:
         """Jump forward by group size."""
         new_frame = min(self.max_frame, self.current_frame + 10)
         self.set_current_frame(new_frame)
 
-    def _schedule_deferred_update(self):
+    def _schedule_deferred_update(self) -> None:
         """Schedule a deferred update to avoid excessive redraws."""
         if not self._update_timer.isActive():
             self._update_timer.start(50)  # 50ms delay
 
-    def _perform_deferred_updates(self):
+    def _perform_deferred_updates(self) -> None:
         """Perform any pending status updates."""
         # This would query the data service for updated point statuses
         # For now, just refresh visible tabs
@@ -464,7 +471,7 @@ class TimelineTabWidget(QWidget):
                 keyframe_count, interpolated_count, has_selected = cached_status
                 tab.set_point_status(keyframe_count, interpolated_count, has_selected)
 
-    def resizeEvent(self, event: QResizeEvent):
+    def resizeEvent(self, event: QResizeEvent) -> None:
         """Handle widget resize to recalculate tab widths."""
         super().resizeEvent(event)
 
@@ -480,7 +487,7 @@ class TimelineTabWidget(QWidget):
             total_width = tab_width * len(self.frame_tabs) + 4
             self.tabs_container.setMinimumWidth(total_width)
 
-    def keyPressEvent(self, event: QKeyEvent):
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard navigation."""
         if event.key() == Qt.Key.Key_Left:
             self.set_current_frame(self.current_frame - 1)
@@ -503,7 +510,7 @@ class TimelineTabWidget(QWidget):
         else:
             super().keyPressEvent(event)
 
-    def mousePressEvent(self, event: QMouseEvent):
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Start scrubbing when mouse is pressed."""
         if event.button() == Qt.MouseButton.LeftButton:
             # Calculate which frame was clicked based on mouse position
@@ -516,7 +523,7 @@ class TimelineTabWidget(QWidget):
                 return
         super().mousePressEvent(event)
 
-    def mouseMoveEvent(self, event: QMouseEvent):
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Update frame while scrubbing."""
         if self.is_scrubbing:
             # Calculate frame from mouse position
@@ -527,7 +534,7 @@ class TimelineTabWidget(QWidget):
         else:
             super().mouseMoveEvent(event)
 
-    def mouseReleaseEvent(self, event: QMouseEvent):
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Stop scrubbing when mouse is released."""
         if event.button() == Qt.MouseButton.LeftButton and self.is_scrubbing:
             self.is_scrubbing = False

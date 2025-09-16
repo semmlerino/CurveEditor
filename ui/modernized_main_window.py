@@ -5,10 +5,12 @@ Extends the base MainWindow with comprehensive modern UI/UX enhancements
 """
 
 import logging
+from typing import cast
 
 from PySide6.QtCore import (
     QEasingCurve,
     QEvent,
+    QObject,
     QParallelAnimationGroup,
     QPropertyAnimation,
     Qt,
@@ -582,13 +584,13 @@ class ModernizedMainWindow(MainWindow):
                 # Re-raise other runtime errors
                 raise
 
-    def eventFilter(self, watched: object, event: object) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Enhanced event filter with hover animations."""
         # Handle button hover animations
         if isinstance(watched, QPushButton) and watched.property("enhanced"):
-            if event.type() == event.Type.Enter:
+            if event.type() == QEvent.Type.Enter:
                 self._animate_button_hover(watched, True)
-            elif event.type() == event.Type.Leave:
+            elif event.type() == QEvent.Type.Leave:
                 self._animate_button_hover(watched, False)
 
         # Call parent event filter
@@ -621,8 +623,8 @@ class ModernizedMainWindow(MainWindow):
             self._button_animations[effect_id] = opacity_effect
 
         # Get animation and effect from our storage
-        anim = self._button_animations[anim_id]
-        opacity_effect = self._button_animations[effect_id]
+        anim = cast(QPropertyAnimation, self._button_animations[anim_id])
+        opacity_effect = cast(QGraphicsOpacityEffect, self._button_animations[effect_id])
 
         # Stop any running animation
         if anim.state() == QPropertyAnimation.State.Running:
@@ -672,7 +674,8 @@ class ModernizedMainWindow(MainWindow):
         from PySide6.QtWidgets import QApplication
 
         current_thread = QThread.currentThread()
-        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        app_instance = QApplication.instance()
+        main_thread = app_instance.thread() if app_instance else None
 
         if current_thread != main_thread:
             logger.debug("[WORKAROUND] _on_file_load_progress rescheduling to main thread")
@@ -705,7 +708,8 @@ class ModernizedMainWindow(MainWindow):
         from PySide6.QtWidgets import QApplication
 
         current_thread = QThread.currentThread()
-        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        app_instance = QApplication.instance()
+        main_thread = app_instance.thread() if app_instance else None
 
         if current_thread != main_thread:
             # We're in the wrong thread - use QTimer.singleShot to run in main thread
@@ -739,7 +743,8 @@ class ModernizedMainWindow(MainWindow):
         from PySide6.QtWidgets import QApplication
 
         current_thread = QThread.currentThread()
-        main_thread = QApplication.instance().thread() if QApplication.instance() else None
+        app_instance = QApplication.instance()
+        main_thread = app_instance.thread() if app_instance else None
 
         if current_thread != main_thread:
             logger.info("[WORKAROUND] _on_file_load_error rescheduling to main thread")

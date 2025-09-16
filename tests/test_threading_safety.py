@@ -252,7 +252,7 @@ class TestServiceThreadSafety:
                 raise RuntimeError("Simulated initialization failure")
             return MagicMock()  # Second attempt succeeds
 
-        with patch("services.DataService", side_effect=failing_init):
+        with patch("services.data_service.DataService", side_effect=failing_init):
             results = []
 
             def try_get_service(thread_id: int):
