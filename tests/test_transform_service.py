@@ -125,7 +125,7 @@ class TestViewState:
         from dataclasses import FrozenInstanceError
 
         with pytest.raises(FrozenInstanceError, match="cannot assign to field"):
-            basic_view_state.zoom_factor = 2.0  # type: ignore[misc]
+            basic_view_state.zoom_factor = 2.0  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_view_state_with_updates(self, basic_view_state: ViewState) -> None:
         """Test creating a new ViewState with updated values."""

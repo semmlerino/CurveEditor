@@ -25,19 +25,28 @@ class FrameTab(QWidget):
     MIN_WIDTH: int = 2  # Minimum width for very large frame ranges
     MAX_WIDTH: int = 60  # Maximum width for small frame ranges
 
-    # Color scheme for frame status - modern 3DE style (very subtle)
-    COLORS: dict[str, QColor] = {
-        "no_points": QColor(50, 50, 50),  # Medium-dark gray - no tracked points
-        "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
-        "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
-        "mixed": QColor(55, 58, 65),  # Very subtle blue tint - mixed keyframe/interpolated
-        "current_frame": QColor(50, 50, 50),  # Same as no_points, highlight with border
-        "current_border": QColor(200, 170, 0),  # Golden border for current frame
-        "selected": QColor(70, 50, 50),  # Subtle red tint for selected points
-        "border": QColor(25, 25, 25),  # Very dark border
-        "text": QColor(255, 255, 255),  # Pure white text for all tabs
-        "text_current": QColor(255, 255, 255),  # White text even for current frame
-    }
+    # Color scheme for frame status - uses dark theme
+    # Initialize colors on first use to avoid import issues
+    COLORS: dict[str, QColor] = {}
+
+    @classmethod
+    def _init_colors(cls) -> None:
+        """Initialize colors from theme if not already done."""
+        if not cls.COLORS:
+            from ui.ui_constants import COLORS_DARK
+
+            cls.COLORS = {
+                "no_points": QColor(COLORS_DARK["bg_secondary"]),  # Secondary background - no tracked points
+                "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
+                "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
+                "mixed": QColor(COLORS_DARK["bg_surface"]),  # Surface color for mixed
+                "current_frame": QColor(COLORS_DARK["bg_secondary"]),  # Same as no_points, highlight with border
+                "current_border": QColor(COLORS_DARK["accent_warning"]),  # Warning color for current frame
+                "selected": QColor(COLORS_DARK["bg_selected"]),  # Selected state color
+                "border": QColor(COLORS_DARK["border_default"]),  # Default border
+                "text": QColor(COLORS_DARK["text_primary"]),  # Primary text
+                "text_current": QColor(COLORS_DARK["text_primary"]),  # Primary text for current frame
+            }
 
     # Instance attributes
     frame_number: int
@@ -56,6 +65,9 @@ class FrameTab(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
+
+        # Initialize colors if needed
+        self._init_colors()
 
         self.frame_number = frame_number
         self.is_current_frame = False

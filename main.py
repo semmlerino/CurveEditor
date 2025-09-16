@@ -8,7 +8,6 @@ from pathlib import Path
 from PySide6.QtWidgets import QApplication
 
 from ui.main_window import MainWindow
-from ui.modernized_main_window import ModernizedMainWindow
 
 
 def main():
@@ -71,15 +70,14 @@ def main():
     # Create main window with service registry
     logger.info("Creating main window...")
 
-    # Use modernized window for enhanced UI/UX (Sprint 11 requirement)
-    use_modern_ui = os.environ.get("USE_MODERN_UI", "true").lower() == "true"
+    # Use standard MainWindow (modern UI removed for simplicity and type safety)
+    use_modern_ui = os.environ.get("USE_MODERN_UI", "false").lower() == "true"
 
     if use_modern_ui:
-        logger.info("Using ModernizedMainWindow with enhanced UI/UX features")
-        window = ModernizedMainWindow()
-    else:
-        logger.info("Using standard MainWindow")
-        window = MainWindow()
+        logger.warning("Modern UI requested but no longer available - using standard MainWindow")
+
+    logger.info("Using standard MainWindow")
+    window = MainWindow()
 
     # Install event filter for debugging key events
     # Note: This was causing issues with key event propagation

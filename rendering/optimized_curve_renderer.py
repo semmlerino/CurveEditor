@@ -527,21 +527,24 @@ class OptimizedCurveRenderer:
         # Set painter for point drawing
         painter.setPen(Qt.PenStyle.NoPen)
 
+        # Import theme colors
+        from ui.ui_constants import COLORS_DARK, CURVE_COLORS
+
         # Draw normal points in batch
         if normal_points:
-            painter.setBrush(QBrush(QColor(255, 0, 0)))  # Red for normal
+            painter.setBrush(QBrush(QColor(CURVE_COLORS["point_normal"])))  # Theme color for normal
             for pos in normal_points:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
 
         # Draw selected points in batch
         if selected_points_list:
-            painter.setBrush(QBrush(QColor(255, 255, 0)))  # Yellow for selected
+            painter.setBrush(QBrush(QColor(CURVE_COLORS["point_selected"])))  # Theme color for selected
             for pos in selected_points_list:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
 
-        # Draw current frame points with larger radius and magenta color
+        # Draw current frame points with larger radius and accent color
         if current_frame_points:
-            painter.setBrush(QBrush(QColor(255, 0, 255)))  # Magenta for current frame
+            painter.setBrush(QBrush(QColor(COLORS_DARK["accent_info"])))  # Theme accent for current frame
             current_frame_radius = point_radius + 3  # Larger radius for current frame
             for pos in current_frame_points:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), current_frame_radius, current_frame_radius)
@@ -565,7 +568,9 @@ class OptimizedCurveRenderer:
         else:
             label_step = 1
 
-        painter.setPen(QPen(QColor(255, 255, 255)))
+        from ui.ui_constants import COLORS_DARK
+
+        painter.setPen(QPen(QColor(COLORS_DARK["text_primary"])))
         font = QFont("Arial", 8)  # Smaller font for performance
         painter.setFont(font)
 
@@ -635,7 +640,11 @@ class OptimizedCurveRenderer:
 
     def _render_grid_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Optimized grid rendering with adaptive density."""
-        pen = QPen(QColor(100, 100, 100, 50))
+        from ui.ui_constants import COLORS_DARK
+
+        grid_color = QColor(COLORS_DARK["grid_lines"])
+        grid_color.setAlpha(50)
+        pen = QPen(grid_color)
         pen.setWidth(1)
         painter.setPen(pen)
 
@@ -657,7 +666,9 @@ class OptimizedCurveRenderer:
 
     def _render_info_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Render info overlay with performance metrics."""
-        painter.setPen(QPen(QColor(255, 255, 255)))
+        from ui.ui_constants import COLORS_DARK
+
+        painter.setPen(QPen(QColor(COLORS_DARK["text_primary"])))
         painter.setFont(QFont("Arial", 10))
 
         points = curve_view.points

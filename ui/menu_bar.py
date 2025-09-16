@@ -222,46 +222,6 @@ class MenuBar(QMenuBar):
 
         _ = view_menu.addSeparator()
 
-        # Theme submenu
-        theme_menu = view_menu.addMenu("&Theme")
-
-        # Create theme action group for exclusive selection
-        from PySide6.QtGui import QActionGroup
-
-        theme_group = QActionGroup(self)
-
-        # Light theme
-        light_theme_action = QAction("&Light", self)
-        light_theme_action.setCheckable(True)
-        light_theme_action.setChecked(True)  # Default
-        _ = self.signal_manager.connect(
-            light_theme_action.triggered, lambda: self._handle_theme_change("light"), "light_theme.triggered"
-        )
-        _ = theme_group.addAction(light_theme_action)
-        _ = theme_menu.addAction(light_theme_action)
-
-        # Dark theme
-        dark_theme_action = QAction("&Dark", self)
-        dark_theme_action.setCheckable(True)
-        _ = self.signal_manager.connect(
-            dark_theme_action.triggered, lambda: self._handle_theme_change("dark"), "dark_theme.triggered"
-        )
-        _ = theme_group.addAction(dark_theme_action)
-        _ = theme_menu.addAction(dark_theme_action)
-
-        # High contrast theme
-        high_contrast_action = QAction("&High Contrast", self)
-        high_contrast_action.setCheckable(True)
-        _ = self.signal_manager.connect(
-            high_contrast_action.triggered,
-            lambda: self._handle_theme_change("high_contrast"),
-            "high_contrast.triggered",
-        )
-        _ = theme_group.addAction(high_contrast_action)
-        _ = theme_menu.addAction(high_contrast_action)
-
-        _ = view_menu.addSeparator()
-
         # Background image
         load_images_action = QAction("Load &Image Sequence...", self)
         # Remove explicit shortcut assignment to avoid conflict
@@ -333,8 +293,8 @@ class MenuBar(QMenuBar):
 
     def _handle_auto_center_toggled(self, enabled: bool) -> None:
         """Handle auto-center toggled signal."""
-        if self.main_window and hasattr(self.main_window, "set_centering_enabled"):
-            self.main_window.set_centering_enabled(enabled)  # pyright: ignore[reportUnknownMemberType]
+        if self.main_window:
+            self.main_window.set_centering_enabled(enabled)
 
     def _handle_grid_toggled(self, _enabled: bool) -> None:
         """Handle grid toggled signal."""
@@ -358,25 +318,6 @@ class MenuBar(QMenuBar):
             # For now, this functionality needs to be reimplemented
             # ImageOperations.toggle_background(cast(MainWindowProtocol, cast(object, self.main_window)))
             pass  # TODO: Implement background toggle functionality
-
-    def _handle_theme_change(self, theme_name: str) -> None:
-        """Handle theme change action."""
-        from ui.theme_manager import ThemeMode, get_theme_manager
-
-        theme_manager = get_theme_manager()
-
-        if theme_name == "light":
-            theme_manager.set_theme(ThemeMode.LIGHT)
-        elif theme_name == "dark":
-            theme_manager.set_theme(ThemeMode.DARK)
-        elif theme_name == "high_contrast":
-            theme_manager.set_theme(ThemeMode.HIGH_CONTRAST)
-
-        # Update curve view widget colors if available
-        if self.main_window and hasattr(self.main_window, "curve_widget"):
-            curve_widget = getattr(self.main_window, "curve_widget", None)
-            if curve_widget is not None:
-                theme_manager.apply_to_widget(cast(QWidget, curve_widget))  # pyright: ignore[reportArgumentType]
 
     # File menu handlers
     @Slot()
@@ -405,8 +346,8 @@ class MenuBar(QMenuBar):
     @Slot()
     def _handle_exit(self) -> None:
         """Handle exit action."""
-        if self.main_window and hasattr(self.main_window, "close"):
-            _ = self.main_window.close()  # pyright: ignore[reportUnknownMemberType]
+        if self.main_window:
+            _ = self.main_window.close()
 
     # Edit menu handlers
     @Slot()
@@ -422,32 +363,32 @@ class MenuBar(QMenuBar):
     @Slot()
     def _handle_select_all(self) -> None:
         """Handle select all action."""
-        if hasattr(self.main_window, "curve_view"):
-            curve_view = getattr(self.main_window, "curve_view", None)
+        if self.main_window and self.main_window.curve_view is not None:
+            curve_view = self.main_window.curve_view
             if curve_view is not None:
                 _ = self.curve_service.select_all_points(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
 
     @Slot()
     def _handle_deselect_all(self) -> None:
         """Handle deselect all action."""
-        if hasattr(self.main_window, "curve_view"):
-            curve_view = getattr(self.main_window, "curve_view", None)
+        if self.main_window and self.main_window.curve_view is not None:
+            curve_view = self.main_window.curve_view
             if curve_view is not None:
                 self.curve_service.clear_selection(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
 
     @Slot()
     def _handle_delete_selected(self) -> None:
         """Handle delete selected action."""
-        if hasattr(self.main_window, "curve_view"):
-            curve_view = getattr(self.main_window, "curve_view", None)
+        if self.main_window and self.main_window.curve_view is not None:
+            curve_view = self.main_window.curve_view
             if curve_view is not None:
                 self.curve_service.delete_selected_points(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
 
     # View menu handlers
     def _handle_reset_view(self) -> None:
         """Handle reset view action."""
-        if hasattr(self.main_window, "curve_view"):
-            curve_view = getattr(self.main_window, "curve_view", None)
+        if self.main_window and self.main_window.curve_view is not None:
+            curve_view = self.main_window.curve_view
             if curve_view is not None:
                 self.curve_service.reset_view(curve_view)  # pyright: ignore[reportArgumentType]
 
@@ -459,10 +400,8 @@ class MenuBar(QMenuBar):
     # Tools menu handlers
     def _handle_smooth_selected(self) -> None:
         """Handle smooth selected action."""
-        if hasattr(self.main_window, "apply_smooth_operation"):
-            apply_method = getattr(self.main_window, "apply_smooth_operation", None)
-            if apply_method is not None and callable(apply_method):
-                _ = apply_method()  # pyright: ignore[reportUnknownMemberType]
+        if self.main_window:
+            self.main_window.apply_smooth_operation()
 
     def _handle_filter_selected(self) -> None:
         """Handle filter selected action."""
@@ -483,5 +422,9 @@ class MenuBar(QMenuBar):
 
     def __del__(self) -> None:
         """Destructor to ensure all signals are disconnected."""
-        if hasattr(self, "signal_manager"):
-            self.signal_manager.disconnect_all()
+        try:
+            if self.signal_manager is not None:
+                self.signal_manager.disconnect_all()
+        except AttributeError:
+            # signal_manager not yet initialized
+            pass

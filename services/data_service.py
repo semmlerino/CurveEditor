@@ -138,7 +138,7 @@ class DataService:
 
             # Preserve frame and additional data
             if len(data[i]) > 3:
-                result.append((data[i][0], avg_x, avg_y) + data[i][3:])  # type: ignore[arg-type]
+                result.append((data[i][0], avg_x, avg_y) + data[i][3:])  # pyright: ignore[reportArgumentType]
             else:
                 result.append((data[i][0], avg_x, avg_y))
 
@@ -161,7 +161,7 @@ class DataService:
             med_y = statistics.median(p[2] for p in window)
 
             if len(data[i]) > 3:
-                result.append((data[i][0], med_x, med_y) + data[i][3:])  # type: ignore[arg-type]
+                result.append((data[i][0], med_x, med_y) + data[i][3:])  # pyright: ignore[reportArgumentType]
             else:
                 result.append((data[i][0], med_x, med_y))
 
@@ -186,21 +186,21 @@ class DataService:
 
             # Design and apply filter - properly handle scipy return types
             assert signal is not None  # Type guard for mypy/basedpyright
-            filter_result = signal.butter(order, cutoff, btype="low")  # type: ignore[attr-defined]
+            filter_result = signal.butter(order, cutoff, btype="low")  # pyright: ignore[reportAttributeAccessIssue]
 
             # scipy.signal.butter always returns a 2-tuple (b, a) when output='ba' (default)
             if not isinstance(filter_result, tuple) or len(filter_result) != 2:
                 raise ValueError("Unexpected return type from signal.butter")
 
             b, a = filter_result
-            filtered_x = signal.filtfilt(b, a, x_coords)  # type: ignore[attr-defined,arg-type]
-            filtered_y = signal.filtfilt(b, a, y_coords)  # type: ignore[attr-defined,arg-type]
+            filtered_x = signal.filtfilt(b, a, x_coords)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
+            filtered_y = signal.filtfilt(b, a, y_coords)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
 
             # Reconstruct data
             result: CurveDataList = []
             for i, frame in enumerate(frames):
                 if len(data[i]) > 3:
-                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])  # type: ignore[arg-type]
+                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])  # pyright: ignore[reportArgumentType]
                 else:
                     result.append((frame, filtered_x[i], filtered_y[i]))
 

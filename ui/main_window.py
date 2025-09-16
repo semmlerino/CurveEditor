@@ -22,7 +22,7 @@ import sys
 import threading
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast, override
 
 if TYPE_CHECKING:
     from ui.timeline_tabs import TimelineTabWidget
@@ -58,9 +58,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.type_aliases import CurveDataList
+
 # Import local modules
 # CurveView removed - using CurveViewWidget
 from .curve_view_widget import CurveViewWidget
+from .dark_theme_stylesheet import get_dark_theme_stylesheet
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
 from .tracking_points_panel import TrackingPointsPanel
@@ -443,6 +446,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     line_width_slider: QSlider | None = None
 
     # MainWindowProtocol required attributes
+    # Note: selected_indices and curve_data are provided as properties below
     point_name: str = "default_point"
     point_color: str = "#FF0000"
     undo_button: QPushButton | None = None  # Will be created from action
@@ -459,14 +463,25 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.setMinimumSize(1024, 768)
         self.resize(1400, 900)
 
+        # Apply dark theme to entire application
+        app = QApplication.instance()
+        if app and isinstance(app, QApplication):
+            # Use Fusion style for better dark theme support
+            app.setStyle("Fusion")
+            # Apply the dark theme stylesheet
+            app.setStyleSheet(get_dark_theme_stylesheet())
+            logger.info("Applied dark theme to application")
+
         # Initialize managers
         self.state_manager: StateManager = StateManager(self)
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
         # Initialize service facade
+        from services.service_protocols import MainWindowProtocol
+
         from .service_facade import get_service_facade
 
-        self.services: ServiceFacade = get_service_facade(self)
+        self.services: ServiceFacade = get_service_facade(cast(MainWindowProtocol, cast(object, self)))
 
         # Initialize UI scaling
         self.ui_scaling: UIScaling = UIScaling()
@@ -475,9 +490,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.ui: UIComponents = UIComponents(self)
 
         # Multi-point tracking data
-        self.tracked_data: dict[
-            str, list[tuple[int, float, float] | tuple[int, float, float, str]]
-        ] = {}  # All tracking points
+        self.tracked_data: dict[str, CurveDataList] = {}  # All tracking points
         self.active_points: list[str] = []  # Currently selected points
 
         # Initialize UI components
@@ -793,10 +806,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Set focus to curve widget after creation
         def set_focus_safe():
             try:
-                if hasattr(self, "curve_widget") and self.curve_widget:
+                if self.curve_widget is not None:
                     self.curve_widget.setFocus()
-            except RuntimeError:
-                # Widget was deleted (C++ object destroyed)
+            except (RuntimeError, AttributeError):
+                # Widget was deleted (C++ object destroyed) or not yet initialized
                 pass
 
         QTimer.singleShot(100, set_focus_safe)
@@ -1288,8 +1301,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""
-        if hasattr(self, "statusBar") and self.statusBar():
-            self.statusBar().showMessage(message)
+        status_bar = self.statusBar()
+        if status_bar is not None:
+            status_bar.showMessage(message)
 
     @Slot(int)
     @Slot(int)
@@ -1433,7 +1447,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle save as action."""
         # Get current data from curve widget
         data = self._get_current_curve_data()
-        if self.services.save_track_data(data, self):  # type: ignore[arg-type]
+        if self.services.save_track_data(data, self):  # pyright: ignore[reportArgumentType]
             self.state_manager.is_modified = False
             self.status_label.setText("File saved successfully")
 
@@ -1540,7 +1554,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     pass
 
     @Slot(dict)
-    def _on_multi_point_data_loaded(self, multi_data: dict[str, list[tuple[int, float, float]]]) -> None:
+    def _on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """Handle multi-point tracking data loaded in background thread."""
         current_thread = QThread.currentThread()
         app_instance = QApplication.instance()
@@ -1901,6 +1915,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             zoom_percent = int(self.state_manager.zoom_level * 100)
         self.zoom_label.setText(f"Zoom: {zoom_percent}%")
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Event filter to handle key event redirection."""
         if event.type() == QEvent.Type.KeyPress and isinstance(event, QKeyEvent):
@@ -1998,8 +2013,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
-        if hasattr(self, "tracking_panel"):
-            self.tracking_panel.set_tracked_data(self.tracked_data)
+        self.tracking_panel.set_tracked_data(self.tracked_data)
 
     def _update_curve_display(self) -> None:
         """Update curve display with selected tracking points."""
@@ -2296,6 +2310,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         else:
             _ = QMessageBox.warning(self, "Service Error", "Data service not available for smoothing.")
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events for custom shortcuts."""
         # Tab key toggles tracking panel dock visibility
@@ -2310,12 +2325,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Pass to parent for default handling
         super().keyPressEvent(event)
 
+    @override
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
 
         # Stop the worker thread
-        if hasattr(self, "file_load_worker") and self.file_load_worker:
+        if self.file_load_worker is not None:
             self.file_load_worker.stop()
 
         logger.info("[KEEP-ALIVE] Worker and thread cleaned up")

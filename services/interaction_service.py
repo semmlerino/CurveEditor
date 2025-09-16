@@ -150,7 +150,7 @@ class InteractionService:
                 if view.rubber_band is None:
                     # Create rubber band with parent widget workaround
                     parent_widget = getattr(view, "parentWidget", lambda: None)() or None
-                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)  # type: ignore[arg-type]
+                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)  # pyright: ignore[reportArgumentType]
                 view.rubber_band_origin = pos
                 view.rubber_band_active = True
                 view.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))
@@ -704,19 +704,19 @@ class InteractionService:
         else:
             # Default reset behavior
             if getattr(view, "zoom_factor", None) is not None:
-                view.zoom_factor = 1.0  # type: ignore[attr-defined]
+                view.zoom_factor = 1.0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "offset_x", None) is not None:
-                view.offset_x = 0  # type: ignore[attr-defined]
+                view.offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "offset_y", None) is not None:
-                view.offset_y = 0  # type: ignore[attr-defined]
+                view.offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "pan_offset_x", None) is not None:
-                view.pan_offset_x = 0  # type: ignore[attr-defined]
+                view.pan_offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "pan_offset_y", None) is not None:
-                view.pan_offset_y = 0  # type: ignore[attr-defined]
+                view.pan_offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "manual_offset_x", None) is not None:
-                view.manual_offset_x = 0  # type: ignore[attr-defined]
+                view.manual_offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "manual_offset_y", None) is not None:
-                view.manual_offset_y = 0  # type: ignore[attr-defined]
+                view.manual_offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
             view.update()
 
     # ==================== Legacy Methods (Minimal Implementation) ====================
@@ -831,11 +831,11 @@ class InteractionService:
 
         # Restore point_name
         if "point_name" in state and getattr(main_window, "point_name", None) is not None:
-            main_window.point_name = cast(str, state["point_name"])  # type: ignore[attr-defined]
+            main_window.point_name = cast(str, state["point_name"])  # pyright: ignore[reportAttributeAccessIssue]
 
         # Restore point_color
         if "point_color" in state and getattr(main_window, "point_color", None) is not None:
-            main_window.point_color = cast(str, state["point_color"])  # type: ignore[attr-defined]
+            main_window.point_color = cast(str, state["point_color"])  # pyright: ignore[reportAttributeAccessIssue]
 
         # Update the view
         if main_window.curve_view is not None:

@@ -541,8 +541,12 @@ class CurveViewWidget(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
-        # Clear background
-        painter.fillRect(event.rect(), QColor(30, 30, 30))
+        # Import theme colors
+        from ui.ui_constants import COLORS_DARK
+
+        # Clear background with theme color
+        bg_color = QColor(COLORS_DARK["bg_primary"])
+        painter.fillRect(event.rect(), bg_color)
 
         # DELEGATE ALL RENDERING TO OPTIMIZED RENDERER
         # This is the ONLY rendering path - do not add paint methods to this widget
@@ -587,17 +591,23 @@ class CurveViewWidget(QWidget):
         font.setBold(True)
         painter.setFont(font)
 
-        # Draw background rectangle
+        # Import theme colors
+        from ui.ui_constants import COLORS_DARK
+
+        # Draw background rectangle with theme accent color
         text = "CENTERING ON"
         rect = QRectF(self.width() - 120, 10, 110, 25)
-        painter.fillRect(rect, QColor(255, 100, 0, 180))  # Orange background
+        accent_color = QColor(COLORS_DARK["accent_warning"])  # Use warning color for attention
+        accent_color.setAlpha(180)
+        painter.fillRect(rect, accent_color)
 
         # Draw border
-        painter.setPen(QPen(QColor(255, 150, 50), 2))
+        border_color = QColor(COLORS_DARK["border_warning"])
+        painter.setPen(QPen(border_color, 2))
         _ = painter.drawRect(rect)
 
         # Draw text
-        painter.setPen(QColor(255, 255, 255))
+        painter.setPen(QColor(COLORS_DARK["text_primary"]))
         _ = painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
 
         painter.restore()
@@ -750,7 +760,7 @@ class CurveViewWidget(QWidget):
                 # Notify about changes
                 if self.main_window is not None:
                     if getattr(self.main_window, "add_to_history", None) is not None:
-                        self.main_window.add_to_history()  # type: ignore[attr-defined]
+                        self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
 
         elif button == Qt.MouseButton.MiddleButton:
             self.pan_active = False
@@ -862,7 +872,7 @@ class CurveViewWidget(QWidget):
                     logger.info("[KEY_C] View centering completed")
                 elif self.main_window is not None:
                     if getattr(self.main_window, "current_frame", None) is not None:
-                        current_frame: int = self.main_window.current_frame  # type: ignore[attr-defined]
+                        current_frame: int = self.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
                         logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
                         self.center_on_frame(current_frame)
                     logger.info("[KEY_C] View centered on current frame")
@@ -871,7 +881,7 @@ class CurveViewWidget(QWidget):
             if self.main_window is not None:
                 if getattr(self.main_window, "status_bar", None) is not None:
                     status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
-                    self.main_window.status_bar.showMessage(status_msg, 2000)  # type: ignore[attr-defined]
+                    self.main_window.status_bar.showMessage(status_msg, 2000)  # pyright: ignore[reportAttributeAccessIssue]
 
             event.accept()
 
@@ -1201,8 +1211,8 @@ class CurveViewWidget(QWidget):
         # This provides the claimed 64.7x speedup for point operations
 
         # Use the optimized InteractionService with spatial indexing
-        # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
-        result: int = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # type: ignore[arg-type]
+        # Note: Protocol mismatch with InteractionService - using pyright: ignore for service integration
+        result: int = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # pyright: ignore[reportArgumentType]
 
         # Log for verification during integration testing
         logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {result}")
@@ -1228,8 +1238,8 @@ class CurveViewWidget(QWidget):
 
         # Update interaction service if available
         if self.interaction_service and self.main_window:
-            # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
-            self.interaction_service.on_point_selected(self, self.main_window, index)  # type: ignore[arg-type]
+            # Note: Protocol mismatch with InteractionService - using pyright: ignore for service integration
+            self.interaction_service.on_point_selected(self, self.main_window, index)  # pyright: ignore[reportArgumentType]
 
     def _clear_selection(self) -> None:
         """Clear all selection."""
@@ -1334,7 +1344,7 @@ class CurveViewWidget(QWidget):
 
         if self.main_window is not None:
             if getattr(self.main_window, "add_to_history", None) is not None:
-                self.main_window.add_to_history()  # type: ignore[attr-defined]
+                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
 
     def _delete_selected_points(self) -> None:
         """Delete selected points."""
@@ -1349,7 +1359,7 @@ class CurveViewWidget(QWidget):
 
         if self.main_window is not None:
             if getattr(self.main_window, "add_to_history", None) is not None:
-                self.main_window.add_to_history()  # type: ignore[attr-defined]
+                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
 
     # Cache Management
 

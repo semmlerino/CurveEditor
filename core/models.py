@@ -44,7 +44,7 @@ Coordinate = float
 PointIndex = int
 
 # Legacy type definitions for migration
-LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, bool]
+LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str | bool]
 PointsList = list[LegacyPointTuple]
 
 

@@ -335,18 +335,7 @@ class TestUIIntegration:
         # Check window can be created without errors
         assert not window.isVisible()  # Window not shown yet but created successfully
 
-    def test_modernized_window_creation(self, app, qtbot):
-        """Test creating modernized main window."""
-        from ui.modernized_main_window import ModernizedMainWindow
-
-        window = ModernizedMainWindow()
-        qtbot.addWidget(window)
-
-        # Check modern features
-        assert hasattr(window, "theme_manager")
-        assert hasattr(window, "animations_enabled")
-        assert hasattr(window, "keyboard_hints")
-        assert window.current_theme == "dark"  # Default theme
+    # ModernizedMainWindow test removed - functionality consolidated into MainWindow
 
     def test_curve_widget_with_services(self, app, qtbot):
         """Test CurveViewWidget with service integration."""

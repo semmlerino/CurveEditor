@@ -87,7 +87,7 @@ class ViewState:
         updated = dict(self.__dict__)
         updated.update(kwargs)
         # Type ignore for dict unpacking with mixed types
-        return ViewState(**updated)  # type: ignore[arg-type]
+        return ViewState(**updated)  # pyright: ignore[reportArgumentType]
 
     def to_dict(self) -> dict[str, object]:
         """Convert the ViewState to a dictionary."""

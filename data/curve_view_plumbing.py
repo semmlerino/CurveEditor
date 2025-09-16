@@ -95,11 +95,11 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 # Show default success only for history-recording operations
                 # statusBar() is a QMainWindow method, always available
                 if record_history and main_window and getattr(main_window, "statusBar", None) is not None:
-                    main_window.statusBar().showMessage(f"{action_name} completed successfully", 2000)  # type: ignore[attr-defined]  # Duck typing
+                    main_window.statusBar().showMessage(f"{action_name} completed successfully", 2000)  # pyright: ignore[reportAttributeAccessIssue]  # Duck typing
             except Exception as e:
                 # statusBar() is a QMainWindow method, always available
                 if main_window and getattr(main_window, "statusBar", None) is not None:
-                    main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)  # type: ignore[attr-defined]  # Duck typing
+                    main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)  # pyright: ignore[reportAttributeAccessIssue]  # Duck typing
                 _unused_result = QMessageBox.critical(
                     cast(QWidget, cast(object, main_window)),  # MainWindow inherits from QMainWindow -> QWidget
                     f"Error in {action_name}",
@@ -205,7 +205,7 @@ def finalize_data_change(
         main_window.add_to_history()
     # statusBar() is a QMainWindow method, always available
     if main_window and history_msg and getattr(main_window, "statusBar", None) is not None:
-        main_window.statusBar().showMessage(history_msg, 3000)  # type: ignore[attr-defined]
+        main_window.statusBar().showMessage(history_msg, 3000)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 def confirm_delete(main_window: MainWindowProtocol, count: int) -> bool:

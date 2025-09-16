@@ -23,7 +23,8 @@ from PySide6.QtWidgets import (
 )
 
 from core.models import FrameNumber
-from ui.animation_utils import SignalConnectionUtils
+
+# animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
 
 logger = logging.getLogger(__name__)
@@ -155,29 +156,21 @@ class TimelineTabWidget(QWidget):
         self.setMaximumHeight(self.TOTAL_HEIGHT)
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
 
-        # Apply visual styling - modern 3DE style
+        # Apply minimal styling - inherits from application dark theme
+        # Only override specific timeline-specific styles
         self.setStyleSheet("""
             TimelineTabWidget {
-                background-color: #2d2d2d;
-                border-top: 1px solid #1a1a1a;
-                border-bottom: 1px solid #1a1a1a;
+                border-top: 1px solid #495057;
+                border-bottom: 1px solid #495057;
             }
             QPushButton {
                 background-color: transparent;
-                color: #888;
                 border: none;
-                font-weight: normal;
                 font-size: 10px;
                 padding: 0;
-            }
-            QPushButton:hover {
-                color: #aaa;
-            }
-            QPushButton:pressed {
-                color: #666;
+                min-width: 16px;
             }
             QLabel {
-                color: #aaa;
                 font-size: 10px;
                 font-family: monospace;
             }
@@ -236,7 +229,7 @@ class TimelineTabWidget(QWidget):
         self.first_btn = QPushButton("⏮")
         self.first_btn.setFixedSize(button_size, button_size)
         self.first_btn.setToolTip("Go to first frame")
-        _ = SignalConnectionUtils.connect_with_lambda(self.first_btn.clicked, self.set_current_frame, self.min_frame)
+        self.first_btn.clicked.connect(lambda: self.set_current_frame(self.min_frame))
 
         self.prev_group_btn = QPushButton("⏪")
         self.prev_group_btn.setFixedSize(button_size, button_size)
@@ -251,12 +244,12 @@ class TimelineTabWidget(QWidget):
         self.last_btn = QPushButton("⏭")
         self.last_btn.setFixedSize(button_size, button_size)
         self.last_btn.setToolTip("Go to last frame")
-        _ = SignalConnectionUtils.connect_with_lambda(self.last_btn.clicked, self.set_current_frame, self.max_frame)
+        self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
 
-        # Frame info label - modern 3DE style
+        # Frame info label - accent color for better visibility
         self.frame_info = QLabel()
         self.frame_info.setStyleSheet(
-            "QLabel { color: #bba050; font-size: 10px; font-weight: normal; font-family: monospace; }"
+            "QLabel { color: #ffd43b; font-size: 10px; font-weight: normal; font-family: monospace; }"
         )
         self._update_frame_info()
 
@@ -552,7 +545,7 @@ class TimelineTabWidget(QWidget):
             Frame number or None if position is invalid
         """
         # Get the scroll area's viewport position
-        if hasattr(self, "scroll_area") and self.scroll_area:
+        if self.scroll_area is not None:
             # Adjust x for scroll position
             scroll_x = self.scroll_area.horizontalScrollBar().value()
             x += scroll_x
