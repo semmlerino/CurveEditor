@@ -17,11 +17,9 @@ import numpy as np
 
 if TYPE_CHECKING:
     from services.transform_service import Transform
-    from ui.main_window import MainWindow
     from ui.state_manager import StateManager
 else:
     Transform = object
-    MainWindow = object
     StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
@@ -52,7 +50,7 @@ class CurveViewProtocol(Protocol):
     background_opacity: float
     selected_points: set[int]
     point_radius: int
-    main_window: "MainWindow | None"
+    main_window: "MainWindowProtocol | None"
 
     # Optional attributes for debugging
     debug_mode: bool

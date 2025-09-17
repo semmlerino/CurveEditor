@@ -54,22 +54,6 @@ class TestTimelineMainWindowIntegration:
         except ImportError:
             pytest.skip("TimelineTabWidget not available")
 
-    @pytest.fixture
-    def mock_main_window(self):
-        """Create a mock main window with minimal required attributes."""
-        mock_window = Mock()
-        mock_window.frame_spinbox = Mock()
-        mock_window.frame_slider = Mock()
-        mock_window.total_frames_label = Mock()
-        mock_window.state_manager = Mock()
-        mock_window.curve_widget = Mock()
-        mock_window.curve_widget.curve_data = []
-        mock_window._on_frame_changed = Mock()
-        mock_window._on_slider_changed = Mock()
-        mock_window._on_timeline_tab_clicked = Mock()
-        mock_window._update_timeline_tabs = Mock()
-        return mock_window
-
     def test_timeline_widget_created(self, timeline_widget):
         """Test that timeline widget is created and accessible."""
         assert timeline_widget is not None

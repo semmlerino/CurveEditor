@@ -606,9 +606,10 @@ class DataService:
         """Save JSON file implementation."""
         try:
             # Convert CurveDataList to JSON format
+            points_list: list[dict[str, object]] = []
             json_data: dict[str, object] = {
                 "metadata": {"label": label, "color": color, "version": "1.0", "point_count": len(data)},
-                "points": [],
+                "points": points_list,
             }
 
             for point in data:
@@ -620,7 +621,7 @@ class DataService:
                     else:
                         point_data["status"] = "keyframe"
 
-                    json_data["points"].append(point_data)
+                    points_list.append(point_data)
 
             # Ensure directory exists
             Path(file_path).parent.mkdir(parents=True, exist_ok=True)

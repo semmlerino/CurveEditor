@@ -39,10 +39,8 @@ from PySide6.QtWidgets import (
     QDockWidget,
     QDoubleSpinBox,
     QFrame,
-    QInputDialog,
     QLabel,
     QMainWindow,
-    QMessageBox,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -58,7 +56,7 @@ from services import get_data_service
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
-from .controllers import FrameNavigationController, PlaybackController
+from .controllers import ActionHandlerController, FrameNavigationController, PlaybackController
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
 from .file_operations import FileOperations
@@ -89,7 +87,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # Removed orphaned playback button attributes - they were never used
     btn_play_pause: QPushButton | None = None  # Used for playback control (not visible but functional)
     fps_spinbox: QSpinBox | None = None
-    playback_timer: QTimer | None = None
+    # playback_timer was moved to PlaybackController
     curve_widget: "CurveViewWidget | None" = None
     selected_point_label: QLabel | None = None
     point_x_spinbox: QDoubleSpinBox | None = None
@@ -137,6 +135,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize controllers
         self.playback_controller: PlaybackController = PlaybackController(self.state_manager, self)
         self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
+        self.action_controller: ActionHandlerController = ActionHandlerController(self.state_manager, self)
 
         # Initialize service facade
         from services.service_protocols import MainWindowProtocol
@@ -683,47 +682,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # Playback methods removed - now handled by PlaybackController
     # The controller manages play/pause, FPS changes, and oscillating playback
 
-    def _update_playback_bounds(self) -> None:
-        """Update playbook frame bounds based on current data."""
-        # Get bounds from data service if available
-        try:
-            # curve_view is initialized as None in __init__
-            if (
-                self.curve_view is not None
-                and getattr(self.curve_view, "curve_data", None) is not None
-                and self.curve_view.curve_data
-            ):
-                # Calculate frame bounds directly from curve data
-                frames = [int(point[0]) for point in self.curve_view.curve_data]
-                if frames:
-                    self.playback_state.min_frame = max(1, min(frames))
-                    self.playback_state.max_frame = max(frames)
-                else:
-                    self.playback_state.min_frame = 1
-                    self.playback_state.max_frame = 100
-            else:
-                # Use timeline widget bounds if available
-                # timeline_tabs is Optional
-                if self.timeline_tabs is not None:
-                    self.playback_state.min_frame = getattr(self.timeline_tabs, "min_frame", 1)
-                    self.playback_state.max_frame = getattr(self.timeline_tabs, "max_frame", 100)
-                else:
-                    # Default bounds
-                    self.playback_state.min_frame = 1
-                    self.playback_state.max_frame = 100
-        except Exception as e:
-            # Fallback to default bounds on any error
-            logger.warning(f"Error getting playback bounds, using defaults: {e}")
-            self.playback_state.min_frame = 1
-            self.playback_state.max_frame = 100
-
-        # Ensure current frame is within bounds
-        current = self._get_current_frame()
-        if current < self.playback_state.min_frame:
-            self._set_current_frame(self.playback_state.min_frame)
-        elif current > self.playback_state.max_frame:
-            self._set_current_frame(self.playback_state.max_frame)
-
     def _get_current_frame(self) -> int:
         """Get the current frame number."""
         return self.frame_nav_controller.get_current_frame()
@@ -776,7 +734,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Restore state from history (delegate to state manager)."""
         # This method is required by MainWindowProtocol but actual implementation
         # is handled by the state manager and services
-        pass  # pyright: ignore[reportUnnecessaryPassStatement]
+        pass
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""
@@ -803,93 +761,24 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # ==================== Action Handlers ====================
 
     @Slot()
-    @Slot()
     def _on_action_new(self) -> None:
-        """Handle new file action."""
-        if self.file_operations.new_file():
-            # Clear curve widget data
-            if self.curve_widget:
-                self.curve_widget.set_curve_data([])
-                self._update_tracking_panel()
+        """Handle new file action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_new()
 
-            self.state_manager.reset_to_defaults()
-            self._update_ui_state()
-            self.status_label.setText("New curve created")
-
-    @Slot()
     @Slot()
     def _on_action_open(self) -> None:
-        """Handle open file action."""
-        data = self.file_operations.open_file(self)
+        """Handle open file action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_open()
 
-        if data:
-            # Check if it's multi-point data
-            if isinstance(data, dict):
-                # Successfully loaded multi-point data
-                self.tracked_data = data
-                self.active_points = list(data.keys())[:1]  # Select first point
-
-                # Set up view for pixel-coordinate tracking data BEFORE displaying
-                if self.curve_widget:
-                    self.curve_widget.setup_for_pixel_tracking()
-
-                self._update_tracking_panel()
-                self._update_curve_display()
-
-                # Update frame range based on first trajectory
-                if self.active_points and self.active_points[0] in self.tracked_data:
-                    trajectory = self.tracked_data[self.active_points[0]]
-                    if trajectory:
-                        max_frame = max(point[0] for point in trajectory)
-                        if self.frame_slider:
-                            self.frame_slider.setMaximum(max_frame)
-                        if self.frame_spinbox:
-                            self.frame_spinbox.setMaximum(max_frame)
-                        if self.total_frames_label:
-                            self.total_frames_label.setText(str(max_frame))
-                        self.state_manager.total_frames = max_frame
-            else:
-                # Single curve data
-                # Update curve widget with new data
-                if self.curve_widget:
-                    self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
-                    self._update_tracking_panel()
-
-                # Update state manager
-                self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
-
-                # Update frame range based on loaded data
-                max_frame = max(point[0] for point in data)
-                if self.frame_slider:
-                    self.frame_slider.setMaximum(max_frame)
-                if self.frame_spinbox:
-                    self.frame_spinbox.setMaximum(max_frame)
-                if self.total_frames_label:
-                    self.total_frames_label.setText(str(max_frame))
-                # CRITICAL: Update state manager's total frames!
-                self.state_manager.total_frames = max_frame
-
-                # Update timeline tabs with frame range and point data
-                self._update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
-
-            self._update_ui_state()
-            self.status_label.setText("File loaded successfully")
-
-    @Slot()
     @Slot()
     def _on_action_save(self) -> None:
-        """Handle save file action."""
-        data = self._get_current_curve_data()
-        if self.file_operations.save_file(data):
-            self.status_label.setText("File saved successfully")
+        """Handle save file action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_save()
 
     @Slot()
-    @Slot()
     def _on_action_save_as(self) -> None:
-        """Handle save as action."""
-        data = self._get_current_curve_data()
-        if self.file_operations.save_file_as(data, self):
-            self.status_label.setText("File saved successfully")
+        """Handle save as action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_save_as()
 
     def _cleanup_file_load_thread(self) -> None:
         """Clean up file loading thread - delegates to FileOperations."""
@@ -1117,120 +1006,69 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
 
     @Slot()
-    @Slot()
     def _on_action_undo(self) -> None:
-        """Handle undo action."""
-        self.services.undo()
-        self.status_label.setText("Undo")
+        """Handle undo action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_undo()
 
-    @Slot()
     @Slot()
     def _on_action_redo(self) -> None:
-        """Handle redo action."""
-        self.services.redo()
-        self.status_label.setText("Redo")
+        """Handle redo action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_redo()
 
-    @Slot()
     @Slot()
     def _on_action_zoom_in(self) -> None:
-        """Handle zoom in action."""
-        if self.curve_widget:
-            # Let curve widget handle zooming directly
-            current_zoom = self.curve_widget.zoom_factor
-            new_zoom = max(0.1, min(10.0, current_zoom * 1.2))
-            self.curve_widget.zoom_factor = new_zoom
-            self.curve_widget._invalidate_caches()
-            self.curve_widget.update()
-            self.curve_widget.zoom_changed.emit(new_zoom)
-        else:
-            # Fallback to state manager
-            current_zoom = self.state_manager.zoom_level
-            self.state_manager.zoom_level = current_zoom * 1.2
-        self._update_zoom_label()
+        """Handle zoom in action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_zoom_in()
 
-    @Slot()
     @Slot()
     def _on_action_zoom_out(self) -> None:
-        """Handle zoom out action."""
-        if self.curve_widget:
-            # Let curve widget handle zooming directly
-            current_zoom = self.curve_widget.zoom_factor
-            new_zoom = max(0.1, min(10.0, current_zoom / 1.2))
-            self.curve_widget.zoom_factor = new_zoom
-            self.curve_widget._invalidate_caches()
-            self.curve_widget.update()
-            self.curve_widget.zoom_changed.emit(new_zoom)
-        else:
-            # Fallback to state manager
-            current_zoom = self.state_manager.zoom_level
-            self.state_manager.zoom_level = current_zoom / 1.2
-        self._update_zoom_label()
+        """Handle zoom out action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_zoom_out()
 
     @Slot()
-    @Slot()
     def _on_action_reset_view(self) -> None:
-        """Handle reset view action."""
-        if self.curve_widget:
-            # Reset view using curve widget's method
-            self.curve_widget.reset_view()
-        else:
-            # Fallback to state manager
-            self.state_manager.zoom_level = 1.0
-            self.state_manager.pan_offset = (0.0, 0.0)
-        self._update_zoom_label()
-        self.status_label.setText("View reset")
+        """Handle reset view action (delegated to ActionHandlerController)."""
+        self.action_controller._on_action_reset_view()
 
     @Slot()
     def _on_load_images(self) -> None:
-        """Handle load background images action."""
-        if self.file_operations.load_images(self):
-            self.status_label.setText("Images loaded successfully")
+        """Handle load background images action (delegated to ActionHandlerController)."""
+        self.action_controller._on_load_images()
 
     @Slot()
     def _on_export_data(self) -> None:
-        """Handle export curve data action."""
-        data = self._get_current_curve_data()
-        if self.file_operations.export_data(data, self):
-            self.status_label.setText("Data exported successfully")
+        """Handle export curve data action (delegated to ActionHandlerController)."""
+        self.action_controller._on_export_data()
 
     @Slot()
     def _on_select_all(self) -> None:
-        """Handle select all action."""
-        if self.curve_widget:
-            self.curve_widget._select_all()
-            self.status_label.setText("All points selected")
+        """Handle select all action (delegated to ActionHandlerController)."""
+        self.action_controller._on_select_all()
 
     @Slot()
     def _on_add_point(self) -> None:
-        """Handle add point action."""
-        # TODO: Implement add point at current position
-        self.status_label.setText("Add point not yet implemented")
+        """Handle add point action (delegated to ActionHandlerController)."""
+        self.action_controller._on_add_point()
 
     @Slot()
     def _on_zoom_fit(self) -> None:
-        """Handle zoom fit action."""
-        if self.curve_widget:
-            self.curve_widget.fit_to_view()
-            self._update_zoom_label()
-            self.status_label.setText("Fitted to view")
+        """Handle zoom fit action (delegated to ActionHandlerController)."""
+        self.action_controller._on_zoom_fit()
 
     @Slot()
     def _on_smooth_curve(self) -> None:
-        """Handle smooth curve action."""
-        # TODO: Implement curve smoothing
-        self.status_label.setText("Smooth curve not yet implemented")
+        """Handle smooth curve action (delegated to ActionHandlerController)."""
+        self.action_controller._on_smooth_curve()
 
     @Slot()
     def _on_filter_curve(self) -> None:
-        """Handle filter curve action."""
-        # TODO: Implement curve filtering
-        self.status_label.setText("Filter curve not yet implemented")
+        """Handle filter curve action (delegated to ActionHandlerController)."""
+        self.action_controller._on_filter_curve()
 
     @Slot()
     def _on_analyze_curve(self) -> None:
-        """Handle analyze curve action."""
-        # TODO: Implement curve analysis
-        self.status_label.setText("Analyze curve not yet implemented")
+        """Handle analyze curve action (delegated to ActionHandlerController)."""
+        self.action_controller._on_analyze_curve()
 
     # ==================== State Change Handlers ====================
 
@@ -1345,12 +1183,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.bounds_label.setText("Bounds: N/A")
 
     def _update_zoom_label(self) -> None:
-        """Update the zoom level label in status bar."""
-        if self.curve_widget:
-            zoom_percent = int(self.curve_widget.zoom_factor * 100)
-        else:
-            zoom_percent = int(self.state_manager.zoom_level * 100)
-        self.zoom_label.setText(f"Zoom: {zoom_percent}%")
+        """Update zoom label (delegated to ActionHandlerController)."""
+        self.action_controller._update_zoom_label()
 
     @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -1546,7 +1380,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Get curve data if not provided
         if curve_data is None:
-            curve_data = self._get_current_curve_data()
+            curve_data = self._get_current_curve_data()  # pyright: ignore[reportAssignmentType]
 
         if not curve_data:
             return
@@ -1589,11 +1423,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             logger.warning(f"Could not update timeline tabs with point data: {e}")
 
     def _get_current_curve_data(self) -> CurveDataList:
-        """Get current curve data from curve widget or state manager."""
-        if self.curve_widget:
-            # Cast to match expected type
-            return cast(CurveDataList, self.curve_widget.curve_data)
-        return cast(CurveDataList, self.state_manager.track_data)
+        """Get current curve data (delegated to ActionHandlerController)."""
+        return self.action_controller._get_current_curve_data()
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""
@@ -1669,80 +1500,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
 
     def apply_smooth_operation(self) -> None:
-        """Apply smoothing operation to selected points in the curve.
-
-        Shows a dialog to get smoothing parameters and applies smoothing
-        to the currently selected points or all points if none selected.
-        """
-        # curve_widget is Optional
-        if self.curve_widget is None:
-            logger.warning("No curve widget available for smoothing")
-            return
-
-        # Get the current curve data
-        curve_data = getattr(self.curve_widget, "curve_data", [])
-        if not curve_data:
-            _ = QMessageBox.information(self, "No Data", "No curve data to smooth.")
-            return
-
-        # Get selected points or use all points
-        selected_indices = getattr(self.curve_widget, "selected_indices", [])
-        if not selected_indices:
-            # Ask if user wants to smooth all points
-            reply = QMessageBox.question(
-                self,
-                "No Selection",
-                "No points selected. Apply smoothing to all points?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                return
-            selected_indices = list(range(len(curve_data)))
-
-        # Get smoothing window size from user
-        from services import get_ui_service
-
-        ui_service = get_ui_service()
-        if ui_service:
-            window_size = ui_service.get_smooth_window_size(self)
-            if window_size is None:
-                return  # User cancelled
-        else:
-            # Fallback to simple input dialog
-            window_size, ok = QInputDialog.getInt(self, "Smoothing Window Size", "Enter window size (3-15):", 5, 3, 15)
-            if not ok:
-                return
-
-        # Apply smoothing using DataService
-        data_service = get_data_service()
-        if data_service:
-            # Extract points to smooth
-            points_to_smooth = [curve_data[i] for i in selected_indices]
-
-            # Apply smoothing
-            smoothed_points = data_service.smooth_moving_average(points_to_smooth, window_size)
-
-            # Update the curve data
-            new_curve_data = list(curve_data)
-            for i, idx in enumerate(selected_indices):
-                if i < len(smoothed_points):
-                    new_curve_data[idx] = smoothed_points[i]
-
-            # Set the new data
-            self.curve_widget.set_curve_data(new_curve_data)
-            # self._update_point_list_data()  # Method doesn't exist
-
-            # Mark as modified
-            # state_manager is always initialized in __init__
-            self.state_manager.is_modified = True
-
-            # Update status
-            self.statusBar().showMessage(
-                f"Applied smoothing to {len(selected_indices)} points (window size: {window_size})", 3000
-            )
-            logger.info(f"Smoothing applied to {len(selected_indices)} points")
-        else:
-            _ = QMessageBox.warning(self, "Service Error", "Data service not available for smoothing.")
+        """Apply smoothing operation (delegated to ActionHandlerController)."""
+        self.action_controller.apply_smooth_operation()
 
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:

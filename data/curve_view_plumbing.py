@@ -13,7 +13,7 @@ from typing import Protocol, TypeVar, cast
 
 from PySide6.QtWidgets import QMessageBox, QWidget
 
-from services.interaction_service import get_interaction_service
+from services import get_interaction_service
 from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 # Type variable for generic decorator return types

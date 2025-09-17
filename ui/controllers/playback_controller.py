@@ -196,6 +196,24 @@ class PlaybackController(QObject):
                 logger.debug(f"Reached min frame {self.playback_state.min_frame}, reversing to forward")
             self.frame_requested.emit(next_frame)
 
+    @property
+    def is_playing(self) -> bool:
+        """Check if playback is active."""
+        return self.playback_state.mode != PlaybackMode.STOPPED
+
+    def _advance_frame(self) -> None:
+        """Advance one frame (for testing compatibility)."""
+        self._on_playback_timer()
+
+    def get_playback_mode(self) -> PlaybackMode:
+        """Get the current playback mode."""
+        return self.playback_state.mode
+
+    def set_playback_mode(self, mode: PlaybackMode) -> None:
+        """Set the playback mode (limited to oscillating behavior)."""
+        # This controller only supports oscillating, so we just log
+        logger.debug(f"PlaybackController only supports oscillating mode, ignoring mode: {mode}")
+
     def update_playback_bounds(self) -> None:
         """Update playback bounds based on current curve data."""
         # Get bounds from state manager or curve data

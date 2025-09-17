@@ -7,6 +7,39 @@ instead of heavy mock objects.
 
 from unittest.mock import MagicMock
 
+# Qt imports for real widgets (fallback for non-GUI environments)
+try:
+    from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget
+
+    HAS_QT = True
+except ImportError:
+    HAS_QT = False
+
+    # Stub classes for non-Qt test environments
+    class QWidget:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def setText(self, text: str):
+            pass
+
+        def setMaximum(self, value: int):
+            pass
+
+        def setMinimum(self, value: int):
+            pass
+
+        def setValue(self, value: int):
+            pass
+
+        def value(self) -> int:
+            return 0
+
+        def showMessage(self, message: str, timeout: int = 0):
+            pass
+
+    QLabel = QPushButton = QSlider = QSpinBox = QStatusBar = QWidget
+
 # Type aliases for test data
 PointsList = list[tuple[int, float, float]]
 Point3 = tuple[int, float, float]
@@ -277,11 +310,14 @@ class TestMainWindow:
         self.curve_view = TestCurveView()
         self.curve_widget = self.curve_view  # Alias
 
-        # UI components structure
-        self.ui_components = MagicMock()
-        self.ui_components.timeline = self._create_timeline_components()
-        self.ui_components.status = self._create_status_components()
-        self.ui_components.toolbar = self._create_toolbar_components()
+        # UI components structure using real widgets
+        class UIComponents:
+            def __init__(self, parent):
+                self.timeline = parent._create_timeline_components()
+                self.status = parent._create_status_components()
+                self.toolbar = parent._create_toolbar_components()
+
+        self.ui_components = UIComponents(self)
 
         # Services mock
         self.services = MagicMock()
@@ -293,9 +329,8 @@ class TestMainWindow:
         self.fps: int = 24
         self.playing: bool = False
 
-        # Status bar mock
-        self.status_bar = MagicMock()
-        self.status_bar.showMessage = MagicMock()
+        # Status bar using real Qt widget
+        self.status_bar = QStatusBar()
 
         # History management (for MainWindowProtocol compatibility)
         self.history: list[object] = []
@@ -349,39 +384,55 @@ class TestMainWindow:
         self.state_manager.is_modified = value
 
     def _create_timeline_components(self):
-        """Create timeline UI components."""
-        timeline = MagicMock()
-        timeline.frame_slider = MagicMock()
-        timeline.frame_slider.value = MagicMock(return_value=1)
-        timeline.frame_slider.setValue = MagicMock()
-        timeline.frame_spin = MagicMock()
-        timeline.frame_spin.value = MagicMock(return_value=1)
-        timeline.frame_spin.setValue = MagicMock()
-        timeline.play_button = MagicMock()
-        timeline.fps_spin = MagicMock()
-        timeline.fps_spin.value = MagicMock(return_value=24)
-        return timeline
+        """Create timeline UI components using real Qt widgets."""
+
+        class TimelineComponents:
+            def __init__(self):
+                # Real Qt widgets instead of mocks
+                self.frame_slider = QSlider()
+                self.frame_slider.setMinimum(1)
+                self.frame_slider.setMaximum(100)
+                self.frame_slider.setValue(1)
+
+                self.frame_spin = QSpinBox()
+                self.frame_spin.setMinimum(1)
+                self.frame_spin.setMaximum(100)
+                self.frame_spin.setValue(1)
+
+                self.play_button = QPushButton("Play")
+
+                self.fps_spin = QSpinBox()
+                self.fps_spin.setMinimum(1)
+                self.fps_spin.setMaximum(120)
+                self.fps_spin.setValue(24)
+
+        return TimelineComponents()
 
     def _create_status_components(self):
-        """Create status UI components."""
-        status = MagicMock()
-        status.frame_label = MagicMock()
-        status.frame_label.setText = MagicMock()
-        status.coord_label = MagicMock()
-        status.coord_label.setText = MagicMock()
-        status.selection_label = MagicMock()
-        status.selection_label.setText = MagicMock()
-        return status
+        """Create status UI components using real Qt widgets."""
+
+        class StatusComponents:
+            def __init__(self):
+                # Real Qt widgets instead of mocks
+                self.frame_label = QLabel("Frame: 1")
+                self.coord_label = QLabel("Coord: (0, 0)")
+                self.selection_label = QLabel("Selection: None")
+
+        return StatusComponents()
 
     def _create_toolbar_components(self):
-        """Create toolbar UI components."""
-        toolbar = MagicMock()
-        toolbar.save_button = MagicMock()
-        toolbar.load_button = MagicMock()
-        toolbar.export_button = MagicMock()
-        toolbar.undo_button = MagicMock()
-        toolbar.redo_button = MagicMock()
-        return toolbar
+        """Create toolbar UI components using real Qt widgets."""
+
+        class ToolbarComponents:
+            def __init__(self):
+                # Real Qt widgets instead of mocks
+                self.save_button = QPushButton("Save")
+                self.load_button = QPushButton("Load")
+                self.export_button = QPushButton("Export")
+                self.undo_button = QPushButton("Undo")
+                self.redo_button = QPushButton("Redo")
+
+        return ToolbarComponents()
 
     def update_ui_state(self) -> None:
         """Update UI state."""

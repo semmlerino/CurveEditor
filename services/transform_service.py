@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
 
 try:
-    from PySide6.QtCore import QPointF  # pyright: ignore[reportMissingTypeStubs]
+    from PySide6.QtCore import QPointF  # pyright: ignore[reportMissingTypeStubs,reportAssignmentType]
 except ImportError:
     # Stub for when PySide6 is not available
     class QPointF:  # pyright: ignore[reportRedeclaration]

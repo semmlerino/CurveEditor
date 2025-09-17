@@ -210,6 +210,9 @@ class FrameNavigationController(QObject):
         elif current > max_frame:
             self.set_frame(max_frame)
 
+        # Update state manager's total frames
+        self.state_manager.total_frames = max_frame
+
         logger.debug(f"Frame range set to {min_frame}-{max_frame}")
 
     def update_frame_display(self, frame: int, update_state: bool = True) -> None:

@@ -18,8 +18,8 @@ from core.models import CurvePoint
 # Qt imports with fallback for non-GUI environments
 try:
     from PySide6.QtCore import QObject, QSize
-    from PySide6.QtGui import QColor, QImage
-    from PySide6.QtWidgets import QMainWindow, QStatusBar
+    from PySide6.QtGui import QAction, QColor, QImage
+    from PySide6.QtWidgets import QMainWindow, QPushButton, QStatusBar
 
     HAS_QT = True
 except ImportError:
@@ -50,6 +50,14 @@ except ImportError:
             return 0
 
     class QColor:
+        def __init__(self, *args: Any) -> None:
+            pass
+
+    class QPushButton:
+        def __init__(self, *args: Any) -> None:
+            pass
+
+    class QAction:
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -197,12 +205,19 @@ class TestSignal:
 
 
 class MockUIComponents:
-    """Mock UI components structure matching real MainWindow.ui interface."""
+    """Real UI components structure matching real MainWindow.ui interface."""
 
     def __init__(self):
-        self.undo_button = Mock()
-        self.redo_button = Mock()
-        self.save_button = Mock()
+        # Use real Qt widgets instead of mocks
+        if HAS_QT:
+            self.undo_button = QPushButton("Undo")
+            self.redo_button = QPushButton("Redo")
+            self.save_button = QPushButton("Save")
+        else:
+            # Fallback to mock only in non-Qt environments
+            self.undo_button = Mock()
+            self.redo_button = Mock()
+            self.save_button = Mock()
 
 
 class MockServices:
@@ -216,8 +231,9 @@ class MockMainWindow(QMainWindow if HAS_QT else object):
     """
     Real Qt MainWindow for testing with tracking capabilities.
 
-    Provides a real Qt widget hierarchy while tracking interactions
-    for test assertions.
+    Provides a real Qt widget hierarchy (QMainWindow, QStatusBar, QAction, QPushButton)
+    while tracking interactions for test assertions. Uses real Qt components when
+    available, falls back to mocks only in non-Qt environments.
     """
 
     def __init__(self):
@@ -243,8 +259,15 @@ class MockMainWindow(QMainWindow if HAS_QT else object):
         # Common attributes - using actual MainWindow attribute names
         self.curve_widget = None  # Real MainWindow uses curve_widget
         self.curve_view = None  # Keep for backward compatibility
-        self.undo_action = Mock()
-        self.redo_action = Mock()
+
+        # Use real Qt actions instead of mocks
+        if HAS_QT:
+            self.undo_action = QAction("Undo", self)
+            self.redo_action = QAction("Redo", self)
+        else:
+            # Fallback to mock only in non-Qt environments
+            self.undo_action = Mock()
+            self.redo_action = Mock()
 
         # UI components structure (for InteractionService compatibility)
         self.ui = MockUIComponents()
