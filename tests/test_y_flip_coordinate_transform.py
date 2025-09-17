@@ -8,7 +8,7 @@ import pytest
 from PySide6.QtCore import QPointF
 
 from services import get_data_service, get_transform_service
-from ui.main_window import FileLoadSignals, FileLoadWorker
+from ui.file_operations import FileLoadSignals, FileLoadWorker
 
 
 @pytest.fixture(autouse=True)

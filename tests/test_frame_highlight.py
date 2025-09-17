@@ -15,6 +15,7 @@ from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
 from ui.curve_view_widget import CurveViewWidget
+from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
 
 
@@ -55,7 +56,7 @@ class TestFramePointHighlighting:
     def main_window(self, app, qtbot):
         """Create real MainWindow with mocked dependencies."""
         # Mock the auto-load to prevent file access
-        with patch.object(MainWindow, "_load_burger_tracking_data"):
+        with patch.object(FileOperations, "load_burger_data_async"):
             window = MainWindow()
 
             # Mock services to avoid external dependencies

@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
 
 
@@ -43,7 +44,7 @@ class TestTimelineControls:
     def main_window(self, qapp, qtbot, service_facade):
         """Create a real MainWindow with mocked dependencies."""
         # Mock the auto-load to prevent file access
-        with patch.object(MainWindow, "_load_burger_tracking_data"):
+        with patch.object(FileOperations, "load_burger_data_async"):
             window = MainWindow()
             window.services = service_facade
 
