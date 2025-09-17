@@ -39,8 +39,8 @@ class ActionHandlerController:
             state_manager: Reference to the application state manager
             main_window: Reference to the main window for UI access
         """
-        self.state_manager: "StateManager" = state_manager
-        self.main_window: "MainWindow" = main_window
+        self.state_manager: StateManager = state_manager
+        self.main_window: MainWindow = main_window
         logger.info("ActionHandlerController initialized")
 
     # ==================== File Action Handlers ====================

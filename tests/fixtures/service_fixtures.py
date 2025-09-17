@@ -132,7 +132,7 @@ def mock_service_factory():
             return service
 
         @staticmethod
-        def create_interaction_service(selected_indices: list | None = None) -> MagicMock:
+        def create_interaction_service(selected_indices: list[int] | None = None) -> MagicMock:
             """Create a mock interaction service."""
             from unittest.mock import MagicMock
 
@@ -216,7 +216,7 @@ def thread_safe_service_test():
 
     class ThreadSafetyChecker:
         def __init__(self):
-            self.errors = []
+            self.errors: list[str] = []
             self.lock = threading.Lock()
 
         def run_concurrent(self, func, num_threads=10, num_iterations=100):

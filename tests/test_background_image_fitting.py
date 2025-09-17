@@ -45,7 +45,7 @@ class ThreadSafeTestImage:
         """Return the size of the image."""
         return QSize(self._width, self._height)
 
-    def fill(self, color: QColor = None) -> None:
+    def fill(self, color: QColor | None = None) -> None:
         """Fill the image with a color."""
         if color is None:
             color = QColor(255, 255, 255)

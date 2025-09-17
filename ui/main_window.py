@@ -244,6 +244,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_last_frame = self.shortcut_manager.action_last_frame
 
         self.action_oscillate_playback = self.shortcut_manager.action_oscillate_playback
+        # Add action to window so shortcut works globally
+        self.addAction(self.action_oscillate_playback)
 
         # Set icons for toolbar
         self.action_new.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
@@ -510,10 +512,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect playback controller signals
         _ = self.playback_controller.frame_requested.connect(self.frame_nav_controller.set_frame)
         _ = self.playback_controller.status_message.connect(self.update_status)
-
-        # Connect action for oscillating playback (spacebar)
-        if self.action_oscillate_playback:
-            _ = self.action_oscillate_playback.triggered.connect(self.playback_controller.toggle_playback)
 
         # Connect timeline tabs if available
         if self.timeline_tabs:

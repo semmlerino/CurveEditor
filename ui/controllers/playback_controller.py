@@ -137,9 +137,11 @@ class PlaybackController(QObject):
         interval = int(1000 / fps)
         self.playback_timer.start(interval)
 
-        # Update UI
+        # Update UI (block signals to prevent recursive calls)
         self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+        self.btn_play_pause.blockSignals(True)
         self.btn_play_pause.setChecked(True)
+        self.btn_play_pause.blockSignals(False)
 
         # Emit signals
         self.playback_started.emit()
@@ -159,9 +161,11 @@ class PlaybackController(QObject):
         self.playback_timer.stop()
         self.playback_state.mode = PlaybackMode.STOPPED
 
-        # Update UI
+        # Update UI (block signals to prevent recursive calls)
         self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.btn_play_pause.blockSignals(True)
         self.btn_play_pause.setChecked(False)
+        self.btn_play_pause.blockSignals(False)
 
         # Emit signals
         self.playback_stopped.emit()

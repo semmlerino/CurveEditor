@@ -324,6 +324,12 @@ class PointCollection:
         """Iterate over points."""
         return iter(self.points)
 
+    @overload
+    def __getitem__(self, index: int) -> CurvePoint: ...
+
+    @overload
+    def __getitem__(self, index: slice) -> PointCollection: ...
+
     def __getitem__(self, index: int | slice) -> CurvePoint | PointCollection:
         """Get point(s) by index."""
         if isinstance(index, slice):

@@ -52,6 +52,7 @@ from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
 from core.models import CurvePoint, PointCollection
 from core.point_types import safe_extract_point
 from core.signal_manager import SignalManager
+from core.type_aliases import CurveDataList
 
 # Import optimized renderer for 47x performance improvement
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
@@ -277,7 +278,7 @@ class CurveViewWidget(QWidget):
         """Y offset for OptimizedCurveRenderer compatibility."""
         return self.pan_offset_y + self.manual_offset_y
 
-    def set_curve_data(self, data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]]) -> None:
+    def set_curve_data(self, data: CurveDataList) -> None:
         """
         Set the curve data to display.
 

@@ -9,7 +9,7 @@ application, creating and managing all QActions with their shortcuts.
 import logging
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QWidget
 
@@ -188,6 +188,7 @@ class ShortcutManager(QObject):
         """Create playback control QActions."""
         self.action_oscillate_playback = QAction("Toggle Playback", self.parent_widget)
         self.action_oscillate_playback.setShortcut("Space")
+        self.action_oscillate_playback.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         self.action_oscillate_playback.setStatusTip("Toggle oscillating playback")
 
     def get_file_actions(self) -> list[QAction | None]:

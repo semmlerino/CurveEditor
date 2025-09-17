@@ -26,11 +26,13 @@ import json
 import math
 import os
 import tempfile
+from typing import cast
 from unittest.mock import Mock
 
 import pytest
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from PySide6.QtGui import QPixmap
 
 # Import core models under test
 from core.image_state import ImageDisplayInfo, ImageLoadingState, ImageSequenceInfo, ImageState
@@ -1181,7 +1183,7 @@ class TestImageState:
         with tempfile.TemporaryDirectory() as tmpdir:
             state.set_sequence(tmpdir, ["frame001.jpg"])
             pixmap = ThreadSafeTestImage(100, 100)
-            state.set_image_loaded(pixmap, "/test/image.jpg")
+            state.set_image_loaded(cast(QPixmap, cast(object, pixmap)), "/test/image.jpg")
 
             # Clear everything
             state.clear_sequence()
@@ -1198,7 +1200,7 @@ class TestImageState:
             filenames = ["frame001.jpg", "frame002.jpg"]
             state.set_sequence(tmpdir, filenames)
             pixmap = ThreadSafeTestImage(100, 100)
-            state.set_image_loaded(pixmap, "/test/image.jpg")
+            state.set_image_loaded(cast(QPixmap, cast(object, pixmap)), "/test/image.jpg")
 
             # Clear only display
             state.clear_display()
@@ -1211,7 +1213,7 @@ class TestImageState:
         """Test clearing display with no sequence clears everything."""
         state = ImageState()
         pixmap = ThreadSafeTestImage(100, 100)
-        state.set_image_loaded(pixmap, "/test/image.jpg")
+        state.set_image_loaded(cast(QPixmap, pixmap), "/test/image.jpg")
 
         state.clear_display()
 
@@ -1244,7 +1246,7 @@ class TestImageState:
             state.set_current_image_index(0)
 
             pixmap = ThreadSafeTestImage(100, 100)
-            state.set_image_loaded(pixmap, "/test/path/test_image.jpg")
+            state.set_image_loaded(cast(QPixmap, cast(object, pixmap)), "/test/path/test_image.jpg")
 
             message = state.get_status_message()
             assert "Image loaded: test_image.jpg" in message
@@ -1341,7 +1343,7 @@ class TestImageState:
             state.set_current_image_index(1)
 
             pixmap = ThreadSafeTestImage(100, 200)
-            state.set_image_loaded(pixmap, "/test/image.jpg")
+            state.set_image_loaded(cast(QPixmap, cast(object, pixmap)), "/test/image.jpg")
 
             summary = state.get_state_summary()
 
@@ -1592,7 +1594,7 @@ class TestEdgeCasesAndErrorConditions:
 
         # Setting null pixmap
         null_pixmap = None  # Use None for null pixmap test
-        state.set_image_loaded(null_pixmap, "")
+        state.set_image_loaded(cast(QPixmap, cast(object, null_pixmap)), "")
         assert not state.has_image_displayed()  # Null pixmap not considered loaded
 
     def test_bulk_operations_empty_lists(self):
