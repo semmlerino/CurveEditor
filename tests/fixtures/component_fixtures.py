@@ -328,7 +328,7 @@ def integrated_main_window(qapp: QApplication):
     Returns:
         MainWindow: Fully configured main window
     """
-    from ui.main_window_refactored import MainWindow
+    from ui.main_window import MainWindow
 
     window = MainWindow()
     window.resize(1200, 800)
