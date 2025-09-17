@@ -19,9 +19,6 @@ Key architecture components:
 # Standard library imports
 import logging
 import sys
-import threading
-from dataclasses import dataclass
-from enum import Enum, auto
 from typing import TYPE_CHECKING, cast, override
 
 if TYPE_CHECKING:
@@ -33,9 +30,7 @@ if TYPE_CHECKING:
 # Import PySide6 modules
 from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, Signal, Slot
 from PySide6.QtGui import (
-    QAction,
     QKeyEvent,
-    QKeySequence,
     QPixmap,
 )
 from PySide6.QtWidgets import (
@@ -59,11 +54,14 @@ from PySide6.QtWidgets import (
 )
 
 from core.type_aliases import CurveDataList
+from services import get_data_service
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
+from .controllers import FrameNavigationController, PlaybackController
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
+from .file_operations import FileOperations
 from .keyboard_shortcuts import ShortcutManager
 from .state_manager import StateManager
 from .tracking_points_panel import TrackingPointsPanel
@@ -74,345 +72,6 @@ from .ui_constants import MAX_HISTORY_SIZE
 
 # Configure logger for this module
 logger = logging.getLogger("main_window")
-
-
-class PlaybackMode(Enum):
-    """Enumeration for oscillating playback modes."""
-
-    STOPPED = auto()
-    PLAYING_FORWARD = auto()
-    PLAYING_BACKWARD = auto()
-
-
-@dataclass
-class PlaybackState:
-    """State management for oscillating timeline playback."""
-
-    mode: PlaybackMode = PlaybackMode.STOPPED
-    fps: int = 12
-    current_frame: int = 1
-    min_frame: int = 1
-    max_frame: int = 100
-    loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
-
-
-class FileLoadSignals(QObject):
-    """Signal emitter for thread-safe communication from Python thread to Qt main thread."""
-
-    # Signals for communicating with main thread
-    tracking_data_loaded: Signal = Signal(list)  # Emits list of tracking data points
-    multi_point_data_loaded: Signal = Signal(dict)  # Emits dict of multi-point tracking data
-    image_sequence_loaded: Signal = Signal(str, list)  # Emits directory path and list of filenames
-    progress_updated: Signal = Signal(int, str)  # Emits progress percentage and status message
-    error_occurred: Signal = Signal(str)  # Emits error message
-    finished: Signal = Signal()  # Emits when all loading is complete
-
-
-class FileLoadWorker:
-    """Worker class for loading files in a Python background thread (not QThread)."""
-
-    def __init__(self, signals: FileLoadSignals):
-        """Initialize worker with signal emitter."""
-        self.signals: FileLoadSignals = signals  # QObject for emitting signals
-        self.tracking_file_path: str | None = None
-        self.image_dir_path: str | None = None
-        self._should_stop: bool = False
-        self._work_ready: bool = False
-        self._work_ready_lock: threading.Lock = threading.Lock()
-        self._stop_lock: threading.Lock = threading.Lock()
-        self._thread: threading.Thread | None = None
-
-    def stop(self) -> None:
-        """Request the worker to stop processing."""
-        with self._stop_lock:
-            self._should_stop = True
-        # Wait for thread to finish if it's running
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
-
-    def start_work(self, tracking_file_path: str | None, image_dir_path: str | None) -> None:
-        """Start new file loading work in a Python thread."""
-        # Stop any existing work
-        self.stop()
-
-        # Set new work parameters
-        self.tracking_file_path = tracking_file_path
-        self.image_dir_path = image_dir_path
-        with self._work_ready_lock:
-            self._work_ready = True
-        self._should_stop = False
-
-        # Start new thread
-        self._thread = threading.Thread(target=self.run, daemon=True)
-        self._thread.start()
-
-    def _check_should_stop(self) -> bool:
-        """Thread-safe check of stop flag."""
-        with self._stop_lock:
-            return self._should_stop
-
-    def run(self) -> None:
-        """Main worker method that runs in background Python thread."""
-        # Check if there's work ready
-        with self._work_ready_lock:
-            if not self._work_ready:
-                return  # No work to do
-            self._work_ready = False
-
-        logger.info(f"[PYTHON-THREAD] Worker.run() starting in Python thread: {threading.current_thread().name}")
-        try:
-            total_tasks = 0
-            current_task = 0
-
-            # Count tasks to do
-            if self.tracking_file_path:
-                total_tasks += 1
-            if self.image_dir_path:
-                total_tasks += 1
-
-            if total_tasks == 0:
-                self.signals.finished.emit()
-                return
-
-            # Load tracking data if requested
-            if self.tracking_file_path and not self._check_should_stop():
-                self.signals.progress_updated.emit(0, "Loading tracking data...")
-                try:
-                    # Check if it's a multi-point file
-                    is_multi_point = False
-                    try:
-                        with open(self.tracking_file_path) as f:
-                            content = f.read(500)  # Read first 500 chars to detect format
-                            # Multi-point files have "Point" followed by a name
-                            is_multi_point = "Point" in content and ("Point1" in content or "Point01" in content)
-                    except OSError:
-                        pass
-
-                    multi_data = {}
-                    data = []
-
-                    if is_multi_point:
-                        # Load as multi-point data
-                        multi_data = self._load_multi_point_data_direct(
-                            self.tracking_file_path, flip_y=True, image_height=720
-                        )
-                        if multi_data:
-                            # Emit multi-point data signal
-                            self.signals.multi_point_data_loaded.emit(multi_data)
-
-                            # Also emit first point's data for compatibility
-                            first_point = list(multi_data.keys())[0] if multi_data else None
-                            data = multi_data.get(first_point, []) if first_point else []
-
-                            logger.info(
-                                f"[PYTHON-THREAD] Loaded {len(multi_data)} tracking points from multi-point file"
-                            )
-                    else:
-                        # Load as single-point data
-                        data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
-                        if data:
-                            logger.info(
-                                f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
-                            )
-                            self.signals.tracking_data_loaded.emit(data)
-
-                    current_task += 1
-                    progress = int((current_task / total_tasks) * 100)
-
-                    if is_multi_point and multi_data:
-                        total_points = sum(len(traj) for traj in multi_data.values())
-                        self.signals.progress_updated.emit(
-                            progress, f"Loaded {len(multi_data)} trajectories, {total_points} total points"
-                        )
-                    else:
-                        self.signals.progress_updated.emit(
-                            progress, f"Loaded {len(data) if data else 0} tracking points"
-                        )
-                except Exception as e:
-                    self.signals.error_occurred.emit(f"Failed to load tracking data: {str(e)}")
-
-            # Load image sequence if requested
-            if self.image_dir_path and not self._check_should_stop():
-                self.signals.progress_updated.emit(int((current_task / total_tasks) * 100), "Loading image sequence...")
-                try:
-                    # Directly scan for image files without creating DataService
-                    image_files = self._scan_image_directory(self.image_dir_path)
-                    if image_files:
-                        logger.info(
-                            f"[PYTHON-THREAD] Emitting image_sequence_loaded from Python thread: {threading.current_thread().name}"
-                        )
-                        self.signals.image_sequence_loaded.emit(self.image_dir_path, image_files)
-                    current_task += 1
-                    self.signals.progress_updated.emit(100, f"Loaded {len(image_files) if image_files else 0} images")
-                except Exception as e:
-                    self.signals.error_occurred.emit(f"Failed to load image sequence: {str(e)}")
-
-        except Exception as e:
-            self.signals.error_occurred.emit(f"Unexpected error in file loading: {str(e)}")
-        finally:
-            logger.info("[PYTHON-THREAD] About to emit finished signal")
-            logger.info(f"[PYTHON-THREAD] Current Python thread: {threading.current_thread().name}")
-            self.signals.finished.emit()
-            logger.info("[PYTHON-THREAD] finished.emit() completed")
-
-    def _load_2dtrack_data_direct(
-        self, file_path: str, flip_y: bool = False, image_height: float = 720
-    ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
-        """Load 2D tracking data directly without using DataService.
-
-        Handles 2DTrackData.txt format with 4-line header:
-        Line 1: Version
-        Line 2: Identifier 1
-        Line 3: Identifier 2
-        Line 4: Number of points
-        Lines 5+: frame_number x_coordinate y_coordinate [status]
-
-        Args:
-            file_path: Path to the tracking data file
-            flip_y: If True, flip Y coordinates (image_height - y)
-            image_height: Height of the image for Y-flip calculation
-        """
-        data = []
-        try:
-            with open(file_path) as f:
-                lines = f.readlines()
-
-                # Detect if this is a 2DTrackData.txt format file by checking first few lines
-                has_header = False
-                if len(lines) > 4:
-                    # Check if line 4 looks like a point count and line 5 starts with data
-                    try:
-                        # Try to parse line 4 as a single integer (point count)
-                        int(lines[3].strip())
-                        # Try to parse line 5 as data (frame x y)
-                        parts = lines[4].strip().split()
-                        if len(parts) >= 3:
-                            int(parts[0])
-                            float(parts[1])
-                            float(parts[2])
-                            has_header = True
-                    except (ValueError, IndexError):
-                        pass
-
-                # Process lines, skipping header if detected
-                start_line = 4 if has_header else 0
-                for line in lines[start_line:]:
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        try:
-                            frame = int(parts[0])
-                            x = float(parts[1])
-                            y = float(parts[2])
-
-                            # Flip Y coordinate if requested (3DEqualizer convention)
-                            if flip_y:
-                                y = image_height - y
-
-                            # Handle optional status field
-                            if len(parts) >= 4:
-                                status = parts[3]
-                                data.append((frame, x, y, status))
-                            else:
-                                data.append((frame, x, y))
-                        except ValueError:
-                            # Skip lines that can't be parsed as data
-                            continue
-        except Exception as e:
-            logger.error(f"Error loading tracking data: {e}")
-            raise
-        return data
-
-    def _load_multi_point_data_direct(
-        self, file_path: str, flip_y: bool = False, image_height: float = 720
-    ) -> dict[str, list[tuple[int, float, float]]]:
-        """Load multi-point tracking data (2DTrackDatav2 format).
-
-        Returns a dictionary where keys are point names and values are trajectories.
-        """
-        tracked_data = {}
-
-        try:
-            with open(file_path, encoding="utf-8") as f:
-                lines = f.readlines()
-
-            i = 0
-            while i < len(lines):
-                line = lines[i].strip()
-
-                # Look for point name lines (e.g., "Point1", "Point02")
-                if line.startswith("Point"):
-                    point_name = line
-
-                    # Check if we have the required header lines
-                    if i - 1 >= 0 and i + 2 < len(lines):
-                        try:
-                            # Format: version, point_name, identifier, count
-                            _ = lines[i + 1].strip()  # identifier
-                            point_count = int(lines[i + 2].strip())
-
-                            # Read trajectory data
-                            trajectory = []
-                            data_start = i + 3
-
-                            for j in range(data_start, min(data_start + point_count, len(lines))):
-                                data_line = lines[j].strip()
-                                if not data_line:
-                                    continue
-
-                                parts = data_line.split()
-                                if len(parts) >= 3:
-                                    try:
-                                        frame = int(parts[0])
-                                        x = float(parts[1])
-                                        y = float(parts[2])
-
-                                        # Flip Y coordinate if requested
-                                        if flip_y:
-                                            y = image_height - y
-
-                                        trajectory.append((frame, x, y))
-                                    except ValueError:
-                                        continue
-
-                            if trajectory:
-                                tracked_data[point_name] = trajectory
-
-                            # Move to next point
-                            i = data_start + point_count - 1
-                        except (ValueError, IndexError):
-                            pass
-
-                i += 1
-
-        except Exception as e:
-            logger.error(f"Error loading multi-point tracking data: {e}")
-            # Fall back to single point loading
-            return {}
-
-        return tracked_data
-
-    def _scan_image_directory(self, dir_path: str) -> list[str]:
-        """Scan directory for image files without using DataService."""
-        from pathlib import Path
-
-        supported_formats = [".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"]
-        image_files = []
-
-        try:
-            path = Path(dir_path)
-            if path.exists() and path.is_dir():
-                # Get all image files
-                for file_path in sorted(path.iterdir()):
-                    if file_path.is_file() and file_path.suffix.lower() in supported_formats:
-                        image_files.append(file_path.name)
-        except Exception as e:
-            logger.error(f"Error scanning image directory: {e}")
-            raise
-
-        return sorted(image_files)  # Return sorted list of filenames
 
 
 class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typing)
@@ -475,12 +134,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager: StateManager = StateManager(self)
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
+        # Initialize controllers
+        self.playback_controller: PlaybackController = PlaybackController(self.state_manager, self)
+        self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
+
         # Initialize service facade
         from services.service_protocols import MainWindowProtocol
 
         from .service_facade import get_service_facade
 
         self.services: ServiceFacade = get_service_facade(cast(MainWindowProtocol, cast(object, self)))
+
+        # Initialize file operations manager
+        self.file_operations: FileOperations = FileOperations(self, self.state_manager, self.services)
 
         # Initialize UI components container for organized widget management
         self.ui: UIComponents = UIComponents(self)
@@ -491,6 +157,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Initialize UI components
         self._init_actions()
+        self._init_menus()
         self._init_toolbar()
         self._init_central_widget()
         self._init_dock_widgets()
@@ -505,13 +172,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.history_index: int = -1
         self.max_history_size: int = MAX_HISTORY_SIZE
 
-        # Initialize background thread management
-        self.file_load_worker: FileLoadWorker | None = None
-        self.file_load_signals: FileLoadSignals | None = None
+        # File operations are now handled by FileOperations class
         self._file_loading: bool = False  # Track if file loading is in progress
 
-        # Initialize persistent worker and thread for Keep Worker Alive strategy
-        self._init_persistent_worker()
+        # Connect file operations signals
+        self._connect_file_operations_signals()
 
         # Initialize centering state
         self.auto_center_enabled: bool = False
@@ -521,12 +186,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.image_filenames: list[str] = []
         self.current_image_idx: int = 0
 
-        # Initialize playback timer for oscillating timeline playback
-        self.playback_timer = QTimer(self)
-        _ = self.playback_timer.timeout.connect(self._on_playback_timer)
-
-        # Initialize playback state for oscillating playback
-        self.playback_state: PlaybackState = PlaybackState()
+        # Playback functionality now handled by PlaybackController
+        # Frame navigation functionality now handled by FrameNavigationController
 
         # Initialize dynamic instance variables that will be checked later
         self._point_spinbox_connected: bool = False
@@ -546,86 +207,61 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._setup_tab_order()
 
         # Auto-load burger footage and tracking data if available
-        _ = self._load_burger_tracking_data()
+        self.file_operations.load_burger_data_async()
 
         # Initialize tooltips as disabled by default
         self._toggle_tooltips()
 
         logger.info("MainWindow initialized successfully")
 
-    def _init_persistent_worker(self) -> None:
-        """Initialize worker with Python threading (no QThread)."""
-        logger.info("[PYTHON-THREAD] Initializing file loader with Python threading")
-
-        # Create signal emitter (stays in main thread)
-        self.file_load_signals = FileLoadSignals()
-
-        # Create worker (plain Python class, not QObject)
-        self.file_load_worker = FileLoadWorker(self.file_load_signals)
-
-        # Connect signals (emitter is in main thread, so this is safe)
-        self.file_load_signals.tracking_data_loaded.connect(self._on_tracking_data_loaded)
-        self.file_load_signals.multi_point_data_loaded.connect(self._on_multi_point_data_loaded)
-        self.file_load_signals.image_sequence_loaded.connect(self._on_image_sequence_loaded)
-        self.file_load_signals.progress_updated.connect(self._on_file_load_progress)
-        self.file_load_signals.error_occurred.connect(self._on_file_load_error)
-        self.file_load_signals.finished.connect(self._on_file_load_finished)
-
-        logger.info("[PYTHON-THREAD] File loader initialized with Python threading")
-
     def _init_actions(self) -> None:
-        """Initialize all QActions for menus and toolbars."""
-        # File actions
-        self.action_new: QAction = QAction("New", self)
-        self.action_new.setShortcut(QKeySequence.StandardKey.New)
-        self.action_new.setStatusTip("Create a new curve")
+        """Get all QActions from ShortcutManager and set up icons."""
+        # Get actions from ShortcutManager
+        self.action_new = self.shortcut_manager.action_new
+        self.action_open = self.shortcut_manager.action_open
+        self.action_save = self.shortcut_manager.action_save
+        self.action_save_as = self.shortcut_manager.action_save_as
+        self.action_load_images = self.shortcut_manager.action_load_images
+        self.action_export_data = self.shortcut_manager.action_export_data
+        self.action_quit = self.shortcut_manager.action_quit
+
+        self.action_undo = self.shortcut_manager.action_undo
+        self.action_redo = self.shortcut_manager.action_redo
+        self.action_select_all = self.shortcut_manager.action_select_all
+        self.action_add_point = self.shortcut_manager.action_add_point
+
+        self.action_zoom_in = self.shortcut_manager.action_zoom_in
+        self.action_zoom_out = self.shortcut_manager.action_zoom_out
+        self.action_zoom_fit = self.shortcut_manager.action_zoom_fit
+        self.action_reset_view = self.shortcut_manager.action_reset_view
+
+        self.action_smooth_curve = self.shortcut_manager.action_smooth_curve
+        self.action_filter_curve = self.shortcut_manager.action_filter_curve
+        self.action_analyze_curve = self.shortcut_manager.action_analyze_curve
+
+        self.action_next_frame = self.shortcut_manager.action_next_frame
+        self.action_prev_frame = self.shortcut_manager.action_prev_frame
+        self.action_first_frame = self.shortcut_manager.action_first_frame
+        self.action_last_frame = self.shortcut_manager.action_last_frame
+
+        self.action_oscillate_playback = self.shortcut_manager.action_oscillate_playback
+
+        # Set icons for toolbar
         self.action_new.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
-
-        self.action_open: QAction = QAction("Open", self)
-        self.action_open.setShortcut(QKeySequence.StandardKey.Open)
-        self.action_open.setStatusTip("Open an existing curve file")
         self.action_open.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
-
-        self.action_save: QAction = QAction("Save", self)
-        self.action_save.setShortcut(QKeySequence.StandardKey.Save)
-        self.action_save.setStatusTip("Save the current curve")
         self.action_save.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon))
-
-        self.action_save_as: QAction = QAction("Save As...", self)
-        self.action_save_as.setShortcut(QKeySequence.StandardKey.SaveAs)
-        self.action_save_as.setStatusTip("Save the curve with a new name")
-
-        # Edit actions
-        self.action_undo: QAction = QAction("Undo", self)
-        self.action_undo.setShortcut(QKeySequence.StandardKey.Undo)
-        self.action_undo.setStatusTip("Undo the last action")
         self.action_undo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack))
-        self.action_undo.setEnabled(False)
-
-        self.action_redo: QAction = QAction("Redo", self)
-        self.action_redo.setShortcut(QKeySequence.StandardKey.Redo)
-        self.action_redo.setStatusTip("Redo the previously undone action")
         self.action_redo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward))
-        self.action_redo.setEnabled(False)
-
-        # View actions
-        self.action_zoom_in: QAction = QAction("Zoom In", self)
-        self.action_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        self.action_zoom_in.setStatusTip("Zoom in the view")
         self.action_zoom_in.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp))
-
-        self.action_zoom_out: QAction = QAction("Zoom Out", self)
-        self.action_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        self.action_zoom_out.setStatusTip("Zoom out the view")
         self.action_zoom_out.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown))
-
-        self.action_reset_view: QAction = QAction("Reset View", self)
-        self.action_reset_view.setShortcut("Ctrl+0")
-        self.action_reset_view.setStatusTip("Reset the view to default")
         self.action_reset_view.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogResetButton))
 
-        # Connect actions to shortcut manager signals
-        self._connect_actions()
+        # Set initial enabled states
+        self.action_undo.setEnabled(False)
+        self.action_redo.setEnabled(False)
+
+        # Connect actions to handlers
+        self.shortcut_manager.connect_to_main_window(self)
 
     def _init_toolbar(self) -> None:
         """Initialize the main toolbar."""
@@ -651,12 +287,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         _ = toolbar.addAction(self.action_reset_view)
         _ = toolbar.addSeparator()
 
-        # Add frame control to toolbar
+        # Add frame control to toolbar (from FrameNavigationController)
         _ = toolbar.addWidget(QLabel("Frame:"))
-        self.frame_spinbox = QSpinBox()
-        self.frame_spinbox.setMinimum(1)
-        self.frame_spinbox.setMaximum(1000)
-        self.frame_spinbox.setValue(1)
+        self.frame_spinbox = self.frame_nav_controller.frame_spinbox
         _ = toolbar.addWidget(self.frame_spinbox)
         self.ui.timeline.frame_spinbox = self.frame_spinbox  # Map to timeline group
         _ = toolbar.addSeparator()
@@ -708,25 +341,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.line_width_slider.setValue(2)
         self.ui.visualization.line_width_slider = self.line_width_slider
 
-        # Keep btn_play_pause as it's used for playback functionality (though not visible)
-        self.btn_play_pause = QPushButton()
-        self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.btn_play_pause.setCheckable(True)
+        # Playback controls from PlaybackController
+        self.btn_play_pause = self.playback_controller.btn_play_pause
         self.ui.timeline.play_button = self.btn_play_pause  # Map to timeline group
 
-        # NOTE: Removed other playback buttons (first/prev/next/last) - they were truly orphaned
-
-        self.fps_spinbox = QSpinBox()
-        self.fps_spinbox.setMinimum(1)
-        self.fps_spinbox.setMaximum(120)
-        self.fps_spinbox.setValue(24)
-        self.fps_spinbox.setSuffix(" fps")
+        # FPS control from PlaybackController
+        self.fps_spinbox = self.playback_controller.fps_spinbox
         self.ui.timeline.fps_spinbox = self.fps_spinbox  # Map to timeline group
 
-        self.frame_slider = QSlider(Qt.Orientation.Horizontal)
-        self.frame_slider.setMinimum(1)
-        self.frame_slider.setMaximum(1000)
-        self.frame_slider.setValue(1)
+        # Frame slider from FrameNavigationController
+        self.frame_slider = self.frame_nav_controller.frame_slider
         self.ui.timeline.timeline_slider = self.frame_slider  # Map to timeline group
 
         # NOTE: timeline_tabs creation moved to _init_central_widget where it's actually used
@@ -853,6 +477,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.position_label: QLabel = QLabel("X: 0.000, Y: 0.000")
         self.status_bar.addPermanentWidget(self.position_label)
 
+    def _connect_file_operations_signals(self) -> None:
+        """Connect signals from file operations manager."""
+        # Connect file loading signals
+        self.file_operations.tracking_data_loaded.connect(self._on_tracking_data_loaded)
+        self.file_operations.multi_point_data_loaded.connect(self._on_multi_point_data_loaded)
+        self.file_operations.image_sequence_loaded.connect(self._on_image_sequence_loaded)
+        self.file_operations.progress_updated.connect(self._on_file_load_progress)
+        self.file_operations.error_occurred.connect(self._on_file_load_error)
+        self.file_operations.finished.connect(self._on_file_load_finished)
+
+        # Connect file operation status signals
+        self.file_operations.file_loaded.connect(self._on_file_loaded)
+        self.file_operations.file_saved.connect(self._on_file_saved)
+
+        logger.info("Connected file operations signals")
+
     def _connect_signals(self) -> None:
         """Connect signals from state manager and shortcuts."""
         # Connect state manager signals
@@ -862,14 +502,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         _ = self.state_manager.selection_changed.connect(self._on_selection_changed)
         _ = self.state_manager.view_state_changed.connect(self._on_view_state_changed)
 
-        # Connect shortcut signals (these will be no-ops for now)
-        _ = self.shortcut_manager.shortcut_activated.connect(self._on_shortcut_activated)
+        # Connect controller signals
+        # Frame navigation controller handles frame changes internally
+        # We just listen for the result
+        _ = self.frame_nav_controller.frame_changed.connect(self._on_frame_changed_from_controller)
+        _ = self.frame_nav_controller.status_message.connect(self.update_status)
 
-        # Connect frame controls
-        if self.frame_spinbox:
-            _ = self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
-        if self.frame_slider:
-            _ = self.frame_slider.valueChanged.connect(self._on_slider_changed)
+        # Connect playback controller signals
+        _ = self.playback_controller.frame_requested.connect(self.frame_nav_controller.set_frame)
+        _ = self.playback_controller.status_message.connect(self.update_status)
+
+        # Connect action for oscillating playback (spacebar)
+        if self.action_oscillate_playback:
+            _ = self.action_oscillate_playback.triggered.connect(self.playback_controller.toggle_playback)
 
         # Connect timeline tabs if available
         if self.timeline_tabs:
@@ -903,22 +548,49 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if self.line_width_slider:
             _ = self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
 
-    def _connect_actions(self) -> None:
-        """Connect actions to their handlers."""
-        # File actions
-        _ = self.action_new.triggered.connect(self._on_action_new)
-        _ = self.action_open.triggered.connect(self._on_action_open)
-        _ = self.action_save.triggered.connect(self._on_action_save)
-        _ = self.action_save_as.triggered.connect(self._on_action_save_as)
+    def _init_menus(self) -> None:
+        """Create menu bar with all actions."""
+        menubar = self.menuBar()
 
-        # Edit actions
-        _ = self.action_undo.triggered.connect(self._on_action_undo)
-        _ = self.action_redo.triggered.connect(self._on_action_redo)
+        # File menu
+        file_menu = menubar.addMenu("&File")
+        for action in self.shortcut_manager.get_file_actions():
+            if action is None:
+                file_menu.addSeparator()
+            else:
+                file_menu.addAction(action)
 
-        # View actions
-        _ = self.action_zoom_in.triggered.connect(self._on_action_zoom_in)
-        _ = self.action_zoom_out.triggered.connect(self._on_action_zoom_out)
-        _ = self.action_reset_view.triggered.connect(self._on_action_reset_view)
+        # Edit menu
+        edit_menu = menubar.addMenu("&Edit")
+        for action in self.shortcut_manager.get_edit_actions():
+            if action is None:
+                edit_menu.addSeparator()
+            else:
+                edit_menu.addAction(action)
+
+        # View menu
+        view_menu = menubar.addMenu("&View")
+        for action in self.shortcut_manager.get_view_actions():
+            if action is None:
+                view_menu.addSeparator()
+            else:
+                view_menu.addAction(action)
+
+        # Curve menu
+        curve_menu = menubar.addMenu("&Curve")
+        for action in self.shortcut_manager.get_curve_actions():
+            if action is None:
+                curve_menu.addSeparator()
+            else:
+                curve_menu.addAction(action)
+
+        # Navigation menu
+        nav_menu = menubar.addMenu("&Navigation")
+        for action in self.shortcut_manager.get_navigation_actions():
+            if action is None:
+                nav_menu.addSeparator()
+            else:
+                nav_menu.addAction(action)
 
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
@@ -954,57 +626,37 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             logger.debug("Document marked as modified")
 
     @Slot(str)
-    def _on_shortcut_activated(self, shortcut_name: str) -> None:
-        """Handle keyboard shortcut activation."""
-        logger.debug(f"Shortcut activated: {shortcut_name}")
-        # Map shortcut names to actions
-        shortcut_map = {
-            "new_file": self.action_new,
-            "open_file": self.action_open,
-            "save_file": self.action_save,
-            "save_as": self.action_save_as,
-            "undo": self.action_undo,
-            "redo": self.action_redo,
-            "zoom_in": self.action_zoom_in,
-            "zoom_out": self.action_zoom_out,
-            "reset_view": self.action_reset_view,
-            "next_frame": lambda: self._on_next_frame(),
-            "prev_frame": lambda: self._on_prev_frame(),
-            "first_frame": lambda: self._on_first_frame(),
-            "last_frame": lambda: self._on_last_frame(),
-        }
+    def _on_file_loaded(self, file_path: str) -> None:
+        """Handle successful file loading from FileOperations."""
+        logger.info(f"File loaded: {file_path}")
+        self._update_ui_state()
 
-        if shortcut_name in shortcut_map:
-            action_or_func = shortcut_map[shortcut_name]
-            if callable(action_or_func):
-                action_or_func()
-            else:
-                action_or_func.trigger()
-
-        self.status_label.setText(f"Shortcut: {shortcut_name}")
+    @Slot(str)
+    def _on_file_saved(self, file_path: str) -> None:
+        """Handle successful file save from FileOperations."""
+        logger.info(f"File saved: {file_path}")
+        self._update_ui_state()
 
     # ==================== Timeline Control Handlers ====================
 
     @Slot(int)
     @Slot(int)
-    def _on_frame_changed(self, value: int) -> None:
-        """Handle frame spinbox value change."""
-        logger.debug(f"[FRAME] Frame changed to: {value}")
-        # Use shared frame update logic, including state manager update
-        self._update_frame_display(value, update_state_manager=True)
+    def _on_frame_changed_from_controller(self, frame: int) -> None:
+        """Handle frame change from the navigation controller.
+
+        The controller has already updated the spinbox/slider and state manager,
+        so we just need to update other dependent components.
+        """
+        logger.debug(f"[FRAME] Frame changed via controller to: {frame}")
+        # Update dependent components using existing logic
+        self._update_frame_display(frame, update_state_manager=False)
 
     def _update_frame_display(self, frame: int, update_state_manager: bool = True) -> None:
-        """Shared method to update frame display across all UI components."""
-        # Update UI controls
-        if self.frame_spinbox:
-            _ = self.frame_spinbox.blockSignals(True)
-            self.frame_spinbox.setValue(frame)
-            _ = self.frame_spinbox.blockSignals(False)
+        """Shared method to update frame display across all UI components.
 
-        if self.frame_slider:
-            _ = self.frame_slider.blockSignals(True)
-            self.frame_slider.setValue(frame)
-            _ = self.frame_slider.blockSignals(False)
+        Note: Spinbox/slider updates are now handled by FrameNavigationController.
+        """
+        # Controller now handles spinbox/slider synchronization
 
         # Update timeline tabs if available
         if self.timeline_tabs:
@@ -1026,167 +678,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget._invalidate_caches()
             self.curve_widget.update()
 
-    @Slot(int)
-    @Slot(int)
-    def _on_slider_changed(self, value: int) -> None:
-        """Handle frame slider value change."""
-        if self.frame_spinbox:
-            _ = self.frame_spinbox.blockSignals(True)
-            self.frame_spinbox.setValue(value)
-            _ = self.frame_spinbox.blockSignals(False)
+    # Frame navigation methods removed - now handled by FrameNavigationController
 
-        # Update timeline tabs if available
-        if self.timeline_tabs:
-            self.timeline_tabs.set_current_frame(value)
-
-        self.state_manager.current_frame = value
-
-        # Update background image if image sequence is loaded
-        self._update_background_image_for_frame(value)
-
-        # Update curve widget to highlight current frame's point
-        if self.curve_widget:
-            # Notify curve widget of frame change for centering mode
-            self.curve_widget.on_frame_changed(value)
-            # Invalidate caches to ensure proper repainting with new frame highlight
-            self.curve_widget._invalidate_caches()
-            self.curve_widget.update()
-
-    @Slot()
-    @Slot()
-    def _on_first_frame(self) -> None:
-        """Go to first frame."""
-        if self.frame_spinbox:
-            self.frame_spinbox.setValue(1)
-
-    @Slot()
-    @Slot()
-    def _on_prev_frame(self) -> None:
-        """Go to previous frame."""
-        if self.frame_spinbox:
-            current = self.frame_spinbox.value()
-            if current > 1:
-                self.frame_spinbox.setValue(current - 1)
-
-    @Slot()
-    @Slot()
-    def _on_next_frame(self) -> None:
-        """Go to next frame."""
-        if self.frame_spinbox:
-            current = self.frame_spinbox.value()
-            if current < self.frame_spinbox.maximum():
-                self.frame_spinbox.setValue(current + 1)
-
-    @Slot()
-    @Slot()
-    def _on_last_frame(self) -> None:
-        """Go to last frame."""
-        if self.frame_spinbox:
-            self.frame_spinbox.setValue(self.frame_spinbox.maximum())
-
-    @Slot(bool)
-    @Slot(bool)
-    def _on_play_pause(self, checked: bool) -> None:
-        """Handle play/pause toggle."""
-        if checked:
-            # Start playback
-            if self.fps_spinbox and self.playback_timer and self.btn_play_pause:
-                fps = self.fps_spinbox.value()
-                interval = int(1000 / fps)  # Convert FPS to milliseconds
-                self.playback_timer.start(interval)
-                self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPause))
-            self.play_toggled.emit(True)
-        else:
-            # Stop playback
-            if self.playback_timer and self.btn_play_pause:
-                self.playback_timer.stop()
-                self.btn_play_pause.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-            self.play_toggled.emit(False)
-
-    @Slot()
-    @Slot()
-    def _on_playback_timer(self) -> None:
-        """Handle oscillating playback timer tick."""
-        # Only handle oscillating playback if mode is not stopped
-        if self.playback_state.mode == PlaybackMode.STOPPED:
-            return
-
-        current = self._get_current_frame()
-
-        if self.playback_state.mode == PlaybackMode.PLAYING_FORWARD:
-            # Move forward
-            if current >= self.playback_state.max_frame:
-                # Hit upper boundary - reverse direction
-                self.playback_state.mode = PlaybackMode.PLAYING_BACKWARD
-                next_frame = max(current - 1, self.playback_state.min_frame)
-            else:
-                next_frame = current + 1
-
-        elif self.playback_state.mode == PlaybackMode.PLAYING_BACKWARD:
-            # Move backward
-            if current <= self.playback_state.min_frame:
-                # Hit lower boundary - reverse direction
-                self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
-                next_frame = min(current + 1, self.playback_state.max_frame)
-            else:
-                next_frame = current - 1
-        else:
-            # Fallback - shouldn't happen
-            return
-
-        # Update frame and UI
-        self._set_current_frame(next_frame)
-
-    @Slot(int)
-    @Slot(int)
-    def _on_fps_changed(self, value: int) -> None:
-        """Handle FPS change."""
-        if self.playback_timer and self.playback_timer.isActive():
-            interval = int(1000 / value)
-            self.playback_timer.setInterval(interval)
-        self.frame_rate_changed.emit(value)
-
-    # ================ Oscillating Timeline Playback Methods ================
-
-    def _toggle_oscillating_playback(self) -> None:
-        """Toggle oscillating playback on spacebar press."""
-        if self.playback_state.mode == PlaybackMode.STOPPED:
-            self._start_oscillating_playback()
-        else:
-            self._stop_oscillating_playback()
-
-    def _start_oscillating_playback(self) -> None:
-        """Start oscillating timeline playback."""
-        # Update frame boundaries from current data
-        self._update_playback_bounds()
-
-        # Get FPS from UI or use default
-        fps = 12  # Default
-        if self.fps_spinbox:
-            fps = self.fps_spinbox.value()
-
-        # Set FPS-based timer interval
-        interval = int(1000 / fps)  # Convert to milliseconds
-
-        # Start forward playback
-        self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
-        self.playback_state.current_frame = self._get_current_frame()
-
-        # Start the timer
-        if self.playback_timer:
-            self.playback_timer.start(interval)
-
-        logger.info(
-            f"Started oscillating playback at {fps} FPS (bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
-        )
-
-    def _stop_oscillating_playback(self) -> None:
-        """Stop oscillating timeline playback."""
-        if self.playback_timer:
-            self.playback_timer.stop()
-
-        self.playback_state.mode = PlaybackMode.STOPPED
-        logger.info("Stopped oscillating playback")
+    # Playback methods removed - now handled by PlaybackController
+    # The controller manages play/pause, FPS changes, and oscillating playback
 
     def _update_playback_bounds(self) -> None:
         """Update playbook frame bounds based on current data."""
@@ -1231,26 +726,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _get_current_frame(self) -> int:
         """Get the current frame number."""
-        if self.frame_spinbox:
-            return self.frame_spinbox.value()
-        return 1
+        return self.frame_nav_controller.get_current_frame()
 
     def _set_current_frame(self, frame: int) -> None:
-        """Set the current frame with UI updates."""
-        # Update internal state
-        self.playback_state.current_frame = frame
+        """Set the current frame with UI updates.
 
-        # Update spinbox which triggers other UI updates
-        if self.frame_spinbox:
-            self.frame_spinbox.setValue(frame)
-
-        # Update timeline widget if available
-        # timeline_tabs is Optional
-        if self.timeline_tabs is not None:
-            if getattr(self.timeline_tabs, "set_current_frame", None) is not None:
-                self.timeline_tabs.set_current_frame(frame)
-            elif getattr(self.timeline_tabs, "current_frame", None) is not None:
-                self.timeline_tabs.current_frame = frame
+        Now delegates to FrameNavigationController.
+        """
+        self.frame_nav_controller.set_frame(frame)
 
     @property
     def current_frame(self) -> int:
@@ -1259,7 +742,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Property accessor for better type safety and compatibility.
         Provides a clean interface for accessing the current frame.
         """
-        return self._get_current_frame()
+        return self.frame_nav_controller.get_current_frame()
 
     @current_frame.setter
     def current_frame(self, value: int) -> None:
@@ -1268,7 +751,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Property setter for better type safety and compatibility.
         Provides a clean interface for setting the current frame.
         """
-        self._set_current_frame(value)
+        self.frame_nav_controller.set_frame(value)
 
     # MainWindowProtocol required properties
     @property
@@ -1323,54 +806,28 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def _on_action_new(self) -> None:
         """Handle new file action."""
-        if self.state_manager.is_modified:
-            if not self.services.confirm_action("Current curve has unsaved changes. Continue?", self):
-                return
+        if self.file_operations.new_file():
+            # Clear curve widget data
+            if self.curve_widget:
+                self.curve_widget.set_curve_data([])
+                self._update_tracking_panel()
 
-        # Clear curve widget data
-        if self.curve_widget:
-            self.curve_widget.set_curve_data([])
-            self._update_tracking_panel()
-
-        self.state_manager.reset_to_defaults()
-        self._update_ui_state()
-        self.status_label.setText("New curve created")
+            self.state_manager.reset_to_defaults()
+            self._update_ui_state()
+            self.status_label.setText("New curve created")
 
     @Slot()
     @Slot()
     def _on_action_open(self) -> None:
         """Handle open file action."""
-        # Check for unsaved changes
-        if self.state_manager.is_modified:
-            if not self.services.confirm_action("Current curve has unsaved changes. Continue?", self):
-                return
+        data = self.file_operations.open_file(self)
 
-        # Try to load as multi-point tracking data first
-
-        from PySide6.QtWidgets import QFileDialog
-
-        file_path, _ = QFileDialog.getOpenFileName(
-            self,
-            "Open Tracking Data",
-            "",
-            "Text Files (*.txt);;JSON Files (*.json);;CSV Files (*.csv);;All Files (*.*)",
-        )
-
-        if not file_path:
-            return
-
-        # Check if it's a multi-point file
-        if file_path.endswith(".txt"):
-            # Try loading as multi-point format
-            from services import get_data_service
-
-            data_service = get_data_service()
-            tracked_data = data_service.load_tracked_data(file_path)
-
-            if tracked_data:
+        if data:
+            # Check if it's multi-point data
+            if isinstance(data, dict):
                 # Successfully loaded multi-point data
-                self.tracked_data = tracked_data
-                self.active_points = list(tracked_data.keys())[:1]  # Select first point
+                self.tracked_data = data
+                self.active_points = list(data.keys())[:1]  # Select first point
 
                 # Set up view for pixel-coordinate tracking data BEFORE displaying
                 if self.curve_widget:
@@ -1391,23 +848,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                         if self.total_frames_label:
                             self.total_frames_label.setText(str(max_frame))
                         self.state_manager.total_frames = max_frame
-                return
+            else:
+                # Single curve data
+                # Update curve widget with new data
+                if self.curve_widget:
+                    self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
+                    self._update_tracking_panel()
 
-        # Fall back to single curve loading
-        # Load data using service facade
-        data = self.services.load_track_data_from_file(file_path) if file_path else None
+                # Update state manager
+                self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
-        if data:
-            # Update curve widget with new data
-            if self.curve_widget:
-                self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
-                self._update_tracking_panel()
-
-            # Update state manager
-            self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
-
-            # Update frame range based on loaded data
-            if data:
+                # Update frame range based on loaded data
                 max_frame = max(point[0] for point in data)
                 if self.frame_slider:
                     self.frame_slider.setMaximum(max_frame)
@@ -1428,83 +879,23 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def _on_action_save(self) -> None:
         """Handle save file action."""
-        if not self.state_manager.current_file:
-            self._on_action_save_as()
-        else:
-            # Get current data from curve widget
-            data = self._get_current_curve_data()
-            if self.services.save_track_data(data, self):  # pyright: ignore[reportArgumentType]
-                self.state_manager.is_modified = False
-                self.status_label.setText("File saved successfully")
+        data = self._get_current_curve_data()
+        if self.file_operations.save_file(data):
+            self.status_label.setText("File saved successfully")
 
     @Slot()
     @Slot()
     def _on_action_save_as(self) -> None:
         """Handle save as action."""
-        # Get current data from curve widget
         data = self._get_current_curve_data()
-        if self.services.save_track_data(data, self):  # pyright: ignore[reportArgumentType]
-            self.state_manager.is_modified = False
+        if self.file_operations.save_file_as(data, self):
             self.status_label.setText("File saved successfully")
 
-    def _load_burger_tracking_data(self) -> None:
-        """Auto-load burger footage and tracking data if available using background thread."""
-        from pathlib import Path
-
-        # Get the current working directory
-        base_dir = Path(__file__).parent.parent
-
-        # Check for tracking data file - try v2 first, then v1
-        tracking_file = base_dir / "2DTrackDatav2.txt"
-        if not tracking_file.exists():
-            tracking_file = base_dir / "2DTrackData.txt"
-            if not tracking_file.exists():
-                # Also check in footage directory
-                tracking_file = base_dir / "footage" / "Burger" / "2DTrackDatav2.txt"
-                if not tracking_file.exists():
-                    tracking_file = base_dir / "footage" / "Burger" / "2DTrackData.txt"
-
-        # Check for burger footage directory
-        footage_dir = base_dir / "footage" / "Burger"
-
-        # Determine what files need to be loaded
-        tracking_file_path = str(tracking_file) if tracking_file.exists() else None
-        image_dir_path = str(footage_dir) if footage_dir.exists() else None
-
-        # For debugging: Always try to load burger sequence
-        if not image_dir_path:
-            # Try to find it in different locations
-            possible_dirs = [base_dir / "footage" / "Burger", base_dir / "Data" / "burger", base_dir / "Burger"]
-            for dir_path in possible_dirs:
-                if dir_path.exists() and dir_path.is_dir():
-                    image_dir_path = str(dir_path)
-                    logger.info(f"Found burger footage at: {image_dir_path}")
-                    break
-
-        # Always proceed with loading if we have at least the image directory
-        if not image_dir_path:
-            logger.warning("No burger footage found in any expected location")
-            logger.debug(f"Checked: {base_dir}/footage/Burger, {base_dir}/Data/burger, {base_dir}/Burger")
-            # Still continue to attempt loading from default location
-            image_dir_path = str(footage_dir)  # Use default even if it doesn't exist
-
-        # Start new work in Python thread
-        if not self.file_load_worker:
-            logger.error("[PYTHON-THREAD] Worker not initialized! This should not happen.")
-            return
-
-        logger.info("[PYTHON-THREAD] Starting file loading in Python thread")
-
-        # Start work in new Python thread
-        self.file_load_worker.start_work(tracking_file_path, image_dir_path)
-
-        logger.info("[PYTHON-THREAD] File loading started in Python thread")
-
     def _cleanup_file_load_thread(self) -> None:
-        """Clean up file loading thread - stops Python thread if running."""
-        logger.info("[PYTHON-THREAD] _cleanup_file_load_thread called - stopping Python thread if running")
-        if self.file_load_worker:
-            self.file_load_worker.stop()
+        """Clean up file loading thread - delegates to FileOperations."""
+        logger.info("[PYTHON-THREAD] _cleanup_file_load_thread called - delegating to FileOperations")
+        if hasattr(self, "file_operations"):
+            self.file_operations.cleanup_threads()
         return
 
         # [REMOVED: Dead code block that was part of old QThread implementation]
@@ -1789,6 +1180,58 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._update_zoom_label()
         self.status_label.setText("View reset")
 
+    @Slot()
+    def _on_load_images(self) -> None:
+        """Handle load background images action."""
+        if self.file_operations.load_images(self):
+            self.status_label.setText("Images loaded successfully")
+
+    @Slot()
+    def _on_export_data(self) -> None:
+        """Handle export curve data action."""
+        data = self._get_current_curve_data()
+        if self.file_operations.export_data(data, self):
+            self.status_label.setText("Data exported successfully")
+
+    @Slot()
+    def _on_select_all(self) -> None:
+        """Handle select all action."""
+        if self.curve_widget:
+            self.curve_widget._select_all()
+            self.status_label.setText("All points selected")
+
+    @Slot()
+    def _on_add_point(self) -> None:
+        """Handle add point action."""
+        # TODO: Implement add point at current position
+        self.status_label.setText("Add point not yet implemented")
+
+    @Slot()
+    def _on_zoom_fit(self) -> None:
+        """Handle zoom fit action."""
+        if self.curve_widget:
+            self.curve_widget.fit_to_view()
+            self._update_zoom_label()
+            self.status_label.setText("Fitted to view")
+
+    @Slot()
+    def _on_smooth_curve(self) -> None:
+        """Handle smooth curve action."""
+        # TODO: Implement curve smoothing
+        self.status_label.setText("Smooth curve not yet implemented")
+
+    @Slot()
+    def _on_filter_curve(self) -> None:
+        """Handle filter curve action."""
+        # TODO: Implement curve filtering
+        self.status_label.setText("Filter curve not yet implemented")
+
+    @Slot()
+    def _on_analyze_curve(self) -> None:
+        """Handle analyze curve action."""
+        # TODO: Implement curve analysis
+        self.status_label.setText("Analyze curve not yet implemented")
+
     # ==================== State Change Handlers ====================
 
     @Slot(list)
@@ -1857,12 +1300,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_undo.setEnabled(self.state_manager.can_undo)
         self.action_redo.setEnabled(self.state_manager.can_redo)
 
-        # Update frame controls
+        # Update frame controls via controller
         total_frames = self.state_manager.total_frames
-        if self.frame_spinbox:
-            self.frame_spinbox.setMaximum(total_frames)
-        if self.frame_slider:
-            self.frame_slider.setMaximum(total_frames)
+        # Use controller's set_frame_range instead of direct manipulation
+        self.frame_nav_controller.set_frame_range(1, max(total_frames, 1000))
         if self.total_frames_label:
             self.total_frames_label.setText(str(total_frames))
 
@@ -2133,8 +1574,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Get point status for all frames using DataService
         try:
-            from services import get_data_service
-
             data_service = get_data_service()
 
             # Get status for all frames that have points
@@ -2149,11 +1588,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         except Exception as e:
             logger.warning(f"Could not update timeline tabs with point data: {e}")
 
-    def _get_current_curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
+    def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data from curve widget or state manager."""
         if self.curve_widget:
-            return self.curve_widget.curve_data  # pyright: ignore[reportReturnType]
-        return self.state_manager.track_data  # pyright: ignore[reportReturnType]
+            # Cast to match expected type
+            return cast(CurveDataList, self.curve_widget.curve_data)
+        return cast(CurveDataList, self.state_manager.track_data)
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""
@@ -2274,8 +1714,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 return
 
         # Apply smoothing using DataService
-        from services.data_service import get_data_service
-
         data_service = get_data_service()
         if data_service:
             # Extract points to smooth
@@ -2326,9 +1764,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
 
-        # Stop the worker thread
-        if self.file_load_worker is not None:
-            self.file_load_worker.stop()
+        # Stop any file operation threads
+        if hasattr(self, "file_operations"):
+            self.file_operations.cleanup_threads()
 
         logger.info("[KEEP-ALIVE] Worker and thread cleaned up")
 

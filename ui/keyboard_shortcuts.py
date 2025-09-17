@@ -3,15 +3,14 @@
 Keyboard Shortcuts Manager for CurveEditor.
 
 This module provides a centralized way to manage keyboard shortcuts for the
-application, supporting file operations, view operations, and edit operations.
+application, creating and managing all QActions with their shortcuts.
 """
 
 import logging
-from collections.abc import Callable
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, Signal
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import QObject
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
@@ -22,331 +21,331 @@ logger = logging.getLogger("keyboard_shortcuts")
 
 class ShortcutManager(QObject):
     """
-    Manages keyboard shortcuts for the CurveEditor application.
+    Manages keyboard shortcuts and actions for the CurveEditor application.
 
-    This class provides a centralized way to define, register, and manage
-    keyboard shortcuts throughout the application lifecycle.
+    This class provides a centralized way to create, manage, and organize
+    all QActions with their shortcuts, keeping MainWindow lean.
     """
-
-    # Signals for shortcut activation
-    shortcut_activated: Signal = Signal(str)  # Emits shortcut name when activated
 
     # Attributes - initialized in __init__
     parent_widget: QWidget | None
-    shortcuts: dict[str, QShortcut]
+
+    # File actions
+    action_new: QAction
+    action_open: QAction
+    action_save: QAction
+    action_save_as: QAction
+    action_load_images: QAction
+    action_export_data: QAction
+    action_quit: QAction
+
+    # Edit actions
+    action_undo: QAction
+    action_redo: QAction
+    action_select_all: QAction
+    action_add_point: QAction
+
+    # View actions
+    action_zoom_in: QAction
+    action_zoom_out: QAction
+    action_zoom_fit: QAction
+    action_reset_view: QAction
+
+    # Curve actions
+    action_smooth_curve: QAction
+    action_filter_curve: QAction
+    action_analyze_curve: QAction
+
+    # Navigation actions
+    action_next_frame: QAction
+    action_prev_frame: QAction
+    action_first_frame: QAction
+    action_last_frame: QAction
+
+    # Playback actions
+    action_oscillate_playback: QAction
 
     def __init__(self, parent: QWidget | None = None) -> None:
         """
-        Initialize the shortcut manager.
+        Initialize the shortcut manager and create all QActions.
 
         Args:
-            parent: Parent widget for the shortcuts (typically MainWindow)
+            parent: Parent widget for the actions (typically MainWindow)
         """
         super().__init__(parent)
         self.parent_widget = parent
-        self.shortcuts = {}
-        self._setup_default_shortcuts()
+        self._create_file_actions()
+        self._create_edit_actions()
+        self._create_view_actions()
+        self._create_curve_actions()
+        self._create_navigation_actions()
+        self._create_playback_actions()
 
-        logger.info("ShortcutManager initialized")
+        logger.info("ShortcutManager initialized with QActions")
 
-    def _setup_default_shortcuts(self) -> None:
-        """Setup default keyboard shortcuts for the application."""
-        if not self.parent_widget:
-            logger.warning("No parent widget provided, shortcuts will not be functional")
-            return
+    def _create_file_actions(self) -> None:
+        """Create file-related QActions."""
+        self.action_new = QAction("&New", self.parent_widget)
+        self.action_new.setShortcut(QKeySequence.StandardKey.New)
+        self.action_new.setStatusTip("Create a new curve")
 
-        # Define default shortcuts
-        # NOTE: Single keys like C, F, arrow keys are handled directly by CurveViewWidget
-        # to avoid conflicts with widget-specific keyboard handling
-        default_shortcuts = {
-            # File operations
-            "new_file": ("Ctrl+N", self._on_new_file),
-            "open_file": ("Ctrl+O", self._on_open_file),
-            "save_file": ("Ctrl+S", self._on_save_file),
-            "save_as": ("Ctrl+Shift+S", self._on_save_as),
-            "load_images": ("Ctrl+I", self._on_load_images),
-            "export_data": ("Ctrl+E", self._on_export_data),
-            "quit": ("Ctrl+Q", self._on_quit),
-            # Edit operations
-            "undo": ("Ctrl+Z", self._on_undo),
-            "redo": ("Ctrl+Y", self._on_redo),
-            "add_point": ("Ctrl+A", self._on_add_point),
-            # "delete_point": ("Delete", self._on_delete_point),  # Handled by CurveViewWidget
-            "select_all": ("Ctrl+Shift+A", self._on_select_all),
-            # View operations
-            "zoom_in": ("Ctrl++", self._on_zoom_in),
-            "zoom_out": ("Ctrl+-", self._on_zoom_out),
-            "zoom_fit": ("Ctrl+0", self._on_zoom_fit),
-            # "fit_image": ("F", self._on_fit_image),  # Handled by CurveViewWidget
-            "reset_view": ("Ctrl+R", self._on_reset_view),
-            # "center_view": ("Ctrl+C", self._on_center_view),  # Removed to avoid conflict
-            # Curve operations
-            "smooth_curve": ("Ctrl+M", self._on_smooth_curve),
-            "filter_curve": ("Ctrl+F", self._on_filter_curve),
-            "analyze_curve": ("Ctrl+L", self._on_analyze_curve),
-            # Navigation - Primary shortcuts use arrow keys, Alt+Arrow as secondary
-            "next_frame": ("Right", self._on_next_frame),
-            "prev_frame": ("Left", self._on_prev_frame),
-            "next_frame_alt": ("Alt+Right", self._on_next_frame),
-            "prev_frame_alt": ("Alt+Left", self._on_prev_frame),
-            "first_frame": ("Home", self._on_first_frame),
-            "last_frame": ("End", self._on_last_frame),
-            # Playback controls
-            "oscillate_playback": ("Space", self._on_oscillate_playback),
+        self.action_open = QAction("&Open...", self.parent_widget)
+        self.action_open.setShortcut(QKeySequence.StandardKey.Open)
+        self.action_open.setStatusTip("Open an existing curve file")
+
+        self.action_save = QAction("&Save", self.parent_widget)
+        self.action_save.setShortcut(QKeySequence.StandardKey.Save)
+        self.action_save.setStatusTip("Save the current curve")
+
+        self.action_save_as = QAction("Save &As...", self.parent_widget)
+        self.action_save_as.setShortcut(QKeySequence.StandardKey.SaveAs)
+        self.action_save_as.setStatusTip("Save the curve with a new name")
+
+        self.action_load_images = QAction("&Load Images...", self.parent_widget)
+        self.action_load_images.setShortcut("Ctrl+I")
+        self.action_load_images.setStatusTip("Load background images")
+
+        self.action_export_data = QAction("&Export Data...", self.parent_widget)
+        self.action_export_data.setShortcut("Ctrl+E")
+        self.action_export_data.setStatusTip("Export curve data")
+
+        self.action_quit = QAction("&Quit", self.parent_widget)
+        self.action_quit.setShortcut(QKeySequence.StandardKey.Quit)
+        self.action_quit.setStatusTip("Exit the application")
+
+    def _create_edit_actions(self) -> None:
+        """Create edit-related QActions."""
+        self.action_undo = QAction("&Undo", self.parent_widget)
+        self.action_undo.setShortcut(QKeySequence.StandardKey.Undo)
+        self.action_undo.setStatusTip("Undo the last action")
+
+        self.action_redo = QAction("&Redo", self.parent_widget)
+        self.action_redo.setShortcut(QKeySequence.StandardKey.Redo)
+        self.action_redo.setStatusTip("Redo the previously undone action")
+
+        self.action_select_all = QAction("Select &All", self.parent_widget)
+        self.action_select_all.setShortcut("Ctrl+A")
+        self.action_select_all.setStatusTip("Select all points")
+
+        # Changed from Ctrl+A to avoid conflict with select all
+        self.action_add_point = QAction("Add &Point", self.parent_widget)
+        self.action_add_point.setShortcut("Ctrl+Shift+N")
+        self.action_add_point.setStatusTip("Add a new point to the curve")
+
+    def _create_view_actions(self) -> None:
+        """Create view-related QActions."""
+        self.action_zoom_in = QAction("Zoom &In", self.parent_widget)
+        self.action_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
+        self.action_zoom_in.setStatusTip("Zoom in the view")
+
+        self.action_zoom_out = QAction("Zoom &Out", self.parent_widget)
+        self.action_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
+        self.action_zoom_out.setStatusTip("Zoom out the view")
+
+        self.action_zoom_fit = QAction("Zoom &Fit", self.parent_widget)
+        self.action_zoom_fit.setShortcut("Ctrl+0")
+        self.action_zoom_fit.setStatusTip("Fit curve to view")
+
+        self.action_reset_view = QAction("&Reset View", self.parent_widget)
+        self.action_reset_view.setShortcut("Ctrl+R")
+        self.action_reset_view.setStatusTip("Reset the view to default")
+
+    def _create_curve_actions(self) -> None:
+        """Create curve manipulation QActions."""
+        self.action_smooth_curve = QAction("S&mooth Curve", self.parent_widget)
+        self.action_smooth_curve.setShortcut("Ctrl+M")
+        self.action_smooth_curve.setStatusTip("Apply smoothing to the curve")
+
+        self.action_filter_curve = QAction("&Filter Curve", self.parent_widget)
+        self.action_filter_curve.setShortcut("Ctrl+F")
+        self.action_filter_curve.setStatusTip("Apply filtering to the curve")
+
+        self.action_analyze_curve = QAction("Ana&lyze Curve", self.parent_widget)
+        self.action_analyze_curve.setShortcut("Ctrl+L")
+        self.action_analyze_curve.setStatusTip("Analyze curve properties")
+
+    def _create_navigation_actions(self) -> None:
+        """Create frame navigation QActions."""
+        # Note: Arrow keys will be handled by focused widget
+        # These actions can be triggered via menu/toolbar
+        self.action_next_frame = QAction("Next Frame", self.parent_widget)
+        self.action_next_frame.setShortcut("Right")
+        self.action_next_frame.setStatusTip("Go to next frame")
+
+        self.action_prev_frame = QAction("Previous Frame", self.parent_widget)
+        self.action_prev_frame.setShortcut("Left")
+        self.action_prev_frame.setStatusTip("Go to previous frame")
+
+        self.action_first_frame = QAction("First Frame", self.parent_widget)
+        self.action_first_frame.setShortcut("Home")
+        self.action_first_frame.setStatusTip("Go to first frame")
+
+        self.action_last_frame = QAction("Last Frame", self.parent_widget)
+        self.action_last_frame.setShortcut("End")
+        self.action_last_frame.setStatusTip("Go to last frame")
+
+    def _create_playback_actions(self) -> None:
+        """Create playback control QActions."""
+        self.action_oscillate_playback = QAction("Toggle Playback", self.parent_widget)
+        self.action_oscillate_playback.setShortcut("Space")
+        self.action_oscillate_playback.setStatusTip("Toggle oscillating playback")
+
+    def get_file_actions(self) -> list[QAction | None]:
+        """
+        Get all file-related actions for the File menu.
+        None values indicate menu separators.
+
+        Returns:
+            List of file actions in menu order
+        """
+        return [
+            self.action_new,
+            self.action_open,
+            None,  # Separator
+            self.action_save,
+            self.action_save_as,
+            None,  # Separator
+            self.action_load_images,
+            self.action_export_data,
+            None,  # Separator
+            self.action_quit,
+        ]
+
+    def get_edit_actions(self) -> list[QAction | None]:
+        """
+        Get all edit-related actions for the Edit menu.
+        None values indicate menu separators.
+
+        Returns:
+            List of edit actions in menu order
+        """
+        return [
+            self.action_undo,
+            self.action_redo,
+            None,  # Separator
+            self.action_select_all,
+            self.action_add_point,
+        ]
+
+    def get_view_actions(self) -> list[QAction | None]:
+        """
+        Get all view-related actions for the View menu.
+        None values indicate menu separators.
+
+        Returns:
+            List of view actions in menu order
+        """
+        return [
+            self.action_zoom_in,
+            self.action_zoom_out,
+            self.action_zoom_fit,
+            None,  # Separator
+            self.action_reset_view,
+        ]
+
+    def get_curve_actions(self) -> list[QAction | None]:
+        """
+        Get all curve-related actions for the Curve menu.
+        None values indicate menu separators.
+
+        Returns:
+            List of curve actions in menu order
+        """
+        return [
+            self.action_smooth_curve,
+            self.action_filter_curve,
+            self.action_analyze_curve,
+        ]
+
+    def get_navigation_actions(self) -> list[QAction | None]:
+        """
+        Get all navigation-related actions.
+        None values indicate menu separators.
+
+        Returns:
+            List of navigation actions
+        """
+        return [
+            self.action_prev_frame,
+            self.action_next_frame,
+            None,  # Separator
+            self.action_first_frame,
+            self.action_last_frame,
+        ]
+
+    def get_all_actions(self) -> dict[str, QAction]:
+        """
+        Get all actions as a dictionary.
+
+        Returns:
+            Dictionary mapping action names to QAction objects
+        """
+        return {
+            "new": self.action_new,
+            "open": self.action_open,
+            "save": self.action_save,
+            "save_as": self.action_save_as,
+            "load_images": self.action_load_images,
+            "export_data": self.action_export_data,
+            "quit": self.action_quit,
+            "undo": self.action_undo,
+            "redo": self.action_redo,
+            "select_all": self.action_select_all,
+            "add_point": self.action_add_point,
+            "zoom_in": self.action_zoom_in,
+            "zoom_out": self.action_zoom_out,
+            "zoom_fit": self.action_zoom_fit,
+            "reset_view": self.action_reset_view,
+            "smooth_curve": self.action_smooth_curve,
+            "filter_curve": self.action_filter_curve,
+            "analyze_curve": self.action_analyze_curve,
+            "next_frame": self.action_next_frame,
+            "prev_frame": self.action_prev_frame,
+            "first_frame": self.action_first_frame,
+            "last_frame": self.action_last_frame,
+            "oscillate_playback": self.action_oscillate_playback,
         }
 
-        # Register all default shortcuts
-        for name, (key_sequence, callback) in default_shortcuts.items():
-            _ = self.register_shortcut(name, key_sequence, callback)
-
-    def register_shortcut(self, name: str, key_sequence: str, callback: Callable[[], None]) -> bool:
+    def connect_to_main_window(self, main_window) -> None:
         """
-        Register a new keyboard shortcut.
+        Connect actions to MainWindow slots.
 
         Args:
-            name: Unique name for the shortcut
-            key_sequence: Key sequence string (e.g., "Ctrl+S")
-            callback: Function to call when shortcut is activated
-
-        Returns:
-            True if shortcut was registered successfully, False otherwise
+            main_window: The MainWindow instance to connect to
         """
-        if not self.parent_widget:
-            logger.error(f"Cannot register shortcut '{name}': no parent widget")
-            return False
+        # File actions
+        _ = self.action_new.triggered.connect(main_window._on_action_new)
+        _ = self.action_open.triggered.connect(main_window._on_action_open)
+        _ = self.action_save.triggered.connect(main_window._on_action_save)
+        _ = self.action_save_as.triggered.connect(main_window._on_action_save_as)
+        _ = self.action_load_images.triggered.connect(main_window._on_load_images)
+        _ = self.action_export_data.triggered.connect(main_window._on_export_data)
+        _ = self.action_quit.triggered.connect(main_window.close)
 
-        try:
-            # Create the shortcut
-            shortcut = QShortcut(QKeySequence(key_sequence), self.parent_widget)
-            _ = shortcut.activated.connect(callback)
-            _ = shortcut.activated.connect(lambda: self.shortcut_activated.emit(name))
+        # Edit actions
+        _ = self.action_undo.triggered.connect(main_window._on_action_undo)
+        _ = self.action_redo.triggered.connect(main_window._on_action_redo)
+        _ = self.action_select_all.triggered.connect(main_window._on_select_all)
+        _ = self.action_add_point.triggered.connect(main_window._on_add_point)
 
-            # Store the shortcut
-            if name in self.shortcuts:
-                logger.warning(f"Overriding existing shortcut: {name}")
-                self.shortcuts[name].deleteLater()
+        # View actions
+        _ = self.action_zoom_in.triggered.connect(main_window._on_action_zoom_in)
+        _ = self.action_zoom_out.triggered.connect(main_window._on_action_zoom_out)
+        _ = self.action_zoom_fit.triggered.connect(main_window._on_zoom_fit)
+        _ = self.action_reset_view.triggered.connect(main_window._on_action_reset_view)
 
-            self.shortcuts[name] = shortcut
-            logger.debug(f"Registered shortcut: {name} -> {key_sequence}")
-            return True
+        # Curve actions
+        _ = self.action_smooth_curve.triggered.connect(main_window._on_smooth_curve)
+        _ = self.action_filter_curve.triggered.connect(main_window._on_filter_curve)
+        _ = self.action_analyze_curve.triggered.connect(main_window._on_analyze_curve)
 
-        except Exception as e:
-            logger.error(f"Failed to register shortcut '{name}': {e}")
-            return False
+        # Navigation actions (now handled by FrameNavigationController)
+        _ = self.action_next_frame.triggered.connect(main_window.frame_nav_controller._on_next_frame)
+        _ = self.action_prev_frame.triggered.connect(main_window.frame_nav_controller._on_prev_frame)
+        _ = self.action_first_frame.triggered.connect(main_window.frame_nav_controller._on_first_frame)
+        _ = self.action_last_frame.triggered.connect(main_window.frame_nav_controller._on_last_frame)
 
-    def unregister_shortcut(self, name: str) -> bool:
-        """
-        Remove a keyboard shortcut.
+        # Playback actions (now handled by PlaybackController)
+        _ = self.action_oscillate_playback.triggered.connect(main_window.playback_controller.toggle_playback)
 
-        Args:
-            name: Name of the shortcut to remove
-
-        Returns:
-            True if shortcut was removed successfully, False otherwise
-        """
-        if name not in self.shortcuts:
-            logger.warning(f"Shortcut '{name}' not found for removal")
-            return False
-
-        try:
-            self.shortcuts[name].deleteLater()
-            del self.shortcuts[name]
-            logger.debug(f"Unregistered shortcut: {name}")
-            return True
-        except Exception as e:
-            logger.error(f"Failed to unregister shortcut '{name}': {e}")
-            return False
-
-    def get_shortcut(self, name: str) -> QShortcut | None:
-        """
-        Get a shortcut by name.
-
-        Args:
-            name: Name of the shortcut
-
-        Returns:
-            QShortcut object if found, None otherwise
-        """
-        return self.shortcuts.get(name)
-
-    def get_all_shortcuts(self) -> dict[str, str]:
-        """
-        Get all registered shortcuts as name -> key sequence mapping.
-
-        Returns:
-            Dictionary mapping shortcut names to key sequences
-        """
-        result: dict[str, str] = {}
-        for name, shortcut in self.shortcuts.items():
-            result[name] = shortcut.key().toString()
-        return result
-
-    def enable_shortcut(self, name: str, enabled: bool = True) -> bool:
-        """
-        Enable or disable a specific shortcut.
-
-        Args:
-            name: Name of the shortcut
-            enabled: True to enable, False to disable
-
-        Returns:
-            True if operation was successful, False otherwise
-        """
-        shortcut = self.get_shortcut(name)
-        if not shortcut:
-            logger.warning(f"Shortcut '{name}' not found for enable/disable")
-            return False
-
-        shortcut.setEnabled(enabled)
-        logger.debug(f"Shortcut '{name}' {'enabled' if enabled else 'disabled'}")
-        return True
-
-    def enable_all_shortcuts(self, enabled: bool = True) -> None:
-        """
-        Enable or disable all shortcuts.
-
-        Args:
-            enabled: True to enable all, False to disable all
-        """
-        for shortcut in self.shortcuts.values():
-            shortcut.setEnabled(enabled)
-        logger.info(f"All shortcuts {'enabled' if enabled else 'disabled'}")
-
-    # Default shortcut handlers - these emit signals that the main window can connect to
-
-    def _on_new_file(self) -> None:
-        """Handle new file shortcut."""
-        logger.debug("New file shortcut activated")
-        # Implementation will be handled by main window signal connections
-
-    def _on_open_file(self) -> None:
-        """Handle open file shortcut."""
-        logger.debug("Open file shortcut activated")
-
-    def _on_save_file(self) -> None:
-        """Handle save file shortcut."""
-        logger.debug("Save file shortcut activated")
-
-    def _on_save_as(self) -> None:
-        """Handle save as shortcut."""
-        logger.debug("Save as shortcut activated")
-
-    def _on_load_images(self) -> None:
-        """Handle load images shortcut."""
-        logger.debug("Load images shortcut activated")
-
-    def _on_export_data(self) -> None:
-        """Handle export data shortcut."""
-        logger.debug("Export data shortcut activated")
-
-    def _on_quit(self) -> None:
-        """Handle quit shortcut."""
-        logger.debug("Quit shortcut activated")
-
-    def _on_undo(self) -> None:
-        """Handle undo shortcut."""
-        logger.debug("Undo shortcut activated")
-
-    def _on_redo(self) -> None:
-        """Handle redo shortcut."""
-        logger.debug("Redo shortcut activated")
-
-    def _on_add_point(self) -> None:
-        """Handle add point shortcut."""
-        logger.debug("Add point shortcut activated")
-
-    def _on_delete_point(self) -> None:
-        """Handle delete point shortcut."""
-        logger.debug("Delete point shortcut activated")
-
-    def _on_select_all(self) -> None:
-        """Handle select all shortcut."""
-        logger.debug("Select all shortcut activated")
-
-    def _on_zoom_in(self) -> None:
-        """Handle zoom in shortcut."""
-        logger.debug("Zoom in shortcut activated")
-
-    def _on_zoom_out(self) -> None:
-        """Handle zoom out shortcut."""
-        logger.debug("Zoom out shortcut activated")
-
-    def _on_zoom_fit(self) -> None:
-        """Handle zoom fit shortcut."""
-        logger.debug("Zoom fit shortcut activated")
-
-    def _on_fit_image(self) -> None:
-        """Handle fit image shortcut (F key)."""
-        logger.debug("Fit image shortcut activated")
-        # Access the curve widget through parent (MainWindow)
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow) and self.parent_widget.curve_widget is not None:
-            curve_widget = self.parent_widget.curve_widget
-            if hasattr(curve_widget, "fit_to_background_image"):
-                _ = curve_widget.fit_to_background_image()  # pyright: ignore[reportUnknownMemberType]
-
-    def _on_reset_view(self) -> None:
-        """Handle reset view shortcut."""
-        logger.debug("Reset view shortcut activated")
-
-    def _on_center_view(self) -> None:
-        """Handle center view shortcut."""
-        logger.debug("Center view shortcut activated")
-
-    def _on_smooth_curve(self) -> None:
-        """Handle smooth curve shortcut."""
-        logger.debug("Smooth curve shortcut activated")
-
-    def _on_filter_curve(self) -> None:
-        """Handle filter curve shortcut."""
-        logger.debug("Filter curve shortcut activated")
-
-    def _on_analyze_curve(self) -> None:
-        """Handle analyze curve shortcut."""
-        logger.debug("Analyze curve shortcut activated")
-
-    def _on_next_frame(self) -> None:
-        """Handle next frame shortcut."""
-        logger.debug("Next frame shortcut activated")
-        # Trigger frame navigation through parent widget
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow):
-            self.parent_widget._on_next_frame()
-
-    def _on_prev_frame(self) -> None:
-        """Handle previous frame shortcut."""
-        logger.debug("Previous frame shortcut activated")
-        # Trigger frame navigation through parent widget
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow):
-            self.parent_widget._on_prev_frame()
-
-    def _on_first_frame(self) -> None:
-        """Handle first frame shortcut."""
-        logger.debug("First frame shortcut activated")
-        # Trigger frame navigation through parent widget
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow):
-            self.parent_widget._on_first_frame()
-
-    def _on_last_frame(self) -> None:
-        """Handle last frame shortcut."""
-        logger.debug("Last frame shortcut activated")
-        # Trigger frame navigation through parent widget
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow):
-            self.parent_widget._on_last_frame()
-
-    def _on_oscillate_playback(self) -> None:
-        """Handle oscillating playback toggle shortcut (spacebar)."""
-        logger.debug("Oscillating playback toggle shortcut activated")
-        # Trigger oscillating playback through parent widget
-        from ui.main_window import MainWindow
-
-        if isinstance(self.parent_widget, MainWindow):
-            self.parent_widget._toggle_oscillating_playback()
+        logger.info("Connected all shortcuts to MainWindow")

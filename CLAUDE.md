@@ -12,13 +12,7 @@ Comprehensive reference for the CurveEditor codebase - a Python/PySide6 applicat
 
 ## Architecture
 
-### Dual Architecture Support
-```bash
-export USE_LEGACY_SERVICES=false  # DEFAULT: 4 consolidated services
-export USE_LEGACY_SERVICES=true   # OPTIONAL: Old Sprint 8 services (10+)
-```
-
-### Core Services (Default)
+### Core Services
 1. **TransformService**: Coordinate transformations, view state (99.9% cache hit rate)
 2. **DataService**: Data operations, file I/O, image management
 3. **InteractionService**: User interactions, point manipulation (64.7x spatial indexing)
@@ -58,7 +52,8 @@ class PointStatus(Enum):
 
 ### MainWindow (`ui/main_window.py`)
 - **Components**: `curve_widget`, `timeline_tabs`, `playback_state`, `ui` (UIComponents)
-- **File Ops**: `_on_action_open/save()`, `_load_burger_tracking_data()`
+- **File Ops**: Delegated to FileOperations class
+- **State**: Managed by StateManager class
 - **Frame Nav**: `_on_frame_changed()`, `_update_frame_display()`
 - **Playback**: Oscillating playback with timer
 - **Features**: Background thread loading, keyboard shortcuts
@@ -99,8 +94,9 @@ CurveEditor/
 ├── data/           # Data operations, batch editing
 ├── rendering/      # Optimized rendering (47x faster)
 ├── services/       # 4 consolidated services
-├── ui/             # MainWindow, CurveViewWidget, UIComponents
-├── tests/          # Test suite
+├── ui/             # MainWindow, CurveViewWidget, UIComponents, FileOperations
+├── tests/          # Test suite (549 tests)
+├── session/        # Session state persistence
 ├── main.py         # Entry point
 ├── bpr             # Basedpyright wrapper (MUST USE THIS!)
 └── venv/           # Python 3.12, PySide6==6.4.0
@@ -198,11 +194,6 @@ self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
 
 ## Integration Pitfalls
 
-### Silent Attribute Creation
-```python
-# Python creates new attribute without error!
-self.ui.timeline.frame_spinbox = widget  # May silently create if doesn't exist
-```
 
 ### Prevention
 ```python
@@ -236,13 +227,14 @@ from core.type_aliases import CurveDataList
 # UI
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
+from ui.file_operations import FileOperations
 ```
 
 ## Known Issues
 
 1. **PySide6 Type Stubs**: Not installed (causes expected warnings)
-2. **Test Coverage**: Some consolidation changes need updates
-3. **Legacy Code**: `archive_obsolete/` needs cleanup
+2. **All tests passing**: 549 tests fully functional
+3. **Legacy Code**: `archive_obsolete/` contains old refactored code
 
 ## Key Design Patterns
 
@@ -267,6 +259,6 @@ from ui.main_window import MainWindow
 
 # Important Reminders
 - Do what's asked; nothing more, nothing less
-- NEVER create files unless absolutely necessary
+- **NEVER** make assumptions
 - ALWAYS prefer editing existing files
 - NEVER create documentation unless explicitly requested

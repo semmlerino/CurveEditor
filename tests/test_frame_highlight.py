@@ -161,17 +161,17 @@ class TestFramePointHighlighting:
         # Start at frame 10
         main_window.frame_spinbox.setValue(10)
 
-        # Navigate with keyboard shortcuts
-        main_window._on_next_frame()
+        # Navigate with keyboard shortcuts using the controller
+        main_window.frame_nav_controller._on_next_frame()
         assert main_window.state_manager.current_frame == 11
 
-        main_window._on_prev_frame()
+        main_window.frame_nav_controller._on_prev_frame()
         assert main_window.state_manager.current_frame == 10
 
-        main_window._on_first_frame()
+        main_window.frame_nav_controller._on_first_frame()
         assert main_window.state_manager.current_frame == 1
 
-        main_window._on_last_frame()
+        main_window.frame_nav_controller._on_last_frame()
         assert main_window.state_manager.current_frame == 20
 
     def test_timeline_click_updates_highlight(self, main_window, qtbot):
@@ -192,20 +192,20 @@ class TestFramePointHighlighting:
         main_window.frame_spinbox.setValue(1)
 
         # Set up playback state for oscillating playback
-        from ui.main_window import PlaybackMode
+        from ui.controllers import PlaybackMode
 
-        main_window.playback_state.mode = PlaybackMode.PLAYING_FORWARD
-        main_window.playback_state.min_frame = 1
-        main_window.playback_state.max_frame = 10
+        main_window.playback_controller.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+        main_window.playback_controller.playback_state.min_frame = 1
+        main_window.playback_controller.playback_state.max_frame = 10
 
         # Simulate playback timer tick
-        main_window._on_playback_timer()
+        main_window.playback_controller._on_playback_timer()
 
         # Should advance to frame 2
         assert main_window.state_manager.current_frame == 2
 
         # Another tick
-        main_window._on_playback_timer()
+        main_window.playback_controller._on_playback_timer()
         assert main_window.state_manager.current_frame == 3
 
     def test_multiple_points_on_same_frame(self, curve_widget):

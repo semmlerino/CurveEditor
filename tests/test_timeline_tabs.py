@@ -72,14 +72,14 @@ class TestTimelineControls:
         # Check frame was updated
         assert main_window.frame_spinbox.value() == target_frame
 
-        # Manually trigger the frame_changed handler to test state synchronization
-        main_window._on_frame_changed(target_frame)
+        # The frame navigation controller should have updated the state
+        # through its valueChanged handler
         assert main_window.state_manager.current_frame == target_frame
 
         # Test another frame
         target_frame_2 = 15
         main_window.frame_spinbox.setValue(target_frame_2)
-        main_window._on_frame_changed(target_frame_2)
+        # Controller handles synchronization automatically
         assert main_window.frame_spinbox.value() == target_frame_2
         assert main_window.state_manager.current_frame == target_frame_2
 
@@ -89,8 +89,8 @@ class TestTimelineControls:
         target_frame = 15
         main_window.frame_spinbox.setValue(target_frame)
 
-        # Manually trigger the synchronization (since signals might not work in tests)
-        main_window._on_frame_changed(target_frame)
+        # The frame navigation controller handles synchronization automatically
+        # through the valueChanged signal
 
         # Check that slider is synchronized
         assert main_window.frame_slider.value() == target_frame
@@ -98,8 +98,7 @@ class TestTimelineControls:
         # Test that setting slider updates spinbox
         target_frame_2 = 20
         main_window.frame_slider.setValue(target_frame_2)
-        main_window._on_slider_changed(target_frame_2)
-
+        # The frame navigation controller handles synchronization automatically
         # Check that spinbox is synchronized
         assert main_window.frame_spinbox.value() == target_frame_2
 
@@ -108,33 +107,33 @@ class TestTimelineControls:
         # Set initial frame
         main_window.frame_spinbox.setValue(20)
 
-        # Test next frame (Right arrow) - directly call the handler
-        main_window._on_next_frame()
+        # Test next frame (Right arrow) - call through controller
+        main_window.frame_nav_controller._on_next_frame()
         assert main_window.frame_spinbox.value() == 21
 
         # Test previous frame (Left arrow)
-        main_window._on_prev_frame()
+        main_window.frame_nav_controller._on_prev_frame()
         assert main_window.frame_spinbox.value() == 20
 
         # Test first frame (Home)
-        main_window._on_first_frame()
+        main_window.frame_nav_controller._on_first_frame()
         assert main_window.frame_spinbox.value() == 1
 
         # Test last frame (End)
-        main_window._on_last_frame()
+        main_window.frame_nav_controller._on_last_frame()
         assert main_window.frame_spinbox.value() == 37  # Default max
 
     def test_frame_bounds_checking(self, main_window):
         """Test that frame navigation respects bounds."""
         # Test lower bound
         main_window.frame_spinbox.setValue(1)
-        main_window._on_prev_frame()
+        main_window.frame_nav_controller._on_prev_frame()
         assert main_window.frame_spinbox.value() == 1  # Should stay at 1
 
         # Test upper bound
         max_frame = main_window.frame_spinbox.maximum()
         main_window.frame_spinbox.setValue(max_frame)
-        main_window._on_next_frame()
+        main_window.frame_nav_controller._on_next_frame()
         assert main_window.frame_spinbox.value() == max_frame  # Should stay at max
 
     def test_timeline_state_persistence(self, main_window):
@@ -143,8 +142,7 @@ class TestTimelineControls:
         target_frame = 25
         main_window.frame_spinbox.setValue(target_frame)
 
-        # Manually trigger the signal handlers due to test environment limitations
-        main_window._on_frame_changed(target_frame)
+        # The frame navigation controller handles the update automatically
 
         # Check state manager is updated
         assert main_window.state_manager.current_frame == target_frame

@@ -33,9 +33,8 @@ def test_current_frame_property_returns_int():
     with patch("ui.main_window.QMainWindow"):
         window = MainWindow()
 
-        # Mock the frame spinbox
-        window.frame_spinbox = Mock()
-        window.frame_spinbox.value.return_value = 42
+        # Mock the frame navigation controller's method
+        window.frame_nav_controller.get_current_frame = Mock(return_value=42)
 
         # Test property access
         frame = window.current_frame
@@ -50,16 +49,14 @@ def test_current_frame_property_setter():
     with patch("ui.main_window.QMainWindow"):
         window = MainWindow()
 
-        # Mock the frame spinbox
-        window.frame_spinbox = Mock()
-        window.timeline_tabs = None
+        # Mock the frame navigation controller's method
+        window.frame_nav_controller.set_frame = Mock()
 
         # Set via property
         window.current_frame = 100
 
-        # Check that internal method was called
-        window.frame_spinbox.setValue.assert_called_once_with(100)
-        assert window.playback_state.current_frame == 100
+        # Check that controller method was called
+        window.frame_nav_controller.set_frame.assert_called_once_with(100)
 
 
 def test_curve_view_can_access_current_frame():
@@ -72,9 +69,8 @@ def test_curve_view_can_access_current_frame():
         widget = CurveViewWidget()
         window = MainWindow()
 
-        # Mock frame spinbox
-        window.frame_spinbox = Mock()
-        window.frame_spinbox.value.return_value = 50
+        # Mock frame navigation controller
+        window.frame_nav_controller.get_current_frame = Mock(return_value=50)
 
         # Link them
         widget.main_window = window
@@ -99,15 +95,15 @@ def test_protocol_compliance():
         # This is part of the duck-typing pattern in the codebase
 
         # Verify current_frame is accessible as property
-        window.frame_spinbox = Mock()
-        window.frame_spinbox.value.return_value = 1
+        window.frame_nav_controller.get_current_frame = Mock(return_value=1)
 
         frame = window.current_frame
         assert isinstance(frame, int)
 
         # Test property setter
+        window.frame_nav_controller.set_frame = Mock()
         window.current_frame = 42
-        window.frame_spinbox.setValue.assert_called_with(42)
+        window.frame_nav_controller.set_frame.assert_called_with(42)
 
 
 if __name__ == "__main__":
