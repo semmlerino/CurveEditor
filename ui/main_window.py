@@ -71,7 +71,6 @@ from .tracking_points_panel import TrackingPointsPanel
 # Import refactored components
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
-from .ui_scaling import UIScaling
 
 # Configure logger for this module
 logger = logging.getLogger("main_window")
@@ -482,9 +481,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         from .service_facade import get_service_facade
 
         self.services: ServiceFacade = get_service_facade(cast(MainWindowProtocol, cast(object, self)))
-
-        # Initialize UI scaling
-        self.ui_scaling: UIScaling = UIScaling()
 
         # Initialize UI components container for organized widget management
         self.ui: UIComponents = UIComponents(self)
