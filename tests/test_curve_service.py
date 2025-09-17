@@ -10,7 +10,7 @@ from PySide6.QtCore import QRect
 from services.data_service import DataService
 from services.interaction_service import InteractionService
 from services.transform_service import TransformService
-from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
+from tests.test_helpers import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
 
 
 @final

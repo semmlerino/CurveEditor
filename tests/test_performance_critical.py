@@ -30,7 +30,7 @@ from services import (
 )
 
 # Test utilities
-from tests.test_utilities import ProtocolCompliantMockCurveView
+from tests.test_helpers import ProtocolCompliantMockCurveView
 
 
 @pytest.mark.performance

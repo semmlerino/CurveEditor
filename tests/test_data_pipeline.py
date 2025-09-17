@@ -35,7 +35,7 @@ from services.interaction_service import InteractionService
 from services.transform_service import TransformService
 
 # Import test utilities
-from tests.test_utilities import ProtocolCompliantMockCurveView
+from tests.test_helpers import ProtocolCompliantMockCurveView
 
 
 class TestFileToDisplayPipeline:

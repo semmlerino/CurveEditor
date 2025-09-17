@@ -9,10 +9,9 @@ import math
 import pytest
 
 # Import the test data types
-from tests.test_utilities import (
+from tests.test_helpers import (
     Point4,
     PointsList,
-    TestDataBuilder,
 )
 
 
@@ -31,19 +30,25 @@ def large_sample_points() -> PointsList:
 @pytest.fixture
 def sample_curve_data() -> list[Point4]:
     """Provide sample curve data for tests."""
-    return TestDataBuilder.curve_data()
+    return [
+        (1, 100.0, 200.0, "normal"),
+        (2, 150.0, 250.0, "normal"),
+        (3, 200.0, 300.0, "normal"),
+        (4, 250.0, 350.0, "normal"),
+        (5, 300.0, 400.0, "normal"),
+    ]
 
 
 @pytest.fixture
 def keyframe_curve_data() -> list[Point4]:
     """Provide curve data with keyframes for tests."""
-    return TestDataBuilder.keyframe_data()
-
-
-@pytest.fixture
-def test_data_builder() -> TestDataBuilder:
-    """Provide the test data builder for creating test data."""
-    return TestDataBuilder()
+    return [
+        (1, 0.0, 0.0, "keyframe"),
+        (5, 50.0, 25.0, "keyframe"),
+        (10, 100.0, 50.0, "keyframe"),
+        (15, 150.0, 75.0, "keyframe"),
+        (20, 200.0, 100.0, "keyframe"),
+    ]
 
 
 @pytest.fixture

@@ -33,7 +33,7 @@ from services import (
 from services.transform_service import Transform, ViewState
 
 # Import test utilities
-from tests.test_utilities import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
+from tests.test_helpers import ProtocolCompliantMockCurveView, ProtocolCompliantMockMainWindow
 
 
 class TestServiceInitialization:

@@ -8,18 +8,12 @@ This package contains organized test fixtures split by domain:
 - service_fixtures: Service layer test fixtures
 """
 
-from tests.fixtures.component_fixtures import (
-    test_curve_view,
-    test_curve_view_with_data,
-    test_main_window,
-    test_main_window_with_data,
-)
+# Component fixtures removed - classes now available directly from test_helpers
 from tests.fixtures.data_fixtures import (
     keyframe_curve_data,
     large_sample_points,
     sample_curve_data,
     sample_points,
-    test_data_builder,
 )
 from tests.fixtures.mock_fixtures import (
     lazy_mock_main_window,
@@ -48,7 +42,6 @@ __all__ = [
     "keyframe_curve_data",
     "sample_points",
     "large_sample_points",
-    "test_data_builder",
     # Mock fixtures
     "mock_curve_view",
     "mock_curve_view_with_selection",
@@ -66,9 +59,4 @@ __all__ = [
     # Service fixtures
     "isolated_services",
     "memory_monitor",
-    # Component fixtures
-    "test_curve_view",
-    "test_curve_view_with_data",
-    "test_main_window",
-    "test_main_window_with_data",
 ]

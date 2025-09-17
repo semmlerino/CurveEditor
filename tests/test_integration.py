@@ -18,7 +18,7 @@ from PySide6.QtCore import QRect
 
 from core.type_aliases import CurveDataList
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
-from tests.test_utilities import TestCurveView, TestMainWindow
+from tests.test_helpers import TestCurveView, TestMainWindow
 
 if TYPE_CHECKING:
     from services.data_service import DataService

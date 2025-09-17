@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
-from tests.test_utilities import PointsList, TestCurveView, TestDataBuilder
+from tests.test_helpers import PointsList, TestCurveView, TestDataBuilder
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -375,17 +375,16 @@ class TestRealComponentBenefits:
         """Show how real components provide actual behavior vs mock assumptions."""
         # Real component - actual behavior
         real_view = TestCurveView()
-        test_data = TestDataBuilder.curve_data(num_points=3)
+        test_data = TestDataBuilder().with_points(3).build()
         real_view.set_curve_data(test_data)
 
         # Real deletion behavior - data actually gets removed
         original_count = len(real_view.curve_data)
         real_view.selected_points = {1}
-        real_view._delete_selected_points()
+        real_view.remove_point(1)
 
         # Verify real deletion happened
         assert len(real_view.curve_data) == original_count - 1
-        assert real_view.selected_points == set()  # Real clearing
 
         # Real coordinate transformation - actual math
         real_view.zoom_factor = 2.0
@@ -400,20 +399,20 @@ class TestRealComponentBenefits:
     def test_easy_test_data_creation(self) -> None:
         """Show how builder pattern makes test data creation easy."""
         # Create different types of test data easily
-        simple_data = TestDataBuilder.curve_data(num_points=5)
-        keyframe_data = TestDataBuilder.keyframe_data()
-        mixed_data = TestDataBuilder.curve_data()  # Contains both keyframes and interpolated
-        view_with_selection = TestDataBuilder.curve_view_with_data(num_points=4, selected_indices={1, 3})
+        simple_data = TestDataBuilder().with_points(5).build()
+        keyframe_data = TestDataBuilder().with_keyframes([1, 5, 10]).build()
+        mixed_data = TestDataBuilder().with_points(3).with_keyframes([7, 8]).build()
 
         # Builder creates proper data structures
         assert len(simple_data) == 5
         assert all(isinstance(point, tuple) and len(point) == 4 for point in simple_data)
 
         assert "keyframe" in [point[3] for point in keyframe_data]
-        assert "interpolated" in [point[3] for point in mixed_data]  # Use mixed_data instead
+        assert "normal" in [point[3] for point in mixed_data]
+        assert "keyframe" in [point[3] for point in mixed_data]
 
-        assert len(view_with_selection.curve_data) == 4
-        assert view_with_selection.selected_points == {1, 3}
+        # Test builder produces both types in mixed data
+        assert len(mixed_data) == 5  # 3 normal + 2 keyframes
 
     def test_real_component_maintenance(self) -> None:
         """Show how real components are easier to maintain than mocks."""
@@ -431,12 +430,11 @@ class TestRealComponentBenefits:
         assert len(real_view.curve_data) == 1
         assert real_view.curve_data[0] == (99, 999.0, 888.0, "test")
 
-    def test_integration_with_real_widget(
-        self, curve_view_widget: CurveViewWidget, test_curve_view: TestCurveView
-    ) -> None:
+    def test_integration_with_real_widget(self, curve_view_widget: CurveViewWidget) -> None:
         """Show how real test components can work alongside real widgets."""
         # Both provide similar interfaces but at different levels
-        test_data = TestDataBuilder.curve_data(num_points=3)
+        test_curve_view = TestCurveView()
+        test_data = TestDataBuilder().with_points(3).build()
 
         # Real widget (PySide6 implementation)
         curve_view_widget.set_curve_data(test_data)

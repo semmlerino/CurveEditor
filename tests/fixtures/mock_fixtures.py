@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 
-# Import mock classes from test utilities
-from tests.test_utilities import (
+# Import mock classes from test helpers
+from tests.test_helpers import (
     BaseMockCurveView,
     BaseMockMainWindow,
     LazyUIMockMainWindow,

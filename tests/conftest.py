@@ -30,12 +30,6 @@ from tests.fixtures import (
     # Data fixtures
     sample_curve_data,
     sample_points,
-    # Component fixtures
-    test_curve_view,
-    test_curve_view_with_data,
-    test_data_builder,
-    test_main_window,
-    test_main_window_with_data,
 )
 
 # Re-export all fixtures so pytest can find them
@@ -45,7 +39,6 @@ __all__ = [
     "keyframe_curve_data",
     "sample_points",
     "large_sample_points",
-    "test_data_builder",
     # Mock fixtures
     "mock_curve_view",
     "mock_curve_view_with_selection",
@@ -63,9 +56,4 @@ __all__ = [
     # Service fixtures
     "isolated_services",
     "memory_monitor",
-    # Component fixtures
-    "test_curve_view",
-    "test_curve_view_with_data",
-    "test_main_window",
-    "test_main_window_with_data",
 ]
