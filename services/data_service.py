@@ -888,13 +888,5 @@ class DataService:
             return False
 
 
-# Module-level instance
-_data_service: DataService | None = None
-
-
-def get_data_service() -> DataService:
-    """Get the singleton DataService instance."""
-    global _data_service
-    if _data_service is None:
-        _data_service = DataService()
-    return _data_service
+# Singleton instance is managed by services/__init__.py
+# Removed duplicate get_data_service() to avoid multiple singleton instances

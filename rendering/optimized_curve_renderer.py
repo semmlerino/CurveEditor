@@ -17,8 +17,12 @@ import numpy as np
 
 if TYPE_CHECKING:
     from services.transform_service import Transform
+    from ui.main_window import MainWindow
+    from ui.state_manager import StateManager
 else:
     Transform = object
+    MainWindow = object
+    StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
 # Using Any to suppress type checker warnings while maintaining runtime performance
@@ -36,7 +40,7 @@ class CurveViewProtocol(Protocol):
     # Required attributes
     points: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]
     show_background: bool
-    background_image: object  # QImage or QPixmap
+    background_image: Any  # QImage or QPixmap at runtime
     show_grid: bool
     zoom_factor: float
     pan_offset_x: float
@@ -48,7 +52,7 @@ class CurveViewProtocol(Protocol):
     background_opacity: float
     selected_points: set[int]
     point_radius: int
-    main_window: object  # MainWindow
+    main_window: "MainWindow | None"
 
     # Optional attributes for debugging
     debug_mode: bool
@@ -63,8 +67,7 @@ class CurveViewProtocol(Protocol):
 class MainWindowProtocol(Protocol):
     """Protocol for main window objects."""
 
-    @property
-    def state_manager(self) -> object: ...  # StateManager with current_frame
+    state_manager: "StateManager"  # Has current_frame attribute
 
 
 logger = logging.getLogger("optimized_curve_renderer")
@@ -604,32 +607,35 @@ class OptimizedCurveRenderer:
         print("[RENDERER_BG] Using transform-based rendering")
         transform = curve_view.get_transform()
 
+        from PySide6.QtGui import QImage, QPixmap
+
+        # Cast background_image to proper type for type checker
+        bg_image = background_image  # type: QImage | QPixmap  # pyright: ignore[reportAssignmentType]
+
         # Get image position - account for Y-flip
         # When Y-flip is enabled, the image's top-left in data space is at (0, image_height)
         # When Y-flip is disabled, the image's top-left in data space is at (0, 0)
         if transform.flip_y:
             # With Y-flip, image top is at Y=image_height in data space
-            top_left_x, top_left_y = transform.data_to_screen(0, background_image.height())
+            top_left_x, top_left_y = transform.data_to_screen(0, bg_image.height())
         else:
             # Without Y-flip, image top is at Y=0 in data space
             top_left_x, top_left_y = transform.data_to_screen(0, 0)
 
         # Calculate scaled dimensions directly like _paint_background does
-        scale = transform.get_parameters()["scale"]
-        target_width = int(background_image.width() * scale)
-        target_height = int(background_image.height() * scale)
+        scale: float = transform.get_parameters()["scale"]  # pyright: ignore[reportAssignmentType]
+        target_width = int(bg_image.width() * scale)
+        target_height = int(bg_image.height() * scale)
 
-        print(f"[RENDERER_BG] Scale: {scale}, original size: ({background_image.width()}, {background_image.height()})")
+        print(f"[RENDERER_BG] Scale: {scale}, original size: ({bg_image.width()}, {bg_image.height()})")
 
         # Draw the background image scaled to fit the transformed rectangle
         # This ensures it goes through the exact same transformation as curve points
         # Convert QImage to QPixmap if needed
-        from PySide6.QtGui import QImage, QPixmap
-
-        if isinstance(background_image, QImage):
-            pixmap = QPixmap.fromImage(background_image)
+        if isinstance(bg_image, QImage):
+            pixmap = QPixmap.fromImage(bg_image)
         else:
-            pixmap = background_image
+            pixmap = bg_image  # pyright: ignore[reportAssignmentType]
         print(
             f"[RENDERER_BG] Drawing at pos=({int(top_left_x)}, {int(top_left_y)}), size=({int(target_width)}, {int(target_height)})"
         )

@@ -40,10 +40,10 @@ def _get_transform_service() -> TransformService:
     """Get transform service singleton (lazy initialization)."""
     global _transform_service
     if _transform_service is None:
-        # Import here to avoid circular import
-        from services import get_transform_service
+        # Import directly to avoid circular import with services/__init__
+        from services.transform_service import TransformService
 
-        _transform_service = get_transform_service()
+        _transform_service = TransformService()
     return _transform_service
 
 
@@ -948,13 +948,5 @@ class InteractionService:
         return len(self._history)
 
 
-# Module-level instance
-_interaction_service: InteractionService | None = None
-
-
-def get_interaction_service() -> InteractionService:
-    """Get the singleton InteractionService instance."""
-    global _interaction_service
-    if _interaction_service is None:
-        _interaction_service = InteractionService()
-    return _interaction_service
+# Singleton instance is managed by services/__init__.py
+# Removed duplicate get_interaction_service() to avoid multiple singleton instances
