@@ -37,6 +37,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QColor,
+    QContextMenuEvent,
     QKeyEvent,
     QMouseEvent,
     QPainter,
@@ -48,7 +49,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
 
 # Import core modules
-from core.models import CurvePoint, PointCollection
+from core.models import CurvePoint, PointCollection, PointStatus
 from core.point_types import safe_extract_point
 from core.signal_manager import SignalManager
 from core.type_aliases import CurveDataList
@@ -81,6 +82,9 @@ else:
     MainWindow = Any  # Runtime fallback to avoid import cycle
 
 from core.logger_utils import get_logger
+
+# Import stores
+from stores import get_store_manager
 
 logger = get_logger("curve_view_widget")
 
@@ -117,6 +121,7 @@ class CurveViewWidget(QWidget):
     selection_changed: Signal = Signal(list)  # list of indices
     view_changed: Signal = Signal()  # view transform changed
     zoom_changed: Signal = Signal(float)  # zoom level
+    data_changed: Signal = Signal()  # curve data changed
 
     def __init__(self, parent: QWidget | None = None):
         """
@@ -130,10 +135,15 @@ class CurveViewWidget(QWidget):
         # Signal management for proper cleanup
         self.signal_manager: SignalManager = SignalManager(self)
 
-        # Core data
-        self.curve_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]] = []
+        # Get the reactive data store
+        self._store_manager = get_store_manager()
+        self._curve_store = self._store_manager.get_curve_store()
+
+        # Connect to store signals for reactive updates
+        self._connect_store_signals()
+
+        # Core data (now derived from store)
         self.point_collection: PointCollection | None = None
-        self.selected_indices: set[int] = set()
         self.hover_index: int = -1
 
         # View transformation
@@ -192,6 +202,7 @@ class CurveViewWidget(QWidget):
         self.last_mouse_pos: QPointF | None = None
         self.drag_start_pos: QPointF | None = None
         self.dragged_index: int = -1
+        self._context_menu_point: int = -1
 
         # Rubber band selection
         self.rubber_band: QRubberBand | None = None
@@ -216,7 +227,105 @@ class CurveViewWidget(QWidget):
         # Widget setup
         self._setup_widget()
 
-        logger.info("CurveViewWidget initialized with OptimizedCurveRenderer")
+        logger.info("CurveViewWidget initialized with OptimizedCurveRenderer and reactive store")
+
+    @property
+    def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str | bool]]:
+        """Get curve data from the store."""
+        return self._curve_store.get_data()
+
+    @property
+    def selected_indices(self) -> set[int]:
+        """Get selected indices from the store."""
+        return self._curve_store.get_selection()
+
+    def _connect_store_signals(self) -> None:
+        """Connect to reactive store signals for automatic updates."""
+        # Connect store signals to widget updates
+        self._curve_store.data_changed.connect(self._on_store_data_changed)
+        self._curve_store.point_added.connect(self._on_store_point_added)
+        self._curve_store.point_updated.connect(self._on_store_point_updated)
+        self._curve_store.point_removed.connect(self._on_store_point_removed)
+        self._curve_store.point_status_changed.connect(self._on_store_status_changed)
+        self._curve_store.selection_changed.connect(self._on_store_selection_changed)
+
+        logger.debug("Connected to reactive store signals")
+
+    def _on_store_data_changed(self) -> None:
+        """Handle store data changed signal."""
+        # Update internal point collection
+        data = self.curve_data
+        if data:
+            formatted_data = []
+            for point in data:
+                if len(point) >= 3:
+                    formatted_data.append((int(point[0]), float(point[1]), float(point[2])))
+            self.point_collection = PointCollection.from_tuples(formatted_data)
+        else:
+            self.point_collection = None
+
+        # Clear caches and update display
+        self._invalidate_caches()
+        self.update()
+
+        # Propagate signal to widget listeners
+        self.data_changed.emit()
+
+    def _on_store_point_added(self, index: int, point: object) -> None:
+        """Handle store point added signal."""
+        # Update collection if needed
+        if self.point_collection:
+            self.point_collection.points.append(CurvePoint.from_tuple(point))
+        else:
+            self.point_collection = PointCollection([CurvePoint.from_tuple(point)])
+
+        self._invalidate_point_region(index)
+        self.update()
+        self.data_changed.emit()
+
+    def _on_store_point_updated(self, index: int, x: float, y: float) -> None:
+        """Handle store point updated signal."""
+        # Update collection
+        if self.point_collection and index < len(self.point_collection.points):
+            old_cp = self.point_collection.points[index]
+            self.point_collection.points[index] = old_cp.with_coordinates(x, y)
+
+        self._invalidate_point_region(index)
+        self.point_moved.emit(index, x, y)
+        self.update()
+        self.data_changed.emit()
+
+    def _on_store_point_removed(self, index: int) -> None:
+        """Handle store point removed signal."""
+        # Update collection
+        if self.point_collection and index < len(self.point_collection.points):
+            del self.point_collection.points[index]
+
+        self._invalidate_caches()
+        self.update()
+        self.data_changed.emit()
+
+    def _on_store_status_changed(self, index: int, status: str) -> None:
+        """Handle store point status changed signal."""
+        # Update collection if needed
+        if self.point_collection and index < len(self.point_collection.points):
+            old_cp = self.point_collection.points[index]
+            # Map string status to PointStatus enum
+            status_enum = PointStatus.from_string(status) if hasattr(PointStatus, "from_string") else PointStatus.NORMAL
+            self.point_collection.points[index] = old_cp.with_status(status_enum)
+
+        self.update()
+        self.data_changed.emit()
+        # Emit point_moved for compatibility with old code that listens for status changes
+        point = self._curve_store.get_point(index)
+        if point and len(point) >= 3:
+            self.point_moved.emit(index, point[1], point[2])
+
+    def _on_store_selection_changed(self, selection: set[int]) -> None:
+        """Handle store selection changed signal."""
+        # Update display and notify listeners
+        self.update()
+        self.selection_changed.emit(list(selection))
 
     def _setup_widget(self) -> None:
         """Configure widget properties and settings."""
@@ -286,26 +395,9 @@ class CurveViewWidget(QWidget):
         Args:
             data: List of point tuples (frame, x, y, [status])
         """
-        self.curve_data = data
-        # Convert union types to expected format for PointCollection
-        if data:
-            # PointCollection.from_tuples expects LegacyPointTuple format
-            formatted_data = []
-            for point in data:
-                if len(point) >= 3:
-                    # Convert to (frame, x, y) format expected by PointCollection
-                    formatted_data.append((int(point[0]), float(point[1]), float(point[2])))
-            self.point_collection = PointCollection.from_tuples(formatted_data)
-        else:
-            self.point_collection = None
-
-        # Clear caches
-        self._invalidate_caches()
-
-        # Update display
-        self.update()
-
-        logger.debug(f"Set curve data with {len(data)} points")
+        # Delegate to store - it will emit signals that trigger our updates
+        self._curve_store.set_data(data)
+        logger.debug(f"Set curve data with {len(data)} points via store")
 
     def add_point(self, point: tuple[int, float, float] | tuple[int, float, float, str]) -> None:
         """
@@ -314,18 +406,8 @@ class CurveViewWidget(QWidget):
         Args:
             point: Point tuple (frame, x, y, [status])
         """
-        self.curve_data.append(point)
-
-        # Update collection
-        if self.point_collection:
-            self.point_collection.points.append(CurvePoint.from_tuple(point))
-        else:
-            self.point_collection = PointCollection([CurvePoint.from_tuple(point)])
-
-        # Invalidate only affected region
-        self._invalidate_point_region(len(self.curve_data) - 1)
-
-        self.update()
+        # Delegate to store - it will emit signals that trigger our updates
+        self._curve_store.add_point(point)
 
     def update_point(self, index: int, x: float, y: float) -> None:
         """
@@ -336,28 +418,8 @@ class CurveViewWidget(QWidget):
             x: New X coordinate
             y: New Y coordinate
         """
-        if 0 <= index < len(self.curve_data):
-            old_point = self.curve_data[index]
-            frame, _, _, *rest = safe_extract_point(old_point)
-
-            # Create updated point
-            if rest:
-                self.curve_data[index] = (frame, x, y, rest[0])
-            else:
-                self.curve_data[index] = (frame, x, y)
-
-            # Update collection
-            if self.point_collection and index < len(self.point_collection.points):
-                old_cp = self.point_collection.points[index]
-                self.point_collection.points[index] = old_cp.with_coordinates(x, y)
-
-            # Invalidate affected region
-            self._invalidate_point_region(index)
-
-            # Emit signal
-            self.point_moved.emit(index, x, y)
-
-            self.update()
+        # Delegate to store - it will emit signals that trigger our updates
+        self._curve_store.update_point(index, x, y)
 
     def remove_point(self, index: int) -> None:
         """
@@ -366,23 +428,9 @@ class CurveViewWidget(QWidget):
         Args:
             index: Point index to remove
         """
-        if 0 <= index < len(self.curve_data):
-            # Remove from data
-            del self.curve_data[index]
-
-            # Remove from collection
-            if self.point_collection:
-                del self.point_collection.points[index]
-
-            # Update selection
-            if index in self.selected_indices:
-                self.selected_indices.remove(index)
-
-            # Adjust indices for points after removed one
-            self.selected_indices = {i - 1 if i > index else i for i in self.selected_indices}
-
-            self._invalidate_caches()
-            self.update()
+        # Delegate to store - it will emit signals that trigger our updates
+        # Store handles selection updates automatically
+        self._curve_store.remove_point(index)
 
     # Coordinate Transformation
 
@@ -688,8 +736,13 @@ class CurveViewWidget(QWidget):
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
         elif button == Qt.MouseButton.RightButton:
-            # Context menu will be handled by main window
-            pass
+            # Find point at position for context menu
+            idx = self._find_point_at(pos)
+            if idx >= 0:
+                # Store for context menu
+                self._context_menu_point = idx
+            else:
+                self._context_menu_point = -1
 
         self.update()
 
@@ -770,6 +823,95 @@ class CurveViewWidget(QWidget):
             self.unsetCursor()
 
         self.update()
+
+    @override
+    def contextMenuEvent(self, event: QContextMenuEvent) -> None:
+        """
+        Handle context menu events for point status changes.
+
+        Args:
+            event: Context menu event
+        """
+        from PySide6.QtWidgets import QMenu
+
+        # Check if we have a point under cursor
+        pos = QPointF(event.pos())  # Convert QPoint to QPointF
+        idx = self._find_point_at(pos)
+
+        if idx >= 0 and idx < len(self.curve_data):
+            # Create context menu
+            menu = QMenu(self)
+            menu.setStyleSheet("""
+                QMenu {
+                    background-color: #2d2d30;
+                    color: #e0e0e0;
+                    border: 1px solid #495057;
+                }
+                QMenu::item:selected {
+                    background-color: #3a3a3c;
+                }
+            """)
+
+            # Get current point status
+            point = self.curve_data[idx]
+            current_status = point[3] if len(point) > 3 else "normal"
+
+            # Add status change actions
+            status_menu = menu.addMenu("Set Point Status")
+
+            # Create actions for each status
+            statuses = [
+                ("Keyframe", PointStatus.KEYFRAME),
+                ("Tracked", PointStatus.TRACKED),
+                ("Interpolated", PointStatus.INTERPOLATED),
+                ("Endframe", PointStatus.ENDFRAME),
+                ("Normal", PointStatus.NORMAL),
+            ]
+
+            for label, status in statuses:
+                action = status_menu.addAction(label)
+                # Add checkmark for current status
+                if status.value == current_status:
+                    action.setCheckable(True)
+                    action.setChecked(True)
+                # Connect to handler
+                action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
+
+            # Add separator
+            menu.addSeparator()
+
+            # Add info display
+            frame_num = point[0]
+            info_action = menu.addAction(f"Frame {frame_num}")
+            info_action.setEnabled(False)
+
+            # Show menu at cursor position
+            menu.exec(event.globalPos())
+
+        else:
+            # No point under cursor, show general menu or pass to parent
+            super().contextMenuEvent(event)
+
+    def _set_point_status(self, idx: int, status: PointStatus) -> None:
+        """
+        Change the status of a point.
+
+        Args:
+            idx: Index of the point to change
+            status: New PointStatus value
+        """
+        # Delegate to store - it will emit signals that trigger our updates
+        self._curve_store.set_point_status(idx, status.value)
+
+        # Add to history if main window available
+        if self.main_window is not None:
+            if hasattr(self.main_window, "add_to_history"):
+                self.main_window.add_to_history()
+
+        point = self._curve_store.get_point(idx)
+        if point:
+            frame = point[0]
+            logger.info(f"Changed point {idx} (frame {frame}) status to {status.value}")
 
     @override
     def wheelEvent(self, event: QWheelEvent) -> None:
@@ -1229,14 +1371,11 @@ class CurveViewWidget(QWidget):
             index: Point index
             add_to_selection: Whether to add to existing selection
         """
-        if not add_to_selection:
-            self.selected_indices.clear()
+        # Delegate to store - it will emit signals that trigger our updates
+        self._curve_store.select(index, add_to_selection)
 
-        self.selected_indices.add(index)
-
-        # Emit signals
+        # Emit our own signal for compatibility
         self.point_selected.emit(index)
-        self.selection_changed.emit(list(self.selected_indices))
 
         # Update interaction service if available
         if self.interaction_service and self.main_window:
@@ -1245,13 +1384,11 @@ class CurveViewWidget(QWidget):
 
     def _clear_selection(self) -> None:
         """Clear all selection."""
-        self.selected_indices.clear()
-        self.selection_changed.emit([])
+        self._curve_store.clear_selection()
 
     def _select_all(self) -> None:
         """Select all points."""
-        self.selected_indices = set(range(len(self.curve_data)))
-        self.selection_changed.emit(list(self.selected_indices))
+        self._curve_store.select_all()
 
     def _start_rubber_band(self, pos: QPointF) -> None:
         """Start rubber band selection."""
@@ -1288,15 +1425,21 @@ class CurveViewWidget(QWidget):
         Args:
             rect: Selection rectangle in screen coordinates
         """
-        self.selected_indices.clear()
+        # Clear selection first
+        self._curve_store.clear_selection()
 
         # Update screen cache
         self._update_screen_points_cache()
 
-        # Check each point
+        # Check each point and build selection
+        selected_points = []
         for idx, screen_pos in self._screen_points_cache.items():
             if rect.contains(screen_pos.toPoint()):
-                self.selected_indices.add(idx)
+                selected_points.append(idx)
+
+        # Select all points at once
+        for idx in selected_points:
+            self._curve_store.select(idx, add_to_selection=True)
 
     # Point Operations
 
@@ -1356,8 +1499,7 @@ class CurveViewWidget(QWidget):
         for idx in indices:
             self.remove_point(idx)
 
-        self.selected_indices.clear()
-        self.selection_changed.emit([])
+        # Selection is cleared automatically by the store when points are removed
 
         if self.main_window is not None:
             if getattr(self.main_window, "add_to_history", None) is not None:
@@ -1505,9 +1647,12 @@ class CurveViewWidget(QWidget):
     @selected_points.setter
     def selected_points(self, value: set[int]) -> None:
         """Set selected points (compatibility with InteractionService)."""
-        if self.selected_indices != value:  # Only update if changed
-            self.selected_indices = value
-            self.selection_changed.emit(list(self.selected_indices))
+        current_selection = self._curve_store.get_selection()
+        if current_selection != value:  # Only update if changed
+            # Clear and rebuild selection
+            self._curve_store.clear_selection()
+            for idx in value:
+                self._curve_store.select(idx, add_to_selection=True)
             # Don't call update() here - InteractionService will call it
 
     @property
@@ -1524,9 +1669,8 @@ class CurveViewWidget(QWidget):
     def selected_point_idx(self, value: int) -> None:
         """Set primary selected point (compatibility with InteractionService)."""
         if value >= 0:
-            if value not in self.selected_indices:
-                self.selected_indices.add(value)
-                self.selection_changed.emit(list(self.selected_indices))
+            if value not in self._curve_store.get_selection():
+                self._curve_store.select(value, add_to_selection=True)
                 self.update()
 
     @property

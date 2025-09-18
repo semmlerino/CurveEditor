@@ -530,6 +530,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         _ = self.curve_widget.selection_changed.connect(self._on_curve_selection_changed)
         _ = self.curve_widget.view_changed.connect(self._on_curve_view_changed)
         _ = self.curve_widget.zoom_changed.connect(self._on_curve_zoom_changed)
+        _ = self.curve_widget.data_changed.connect(lambda: self._update_timeline_tabs())
 
         # Connect view options to curve widget
         if self.show_background_cb:
@@ -1408,12 +1409,34 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         try:
             data_service = get_data_service()
 
-            # Get status for all frames that have points
+            # Get comprehensive status for all frames that have points
             frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
 
-            # Update timeline tabs with point status
-            for frame, (keyframe_count, interpolated_count, has_selected) in frame_status.items():
-                self.timeline_tabs.update_frame_status(frame, keyframe_count, interpolated_count, has_selected)
+            # Update timeline tabs with comprehensive point status
+            for frame, status_data in frame_status.items():
+                # Unpack all status fields from the enhanced DataService response
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = status_data
+
+                self.timeline_tabs.update_frame_status(
+                    frame,
+                    keyframe_count=keyframe_count,
+                    interpolated_count=interpolated_count,
+                    tracked_count=tracked_count,
+                    endframe_count=endframe_count,
+                    normal_count=normal_count,
+                    is_startframe=is_startframe,
+                    is_inactive=is_inactive,
+                    has_selected=has_selected,
+                )
 
             logger.debug(f"Updated timeline tabs with {len(frame_status)} frames of point data")
 

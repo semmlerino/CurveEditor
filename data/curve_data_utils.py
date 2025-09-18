@@ -1,8 +1,103 @@
 """
 Utility functions for curve data manipulation in CurveEditor.
+
+Provides interpolation and data manipulation functions that respect curve
+segments and ENDFRAME boundaries for 3DEqualizer-style tracking.
 """
 
 from core.point_types import get_point_status, safe_extract_point
+
+
+def is_endframe_point(point: tuple[int, float, float] | tuple[int, float, float, str | bool]) -> bool:
+    """Check if a point is an ENDFRAME point.
+
+    Args:
+        point: Point tuple to check
+
+    Returns:
+        True if the point is an ENDFRAME
+    """
+    status = get_point_status(point)
+    return status == "endframe"
+
+
+def find_interpolation_boundaries_with_segments(
+    curve_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]],
+    idx: int,
+    selected_indices: set[int],
+) -> tuple[tuple[int, float, float, str] | None, tuple[int, float, float, str] | None]:
+    """Find valid interpolation boundaries respecting segment boundaries.
+
+    This function ensures interpolation does not cross ENDFRAME points,
+    maintaining curve segmentation for 3DEqualizer-style tracking.
+
+    Args:
+        curve_data: Complete curve data
+        idx: Index of point to interpolate
+        selected_indices: Set of indices being interpolated
+
+    Returns:
+        Tuple of (prev_point, next_point) for interpolation, or (None, None)
+    """
+    n_points = len(curve_data)
+
+    # Find previous valid neighbor (not crossing ENDFRAME)
+    prev_point = None
+    for i in range(idx - 1, -1, -1):
+        if i in selected_indices:
+            continue
+
+        p = curve_data[i]
+
+        # Stop if we hit an ENDFRAME (segment boundary)
+        if is_endframe_point(p):
+            break
+
+        # Check if point is not interpolated
+        if get_point_status(p) != "interpolated":
+            frame, x, y, status = safe_extract_point(p)
+            prev_point = (frame, x, y, status)
+            break
+
+    # Find next valid neighbor (not crossing ENDFRAME)
+    next_point = None
+
+    # First check if current point itself is an ENDFRAME
+    if idx < n_points and is_endframe_point(curve_data[idx]):
+        # Can't interpolate an ENDFRAME point
+        return (None, None)
+
+    for i in range(idx + 1, n_points):
+        if i in selected_indices:
+            continue
+
+        p = curve_data[i]
+
+        # Check if point is not interpolated first
+        if get_point_status(p) != "interpolated":
+            # But stop if it's an ENDFRAME after checking
+            if is_endframe_point(p):
+                # Can use ENDFRAME as next point but don't cross it
+                frame, x, y, status = safe_extract_point(p)
+                next_point = (frame, x, y, status)
+                break
+
+            frame, x, y, status = safe_extract_point(p)
+            next_point = (frame, x, y, status)
+            break
+
+    # Check if there's an ENDFRAME between prev and current
+    if prev_point:
+        prev_frame = prev_point[0]
+        for i in range(idx - 1, -1, -1):
+            if curve_data[i][0] == prev_frame:
+                break
+            if is_endframe_point(curve_data[i]):
+                # ENDFRAME between prev and current - can't interpolate
+                prev_point = None
+                break
+
+    return (prev_point, next_point)
 
 
 def compute_interpolated_curve_data(
@@ -42,11 +137,11 @@ def _compute_interpolated_original(
     selected_indices: list[int],
 ) -> list[tuple[int, float, float, str]]:
     """
-    Enhanced original algorithm with optimizations for better practical performance.
+    Enhanced original algorithm with segment-aware interpolation.
 
     Key improvements over the original:
     1. Set-based lookup for O(1) selected index checking
-    2. Early termination conditions in searches
+    2. Respects ENDFRAME boundaries (doesn't interpolate across segments)
     3. Reduced function call overhead
     4. Improved memory access patterns
     """
@@ -61,25 +156,12 @@ def _compute_interpolated_original(
         point = old_data[idx]
         frame, x, y, _ = safe_extract_point(point)
 
-        # Find previous valid neighbor with optimized search
-        prev_point = None
-        for i in range(idx - 1, -1, -1):
-            if i not in selected_set:
-                p = old_data[i]
-                # Fast path: check if point is not interpolated using type-safe method
-                if get_point_status(p) != "interpolated":
-                    prev_point = p
-                    break
+        # Use segment-aware boundary finding
+        prev_tuple, next_tuple = find_interpolation_boundaries_with_segments(old_data, idx, selected_set)
 
-        # Find next valid neighbor with optimized search
-        next_point = None
-        for i in range(idx + 1, n_points):
-            if i not in selected_set:
-                p = old_data[i]
-                # Fast path: check if point is not interpolated using type-safe method
-                if get_point_status(p) != "interpolated":
-                    next_point = p
-                    break
+        # Convert tuples back to match existing logic
+        prev_point = prev_tuple if prev_tuple else None
+        next_point = next_tuple if next_tuple else None
 
         # Compute interpolation with optimized logic
         if prev_point and next_point:
@@ -116,9 +198,9 @@ def _compute_interpolated_optimized(
     selected_indices: list[int],
 ) -> list[tuple[int, float, float, str]]:
     """
-    O(n) optimized algorithm for large datasets.
+    O(n) optimized algorithm for large datasets with segment awareness.
 
-    Pre-computes neighbor mappings to avoid O(n²) searches.
+    Pre-computes neighbor mappings while respecting ENDFRAME boundaries.
     Uses arrays instead of dictionaries for better performance.
     """
     n_points = len(old_data)
@@ -128,25 +210,45 @@ def _compute_interpolated_optimized(
     prev_neighbors = [-1] * n_points
     next_neighbors = [-1] * n_points
 
-    # Forward pass: build previous neighbor mappings
+    # Forward pass: build previous neighbor mappings (stop at ENDFRAME)
     last_valid_idx = -1
+    last_was_endframe = False
     for i in range(n_points):
         if i in selected_set:
-            prev_neighbors[i] = last_valid_idx
+            # Check if we crossed an ENDFRAME boundary
+            if last_was_endframe:
+                prev_neighbors[i] = -1  # No valid prev across segment boundary
+            else:
+                prev_neighbors[i] = last_valid_idx
         else:
             p = old_data[i]
-            if get_point_status(p) != "interpolated":
-                last_valid_idx = i
+            status = get_point_status(p)
+            if status != "interpolated":
+                if is_endframe_point(p):
+                    last_was_endframe = True
+                    last_valid_idx = -1  # Reset after ENDFRAME
+                else:
+                    last_was_endframe = False
+                    last_valid_idx = i
 
-    # Backward pass: build next neighbor mappings
+    # Backward pass: build next neighbor mappings (stop at ENDFRAME)
     last_valid_idx = -1
     for i in range(n_points - 1, -1, -1):
         if i in selected_set:
-            next_neighbors[i] = last_valid_idx
+            # Check if point itself is ENDFRAME
+            if is_endframe_point(old_data[i]):
+                next_neighbors[i] = -1  # Can't interpolate ENDFRAME
+            else:
+                next_neighbors[i] = last_valid_idx
         else:
             p = old_data[i]
-            if get_point_status(p) != "interpolated":
-                last_valid_idx = i
+            status = get_point_status(p)
+            if status != "interpolated":
+                if is_endframe_point(p):
+                    # ENDFRAME can be used as next point but resets chain
+                    last_valid_idx = i
+                else:
+                    last_valid_idx = i
 
     # Interpolate using pre-computed neighbors
     for idx in sorted(selected_indices):

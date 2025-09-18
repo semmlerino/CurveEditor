@@ -41,6 +41,10 @@ DEFAULT_X = 0.0
 DEFAULT_Y = 0.0
 DEFAULT_STATUS = "normal"
 
+# Additional status values for 3DEqualizer-style tracking
+TRACKED_STATUS = "tracked"
+ENDFRAME_STATUS = "endframe"
+
 
 def is_point3(point: object) -> TypeGuard[Point3]:
     """

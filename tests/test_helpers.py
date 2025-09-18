@@ -88,10 +88,10 @@ except ImportError:
 
 # ==================== Type Aliases ====================
 
-# Type aliases for test data
-PointsList = list[tuple[int, float, float]]
+# Type aliases for test data - aligned with core.type_aliases
 Point3 = tuple[int, float, float]
-Point4 = tuple[int, float, float, object]
+Point4 = tuple[int, float, float, str | bool]
+PointsList = list[Point3 | Point4]  # Matches CurveDataList
 
 
 # ==================== Thread-Safe Image Handling ====================

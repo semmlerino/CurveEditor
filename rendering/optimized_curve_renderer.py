@@ -13,11 +13,12 @@ from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
-import numpy.typing as npt
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
 
+from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
+from core.models import CurvePoint
 from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
 
 if TYPE_CHECKING:
@@ -28,8 +29,8 @@ else:
     StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-FloatArray = npt.NDArray[np.float64]  # Float coordinate arrays
-IntArray = npt.NDArray[np.int32]  # Integer index arrays
+FloatArray = np.ndarray[Any, np.dtype[np.float64]]  # Float coordinate arrays
+IntArray = np.ndarray[Any, np.dtype[np.int32]]  # Integer index arrays
 
 logger = get_logger("optimized_curve_renderer")
 
@@ -38,7 +39,7 @@ class CurveViewProtocol(Protocol):
     """Protocol for curve view objects used by the renderer."""
 
     # Required attributes
-    points: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]
+    points: list[tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]]
     show_background: bool
     background_image: Any  # QImage or QPixmap at runtime
     show_grid: bool
@@ -439,11 +440,24 @@ class OptimizedCurveRenderer:
         visible_screen_points = screen_points[visible_indices]
         lod_points, step = self._lod_system.get_lod_points(visible_screen_points, self._render_quality, None)
 
-        # Render lines with optimized path
-        self._render_lines_optimized(painter, lod_points, step)
+        # Get curve data for status checking
+        curve_data = curve_view.points
+
+        # Render lines with segmented support (respects ENDFRAME boundaries)
+        # Check if we have status information to determine if segmented rendering is needed
+        has_status = any(len(pt) > 3 for pt in curve_data[:100] if pt)  # Check first 100 points
+        if has_status:
+            self._render_segmented_lines(painter, curve_view, curve_data, screen_points, visible_indices)
+        else:
+            # Fallback to simple rendering for legacy data
+            self._render_lines_optimized(painter, lod_points, step)
 
         # Render points with batching
         self._render_point_markers_optimized(painter, curve_view, lod_points, visible_indices, step)
+
+        # Render state labels for selected points and current frame
+        if has_status:
+            self._render_point_state_labels(painter, curve_view, lod_points, visible_indices, curve_data)
 
         # Render frame numbers if enabled (with heavy culling)
         if curve_view.show_all_frame_numbers and self._render_quality == RenderQuality.HIGH:
@@ -473,6 +487,76 @@ class OptimizedCurveRenderer:
 
         # Draw all lines at once
         painter.drawPath(line_path)
+
+    def _render_segmented_lines(
+        self,
+        painter: QPainter,
+        curve_view: CurveViewProtocol,
+        curve_data: list[
+            tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]
+        ],
+        screen_points: FloatArray,
+        visible_indices: IntArray,
+    ) -> None:
+        """Render lines respecting curve segments (gaps at ENDFRAME points).
+
+        Args:
+            painter: QPainter for rendering
+            curve_view: CurveView instance
+            curve_data: Original curve data with status
+            screen_points: Transformed screen coordinates
+            visible_indices: Indices of visible points
+        """
+        if len(screen_points) < 2 or len(curve_data) < 2:
+            return
+
+        # Create segmented curve from data
+        points = [CurvePoint.from_tuple(pt) for pt in curve_data]
+        segmented_curve = SegmentedCurve.from_points(points)
+
+        # Set line styles for different segment types
+        active_pen = QPen(QColor(255, 255, 255))
+        active_pen.setWidth(2)
+
+        inactive_pen = QPen(QColor(128, 128, 128, 128))  # Semi-transparent gray
+        inactive_pen.setWidth(1)
+        inactive_pen.setStyle(Qt.PenStyle.DashLine)
+
+        # Draw each segment separately
+        for segment in segmented_curve.segments:
+            if segment.point_count < 2:
+                continue
+
+            # Build path for this segment
+            segment_path = QPainterPath()
+
+            # Find screen points for this segment
+            first_in_segment = True
+            for point in segment.points:
+                # Find this point's index in the original data
+                point_idx = -1
+                for i, pt in enumerate(curve_data):
+                    if pt[0] == point.frame:  # Match by frame number
+                        point_idx = i
+                        break
+
+                if point_idx >= 0 and point_idx < len(screen_points):
+                    screen_pos = screen_points[point_idx]
+                    if first_in_segment:
+                        segment_path.moveTo(screen_pos[0], screen_pos[1])
+                        first_in_segment = False
+                    else:
+                        # Don't connect to ENDFRAME points
+                        if not point.is_endframe:
+                            segment_path.lineTo(screen_pos[0], screen_pos[1])
+
+            # Draw segment with appropriate style
+            if segment.is_active:
+                painter.setPen(active_pen)
+            else:
+                painter.setPen(inactive_pen)
+
+            painter.drawPath(segment_path)
 
     def _render_point_markers_optimized(
         self,
@@ -583,6 +667,77 @@ class OptimizedCurveRenderer:
             if 0 <= original_idx < len(points):
                 frame_num = points[original_idx][0]
                 painter.drawText(int(screen_pos[0] + 10), int(screen_pos[1] - 10), f"F{frame_num}")
+
+    def _render_point_state_labels(
+        self,
+        painter: QPainter,
+        curve_view: CurveViewProtocol,
+        screen_points: FloatArray,
+        visible_indices: IntArray,
+        curve_data: list[
+            tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]
+        ],
+    ) -> None:
+        """Render state labels next to points (keyframe, tracked, endframe, etc).
+
+        Args:
+            painter: QPainter for rendering
+            curve_view: CurveView instance
+            screen_points: Transformed screen coordinates
+            visible_indices: Indices of visible points
+            curve_data: Original curve data with status
+        """
+        if len(screen_points) == 0:
+            return
+
+        # Only show labels for selected points and current frame
+        selected_points = curve_view.selected_points
+        current_frame = 1
+
+        # Get current frame from main window if available
+        if curve_view.main_window is not None:
+            current_frame = curve_view.main_window.state_manager.current_frame
+
+        # Convert to CurvePoints for status checking
+        points_list = [CurvePoint.from_tuple(pt) for pt in curve_data]
+
+        # Set up text rendering
+        font = QFont("Arial", 9, QFont.Weight.Bold)
+        painter.setFont(font)
+
+        # Define colors for different states
+        state_colors = {
+            "keyframe": QColor(0, 255, 0, 200),  # Green
+            "tracked": QColor(0, 128, 255, 200),  # Blue
+            "endframe": QColor(255, 0, 0, 200),  # Red
+            "startframe": QColor(0, 255, 128, 200),  # Light green
+            "interpolated": QColor(128, 128, 128, 200),  # Gray
+            "normal": QColor(200, 200, 200, 200),  # Light gray
+        }
+
+        for i, screen_pos in enumerate(screen_points):
+            # Map to original index
+            original_idx = visible_indices[i] if i < len(visible_indices) else -1
+
+            if 0 <= original_idx < len(points_list):
+                point = points_list[original_idx]
+
+                # Only show label for selected or current frame points
+                show_label = original_idx in selected_points or point.frame == current_frame
+
+                if show_label:
+                    # Get contextual label
+                    prev_point = points_list[original_idx - 1] if original_idx > 0 else None
+                    label = point.get_contextual_status_label(prev_point)
+
+                    # Set color based on status
+                    color = state_colors.get(label, state_colors["normal"])
+                    painter.setPen(QPen(color))
+
+                    # Draw label offset from point
+                    label_x = int(screen_pos[0] + 15)
+                    label_y = int(screen_pos[1] + 5)
+                    painter.drawText(label_x, label_y, label.upper())
 
     def _render_background_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Optimized background rendering with proper transformations."""

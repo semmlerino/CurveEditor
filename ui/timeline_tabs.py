@@ -66,7 +66,7 @@ class FrameStatusCache:
     """Cache for frame point status to improve performance."""
 
     # Attributes - initialized in __init__
-    _cache: dict[FrameNumber, tuple[int, int, bool]]
+    _cache: dict[FrameNumber, tuple[int, int, int, int, int, bool, bool, bool]]
     _dirty_frames: set[FrameNumber]
 
     def __init__(self) -> None:
@@ -74,27 +74,53 @@ class FrameStatusCache:
         self._cache = {}
         self._dirty_frames = set()
 
-    def get_status(self, frame: FrameNumber) -> tuple[int, int, bool] | None:
+    def get_status(self, frame: FrameNumber) -> tuple[int, int, int, int, int, bool, bool, bool] | None:
         """Get cached status for frame.
 
         Args:
             frame: Frame number
 
         Returns:
-            Tuple of (keyframe_count, interpolated_count, has_selected) or None if not cached
+            Tuple of (keyframe_count, interpolated_count, tracked_count, endframe_count,
+                     normal_count, is_startframe, is_inactive, has_selected) or None if not cached
         """
         return self._cache.get(frame)
 
-    def set_status(self, frame: FrameNumber, keyframe_count: int, interpolated_count: int, has_selected: bool) -> None:
+    def set_status(
+        self,
+        frame: FrameNumber,
+        keyframe_count: int,
+        interpolated_count: int,
+        tracked_count: int = 0,
+        endframe_count: int = 0,
+        normal_count: int = 0,
+        is_startframe: bool = False,
+        is_inactive: bool = False,
+        has_selected: bool = False,
+    ) -> None:
         """Cache status for frame.
 
         Args:
             frame: Frame number
             keyframe_count: Number of keyframe points
             interpolated_count: Number of interpolated points
+            tracked_count: Number of tracked points
+            endframe_count: Number of endframe points
+            normal_count: Number of normal points
+            is_startframe: Whether frame has a startframe
+            is_inactive: Whether frame is in an inactive segment
             has_selected: Whether frame has selected points
         """
-        self._cache[frame] = (keyframe_count, interpolated_count, has_selected)
+        self._cache[frame] = (
+            keyframe_count,
+            interpolated_count,
+            tracked_count,
+            endframe_count,
+            normal_count,
+            is_startframe,
+            is_inactive,
+            has_selected,
+        )
         self._dirty_frames.discard(frame)
 
     def invalidate_frame(self, frame: FrameNumber) -> None:
@@ -332,23 +358,55 @@ class TimelineTabWidget(QWidget):
             self.frame_changed.emit(frame)
 
     def update_frame_status(
-        self, frame: int, keyframe_count: int = 0, interpolated_count: int = 0, has_selected: bool = False
+        self,
+        frame: int,
+        keyframe_count: int = 0,
+        interpolated_count: int = 0,
+        tracked_count: int = 0,
+        endframe_count: int = 0,
+        normal_count: int = 0,
+        is_startframe: bool = False,
+        is_inactive: bool = False,
+        has_selected: bool = False,
     ) -> None:
-        """Update point status for a specific frame.
+        """Update comprehensive point status for a specific frame.
 
         Args:
             frame: Frame number
             keyframe_count: Number of keyframe points
             interpolated_count: Number of interpolated points
+            tracked_count: Number of tracked points
+            endframe_count: Number of endframe points
+            normal_count: Number of normal points
+            is_startframe: Whether frame has a startframe
+            is_inactive: Whether frame is in an inactive segment
             has_selected: Whether frame has selected points
         """
-        # Update cache
-        self.status_cache.set_status(frame, keyframe_count, interpolated_count, has_selected)
+        # Update cache with all status information
+        self.status_cache.set_status(
+            frame,
+            keyframe_count,
+            interpolated_count,
+            tracked_count,
+            endframe_count,
+            normal_count,
+            is_startframe,
+            is_inactive,
+            has_selected,
+        )
 
-        # Update tab if visible
+        # Update tab if visible with all status parameters
         if frame in self.frame_tabs:
             tab = self.frame_tabs[frame]
-            tab.set_point_status(keyframe_count, interpolated_count, has_selected)
+            tab.set_point_status(
+                keyframe_count=keyframe_count,
+                interpolated_count=interpolated_count,
+                tracked_count=tracked_count,
+                endframe_count=endframe_count,
+                is_startframe=is_startframe,
+                is_inactive=is_inactive,
+                has_selected=has_selected,
+            )
 
     def invalidate_frame_status(self, frame: int) -> None:
         """Mark frame status as needing update.
@@ -415,11 +473,28 @@ class TimelineTabWidget(QWidget):
             if frame == self.current_frame:
                 tab.set_current_frame(True)
 
-            # Apply cached status if available
+            # Apply cached status if available with all fields
             cached_status = self.status_cache.get_status(frame)
             if cached_status:
-                keyframe_count, interpolated_count, has_selected = cached_status
-                tab.set_point_status(keyframe_count, interpolated_count, has_selected)
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = cached_status
+                tab.set_point_status(
+                    keyframe_count=keyframe_count,
+                    interpolated_count=interpolated_count,
+                    tracked_count=tracked_count,
+                    endframe_count=endframe_count,
+                    is_startframe=is_startframe,
+                    is_inactive=is_inactive,
+                    has_selected=has_selected,
+                )
 
             self.frame_tabs[frame] = tab
             self.tabs_layout.addWidget(tab)
@@ -456,12 +531,29 @@ class TimelineTabWidget(QWidget):
     def _perform_deferred_updates(self) -> None:
         """Perform any pending status updates."""
         # This would query the data service for updated point statuses
-        # For now, just refresh visible tabs
+        # Refresh visible tabs with all status fields
         for frame, tab in self.frame_tabs.items():
             cached_status = self.status_cache.get_status(frame)
             if cached_status:
-                keyframe_count, interpolated_count, has_selected = cached_status
-                tab.set_point_status(keyframe_count, interpolated_count, has_selected)
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = cached_status
+                tab.set_point_status(
+                    keyframe_count=keyframe_count,
+                    interpolated_count=interpolated_count,
+                    tracked_count=tracked_count,
+                    endframe_count=endframe_count,
+                    is_startframe=is_startframe,
+                    is_inactive=is_inactive,
+                    has_selected=has_selected,
+                )
 
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Handle widget resize to recalculate tab widths."""

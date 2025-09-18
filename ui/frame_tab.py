@@ -39,6 +39,10 @@ class FrameTab(QWidget):
                 "no_points": QColor(COLORS_DARK["bg_secondary"]),  # Secondary background - no tracked points
                 "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
                 "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
+                "tracked": QColor(50, 55, 65),  # Very subtle blue tint - tracked points
+                "endframe": QColor(65, 50, 50),  # Very subtle red tint - segment end
+                "startframe": QColor(50, 70, 55),  # Slightly brighter green - segment start
+                "inactive": QColor(40, 40, 40),  # Dark gray for inactive segments
                 "mixed": QColor(COLORS_DARK["bg_surface"]),  # Surface color for mixed
                 "current_frame": QColor(COLORS_DARK["bg_secondary"]),  # Same as no_points, highlight with border
                 "current_border": QColor(COLORS_DARK["accent_warning"]),  # Warning color for current frame
@@ -55,6 +59,10 @@ class FrameTab(QWidget):
     point_count: int
     keyframe_count: int
     interpolated_count: int
+    tracked_count: int
+    endframe_count: int
+    is_startframe: bool
+    is_inactive: bool
     has_selected_points: bool
 
     def __init__(self, frame_number: int, parent: QWidget | None = None):
@@ -77,6 +85,10 @@ class FrameTab(QWidget):
         self.point_count = 0
         self.keyframe_count = 0
         self.interpolated_count = 0
+        self.tracked_count = 0
+        self.endframe_count = 0
+        self.is_startframe = False
+        self.is_inactive = False
         self.has_selected_points = False
 
         # Setup widget
@@ -104,17 +116,34 @@ class FrameTab(QWidget):
         self.setFixedWidth(max(self.MIN_WIDTH, min(width, self.MAX_WIDTH)))
         self.update()
 
-    def set_point_status(self, keyframe_count: int = 0, interpolated_count: int = 0, has_selected: bool = False):
+    def set_point_status(
+        self,
+        keyframe_count: int = 0,
+        interpolated_count: int = 0,
+        tracked_count: int = 0,
+        endframe_count: int = 0,
+        is_startframe: bool = False,
+        is_inactive: bool = False,
+        has_selected: bool = False,
+    ):
         """Update point status information for this frame.
 
         Args:
-            keyframe_count: Number of keyframe/manually tracked points
+            keyframe_count: Number of keyframe points
             interpolated_count: Number of interpolated points
+            tracked_count: Number of tracked points
+            endframe_count: Number of endframe points
+            is_startframe: Whether this frame contains a startframe
+            is_inactive: Whether this frame is in an inactive segment
             has_selected: Whether this frame has selected points
         """
         self.keyframe_count = keyframe_count
         self.interpolated_count = interpolated_count
-        self.point_count = keyframe_count + interpolated_count
+        self.tracked_count = tracked_count
+        self.endframe_count = endframe_count
+        self.is_startframe = is_startframe
+        self.is_inactive = is_inactive
+        self.point_count = keyframe_count + interpolated_count + tracked_count + endframe_count
         self.has_selected_points = has_selected
 
         self._update_tooltip()
@@ -133,17 +162,25 @@ class FrameTab(QWidget):
     def _update_tooltip(self):
         """Update tooltip text based on current status."""
         # Always show frame number in tooltip since it's not displayed on tab
-        if self.point_count == 0:
+        if self.is_inactive:
+            tooltip = f"Frame {self.frame_number}: Inactive segment"
+        elif self.point_count == 0:
             tooltip = f"Frame {self.frame_number}: No tracked points"
         else:
             parts = []
+            if self.is_startframe:
+                parts.append("STARTFRAME")
             if self.keyframe_count > 0:
                 parts.append(f"{self.keyframe_count} keyframe")
+            if self.tracked_count > 0:
+                parts.append(f"{self.tracked_count} tracked")
             if self.interpolated_count > 0:
                 parts.append(f"{self.interpolated_count} interpolated")
+            if self.endframe_count > 0:
+                parts.append(f"{self.endframe_count} ENDFRAME")
 
             status = ", ".join(parts)
-            tooltip = f"Frame {self.frame_number}: {status} points"
+            tooltip = f"Frame {self.frame_number}: {status}"
 
             if self.has_selected_points:
                 tooltip += " (selected)"
@@ -152,19 +189,31 @@ class FrameTab(QWidget):
 
     def _get_background_color(self) -> QColor:
         """Get background color based on current status."""
-        # Priority order: selected > point status (current frame uses border highlight)
+        # Priority order: selected > inactive > specific states > mixed
         if self.has_selected_points:
             return self.COLORS["selected"]
+
+        if self.is_inactive:
+            return self.COLORS["inactive"]
 
         # Determine color based on point status
         if self.point_count == 0:
             return self.COLORS["no_points"]
-        elif self.keyframe_count > 0 and self.interpolated_count > 0:
-            return self.COLORS["mixed"]
-        elif self.keyframe_count > 0:
+
+        # Specific state priorities
+        if self.endframe_count > 0:
+            return self.COLORS["endframe"]
+        elif self.is_startframe:
+            return self.COLORS["startframe"]
+        elif self.tracked_count > 0 and self.keyframe_count == 0 and self.interpolated_count == 0:
+            return self.COLORS["tracked"]
+        elif self.keyframe_count > 0 and self.interpolated_count == 0 and self.tracked_count == 0:
             return self.COLORS["keyframe"]
-        else:
+        elif self.interpolated_count > 0 and self.keyframe_count == 0 and self.tracked_count == 0:
             return self.COLORS["interpolated"]
+        else:
+            # Mixed states
+            return self.COLORS["mixed"]
 
     def _get_text_color(self) -> QColor:
         """Get text color - always white in 3DE style."""

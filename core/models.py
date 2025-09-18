@@ -53,11 +53,20 @@ class PointStatus(Enum):
 
     Provides clear, type-safe status values while maintaining compatibility
     with existing string-based status system.
+
+    Status types:
+    - NORMAL: Default state for a point
+    - KEYFRAME: User-defined position (manual keyframe)
+    - INTERPOLATED: Calculated between keyframes
+    - TRACKED: From automatic tracking (e.g., computer vision)
+    - ENDFRAME: Marks the end of a curve segment, creating a gap
     """
 
     NORMAL = "normal"
     INTERPOLATED = "interpolated"
     KEYFRAME = "keyframe"
+    TRACKED = "tracked"
+    ENDFRAME = "endframe"
 
     @classmethod
     def from_legacy(cls, value: str | bool | int | None) -> PointStatus:
@@ -74,6 +83,8 @@ class PointStatus(Enum):
             PointStatus.INTERPOLATED
             >>> PointStatus.from_legacy("keyframe")
             PointStatus.KEYFRAME
+            >>> PointStatus.from_legacy("tracked")
+            PointStatus.TRACKED
             >>> PointStatus.from_legacy(None)
             PointStatus.NORMAL
         """
@@ -82,11 +93,15 @@ class PointStatus(Enum):
         elif isinstance(value, bool):
             return cls.INTERPOLATED if value else cls.NORMAL
         elif isinstance(value, int):
-            # Convert int to corresponding status (0=NORMAL, 1=INTERPOLATED, 2=KEYFRAME)
+            # Convert int to corresponding status (0=NORMAL, 1=INTERPOLATED, 2=KEYFRAME, 3=TRACKED, 4=ENDFRAME)
             if value == 1:
                 return cls.INTERPOLATED
             elif value == 2:
                 return cls.KEYFRAME
+            elif value == 3:
+                return cls.TRACKED
+            elif value == 4:
+                return cls.ENDFRAME
             else:
                 return cls.NORMAL
         else:
@@ -159,13 +174,55 @@ class CurvePoint:
 
     @property
     def is_keyframe(self) -> bool:
-        """True if this point is a keyframe."""
-        return self.status in (PointStatus.KEYFRAME, PointStatus.NORMAL)
+        """True if this point is a keyframe (user-defined or tracked position)."""
+        return self.status in (PointStatus.KEYFRAME, PointStatus.NORMAL, PointStatus.TRACKED)
+
+    @property
+    def is_endframe(self) -> bool:
+        """True if this point marks the end of a curve segment."""
+        return self.status == PointStatus.ENDFRAME
 
     @property
     def coordinates(self) -> tuple[Coordinate, Coordinate]:
         """Get (x, y) coordinates as tuple."""
         return (self.x, self.y)
+
+    def is_startframe(self, prev_point: CurvePoint | None = None) -> bool:
+        """Check if this point is a startframe (first keyframe after a gap).
+
+        A startframe is a keyframe (KEYFRAME or TRACKED) that either:
+        - Is the first point in the curve (no previous point)
+        - Follows an ENDFRAME point
+
+        Args:
+            prev_point: The previous point in the curve (if any)
+
+        Returns:
+            True if this is a startframe
+        """
+        # Must be a keyframe-type point to be a startframe
+        if self.status not in (PointStatus.KEYFRAME, PointStatus.TRACKED):
+            return False
+
+        # First point in curve is always a startframe
+        if prev_point is None:
+            return True
+
+        # Check if previous point is an endframe
+        return prev_point.is_endframe
+
+    def get_contextual_status_label(self, prev_point: CurvePoint | None = None) -> str:
+        """Get the display label for this point's status, considering context.
+
+        Args:
+            prev_point: The previous point in the curve (if any)
+
+        Returns:
+            Status label string for display (e.g., "startframe", "keyframe", "endframe")
+        """
+        if self.is_startframe(prev_point):
+            return "startframe"
+        return self.status.value
 
     def distance_to(self, other: CurvePoint) -> float:
         """Calculate euclidean distance to another point.
@@ -678,6 +735,8 @@ def bulk_convert_from_tuples(point_tuples: PointsList) -> list[CurvePoint]:
     normal_status = PointStatus.NORMAL
     interpolated_status = PointStatus.INTERPOLATED
     keyframe_status = PointStatus.KEYFRAME
+    tracked_status = PointStatus.TRACKED
+    endframe_status = PointStatus.ENDFRAME
 
     for point_tuple in point_tuples:
         frame, x, y = point_tuple[:3]
@@ -692,6 +751,10 @@ def bulk_convert_from_tuples(point_tuples: PointsList) -> list[CurvePoint]:
                 status = interpolated_status
             elif status_value == "keyframe":
                 status = keyframe_status
+            elif status_value == "tracked":
+                status = tracked_status
+            elif status_value == "endframe":
+                status = endframe_status
             else:
                 status = normal_status
 

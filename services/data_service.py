@@ -363,53 +363,124 @@ class DataService:
 
         return (keyframe_count, interpolated_count, False)
 
-    def get_frame_range_point_status(self, points: CurveDataList) -> dict[int, tuple[int, int, bool]]:
-        """Get point status for all frames that have points.
+    def get_frame_range_point_status(
+        self, points: CurveDataList
+    ) -> dict[int, tuple[int, int, int, int, int, bool, bool, bool]]:
+        """Get comprehensive point status for all frames that have points.
 
         Args:
             points: List of curve data points to analyze
 
         Returns:
-            Dictionary mapping frame numbers to (keyframe_count, interpolated_count, has_selected) tuples
+            Dictionary mapping frame numbers to tuples containing:
+            (keyframe_count, interpolated_count, tracked_count, endframe_count, normal_count,
+             is_startframe, is_inactive, has_selected)
         """
         if not points:
             return {}
 
+        # First pass: collect basic status counts
         frame_status = {}
+        endframe_frames = set()  # Track which frames have endframes
+        sorted_points = sorted(points, key=lambda p: p[0] if isinstance(p, list | tuple) else getattr(p, "frame", 0))
 
-        for point in points:
+        for i, point in enumerate(sorted_points):
             # Handle both tuple format and CurvePoint objects
             if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
                 frame = point[0]
                 if frame not in frame_status:
-                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+                    # [keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, selected]
+                    frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
                 # Check status if available
                 status = point[3] if len(point) > 3 else "keyframe"
                 if isinstance(status, bool):
                     # Legacy boolean format: True = interpolated, False = keyframe
                     if status:
-                        frame_status[frame][1] += 1
+                        frame_status[frame][1] += 1  # interpolated
                     else:
-                        frame_status[frame][0] += 1
+                        frame_status[frame][0] += 1  # keyframe
                 elif isinstance(status, str):
                     if status == "interpolated":
                         frame_status[frame][1] += 1
-                    else:
+                    elif status == "keyframe":
                         frame_status[frame][0] += 1
+                    elif status == "tracked":
+                        frame_status[frame][2] += 1
+                    elif status == "endframe":
+                        frame_status[frame][3] += 1
+                        endframe_frames.add(frame)
+                    else:  # normal or unknown
+                        frame_status[frame][4] += 1
                 else:
-                    frame_status[frame][0] += 1
+                    frame_status[frame][0] += 1  # default to keyframe
             elif getattr(point, "frame", None) is not None:  # CurvePoint object
                 frame = getattr(point, "frame")
                 if frame not in frame_status:
-                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+                    frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
-                if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                status = getattr(point, "status", "normal")
+                status_value = status.value if hasattr(status, "value") else str(status)
+
+                if status_value == "interpolated":
                     frame_status[frame][1] += 1
-                else:
+                elif status_value == "keyframe":
                     frame_status[frame][0] += 1
+                elif status_value == "tracked":
+                    frame_status[frame][2] += 1
+                elif status_value == "endframe":
+                    frame_status[frame][3] += 1
+                    endframe_frames.add(frame)
+                else:  # normal
+                    frame_status[frame][4] += 1
 
-        # Convert to tuple format
+        # Second pass: detect startframes and inactive regions
+        sorted_frames = sorted(frame_status.keys())
+
+        for i, frame in enumerate(sorted_frames):
+            # Check if this frame is a startframe (has keyframe/tracked after an endframe)
+            if frame_status[frame][0] > 0 or frame_status[frame][2] > 0:
+                # This frame has keyframes or tracked points
+                if i == 0:
+                    # First frame with keyframes is a startframe
+                    frame_status[frame][5] = True
+                else:
+                    # Check if there's an endframe before this frame
+                    # (could be several frames back due to inactive frames)
+                    for j in range(i - 1, -1, -1):
+                        check_frame = sorted_frames[j]
+                        if check_frame in endframe_frames:
+                            # Found an endframe before this keyframe
+                            frame_status[frame][5] = True
+                            break
+                        # If we hit another keyframe/tracked without finding endframe, stop
+                        if frame_status[check_frame][0] > 0 or frame_status[check_frame][2] > 0:
+                            break
+
+            # Check if frame is in an inactive region
+            # (after an endframe but before the next startframe)
+            if i > 0:
+                # Look backwards for the nearest endframe
+                found_endframe = False
+                found_startframe = False
+
+                for j in range(i - 1, -1, -1):
+                    check_frame = sorted_frames[j]
+                    if check_frame in endframe_frames:
+                        found_endframe = True
+                        # Now check if there's a startframe between that endframe and current frame
+                        for k in range(j + 1, i + 1):  # Include current frame
+                            intermediate_frame = sorted_frames[k]
+                            if frame_status[intermediate_frame][0] > 0 or frame_status[intermediate_frame][2] > 0:
+                                found_startframe = True
+                                break
+                        break
+
+                # Frame is inactive if it's after an endframe and before any startframe
+                if found_endframe and not found_startframe:
+                    frame_status[frame][6] = True
+
+        # Convert lists to tuples
         return {frame: tuple(counts) for frame, counts in frame_status.items()}
 
     def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
