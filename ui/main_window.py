@@ -17,7 +17,6 @@ Key architecture components:
 """
 
 # Standard library imports
-import logging
 import sys
 from typing import TYPE_CHECKING, cast, override
 
@@ -51,6 +50,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Configure logger for this module
+from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from services import get_data_service
 
@@ -68,8 +69,7 @@ from .tracking_points_panel import TrackingPointsPanel
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
 
-# Configure logger for this module
-logger = logging.getLogger("main_window")
+logger = get_logger("main_window")
 
 
 class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typing)

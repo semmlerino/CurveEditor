@@ -7,7 +7,6 @@ and background file processing. Extracted from MainWindow to improve
 maintainability and separation of concerns.
 """
 
-import logging
 import os
 import threading
 from pathlib import Path
@@ -23,7 +22,9 @@ if TYPE_CHECKING:
     from .service_facade import ServiceFacade
     from .state_manager import StateManager
 
-logger = logging.getLogger("file_operations")
+from core.logger_utils import get_logger
+
+logger = get_logger("file_operations")
 
 
 class FileLoadSignals(QObject):

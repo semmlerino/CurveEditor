@@ -11,7 +11,6 @@ Provides a unified interface for all UI operations including dialogs,
 status updates, and UI component management.
 """
 
-import logging
 from collections.abc import Callable
 from typing import TYPE_CHECKING
 
@@ -22,7 +21,9 @@ from ui.ui_constants import DEFAULT_STATUS_TIMEOUT
 if TYPE_CHECKING:
     from services.service_protocols import MainWindowProtocol
 
-logger = logging.getLogger("ui_service")
+from core.logger_utils import get_logger
+
+logger = get_logger("ui_service")
 
 
 class UIService:

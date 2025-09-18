@@ -19,6 +19,7 @@ import logging
 from typing import TYPE_CHECKING, Protocol, cast
 
 from core.image_state import ImageState
+from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
@@ -107,7 +108,7 @@ class ServiceFacade:
             main_window: Optional reference to the main application window
         """
         self.main_window = main_window
-        self.logger = logging.getLogger("service_facade")
+        self.logger = get_logger("service_facade")
 
         # Initialize consolidated services
         self._transform_service = get_transform_service() if get_transform_service else None

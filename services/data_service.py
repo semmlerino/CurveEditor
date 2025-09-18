@@ -11,7 +11,6 @@ This service handles:
 
 import csv
 import json
-import logging
 import statistics
 import threading
 from pathlib import Path
@@ -32,7 +31,9 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QWidget
 
-logger = logging.getLogger("data_service")
+from core.logger_utils import get_logger
+
+logger = get_logger("data_service")
 
 
 class DataService:

@@ -14,7 +14,6 @@ This is the consolidated implementation without Sprint 8 delegation.
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
@@ -30,7 +29,9 @@ if TYPE_CHECKING:
 
     from services.transform_service import TransformService
 
-logger = logging.getLogger("interaction_service")
+from core.logger_utils import get_logger
+
+logger = get_logger("interaction_service")
 
 # Lazy singleton access to avoid circular import
 _transform_service: TransformService | None = None

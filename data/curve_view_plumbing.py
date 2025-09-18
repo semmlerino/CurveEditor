@@ -7,19 +7,19 @@ Contains decorators and helper functions for state capture, data mutation, and c
 
 import functools
 import inspect
-import logging
 from collections.abc import Callable
 from typing import Protocol, TypeVar, cast
 
 from PySide6.QtWidgets import QMessageBox, QWidget
 
+from core.logger_utils import get_logger
 from services import get_interaction_service
 from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 # Type variable for generic decorator return types
 T = TypeVar("T")
 
-logger = logging.getLogger("curve_view_plumbing")
+logger = get_logger("curve_view_plumbing")
 
 
 class ViewState(Protocol):
@@ -95,11 +95,11 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 # Show default success only for history-recording operations
                 # statusBar() is a QMainWindow method, always available
                 if record_history and main_window and getattr(main_window, "statusBar", None) is not None:
-                    main_window.statusBar().showMessage(f"{action_name} completed successfully", 2000)  # pyright: ignore[reportAttributeAccessIssue]  # Duck typing
+                    main_window.statusBar().showMessage(f"{action_name} completed successfully", 2000)
             except Exception as e:
                 # statusBar() is a QMainWindow method, always available
                 if main_window and getattr(main_window, "statusBar", None) is not None:
-                    main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)  # pyright: ignore[reportAttributeAccessIssue]  # Duck typing
+                    main_window.statusBar().showMessage(f"Error in {action_name}: {e}", 5000)
                 _unused_result = QMessageBox.critical(
                     cast(QWidget, cast(object, main_window)),  # MainWindow inherits from QMainWindow -> QWidget
                     f"Error in {action_name}",
@@ -112,8 +112,9 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 return None
             # Determine success and message
             if isinstance(result, tuple) and len(result) == 2:
-                success, msg = result  # pyright: ignore[reportUnknownVariableType]
-                retval = result[0]  # pyright: ignore[reportUnknownVariableType]
+                success: bool = bool(result[0])
+                msg: str = str(result[1])
+                retval: T | None = result[0]
             else:
                 success = bool(result)
                 msg = action_name
@@ -121,8 +122,8 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
             # Only finalize (restore state, history) if requested
             if success and record_history:
                 new_sel = sorted(getattr(curve_view, "selected_points", []))
-                finalize_data_change(curve_view, main_window, view_state, new_sel, original_primary, msg)  # pyright: ignore[reportUnknownArgumentType]
-            return retval  # pyright: ignore[reportUnknownVariableType]
+                finalize_data_change(curve_view, main_window, view_state, new_sel, original_primary, msg)
+            return retval
 
         return wrapper
 
@@ -205,7 +206,7 @@ def finalize_data_change(
         main_window.add_to_history()
     # statusBar() is a QMainWindow method, always available
     if main_window and history_msg and getattr(main_window, "statusBar", None) is not None:
-        main_window.statusBar().showMessage(history_msg, 3000)  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.statusBar().showMessage(history_msg, 3000)
 
 
 def confirm_delete(main_window: MainWindowProtocol, count: int) -> bool:

@@ -11,7 +11,6 @@ different sources for image state.
 
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
@@ -24,7 +23,9 @@ if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
 # Configure logger for this module
-logger = logging.getLogger("image_state")
+from core.logger_utils import get_logger
+
+logger = get_logger("image_state")
 
 
 class ImageLoadingState(Enum):

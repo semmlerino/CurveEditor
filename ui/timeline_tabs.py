@@ -7,8 +7,6 @@ with color coding to indicate tracking point status at each frame.
 Supports horizontal scrolling for many frames with performance optimizations.
 """
 
-import logging
-
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (
@@ -22,12 +20,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.logger_utils import get_logger
 from core.models import FrameNumber
 
 # animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class TimelineScrollArea(QScrollArea):

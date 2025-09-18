@@ -5,7 +5,6 @@ This module handles all playback-related functionality including play/pause,
 FPS control, and oscillating playback modes.
 """
 
-import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -16,7 +15,9 @@ from PySide6.QtWidgets import QApplication, QPushButton, QSpinBox, QStyle
 if TYPE_CHECKING:
     from ui.state_manager import StateManager
 
-logger = logging.getLogger(__name__)
+from core.logger_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class PlaybackMode(Enum):

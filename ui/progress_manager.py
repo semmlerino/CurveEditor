@@ -6,7 +6,6 @@ Provides progress indicators for long-running operations including
 file loading, batch processing, and analysis tasks.
 """
 
-import logging
 import time
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -26,7 +25,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger("progress_manager")
+from core.logger_utils import get_logger
+
+logger = get_logger("progress_manager")
 
 
 class ProgressType(Enum):

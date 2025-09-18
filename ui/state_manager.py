@@ -7,12 +7,13 @@ tracking current file, modification status, view state, and other
 application-level state information.
 """
 
-import logging
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-logger = logging.getLogger("state_manager")
+from core.logger_utils import get_logger
+
+logger = get_logger("state_manager")
 
 
 class StateManager(QObject):

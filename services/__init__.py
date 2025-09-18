@@ -18,7 +18,6 @@ Core Services (4 total):
 4. UIService - UI operations, dialogs, and status updates
 """
 
-import logging
 import threading
 from typing import TYPE_CHECKING
 
@@ -149,26 +148,3 @@ def get_ui_service() -> "UIService":
 
             _ui_service = UIService()
     return _ui_service  # pyright: ignore[reportReturnType]
-
-
-def get_module_logger(name: str | None = None) -> logging.Logger:
-    """
-    Get a logger for the specified module name.
-
-    Args:
-        name: Module name for the logger. If None, uses calling module.
-
-    Returns:
-        Logger instance
-    """
-    if name is None:
-        import inspect
-
-        frame = inspect.stack()[1]
-        module = inspect.getmodule(frame[0])
-        if module is None:
-            name = "unknown"
-        else:
-            name = module.__name__.split(".")[-1]
-
-    return logging.getLogger(name)

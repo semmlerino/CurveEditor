@@ -5,11 +5,10 @@ This module provides functions to export curve tracking data to CSV and Excel fo
 The Excel export functionality requires the optional xlsxwriter dependency.
 """
 
-import logging
-
+from core.logger_utils import get_logger
 from core.path_security import PathSecurityError, validate_file_path
 
-logger = logging.getLogger("csv_export")
+logger = get_logger("csv_export")
 
 
 def export_to_csv(

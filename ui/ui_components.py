@@ -14,7 +14,6 @@ Key responsibilities:
 5. Support lazy initialization and validation
 """
 
-import logging
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -46,7 +45,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger("ui_components")
+from core.logger_utils import get_logger
+
+logger = get_logger("ui_components")
 
 
 class ToolbarUIComponents:

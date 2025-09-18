@@ -10,7 +10,6 @@ Provides a unified interface for all coordinate transformations and view state m
 """
 
 import hashlib
-import logging
 import threading
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -43,7 +42,9 @@ except ImportError:
             self._y = y
 
 
-logger = logging.getLogger("transform_service")
+from core.logger_utils import get_logger
+
+logger = get_logger("transform_service")
 
 
 @dataclass(frozen=True)

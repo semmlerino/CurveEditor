@@ -7,7 +7,6 @@ handled directly in MainWindow. It maintains exact compatibility with the
 existing ShortcutManager connections and behavior.
 """
 
-import logging
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Slot
@@ -20,7 +19,9 @@ if TYPE_CHECKING:
     from ui.main_window import MainWindow
     from ui.state_manager import StateManager
 
-logger = logging.getLogger("action_handler_controller")
+from core.logger_utils import get_logger
+
+logger = get_logger("action_handler_controller")
 
 
 class ActionHandlerController:

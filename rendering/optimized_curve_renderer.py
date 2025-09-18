@@ -8,12 +8,17 @@ This renderer addresses the critical performance issues identified in the analys
 - Need for viewport culling, level-of-detail, and vectorized operations
 """
 
-import logging
 import time
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
+import numpy.typing as npt
+from PySide6.QtCore import QPointF, QRectF, Qt
+from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
+
+from core.logger_utils import get_logger
+from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
 
 if TYPE_CHECKING:
     from services.transform_service import Transform
@@ -23,13 +28,10 @@ else:
     StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-# Using Any to suppress type checker warnings while maintaining runtime performance
-FloatArray = Any  # Float coordinate arrays (np.ndarray at runtime)
-IntArray = Any  # Integer index arrays (np.ndarray at runtime)
-from PySide6.QtCore import QPointF, QRectF, Qt  # noqa: E402
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen  # noqa: E402
+FloatArray = npt.NDArray[np.float64]  # Float coordinate arrays
+IntArray = npt.NDArray[np.int32]  # Integer index arrays
 
-from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING  # noqa: E402
+logger = get_logger("optimized_curve_renderer")
 
 
 class CurveViewProtocol(Protocol):
@@ -66,9 +68,6 @@ class MainWindowProtocol(Protocol):
     """Protocol for main window objects."""
 
     state_manager: "StateManager"  # Has current_frame attribute
-
-
-logger = logging.getLogger("optimized_curve_renderer")
 
 
 class RenderQuality(Enum):

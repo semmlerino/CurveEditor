@@ -12,12 +12,13 @@ This module provides comprehensive path validation and sanitization to prevent:
 All file operations in CurveEditor should use these validation functions.
 """
 
-import logging
 import os
 from pathlib import Path
 from typing import final
 
-logger = logging.getLogger("path_security")
+from core.logger_utils import get_logger
+
+logger = get_logger("path_security")
 
 
 class PathSecurityError(Exception):

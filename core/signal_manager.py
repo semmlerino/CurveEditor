@@ -13,7 +13,6 @@ Key features:
 4. Weak reference support to prevent circular references
 """
 
-import logging
 import weakref
 from collections.abc import Callable
 from contextlib import contextmanager
@@ -21,7 +20,9 @@ from typing import cast, final
 
 from PySide6.QtCore import QObject, Signal, SignalInstance
 
-logger = logging.getLogger("signal_manager")
+from core.logger_utils import get_logger
+
+logger = get_logger("signal_manager")
 
 
 @final

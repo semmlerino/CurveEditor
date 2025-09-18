@@ -5,7 +5,6 @@ This module handles frame navigation including spinbox/slider synchronization,
 navigation buttons, and frame range management.
 """
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, Signal
@@ -20,7 +19,9 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from ui.state_manager import StateManager
 
-logger = logging.getLogger(__name__)
+from core.logger_utils import get_logger
+
+logger = get_logger(__name__)
 
 
 class FrameNavigationController(QObject):

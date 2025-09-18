@@ -25,7 +25,6 @@ Architecture:
 
 from __future__ import annotations
 
-import logging
 from typing import TYPE_CHECKING, Any, override
 
 from PySide6.QtCore import (
@@ -81,7 +80,9 @@ if TYPE_CHECKING:
 else:
     MainWindow = Any  # Runtime fallback to avoid import cycle
 
-logger = logging.getLogger("curve_view_widget")
+from core.logger_utils import get_logger
+
+logger = get_logger("curve_view_widget")
 
 
 class CurveViewWidget(QWidget):

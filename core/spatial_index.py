@@ -8,7 +8,6 @@ lookups instead of O(n) linear search.
 
 from __future__ import annotations
 
-import logging
 import math
 import threading
 from typing import TYPE_CHECKING, cast
@@ -17,9 +16,10 @@ if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
     from services.transform_service import Transform
 
+from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 
-logger = logging.getLogger("spatial_index")
+logger = get_logger("spatial_index")
 
 
 class PointIndex:

@@ -6,7 +6,6 @@ Provides user-friendly error messages, recovery suggestions, and logging
 for better user experience when errors occur.
 """
 
-import logging
 import traceback
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -25,7 +24,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-logger = logging.getLogger("error_handler")
+from core.logger_utils import get_logger
+
+logger = get_logger("error_handler")
 
 
 class ErrorSeverity(Enum):

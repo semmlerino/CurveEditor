@@ -5,7 +5,6 @@ Batch editing operations for 3DE4 Curve Editor.
 Provides functions for manipulating multiple track points simultaneously.
 """
 
-import logging
 from collections.abc import Sequence
 from typing import Protocol, cast, runtime_checkable
 
@@ -19,6 +18,9 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+# Removed import of non-existent CurveService methods
+# Configure logger for this module
+from core.logger_utils import get_logger
 from core.math_utils import GeometryUtils, ValidationUtils
 
 # Import PointsList type from models
@@ -27,10 +29,7 @@ from core.type_aliases import CurveDataList, LegacyPointData
 # Import protocols and type aliases for proper typing
 from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 
-# Removed import of non-existent CurveService methods
-
-# Configure logger for this module
-logger = logging.getLogger("batch_edit")
+logger = get_logger("batch_edit")
 
 
 # NOTE: The parent must be both a QWidget and implement this protocol (via duck typing or multiple inheritance)

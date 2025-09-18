@@ -6,7 +6,6 @@ This module provides a centralized way to manage keyboard shortcuts for the
 application, creating and managing all QActions with their shortcuts.
 """
 
-import logging
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt
@@ -16,7 +15,9 @@ from PySide6.QtWidgets import QWidget
 if TYPE_CHECKING:
     pass
 
-logger = logging.getLogger("keyboard_shortcuts")
+from core.logger_utils import get_logger
+
+logger = get_logger("keyboard_shortcuts")
 
 
 class ShortcutManager(QObject):
