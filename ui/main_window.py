@@ -207,6 +207,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect store signals for reactive updates
         self._connect_store_signals()
 
+        # Verify all critical connections (fail-loud mechanism)
+        self._verify_connections()
+
         # Setup initial state
         self._update_ui_state()
 
@@ -538,6 +541,79 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._curve_store.selection_changed.connect(self._on_store_selection_changed)
 
         logger.info("Connected MainWindow to reactive store signals")
+
+    def _verify_connections(self) -> None:
+        """Verify all critical signal connections are established."""
+        from stores import ConnectionVerifier
+
+        verifier = ConnectionVerifier()
+
+        # Add critical store connections to verify
+        verifier.add_required_connection(
+            "CurveDataStore",
+            self._curve_store,
+            "data_changed",
+            "MainWindow",
+            self,
+            "_update_timeline_tabs",
+            critical=True,
+        )
+
+        verifier.add_required_connection(
+            "CurveDataStore",
+            self._curve_store,
+            "selection_changed",
+            "MainWindow",
+            self,
+            "_on_store_selection_changed",
+            critical=True,
+        )
+
+        # Add curve widget connections if available
+        if self.curve_widget:
+            verifier.add_required_connection(
+                "CurveViewWidget",
+                self.curve_widget,
+                "point_selected",
+                "MainWindow",
+                self,
+                "_on_point_selected",
+                critical=True,
+            )
+
+            verifier.add_required_connection(
+                "CurveViewWidget",
+                self.curve_widget,
+                "selection_changed",
+                "MainWindow",
+                self,
+                "_on_curve_selection_changed",
+                critical=True,
+            )
+
+        # Add timeline tabs connections if available
+        if self.timeline_tabs:
+            verifier.add_required_connection(
+                "TimelineTabs",
+                self.timeline_tabs,
+                "frame_changed",
+                "MainWindow",
+                self,
+                "_on_timeline_tab_clicked",
+                critical=False,  # Not critical if timeline is hidden
+            )
+
+        # Perform verification
+        all_connected, reports = verifier.verify_all()
+
+        if not all_connected:
+            # Log all failures
+            verifier.log_report(verbose=False)
+
+            # Raise error for critical failures (fail loud!)
+            verifier.raise_if_failed()
+        else:
+            logger.info(f"All {len(reports)} critical signal connections verified successfully")
 
     def _on_store_selection_changed(self, selection: set[int]) -> None:
         """Handle selection changes from the store."""
