@@ -54,6 +54,7 @@ from PySide6.QtWidgets import (
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from services import get_data_service
+from stores import get_store_manager
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
@@ -132,6 +133,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager: StateManager = StateManager(self)
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
+        # Get reactive data store
+        self._store_manager = get_store_manager()
+        self._curve_store = self._store_manager.get_curve_store()
+
         # Initialize controllers
         self.playback_controller: PlaybackController = PlaybackController(self.state_manager, self)
         self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
@@ -198,6 +203,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect curve widget signals (after all UI components are created)
         if self.curve_widget:
             self._connect_curve_widget_signals()
+
+        # Connect store signals for reactive updates
+        self._connect_store_signals()
 
         # Setup initial state
         self._update_ui_state()
@@ -519,6 +527,27 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             _ = self.timeline_tabs.frame_hovered.connect(self._on_timeline_tab_hovered)
             logger.info("Timeline tabs signals connected")
 
+    def _connect_store_signals(self) -> None:
+        """Connect to reactive store signals for automatic updates."""
+        # Connect store signals directly to ensure timeline always updates
+        self._curve_store.data_changed.connect(self._update_timeline_tabs)
+        self._curve_store.point_added.connect(lambda idx, point: self._update_timeline_tabs())
+        self._curve_store.point_updated.connect(lambda idx, x, y: self._update_timeline_tabs())
+        self._curve_store.point_removed.connect(lambda idx: self._update_timeline_tabs())
+        self._curve_store.point_status_changed.connect(lambda idx, status: self._update_timeline_tabs())
+        self._curve_store.selection_changed.connect(self._on_store_selection_changed)
+
+        logger.info("Connected MainWindow to reactive store signals")
+
+    def _on_store_selection_changed(self, selection: set[int]) -> None:
+        """Handle selection changes from the store."""
+        # Update UI to reflect new selection
+        if selection:
+            # Update point editor with first selected point
+            min_idx = min(selection)
+            self._update_point_editor(min_idx)
+        self._update_ui_state()
+
     def _connect_curve_widget_signals(self) -> None:
         """Connect signals from the curve widget."""
         if not self.curve_widget:
@@ -718,10 +747,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @property
     def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
-        """Get the current curve data."""
-        if self.curve_widget is not None:
-            return self.curve_widget.curve_data  # pyright: ignore[reportReturnType]
-        return []
+        """Get the current curve data from the store."""
+        # Always get data from the store (single source of truth)
+        return self._curve_store.get_data()  # pyright: ignore[reportReturnType]
 
     @property
     def is_modified(self) -> bool:
@@ -1084,8 +1112,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.selected_point_label.setText(f"Point #{idx}")
 
             # Get actual point data from curve widget
-            if self.curve_widget and idx < len(self.curve_widget.curve_data):
-                point_data = self.curve_widget.curve_data[idx]
+            curve_data = self._curve_store.get_data()
+            if idx < len(curve_data):
+                point_data = curve_data[idx]
                 from core.point_types import safe_extract_point
 
                 frame, x, y, _ = safe_extract_point(point_data)
@@ -1146,7 +1175,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Update info labels - use curve widget data if available
         if self.curve_widget:
-            point_count = len(self.curve_widget.curve_data)
+            point_count = self._curve_store.point_count()
             self.point_count_label.setText(f"Points: {point_count}")
 
             if point_count > 0:
@@ -1155,7 +1184,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
                 x_coords = []
                 y_coords = []
-                for point in self.curve_widget.curve_data:
+                for point in self._curve_store.get_data():
                     _, x, y, _ = safe_extract_point(point)
                     x_coords.append(x)
                     y_coords.append(y)
@@ -1461,10 +1490,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         selected_indices = self.state_manager.selected_points
         if len(selected_indices) == 1 and self.curve_widget:
             idx = selected_indices[0]
-            if idx < len(self.curve_widget.curve_data):
+            curve_data = self._curve_store.get_data()
+            if idx < len(curve_data):
                 from core.point_types import safe_extract_point
 
-                _, _, y, _ = safe_extract_point(self.curve_widget.curve_data[idx])
+                _, _, y, _ = safe_extract_point(curve_data[idx])
                 self.curve_widget.update_point(idx, value, y)
                 self.state_manager.is_modified = True
 
@@ -1474,10 +1504,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         selected_indices = self.state_manager.selected_points
         if len(selected_indices) == 1 and self.curve_widget:
             idx = selected_indices[0]
-            if idx < len(self.curve_widget.curve_data):
+            curve_data = self._curve_store.get_data()
+            if idx < len(curve_data):
                 from core.point_types import safe_extract_point
 
-                _, x, _, _ = safe_extract_point(self.curve_widget.curve_data[idx])
+                _, x, _, _ = safe_extract_point(curve_data[idx])
                 self.curve_widget.update_point(idx, x, value)
                 self.state_manager.is_modified = True
 
