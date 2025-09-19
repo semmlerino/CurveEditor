@@ -27,7 +27,7 @@ if TYPE_CHECKING:
     from .service_facade import ServiceFacade
 
 # Import PySide6 modules
-from PySide6.QtCore import QEvent, QObject, Qt, QThread, QTimer, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import (
     QKeyEvent,
     QPixmap,
@@ -37,16 +37,12 @@ from PySide6.QtWidgets import (
     QCheckBox,
     QDockWidget,
     QDoubleSpinBox,
-    QFrame,
     QLabel,
     QMainWindow,
     QPushButton,
     QSlider,
     QSpinBox,
     QStatusBar,
-    QStyle,
-    QToolBar,
-    QVBoxLayout,
     QWidget,
 )
 
@@ -58,7 +54,13 @@ from stores import get_store_manager
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
-from .controllers import ActionHandlerController, FrameNavigationController, PlaybackController
+from .controllers import (
+    ActionHandlerController,
+    FrameNavigationController,
+    PlaybackController,
+    SignalConnectionManager,
+    UIInitializationController,
+)
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
 from .file_operations import FileOperations
@@ -80,7 +82,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     play_toggled: Signal = Signal(bool)
     frame_rate_changed: Signal = Signal(int)
 
-    # Widget type annotations - initialized in init methods
+    # Widget type annotations - initialized by UIInitializationController
     frame_spinbox: QSpinBox | None = None
     total_frames_label: QLabel | None = None
     frame_slider: QSlider | None = None
@@ -90,6 +92,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     fps_spinbox: QSpinBox | None = None
     # playback_timer was moved to PlaybackController
     curve_widget: "CurveViewWidget | None" = None
+    curve_container: QWidget | None = None
     selected_point_label: QLabel | None = None
     point_x_spinbox: QDoubleSpinBox | None = None
     point_y_spinbox: QDoubleSpinBox | None = None
@@ -101,6 +104,42 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     line_width_label: QLabel | None = None
     point_size_slider: QSlider | None = None
     line_width_slider: QSlider | None = None
+
+    # Additional widgets created by UIInitializationController
+    point_count_label: QLabel | None = None
+    selected_count_label: QLabel | None = None
+    bounds_label: QLabel | None = None
+    status_label: QLabel | None = None
+    status_bar: QStatusBar | None = None
+    zoom_label: QLabel | None = None
+    position_label: QLabel | None = None
+    tracking_panel_dock: QDockWidget | None = None
+    tracking_panel: TrackingPointsPanel | None = None
+
+    # Actions initialized by UIInitializationController
+    action_new: object | None = None
+    action_open: object | None = None
+    action_save: object | None = None
+    action_save_as: object | None = None
+    action_load_images: object | None = None
+    action_export_data: object | None = None
+    action_quit: object | None = None
+    action_undo: object | None = None
+    action_redo: object | None = None
+    action_select_all: object | None = None
+    action_add_point: object | None = None
+    action_zoom_in: object | None = None
+    action_zoom_out: object | None = None
+    action_zoom_fit: object | None = None
+    action_reset_view: object | None = None
+    action_smooth_curve: object | None = None
+    action_filter_curve: object | None = None
+    action_analyze_curve: object | None = None
+    action_next_frame: object | None = None
+    action_prev_frame: object | None = None
+    action_first_frame: object | None = None
+    action_last_frame: object | None = None
+    action_oscillate_playback: object | None = None
 
     # MainWindowProtocol required attributes
     # Note: selected_indices and curve_data are provided as properties below
@@ -141,6 +180,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.playback_controller: PlaybackController = PlaybackController(self.state_manager, self)
         self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
         self.action_controller: ActionHandlerController = ActionHandlerController(self.state_manager, self)
+        self.ui_init_controller: UIInitializationController = UIInitializationController(self)
+        self.signal_manager: SignalConnectionManager = SignalConnectionManager(self)
 
         # Initialize service facade
         from services.service_protocols import MainWindowProtocol
@@ -159,13 +200,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.tracked_data: dict[str, CurveDataList] = {}  # All tracking points
         self.active_points: list[str] = []  # Currently selected points
 
-        # Initialize UI components
-        self._init_actions()
-        self._init_menus()
-        self._init_toolbar()
-        self._init_central_widget()
-        self._init_dock_widgets()
-        self._init_status_bar()
+        # Initialize all UI components via controller
+        self.ui_init_controller.initialize_ui()
 
         # Initialize legacy curve view and track quality UI
         self.curve_view: CurveViewWidget | None = None  # Legacy curve view - no longer used
@@ -178,9 +214,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # File operations are now handled by FileOperations class
         self._file_loading: bool = False  # Track if file loading is in progress
-
-        # Connect file operations signals
-        self._connect_file_operations_signals()
 
         # Initialize centering state
         self.auto_center_enabled: bool = False
@@ -197,18 +230,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._point_spinbox_connected: bool = False
         self._stored_tooltips: dict[QWidget, str] = {}
 
-        # Connect state manager signals
-        self._connect_signals()
-
-        # Connect curve widget signals (after all UI components are created)
-        if self.curve_widget:
-            self._connect_curve_widget_signals()
-
-        # Connect store signals for reactive updates
-        self._connect_store_signals()
-
-        # Verify all critical connections (fail-loud mechanism)
-        self._verify_connections()
+        # Connect all signals via manager
+        self.signal_manager.connect_all_signals()
 
         # Setup initial state
         self._update_ui_state()
@@ -224,476 +247,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         logger.info("MainWindow initialized successfully")
 
-    def _init_actions(self) -> None:
-        """Get all QActions from ShortcutManager and set up icons."""
-        # Get actions from ShortcutManager
-        self.action_new = self.shortcut_manager.action_new
-        self.action_open = self.shortcut_manager.action_open
-        self.action_save = self.shortcut_manager.action_save
-        self.action_save_as = self.shortcut_manager.action_save_as
-        self.action_load_images = self.shortcut_manager.action_load_images
-        self.action_export_data = self.shortcut_manager.action_export_data
-        self.action_quit = self.shortcut_manager.action_quit
-
-        self.action_undo = self.shortcut_manager.action_undo
-        self.action_redo = self.shortcut_manager.action_redo
-        self.action_select_all = self.shortcut_manager.action_select_all
-        self.action_add_point = self.shortcut_manager.action_add_point
-
-        self.action_zoom_in = self.shortcut_manager.action_zoom_in
-        self.action_zoom_out = self.shortcut_manager.action_zoom_out
-        self.action_zoom_fit = self.shortcut_manager.action_zoom_fit
-        self.action_reset_view = self.shortcut_manager.action_reset_view
-
-        self.action_smooth_curve = self.shortcut_manager.action_smooth_curve
-        self.action_filter_curve = self.shortcut_manager.action_filter_curve
-        self.action_analyze_curve = self.shortcut_manager.action_analyze_curve
-
-        self.action_next_frame = self.shortcut_manager.action_next_frame
-        self.action_prev_frame = self.shortcut_manager.action_prev_frame
-        self.action_first_frame = self.shortcut_manager.action_first_frame
-        self.action_last_frame = self.shortcut_manager.action_last_frame
-
-        self.action_oscillate_playback = self.shortcut_manager.action_oscillate_playback
-        # Add action to window so shortcut works globally
-        self.addAction(self.action_oscillate_playback)
-
-        # Set icons for toolbar
-        self.action_new.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_FileIcon))
-        self.action_open.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DirOpenIcon))
-        self.action_save.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DriveFDIcon))
-        self.action_undo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowBack))
-        self.action_redo.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowForward))
-        self.action_zoom_in.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowUp))
-        self.action_zoom_out.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_ArrowDown))
-        self.action_reset_view.setIcon(self.style().standardIcon(QStyle.StandardPixmap.SP_DialogResetButton))
-
-        # Set initial enabled states
-        self.action_undo.setEnabled(False)
-        self.action_redo.setEnabled(False)
-
-        # Connect actions to handlers
-        self.shortcut_manager.connect_to_main_window(self)
-
-    def _init_toolbar(self) -> None:
-        """Initialize the main toolbar."""
-        toolbar = QToolBar("Main Toolbar", self)
-        toolbar.setObjectName("mainToolBar")
-        toolbar.setMovable(False)
-        self.addToolBar(toolbar)
-
-        # File operations
-        _ = toolbar.addAction(self.action_new)
-        _ = toolbar.addAction(self.action_open)
-        _ = toolbar.addAction(self.action_save)
-        _ = toolbar.addSeparator()
-
-        # Edit operations
-        _ = toolbar.addAction(self.action_undo)
-        _ = toolbar.addAction(self.action_redo)
-        _ = toolbar.addSeparator()
-
-        # View operations
-        _ = toolbar.addAction(self.action_zoom_in)
-        _ = toolbar.addAction(self.action_zoom_out)
-        _ = toolbar.addAction(self.action_reset_view)
-        _ = toolbar.addSeparator()
-
-        # Add frame control to toolbar (from FrameNavigationController)
-        _ = toolbar.addWidget(QLabel("Frame:"))
-        self.frame_spinbox = self.frame_nav_controller.frame_spinbox
-        _ = toolbar.addWidget(self.frame_spinbox)
-        self.ui.timeline.frame_spinbox = self.frame_spinbox  # Map to timeline group
-        _ = toolbar.addSeparator()
-
-        # Add view option checkboxes to toolbar
-        self.show_background_cb = QCheckBox("Background")
-        self.show_background_cb.setChecked(True)
-        _ = toolbar.addWidget(self.show_background_cb)
-
-        self.show_grid_cb = QCheckBox("Grid")
-        self.show_grid_cb.setChecked(False)
-        _ = toolbar.addWidget(self.show_grid_cb)
-
-        self.show_info_cb = QCheckBox("Info")
-        self.show_info_cb.setChecked(True)
-        _ = toolbar.addWidget(self.show_info_cb)
-
-        # Add tooltip toggle checkbox
-        self.show_tooltips_cb = QCheckBox("Tooltips")
-        self.show_tooltips_cb.setChecked(False)  # Off by default
-        _ = toolbar.addWidget(self.show_tooltips_cb)
-
-        # Create widgets needed for UIComponents compatibility (even though not all are added to toolbar)
-        # These widgets are required for the Component Container Pattern to work correctly
-
-        # Point editing widgets (used in properties panel if it exists)
-        self.point_x_spinbox = QDoubleSpinBox()
-        self.point_x_spinbox.setRange(-10000, 10000)
-        self.point_x_spinbox.setDecimals(3)
-        self.point_x_spinbox.setEnabled(False)
-        self.ui.point_edit.x_edit = self.point_x_spinbox
-
-        self.point_y_spinbox = QDoubleSpinBox()
-        self.point_y_spinbox.setRange(-10000, 10000)
-        self.point_y_spinbox.setDecimals(3)
-        self.point_y_spinbox.setEnabled(False)
-        self.ui.point_edit.y_edit = self.point_y_spinbox
-
-        # Visualization sliders (used in properties panel if it exists)
-        self.point_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.point_size_slider.setMinimum(2)
-        self.point_size_slider.setMaximum(20)
-        self.point_size_slider.setValue(6)
-        self.ui.visualization.point_size_slider = self.point_size_slider
-
-        self.line_width_slider = QSlider(Qt.Orientation.Horizontal)
-        self.line_width_slider.setMinimum(1)
-        self.line_width_slider.setMaximum(10)
-        self.line_width_slider.setValue(2)
-        self.ui.visualization.line_width_slider = self.line_width_slider
-
-        # Playback controls from PlaybackController
-        self.btn_play_pause = self.playback_controller.btn_play_pause
-        self.ui.timeline.play_button = self.btn_play_pause  # Map to timeline group
-
-        # FPS control from PlaybackController
-        self.fps_spinbox = self.playback_controller.fps_spinbox
-        self.ui.timeline.fps_spinbox = self.fps_spinbox  # Map to timeline group
-
-        # Frame slider from FrameNavigationController
-        self.frame_slider = self.frame_nav_controller.frame_slider
-        self.ui.timeline.timeline_slider = self.frame_slider  # Map to timeline group
-
-        # NOTE: timeline_tabs creation moved to _init_central_widget where it's actually used
-
-        self.total_frames_label = QLabel("1")
-        self.ui.status.info_label = self.total_frames_label  # Map to status group
-        self.point_count_label: QLabel = QLabel("Points: 0")
-        self.ui.status.quality_score_label = self.point_count_label  # Map to status group
-        self.selected_count_label: QLabel = QLabel("Selected: 0")
-        self.ui.status.quality_coverage_label = self.selected_count_label  # Map to status group
-        self.bounds_label: QLabel = QLabel("Bounds: N/A")
-        self.ui.status.quality_consistency_label = self.bounds_label  # Map to status group
-
-        # Add stretch to push remaining items to the right
-        spacer = QWidget()
-        spacer.setSizePolicy(spacer.sizePolicy().horizontalPolicy(), spacer.sizePolicy().verticalPolicy())
-        _ = toolbar.addWidget(spacer)
-
-    def _init_central_widget(self) -> None:
-        """Initialize the central widget with full-width curve view and bottom timeline."""
-        # Create main central widget with vertical layout
-        central_widget = QWidget()
-        main_layout = QVBoxLayout(central_widget)
-        main_layout.setContentsMargins(0, 0, 0, 0)
-        main_layout.setSpacing(0)
-
-        # Create the main curve view area (full width, no side panels)
-        self.curve_container: QWidget = self._create_curve_view_container()
-
-        # Add curve container with stretch factor so it expands
-        main_layout.addWidget(self.curve_container, stretch=1)  # Takes all available space
-
-        # Create timeline tabs widget here where it's actually used
-        self.timeline_tabs = None  # Initialize to None first
-        try:
-            from ui.timeline_tabs import TimelineTabWidget
-
-            self.timeline_tabs = TimelineTabWidget()
-            # Connections will be set up later when handlers are available
-            logger.info("Timeline tabs widget created successfully")
-        except Exception as e:
-            logger.warning(f"Could not create timeline tabs widget: {e}")
-            self.timeline_tabs = None
-
-        # Add timeline tabs widget if available - no stretch so it stays fixed height
-        if self.timeline_tabs:
-            self.timeline_tabs.setMinimumHeight(60)  # Ensure timeline gets its minimum space
-            self.timeline_tabs.setFixedHeight(60)  # Force exact height
-            main_layout.addWidget(self.timeline_tabs, stretch=0)  # Fixed height, no expansion
-            logger.info("Timeline tabs added to main layout")
-
-        # Set the central widget
-        self.setCentralWidget(central_widget)
-
-    def _create_curve_view_container(self) -> QWidget:
-        """Create the container for the curve view."""
-        container = QFrame()
-        container.setFrameStyle(QFrame.Shape.Box)
-        container.setLineWidth(1)
-
-        layout = QVBoxLayout(container)
-        layout.setContentsMargins(0, 0, 0, 0)
-
-        # Create the actual CurveViewWidget
-        self.curve_widget = CurveViewWidget(container)
-        self.curve_widget.set_main_window(self)  # pyright: ignore[reportArgumentType]
-
-        # Ensure the curve widget can receive keyboard focus
-        self.curve_widget.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-
-        layout.addWidget(self.curve_widget)
-
-        # Set focus to curve widget after creation
-        def set_focus_safe():
-            try:
-                if self.curve_widget is not None:
-                    self.curve_widget.setFocus()
-            except (RuntimeError, AttributeError):
-                # Widget was deleted (C++ object destroyed) or not yet initialized
-                pass
-
-        QTimer.singleShot(100, set_focus_safe)
-
-        logger.info("CurveViewWidget created and integrated")
-
-        return container
-
-    def _init_dock_widgets(self) -> None:
-        """Initialize dock widgets (optional, for future expansion)."""
-        # Create tracking points panel dock widget
-        self.tracking_panel_dock: QDockWidget = QDockWidget("Tracking Points", self)
-        self.tracking_panel: TrackingPointsPanel = TrackingPointsPanel()
-        self.tracking_panel_dock.setWidget(self.tracking_panel)
-
-        # Set dock widget properties
-        self.tracking_panel_dock.setAllowedAreas(
-            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
-        )
-        self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.tracking_panel_dock)
-        self.tracking_panel_dock.setVisible(True)  # Make visible by default
-
-        # Connect signals for tracking point management
-        self.tracking_panel.points_selected.connect(self._on_tracking_points_selected)
-        self.tracking_panel.point_visibility_changed.connect(self._on_point_visibility_changed)
-        self.tracking_panel.point_color_changed.connect(self._on_point_color_changed)
-        self.tracking_panel.point_deleted.connect(self._on_point_deleted)
-        self.tracking_panel.point_renamed.connect(self._on_point_renamed)
-
-        logger.info("Tracking points panel dock widget initialized")
-
-    def _init_status_bar(self) -> None:
-        """Initialize the status bar with additional widgets."""
-        self.status_bar: QStatusBar = QStatusBar(self)
-        self.setStatusBar(self.status_bar)
-
-        # Add primary status label (left side) for thread-safe status messages
-        self.status_label: QLabel = QLabel("Ready")
-        self.status_bar.addWidget(self.status_label)  # Regular widget goes on left
-
-        # Add permanent widgets to status bar (right side)
-        self.zoom_label: QLabel = QLabel("Zoom: 100%")
-        self.status_bar.addPermanentWidget(self.zoom_label)
-
-        self.position_label: QLabel = QLabel("X: 0.000, Y: 0.000")
-        self.status_bar.addPermanentWidget(self.position_label)
-
-    def _connect_file_operations_signals(self) -> None:
-        """Connect signals from file operations manager."""
-        # Connect file loading signals
-        self.file_operations.tracking_data_loaded.connect(self._on_tracking_data_loaded)
-        self.file_operations.multi_point_data_loaded.connect(self._on_multi_point_data_loaded)
-        self.file_operations.image_sequence_loaded.connect(self._on_image_sequence_loaded)
-        self.file_operations.progress_updated.connect(self._on_file_load_progress)
-        self.file_operations.error_occurred.connect(self._on_file_load_error)
-        self.file_operations.finished.connect(self._on_file_load_finished)
-
-        # Connect file operation status signals
-        self.file_operations.file_loaded.connect(self._on_file_loaded)
-        self.file_operations.file_saved.connect(self._on_file_saved)
-
-        logger.info("Connected file operations signals")
-
-    def _connect_signals(self) -> None:
-        """Connect signals from state manager and shortcuts."""
-        # Connect state manager signals
-        _ = self.state_manager.file_changed.connect(self._on_file_changed)
-        _ = self.state_manager.modified_changed.connect(self._on_modified_changed)
-        _ = self.state_manager.frame_changed.connect(self._on_state_frame_changed)
-        _ = self.state_manager.selection_changed.connect(self._on_selection_changed)
-        _ = self.state_manager.view_state_changed.connect(self._on_view_state_changed)
-
-        # Connect controller signals
-        # Frame navigation controller handles frame changes internally
-        # We just listen for the result
-        _ = self.frame_nav_controller.frame_changed.connect(self._on_frame_changed_from_controller)
-        _ = self.frame_nav_controller.status_message.connect(self.update_status)
-
-        # Connect playback controller signals
-        _ = self.playback_controller.frame_requested.connect(self.frame_nav_controller.set_frame)
-        _ = self.playback_controller.status_message.connect(self.update_status)
-
-        # Connect timeline tabs if available
-        if self.timeline_tabs:
-            _ = self.timeline_tabs.frame_changed.connect(self._on_timeline_tab_clicked)
-            _ = self.timeline_tabs.frame_hovered.connect(self._on_timeline_tab_hovered)
-            logger.info("Timeline tabs signals connected")
-
-    def _connect_store_signals(self) -> None:
-        """Connect to reactive store signals for automatic updates."""
-        # Connect store signals directly to ensure timeline always updates
-        self._curve_store.data_changed.connect(self._update_timeline_tabs)
-        self._curve_store.point_added.connect(lambda idx, point: self._update_timeline_tabs())
-        self._curve_store.point_updated.connect(lambda idx, x, y: self._update_timeline_tabs())
-        self._curve_store.point_removed.connect(lambda idx: self._update_timeline_tabs())
-        self._curve_store.point_status_changed.connect(lambda idx, status: self._update_timeline_tabs())
-        self._curve_store.selection_changed.connect(self._on_store_selection_changed)
-
-        logger.info("Connected MainWindow to reactive store signals")
-
-    def _verify_connections(self) -> None:
-        """Verify all critical signal connections are established."""
-        from stores import ConnectionVerifier
-
-        verifier = ConnectionVerifier()
-
-        # Add critical store connections to verify
-        verifier.add_required_connection(
-            "CurveDataStore",
-            self._curve_store,
-            "data_changed",
-            "MainWindow",
-            self,
-            "_update_timeline_tabs",
-            critical=True,
-        )
-
-        verifier.add_required_connection(
-            "CurveDataStore",
-            self._curve_store,
-            "selection_changed",
-            "MainWindow",
-            self,
-            "_on_store_selection_changed",
-            critical=True,
-        )
-
-        # Add curve widget connections if available
-        if self.curve_widget:
-            verifier.add_required_connection(
-                "CurveViewWidget",
-                self.curve_widget,
-                "point_selected",
-                "MainWindow",
-                self,
-                "_on_point_selected",
-                critical=True,
-            )
-
-            verifier.add_required_connection(
-                "CurveViewWidget",
-                self.curve_widget,
-                "selection_changed",
-                "MainWindow",
-                self,
-                "_on_curve_selection_changed",
-                critical=True,
-            )
-
-        # Add timeline tabs connections if available
-        if self.timeline_tabs:
-            verifier.add_required_connection(
-                "TimelineTabs",
-                self.timeline_tabs,
-                "frame_changed",
-                "MainWindow",
-                self,
-                "_on_timeline_tab_clicked",
-                critical=False,  # Not critical if timeline is hidden
-            )
-
-        # Perform verification
-        all_connected, reports = verifier.verify_all()
-
-        if not all_connected:
-            # Log all failures
-            verifier.log_report(verbose=False)
-
-            # Raise error for critical failures (fail loud!)
-            verifier.raise_if_failed()
-        else:
-            logger.info(f"All {len(reports)} critical signal connections verified successfully")
-
     def _on_store_selection_changed(self, selection: set[int]) -> None:
         """Handle selection changes from the store."""
         # Update UI to reflect new selection
         if selection:
-            # Update point editor with first selected point
-            min_idx = min(selection)
-            self._update_point_editor(min_idx)
+            # Update point editor with first selected point (TODO: extract to PointEditorController)
+            # min_idx = min(selection) - will be used when PointEditorController is extracted
+            # _update_point_editor will be moved to PointEditorController
+            pass  # For now, just update UI state
         self._update_ui_state()
-
-    def _connect_curve_widget_signals(self) -> None:
-        """Connect signals from the curve widget."""
-        if not self.curve_widget:
-            return
-
-        # Connect curve widget signals to handlers
-        _ = self.curve_widget.point_selected.connect(self._on_point_selected)
-        _ = self.curve_widget.point_moved.connect(self._on_point_moved)
-        _ = self.curve_widget.selection_changed.connect(self._on_curve_selection_changed)
-        _ = self.curve_widget.view_changed.connect(self._on_curve_view_changed)
-        _ = self.curve_widget.zoom_changed.connect(self._on_curve_zoom_changed)
-        _ = self.curve_widget.data_changed.connect(lambda: self._update_timeline_tabs())
-
-        # Connect view options to curve widget
-        if self.show_background_cb:
-            _ = self.show_background_cb.stateChanged.connect(self._update_curve_view_options)
-        if self.show_grid_cb:
-            _ = self.show_grid_cb.stateChanged.connect(self._update_curve_view_options)
-        if self.show_info_cb:
-            _ = self.show_info_cb.stateChanged.connect(self._update_curve_view_options)
-        if self.show_tooltips_cb:
-            _ = self.show_tooltips_cb.stateChanged.connect(self._toggle_tooltips)
-        if self.point_size_slider:
-            _ = self.point_size_slider.valueChanged.connect(self._update_curve_point_size)
-        if self.line_width_slider:
-            _ = self.line_width_slider.valueChanged.connect(self._update_curve_line_width)
-
-    def _init_menus(self) -> None:
-        """Create menu bar with all actions."""
-        menubar = self.menuBar()
-
-        # File menu
-        file_menu = menubar.addMenu("&File")
-        for action in self.shortcut_manager.get_file_actions():
-            if action is None:
-                file_menu.addSeparator()
-            else:
-                file_menu.addAction(action)
-
-        # Edit menu
-        edit_menu = menubar.addMenu("&Edit")
-        for action in self.shortcut_manager.get_edit_actions():
-            if action is None:
-                edit_menu.addSeparator()
-            else:
-                edit_menu.addAction(action)
-
-        # View menu
-        view_menu = menubar.addMenu("&View")
-        for action in self.shortcut_manager.get_view_actions():
-            if action is None:
-                view_menu.addSeparator()
-            else:
-                view_menu.addAction(action)
-
-        # Curve menu
-        curve_menu = menubar.addMenu("&Curve")
-        for action in self.shortcut_manager.get_curve_actions():
-            if action is None:
-                curve_menu.addSeparator()
-            else:
-                curve_menu.addAction(action)
-
-        # Navigation menu
-        nav_menu = menubar.addMenu("&Navigation")
-        for action in self.shortcut_manager.get_navigation_actions():
-            if action is None:
-                nav_menu.addSeparator()
-            else:
-                nav_menu.addAction(action)
 
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
