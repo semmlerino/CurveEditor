@@ -121,19 +121,31 @@ class SignalConnectionManager:
         _ = self.main_window.curve_widget.zoom_changed.connect(self.main_window._on_curve_zoom_changed)
         _ = self.main_window.curve_widget.data_changed.connect(lambda: self.main_window._update_timeline_tabs())
 
-        # Connect view options to curve widget
+        # Connect view options to view options controller
         if self.main_window.show_background_cb:
-            _ = self.main_window.show_background_cb.stateChanged.connect(self.main_window._update_curve_view_options)
+            _ = self.main_window.show_background_cb.stateChanged.connect(
+                self.main_window.view_options_controller.update_curve_view_options
+            )
         if self.main_window.show_grid_cb:
-            _ = self.main_window.show_grid_cb.stateChanged.connect(self.main_window._update_curve_view_options)
+            _ = self.main_window.show_grid_cb.stateChanged.connect(
+                self.main_window.view_options_controller.update_curve_view_options
+            )
         if self.main_window.show_info_cb:
-            _ = self.main_window.show_info_cb.stateChanged.connect(self.main_window._update_curve_view_options)
+            _ = self.main_window.show_info_cb.stateChanged.connect(
+                self.main_window.view_options_controller.update_curve_view_options
+            )
         if self.main_window.show_tooltips_cb:
-            _ = self.main_window.show_tooltips_cb.stateChanged.connect(self.main_window._toggle_tooltips)
+            _ = self.main_window.show_tooltips_cb.stateChanged.connect(
+                self.main_window.view_options_controller.toggle_tooltips
+            )
         if self.main_window.point_size_slider:
-            _ = self.main_window.point_size_slider.valueChanged.connect(self.main_window._update_curve_point_size)
+            _ = self.main_window.point_size_slider.valueChanged.connect(
+                self.main_window.view_options_controller.update_curve_point_size
+            )
         if self.main_window.line_width_slider:
-            _ = self.main_window.line_width_slider.valueChanged.connect(self.main_window._update_curve_line_width)
+            _ = self.main_window.line_width_slider.valueChanged.connect(
+                self.main_window.view_options_controller.update_curve_line_width
+            )
 
     def _verify_connections(self) -> None:
         """Verify all critical signal connections are established."""

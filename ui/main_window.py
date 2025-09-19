@@ -64,6 +64,7 @@ from .controllers import (
     PlaybackController,
     SignalConnectionManager,
     UIInitializationController,
+    ViewOptionsController,
 )
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
@@ -185,6 +186,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
         self.action_controller: ActionHandlerController = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller: UIInitializationController = UIInitializationController(self)
+        self.view_options_controller: ViewOptionsController = ViewOptionsController(self)
         self.signal_manager: SignalConnectionManager = SignalConnectionManager(self)
 
         # Initialize service facade
@@ -231,7 +233,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Initialize dynamic instance variables that will be checked later
         self._point_spinbox_connected: bool = False
-        self._stored_tooltips: dict[QWidget, str] = {}
 
         # Connect all signals via manager
         self.signal_manager.connect_all_signals()
@@ -246,7 +247,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.file_operations.load_burger_data_async()
 
         # Initialize tooltips as disabled by default
-        self._toggle_tooltips()
+        self.view_options_controller.toggle_tooltips()
 
         logger.info("MainWindow initialized successfully")
 
@@ -968,66 +969,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget.set_curve_data([])
 
     # ==================== View Options Handlers ====================
-
-    def _update_curve_view_options(self) -> None:
-        """Update curve widget view options based on checkboxes."""
-        if not self.curve_widget:
-            return
-
-        if self.show_background_cb:
-            self.curve_widget.show_background = self.show_background_cb.isChecked()
-        if self.show_grid_cb:
-            self.curve_widget.show_grid = self.show_grid_cb.isChecked()
-        # Note: show_info_cb controls info overlay display - might need implementation
-        self.curve_widget.update()
-
-    @Slot(int)
-    def _update_curve_point_size(self, value: int) -> None:
-        """Update curve widget point size."""
-        if self.curve_widget:
-            self.curve_widget.point_radius = value
-            self.curve_widget.selected_point_radius = value + 2
-            self.curve_widget.update()
-        if self.point_size_label:
-            self.point_size_label.setText(str(value))
-
-    @Slot(int)
-    def _update_curve_line_width(self, value: int) -> None:
-        """Update curve widget line width."""
-        if self.curve_widget:
-            self.curve_widget.line_width = value
-            self.curve_widget.selected_line_width = value + 1
-            self.curve_widget.update()
-        if self.line_width_label:
-            self.line_width_label.setText(str(value))
-
-    def _toggle_tooltips(self) -> None:
-        """Toggle tooltips on/off globally."""
-        if not self.show_tooltips_cb:
-            return
-
-        enabled = self.show_tooltips_cb.isChecked()
-
-        # Store/restore tooltips for all widgets in the main window
-        if enabled:
-            # Restore tooltips if we have them stored
-            if getattr(self, "_stored_tooltips", None) is not None:
-                for widget, tooltip in self._stored_tooltips.items():
-                    if widget and tooltip:
-                        widget.setToolTip(tooltip)
-        else:
-            # Store current tooltips and clear them
-            if getattr(self, "_stored_tooltips", None) is None:
-                self._stored_tooltips = {}
-
-            # Find all widgets with tooltips and store/clear them
-            for widget in self.findChildren(QWidget):
-                tooltip = widget.toolTip()
-                if tooltip:
-                    self._stored_tooltips[widget] = tooltip
-                    widget.setToolTip("")
-
-        logger.debug(f"Tooltips {'enabled' if enabled else 'disabled'}")
+    # View options are now handled by ViewOptionsController
 
     # ==================== Frame Navigation Handlers ====================
 
@@ -1163,13 +1105,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def get_view_options(self) -> dict[str, object]:
         """Get current view options."""
-        return {
-            "show_background": self.show_background_cb.isChecked() if self.show_background_cb else False,
-            "show_grid": self.show_grid_cb.isChecked() if self.show_grid_cb else True,
-            "show_info": self.show_info_cb.isChecked() if self.show_info_cb else True,
-            "point_size": self.point_size_slider.value() if self.point_size_slider else 5,
-            "line_width": self.line_width_slider.value() if self.line_width_slider else 2,
-        }
+        return self.view_options_controller.get_view_options()
 
     def set_centering_enabled(self, enabled: bool) -> None:
         """Enable or disable auto-centering on frame change.

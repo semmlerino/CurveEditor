@@ -5,6 +5,7 @@ from .frame_navigation_controller import FrameNavigationController
 from .playback_controller import PlaybackController, PlaybackMode, PlaybackState
 from .signal_connection_manager import SignalConnectionManager
 from .ui_initialization_controller import UIInitializationController
+from .view_options_controller import ViewOptionsController
 
 __all__ = [
     "ActionHandlerController",
@@ -14,4 +15,5 @@ __all__ = [
     "PlaybackState",
     "SignalConnectionManager",
     "UIInitializationController",
+    "ViewOptionsController",
 ]
