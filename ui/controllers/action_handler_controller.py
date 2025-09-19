@@ -62,7 +62,8 @@ class ActionHandlerController:
 
             self.state_manager.reset_to_defaults()
             self.main_window._update_ui_state()
-            self.main_window.status_label.setText("New curve created")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("New curve created")
 
     @Slot()
     def _on_action_open(self) -> None:
@@ -123,34 +124,39 @@ class ActionHandlerController:
                 self.main_window._update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
 
             self.main_window._update_ui_state()
-            self.main_window.status_label.setText("File loaded successfully")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("File loaded successfully")
 
     @Slot()
     def _on_action_save(self) -> None:
         """Handle save file action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.save_file(data):
-            self.main_window.status_label.setText("File saved successfully")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
     def _on_action_save_as(self) -> None:
         """Handle save as action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.save_file_as(data, self.main_window):
-            self.main_window.status_label.setText("File saved successfully")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
     def _on_load_images(self) -> None:
         """Handle load background images action."""
         if self.main_window.file_operations.load_images(self.main_window):
-            self.main_window.status_label.setText("Images loaded successfully")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("Images loaded successfully")
 
     @Slot()
     def _on_export_data(self) -> None:
         """Handle export curve data action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.export_data(data, self.main_window):
-            self.main_window.status_label.setText("Data exported successfully")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("Data exported successfully")
 
     # ==================== Edit Action Handlers ====================
 
@@ -158,26 +164,30 @@ class ActionHandlerController:
     def _on_action_undo(self) -> None:
         """Handle undo action."""
         self.main_window.services.undo()
-        self.main_window.status_label.setText("Undo")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Undo")
 
     @Slot()
     def _on_action_redo(self) -> None:
         """Handle redo action."""
         self.main_window.services.redo()
-        self.main_window.status_label.setText("Redo")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Redo")
 
     @Slot()
     def _on_select_all(self) -> None:
         """Handle select all action."""
         if self.main_window.curve_widget:
             self.main_window.curve_widget._select_all()
-            self.main_window.status_label.setText("All points selected")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("All points selected")
 
     @Slot()
     def _on_add_point(self) -> None:
         """Handle add point action."""
         # TODO: Implement add point at current position
-        self.main_window.status_label.setText("Add point not yet implemented")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Add point not yet implemented")
 
     # ==================== View Action Handlers ====================
 
@@ -226,7 +236,8 @@ class ActionHandlerController:
             self.state_manager.zoom_level = 1.0
             self.state_manager.pan_offset = (0.0, 0.0)
         self._update_zoom_label()
-        self.main_window.status_label.setText("View reset")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("View reset")
 
     @Slot()
     def _on_zoom_fit(self) -> None:
@@ -234,7 +245,8 @@ class ActionHandlerController:
         if self.main_window.curve_widget:
             self.main_window.curve_widget.fit_to_view()
             self._update_zoom_label()
-            self.main_window.status_label.setText("Fitted to view")
+            if self.main_window.status_label:
+                self.main_window.status_label.setText("Fitted to view")
 
     # ==================== Curve Action Handlers ====================
 
@@ -242,19 +254,22 @@ class ActionHandlerController:
     def _on_smooth_curve(self) -> None:
         """Handle smooth curve action."""
         # TODO: Implement curve smoothing
-        self.main_window.status_label.setText("Smooth curve not yet implemented")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Smooth curve not yet implemented")
 
     @Slot()
     def _on_filter_curve(self) -> None:
         """Handle filter curve action."""
         # TODO: Implement curve filtering
-        self.main_window.status_label.setText("Filter curve not yet implemented")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Filter curve not yet implemented")
 
     @Slot()
     def _on_analyze_curve(self) -> None:
         """Handle analyze curve action."""
         # TODO: Implement curve analysis
-        self.main_window.status_label.setText("Analyze curve not yet implemented")
+        if self.main_window.status_label:
+            self.main_window.status_label.setText("Analyze curve not yet implemented")
 
     # ==================== Complex Operations ====================
 

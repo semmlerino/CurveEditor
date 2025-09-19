@@ -800,8 +800,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _update_ui_state(self) -> None:
         """Update UI elements based on current state."""
         # Update history actions
-        self.action_undo.setEnabled(self.state_manager.can_undo)
-        self.action_redo.setEnabled(self.state_manager.can_redo)
+        if self.action_undo:
+            self.action_undo.setEnabled(self.state_manager.can_undo)
+        if self.action_redo:
+            self.action_redo.setEnabled(self.state_manager.can_redo)
 
         # Update frame controls via controller
         total_frames = self.state_manager.total_frames
@@ -1119,8 +1121,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.services.add_to_history()
 
         # Update history-related UI state
-        self.action_undo.setEnabled(self.state_manager.can_undo)
-        self.action_redo.setEnabled(self.state_manager.can_redo)
+        if self.action_undo:
+            self.action_undo.setEnabled(self.state_manager.can_undo)
+        if self.action_redo:
+            self.action_redo.setEnabled(self.state_manager.can_redo)
 
     @Slot(float)
     def _on_point_x_changed(self, value: float) -> None:
