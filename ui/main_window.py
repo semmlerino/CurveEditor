@@ -29,9 +29,13 @@ if TYPE_CHECKING:
 # Import PySide6 modules
 from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import (
+    QAction,
     QKeyEvent,
     QPixmap,
 )
+
+# These widget imports are needed for type annotations of class attributes
+# The actual widgets are created in UIInitializationController
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -117,38 +121,38 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     tracking_panel: TrackingPointsPanel | None = None
 
     # Actions initialized by UIInitializationController
-    action_new: object | None = None
-    action_open: object | None = None
-    action_save: object | None = None
-    action_save_as: object | None = None
-    action_load_images: object | None = None
-    action_export_data: object | None = None
-    action_quit: object | None = None
-    action_undo: object | None = None
-    action_redo: object | None = None
-    action_select_all: object | None = None
-    action_add_point: object | None = None
-    action_zoom_in: object | None = None
-    action_zoom_out: object | None = None
-    action_zoom_fit: object | None = None
-    action_reset_view: object | None = None
-    action_smooth_curve: object | None = None
-    action_filter_curve: object | None = None
-    action_analyze_curve: object | None = None
-    action_next_frame: object | None = None
-    action_prev_frame: object | None = None
-    action_first_frame: object | None = None
-    action_last_frame: object | None = None
-    action_oscillate_playback: object | None = None
+    action_new: QAction | None = None
+    action_open: QAction | None = None
+    action_save: QAction | None = None
+    action_save_as: QAction | None = None
+    action_load_images: QAction | None = None
+    action_export_data: QAction | None = None
+    action_quit: QAction | None = None
+    action_undo: QAction | None = None
+    action_redo: QAction | None = None
+    action_select_all: QAction | None = None
+    action_add_point: QAction | None = None
+    action_zoom_in: QAction | None = None
+    action_zoom_out: QAction | None = None
+    action_zoom_fit: QAction | None = None
+    action_reset_view: QAction | None = None
+    action_smooth_curve: QAction | None = None
+    action_filter_curve: QAction | None = None
+    action_analyze_curve: QAction | None = None
+    action_next_frame: QAction | None = None
+    action_prev_frame: QAction | None = None
+    action_first_frame: QAction | None = None
+    action_last_frame: QAction | None = None
+    action_oscillate_playback: QAction | None = None
 
     # MainWindowProtocol required attributes
     # Note: selected_indices and curve_data are provided as properties below
     point_name: str = "default_point"
     point_color: str = "#FF0000"
-    undo_button: QPushButton | None = None  # Will be created from action
-    redo_button: QPushButton | None = None  # Will be created from action
-    save_button: QPushButton | None = None  # Will be created from action
-    ui_components: object | None = None  # UIComponents container
+    undo_button: QPushButton | None = None  # Required by protocol, created from action
+    redo_button: QPushButton | None = None  # Required by protocol, created from action
+    save_button: QPushButton | None = None  # Required by protocol, created from action
+    ui_components: object | None = None  # UIComponents container - deprecated, use self.ui instead
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the MainWindow with enhanced UI functionality."""
@@ -203,9 +207,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize all UI components via controller
         self.ui_init_controller.initialize_ui()
 
-        # Initialize legacy curve view and track quality UI
-        self.curve_view: CurveViewWidget | None = None  # Legacy curve view - no longer used
-        self.track_quality_ui: QWidget | None = None  # Legacy track quality UI
+        # Legacy attributes for backward compatibility
+        self.curve_view: CurveViewWidget | None = None  # Deprecated - use curve_widget instead
 
         # Initialize history tracking
         self.history: list[dict[str, object]] = []  # Each history entry is a dict with curve data
@@ -451,10 +454,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if hasattr(self, "file_operations"):
             self.file_operations.cleanup_threads()
         return
-
-        # [REMOVED: Dead code block that was part of old QThread implementation]
-
-    # REMOVED DUPLICATE _cleanup_file_load_thread - see above for the correct implementation
 
     @Slot(list)
     def _on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
@@ -950,7 +949,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
-        self.tracking_panel.set_tracked_data(self.tracked_data)
+        if self.tracking_panel:
+            self.tracking_panel.set_tracked_data(self.tracked_data)
 
     def _update_curve_display(self) -> None:
         """Update curve display with selected tracking points."""
