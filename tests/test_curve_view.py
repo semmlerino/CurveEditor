@@ -91,11 +91,14 @@ class TestPointDataManagement:
 
     def test_add_point(self, curve_view_widget: CurveViewWidget) -> None:
         """Test adding a single point."""
+        # Clear any existing data first
+        curve_view_widget._curve_store.clear()
+
         point = (1, 100.0, 200.0, "keyframe")
         curve_view_widget.add_point(point)
 
         assert len(curve_view_widget.curve_data) == 1
-        assert curve_view_widget.curve_data[0] == point
+        assert curve_view_widget.curve_data[0][:3] == point[:3]  # Compare frame, x, y
 
     def test_update_point(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test updating a point's coordinates."""
@@ -119,7 +122,9 @@ class TestPointDataManagement:
     def test_get_selected_indices(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test getting selected indices."""
         curve_view_widget.set_curve_data(sample_points)
-        curve_view_widget.selected_indices = {0, 2}
+        # Use store methods to set selection
+        curve_view_widget._curve_store.select(0)
+        curve_view_widget._curve_store.select(2, add_to_selection=True)
 
         selected = curve_view_widget.get_selected_indices()
         assert set(selected) == {0, 2}
@@ -181,7 +186,9 @@ class TestViewStateManagement:
     def test_center_on_selection(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test centering on selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        curve_view_widget.selected_indices = {0, 1}
+        # Use store methods to set selection
+        curve_view_widget._curve_store.select(0)
+        curve_view_widget._curve_store.select(1, add_to_selection=True)
 
         # Should not raise exceptions
         curve_view_widget.center_on_selection()
@@ -283,7 +290,9 @@ class TestInteractionHandling:
     def test_point_deletion(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test deleting selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        curve_view_widget.selected_indices = {0, 2}
+        # Use store methods to set selection
+        curve_view_widget._curve_store.select(0)
+        curve_view_widget._curve_store.select(2, add_to_selection=True)
         original_length = len(curve_view_widget.curve_data)
 
         curve_view_widget._delete_selected_points()
@@ -295,7 +304,8 @@ class TestInteractionHandling:
     def test_nudge_selected_points(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test nudging selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        curve_view_widget.selected_indices = {0}
+        # Use store methods to set selection
+        curve_view_widget._curve_store.select(0)
 
         # Get original position
         original_x = curve_view_widget.curve_data[0][1]

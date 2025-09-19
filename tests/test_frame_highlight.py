@@ -37,13 +37,15 @@ class TestFramePointHighlighting:
         qtbot.addWidget(widget)
 
         # Add test data with points on different frames
-        widget.curve_data = [
-            (1, 100.0, 200.0, "keyframe"),
-            (5, 150.0, 250.0, "interpolated"),
-            (10, 200.0, 300.0, "keyframe"),
-            (15, 250.0, 350.0, "keyframe"),
-            (20, 300.0, 400.0, "interpolated"),
-        ]
+        widget.set_curve_data(
+            [
+                (1, 100.0, 200.0, "keyframe"),
+                (5, 150.0, 250.0, "interpolated"),
+                (10, 200.0, 300.0, "keyframe"),
+                (15, 250.0, 350.0, "keyframe"),
+                (20, 300.0, 400.0, "interpolated"),
+            ]
+        )
 
         # Create mock main window with state manager
         widget.main_window = Mock()
@@ -66,13 +68,15 @@ class TestFramePointHighlighting:
             window.services.save_track_data = Mock(return_value=True)
 
             # Set up test data with points on different frames
-            window.curve_widget.curve_data = [
-                (1, 100.0, 200.0, "keyframe"),
-                (5, 150.0, 250.0, "interpolated"),
-                (10, 200.0, 300.0, "keyframe"),
-                (15, 250.0, 350.0, "keyframe"),
-                (20, 300.0, 400.0, "interpolated"),
-            ]
+            window.curve_widget.set_curve_data(
+                [
+                    (1, 100.0, 200.0, "keyframe"),
+                    (5, 150.0, 250.0, "interpolated"),
+                    (10, 200.0, 300.0, "keyframe"),
+                    (15, 250.0, 350.0, "keyframe"),
+                    (20, 300.0, 400.0, "interpolated"),
+                ]
+            )
 
             # Set up proper frame range
             window.frame_spinbox.setMaximum(20)
@@ -211,11 +215,13 @@ class TestFramePointHighlighting:
     def test_multiple_points_on_same_frame(self, curve_widget):
         """Test highlighting when multiple points exist on the same frame."""
         # Add multiple points on frame 10
-        curve_widget.curve_data = [
-            (10, 100.0, 200.0, "keyframe"),
-            (10, 150.0, 250.0, "keyframe"),
-            (10, 200.0, 300.0, "interpolated"),
-        ]
+        curve_widget.set_curve_data(
+            [
+                (10, 100.0, 200.0, "keyframe"),
+                (10, 150.0, 250.0, "keyframe"),
+                (10, 200.0, 300.0, "interpolated"),
+            ]
+        )
 
         # Set current frame to 10
         curve_widget.main_window.state_manager.current_frame = 10

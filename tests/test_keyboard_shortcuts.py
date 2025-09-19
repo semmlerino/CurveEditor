@@ -34,7 +34,8 @@ class TestKeyboardShortcuts:
     def test_c_key_centers_on_selected(self, curve_widget: CurveViewWidget):
         """Test that C key centers view on selected points."""
         # Select some points
-        curve_widget.selected_indices = {1, 2}
+        curve_widget._curve_store.select(1)
+        curve_widget._curve_store.select(2, add_to_selection=True)
 
         # Store original offsets
         original_offset_x = curve_widget.pan_offset_x
@@ -50,7 +51,7 @@ class TestKeyboardShortcuts:
     def test_c_key_no_action_without_selection(self, curve_widget: CurveViewWidget):
         """Test that C key does nothing when no points are selected."""
         # No selection
-        curve_widget.selected_indices = set()
+        curve_widget._curve_store.clear_selection()
 
         # Store original offsets
         original_offset_x = curve_widget.pan_offset_x
@@ -107,7 +108,8 @@ class TestKeyboardShortcuts:
     def test_delete_key_removes_selected(self, curve_widget: CurveViewWidget):
         """Test that Delete key removes selected points."""
         # Select points
-        curve_widget.selected_indices = {1, 2}
+        curve_widget._curve_store.select(1)
+        curve_widget._curve_store.select(2, add_to_selection=True)
         original_count = len(curve_widget.curve_data)
 
         # Press Delete key
@@ -121,7 +123,9 @@ class TestKeyboardShortcuts:
     def test_escape_key_clears_selection(self, curve_widget: CurveViewWidget):
         """Test that Escape key clears selection."""
         # Select points
-        curve_widget.selected_indices = {0, 1, 2}
+        curve_widget._curve_store.select(0)
+        curve_widget._curve_store.select(1, add_to_selection=True)
+        curve_widget._curve_store.select(2, add_to_selection=True)
 
         # Press Escape key
         event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier)
@@ -133,7 +137,7 @@ class TestKeyboardShortcuts:
     def test_ctrl_a_selects_all(self, curve_widget: CurveViewWidget):
         """Test that Ctrl+A selects all points."""
         # Clear selection first
-        curve_widget.selected_indices = set()
+        curve_widget._curve_store.clear_selection()
 
         # Press Ctrl+A
         event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_A, Qt.KeyboardModifier.ControlModifier)
@@ -145,7 +149,7 @@ class TestKeyboardShortcuts:
     def test_numpad_keys_nudge_selected(self, curve_widget: CurveViewWidget):
         """Test that numpad keys nudge selected points."""
         # Select a point
-        curve_widget.selected_indices = {0}
+        curve_widget._curve_store.select(0)
 
         # Get original position
         _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])
@@ -171,7 +175,7 @@ class TestKeyboardShortcuts:
     def test_arrow_keys_pass_through_for_frame_navigation(self, curve_widget: CurveViewWidget):
         """Test that arrow keys are passed through to parent for frame navigation."""
         # Select a point to confirm they don't get nudged
-        curve_widget.selected_indices = {0}
+        curve_widget._curve_store.select(0)
 
         # Get original position
         _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])

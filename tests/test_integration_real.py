@@ -345,11 +345,13 @@ class TestUIIntegration:
         qtbot.addWidget(widget)
 
         # Set some test data
-        widget.curve_data = [
-            (1, 100, 100),
-            (2, 200, 200),
-            (3, 300, 300),
-        ]
+        widget.set_curve_data(
+            [
+                (1, 100, 100),
+                (2, 200, 200),
+                (3, 300, 300),
+            ]
+        )
 
         # Test transform
         transform = widget.get_transform()
@@ -382,7 +384,7 @@ class TestEndToEndWorkflow:
 
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
-        widget.curve_data = [(1, 100, 100), (2, 200, 200)]
+        widget.set_curve_data([(1, 100, 100), (2, 200, 200)])
 
         initial_zoom = widget.zoom_factor
 
@@ -413,11 +415,13 @@ class TestEndToEndWorkflow:
 
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
-        widget.curve_data = [
-            (1, 100, 100),
-            (2, 200, 200),
-            (3, 300, 300),
-        ]
+        widget.set_curve_data(
+            [
+                (1, 100, 100),
+                (2, 200, 200),
+                (3, 300, 300),
+            ]
+        )
 
         # Initially no selection
         assert len(widget.selected_points) == 0
@@ -445,7 +449,7 @@ class TestEndToEndWorkflow:
 
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
-        widget.curve_data = [(1, 100, 100)]
+        widget.set_curve_data([(1, 100, 100)])
 
         initial_pan_x = widget.pan_offset_x
         initial_pan_y = widget.pan_offset_y

@@ -190,7 +190,7 @@ class TestCenteringIntegration:
         widget.set_curve_data([p.to_tuple3() for p in points])
 
         # Select first point
-        widget.selected_indices = {0}
+        widget._curve_store.select(0)
 
         # Enable centering and move to different frame
         widget.centering_mode = True
