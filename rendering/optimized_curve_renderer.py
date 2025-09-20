@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
 from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
@@ -29,8 +29,8 @@ else:
     StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-FloatArray = np.ndarray[Any, np.dtype[np.float64]]  # Float coordinate arrays
-IntArray = np.ndarray[Any, np.dtype[np.int32]]  # Integer index arrays
+type FloatArray = np.ndarray[Any, np.dtype[np.float64]]  # pyright: ignore[reportExplicitAny,reportPrivateImportUsage]
+type IntArray = np.ndarray[Any, np.dtype[np.int32]]  # pyright: ignore[reportExplicitAny,reportPrivateImportUsage]
 
 logger = get_logger("optimized_curve_renderer")
 
@@ -41,7 +41,7 @@ class CurveViewProtocol(Protocol):
     # Required attributes
     points: list[tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]]
     show_background: bool
-    background_image: Any  # QImage or QPixmap at runtime
+    background_image: QImage | QPixmap | None
     show_grid: bool
     zoom_factor: float
     pan_offset_x: float
@@ -522,6 +522,9 @@ class OptimizedCurveRenderer:
         inactive_pen.setWidth(1)
         inactive_pen.setStyle(Qt.PenStyle.DashLine)
 
+        # Create frame-to-index mapping for O(1) lookups
+        frame_to_index = {pt[0]: i for i, pt in enumerate(curve_data)}
+
         # Draw each segment separately
         for segment in segmented_curve.segments:
             if segment.point_count < 2:
@@ -533,12 +536,8 @@ class OptimizedCurveRenderer:
             # Find screen points for this segment
             first_in_segment = True
             for point in segment.points:
-                # Find this point's index in the original data
-                point_idx = -1
-                for i, pt in enumerate(curve_data):
-                    if pt[0] == point.frame:  # Match by frame number
-                        point_idx = i
-                        break
+                # Find this point's index in the original data (O(1) lookup)
+                point_idx = frame_to_index.get(point.frame, -1)
 
                 if point_idx >= 0 and point_idx < len(screen_points):
                     screen_pos = screen_points[point_idx]

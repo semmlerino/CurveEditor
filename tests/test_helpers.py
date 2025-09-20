@@ -19,7 +19,7 @@ from core.models import CurvePoint
 try:
     from PySide6.QtCore import QObject, QSize
     from PySide6.QtGui import QAction, QColor, QImage
-    from PySide6.QtWidgets import QLabel, QMainWindow, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget
+    from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget
 
     HAS_QT = True
 except ImportError:
@@ -258,211 +258,45 @@ class MockServices:
     def __init__(self):
         self.workflow_state = None  # No workflow_state service in current architecture
 
+    def analyze_curve_bounds(self, data):
+        """Return proper curve analysis structure instead of Mock."""
+        return {
+            "count": len(data) if data else 0,
+            "min_frame": min(point[0] for point in data) if data else 0,
+            "max_frame": max(point[0] for point in data) if data else 0,
+            "bounds": {
+                "min_x": min(point[1] for point in data) if data else 0,
+                "max_x": max(point[1] for point in data) if data else 0,
+                "min_y": min(point[2] for point in data) if data else 0,
+                "max_y": max(point[2] for point in data) if data else 0,
+            },
+        }
 
-class MockMainWindow(QMainWindow if HAS_QT else object):
-    """
-    Real Qt MainWindow for testing with tracking capabilities.
+    def confirm_action(self, message):
+        """Mock confirmation dialog - always return True for tests."""
+        return True
 
-    Provides a real Qt widget hierarchy (QMainWindow, QStatusBar, QAction, QPushButton)
-    while tracking interactions for test assertions. Uses real Qt components when
-    available, falls back to mocks only in non-Qt environments.
-    """
+    def add_to_history(self):
+        """Mock history addition."""
+        pass
 
-    def __init__(self):
-        if HAS_QT:
-            super().__init__()
-            self.status_bar = QStatusBar()
-            self.setStatusBar(self.status_bar)
-        else:
-            self.status_bar = Mock()
-
-        # Track status messages
-        self.status_messages = []
-
-        if HAS_QT:
-            original_show = self.status_bar.showMessage
-
-            def track_message(msg, timeout=0):
-                self.status_messages.append((msg, timeout))
-                original_show(msg, timeout)
-
-            self.status_bar.showMessage = track_message
-
-        # Common attributes - using actual MainWindow attribute names
-        self.curve_widget = None  # Real MainWindow uses curve_widget
-        self.curve_view = None  # Keep for backward compatibility
-
-        # Use real Qt actions instead of mocks
-        if HAS_QT:
-            self.undo_action = QAction("Undo", self)
-            self.redo_action = QAction("Redo", self)
-        else:
-            # Fallback to mock only in non-Qt environments
-            self.undo_action = Mock()
-            self.redo_action = Mock()
-
-        # UI components structure (for InteractionService compatibility)
-        self.ui = MockUIComponents()
-
-        # Services structure (for InteractionService compatibility)
-        self.services = MockServices()
-
-        # History management (for MainWindowProtocol compatibility)
-        self.history = []
-        self.history_index = -1
-
-    @property
-    def curve_data(self):
-        """Delegate to curve_widget's curve_data for MainWindowProtocol compatibility."""
-        # Try curve_widget first (actual MainWindow interface), then curve_view (backward compatibility)
-        curve_obj = self.curve_widget or self.curve_view
-        if curve_obj and hasattr(curve_obj, "curve_data"):
-            return curve_obj.curve_data
+    def load_track_data_from_file(self, file_path):
+        """Mock load track data - return empty list."""
         return []
 
-    @curve_data.setter
-    def curve_data(self, value):
-        """Set curve_data on curve_widget for MainWindowProtocol compatibility."""
-        # Try curve_widget first (actual MainWindow interface), then curve_view (backward compatibility)
-        curve_obj = self.curve_widget or self.curve_view
-        if curve_obj and hasattr(curve_obj, "curve_data"):
-            curve_obj.curve_data = value
+    def save_track_data_to_file(self, data, file_path):
+        """Mock save track data - return success."""
+        return True
 
-    def get_curve_view(self):
-        """Return the curve view (backward compatibility method)."""
-        return self.curve_widget or self.curve_view
-
-
-class MockCurveView:
-    """
-    Test double for CurveView with real behavior.
-
-    Provides curve editing functionality without Qt dependencies
-    for fast unit testing.
-    """
-
-    def __init__(self, points=None):
-        """Initialize mock curve view with test data."""
-        # Data
-        self.curve_data = points or []
-        self.selected_points = set()
-        self.selected_point_idx = -1
-
-        # Main window reference (for OptimizedCurveRenderer compatibility)
-        self.main_window = None
-
-        # CurveViewProtocol required attributes
-        self.current_image_idx: int = 0
-        self.points = self.curve_data  # Alias for curve_data
-
-        # Transform and positioning attributes
-        self.offset_x: float = 0.0
-        self.offset_y: float = 0.0
-        self.x_offset: float = 0.0  # Alias for offset_x
-        self.y_offset: float = 0.0  # Alias for offset_y
-        self.zoom_factor: float = 1.0
-        self.pan_offset_x: float = 0.0
-        self.pan_offset_y: float = 0.0
-        self.manual_offset_x: float = 0.0
-        self.manual_offset_y: float = 0.0
-
-        # Interaction state attributes
-        self.drag_active: bool = False
-        self.pan_active: bool = False
-        self.last_drag_pos = None  # QtPointF | None
-        self.last_pan_pos = None  # QtPointF | None
-
-        # Rubber band selection attributes
-        self.rubber_band = None  # QRubberBand | None
-        self.rubber_band_active: bool = False
-        self.rubber_band_origin = None  # QtPointF
-
-        # Visualization settings
-        self.show_grid: bool = False
-        self.show_background: bool = True
-        self.show_velocity_vectors: bool = False
-        self.show_all_frame_numbers: bool = False
-
-        # Background image (for rendering tests compatibility)
-        self.background_image = None
-        self.background_opacity: float = 1.0
-
-        # Display properties
-        self._width = 800
-        self._height = 600
-        self.image_width = 800
-        self.image_height = 600
-        self.scale_to_image = True
-        self.flip_y_axis = False
-        self.debug_mode: bool = False
-        self.point_radius: int = 5
-
-        # Interaction state
-        self.update_called = False
-        self.cursor = None
-
-        # Mock signals for testing
-        self.point_selected = TestSignal()
-        self.point_moved = TestSignal()
-
-        # Transform
-        from services.transform_service import Transform
-
-        self.transform = Transform(scale=1.0, center_offset_x=400, center_offset_y=300)
-
-    def width(self) -> int:
-        """Return widget width."""
-        return self._width
-
-    def height(self) -> int:
-        """Return widget height."""
-        return self._height
-
-    def update(self):
-        """Mock update method."""
-        self.update_called = True
-
-    def get_transform(self):
-        """Return current transform."""
-        return self.transform
-
-    def mapToGlobal(self, point):
-        """Mock mapToGlobal for context menu position."""
-        return point
-
-    def setCursor(self, cursor):
-        """Mock setCursor method."""
-        self.cursor = cursor
-
-    def unsetCursor(self):
-        """Mock unsetCursor method."""
-        self.cursor = None
-
-    def repaint(self) -> None:
-        """Mock repaint method."""
-        self.update_called = True
-
-    def findPointAt(self, pos) -> int:
-        """Mock findPointAt method."""
-        # Simple mock implementation
-        return -1
-
-    def pan(self, dx: float, dy: float):
-        """Apply pan offset."""
-        self.pan_offset_x += dx
-        self.pan_offset_y += dy
-
-    def reset(self):
-        """Reset view state for test reuse."""
-        self.update_called = False
-        self.selected_points.clear()
-        self.selected_point_idx = -1
+    def load_track_data(self, parent_widget=None):
+        """Mock load track data from dialog."""
+        return []
 
 
 # ==================== Test Implementation Classes ====================
 
 
-class TestCurveView:
+class MockCurveView:
     """Lightweight real CurveView implementation for testing.
 
     This replaces massive mock objects with a real implementation that has
@@ -714,12 +548,12 @@ class TestCurveView:
         self.selected_points = set(indices)
 
 
-class TestMainWindow:
+class MockMainWindow:
     """Lightweight real MainWindow implementation for testing."""
 
     def __init__(self) -> None:
         # Core components
-        self.curve_view = TestCurveView()
+        self.curve_view = MockCurveView()
         self.curve_widget = self.curve_view  # Alias
 
         # UI components structure using real widgets
@@ -852,7 +686,7 @@ class TestMainWindow:
         """Update UI state for testing."""
         pass
 
-    def get_curve_view(self) -> TestCurveView:
+    def get_curve_view(self) -> MockCurveView:
         """Get the curve view component."""
         return self.curve_view
 
@@ -881,7 +715,7 @@ class TestMainWindow:
         return self.history_index < len(self.history) - 1
 
 
-class TestDataBuilder:
+class MockDataBuilder:
     """Builder for creating test data with various configurations."""
 
     def __init__(self) -> None:
@@ -889,7 +723,7 @@ class TestDataBuilder:
         self.frame_start: int = 1
         self.frame_step: int = 1
 
-    def with_points(self, count: int) -> "TestDataBuilder":
+    def with_points(self, count: int) -> "MockDataBuilder":
         """Add specified number of points."""
         for i in range(count):
             frame = self.frame_start + (i * self.frame_step)
@@ -898,7 +732,7 @@ class TestDataBuilder:
             self.points.append((frame, x, y, "normal"))
         return self
 
-    def with_keyframes(self, frames: list[int]) -> "TestDataBuilder":
+    def with_keyframes(self, frames: list[int]) -> "MockDataBuilder":
         """Add keyframes at specific frames."""
         for frame in frames:
             x = float(frame * 10)
@@ -906,7 +740,7 @@ class TestDataBuilder:
             self.points.append((frame, x, y, "keyframe"))
         return self
 
-    def with_frame_range(self, start: int, step: int = 1) -> "TestDataBuilder":
+    def with_frame_range(self, start: int, step: int = 1) -> "MockDataBuilder":
         """Set frame start and step."""
         self.frame_start = start
         self.frame_step = step
@@ -941,7 +775,7 @@ class BaseMockMainWindow:
         self.selected_indices = kwargs.get("selected_indices", [])
 
 
-class ProtocolCompliantMockCurveView(TestCurveView):
+class ProtocolCompliantMockCurveView(MockCurveView):
     """Protocol-compliant mock CurveView for service testing."""
 
     def __init__(self, **kwargs) -> None:
@@ -949,7 +783,7 @@ class ProtocolCompliantMockCurveView(TestCurveView):
         # Additional protocol compliance if needed
 
 
-class ProtocolCompliantMockMainWindow(TestMainWindow):
+class ProtocolCompliantMockMainWindow(MockMainWindow):
     """Protocol-compliant mock MainWindow for service testing."""
 
     def __init__(self, **kwargs) -> None:
@@ -957,7 +791,7 @@ class ProtocolCompliantMockMainWindow(TestMainWindow):
         # Additional protocol compliance if needed
 
 
-class LazyUIMockMainWindow(TestMainWindow):
+class LazyUIMockMainWindow(MockMainWindow):
     """MainWindow mock with lazy UI component creation."""
 
     def __init__(self, **kwargs) -> None:
@@ -1142,13 +976,10 @@ __all__ = [
     "TestImagePool",
     # Signal test doubles
     "TestSignal",
-    # Qt component test doubles
-    "MockMainWindow",
-    "MockCurveView",
     # Test implementation classes
-    "TestCurveView",
-    "TestMainWindow",
-    "TestDataBuilder",
+    "MockCurveView",
+    "MockMainWindow",
+    "MockDataBuilder",
     "BaseMockCurveView",
     "BaseMockMainWindow",
     "ProtocolCompliantMockCurveView",

@@ -21,15 +21,14 @@ def main():
 
     # Load logging configuration - simplified for startup
     # config = logging_config.load_config()  # Disabled - config module not available
-    config = {"global": "INFO", "services": {}}  # Simple fallback config
+    config: dict[str, str | dict[str, str]] = {"global": "INFO", "services": {}}  # Simple fallback config
 
     # Get logging level from environment or config
     import os
 
-    global_level = os.environ.get("LOG_LEVEL", config.get("global", "INFO"))
+    global_level_raw = os.environ.get("LOG_LEVEL", config.get("global", "INFO"))
     # Ensure global_level is a string
-    if not isinstance(global_level, str):
-        global_level = "INFO"
+    global_level: str = global_level_raw if isinstance(global_level_raw, str) else "INFO"
     level_num = getattr(logging, global_level.upper(), logging.INFO)
 
     # Setup basic logging
@@ -45,8 +44,9 @@ def main():
     logger.info("=" * 80)
 
     # Apply module-specific log levels from config
-    services_config = config.get("services")
-    if isinstance(services_config, dict):
+    services_config_raw = config.get("services")
+    if isinstance(services_config_raw, dict):
+        services_config: dict[str, str] = services_config_raw
         for service_name, service_level in services_config.items():
             if isinstance(service_level, str):
                 service_logger = logging.getLogger(f"services.{service_name}")

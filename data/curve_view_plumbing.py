@@ -39,14 +39,15 @@ OperationTarget = CurveViewProtocol | MainWindowProtocol
 def _get_curve_view(target: OperationTarget) -> CurveViewProtocol:
     """Extract curve_view from either main_window or direct curve_view object."""
     # Check for points attribute to determine if target is a curve_view
-    if hasattr(target, "points"):
+    # Using getattr with None default for type safety
+    if getattr(target, "points", None) is not None:
         # Target is already a CurveViewProtocol
         return cast(CurveViewProtocol, target)
-    elif hasattr(target, "curve_view"):
-        # Target is a MainWindowProtocol, get its curve_view
-        curve_view = getattr(target, "curve_view")  # pyright: ignore[reportAny]
-        if curve_view is None:
-            raise ValueError("MainWindow's curve_view is None")
+
+    # Check if target has curve_view attribute (MainWindowProtocol)
+    curve_view = getattr(target, "curve_view", None)
+    if curve_view is not None:
+        # Target is a MainWindowProtocol, return its curve_view
         return cast(CurveViewProtocol, curve_view)
     else:
         raise ValueError("Target must be CurveViewProtocol (with 'points') or MainWindowProtocol (with 'curve_view')")
@@ -60,8 +61,8 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
         def wrapper(target: CurveViewProtocol | MainWindowProtocol, *args: object, **kwargs: object) -> T | None:
             # Determine curve_view and main_window
             # Check if target is a main_window (has curve_data)
-            # This is intentional duck-typing for flexibility
-            if hasattr(target, "curve_data"):
+            # This is intentional duck-typing for flexibility - using getattr for type safety
+            if getattr(target, "curve_data", None) is not None:
                 main_window: MainWindowProtocol | None = cast(MainWindowProtocol, target)
                 curve_view = _get_curve_view(target)
             else:
@@ -114,7 +115,7 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
             if isinstance(result, tuple) and len(result) == 2:
                 success: bool = bool(result[0])
                 msg: str = str(result[1])
-                retval: T | None = result[0]
+                retval: T | None = None  # Tuple case returns status info, not the actual result
             else:
                 success = bool(result)
                 msg = action_name
