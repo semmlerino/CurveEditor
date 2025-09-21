@@ -622,15 +622,23 @@ class DataService:
                         frame = item.get("frame", item.get("f", 0))
                         x = item.get("x", item.get("X", 0.0))
                         y = item.get("y", item.get("Y", 0.0))
-                        status = item.get("status", item.get("type", "keyframe"))
-                        curve_data.append((frame, x, y, status))
+                        # Only include status if explicitly provided
+                        status = item.get("status", item.get("type"))
+                        if status:
+                            curve_data.append((frame, x, y, status))
+                        else:
+                            curve_data.append((frame, x, y))
                     elif isinstance(item, list | tuple) and len(item) >= 3:
                         # Handle array format [frame, x, y, ...]
                         frame = item[0]
                         x = float(item[1])
                         y = float(item[2])
-                        status = item[3] if len(item) > 3 else "keyframe"
-                        curve_data.append((frame, x, y, status))
+                        # Only include status if explicitly provided
+                        if len(item) > 3:
+                            status = item[3]
+                            curve_data.append((frame, x, y, status))
+                        else:
+                            curve_data.append((frame, x, y))
             elif isinstance(data, dict) and "points" in data:
                 # Handle wrapped format {"points": [...], "metadata": {...}}
                 points = data["points"]
@@ -639,13 +647,18 @@ class DataService:
                         frame = point.get("frame", 0)
                         x = point.get("x", 0.0)
                         y = point.get("y", 0.0)
-                        status = point.get("status", "keyframe")
-                        curve_data.append((frame, x, y, status))
+                        # Only include status if explicitly provided
+                        status = point.get("status")
+                        if status:
+                            curve_data.append((frame, x, y, status))
+                        else:
+                            curve_data.append((frame, x, y))
 
             if self._logger:
                 self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
 
-            return curve_data
+            # Apply default status rules
+            return self._apply_default_statuses(curve_data)
 
         except FileNotFoundError:
             if self._logger:
@@ -759,9 +772,9 @@ class DataService:
                                     except (ValueError, IndexError):
                                         continue
 
-                            # Store the trajectory
+                            # Store the trajectory with post-processing
                             if trajectory:
-                                tracked_data[point_name] = trajectory
+                                tracked_data[point_name] = self._apply_default_statuses(trajectory)
 
                             # Move past this point's data
                             i = data_start + point_count
@@ -815,22 +828,25 @@ class DataService:
                                 # Apply Y-flip for 3DEqualizer coordinates (bottom-origin to top-origin)
                                 y = 720 - y
 
-                                # Optional status field
-                                status = "keyframe"
+                                # Optional status field - only include if explicitly provided
                                 if len(parts) >= 4:
                                     status = parts[3]
-
-                                curve_data.append((frame, x, y, status))
+                                    curve_data.append((frame, x, y, status))
+                                else:
+                                    curve_data.append((frame, x, y))
 
                             except (ValueError, IndexError) as e:
                                 if self._logger:
                                     self._logger.log_error(f"Invalid data at line {line_num}: {e}")
                                 continue
 
-            if self._logger:
-                self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
+            # Apply default status rules
+            result = self._apply_default_statuses(curve_data)
 
-            return curve_data
+            if self._logger:
+                self._logger.log_info(f"Loaded {len(result)} points from {file_path}")
+
+            return result
 
         except FileNotFoundError:
             if self._logger:
@@ -882,12 +898,12 @@ class DataService:
                         x = float(row[1])
                         y = float(row[2])
 
-                        # Optional status column
-                        status = "keyframe"
+                        # Optional status column - only include if explicitly provided
                         if len(row) > 3 and row[3].strip():
                             status = row[3].strip()
-
-                        curve_data.append((frame, x, y, status))
+                            curve_data.append((frame, x, y, status))
+                        else:
+                            curve_data.append((frame, x, y))
 
                     except (ValueError, IndexError) as e:
                         if self._logger:
@@ -897,7 +913,8 @@ class DataService:
             if self._logger:
                 self._logger.log_info(f"Loaded {len(curve_data)} points from {file_path}")
 
-            return curve_data
+            # Apply default status rules
+            return self._apply_default_statuses(curve_data)
 
         except FileNotFoundError:
             if self._logger:
@@ -945,6 +962,60 @@ class DataService:
             if self._logger:
                 self._logger.log_error(f"Failed to save CSV file {file_path}: {e}")
             return False
+
+    def _apply_default_statuses(self, curve_data: CurveDataList) -> CurveDataList:
+        """Apply default status rules to loaded curve data.
+
+        Rules:
+        1. All frames default to "tracked" status
+        2. Last frame becomes "keyframe"
+        3. Frames before gaps (>1 frame jump) become "endframe"
+
+        Args:
+            curve_data: Raw curve data with potentially inconsistent statuses
+
+        Returns:
+            Processed curve data with consistent default statuses
+        """
+        if not curve_data:
+            return curve_data
+
+        # Convert to list and sort by frame
+        processed_data = []
+        sorted_data = sorted(curve_data, key=lambda p: p[0])
+
+        for i, point in enumerate(sorted_data):
+            frame, x, y = point[0], point[1], point[2]
+
+            # Check if status was explicitly provided and is valid
+            explicit_status = None
+            if len(point) > 3 and point[3] in ["normal", "interpolated", "keyframe", "tracked", "endframe"]:
+                explicit_status = point[3]
+
+            # Apply default rules if no explicit status
+            if explicit_status is None:
+                # Check if this is the last frame
+                if i == len(sorted_data) - 1:
+                    status = "keyframe"
+                # Check if this is the last frame before a gap
+                elif i < len(sorted_data) - 1:
+                    next_frame = sorted_data[i + 1][0]
+                    if next_frame - frame > 1:  # Gap detected
+                        status = "endframe"
+                    else:
+                        status = "tracked"
+                else:
+                    status = "tracked"
+            else:
+                # Use the explicit status
+                status = explicit_status
+
+            processed_data.append((frame, x, y, status))
+
+        if self._logger:
+            self._logger.log_info(f"Applied default statuses to {len(processed_data)} points")
+
+        return processed_data
 
 
 # Singleton instance is managed by services/__init__.py

@@ -144,7 +144,7 @@ class ViewportCuller:
                             if viewport.contains(x, y):
                                 visible.append(idx)
 
-        return np.array(visible, dtype=int)
+        return np.array(visible, dtype=int)  # pyright: ignore[reportPrivateImportUsage]
 
     def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Simple viewport culling for smaller datasets."""
@@ -221,7 +221,7 @@ class VectorizedTransform:
     ) -> FloatArray:
         """Transform all points in a single vectorized operation."""
         if len(points) == 0:
-            return np.array([]).reshape(0, 2)
+            return np.array([]).reshape(0, 2)  # pyright: ignore[reportPrivateImportUsage]
 
         # Extract x and y coordinates
         x_coords = points[:, 1] if points.shape[1] > 1 else points[:, 0]
@@ -236,7 +236,7 @@ class VectorizedTransform:
             screen_y = height - screen_y
 
         # Stack coordinates into Nx2 array
-        return np.column_stack((screen_x, screen_y))
+        return np.column_stack((screen_x, screen_y))  # pyright: ignore[reportPrivateImportUsage]
 
 
 class OptimizedCurveRenderer:

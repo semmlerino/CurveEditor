@@ -6,7 +6,7 @@ Previously, similar try/except blocks were repeated 45+ times across the codebas
 
 import logging
 from collections.abc import Callable
-from typing import Any, TypeVar, cast
+from typing import TypeVar, cast
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -14,11 +14,11 @@ R = TypeVar("R")
 
 def safe_execute(
     func: Callable[..., T],
-    *args: Any,
+    *args: object,
     default: T | None = None,
     logger: logging.Logger | None = None,
     log_message: str = "Operation failed",
-    **kwargs: Any,
+    **kwargs: object,
 ) -> T | None:
     """Execute a function safely, returning default value on exception.
 
@@ -119,8 +119,8 @@ class ErrorContext:
     operation: str
     logger: logging.Logger | None
     reraise: bool
-    default: Any
-    result: Any
+    default: object
+    result: object
     exception: Exception | None
 
     def __init__(
@@ -128,7 +128,7 @@ class ErrorContext:
         operation: str,
         logger: logging.Logger | None = None,
         reraise: bool = False,
-        default: Any = None,
+        default: object = None,
     ):
         """Initialize error context.
 
@@ -149,7 +149,7 @@ class ErrorContext:
         """Enter context."""
         return self
 
-    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: Any) -> bool:
+    def __exit__(self, exc_type: type[BaseException] | None, exc_val: BaseException | None, exc_tb: object) -> bool:
         """Exit context, handling any exceptions."""
         if exc_val is not None:
             self.exception = cast(Exception, exc_val)

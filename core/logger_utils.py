@@ -5,7 +5,6 @@ Previously, `logger = logging.getLogger(__name__)` was repeated 35+ times.
 """
 
 import logging
-from typing import Any
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -24,7 +23,7 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-def log_exception(logger: logging.Logger, message: str, exc: Exception, **kwargs: Any) -> None:
+def log_exception(logger: logging.Logger, message: str, exc: Exception, **kwargs: object) -> None:
     """Log an exception with consistent formatting.
 
     Args:
