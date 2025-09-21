@@ -65,18 +65,20 @@ Point2
         assert "Point1" in tracked_data
         assert "Point2" in tracked_data
 
-        # Check Point1 coordinates
+        # Check Point1 coordinates (now includes status field)
         point1_data = tracked_data["Point1"]
         assert len(point1_data) == 3
-        assert point1_data[0] == (1, 100.0, 520.0)  # 720 - 200 = 520
-        assert point1_data[1] == (2, 110.0, 510.0)  # 720 - 210 = 510
-        assert point1_data[2] == (3, 120.0, 500.0)  # 720 - 220 = 500
+        # Extract frame, x, y from 4-element tuples (frame, x, y, status)
+        assert point1_data[0][:3] == (1, 100.0, 520.0)  # 720 - 200 = 520
+        assert point1_data[1][:3] == (2, 110.0, 510.0)  # 720 - 210 = 510
+        assert point1_data[2][:3] == (3, 120.0, 500.0)  # 720 - 220 = 500
 
-        # Check Point2 coordinates
+        # Check Point2 coordinates (now includes status field)
         point2_data = tracked_data["Point2"]
         assert len(point2_data) == 2
-        assert point2_data[0] == (1, 300.0, 320.0)  # 720 - 400 = 320
-        assert point2_data[1] == (2, 310.0, 310.0)  # 720 - 410 = 310
+        # Extract frame, x, y from 4-element tuples (frame, x, y, status)
+        assert point2_data[0][:3] == (1, 300.0, 320.0)  # 720 - 400 = 320
+        assert point2_data[1][:3] == (2, 310.0, 310.0)  # 720 - 410 = 310
 
     def test_load_2dtrack_data_applies_y_flip(self, tmp_path):
         """Test that _load_2dtrack_data applies Y-flip for single curve."""

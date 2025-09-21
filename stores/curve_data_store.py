@@ -9,7 +9,7 @@ from PySide6.QtCore import QObject, Signal
 
 from core.logger_utils import get_logger
 from core.models import PointStatus
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataList, LegacyPointData
 
 logger = get_logger("curve_data_store")
 
@@ -55,7 +55,7 @@ class CurveDataStore(QObject):
         """
         return self._data.copy()
 
-    def get_point(self, index: int) -> tuple[int, float, float, str | bool] | None:
+    def get_point(self, index: int) -> LegacyPointData | None:
         """
         Get a specific point by index.
 

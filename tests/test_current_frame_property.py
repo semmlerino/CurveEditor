@@ -20,8 +20,11 @@ def test_main_window_has_current_frame_property(qtbot: QtBot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    # Check property exists
-    assert hasattr(window, "current_frame")
+    # Check property exists by verifying it's accessible and returns a value
+    try:
+        _ = window.current_frame  # Access the property
+    except AttributeError:
+        pytest.fail("MainWindow should have current_frame property")
 
     # Check it's a property, not just an attribute
     assert isinstance(type(window).current_frame, property)
@@ -50,14 +53,19 @@ def test_current_frame_property_setter(qtbot: QtBot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    # Mock the frame navigation controller's method
-    window.frame_nav_controller.set_frame = Mock()
+    # Track actual behavior instead of mocking
+    frame_set_to = [None]
+
+    def track_frame_set(frame):
+        frame_set_to[0] = frame
+
+    window.frame_nav_controller.set_frame = track_frame_set
 
     # Set via property
     window.current_frame = 100
 
-    # Check that controller method was called
-    window.frame_nav_controller.set_frame.assert_called_once_with(100)
+    # Verify behavior: the frame was actually set to the correct value
+    assert frame_set_to[0] == 100
 
 
 def test_curve_view_can_access_current_frame(qtbot: QtBot):
@@ -91,8 +99,11 @@ def test_protocol_compliance(qtbot: QtBot):
     window = MainWindow()
     qtbot.addWidget(window)
 
-    # Check critical protocol attributes
-    assert hasattr(window, "current_frame")
+    # Check critical protocol attributes by trying to access them
+    try:
+        _ = window.current_frame
+    except AttributeError:
+        pytest.fail("MainWindow should have current_frame property")
     # Note: selected_indices and curve_data may be on curve_view/curve_widget
     # This is part of the duck-typing pattern in the codebase
 
@@ -102,10 +113,17 @@ def test_protocol_compliance(qtbot: QtBot):
     frame = window.current_frame
     assert isinstance(frame, int)
 
-    # Test property setter
-    window.frame_nav_controller.set_frame = Mock()
+    # Test property setter behavior
+    frame_set_to = [None]
+
+    def track_frame(f):
+        frame_set_to[0] = f
+
+    window.frame_nav_controller.set_frame = track_frame
     window.current_frame = 42
-    window.frame_nav_controller.set_frame.assert_called_with(42)
+
+    # Verify behavior: frame was set correctly
+    assert frame_set_to[0] == 42
 
 
 if __name__ == "__main__":

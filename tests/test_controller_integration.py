@@ -209,18 +209,30 @@ class TestControllerIntegration:
         """Test FPS changes during active playback."""
         playback = integration_setup["playback"]
 
+        # Track behavior instead of mock calls
+        timer_intervals_set = []
+
         with patch.object(playback, "playback_timer") as mock_timer:
-            # Start playback
+            # Track what intervals are set
+            def track_interval(interval):
+                timer_intervals_set.append(interval)
+
+            mock_timer.setInterval = track_interval
             mock_timer.isActive.return_value = False
+
+            # Start playback
             playback.toggle_playback()
             assert playback.is_playing
 
             # Change FPS during playback
             playback.fps_spinbox.setValue(60)
 
-            # Timer interval should be updated
+            # Verify behavior: timer interval was updated to match new FPS
             expected_interval = int(1000 / 60)
-            mock_timer.setInterval.assert_called_with(expected_interval)
+            # Check that the expected interval was set at some point
+            assert expected_interval in timer_intervals_set
+            # Also verify the FPS value actually changed
+            assert playback.fps_spinbox.value() == 60
 
     def test_frame_clamping_coordination(self, integration_setup):
         """Test frame clamping works correctly between controllers."""

@@ -83,8 +83,8 @@ class TestMainWindowStoreIntegration:
 
     def test_main_window_has_store_access(self, main_window):
         """Test that MainWindow has access to the reactive store."""
-        assert hasattr(main_window, "_store_manager")
-        assert hasattr(main_window, "_curve_store")
+        # Check attributes exist and are not None (better than hasattr)
+        assert main_window._store_manager is not None
         assert main_window._curve_store is not None
 
     def test_main_window_curve_data_property_uses_store(self, main_window):
@@ -96,91 +96,172 @@ class TestMainWindowStoreIntegration:
         # Access through property should return store data
         assert main_window.curve_data == test_data
 
-    def test_timeline_updates_on_store_changes(self, main_window):
+    def test_timeline_updates_on_store_changes(self, main_window, qtbot):
         """Test that timeline updates when store data changes."""
-        # Mock the _update_timeline_tabs method
-        main_window._update_timeline_tabs = MagicMock()
+        # Track if update was triggered through signal emission
+        update_count = [0]  # Use list to capture in closure
+
+        def track_update():
+            update_count[0] += 1
+
+        main_window._update_timeline_tabs = track_update
 
         # Change data in store
         test_data = [(1, 100.0, 200.0)]
         main_window._curve_store.set_data(test_data)
 
-        # Timeline update should have been called
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_timeline_updates_on_point_addition(self, main_window):
+        # Verify behavior: timeline update was triggered
+        assert update_count[0] > 0
+        # Verify data actually changed in store
+        assert main_window.curve_data == test_data
+
+    def test_timeline_updates_on_point_addition(self, main_window, qtbot):
         """Test that timeline updates when points are added."""
-        main_window._update_timeline_tabs = MagicMock()
+        update_triggered = [False]
+
+        def mark_updated():
+            update_triggered[0] = True
+
+        main_window._update_timeline_tabs = mark_updated
 
         # Add a point
         main_window._curve_store.add_point((1, 100.0, 200.0))
 
-        # Timeline should update
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_timeline_updates_on_point_update(self, main_window):
+        # Verify behavior: update was triggered and point exists
+        assert update_triggered[0] is True
+        assert len(main_window.curve_data) == 1
+        assert main_window.curve_data[0][:3] == (1, 100.0, 200.0)
+
+    def test_timeline_updates_on_point_update(self, main_window, qtbot):
         """Test that timeline updates when points are updated."""
         # Setup initial data
         main_window._curve_store.set_data([(1, 100.0, 200.0)])
 
-        main_window._update_timeline_tabs = MagicMock()
+        update_triggered = [False]
+
+        def mark_updated():
+            update_triggered[0] = True
+
+        main_window._update_timeline_tabs = mark_updated
 
         # Update the point
         main_window._curve_store.update_point(0, 150.0, 250.0)
 
-        # Timeline should update
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_timeline_updates_on_point_removal(self, main_window):
+        # Verify behavior: update triggered and data actually changed
+        assert update_triggered[0] is True
+        curve_data = main_window.curve_data
+        assert len(curve_data) == 1
+        # Check coordinates were updated (frame stays same, x/y changed)
+        assert curve_data[0][0] == 1  # frame unchanged
+        assert curve_data[0][1] == 150.0  # x updated
+        assert curve_data[0][2] == 250.0  # y updated
+
+    def test_timeline_updates_on_point_removal(self, main_window, qtbot):
         """Test that timeline updates when points are removed."""
         # Setup initial data
         main_window._curve_store.set_data([(1, 100.0, 200.0), (2, 150.0, 250.0)])
 
-        main_window._update_timeline_tabs = MagicMock()
+        update_triggered = [False]
+
+        def mark_updated():
+            update_triggered[0] = True
+
+        main_window._update_timeline_tabs = mark_updated
 
         # Remove a point
         main_window._curve_store.remove_point(0)
 
-        # Timeline should update
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_timeline_updates_on_status_change(self, main_window):
+        # Verify behavior: update triggered and point was removed
+        assert update_triggered[0] is True
+        assert len(main_window.curve_data) == 1
+        # Verify the right point remains (second point)
+        assert main_window.curve_data[0][0] == 2  # frame from second point
+
+    def test_timeline_updates_on_status_change(self, main_window, qtbot):
         """Test that timeline updates when point status changes."""
         # Setup initial data
         main_window._curve_store.set_data([(1, 100.0, 200.0)])
 
-        main_window._update_timeline_tabs = MagicMock()
+        update_triggered = [False]
+
+        def mark_updated():
+            update_triggered[0] = True
+
+        main_window._update_timeline_tabs = mark_updated
 
         # Change point status
         main_window._curve_store.set_point_status(0, "keyframe")
 
-        # Timeline should update
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_selection_updates_trigger_ui_update(self, main_window):
+        # Verify behavior: update triggered and status changed
+        assert update_triggered[0] is True
+        curve_data = main_window.curve_data
+        # Check if status is present (4th element if it exists)
+        if len(curve_data[0]) > 3:
+            assert curve_data[0][3] == "keyframe"
+
+    def test_selection_updates_trigger_ui_update(self, main_window, qtbot):
         """Test that selection changes trigger UI updates."""
         # Setup initial data
         main_window._curve_store.set_data([(1, 100.0, 200.0), (2, 150.0, 250.0)])
 
-        # Mock the UI update methods
-        main_window._update_point_editor = MagicMock()
-        main_window._update_ui_state = MagicMock()
+        # Track actual behavior
+        editor_updated_with = [None]
+        ui_state_updated = [False]
+
+        def update_editor(idx):
+            editor_updated_with[0] = idx
+
+        def update_ui():
+            ui_state_updated[0] = True
+
+        main_window._update_point_editor = update_editor
+        main_window._update_ui_state = update_ui
 
         # Change selection
         main_window._curve_store.select(0)
 
-        # UI should update
-        main_window._update_point_editor.assert_called_with(0)
-        main_window._update_ui_state.assert_called()
+        # Let signals process
+        qtbot.wait(10)
 
-    def test_store_signals_connected_on_init(self, main_window):
+        # Verify behavior: correct index was passed and UI updated
+        assert editor_updated_with[0] == 0
+        assert ui_state_updated[0] is True
+        # Verify selection actually changed in store (get_selection returns a set)
+        assert main_window._curve_store.get_selection() == {0}
+
+    def test_store_signals_connected_on_init(self, main_window, qtbot):
         """Test that store signals are connected during initialization."""
-        # Signals are already connected in __init__
-        # Verify they work by triggering one
-        main_window._update_timeline_tabs = MagicMock()
+        # Verify signals work by testing behavior
+        signal_received = [False]
+
+        def mark_signal_received():
+            signal_received[0] = True
+
+        main_window._update_timeline_tabs = mark_signal_received
+
+        # Trigger signal
         main_window._curve_store.data_changed.emit()
 
-        main_window._update_timeline_tabs.assert_called()
+        # Let signals process
+        qtbot.wait(10)
+
+        # Verify behavior: signal was received and processed
+        assert signal_received[0] is True
 
     def test_multiple_windows_share_store(self, qtbot):
         """Test that multiple MainWindow instances share the same store."""
@@ -196,10 +277,14 @@ class TestMainWindowStoreIntegration:
         window1._curve_store.set_data([(1, 100.0, 200.0)])
         assert window2.curve_data == [(1, 100.0, 200.0)]
 
-    def test_batch_operations_minimize_timeline_updates(self, main_window):
+    def test_batch_operations_minimize_timeline_updates(self, main_window, qtbot):
         """Test that batch operations don't trigger multiple timeline updates."""
-        main_window._update_timeline_tabs = MagicMock()
-        # Don't call _connect_store_signals() again - it's already called in __init__
+        update_count = [0]
+
+        def count_updates():
+            update_count[0] += 1
+
+        main_window._update_timeline_tabs = count_updates
 
         # Start batch operation
         main_window._curve_store.begin_batch_operation()
@@ -209,11 +294,18 @@ class TestMainWindowStoreIntegration:
         main_window._curve_store.add_point((2, 150.0, 250.0))
         main_window._curve_store.add_point((3, 200.0, 300.0))
 
-        # No updates during batch
-        main_window._update_timeline_tabs.assert_not_called()
+        # Let any immediate signals process
+        qtbot.wait(10)
+
+        # No updates should have occurred during batch
+        assert update_count[0] == 0
 
         # End batch
         main_window._curve_store.end_batch_operation()
 
-        # Should have exactly one update (data_changed emitted once at batch end)
-        assert main_window._update_timeline_tabs.call_count == 1
+        # Let batch-end signal process
+        qtbot.wait(10)
+
+        # Verify behavior: exactly one update after batch, and all data present
+        assert update_count[0] == 1
+        assert len(main_window.curve_data) == 3

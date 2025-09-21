@@ -74,10 +74,10 @@ class TrackingPointsPanel(QWidget):
         self.table.setColumnWidth(3, 60)  # Color
 
         # Connect signals
-        self.table.itemSelectionChanged.connect(self._on_selection_changed)
-        self.table.itemChanged.connect(self._on_item_changed)
+        _ = self.table.itemSelectionChanged.connect(self._on_selection_changed)
+        _ = self.table.itemChanged.connect(self._on_item_changed)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._show_context_menu)
+        _ = self.table.customContextMenuRequested.connect(self._show_context_menu)
 
         layout.addWidget(self.table)
 
@@ -124,7 +124,7 @@ class TrackingPointsPanel(QWidget):
             # Visible checkbox
             checkbox = QCheckBox()
             checkbox.setChecked(metadata["visible"])
-            checkbox.stateChanged.connect(
+            _ = checkbox.stateChanged.connect(
                 lambda state, name=point_name: self._on_visibility_changed(name, state == Qt.CheckState.Checked.value)
             )
             checkbox_widget = QWidget()
@@ -149,7 +149,7 @@ class TrackingPointsPanel(QWidget):
             color_button = QPushButton()
             color_button.setStyleSheet(f"background-color: {metadata['color']}; border: 1px solid black;")
             color_button.setMaximumHeight(20)
-            color_button.clicked.connect(lambda checked, name=point_name: self._on_color_button_clicked(name))
+            _ = color_button.clicked.connect(lambda checked, name=point_name: self._on_color_button_clicked(name))
             self.table.setCellWidget(i, 3, color_button)
 
         self._updating = False
@@ -234,11 +234,11 @@ class TrackingPointsPanel(QWidget):
 
         # Visibility actions
         show_action = QAction("Show", self)
-        show_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, True))
+        _ = show_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, True))
         menu.addAction(show_action)
 
         hide_action = QAction("Hide", self)
-        hide_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, False))
+        _ = hide_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, False))
         menu.addAction(hide_action)
 
         menu.addSeparator()
@@ -248,7 +248,7 @@ class TrackingPointsPanel(QWidget):
             delete_action = QAction(f"Delete {selected_points[0]}", self)
         else:
             delete_action = QAction(f"Delete {len(selected_points)} points", self)
-        delete_action.triggered.connect(lambda: self._delete_points(selected_points))
+        _ = delete_action.triggered.connect(lambda: self._delete_points(selected_points))
         menu.addAction(delete_action)
 
         menu.exec(self.table.viewport().mapToGlobal(position))

@@ -22,16 +22,16 @@ class TestUIComponentsIntegration:
         qtbot.addWidget(window)
 
         # UIComponents container should exist
-        assert hasattr(window, "ui"), "MainWindow missing ui components container"
+        assert window.ui is not None, "MainWindow missing ui components container"
         assert isinstance(window.ui, UIComponents), "ui should be UIComponents instance"
 
-        # All component groups should exist
-        assert hasattr(window.ui, "timeline"), "Missing timeline components"
-        assert hasattr(window.ui, "point_edit"), "Missing point_edit components"
-        assert hasattr(window.ui, "visualization"), "Missing visualization components"
-        assert hasattr(window.ui, "status"), "Missing status components"
-        assert hasattr(window.ui, "toolbar"), "Missing toolbar components"
-        assert hasattr(window.ui, "smoothing"), "Missing smoothing components"
+        # All component groups should exist and be accessible
+        assert window.ui.timeline is not None, "Missing timeline components"
+        assert window.ui.point_edit is not None, "Missing point_edit components"
+        assert window.ui.visualization is not None, "Missing visualization components"
+        assert window.ui.status is not None, "Missing status components"
+        assert window.ui.toolbar is not None, "Missing toolbar components"
+        assert window.ui.smoothing is not None, "Missing smoothing components"
 
     def test_timeline_component_mappings(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test timeline components are properly mapped."""
@@ -39,22 +39,22 @@ class TestUIComponentsIntegration:
         qtbot.addWidget(window)
 
         # Test frame spinbox mapping
-        assert hasattr(window.ui.timeline, "frame_spinbox"), "Missing timeline.frame_spinbox"
+        assert window.ui.timeline.frame_spinbox is not None, "Missing timeline.frame_spinbox"
         assert window.ui.timeline.frame_spinbox is window.frame_spinbox, "frame_spinbox not mapped correctly"
         assert isinstance(window.ui.timeline.frame_spinbox, QSpinBox), "frame_spinbox wrong type"
 
         # Test fps spinbox mapping
-        assert hasattr(window.ui.timeline, "fps_spinbox"), "Missing timeline.fps_spinbox"
+        assert window.ui.timeline.fps_spinbox is not None, "Missing timeline.fps_spinbox"
         assert window.ui.timeline.fps_spinbox is window.fps_spinbox, "fps_spinbox not mapped correctly"
         assert isinstance(window.ui.timeline.fps_spinbox, QSpinBox), "fps_spinbox wrong type"
 
         # Test timeline slider mapping
-        assert hasattr(window.ui.timeline, "timeline_slider"), "Missing timeline.timeline_slider"
+        assert window.ui.timeline.timeline_slider is not None, "Missing timeline.timeline_slider"
         assert window.ui.timeline.timeline_slider is window.frame_slider, "timeline_slider not mapped correctly"
         assert isinstance(window.ui.timeline.timeline_slider, QSlider), "timeline_slider wrong type"
 
         # Test play button - the only playback button that's actually functional
-        assert hasattr(window.ui.timeline, "play_button"), "Missing timeline.play_button"
+        assert window.ui.timeline.play_button is not None, "Missing timeline.play_button"
         assert window.ui.timeline.play_button is window.btn_play_pause, "play_button not mapped"
 
         # NOTE: Removed orphaned button tests (first_frame_button, etc.) - those buttons
@@ -66,12 +66,12 @@ class TestUIComponentsIntegration:
         qtbot.addWidget(window)
 
         # Test x coordinate editor - should be QDoubleSpinBox
-        assert hasattr(window.ui.point_edit, "x_edit"), "Missing point_edit.x_edit"
+        assert window.ui.point_edit.x_edit is not None, "Missing point_edit.x_edit"
         assert window.ui.point_edit.x_edit is window.point_x_spinbox, "x_edit not mapped correctly"
         assert isinstance(window.ui.point_edit.x_edit, QDoubleSpinBox), "x_edit wrong type - should be QDoubleSpinBox"
 
         # Test y coordinate editor - should be QDoubleSpinBox
-        assert hasattr(window.ui.point_edit, "y_edit"), "Missing point_edit.y_edit"
+        assert window.ui.point_edit.y_edit is not None, "Missing point_edit.y_edit"
         assert window.ui.point_edit.y_edit is window.point_y_spinbox, "y_edit not mapped correctly"
         assert isinstance(window.ui.point_edit.y_edit, QDoubleSpinBox), "y_edit wrong type - should be QDoubleSpinBox"
 
@@ -81,12 +81,12 @@ class TestUIComponentsIntegration:
         qtbot.addWidget(window)
 
         # Test point size slider mapping
-        assert hasattr(window.ui.visualization, "point_size_slider"), "Missing visualization.point_size_slider"
+        assert window.ui.visualization.point_size_slider is not None, "Missing visualization.point_size_slider"
         assert window.ui.visualization.point_size_slider is window.point_size_slider, "point_size_slider not mapped"
         assert isinstance(window.ui.visualization.point_size_slider, QSlider), "point_size_slider wrong type"
 
         # Test line width slider mapping
-        assert hasattr(window.ui.visualization, "line_width_slider"), "Missing visualization.line_width_slider"
+        assert window.ui.visualization.line_width_slider is not None, "Missing visualization.line_width_slider"
         assert window.ui.visualization.line_width_slider is window.line_width_slider, "line_width_slider not mapped"
         assert isinstance(window.ui.visualization.line_width_slider, QSlider), "line_width_slider wrong type"
 
@@ -96,20 +96,20 @@ class TestUIComponentsIntegration:
         qtbot.addWidget(window)
 
         # Test info label mapping
-        assert hasattr(window.ui.status, "info_label"), "Missing status.info_label"
+        assert window.ui.status.info_label is not None, "Missing status.info_label"
         assert window.ui.status.info_label is window.total_frames_label, "info_label not mapped correctly"
         assert isinstance(window.ui.status.info_label, QLabel), "info_label wrong type"
 
         # Test quality labels mapping
-        assert hasattr(window.ui.status, "quality_score_label"), "Missing status.quality_score_label"
+        assert window.ui.status.quality_score_label is not None, "Missing status.quality_score_label"
         assert window.ui.status.quality_score_label is window.point_count_label, "quality_score_label not mapped"
 
-        assert hasattr(window.ui.status, "quality_coverage_label"), "Missing status.quality_coverage_label"
+        assert window.ui.status.quality_coverage_label is not None, "Missing status.quality_coverage_label"
         assert (
             window.ui.status.quality_coverage_label is window.selected_count_label
         ), "quality_coverage_label not mapped"
 
-        assert hasattr(window.ui.status, "quality_consistency_label"), "Missing status.quality_consistency_label"
+        assert window.ui.status.quality_consistency_label is not None, "Missing status.quality_consistency_label"
         assert window.ui.status.quality_consistency_label is window.bounds_label, "quality_consistency_label not mapped"
 
     def test_property_access_works(self, qapp: QApplication, qtbot: QtBot) -> None:
@@ -145,7 +145,8 @@ class TestUIComponentsIntegration:
         # Each group should be a component instance
         for group_name, group in groups.items():
             assert group is not None, f"Component group {group_name} is None"
-            assert hasattr(group, "__dict__"), f"Component group {group_name} not a proper object"
+            # Check it's an object with attributes (better than hasattr __dict__)
+            assert isinstance(group, object), f"Component group {group_name} not a proper object"
 
     def test_validation_completeness(self, qapp: QApplication, qtbot: QtBot) -> None:
         """Test built-in validation method works."""
@@ -266,9 +267,10 @@ class TestArchitecturalIntegrationMethodology:
         for widget in timeline_widgets:
             if widget is not None:  # Some widgets might not be mapped yet
                 # Timeline widgets should have time/frame-related functionality
-                assert hasattr(widget, "setValue") or hasattr(
-                    widget, "setChecked"
-                ), "Timeline widget missing expected methods"
+                # Check for common widget methods using callable()
+                has_set_value = callable(getattr(widget, "setValue", None))
+                has_set_checked = callable(getattr(widget, "setChecked", None))
+                assert has_set_value or has_set_checked, "Timeline widget missing expected methods"
 
         # Point edit group should contain coordinate editing widgets
         point_edit_widgets = [
@@ -279,5 +281,5 @@ class TestArchitecturalIntegrationMethodology:
         for widget in point_edit_widgets:
             if widget is not None:
                 # Point edit widgets should support numeric input
-                assert hasattr(widget, "setValue"), "Point edit widget should support setValue"
-                assert hasattr(widget, "value"), "Point edit widget should support value"
+                assert callable(getattr(widget, "setValue", None)), "Point edit widget should support setValue"
+                assert callable(getattr(widget, "value", None)), "Point edit widget should support value"

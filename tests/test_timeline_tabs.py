@@ -30,6 +30,16 @@ class MockServiceFacade:
         self.save_track_data = Mock(return_value=True)
         self.undo = Mock()
         self.redo = Mock()
+        # Add analyze_curve_bounds method that returns a bounds analysis object
+        self.analyze_curve_bounds = Mock(
+            return_value={
+                "count": 0,  # No points initially
+                "bounds": {"min_x": 0.0, "max_x": 1920.0, "min_y": 0.0, "max_y": 1080.0},
+                "min_frame": 1,
+                "max_frame": 37,
+                "frame_count": 37,
+            }
+        )
 
 
 class TestTimelineControls:

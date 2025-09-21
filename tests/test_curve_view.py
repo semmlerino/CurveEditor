@@ -203,8 +203,8 @@ class TestCoordinateTransformation:
         transform = curve_view_widget.get_transform()
         assert transform is not None
         # Transform should have required methods
-        assert hasattr(transform, "data_to_screen")
-        assert hasattr(transform, "screen_to_data")
+        assert callable(getattr(transform, "data_to_screen", None)), "Transform should have data_to_screen method"
+        assert callable(getattr(transform, "screen_to_data", None)), "Transform should have screen_to_data method"
 
     def test_data_to_screen_conversion(self, curve_view_widget: CurveViewWidget) -> None:
         """Test converting data coordinates to screen coordinates."""
@@ -338,7 +338,8 @@ class TestServiceIntegration:
         view_state = curve_view_widget.get_view_state()
 
         assert view_state is not None
-        assert hasattr(view_state, "zoom_factor")
+        # Check zoom_factor exists and is accessible
+        assert view_state.zoom_factor is not None, "ViewState should have zoom_factor"
         assert view_state.zoom_factor == curve_view_widget.zoom_factor
 
     def test_set_background_image(self, curve_view_widget: CurveViewWidget) -> None:
@@ -431,9 +432,12 @@ class TestRealComponentBenefits:
 
         # If the real CurveView interface changes, this automatically adapts
         # No need to update hundreds of mock method signatures
-        assert hasattr(real_view, "curve_data")
-        assert hasattr(real_view, "selected_points")
-        assert hasattr(real_view, "update")
+        # Verify attributes exist by accessing them
+        assert real_view.curve_data is not None or real_view.curve_data == [], "Real view should have curve_data"
+        assert (
+            real_view.selected_points is not None or real_view.selected_points == set()
+        ), "Real view should have selected_points"
+        assert callable(getattr(real_view, "update", None)), "Real view should have update method"
 
         # Real behavior doesn't drift from implementation
         real_view.add_point((99, 999.0, 888.0, "test"))

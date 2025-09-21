@@ -22,7 +22,7 @@ from ui.controllers.multi_point_tracking_controller import MultiPointTrackingCon
 # ============================================================================
 
 
-class TestSignal:
+class MockSignal:
     """Lightweight signal test double for non-Qt components."""
 
     def __init__(self):
@@ -190,7 +190,7 @@ class MockFileOperations:
 
     def __init__(self):
         self.next_data = None
-        self.file_loaded_signal = TestSignal()
+        self.file_loaded_signal = MockSignal()
 
     def open_file(self, parent):
         """Simulate opening a file."""
