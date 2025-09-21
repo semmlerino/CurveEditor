@@ -223,7 +223,8 @@ class TestFrameStatusCache:
         cache.set_status(10, keyframe_count=2, interpolated_count=1, has_selected=False)
 
         result = cache.get_status(10)
-        assert result == (2, 1, False)
+        # The cache now returns 8 fields: keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, has_selected
+        assert result == (2, 1, 0, 0, 0, False, False, False)
 
     def test_get_status_different_frame(self, cache: FrameStatusCache) -> None:
         """Test getting status for non-cached frame returns None."""
@@ -239,7 +240,8 @@ class TestFrameStatusCache:
 
         # Status should still be retrievable (invalidation just marks for update)
         result = cache.get_status(10)
-        assert result == (2, 1, False)
+        # The cache now returns 8 fields: keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, has_selected
+        assert result == (2, 1, 0, 0, 0, False, False, False)
 
     def test_clear_cache(self, cache: FrameStatusCache) -> None:
         """Test clearing entire cache."""
@@ -259,8 +261,9 @@ class TestFrameStatusCache:
         cache.invalidate_all()
 
         # Data should still be retrievable (invalidation just marks for update)
-        assert cache.get_status(10) == (2, 1, False)
-        assert cache.get_status(20) == (1, 0, True)
+        # The cache now returns 8 fields
+        assert cache.get_status(10) == (2, 1, 0, 0, 0, False, False, False)
+        assert cache.get_status(20) == (1, 0, 0, 0, 0, False, False, True)
 
 
 class TestTimelineTabWidget:
@@ -333,7 +336,8 @@ class TestTimelineTabWidget:
 
         # Status should be cached
         cached_status = timeline_widget.status_cache.get_status(25)
-        assert cached_status == (3, 2, True)
+        # The cache now returns 8 fields
+        assert cached_status == (3, 2, 0, 0, 0, False, False, True)
 
     def test_invalidate_frame_status(self, timeline_widget: TimelineTabWidget) -> None:
         """Test invalidating frame status triggers update."""
@@ -382,6 +386,126 @@ class TestTimelineTabWidget:
         # Test End key (last frame)
         qtbot.keyPress(timeline_widget, Qt.Key.Key_End)
         assert timeline_widget.current_frame == 50
+
+
+class TestTimelineColors:
+    """Test suite for verifying timeline colors based on point status."""
+
+    @pytest.fixture
+    def app(self) -> QApplication:
+        """Create QApplication for widget tests."""
+        app = QApplication.instance()
+        if app is None:
+            app = QApplication([])
+        return app
+
+    @pytest.fixture
+    def frame_tab(self, app: QApplication, qtbot: QtBot) -> FrameTab:
+        """Create real FrameTab for testing."""
+        tab = FrameTab(1)
+        qtbot.addWidget(tab)
+        return tab
+
+    def test_frame_tab_colors_for_different_statuses(self, frame_tab: FrameTab) -> None:
+        """Test that different point statuses result in different background colors."""
+        # Initialize colors if not already done
+        frame_tab._init_colors()
+
+        # Test no points - should use no_points color
+        frame_tab.set_point_status()
+        no_points_color = frame_tab._get_background_color()
+        assert no_points_color == frame_tab.COLORS["no_points"]
+
+        # Test keyframe only - should use keyframe color
+        frame_tab.set_point_status(keyframe_count=1)
+        keyframe_color = frame_tab._get_background_color()
+        assert keyframe_color == frame_tab.COLORS["keyframe"]
+        assert keyframe_color != no_points_color  # Should be different
+
+        # Test interpolated only - should use interpolated color
+        frame_tab.set_point_status(interpolated_count=1)
+        interpolated_color = frame_tab._get_background_color()
+        assert interpolated_color == frame_tab.COLORS["interpolated"]
+        assert interpolated_color != keyframe_color  # Should be different
+        assert interpolated_color != no_points_color  # Should be different
+
+        # Test tracked only - should use tracked color
+        frame_tab.set_point_status(tracked_count=1)
+        tracked_color = frame_tab._get_background_color()
+        assert tracked_color == frame_tab.COLORS["tracked"]
+        assert tracked_color != keyframe_color  # Should be different
+        assert tracked_color != interpolated_color  # Should be different
+
+        # Test endframe - should use endframe color (takes priority)
+        frame_tab.set_point_status(keyframe_count=1, endframe_count=1)
+        endframe_color = frame_tab._get_background_color()
+        assert endframe_color == frame_tab.COLORS["endframe"]
+        assert endframe_color != keyframe_color  # Should be different
+
+        # Test startframe - should use startframe color
+        frame_tab.set_point_status(keyframe_count=1, is_startframe=True)
+        startframe_color = frame_tab._get_background_color()
+        assert startframe_color == frame_tab.COLORS["startframe"]
+        assert startframe_color != keyframe_color  # Should be different
+
+        # Test mixed - should use mixed color
+        frame_tab.set_point_status(keyframe_count=1, interpolated_count=1)
+        mixed_color = frame_tab._get_background_color()
+        assert mixed_color == frame_tab.COLORS["mixed"]
+
+        # Test selected - should override other colors
+        frame_tab.set_point_status(keyframe_count=1, has_selected=True)
+        selected_color = frame_tab._get_background_color()
+        assert selected_color == frame_tab.COLORS["selected"]
+
+    def test_timeline_updates_with_different_statuses(self, app: QApplication, qtbot: QtBot) -> None:
+        """Test that timeline widget properly displays different colors for different statuses."""
+        timeline = TimelineTabWidget()
+        qtbot.addWidget(timeline)
+
+        # Set a frame range
+        timeline.set_frame_range(1, 5)
+
+        # Update different frames with different statuses
+        timeline.update_frame_status(1, keyframe_count=1)
+        timeline.update_frame_status(2, interpolated_count=1)
+        timeline.update_frame_status(3, tracked_count=1)
+        timeline.update_frame_status(4, endframe_count=1)
+        timeline.update_frame_status(5)  # No points
+
+        # Verify that tabs exist and have correct status
+        assert 1 in timeline.frame_tabs
+        assert timeline.frame_tabs[1].keyframe_count == 1
+        assert timeline.frame_tabs[1].interpolated_count == 0
+
+        assert 2 in timeline.frame_tabs
+        assert timeline.frame_tabs[2].keyframe_count == 0
+        assert timeline.frame_tabs[2].interpolated_count == 1
+
+        assert 3 in timeline.frame_tabs
+        assert timeline.frame_tabs[3].tracked_count == 1
+
+        assert 4 in timeline.frame_tabs
+        assert timeline.frame_tabs[4].endframe_count == 1
+
+        assert 5 in timeline.frame_tabs
+        assert timeline.frame_tabs[5].point_count == 0
+
+        # Verify colors are different
+        color1 = timeline.frame_tabs[1]._get_background_color()
+        color2 = timeline.frame_tabs[2]._get_background_color()
+        color3 = timeline.frame_tabs[3]._get_background_color()
+        color4 = timeline.frame_tabs[4]._get_background_color()
+        color5 = timeline.frame_tabs[5]._get_background_color()
+
+        # Each should have a unique color
+        colors = [color1, color2, color3, color4, color5]
+        # Convert QColor objects to tuples for comparison
+        color_values = [(c.red(), c.green(), c.blue()) for c in colors]
+
+        # At least 4 different colors should be present (some might be same)
+        unique_colors = set(color_values)
+        assert len(unique_colors) >= 4, f"Expected at least 4 different colors, got {len(unique_colors)}"
 
 
 if __name__ == "__main__":

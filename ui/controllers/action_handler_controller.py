@@ -58,10 +58,10 @@ class ActionHandlerController:
             # Clear curve widget data
             if self.main_window.curve_widget:
                 self.main_window.curve_widget.set_curve_data([])
-                self.main_window._update_tracking_panel()
+                self.main_window.update_tracking_panel()
 
             self.state_manager.reset_to_defaults()
-            self.main_window._update_ui_state()
+            self.main_window.update_ui_state()
             if self.main_window.status_label:
                 self.main_window.status_label.setText("New curve created")
 
@@ -73,38 +73,14 @@ class ActionHandlerController:
         if data:
             # Check if it's multi-point data
             if isinstance(data, dict):
-                # Successfully loaded multi-point data
-                self.main_window.tracked_data = data
-                self.main_window.active_points = list(data.keys())[:1]  # Select first point
-
-                # Set up view for pixel-coordinate tracking data BEFORE displaying
-                if self.main_window.curve_widget:
-                    self.main_window.curve_widget.setup_for_pixel_tracking()
-
-                self.main_window._update_tracking_panel()
-                self.main_window._update_curve_display()
-
-                # Update frame range based on first trajectory
-                if (
-                    self.main_window.active_points
-                    and self.main_window.active_points[0] in self.main_window.tracked_data
-                ):
-                    trajectory = self.main_window.tracked_data[self.main_window.active_points[0]]
-                    if trajectory:
-                        max_frame = max(point[0] for point in trajectory)
-                        if self.main_window.frame_slider:
-                            self.main_window.frame_slider.setMaximum(max_frame)
-                        if self.main_window.frame_spinbox:
-                            self.main_window.frame_spinbox.setMaximum(max_frame)
-                        if self.main_window.total_frames_label:
-                            self.main_window.total_frames_label.setText(str(max_frame))
-                        self.state_manager.total_frames = max_frame
+                # Successfully loaded multi-point data - delegate to tracking controller
+                self.main_window.tracking_controller.on_multi_point_data_loaded(data)
             else:
                 # Single curve data
                 # Update curve widget with new data
                 if self.main_window.curve_widget:
                     self.main_window.curve_widget.set_curve_data(data)
-                    self.main_window._update_tracking_panel()
+                    self.main_window.update_tracking_panel()
 
                 # Update state manager
                 self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
@@ -121,9 +97,9 @@ class ActionHandlerController:
                 self.state_manager.total_frames = max_frame
 
                 # Update timeline tabs with frame range and point data
-                self.main_window._update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
+                self.main_window.update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
 
-            self.main_window._update_ui_state()
+            self.main_window.update_ui_state()
             if self.main_window.status_label:
                 self.main_window.status_label.setText("File loaded successfully")
 
@@ -178,7 +154,7 @@ class ActionHandlerController:
     def _on_select_all(self) -> None:
         """Handle select all action."""
         if self.main_window.curve_widget:
-            self.main_window.curve_widget._select_all()
+            self.main_window.curve_widget.select_all()
             if self.main_window.status_label:
                 self.main_window.status_label.setText("All points selected")
 
@@ -199,14 +175,14 @@ class ActionHandlerController:
             current_zoom = self.main_window.curve_widget.zoom_factor
             new_zoom = max(0.1, min(10.0, current_zoom * 1.2))
             self.main_window.curve_widget.zoom_factor = new_zoom
-            self.main_window.curve_widget._invalidate_caches()
+            self.main_window.curve_widget.invalidate_caches()
             self.main_window.curve_widget.update()
             self.main_window.curve_widget.zoom_changed.emit(new_zoom)
         else:
             # Fallback to state manager
             current_zoom = self.state_manager.zoom_level
             self.state_manager.zoom_level = current_zoom * 1.2
-        self._update_zoom_label()
+        self.update_zoom_label()
 
     @Slot()
     def _on_action_zoom_out(self) -> None:
@@ -216,14 +192,14 @@ class ActionHandlerController:
             current_zoom = self.main_window.curve_widget.zoom_factor
             new_zoom = max(0.1, min(10.0, current_zoom / 1.2))
             self.main_window.curve_widget.zoom_factor = new_zoom
-            self.main_window.curve_widget._invalidate_caches()
+            self.main_window.curve_widget.invalidate_caches()
             self.main_window.curve_widget.update()
             self.main_window.curve_widget.zoom_changed.emit(new_zoom)
         else:
             # Fallback to state manager
             current_zoom = self.state_manager.zoom_level
             self.state_manager.zoom_level = current_zoom / 1.2
-        self._update_zoom_label()
+        self.update_zoom_label()
 
     @Slot()
     def _on_action_reset_view(self) -> None:
@@ -235,7 +211,7 @@ class ActionHandlerController:
             # Fallback to state manager
             self.state_manager.zoom_level = 1.0
             self.state_manager.pan_offset = (0.0, 0.0)
-        self._update_zoom_label()
+        self.update_zoom_label()
         if self.main_window.status_label:
             self.main_window.status_label.setText("View reset")
 
@@ -244,7 +220,7 @@ class ActionHandlerController:
         """Handle zoom fit action."""
         if self.main_window.curve_widget:
             self.main_window.curve_widget.fit_to_view()
-            self._update_zoom_label()
+            self.update_zoom_label()
             if self.main_window.status_label:
                 self.main_window.status_label.setText("Fitted to view")
 
@@ -358,10 +334,11 @@ class ActionHandlerController:
         # Always get data from the store (single source of truth)
         return self._curve_store.get_data()
 
-    def _update_zoom_label(self) -> None:
+    def update_zoom_label(self) -> None:
         """Update the zoom level label in status bar."""
         if self.main_window.curve_widget:
             zoom_percent = int(self.main_window.curve_widget.zoom_factor * 100)
         else:
             zoom_percent = int(self.state_manager.zoom_level * 100)
-        self.main_window.zoom_label.setText(f"Zoom: {zoom_percent}%")
+        if self.main_window.zoom_label:
+            self.main_window.zoom_label.setText(f"Zoom: {zoom_percent}%")

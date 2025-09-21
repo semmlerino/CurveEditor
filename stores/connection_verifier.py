@@ -9,8 +9,12 @@ orphaned UI components and silent failures.
 import logging
 from dataclasses import dataclass
 from enum import Enum
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
+
+if TYPE_CHECKING:
+    from ui.protocols.controller_protocols import UIComponent
 
 logger = logging.getLogger(__name__)
 
@@ -93,6 +97,89 @@ class ConnectionVerifier:
         )
         self._required_connections.append(connection)
 
+    def add_ui_component(self, component: "UIComponent") -> None:
+        """
+        Add a UI component that implements the UIComponent protocol.
+
+        The component's required_connections will be automatically verified.
+
+        Args:
+            component: Component implementing UIComponent protocol
+        """
+        from ui.protocols.controller_protocols import UIComponent
+
+        if not isinstance(component, UIComponent):
+            logger.warning(f"Component {component} does not implement UIComponent protocol")
+            return
+
+        component_name = component.__class__.__name__
+
+        for source_signal, target_slot in component.required_connections:
+            # Parse the source.signal format
+            if "." in source_signal:
+                source_name, signal_name = source_signal.rsplit(".", 1)
+            else:
+                source_name, signal_name = component_name, source_signal
+
+            # Parse the target.slot format
+            if "." in target_slot:
+                target_name, slot_name = target_slot.rsplit(".", 1)
+            else:
+                target_name, slot_name = component_name, target_slot
+
+            # Try to get the actual objects
+            source_obj = (
+                getattr(component, source_name.lower(), None) if hasattr(component, source_name.lower()) else component
+            )
+            target_obj = (
+                getattr(component, target_name.lower(), None) if hasattr(component, target_name.lower()) else component
+            )
+
+            self.add_required_connection(
+                source_name=source_name,
+                source_obj=source_obj,
+                signal_name=signal_name,
+                target_name=target_name,
+                target_obj=target_obj,
+                slot_name=slot_name,
+                critical=True,
+            )
+
+    def verify_ui_components(self, components: list["UIComponent"]) -> tuple[bool, list[str]]:
+        """
+        Verify all UI components and their connection requirements.
+
+        Args:
+            components: List of components implementing UIComponent protocol
+
+        Returns:
+            Tuple of (all_verified, error_messages)
+        """
+        from ui.protocols.controller_protocols import UIComponent
+
+        error_messages = []
+        all_verified = True
+
+        for component in components:
+            if not isinstance(component, UIComponent):
+                error_msg = f"Component {component.__class__.__name__} does not implement UIComponent protocol"
+                error_messages.append(error_msg)
+                all_verified = False
+                continue
+
+            # Verify the component's own verification method
+            try:
+                if not component.verify_connections():
+                    error_msg = f"Component {component.__class__.__name__} failed its own connection verification"
+                    error_messages.append(error_msg)
+                    all_verified = False
+            except Exception as e:
+                error_msg = f"Component {component.__class__.__name__} verification raised exception: {e}"
+                error_messages.append(error_msg)
+                all_verified = False
+
+        return all_verified, error_messages
+
     def verify_all(self) -> tuple[bool, list[ConnectionReport]]:
         """
         Verify all required connections.
@@ -139,16 +226,18 @@ class ConnectionVerifier:
                 error_message=f"Target object '{connection.target_name}' is None",
             )
 
-        # Check if source has the signal
-        if not hasattr(connection.source_obj, connection.signal_name):
+        # Check if source has the signal (using getattr for type safety)
+        signal_attr = getattr(connection.source_obj, connection.signal_name, None)
+        if signal_attr is None:
             return ConnectionReport(
                 connection=connection,
                 status=ConnectionStatus.ERROR,
                 error_message=f"Source '{connection.source_name}' has no signal '{connection.signal_name}'",
             )
 
-        # Check if target has the slot
-        if not hasattr(connection.target_obj, connection.slot_name):
+        # Check if target has the slot (using getattr for type safety)
+        slot_attr = getattr(connection.target_obj, connection.slot_name, None)
+        if slot_attr is None:
             return ConnectionReport(
                 connection=connection,
                 status=ConnectionStatus.ERROR,

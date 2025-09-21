@@ -204,7 +204,7 @@ class CurveDataStore(QObject):
             self._add_to_undo()
 
         # Convert PointStatus to string if needed
-        if hasattr(status, "value"):
+        if isinstance(status, PointStatus):
             status = status.value
 
         point = self._data[index]

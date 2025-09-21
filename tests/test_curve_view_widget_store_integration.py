@@ -109,7 +109,7 @@ class TestCurveViewWidgetStoreIntegration:
         # Set up data and selection
         test_data = [(i, i * 10.0, i * 20.0) for i in range(5)]
         widget.set_curve_data(test_data)
-        widget._select_all()
+        widget.select_all()
 
         # Verify all selected
         assert len(store.get_selection()) == 5

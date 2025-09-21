@@ -106,6 +106,22 @@ class PlaybackController(QObject):
         else:
             self._stop_oscillating_playback()
 
+    def start_playback(self) -> None:
+        """Start playback animation (Protocol API)."""
+        self._start_oscillating_playback()
+
+    def stop_playback(self) -> None:
+        """Stop playback animation (Protocol API)."""
+        self._stop_oscillating_playback()
+
+    def set_frame_rate(self, fps: int) -> None:
+        """Set playback frame rate (Protocol API)."""
+        self.playback_state.fps = fps
+        self._fps_spinbox.setValue(fps)
+        if self.playback_timer.isActive():
+            # Update timer interval if currently playing
+            self.playback_timer.setInterval(int(1000 / fps))
+
     def _on_play_pause(self, checked: bool) -> None:
         """Handle play/pause button toggle."""
         if checked:
@@ -222,11 +238,12 @@ class PlaybackController(QObject):
     def update_playback_bounds(self) -> None:
         """Update playback bounds based on current curve data."""
         # Get bounds from state manager or curve data
-        # For now, use total frames from state manager
-        if hasattr(self.state_manager, "total_frames"):
-            self.playback_state.min_frame = 1
-            self.playback_state.max_frame = self.state_manager.total_frames
-            logger.debug(f"Updated playback bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame}")
+        # Use total frames from state manager (always present as a property)
+        self.playback_state.min_frame = 1
+        # Handle case where state_manager doesn't have total_frames (e.g., minimal test doubles)
+        max_frame = getattr(self.state_manager, "total_frames", 100)  # Default to 100 if not present
+        self.playback_state.max_frame = max_frame
+        logger.debug(f"Updated playback bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame}")
 
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """

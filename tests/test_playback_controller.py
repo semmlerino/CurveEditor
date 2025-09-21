@@ -14,7 +14,7 @@ from PySide6.QtWidgets import QApplication
 from ui.controllers import PlaybackController, PlaybackMode
 
 
-class TestStateManager(QObject):
+class MockStateManager(QObject):
     """Minimal test double for StateManager with only what PlaybackController needs."""
 
     def __init__(self):
@@ -42,7 +42,7 @@ class TestStateManager(QObject):
 @pytest.fixture
 def state_manager():
     """Create a test state manager."""
-    return TestStateManager()
+    return MockStateManager()
 
 
 @pytest.fixture

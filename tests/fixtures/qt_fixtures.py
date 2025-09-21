@@ -16,12 +16,12 @@ from PySide6.QtWidgets import QApplication, QWidget
 from ui.curve_view_widget import CurveViewWidget
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture(scope="function")
 def qapp() -> Generator[QApplication, None, None]:
     """Create or retrieve the QApplication instance for testing.
 
-    This fixture ensures a single QApplication exists for the entire test session,
-    which is required for Qt widget testing.
+    This fixture ensures a QApplication exists for Qt widget testing.
+    It's function-scoped to prevent test interference.
 
     Yields:
         QApplication: The application instance
@@ -37,6 +37,7 @@ def qapp() -> Generator[QApplication, None, None]:
         app = QApplication(sys.argv)
         app.setApplicationName("CurveEditor_Tests")
         app.setOrganizationName("TestOrg")
+        created = True
     elif not isinstance(app, QApplication):
         # If a QCoreApplication exists but not QApplication, we need to recreate
         app.quit()
@@ -44,13 +45,20 @@ def qapp() -> Generator[QApplication, None, None]:
         app = QApplication(sys.argv)
         app.setApplicationName("CurveEditor_Tests")
         app.setOrganizationName("TestOrg")
+        created = True
+    else:
+        created = False
 
     yield app
 
-    # Don't quit the app here as it's session-scoped and other tests might need it
+    # Clean up if we created the app
+    if created:
+        # Process any pending events before cleanup
+        app.processEvents()
+        # Note: We don't quit() the app as it causes issues with pytest-qt
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
     """Ensure proper cleanup after each test.
 

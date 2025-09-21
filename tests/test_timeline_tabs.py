@@ -49,9 +49,12 @@ class TestTimelineControls:
             window.services = service_facade
 
             # Set up proper frame range since we're not loading data
-            window.frame_spinbox.setMaximum(37)  # Default 37 frames
-            window.frame_slider.setMaximum(37)
-            window.total_frames_label.setText("37")
+            if window.frame_spinbox:
+                window.frame_spinbox.setMaximum(37)  # Default 37 frames
+            if window.frame_slider:
+                window.frame_slider.setMaximum(37)
+            if window.total_frames_label:
+                window.total_frames_label.setText("37")
             # Also update state manager's total frames
             window.state_manager.total_frames = 37
 

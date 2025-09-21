@@ -27,11 +27,10 @@ if TYPE_CHECKING:
     from .service_facade import ServiceFacade
 
 # Import PySide6 modules
-from PySide6.QtCore import QEvent, QObject, Qt, QThread, Signal, Slot
+from PySide6.QtCore import QEvent, QObject, Qt, Signal, Slot
 from PySide6.QtGui import (
     QAction,
     QKeyEvent,
-    QPixmap,
 )
 
 # These widget imports are needed for type annotations of class attributes
@@ -53,16 +52,20 @@ from PySide6.QtWidgets import (
 # Configure logger for this module
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
-from services import get_data_service
 from stores import get_store_manager
+from stores.curve_data_store import CurveDataStore
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
 from .controllers import (
     ActionHandlerController,
+    BackgroundImageController,
     FrameNavigationController,
+    MultiPointTrackingController,
     PlaybackController,
+    PointEditorController,
     SignalConnectionManager,
+    TimelineController,
     UIInitializationController,
     ViewOptionsController,
 )
@@ -70,6 +73,18 @@ from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
 from .file_operations import FileOperations
 from .keyboard_shortcuts import ShortcutManager
+from .protocols.controller_protocols import (
+    ActionHandlerProtocol,
+    BackgroundImageProtocol,
+    FrameNavigationProtocol,
+    MultiPointTrackingProtocol,
+    PlaybackControllerProtocol,
+    PointEditorProtocol,
+    SignalConnectionProtocol,
+    TimelineControllerProtocol,
+    UIInitializationProtocol,
+    ViewOptionsProtocol,
+)
 from .state_manager import StateManager
 from .tracking_points_panel import TrackingPointsPanel
 
@@ -181,13 +196,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._store_manager = get_store_manager()
         self._curve_store = self._store_manager.get_curve_store()
 
-        # Initialize controllers
-        self.playback_controller: PlaybackController = PlaybackController(self.state_manager, self)
-        self.frame_nav_controller: FrameNavigationController = FrameNavigationController(self.state_manager, self)
-        self.action_controller: ActionHandlerController = ActionHandlerController(self.state_manager, self)
-        self.ui_init_controller: UIInitializationController = UIInitializationController(self)
-        self.view_options_controller: ViewOptionsController = ViewOptionsController(self)
-        self.signal_manager: SignalConnectionManager = SignalConnectionManager(self)
+        # Initialize controllers (typed as protocols for better decoupling)
+        self.playback_controller: PlaybackControllerProtocol = PlaybackController(self.state_manager, self)
+        self.frame_nav_controller: FrameNavigationProtocol = FrameNavigationController(self.state_manager, self)
+        self.action_controller: ActionHandlerProtocol = ActionHandlerController(self.state_manager, self)
+        self.ui_init_controller: UIInitializationProtocol = UIInitializationController(self)
+        self.view_options_controller: ViewOptionsProtocol = ViewOptionsController(self)
+        self.point_editor_controller: PointEditorProtocol = PointEditorController(self, self.state_manager)
+        self.timeline_controller: TimelineControllerProtocol = TimelineController(self)
+        self.background_controller: BackgroundImageProtocol = BackgroundImageController(self)
+        self.tracking_controller: MultiPointTrackingProtocol = MultiPointTrackingController(self)
+        self.signal_manager: SignalConnectionProtocol = SignalConnectionManager(self)
 
         # Initialize service facade
         from services.service_protocols import MainWindowProtocol
@@ -202,9 +221,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize UI components container for organized widget management
         self.ui: UIComponents = UIComponents(self)
 
-        # Multi-point tracking data
-        self.tracked_data: dict[str, CurveDataList] = {}  # All tracking points
-        self.active_points: list[str] = []  # Currently selected points
+        # Multi-point tracking now managed by MultiPointTrackingController
 
         # Initialize all UI components via controller
         self.ui_init_controller.initialize_ui()
@@ -223,10 +240,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize centering state
         self.auto_center_enabled: bool = False
 
-        # Initialize image sequence state
-        self.image_directory: str | None = None
-        self.image_filenames: list[str] = []
-        self.current_image_idx: int = 0
+        # Image data now managed by BackgroundImageController
 
         # Playback functionality now handled by PlaybackController
         # Frame navigation functionality now handled by FrameNavigationController
@@ -237,8 +251,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect all signals via manager
         self.signal_manager.connect_all_signals()
 
+        # Verify all critical connections are established
+        self._verify_connections()
+
+        # Verify controller protocol compliance
+        self._verify_protocol_compliance()
+
         # Setup initial state
-        self._update_ui_state()
+        self.update_ui_state()
 
         # Setup tab order for keyboard navigation
         self._setup_tab_order()
@@ -251,15 +271,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         logger.info("MainWindow initialized successfully")
 
-    def _on_store_selection_changed(self, selection: set[int]) -> None:
-        """Handle selection changes from the store."""
-        # Update UI to reflect new selection
-        if selection:
-            # Update point editor with first selected point (TODO: extract to PointEditorController)
-            # min_idx = min(selection) - will be used when PointEditorController is extracted
-            # _update_point_editor will be moved to PointEditorController
-            pass  # For now, just update UI state
-        self._update_ui_state()
+    def on_store_selection_changed(self, selection: set[int]) -> None:
+        """Handle selection changes from the store (delegated to PointEditorController)."""
+        self.point_editor_controller.on_store_selection_changed(selection)
+        self.update_ui_state()
 
     def _setup_tab_order(self) -> None:
         """Set up proper tab order for keyboard navigation."""
@@ -281,36 +296,36 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         logger.debug("Tab order configured for keyboard navigation")
 
     @Slot(str)
-    def _on_file_changed(self, file_path: str) -> None:
+    def on_file_changed(self, file_path: str) -> None:
         """Handle file path changes."""
         self.setWindowTitle(self.state_manager.get_window_title())
         if file_path:
             logger.info(f"File changed to: {file_path}")
 
     @Slot(bool)
-    def _on_modified_changed(self, modified: bool) -> None:
+    def on_modified_changed(self, modified: bool) -> None:
         """Handle modification status changes."""
         self.setWindowTitle(self.state_manager.get_window_title())
         if modified:
             logger.debug("Document marked as modified")
 
     @Slot(str)
-    def _on_file_loaded(self, file_path: str) -> None:
+    def on_file_loaded(self, file_path: str) -> None:
         """Handle successful file loading from FileOperations."""
         logger.info(f"File loaded: {file_path}")
-        self._update_ui_state()
+        self.update_ui_state()
 
     @Slot(str)
-    def _on_file_saved(self, file_path: str) -> None:
+    def on_file_saved(self, file_path: str) -> None:
         """Handle successful file save from FileOperations."""
         logger.info(f"File saved: {file_path}")
-        self._update_ui_state()
+        self.update_ui_state()
 
     # ==================== Timeline Control Handlers ====================
 
     @Slot(int)
     @Slot(int)
-    def _on_frame_changed_from_controller(self, frame: int) -> None:
+    def on_frame_changed_from_controller(self, frame: int) -> None:
         """Handle frame change from the navigation controller.
 
         The controller has already updated the spinbox/slider and state manager,
@@ -327,9 +342,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """
         # Controller now handles spinbox/slider synchronization
 
-        # Update timeline tabs if available
-        if self.timeline_tabs:
-            self.timeline_tabs.set_current_frame(frame)
+        # Update timeline tabs if available (delegated to TimelineController)
+        self.timeline_controller.update_for_current_frame(frame)
 
         # Update state manager (only when called from user input, not state sync)
         if update_state_manager:
@@ -337,14 +351,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
 
         # Update background image if image sequence is loaded
-        self._update_background_image_for_frame(frame)
+        # Update background image for frame (delegated to BackgroundImageController)
+        self.background_controller.update_background_for_frame(frame)
 
         # Update curve widget to highlight current frame's point
         if self.curve_widget:
             # Notify curve widget of frame change for centering mode
             self.curve_widget.on_frame_changed(frame)
             # Invalidate caches to ensure proper repainting with new frame highlight
-            self.curve_widget._invalidate_caches()
+            self.curve_widget.invalidate_caches()
             self.curve_widget.update()
 
     # Frame navigation methods removed - now handled by FrameNavigationController
@@ -398,6 +413,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get the modification state."""
         return self.state_manager.is_modified
 
+    def get_curve_store(self) -> CurveDataStore:
+        """Get the reactive curve data store."""
+        return self._curve_store
+
     # MainWindowProtocol required methods
     def restore_state(self, state: object) -> None:
         """Restore state from history (delegate to state manager)."""
@@ -414,18 +433,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot(int)
     @Slot(int)
     def _on_timeline_tab_clicked(self, frame: int) -> None:
-        """Handle timeline tab click to navigate to frame."""
-        # Update spinbox and slider (which will trigger frame change)
-        if self.frame_spinbox:
-            self.frame_spinbox.setValue(frame)
-        logger.debug(f"Timeline tab clicked: navigating to frame {frame}")
+        """Handle timeline tab click (delegated to TimelineController)."""
+        self.timeline_controller.on_timeline_tab_clicked(frame)
 
     @Slot(int)
-    @Slot(int)
-    def _on_timeline_tab_hovered(self, frame: int) -> None:  # pyright: ignore[reportUnusedParameter]
-        """Handle timeline tab hover for preview (optional feature)."""
-        # Could be used to show frame preview in the future
-        pass
+    def _on_timeline_tab_hovered(self, frame: int) -> None:
+        """Handle timeline tab hover (delegated to TimelineController)."""
+        self.timeline_controller.on_timeline_tab_hovered(frame)
 
     # ==================== Action Handlers ====================
 
@@ -452,223 +466,51 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _cleanup_file_load_thread(self) -> None:
         """Clean up file loading thread - delegates to FileOperations."""
         logger.info("[PYTHON-THREAD] _cleanup_file_load_thread called - delegating to FileOperations")
-        if hasattr(self, "file_operations"):
-            self.file_operations.cleanup_threads()
+        # file_operations is always initialized in __init__
+        self.file_operations.cleanup_threads()
         return
 
     @Slot(list)
-    def _on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
-        """Handle tracking data loaded in background thread."""
-        current_thread = QThread.currentThread()
-        app_instance = QApplication.instance()
-        main_thread = app_instance.thread() if app_instance is not None else None
-        logger.info(
-            f"[THREAD-DEBUG] _on_tracking_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
-        if data and self.curve_widget:
-            logger.debug(f"[DATA] Loaded {len(data)} points from background thread")
-            # Log first few points for debugging
-            for i in range(min(3, len(data))):
-                logger.debug(f"[DATA] Point {i}: {data[i]}")
-
-            # Set up view for pixel-coordinate tracking data BEFORE setting data
-            self.curve_widget.setup_for_pixel_tracking()
-            self.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
-            # self._update_point_list_data()  # Method doesn't exist
-            self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
-            logger.info(f"Loaded {len(data)} tracking points from background thread")
-
-            # Update frame range based on data
-            if data:
-                max_frame = max(point[0] for point in data)
-                try:
-                    if self.frame_slider:
-                        self.frame_slider.setMaximum(max_frame)
-                    if self.frame_spinbox:
-                        self.frame_spinbox.setMaximum(max_frame)
-                    if self.total_frames_label:
-                        self.total_frames_label.setText(str(max_frame))
-                    # Update state manager's total frames
-                    self.state_manager.total_frames = max_frame
-                except RuntimeError:
-                    # Widgets may have been deleted during application shutdown
-                    pass
+    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+        """Handle tracking data loaded (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_tracking_data_loaded(data)
 
     @Slot(dict)
-    def _on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
-        """Handle multi-point tracking data loaded in background thread."""
-        current_thread = QThread.currentThread()
-        app_instance = QApplication.instance()
-        main_thread = app_instance.thread() if app_instance is not None else None
-        logger.info(
-            f"[THREAD-DEBUG] _on_multi_point_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
-
-        if multi_data:
-            # Store the multi-point tracking data
-            self.tracked_data = multi_data
-            self.active_points = list(multi_data.keys())[:1]  # Select first point by default
-
-            logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
-
-            # Update the tracking panel with the multi-point data
-            self._update_tracking_panel()
-
-            # Display the first point's trajectory
-            if self.active_points and self.curve_widget:
-                first_point = self.active_points[0]
-                if first_point in self.tracked_data:
-                    # Set up view for pixel-coordinate tracking data
-                    self.curve_widget.setup_for_pixel_tracking()
-                    trajectory = self.tracked_data[first_point]
-                    self.curve_widget.set_curve_data(trajectory)  # pyright: ignore[reportArgumentType]
-                    self.state_manager.set_track_data(trajectory, mark_modified=False)  # pyright: ignore[reportArgumentType]
-
-                    # Update frame range based on all trajectories
-                    max_frame = 0
-                    for traj in self.tracked_data.values():
-                        if traj:
-                            traj_max = max(point[0] for point in traj)
-                            max_frame = max(max_frame, traj_max)
-
-                    try:
-                        if self.frame_slider:
-                            self.frame_slider.setMaximum(max_frame)
-                        if self.frame_spinbox:
-                            self.frame_spinbox.setMaximum(max_frame)
-                        if self.total_frames_label:
-                            self.total_frames_label.setText(str(max_frame))
-                        self.state_manager.total_frames = max_frame
-                    except RuntimeError:
-                        # Widgets may have been deleted during application shutdown
-                        pass
+    def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
+        """Handle multi-point data loaded (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_multi_point_data_loaded(multi_data)
 
     @Slot(str, list)
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
-        """Handle image sequence loaded in background thread."""
-        current_thread = QThread.currentThread()
-        app_instance = QApplication.instance()
-        main_thread = app_instance.thread() if app_instance is not None else None
-        logger.info(
-            f"[THREAD-DEBUG] _on_image_sequence_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
-        if image_files and self.curve_widget:
-            # Store image sequence info
-            self.image_directory = image_dir
-            self.image_filenames = image_files
-            self.current_image_idx = 0
-
-            # Update frame range to match image sequence exactly
-            # The frame range should match the number of images, not extend beyond
-            num_images = len(image_files)
-            try:
-                if self.frame_spinbox:
-                    self.frame_spinbox.setMaximum(num_images)
-                if self.frame_slider:
-                    self.frame_slider.setMaximum(num_images)
-                if self.total_frames_label:
-                    self.total_frames_label.setText(str(num_images))
-                logger.info(f"Set frame range to match {num_images} images (1-{num_images})")
-            except RuntimeError:
-                # Widgets may have been deleted during application shutdown
-                pass
-
-            # Update timeline tabs if available
-            # timeline_tabs is Optional
-            if self.timeline_tabs is not None:
-                try:
-                    self.timeline_tabs.set_frame_range(1, num_images)
-                    logger.info(f"Updated timeline tabs frame range to 1-{num_images}")
-                except (AttributeError, RuntimeError) as e:
-                    logger.warning(f"Could not update timeline tabs: {e}")
-
-            # Update state manager if available
-            # state_manager is always initialized in __init__
-            if self.state_manager:
-                self.state_manager.set_image_files(image_files)
-
-            # Load the first image as background
-            if image_files:
-                from pathlib import Path
-
-                first_image_path = Path(image_dir) / image_files[0]
-                app_instance = QApplication.instance()
-                main_thread = app_instance.thread() if app_instance is not None else None
-                logger.info(
-                    f"[THREAD-DEBUG] Creating QPixmap in thread: {QThread.currentThread()} (main={QThread.currentThread() == main_thread})"
-                )
-                pixmap = QPixmap(str(first_image_path))
-                logger.info("[THREAD-DEBUG] QPixmap created successfully")
-
-                if not pixmap.isNull():
-                    self.curve_widget.background_image = pixmap
-                    self.curve_widget.image_width = pixmap.width()
-                    self.curve_widget.image_height = pixmap.height()
-                    self.curve_widget.show_background = True
-
-                    # Fit the image to view
-                    self.curve_widget.fit_to_background_image()
-
-                    logger.info(f"Loaded background image: {image_files[0]} ({pixmap.width()}x{pixmap.height()})")
-
-            logger.info(f"Loaded {len(image_files)} images from background thread")
-
-            # Ensure background checkbox is checked when images are loaded
-            if self.show_background_cb and image_files:
-                self.show_background_cb.setChecked(True)
-                logger.info("Enabled background display for loaded images")
+        """Handle image sequence loaded (delegated to BackgroundImageController)."""
+        self.background_controller.on_image_sequence_loaded(image_dir, image_files)
 
     @Slot(int, str)
-    def _on_file_load_progress(self, progress: int, message: str) -> None:
+    def on_file_load_progress(self, progress: int, message: str) -> None:
         """Handle file loading progress updates."""
-        self.status_label.setText(f"{message} ({progress}%)")
+        if self.status_label:
+            self.status_label.setText(f"{message} ({progress}%)")
         logger.debug(f"File load progress: {progress}% - {message}")
 
     @Slot(str)
-    def _on_file_load_error(self, error_message: str) -> None:
+    def on_file_load_error(self, error_message: str) -> None:
         """Handle file loading errors."""
         logger.error(f"File loading error: {error_message}")
-        self.status_label.setText(f"Error: {error_message}")
+        if self.status_label:
+            self.status_label.setText(f"Error: {error_message}")
 
     @Slot()
-    def _on_file_load_finished(self) -> None:
+    def on_file_load_finished(self) -> None:
         """Handle file loading completion - worker ready for next load."""
-        self.status_label.setText("File loading completed")
+        if self.status_label:
+            self.status_label.setText("File loading completed")
         logger.info("[PYTHON-THREAD] File loading finished - worker ready for next load")
         # Mark loading as complete but keep worker alive for reuse
         self._file_loading = False
 
     def _update_background_image_for_frame(self, frame: int) -> None:
-        """Update the background image based on the current frame."""
-        if getattr(self, "image_filenames", None) is None or not self.image_filenames:
-            return
-
-        if not self.curve_widget:
-            return
-
-        # Find the appropriate image for this frame (1-based indexing)
-        image_idx = frame - 1  # Convert to 0-based index
-
-        # Clamp to valid range
-        if image_idx < 0:
-            image_idx = 0
-        elif image_idx >= len(self.image_filenames):
-            image_idx = len(self.image_filenames) - 1
-
-        # Load the corresponding image
-        if 0 <= image_idx < len(self.image_filenames):
-            from pathlib import Path
-
-            from PySide6.QtGui import QPixmap
-
-            image_path = Path(self.image_directory) / self.image_filenames[image_idx]  # pyright: ignore[reportArgumentType]
-            logger.info(f"[THREAD-DEBUG] Creating QPixmap for frame update in thread: {QThread.currentThread()}")
-            pixmap = QPixmap(str(image_path))
-
-            if not pixmap.isNull():
-                self.curve_widget.background_image = pixmap
-                self.curve_widget.update()
-                logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
+        """Update background image (delegated to BackgroundImageController)."""
+        self.background_controller.update_background_for_frame(frame)
 
     @Slot()
     def _on_action_undo(self) -> None:
@@ -738,67 +580,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # ==================== State Change Handlers ====================
 
     @Slot(list)
-    def _on_selection_changed(self, indices: list[int]) -> None:
-        """Handle selection change from state manager."""
-        count = len(indices)
-        self.selected_count_label.setText(f"Selected: {count}")
-
-        if count == 1:
-            # Show single point properties
-            idx = indices[0]
-            if self.selected_point_label:
-                self.selected_point_label.setText(f"Point #{idx}")
-
-            # Get actual point data from curve widget
-            curve_data = self._curve_store.get_data()
-            if idx < len(curve_data):
-                point_data = curve_data[idx]
-                from core.point_types import safe_extract_point
-
-                frame, x, y, _ = safe_extract_point(point_data)
-
-                # Update spinboxes with actual values
-                if self.point_x_spinbox and self.point_y_spinbox:
-                    _ = self.point_x_spinbox.blockSignals(True)
-                    _ = self.point_y_spinbox.blockSignals(True)
-                    self.point_x_spinbox.setValue(x)
-                    self.point_y_spinbox.setValue(y)
-                    _ = self.point_x_spinbox.blockSignals(False)
-                    _ = self.point_y_spinbox.blockSignals(False)
-
-                    # Connect spinbox changes to update point
-                    if getattr(self, "_point_spinbox_connected", False) is False:
-                        _ = self.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
-                        _ = self.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
-                        self._point_spinbox_connected = True
-
-            if self.point_x_spinbox:
-                self.point_x_spinbox.setEnabled(True)
-            if self.point_y_spinbox:
-                self.point_y_spinbox.setEnabled(True)
-        elif count > 1:
-            if self.selected_point_label:
-                self.selected_point_label.setText(f"{count} points selected")
-            if self.point_x_spinbox:
-                self.point_x_spinbox.setEnabled(False)
-            if self.point_y_spinbox:
-                self.point_y_spinbox.setEnabled(False)
-        else:
-            if self.selected_point_label:
-                self.selected_point_label.setText("No point selected")
-            if self.point_x_spinbox:
-                self.point_x_spinbox.setEnabled(False)
-            if self.point_y_spinbox:
-                self.point_y_spinbox.setEnabled(False)
+    def on_selection_changed(self, indices: list[int]) -> None:
+        """Handle selection change from state manager (delegated to PointEditorController)."""
+        self.point_editor_controller.on_selection_changed(indices)
 
     @Slot()
-    def _on_view_state_changed(self) -> None:
+    def on_view_state_changed(self) -> None:
         """Handle view state change from state manager."""
-        self._update_zoom_label()
+        self.update_zoom_label()
 
     # ==================== UI Update Methods ====================
 
-    def _update_ui_state(self) -> None:
+    def update_ui_state(self) -> None:
         """Update UI elements based on current state."""
         # Update history actions
         if self.action_undo:
@@ -815,44 +608,49 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Update info labels - use curve widget data if available
         if self.curve_widget:
-            point_count = self._curve_store.point_count()
-            self.point_count_label.setText(f"Points: {point_count}")
+            curve_data = self._curve_store.get_data()
+            analysis = self.services.analyze_curve_bounds(curve_data)
+
+            point_count = analysis["count"]
+            if self.point_count_label:
+                self.point_count_label.setText(f"Points: {point_count}")
 
             if point_count > 0:
-                # Calculate bounds from curve data
-                from core.point_types import safe_extract_point
-
-                x_coords = []
-                y_coords = []
-                for point in self._curve_store.get_data():
-                    _, x, y, _ = safe_extract_point(point)
-                    x_coords.append(x)
-                    y_coords.append(y)
-
-                if x_coords and y_coords:
-                    min_x, max_x = min(x_coords), max(x_coords)
-                    min_y, max_y = min(y_coords), max(y_coords)
-                    self.bounds_label.setText(f"Bounds:\nX: [{min_x:.2f}, {max_x:.2f}]\nY: [{min_y:.2f}, {max_y:.2f}]")
+                bounds = analysis["bounds"]
+                if isinstance(bounds, dict):
+                    min_x = bounds.get("min_x", 0)
+                    max_x = bounds.get("max_x", 0)
+                    min_y = bounds.get("min_y", 0)
+                    max_y = bounds.get("max_y", 0)
+                    if self.bounds_label:
+                        self.bounds_label.setText(
+                            f"Bounds:\nX: [{min_x:.2f}, {max_x:.2f}]\nY: [{min_y:.2f}, {max_y:.2f}]"
+                        )
                 else:
-                    self.bounds_label.setText("Bounds: N/A")
+                    if self.bounds_label:
+                        self.bounds_label.setText("Bounds: N/A")
             else:
-                self.bounds_label.setText("Bounds: N/A")
+                if self.bounds_label:
+                    self.bounds_label.setText("Bounds: N/A")
         else:
             # Fallback to state manager
             point_count = len(self.state_manager.track_data)
-            self.point_count_label.setText(f"Points: {point_count}")
+            if self.point_count_label:
+                self.point_count_label.setText(f"Points: {point_count}")
 
             if point_count > 0:
                 bounds = self.state_manager.data_bounds
-                self.bounds_label.setText(
-                    f"Bounds:\nX: [{bounds[0]:.2f}, {bounds[2]:.2f}]\nY: [{bounds[1]:.2f}, {bounds[3]:.2f}]"
-                )
+                if self.bounds_label:
+                    self.bounds_label.setText(
+                        f"Bounds:\nX: [{bounds[0]:.2f}, {bounds[2]:.2f}]\nY: [{bounds[1]:.2f}, {bounds[3]:.2f}]"
+                    )
             else:
-                self.bounds_label.setText("Bounds: N/A")
+                if self.bounds_label:
+                    self.bounds_label.setText("Bounds: N/A")
 
-    def _update_zoom_label(self) -> None:
+    def update_zoom_label(self) -> None:
         """Update zoom label (delegated to ActionHandlerController)."""
-        self.action_controller._update_zoom_label()
+        self.action_controller.update_zoom_label()
 
     @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -879,94 +677,72 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def update_cursor_position(self, x: float, y: float) -> None:
         """Update cursor position in status bar."""
-        self.position_label.setText(f"X: {x:.3f}, Y: {y:.3f}")
+        if self.position_label:
+            self.position_label.setText(f"X: {x:.3f}, Y: {y:.3f}")
 
     # ==================== Curve Widget Signal Handlers ====================
 
     @Slot(int)
-    def _on_point_selected(self, index: int) -> None:
+    def on_point_selected(self, index: int) -> None:
         """Handle point selection from curve widget."""
         logger.debug(f"Point {index} selected")
         # Update properties panel will be handled by selection_changed signal
 
     @Slot(int, float, float)
-    def _on_point_moved(self, index: int, x: float, y: float) -> None:
+    def on_point_moved(self, index: int, x: float, y: float) -> None:
         """Handle point movement from curve widget."""
         self.state_manager.is_modified = True
         logger.debug(f"Point {index} moved to ({x:.3f}, {y:.3f})")
 
     @Slot(list)
-    def _on_curve_selection_changed(self, indices: list[int]) -> None:
+    def on_curve_selection_changed(self, indices: list[int]) -> None:
         """Handle selection change from curve widget."""
         # Update state manager
         self.state_manager.set_selected_points(indices)
         # Properties panel will be updated via state manager signal
 
     @Slot()
-    def _on_curve_view_changed(self) -> None:
+    def on_curve_view_changed(self) -> None:
         """Handle view changes from curve widget."""
         # Update zoom display
-        self._update_zoom_label()
+        self.update_zoom_label()
 
     @Slot(float)
-    def _on_curve_zoom_changed(self, zoom: float) -> None:
+    def on_curve_zoom_changed(self, zoom: float) -> None:
         """Handle zoom changes from curve widget."""
         # Update state manager and zoom label
         self.state_manager.zoom_level = zoom
-        self._update_zoom_label()
+        self.update_zoom_label()
 
     # ==================== Tracking Points Panel Handlers ====================
 
-    def _on_tracking_points_selected(self, point_names: list[str]) -> None:
-        """Handle selection of tracking points from panel."""
-        self.active_points = point_names
-        self._update_curve_display()
+    def on_tracking_points_selected(self, point_names: list[str]) -> None:
+        """Handle tracking point selection (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_tracking_points_selected(point_names)
 
-    def _on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
-        """Handle visibility change for a tracking point."""
-        # Update display to show/hide the trajectory
-        self._update_curve_display()
+    def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
+        """Handle point visibility change (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_point_visibility_changed(point_name, visible)
 
-    def _on_point_color_changed(self, point_name: str, color: str) -> None:
-        """Handle color change for a tracking point."""
-        # Update display with new color
-        self._update_curve_display()
+    def on_point_color_changed(self, point_name: str, color: str) -> None:
+        """Handle point color change (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_point_color_changed(point_name, color)
 
-    def _on_point_deleted(self, point_name: str) -> None:
-        """Handle deletion of a tracking point."""
-        if point_name in self.tracked_data:
-            del self.tracked_data[point_name]
-            if point_name in self.active_points:
-                self.active_points.remove(point_name)
-            self._update_tracking_panel()
-            self._update_curve_display()
+    def on_point_deleted(self, point_name: str) -> None:
+        """Handle point deletion (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_point_deleted(point_name)
 
-    def _on_point_renamed(self, old_name: str, new_name: str) -> None:
-        """Handle renaming of a tracking point."""
-        if old_name in self.tracked_data:
-            self.tracked_data[new_name] = self.tracked_data.pop(old_name)
-            if old_name in self.active_points:
-                idx = self.active_points.index(old_name)
-                self.active_points[idx] = new_name
-            self._update_tracking_panel()
+    def on_point_renamed(self, old_name: str, new_name: str) -> None:
+        """Handle point renaming (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.on_point_renamed(old_name, new_name)
 
-    def _update_tracking_panel(self) -> None:
-        """Update tracking panel with current tracking data."""
-        if self.tracking_panel:
-            self.tracking_panel.set_tracked_data(self.tracked_data)
+    def update_tracking_panel(self) -> None:
+        """Update tracking panel (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.update_tracking_panel()
 
     def _update_curve_display(self) -> None:
-        """Update curve display with selected tracking points."""
-        if not self.curve_widget:
-            return
-
-        # For now, display the first selected point's trajectory
-        # TODO: Support multiple trajectory display
-        if self.active_points and self.active_points[0] in self.tracked_data:
-            trajectory = self.tracked_data[self.active_points[0]]
-            self.curve_widget.set_curve_data(trajectory)
-        else:
-            self.curve_widget.set_curve_data([])
+        """Update curve display (delegated to MultiPointTrackingController)."""
+        self.tracking_controller.update_curve_display()
 
     # ==================== View Options Handlers ====================
     # View options are now handled by ViewOptionsController
@@ -974,89 +750,130 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # ==================== Frame Navigation Handlers ====================
 
     @Slot(int)
-    def _on_state_frame_changed(self, frame: int) -> None:
+    def on_state_frame_changed(self, frame: int) -> None:
         """Handle frame change from state manager."""
         # Use shared frame update logic, but don't update state manager to avoid loops
         self._update_frame_display(frame, update_state_manager=False)
 
     # ==================== Utility Methods ====================
 
-    def _update_timeline_tabs(
+    def update_timeline_tabs(
         self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] | None = None
     ) -> None:
-        """Update timeline tabs with current curve data and frame range."""
-        if not self.timeline_tabs:
-            return
-
-        # Get curve data if not provided
-        if curve_data is None:
-            curve_data = self._get_current_curve_data()  # pyright: ignore[reportAssignmentType]
-
-        if not curve_data:
-            return
-
-        # Calculate frame range - validate data first
-        frames: list[int] = []
-        for point in curve_data:
-            if len(point) >= 3:
-                try:
-                    # Ensure frame number is an integer
-                    frame = int(point[0])
-                    frames.append(frame)
-                except (ValueError, TypeError):
-                    # Skip invalid data
-                    continue
-
-        if not frames:
-            return
-
-        min_frame = min(frames)
-        max_frame = max(frames)
-
-        # Update timeline widget frame range
-        self.timeline_tabs.set_frame_range(min_frame, max_frame)
-
-        # Get point status for all frames using DataService
-        try:
-            data_service = get_data_service()
-
-            # Get comprehensive status for all frames that have points
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
-
-            # Update timeline tabs with comprehensive point status
-            for frame, status_data in frame_status.items():
-                # Unpack all status fields from the enhanced DataService response
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = status_data
-
-                self.timeline_tabs.update_frame_status(
-                    frame,
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    normal_count=normal_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
-                )
-
-            logger.debug(f"Updated timeline tabs with {len(frame_status)} frames of point data")
-
-        except Exception as e:
-            logger.warning(f"Could not update timeline tabs with point data: {e}")
+        """Update timeline tabs (delegated to TimelineController)."""
+        self.timeline_controller.update_timeline_tabs(curve_data)  # pyright: ignore[reportArgumentType]
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
         return self.action_controller._get_current_curve_data()
+
+    def _verify_connections(self) -> None:
+        """
+        Verify all critical signal connections are established.
+
+        This helps catch orphaned components that aren't connected to
+        the reactive store system, preventing silent failures.
+        """
+        from stores import ConnectionVerifier
+
+        verifier = ConnectionVerifier()
+
+        # Register critical connections for timeline
+        if self.timeline_tabs:
+            # Timeline must connect to store for automatic updates
+            verifier.add_required_connection(
+                source_name="curve_store",
+                source_obj=self._curve_store,
+                signal_name="data_changed",
+                target_name="timeline_tabs",
+                target_obj=self.timeline_tabs,
+                slot_name="_on_store_data_changed",
+                critical=True,
+            )
+            verifier.add_required_connection(
+                source_name="curve_store",
+                source_obj=self._curve_store,
+                signal_name="point_status_changed",
+                target_name="timeline_tabs",
+                target_obj=self.timeline_tabs,
+                slot_name="_on_store_status_changed",
+                critical=True,
+            )
+
+        # Register critical connections for curve widget
+        if self.curve_widget:
+            verifier.add_required_connection(
+                source_name="curve_store",
+                source_obj=self._curve_store,
+                signal_name="data_changed",
+                target_name="curve_widget",
+                target_obj=self.curve_widget,
+                slot_name="_on_store_data_changed",
+                critical=True,
+            )
+            verifier.add_required_connection(
+                source_name="curve_store",
+                source_obj=self._curve_store,
+                signal_name="selection_changed",
+                target_name="curve_widget",
+                target_obj=self.curve_widget,
+                slot_name="_on_store_selection_changed",
+                critical=True,
+            )
+
+        # Verify all connections exist
+        all_connected, reports = verifier.verify_all()
+
+        if not all_connected:
+            import os
+
+            # Only fail loud in debug mode
+            if os.environ.get("DEBUG_MODE"):
+                verifier.raise_if_failed()
+            else:
+                # Log warning in production
+                failures = verifier.get_failed_connections()
+                if failures:
+                    logger.warning(f"Missing {len(failures)} connections")
+                    verifier.log_report()
+        else:
+            logger.debug("All critical connections verified")
+
+    def _verify_protocol_compliance(self) -> None:
+        """
+        Verify that all controllers implement their expected protocols.
+
+        This provides type-safe verification at runtime and helps catch
+        protocol compliance issues during development.
+        """
+        protocol_checks = [
+            (self.playback_controller, PlaybackControllerProtocol, "PlaybackController"),
+            (self.frame_nav_controller, FrameNavigationProtocol, "FrameNavigationController"),
+            (self.action_controller, ActionHandlerProtocol, "ActionHandlerController"),
+            (self.ui_init_controller, UIInitializationProtocol, "UIInitializationController"),
+            (self.view_options_controller, ViewOptionsProtocol, "ViewOptionsController"),
+            (self.point_editor_controller, PointEditorProtocol, "PointEditorController"),
+            (self.timeline_controller, TimelineControllerProtocol, "TimelineController"),
+            (self.background_controller, BackgroundImageProtocol, "BackgroundImageController"),
+            (self.tracking_controller, MultiPointTrackingProtocol, "MultiPointTrackingController"),
+            (self.signal_manager, SignalConnectionProtocol, "SignalConnectionManager"),
+        ]
+
+        compliance_failures = []
+        for controller, protocol, name in protocol_checks:
+            if not isinstance(controller, protocol):
+                compliance_failures.append(f"{name} does not implement {protocol.__name__}")
+
+        if compliance_failures:
+            error_msg = "Protocol compliance failures:\n" + "\n".join(compliance_failures)
+            logger.error(error_msg)
+            # In development mode, this should be a hard error
+            import os
+
+            if os.environ.get("DEBUG_MODE"):
+                raise TypeError(error_msg)
+        else:
+            logger.debug("All controllers are protocol compliant")
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""
@@ -1069,32 +886,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.action_redo.setEnabled(self.state_manager.can_redo)
 
     @Slot(float)
-    def _on_point_x_changed(self, value: float) -> None:
-        """Handle X coordinate change in properties panel."""
-        selected_indices = self.state_manager.selected_points
-        if len(selected_indices) == 1 and self.curve_widget:
-            idx = selected_indices[0]
-            curve_data = self._curve_store.get_data()
-            if idx < len(curve_data):
-                from core.point_types import safe_extract_point
-
-                _, _, y, _ = safe_extract_point(curve_data[idx])
-                self.curve_widget.update_point(idx, value, y)
-                self.state_manager.is_modified = True
+    def on_point_x_changed(self, value: float) -> None:
+        """Handle X coordinate change in properties panel (delegated to PointEditorController)."""
+        self.point_editor_controller._on_point_x_changed(value)
 
     @Slot(float)
-    def _on_point_y_changed(self, value: float) -> None:
-        """Handle Y coordinate change in properties panel."""
-        selected_indices = self.state_manager.selected_points
-        if len(selected_indices) == 1 and self.curve_widget:
-            idx = selected_indices[0]
-            curve_data = self._curve_store.get_data()
-            if idx < len(curve_data):
-                from core.point_types import safe_extract_point
-
-                _, x, _, _ = safe_extract_point(curve_data[idx])
-                self.curve_widget.update_point(idx, x, value)
-                self.state_manager.is_modified = True
+    def on_point_y_changed(self, value: float) -> None:
+        """Handle Y coordinate change in properties panel (delegated to PointEditorController)."""
+        self.point_editor_controller._on_point_y_changed(value)
 
     # ==================== Public Methods for External Use ====================
 
@@ -1138,10 +937,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle key press events for custom shortcuts."""
         # Tab key toggles tracking panel dock visibility
         if event.key() == Qt.Key.Key_Tab:
-            # TODO: Tracking panel disabled
-            # if hasattr(self, "tracking_panel_dock"):
-            #     self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
-            pass
+            if self.tracking_panel_dock:
+                self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
             event.accept()
             return
 
@@ -1154,8 +951,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
 
         # Stop any file operation threads
-        if hasattr(self, "file_operations"):
-            self.file_operations.cleanup_threads()
+        # file_operations is always initialized in __init__
+        self.file_operations.cleanup_threads()
 
         logger.info("[KEEP-ALIVE] Worker and thread cleaned up")
 

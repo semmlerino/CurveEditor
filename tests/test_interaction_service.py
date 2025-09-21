@@ -47,7 +47,7 @@ class TestInteractionServiceCore:
     transform_service: "TransformService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service = get_interaction_service()
         self.transform_service = get_transform_service()
@@ -124,7 +124,7 @@ class TestInteractionServiceSelection:
     transform_service: "TransformService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service = get_interaction_service()
         self.transform_service = get_transform_service()
@@ -212,7 +212,7 @@ class TestInteractionServiceHistory:
     service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service = get_interaction_service()
         # Clear history
@@ -350,7 +350,7 @@ class TestInteractionServicePointManipulation:
     """Test point manipulation operations."""
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service: InteractionService = get_interaction_service()
 
@@ -391,7 +391,7 @@ class TestInteractionServiceSpatialIndex:
     """Test spatial indexing functionality."""
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service = get_interaction_service()
         self.transform_service = get_transform_service()
@@ -483,7 +483,7 @@ class TestInteractionServiceMouseEvents:
     """Test mouse event handling."""
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service: InteractionService = get_interaction_service()
 
@@ -534,7 +534,7 @@ class TestInteractionServiceKeyboardEvents:
     """Test keyboard event handling."""
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> None:
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
         self.service: InteractionService = get_interaction_service()
 

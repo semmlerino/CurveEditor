@@ -16,22 +16,18 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-# Third-party imports with type stubs handling
-try:
-    from scipy import signal  # pyright: ignore[reportMissingTypeStubs]
-except ImportError:
-    signal = None  # pyright: ignore[reportAssignmentType]
-
+from core.logger_utils import get_logger
+from core.models import PointStatus
 from core.type_aliases import CurveDataList
-
-# Sprint 8 services removed - file I/O and image operations now handled locally
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QWidget
 
-from core.logger_utils import get_logger
+# Lazy import scipy to avoid slow startup times (especially in tests)
+# Will be imported only when needed by apply_filter method
+signal = None  # pyright: ignore[reportAssignmentType]
 
 logger = get_logger("data_service")
 
@@ -172,10 +168,15 @@ class DataService:
 
     def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
         """Apply Butterworth low-pass filter using scipy."""
+        # Lazy import scipy only when this method is called
+        global signal
         if signal is None:
-            if self._logger:
-                self._logger.log_error("scipy not available")
-            return data
+            try:
+                from scipy import signal  # pyright: ignore[reportMissingTypeStubs, reportRedeclaration]
+            except ImportError:
+                if self._logger:
+                    self._logger.log_error("scipy not available for filtering")
+                return data
 
         try:
             if len(data) < 4:
@@ -420,7 +421,7 @@ class DataService:
                     frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
                 status = getattr(point, "status", "normal")
-                status_value = status.value if hasattr(status, "value") else str(status)
+                status_value = status.value if isinstance(status, PointStatus) else str(status)
 
                 if status_value == "interpolated":
                     frame_status[frame][1] += 1
@@ -435,50 +436,35 @@ class DataService:
                     frame_status[frame][4] += 1
 
         # Second pass: detect startframes and inactive regions
+        # Optimized O(n) algorithm instead of O(n³) nested loops
         sorted_frames = sorted(frame_status.keys())
 
+        # Single pass to identify startframes and inactive regions
+        last_endframe_idx = -1
+        last_keyframe_idx = -1
+
         for i, frame in enumerate(sorted_frames):
-            # Check if this frame is a startframe (has keyframe/tracked after an endframe)
-            if frame_status[frame][0] > 0 or frame_status[frame][2] > 0:
-                # This frame has keyframes or tracked points
+            has_keyframe_or_tracked = frame_status[frame][0] > 0 or frame_status[frame][2] > 0
+
+            # Check if this is a startframe
+            if has_keyframe_or_tracked:
                 if i == 0:
                     # First frame with keyframes is a startframe
                     frame_status[frame][5] = True
-                else:
-                    # Check if there's an endframe before this frame
-                    # (could be several frames back due to inactive frames)
-                    for j in range(i - 1, -1, -1):
-                        check_frame = sorted_frames[j]
-                        if check_frame in endframe_frames:
-                            # Found an endframe before this keyframe
-                            frame_status[frame][5] = True
-                            break
-                        # If we hit another keyframe/tracked without finding endframe, stop
-                        if frame_status[check_frame][0] > 0 or frame_status[check_frame][2] > 0:
-                            break
+                elif last_endframe_idx > last_keyframe_idx:
+                    # This keyframe comes after an endframe with no keyframes in between
+                    frame_status[frame][5] = True
 
-            # Check if frame is in an inactive region
-            # (after an endframe but before the next startframe)
-            if i > 0:
-                # Look backwards for the nearest endframe
-                found_endframe = False
-                found_startframe = False
+                last_keyframe_idx = i
 
-                for j in range(i - 1, -1, -1):
-                    check_frame = sorted_frames[j]
-                    if check_frame in endframe_frames:
-                        found_endframe = True
-                        # Now check if there's a startframe between that endframe and current frame
-                        for k in range(j + 1, i + 1):  # Include current frame
-                            intermediate_frame = sorted_frames[k]
-                            if frame_status[intermediate_frame][0] > 0 or frame_status[intermediate_frame][2] > 0:
-                                found_startframe = True
-                                break
-                        break
+            # Mark endframe position
+            if frame in endframe_frames:
+                last_endframe_idx = i
 
-                # Frame is inactive if it's after an endframe and before any startframe
-                if found_endframe and not found_startframe:
-                    frame_status[frame][6] = True
+            # Check if frame is in inactive region
+            # Frame is inactive if it comes after an endframe and no startframes have occurred since
+            if last_endframe_idx > last_keyframe_idx and not has_keyframe_or_tracked:
+                frame_status[frame][6] = True
 
         # Convert lists to tuples
         return {frame: tuple(counts) for frame, counts in frame_status.items()}

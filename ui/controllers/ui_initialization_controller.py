@@ -352,11 +352,11 @@ class UIInitializationController:
         self.main_window.tracking_panel_dock.setVisible(True)
 
         # Connect signals for tracking point management
-        self.main_window.tracking_panel.points_selected.connect(self.main_window._on_tracking_points_selected)
-        self.main_window.tracking_panel.point_visibility_changed.connect(self.main_window._on_point_visibility_changed)
-        self.main_window.tracking_panel.point_color_changed.connect(self.main_window._on_point_color_changed)
-        self.main_window.tracking_panel.point_deleted.connect(self.main_window._on_point_deleted)
-        self.main_window.tracking_panel.point_renamed.connect(self.main_window._on_point_renamed)
+        self.main_window.tracking_panel.points_selected.connect(self.main_window.on_tracking_points_selected)
+        self.main_window.tracking_panel.point_visibility_changed.connect(self.main_window.on_point_visibility_changed)
+        self.main_window.tracking_panel.point_color_changed.connect(self.main_window.on_point_color_changed)
+        self.main_window.tracking_panel.point_deleted.connect(self.main_window.on_point_deleted)
+        self.main_window.tracking_panel.point_renamed.connect(self.main_window.on_point_renamed)
 
         logger.info("Tracking points panel dock widget initialized")
 

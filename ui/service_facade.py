@@ -57,14 +57,16 @@ except ImportError:
     get_transform_service = None
 
 try:
-    from services.data_service import DataService, get_data_service
+    from services import get_data_service
+    from services.data_service import DataService
 except ImportError:
     if not TYPE_CHECKING:
         DataService = None
     get_data_service = None
 
 try:
-    from services.interaction_service import InteractionService, get_interaction_service
+    from services import get_interaction_service
+    from services.interaction_service import InteractionService
 except ImportError:
     if not TYPE_CHECKING:
         InteractionService = None
@@ -227,6 +229,23 @@ class ServiceFacade:
             curve_data = cast(CurveDataList, data)
             return self._data_service.detect_outliers(curve_data, threshold)
         return []
+
+    def analyze_curve_bounds(
+        self, data: list[tuple[int, float, float]] | list[tuple[int, float, float, str]]
+    ) -> dict[str, object]:
+        """Analyze curve data and return bounds information."""
+        if self._data_service:
+            from core.type_aliases import CurveDataList
+
+            # Convert to CurveDataList for service call
+            curve_data = cast(CurveDataList, data)
+            return self._data_service.analyze_points(curve_data)
+        return {
+            "count": 0,
+            "min_frame": 0,
+            "max_frame": 0,
+            "bounds": {"min_x": 0, "max_x": 0, "min_y": 0, "max_y": 0},
+        }
 
     def load_track_data(
         self, parent_widget: WidgetProtocol | None = None

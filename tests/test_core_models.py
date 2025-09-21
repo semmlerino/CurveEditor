@@ -1526,7 +1526,14 @@ class TestPropertyBasedTesting:
 
         # Always returns valid PointStatus
         assert isinstance(result, PointStatus)
-        assert result in (PointStatus.NORMAL, PointStatus.INTERPOLATED, PointStatus.KEYFRAME)
+        # from_legacy can return any valid PointStatus value
+        assert result in (
+            PointStatus.NORMAL,
+            PointStatus.INTERPOLATED,
+            PointStatus.KEYFRAME,
+            PointStatus.TRACKED,
+            PointStatus.ENDFRAME,
+        )
 
         # Can convert back to string and bool
         assert isinstance(result.to_legacy_string(), str)

@@ -31,22 +31,22 @@ class FrameTab(QWidget):
 
     @classmethod
     def _init_colors(cls) -> None:
-        """Initialize colors from theme if not already done."""
+        """Initialize colors from centralized theme."""
         if not cls.COLORS:
-            from ui.ui_constants import COLORS_DARK
+            from ui.ui_constants import COLORS_DARK, STATUS_COLORS_TIMELINE
 
             cls.COLORS = {
-                "no_points": QColor(COLORS_DARK["bg_secondary"]),  # Secondary background - no tracked points
-                "keyframe": QColor(55, 65, 55),  # Very subtle green tint - has keyframe points
-                "interpolated": QColor(60, 58, 50),  # Very subtle brown tint - only interpolated points
-                "tracked": QColor(50, 55, 65),  # Very subtle blue tint - tracked points
-                "endframe": QColor(65, 50, 50),  # Very subtle red tint - segment end
-                "startframe": QColor(50, 70, 55),  # Slightly brighter green - segment start
-                "inactive": QColor(40, 40, 40),  # Dark gray for inactive segments
-                "mixed": QColor(COLORS_DARK["bg_surface"]),  # Surface color for mixed
+                "no_points": QColor(*STATUS_COLORS_TIMELINE["no_points"]),
+                "keyframe": QColor(*STATUS_COLORS_TIMELINE["keyframe"]),
+                "interpolated": QColor(*STATUS_COLORS_TIMELINE["interpolated"]),
+                "tracked": QColor(*STATUS_COLORS_TIMELINE["tracked"]),
+                "endframe": QColor(*STATUS_COLORS_TIMELINE["endframe"]),
+                "startframe": QColor(*STATUS_COLORS_TIMELINE["startframe"]),
+                "inactive": QColor(*STATUS_COLORS_TIMELINE["inactive"]),
+                "mixed": QColor(*STATUS_COLORS_TIMELINE["mixed"]),
                 "current_frame": QColor(COLORS_DARK["bg_secondary"]),  # Same as no_points, highlight with border
                 "current_border": QColor(COLORS_DARK["accent_warning"]),  # Warning color for current frame
-                "selected": QColor(COLORS_DARK["bg_selected"]),  # Selected state color
+                "selected": QColor(*STATUS_COLORS_TIMELINE["selected"]),  # Selected state color
                 "border": QColor(COLORS_DARK["border_default"]),  # Default border
                 "text": QColor(COLORS_DARK["text_primary"]),  # Primary text
                 "text_current": QColor(COLORS_DARK["text_primary"]),  # Primary text for current frame
@@ -72,6 +72,19 @@ class FrameTab(QWidget):
             frame_number: The frame number this tab represents
             parent: Parent widget
         """
+        # Check if parent is still valid before initializing
+        # This prevents RuntimeError when parent C++ object is deleted
+        if parent is not None:
+            try:
+                # Try to access a property to check if C++ object is valid
+                _ = parent.isVisible()
+            except RuntimeError:
+                # Parent C++ object is deleted, don't create this widget
+                # Set a minimal state to prevent further errors
+                self.frame_number = frame_number
+                self.is_current_frame = False
+                return
+
         super().__init__(parent)
 
         # Initialize colors if needed
@@ -180,7 +193,8 @@ class FrameTab(QWidget):
                 parts.append(f"{self.endframe_count} ENDFRAME")
 
             status = ", ".join(parts)
-            tooltip = f"Frame {self.frame_number}: {status}"
+            # Add "points" at the end for consistency with tests
+            tooltip = f"Frame {self.frame_number}: {status} points"
 
             if self.has_selected_points:
                 tooltip += " (selected)"

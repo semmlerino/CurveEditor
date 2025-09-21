@@ -13,7 +13,7 @@ from PySide6.QtTest import QSignalSpy
 from ui.controllers import FrameNavigationController
 
 
-class TestStateManager(QObject):
+class MockStateManager(QObject):
     """Minimal test double for StateManager with only what FrameNavigationController needs."""
 
     def __init__(self):
@@ -41,7 +41,7 @@ class TestStateManager(QObject):
 @pytest.fixture
 def state_manager():
     """Create a test state manager."""
-    return TestStateManager()
+    return MockStateManager()
 
 
 @pytest.fixture

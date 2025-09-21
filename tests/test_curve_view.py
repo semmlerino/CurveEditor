@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
-from tests.test_helpers import PointsList, TestCurveView, TestDataBuilder
+from tests.test_helpers import MockCurveView, MockDataBuilder, PointsList
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -140,7 +140,7 @@ class TestPointDataManagement:
         curve_view_widget._clear_selection()
         assert len(curve_view_widget.selected_indices) == 0
 
-        curve_view_widget._select_all()
+        curve_view_widget.select_all()
         assert len(curve_view_widget.selected_indices) == len(sample_points)
 
 
@@ -384,8 +384,8 @@ class TestRealComponentBenefits:
     def test_real_vs_mock_behavior(self) -> None:
         """Show how real components provide actual behavior vs mock assumptions."""
         # Real component - actual behavior
-        real_view = TestCurveView()
-        test_data = TestDataBuilder().with_points(3).build()
+        real_view = MockCurveView()
+        test_data = MockDataBuilder().with_points(3).build()
         real_view.set_curve_data(test_data)
 
         # Real deletion behavior - data actually gets removed
@@ -409,9 +409,9 @@ class TestRealComponentBenefits:
     def test_easy_test_data_creation(self) -> None:
         """Show how builder pattern makes test data creation easy."""
         # Create different types of test data easily
-        simple_data = TestDataBuilder().with_points(5).build()
-        keyframe_data = TestDataBuilder().with_keyframes([1, 5, 10]).build()
-        mixed_data = TestDataBuilder().with_points(3).with_keyframes([7, 8]).build()
+        simple_data = MockDataBuilder().with_points(5).build()
+        keyframe_data = MockDataBuilder().with_keyframes([1, 5, 10]).build()
+        mixed_data = MockDataBuilder().with_points(3).with_keyframes([7, 8]).build()
 
         # Builder creates proper data structures
         assert len(simple_data) == 5
@@ -427,7 +427,7 @@ class TestRealComponentBenefits:
     def test_real_component_maintenance(self) -> None:
         """Show how real components are easier to maintain than mocks."""
         # Real component automatically matches interface changes
-        real_view = TestCurveView()
+        real_view = MockCurveView()
 
         # If the real CurveView interface changes, this automatically adapts
         # No need to update hundreds of mock method signatures
@@ -443,8 +443,8 @@ class TestRealComponentBenefits:
     def test_integration_with_real_widget(self, curve_view_widget: CurveViewWidget) -> None:
         """Show how real test components can work alongside real widgets."""
         # Both provide similar interfaces but at different levels
-        test_curve_view = TestCurveView()
-        test_data = TestDataBuilder().with_points(3).build()
+        test_curve_view = MockCurveView()
+        test_data = MockDataBuilder().with_points(3).build()
 
         # Real widget (PySide6 implementation)
         curve_view_widget.set_curve_data(test_data)

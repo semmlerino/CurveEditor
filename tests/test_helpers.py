@@ -303,10 +303,13 @@ class MockCurveView:
     actual behavior instead of mocked behavior.
     """
 
-    def __init__(self, **kwargs) -> None:
-        # Real data structures
-        self.curve_data: list[Point4] = []
-        self.points: list[Point4] = []  # Alias for service compatibility
+    def __init__(self, curve_data: list[Point3 | Point4] | None = None, **kwargs) -> None:
+        # Real data structures - preserve original format
+        if curve_data is not None:
+            self.curve_data: list[Point3 | Point4] = list(curve_data)  # pyright: ignore[reportAssignmentType]
+        else:
+            self.curve_data: list[Point3 | Point4] = []  # pyright: ignore[reportAssignmentType]
+        self.points: list[Point3 | Point4] = self.curve_data  # Alias for service compatibility
         self.selected_points: set[int] = set()
         self.selected_point_idx: int = -1
         self.current_image_idx: int = 0
@@ -396,13 +399,13 @@ class MockCurveView:
     def add_point(self, point: Point4) -> None:
         """Add a point to the curve."""
         self.curve_data.append(point)
-        self.points.append(point)
+        # self.points is an alias to self.curve_data, no need to add twice
 
     def remove_point(self, index: int) -> None:
         """Remove a point by index."""
         if 0 <= index < len(self.curve_data):
             self.curve_data.pop(index)
-            self.points.pop(index)
+            # self.points is an alias to self.curve_data, automatically updated
 
     def update_point(self, index: int, x: float, y: float) -> None:
         """Update a point's position."""

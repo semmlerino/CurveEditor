@@ -50,8 +50,10 @@ class ViewOptionsController:
             self.main_window.curve_widget.show_background = self.main_window.show_background_cb.isChecked()
         if self.main_window.show_grid_cb:
             self.main_window.curve_widget.show_grid = self.main_window.show_grid_cb.isChecked()
-        if self.main_window.show_info_cb:
-            self.main_window.curve_widget.show_info = self.main_window.show_info_cb.isChecked()
+        # Note: show_info is not implemented on CurveViewWidget yet
+        # TODO: Add show_info attribute to CurveViewWidget or map to existing attribute
+        # if self.main_window.show_info_cb:
+        #     self.main_window.curve_widget.show_info = self.main_window.show_info_cb.isChecked()
 
         # Trigger repaint
         self.main_window.curve_widget.update()
@@ -158,9 +160,15 @@ class ViewOptionsController:
         if "show_tooltips" in options and self.main_window.show_tooltips_cb:
             self.main_window.show_tooltips_cb.setChecked(bool(options["show_tooltips"]))
         if "point_size" in options and self.main_window.point_size_slider:
-            self.main_window.point_size_slider.setValue(int(options["point_size"]))
+            # Convert to int safely - value should be numeric
+            point_size_val = options["point_size"]
+            if isinstance(point_size_val, int | float | str):
+                self.main_window.point_size_slider.setValue(int(point_size_val))
         if "line_width" in options and self.main_window.line_width_slider:
-            self.main_window.line_width_slider.setValue(int(options["line_width"]))
+            # Convert to int safely - value should be numeric
+            line_width_val = options["line_width"]
+            if isinstance(line_width_val, int | float | str):
+                self.main_window.line_width_slider.setValue(int(line_width_val))
 
         # Apply the options
         self.update_curve_view_options()

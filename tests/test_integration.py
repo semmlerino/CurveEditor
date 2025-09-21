@@ -18,7 +18,7 @@ from PySide6.QtCore import QRect
 
 from core.type_aliases import CurveDataList
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
-from tests.test_helpers import TestCurveView, TestMainWindow
+from tests.test_helpers import MockCurveView, MockMainWindow
 
 if TYPE_CHECKING:
     from services.data_service import DataService
@@ -36,13 +36,13 @@ class TestServiceIntegration:
     transform_service: "TransformService"  # pyright: ignore[reportUninitializedInstanceVariable]
     interaction_service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
     ui_service: "UIService"  # pyright: ignore[reportUninitializedInstanceVariable]
-    curve_view: TestCurveView  # pyright: ignore[reportUninitializedInstanceVariable]
-    main_window: TestMainWindow  # pyright: ignore[reportUninitializedInstanceVariable]
+    curve_view: MockCurveView  # pyright: ignore[reportUninitializedInstanceVariable]
+    main_window: MockMainWindow  # pyright: ignore[reportUninitializedInstanceVariable]
     test_data: CurveDataList  # pyright: ignore[reportUninitializedInstanceVariable]
     temp_files: list[str]  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self) -> Generator[None, None, None]:
+    def setup(self, qapp) -> Generator[None, None, None]:
         """Set up services and test data for each test."""
         # Initialize services
         self.data_service = get_data_service()
@@ -51,8 +51,8 @@ class TestServiceIntegration:
         self.ui_service = get_ui_service()
 
         # Create test views
-        self.curve_view = TestCurveView()
-        self.main_window = TestMainWindow()
+        self.curve_view = MockCurveView()
+        self.main_window = MockMainWindow()
         self.main_window.curve_view = self.curve_view
 
         # Sample test data - cast to CurveDataList for type compatibility
@@ -67,7 +67,7 @@ class TestServiceIntegration:
             ],
         )
 
-        # Set initial data - TestCurveView expects Point4 but service expects CurveDataList
+        # Set initial data - MockCurveView expects Point4 but service expects CurveDataList
         self.curve_view.curve_data = self.test_data.copy()  # pyright: ignore[reportAttributeAccessIssue]
         self.curve_view.points = self.test_data.copy()  # pyright: ignore[reportAttributeAccessIssue]
 

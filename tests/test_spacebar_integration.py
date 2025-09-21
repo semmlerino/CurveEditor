@@ -14,7 +14,7 @@ from ui.keyboard_shortcuts import ShortcutManager
 from ui.state_manager import StateManager
 
 
-class TestMainWindowMock:
+class MainWindowMock:
     """Minimal MainWindow mock for testing action connections."""
 
     def __init__(self):
@@ -99,7 +99,7 @@ class TestMainWindowMock:
 @pytest.fixture
 def mock_main_window(qtbot):
     """Create a mock MainWindow with real controllers."""
-    window = TestMainWindowMock()
+    window = MainWindowMock()
     qtbot.addWidget(window.playback_controller.btn_play_pause)
     qtbot.addWidget(window.playback_controller.fps_spinbox)
     return window

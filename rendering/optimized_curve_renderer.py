@@ -281,7 +281,7 @@ class OptimizedCurveRenderer:
         self._fps_target = target_fps
         logger.info(f"Auto quality enabled with {target_fps} FPS target")
 
-    def render(self, painter: QPainter, event: object | None, curve_view: CurveViewProtocol) -> None:
+    def render(self, painter: QPainter, _event: object | None, curve_view: CurveViewProtocol) -> None:
         """Render complete curve view with optimized performance."""
         start_time = time.perf_counter()
         self._render_count += 1
@@ -579,11 +579,20 @@ class OptimizedCurveRenderer:
             # state_manager is always initialized in MainWindow
             current_frame = curve_view.main_window.state_manager.current_frame
 
-        # Get the curve data to check frame numbers
+        # Get the curve data to check frame numbers and status
         points_data = curve_view.points
 
+        # Import PointStatus for status checking
+        from core.models import PointStatus
+
         # Batch points by state for efficient rendering
-        normal_points = []
+        points_by_status = {
+            "normal": [],
+            "keyframe": [],
+            "tracked": [],
+            "interpolated": [],
+            "endframe": [],
+        }
         selected_points_list = []
         current_frame_points = []
 
@@ -593,6 +602,8 @@ class OptimizedCurveRenderer:
 
             # Check if this point is on the current frame
             is_current_frame = False
+            status = "normal"  # Default status
+
             if 0 <= original_idx < len(points_data):
                 point_data = points_data[original_idx]
                 # Extract frame from point tuple (frame is first element)
@@ -600,34 +611,54 @@ class OptimizedCurveRenderer:
                     frame = point_data[0]
                     is_current_frame = frame == current_frame
 
+                    # Check for status (4th element if present)
+                    if len(point_data) > 3:
+                        status_value = point_data[3]
+                        if isinstance(status_value, str):
+                            # Map string status to our categories
+                            if status_value == PointStatus.KEYFRAME.value:
+                                status = "keyframe"
+                            elif status_value == PointStatus.TRACKED.value:
+                                status = "tracked"
+                            elif status_value == PointStatus.INTERPOLATED.value:
+                                status = "interpolated"
+                            elif status_value == PointStatus.ENDFRAME.value:
+                                status = "endframe"
+
             if is_current_frame:
                 current_frame_points.append(screen_pos)
             elif original_idx in selected_points:
                 selected_points_list.append(screen_pos)
             else:
-                normal_points.append(screen_pos)
+                points_by_status[status].append(screen_pos)
 
         # Set painter for point drawing
         painter.setPen(Qt.PenStyle.NoPen)
 
-        # Import theme colors
-        from ui.ui_constants import COLORS_DARK, CURVE_COLORS
+        # Import centralized colors
+        from ui.ui_constants import SPECIAL_COLORS, get_status_color
 
-        # Draw normal points in batch
-        if normal_points:
-            painter.setBrush(QBrush(QColor(CURVE_COLORS["point_normal"])))  # Theme color for normal
-            for pos in normal_points:
-                painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+        # Draw points in order: endframe, interpolated, normal, tracked, keyframe
+        # (so more important statuses appear on top)
+        draw_order = ["endframe", "interpolated", "normal", "tracked", "keyframe"]
 
-        # Draw selected points in batch
+        for status in draw_order:
+            if points_by_status[status]:
+                color = get_status_color(status)
+                painter.setBrush(QBrush(QColor(color)))
+                for pos in points_by_status[status]:
+                    painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+
+        # Draw selected points on top with larger radius
         if selected_points_list:
-            painter.setBrush(QBrush(QColor(CURVE_COLORS["point_selected"])))  # Theme color for selected
+            painter.setBrush(QBrush(QColor(SPECIAL_COLORS["selected_point"])))
+            selected_radius = point_radius + 2
             for pos in selected_points_list:
-                painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
+                painter.drawEllipse(QPointF(pos[0], pos[1]), selected_radius, selected_radius)
 
-        # Draw current frame points with larger radius and accent color
+        # Draw current frame points with purple color and larger radius
         if current_frame_points:
-            painter.setBrush(QBrush(QColor(COLORS_DARK["accent_info"])))  # Theme accent for current frame
+            painter.setBrush(QBrush(QColor(SPECIAL_COLORS["current_frame"])))  # Magenta for current frame
             current_frame_radius = point_radius + 3  # Larger radius for current frame
             for pos in current_frame_points:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), current_frame_radius, current_frame_radius)
@@ -704,15 +735,18 @@ class OptimizedCurveRenderer:
         font = QFont("Arial", 9, QFont.Weight.Bold)
         painter.setFont(font)
 
-        # Define colors for different states
-        state_colors = {
-            "keyframe": QColor(0, 255, 0, 200),  # Green
-            "tracked": QColor(0, 128, 255, 200),  # Blue
-            "endframe": QColor(255, 0, 0, 200),  # Red
-            "startframe": QColor(0, 255, 128, 200),  # Light green
-            "interpolated": QColor(128, 128, 128, 200),  # Gray
-            "normal": QColor(200, 200, 200, 200),  # Light gray
-        }
+        # Import centralized colors for state labels
+        from ui.ui_constants import get_status_color
+
+        # Define colors for different states from centralized source
+        state_colors = {}
+        for status in ["keyframe", "tracked", "endframe", "interpolated", "normal"]:
+            hex_color = get_status_color(status)
+            q_color = QColor(hex_color)
+            q_color.setAlpha(200)  # Add transparency
+            state_colors[status] = q_color
+        # Startframe uses keyframe color
+        state_colors["startframe"] = state_colors["keyframe"]
 
         for i, screen_pos in enumerate(screen_points):
             # Map to original index

@@ -7,6 +7,13 @@ This module defines standardized constants for consistent UI styling across the 
 All values are designed to be DPI-aware and follow modern UI/UX best practices.
 """
 
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from core.models import PointStatus
+
 # ============================================================================
 # FONT SYSTEM
 # ============================================================================
@@ -253,9 +260,12 @@ COLORS_HIGH_CONTRAST = {
 # ============================================================================
 
 CURVE_COLORS = {
-    "point_normal": "#0066cc",  # Normal keyframe point
-    "point_interpolated": "#ff9900",  # Interpolated point
-    "point_selected": "#ff0066",  # Selected point
+    "point_normal": "#ffffff",  # Normal point - white
+    "point_keyframe": "#00ff66",  # Keyframe - bright green
+    "point_tracked": "#00bfff",  # Tracked - bright cyan
+    "point_interpolated": "#ff9500",  # Interpolated - orange
+    "point_endframe": "#ff4444",  # Endframe - red
+    "point_selected": "#ffff00",  # Selected - yellow
     "point_hover": "#00ccff",  # Hover state
     "curve_line": "#0066cc",  # Curve line color
     "tangent_line": "#666666",  # Tangent handles
@@ -264,6 +274,86 @@ CURVE_COLORS = {
     "axis_x": "#ff0000",  # X axis
     "axis_y": "#00ff00",  # Y axis
 }
+
+# ============================================================================
+# STATUS COLOR SYSTEM - Single Source of Truth
+# ============================================================================
+
+# Primary status colors for curve view points
+STATUS_COLORS = {
+    "normal": "#ffffff",  # White - default state
+    "keyframe": "#00ff66",  # Bright green - user-defined keyframes
+    "tracked": "#00bfff",  # Bright cyan - auto-tracked points
+    "interpolated": "#ff9500",  # Orange - calculated between keyframes
+    "endframe": "#ff4444",  # Red - marks segment end
+}
+
+# Timeline-specific colors (RGB tuples for QColor)
+STATUS_COLORS_TIMELINE = {
+    "no_points": (52, 58, 64),  # Dark gray - no points at frame
+    "keyframe": (20, 80, 30),  # Green tint - has keyframe points
+    "tracked": (20, 60, 90),  # Blue tint - has tracked points
+    "interpolated": (80, 50, 20),  # Orange tint - only interpolated
+    "endframe": (90, 25, 25),  # Red tint - segment end
+    "startframe": (30, 100, 40),  # Bright green - segment start
+    "inactive": (30, 30, 30),  # Dark gray - inactive segments
+    "mixed": (70, 70, 30),  # Yellow tint - multiple statuses
+    "selected": (73, 80, 87),  # Selected state
+}
+
+# Special UI colors
+SPECIAL_COLORS = {
+    "selected_point": "#ffff00",  # Yellow - selected points
+    "current_frame": "#ff00ff",  # Magenta - current frame indicator
+    "hover": "#00ccff",  # Light cyan - hover state
+}
+
+
+def get_status_color(status: str | PointStatus) -> str:
+    """Get color hex string for a PointStatus value.
+
+    Args:
+        status: PointStatus enum or string value
+
+    Returns:
+        Hex color string
+    """
+    # Import here to avoid circular dependency
+    from core.models import PointStatus
+
+    if isinstance(status, PointStatus):
+        status = status.value
+    return STATUS_COLORS.get(status, STATUS_COLORS["normal"])
+
+
+def get_timeline_color(status: str) -> tuple[int, int, int]:
+    """Get RGB tuple for timeline tab color.
+
+    Args:
+        status: Status string (keyframe, tracked, etc.)
+
+    Returns:
+        RGB tuple for QColor
+    """
+    return STATUS_COLORS_TIMELINE.get(status, STATUS_COLORS_TIMELINE["no_points"])
+
+
+def tuple_status_to_string(status_value: str | bool | None) -> str:
+    """Convert tuple status value to string.
+
+    Args:
+        status_value: Status from tuple (str, bool, or None)
+
+    Returns:
+        Status string for color lookup
+    """
+    if isinstance(status_value, str):
+        return status_value
+    elif status_value is True:
+        return "interpolated"
+    else:
+        return "normal"
+
 
 # ============================================================================
 # UI STYLES

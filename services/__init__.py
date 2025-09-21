@@ -85,6 +85,7 @@ __all__ = [
     "get_ui_service",
     # Utility
     "get_module_logger",
+    "reset_all_services",
 ]
 
 # Add service types to __all__ only if TYPE_CHECKING is False (runtime)
@@ -148,3 +149,18 @@ def get_ui_service() -> "UIService":
 
             _ui_service = UIService()
     return _ui_service  # pyright: ignore[reportReturnType]
+
+
+def reset_all_services() -> None:
+    """
+    Reset all service singletons (for testing).
+
+    This clears all cached service instances and state, allowing tests
+    to start with fresh instances.
+    """
+    global _data_service, _interaction_service, _transform_service, _ui_service
+    with _service_lock:
+        _data_service = None
+        _interaction_service = None
+        _transform_service = None
+        _ui_service = None

@@ -48,10 +48,9 @@ def main():
     if isinstance(services_config_raw, dict):
         services_config: dict[str, str] = services_config_raw
         for service_name, service_level in services_config.items():
-            if isinstance(service_level, str):
-                service_logger = logging.getLogger(f"services.{service_name}")
-                service_logger.setLevel(getattr(logging, service_level.upper(), logging.INFO))
-                logger.debug(f"Set {service_name} service log level to {service_level}")
+            service_logger = logging.getLogger(f"services.{service_name}")
+            service_logger.setLevel(getattr(logging, service_level.upper(), logging.INFO))
+            logger.debug(f"Set {service_name} service log level to {service_level}")
 
     # Apply other module levels
     for module, level in config.items():

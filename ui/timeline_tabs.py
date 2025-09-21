@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 
 from core.logger_utils import get_logger
 from core.models import FrameNumber
+from stores import get_store_manager
 
 # animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
@@ -226,6 +227,14 @@ class TimelineTabWidget(QWidget):
         # Enable mouse tracking for scrubbing
         self.setMouseTracking(True)
 
+        # Connect to reactive data store
+        self._store_manager = get_store_manager()
+        self._curve_store = self._store_manager.get_curve_store()
+        self._connect_store_signals()
+
+        # Initialize timeline from current store data
+        self._on_store_data_changed()
+
     def _setup_ui(self) -> None:
         """Setup the timeline UI components."""
         # Main layout
@@ -241,6 +250,110 @@ class TimelineTabWidget(QWidget):
 
         # Initialize with default range
         self._create_all_tabs()
+
+    def _connect_store_signals(self) -> None:
+        """Connect to store signals for reactive updates."""
+        # Connect to store signals for automatic updates
+        self._curve_store.data_changed.connect(self._on_store_data_changed)
+        self._curve_store.point_added.connect(self._on_store_point_added)
+        self._curve_store.point_updated.connect(self._on_store_point_updated)
+        self._curve_store.point_removed.connect(self._on_store_point_removed)
+        self._curve_store.point_status_changed.connect(self._on_store_status_changed)
+
+        logger.info("TimelineTabWidget connected to reactive store signals")
+
+    def _on_store_data_changed(self) -> None:
+        """Handle complete data change from store."""
+        # Get updated data and rebuild timeline
+        from services import get_data_service
+
+        curve_data = self._curve_store.get_data()
+        logger.debug(f"_on_store_data_changed: got {len(curve_data) if curve_data else 0} points from store")
+
+        if not curve_data:
+            logger.debug("_on_store_data_changed: No data, setting frame range to 1-1")
+            self.set_frame_range(1, 1)
+            return
+
+        # Calculate frame range from data
+        frames = [int(point[0]) for point in curve_data if len(point) >= 3]
+        if frames:
+            min_frame = min(frames)
+            max_frame = max(frames)
+
+            # Limit to reasonable number for performance
+            max_timeline_frames = 200
+            if max_frame - min_frame + 1 > max_timeline_frames:
+                max_frame = min_frame + max_timeline_frames - 1
+                logger.warning(f"Timeline limited to {max_timeline_frames} frames for performance")
+
+            # Update frame range
+            self.set_frame_range(min_frame, max_frame)
+
+            # Update status for all frames
+            data_service = get_data_service()
+            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+
+            for frame, status_data in frame_status.items():
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = status_data
+                self.update_frame_status(
+                    frame,
+                    keyframe_count=keyframe_count,
+                    interpolated_count=interpolated_count,
+                    tracked_count=tracked_count,
+                    endframe_count=endframe_count,
+                    normal_count=normal_count,
+                    is_startframe=is_startframe,
+                    is_inactive=is_inactive,
+                    has_selected=has_selected,
+                )
+
+            logger.debug(f"Timeline updated from store: {len(frame_status)} frames")
+
+    def _on_store_point_added(self, index: int, point_data: object) -> None:
+        """Handle point added to store."""
+        if isinstance(point_data, list | tuple) and len(point_data) >= 3:
+            frame = int(point_data[0])
+
+            # Check if frame extends the current range
+            if frame < self.min_frame or frame > self.max_frame:
+                # Recalculate frame range from all data
+                self._on_store_data_changed()
+            else:
+                # Just invalidate this frame so it gets updated
+                self.invalidate_frame_status(frame)
+                self._schedule_deferred_update()
+
+    def _on_store_point_updated(self, index: int, x: float, y: float) -> None:
+        """Handle point updated in store."""
+        # Point coordinates changed, but frame might not have
+        # Still trigger a deferred update in case status changed
+        self._schedule_deferred_update()
+
+    def _on_store_point_removed(self, index: int) -> None:
+        """Handle point removed from store."""
+        # Need to recalculate entire timeline since we don't know which frame
+        self.invalidate_all_frames()
+        self._schedule_deferred_update()
+
+    def _on_store_status_changed(self, index: int, new_status: str) -> None:
+        """Handle point status changed in store."""
+        # Get the point to find its frame
+        point = self._curve_store.get_point(index)
+        if point and len(point) >= 3:
+            frame = int(point[0])
+            # Invalidate and update this specific frame
+            self.invalidate_frame_status(frame)
+            self._schedule_deferred_update()
 
     def _create_navigation_controls(self) -> None:
         """Create navigation buttons and frame info."""
@@ -316,6 +429,12 @@ class TimelineTabWidget(QWidget):
             min_frame: Minimum frame number
             max_frame: Maximum frame number
         """
+        # Only recreate tabs if the range actually changes
+        range_changed = self.min_frame != min_frame or self.max_frame != max_frame
+        logger.debug(
+            f"set_frame_range: old={self.min_frame}-{self.max_frame}, new={min_frame}-{max_frame}, changed={range_changed}"
+        )
+
         self.min_frame = min_frame
         self.max_frame = max_frame
         self.total_frames = max_frame - min_frame + 1
@@ -326,9 +445,12 @@ class TimelineTabWidget(QWidget):
         elif self.current_frame > max_frame:
             self.current_frame = max_frame
 
-        # Clear cache and recreate all tabs
-        self.status_cache.clear()
-        self._create_all_tabs()
+        # Only recreate tabs if range changed (but don't clear cache)
+        if range_changed:
+            # Don't clear the cache - preserve existing status data
+            # self.status_cache.clear()  # Commented out to preserve status
+            self._create_all_tabs()
+
         self._update_frame_info()
 
     def set_current_frame(self, frame: int) -> None:
@@ -382,6 +504,9 @@ class TimelineTabWidget(QWidget):
             is_inactive: Whether frame is in an inactive segment
             has_selected: Whether frame has selected points
         """
+        # Debug
+        # print(f"update_frame_status: frame {frame}, keyframe={keyframe_count}, frame in tabs={frame in self.frame_tabs}")
+
         # Update cache with all status information
         self.status_cache.set_status(
             frame,
@@ -427,11 +552,16 @@ class TimelineTabWidget(QWidget):
     def _calculate_tab_width(self) -> int:
         """Calculate optimal tab width based on available space and frame count."""
         # Use parent width if available, otherwise use a default
-        if self.parent():
-            available_width = (
-                self.parent().width() - 100
-            )  # Subtract space for nav buttons and margins  # pyright: ignore[reportAttributeAccessIssue]
-        else:
+        try:
+            parent = self.parent()
+            if parent:
+                available_width = (
+                    parent.width() - 100
+                )  # Subtract space for nav buttons and margins  # pyright: ignore[reportAttributeAccessIssue]
+            else:
+                available_width = 1300  # Default for 1400px window
+        except RuntimeError:
+            # Parent already deleted during teardown
             available_width = 1300  # Default for 1400px window
 
         # Minimum reasonable width
@@ -453,10 +583,29 @@ class TimelineTabWidget(QWidget):
 
     def _create_all_tabs(self) -> None:
         """Create tabs for all frames with dynamic width."""
+        # Check if widget is being deleted
+        try:
+            _ = self.isVisible()
+        except RuntimeError:
+            # Widget is being deleted, abort tab creation
+            return
+
+        # Check if layout still exists (might be deleted during destruction)
+        if not self.tabs_layout:
+            return
+
         # Clear existing tabs
         for tab in self.frame_tabs.values():
-            self.tabs_layout.removeWidget(tab)
-            tab.deleteLater()
+            try:
+                self.tabs_layout.removeWidget(tab)
+            except RuntimeError:
+                # Layout already deleted, skip removal
+                pass
+            try:
+                tab.deleteLater()
+            except RuntimeError:
+                # Tab already deleted, skip
+                pass
         self.frame_tabs.clear()
 
         # Calculate optimal tab width
@@ -464,7 +613,16 @@ class TimelineTabWidget(QWidget):
 
         # Create tabs for entire frame range
         for frame in range(self.min_frame, self.max_frame + 1):
-            tab = FrameTab(frame, self)
+            try:
+                tab = FrameTab(frame, self)
+            except RuntimeError:
+                # Parent widget deleted during tab creation, abort
+                return
+
+            # Check if tab was actually created (FrameTab.__init__ can return early)
+            if not hasattr(tab, "set_tab_width"):
+                continue
+
             tab.set_tab_width(tab_width)
             _ = tab.frame_clicked.connect(self.set_current_frame)
             _ = tab.frame_hovered.connect(self.frame_hovered.emit)
@@ -497,7 +655,9 @@ class TimelineTabWidget(QWidget):
                 )
 
             self.frame_tabs[frame] = tab
-            self.tabs_layout.addWidget(tab)
+            # Check layout still exists before adding
+            if self.tabs_layout:
+                self.tabs_layout.addWidget(tab)
 
         # Update container size to fit all tabs
         total_width = tab_width * len(self.frame_tabs) + 4
@@ -510,8 +670,14 @@ class TimelineTabWidget(QWidget):
 
     def _update_frame_info(self) -> None:
         """Update frame information label."""
-        info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
-        self.frame_info.setText(info_text)
+        # Check if frame_info label still exists
+        try:
+            if self.frame_info is not None:
+                info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
+                self.frame_info.setText(info_text)
+        except RuntimeError:
+            # frame_info QLabel has been deleted
+            pass
 
     def _jump_back_group(self) -> None:
         """Jump back by group size."""
@@ -530,8 +696,55 @@ class TimelineTabWidget(QWidget):
 
     def _perform_deferred_updates(self) -> None:
         """Perform any pending status updates."""
-        # This would query the data service for updated point statuses
-        # Refresh visible tabs with all status fields
+        # Recalculate status for dirty frames
+        from services import get_data_service
+
+        data_service = get_data_service()
+        curve_data = self._curve_store.get_data()
+
+        # Clear status for frames that no longer have points
+        for frame in range(self.min_frame, self.max_frame + 1):
+            self.status_cache.set_status(
+                frame,
+                keyframe_count=0,
+                interpolated_count=0,
+                tracked_count=0,
+                endframe_count=0,
+                normal_count=0,
+                is_startframe=False,
+                is_inactive=False,
+                has_selected=False,
+            )
+
+        if curve_data:
+            # Get frame status for all points
+            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+
+            # Update cache for all frames with data
+            for frame, status_data in frame_status.items():
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = status_data
+                self.status_cache.set_status(
+                    frame,
+                    keyframe_count=keyframe_count,
+                    interpolated_count=interpolated_count,
+                    tracked_count=tracked_count,
+                    endframe_count=endframe_count,
+                    normal_count=normal_count,
+                    is_startframe=is_startframe,
+                    is_inactive=is_inactive,
+                    has_selected=has_selected,
+                )
+
+        # Now refresh visible tabs with updated status
         for frame, tab in self.frame_tabs.items():
             cached_status = self.status_cache.get_status(frame)
             if cached_status:

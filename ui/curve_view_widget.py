@@ -175,11 +175,7 @@ class CurveViewWidget(QWidget):
         # Point rendering settings
         self.point_radius: int = 5
         self.selected_point_radius: int = 7
-        self.point_color: QColor = QColor(255, 100, 100)
-        self.selected_point_color: QColor = QColor(255, 255, 0)
-        self.interpolated_point_color: QColor = QColor(100, 150, 255)
-        self.keyframe_point_color: QColor = QColor(0, 255, 0)
-        self.current_frame_point_color: QColor = QColor(255, 0, 255)  # Magenta for current frame
+        # Colors are now centralized in ui_constants.py - use get_status_color() and SPECIAL_COLORS
 
         # Line rendering settings
         self.line_color: QColor = QColor(200, 200, 200)
@@ -265,7 +261,7 @@ class CurveViewWidget(QWidget):
             self.point_collection = None
 
         # Clear caches and update display
-        self._invalidate_caches()
+        self.invalidate_caches()
         self.update()
 
         # Propagate signal to widget listeners
@@ -301,7 +297,7 @@ class CurveViewWidget(QWidget):
         if self.point_collection and index < len(self.point_collection.points):
             del self.point_collection.points[index]
 
-        self._invalidate_caches()
+        self.invalidate_caches()
         self.update()
         self.data_changed.emit()
 
@@ -310,8 +306,8 @@ class CurveViewWidget(QWidget):
         # Update collection if needed
         if self.point_collection and index < len(self.point_collection.points):
             old_cp = self.point_collection.points[index]
-            # Map string status to PointStatus enum
-            status_enum = PointStatus.from_string(status) if hasattr(PointStatus, "from_string") else PointStatus.NORMAL
+            # Map string status to PointStatus enum using from_legacy
+            status_enum = PointStatus.from_legacy(status)
             self.point_collection.points[index] = old_cp.with_status(status_enum)
 
         self.update()
@@ -789,7 +785,7 @@ class CurveViewWidget(QWidget):
             else:
                 self.pan_offset_y += delta.y()
             self.last_mouse_pos = pos
-            self._invalidate_caches()
+            self.invalidate_caches()
             self.update()
             self.view_changed.emit()
 
@@ -813,9 +809,7 @@ class CurveViewWidget(QWidget):
                 self.last_mouse_pos = None
 
                 # Notify about changes
-                if self.main_window is not None:
-                    if getattr(self.main_window, "add_to_history", None) is not None:
-                        self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
+                self._add_to_history()
 
         elif button == Qt.MouseButton.MiddleButton:
             self.pan_active = False
@@ -904,9 +898,7 @@ class CurveViewWidget(QWidget):
         self._curve_store.set_point_status(idx, status.value)
 
         # Add to history if main window available
-        if self.main_window is not None:
-            if hasattr(self.main_window, "add_to_history"):
-                self.main_window.add_to_history()
+        self._add_to_history()
 
         point = self._curve_store.get_point(idx)
         if point:
@@ -938,7 +930,7 @@ class CurveViewWidget(QWidget):
 
         if self.zoom_factor != old_zoom:
             # Adjust pan to keep point under mouse stationary
-            self._invalidate_caches()
+            self.invalidate_caches()
             new_screen_pos = self.data_to_screen(data_x, data_y)
 
             offset = pos - new_screen_pos
@@ -952,7 +944,7 @@ class CurveViewWidget(QWidget):
                 self.pan_offset_y += offset.y()
 
             # Invalidate caches again after pan adjustment
-            self._invalidate_caches()
+            self.invalidate_caches()
 
             self.update()
             self.zoom_changed.emit(self.zoom_factor)
@@ -995,7 +987,7 @@ class CurveViewWidget(QWidget):
 
         # Select all
         elif key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
-            self._select_all()
+            self.select_all()
             event.accept()
 
         # Deselect all
@@ -1014,18 +1006,16 @@ class CurveViewWidget(QWidget):
                     logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
                     self.center_on_selection()
                     logger.info("[KEY_C] View centering completed")
-                elif self.main_window is not None:
-                    if getattr(self.main_window, "current_frame", None) is not None:
-                        current_frame: int = self.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
+                else:
+                    current_frame = self._get_current_frame()
+                    if current_frame is not None:
                         logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
                         self.center_on_frame(current_frame)
                     logger.info("[KEY_C] View centered on current frame")
 
             # Update status bar to show centering mode state
-            if self.main_window is not None:
-                if getattr(self.main_window, "status_bar", None) is not None:
-                    status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
-                    self.main_window.status_bar.showMessage(status_msg, 2000)  # pyright: ignore[reportAttributeAccessIssue]
+            status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
+            self._update_status(status_msg, 2000)
 
             event.accept()
 
@@ -1087,7 +1077,7 @@ class CurveViewWidget(QWidget):
         self.manual_offset_x = 0.0
         self.manual_offset_y = 0.0
 
-        self._invalidate_caches()
+        self.invalidate_caches()
         self.update()
         self.view_changed.emit()
         self.zoom_changed.emit(self.zoom_factor)
@@ -1131,7 +1121,7 @@ class CurveViewWidget(QWidget):
             self.pan_offset_x = 0
             self.pan_offset_y = 0
 
-            self._invalidate_caches()
+            self.invalidate_caches()
 
             # Calculate center position
             screen_center = self.data_to_screen(center_x, center_y)
@@ -1176,7 +1166,7 @@ class CurveViewWidget(QWidget):
         self.flip_y_axis = False  # Tracking data uses screen coordinates (Y=0 at top)
 
         logger.info(f"[COORD] Set up view for tracking data (zoom={self.zoom_factor:.3f}, scales with background)")
-        self._invalidate_caches()
+        self.invalidate_caches()
         self.update()
 
     def fit_to_background_image(self) -> None:
@@ -1230,7 +1220,7 @@ class CurveViewWidget(QWidget):
         logger.info(f"[FIT_BG] Reset pan offsets: ({old_pan_x}, {old_pan_y}) -> (0, 0)")
 
         # Invalidate caches and update
-        self._invalidate_caches()
+        self.invalidate_caches()
 
         # Debug the transform after setting everything up
         transform = self.get_transform()
@@ -1298,7 +1288,7 @@ class CurveViewWidget(QWidget):
                 f"[CENTER] Pan offset changed from ({old_pan_x:.2f}, {old_pan_y:.2f}) to ({self.pan_offset_x:.2f}, {self.pan_offset_y:.2f})"
             )
 
-            self._invalidate_caches()
+            self.invalidate_caches()
             self.update()
             self.repaint()  # Force immediate repaint
             self.view_changed.emit()
@@ -1332,7 +1322,7 @@ class CurveViewWidget(QWidget):
 
             logger.debug(f"[CENTER] View centered on frame {frame}")
 
-            self._invalidate_caches()
+            self.invalidate_caches()
             self.update()
             self.repaint()
             self.view_changed.emit()
@@ -1386,7 +1376,7 @@ class CurveViewWidget(QWidget):
         """Clear all selection."""
         self._curve_store.clear_selection()
 
-    def _select_all(self) -> None:
+    def select_all(self) -> None:
         """Select all points."""
         self._curve_store.select_all()
 
@@ -1441,6 +1431,41 @@ class CurveViewWidget(QWidget):
         for idx in selected_points:
             self._curve_store.select(idx, add_to_selection=True)
 
+    # Main Window Helper Methods
+
+    @property
+    def has_main_window(self) -> bool:
+        """Check if main window is available."""
+        return self.main_window is not None
+
+    def _add_to_history(self) -> None:
+        """Add current state to history if main window available."""
+        if self.main_window is not None:
+            if getattr(self.main_window, "add_to_history", None) is not None:
+                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _update_status(self, message: str, timeout: int = 2000) -> None:
+        """Update status bar if main window available.
+
+        Args:
+            message: Status message to display
+            timeout: Timeout in milliseconds
+        """
+        if self.main_window is not None:
+            if getattr(self.main_window, "status_bar", None) is not None:
+                self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
+
+    def _get_current_frame(self) -> int | None:
+        """Get current frame from main window if available.
+
+        Returns:
+            Current frame number or None if not available
+        """
+        if self.main_window is not None:
+            if getattr(self.main_window, "current_frame", None) is not None:
+                return self.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
+        return None
+
     # Point Operations
 
     def _drag_point(self, index: int, delta: QPointF) -> None:
@@ -1487,9 +1512,7 @@ class CurveViewWidget(QWidget):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
                 self.update_point(idx, x + dx, y + dy)
 
-        if self.main_window is not None:
-            if getattr(self.main_window, "add_to_history", None) is not None:
-                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
+        self._add_to_history()
 
     def _delete_selected_points(self) -> None:
         """Delete selected points."""
@@ -1501,13 +1524,11 @@ class CurveViewWidget(QWidget):
 
         # Selection is cleared automatically by the store when points are removed
 
-        if self.main_window is not None:
-            if getattr(self.main_window, "add_to_history", None) is not None:
-                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
+        self._add_to_history()
 
     # Cache Management
 
-    def _invalidate_caches(self) -> None:
+    def invalidate_caches(self) -> None:
         """Invalidate all cached data."""
         self._transform_cache = None
         self._screen_points_cache.clear()
@@ -1586,7 +1607,7 @@ class CurveViewWidget(QWidget):
             self.image_height = pixmap.height()
             logger.info(f"[COORD] Set image dimensions to {self.image_width}x{self.image_height} from background image")
 
-        self._invalidate_caches()
+        self.invalidate_caches()
         self.update()
 
     def get_view_state(self) -> ViewState:
@@ -1685,6 +1706,13 @@ class CurveViewWidget(QWidget):
     def points(self, value: list[tuple[int, float, float] | tuple[int, float, float, str | bool]]) -> None:
         """Set points data (compatibility with InteractionService)."""
         self.set_curve_data(value)
+
+    @property
+    def current_frame_point_color(self) -> QColor:
+        """Get current frame point color from centralized color system."""
+        from ui.ui_constants import SPECIAL_COLORS
+
+        return QColor(SPECIAL_COLORS["current_frame"])
 
 
 # Example usage and testing

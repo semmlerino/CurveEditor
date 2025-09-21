@@ -5,13 +5,14 @@ Provides centralized access to all reactive data stores, ensuring
 single source of truth for application state.
 """
 
-from typing import Optional
+from typing import Any, Optional
 
 from PySide6.QtCore import QObject
 
 from core.logger_utils import get_logger
 
 from .curve_data_store import CurveDataStore
+from .frame_store import FrameStore
 
 logger = get_logger("store_manager")
 
@@ -35,18 +36,22 @@ class StoreManager(QObject):
     def __init__(self):
         """Initialize stores (only called once due to singleton)."""
         # Prevent multiple initialization
-        if hasattr(self, "_initialized"):
+        # Using getattr with default to check if attribute exists (type-safe approach)
+        if getattr(self, "_initialized", False):
             return
 
         super().__init__()
 
         # Initialize all stores
         self.curve_store = CurveDataStore()
+        self.frame_store = FrameStore()
 
         # Future stores can be added here:
-        # self.frame_store = FrameStore()
         # self.view_store = ViewStore()
         # self.selection_store = SelectionStore()
+
+        # Connect stores to each other
+        self._connect_stores()
 
         self._initialized = True
         logger.info("StoreManager initialized with all stores")
@@ -73,6 +78,7 @@ class StoreManager(QObject):
         if cls._instance:
             # Clear all store data
             cls._instance.curve_store.clear()
+            cls._instance.frame_store.clear()
             logger.warning("StoreManager reset - all data cleared")
 
         cls._instance = None
@@ -86,6 +92,34 @@ class StoreManager(QObject):
         """
         return self.curve_store
 
+    def get_frame_store(self) -> FrameStore:
+        """
+        Get the frame store.
+
+        Returns:
+            The singleton FrameStore instance
+        """
+        return self.frame_store
+
+    def _connect_stores(self) -> None:
+        """
+        Connect stores to each other for coordinated updates.
+        """
+        # When curve data changes, update frame range in frame store
+        self.curve_store.data_changed.connect(
+            lambda: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
+        )
+
+        # Also sync on individual point operations
+        self.curve_store.point_added.connect(
+            lambda index, point: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
+        )
+        self.curve_store.point_removed.connect(
+            lambda index: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
+        )
+
+        logger.debug("Connected stores for coordinated updates")
+
     def connect_all_stores(self) -> None:
         """
         Set up inter-store connections if needed.
@@ -97,7 +131,7 @@ class StoreManager(QObject):
         # self.curve_store.data_changed.connect(self.frame_store.update_from_curve_data)
         pass
 
-    def save_state(self) -> dict:
+    def save_state(self) -> dict[str, Any]:
         """
         Save all store states (for session persistence).
 
@@ -112,7 +146,7 @@ class StoreManager(QObject):
         logger.debug("Saved store state")
         return state
 
-    def restore_state(self, state: dict) -> None:
+    def restore_state(self, state: dict[str, Any]) -> None:
         """
         Restore all store states.
 

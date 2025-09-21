@@ -53,32 +53,34 @@ class SignalConnectionManager:
     def _connect_file_operations_signals(self) -> None:
         """Connect signals from file operations manager."""
         # Connect file loading signals
-        self.main_window.file_operations.tracking_data_loaded.connect(self.main_window._on_tracking_data_loaded)
-        self.main_window.file_operations.multi_point_data_loaded.connect(self.main_window._on_multi_point_data_loaded)
-        self.main_window.file_operations.image_sequence_loaded.connect(self.main_window._on_image_sequence_loaded)
-        self.main_window.file_operations.progress_updated.connect(self.main_window._on_file_load_progress)
-        self.main_window.file_operations.error_occurred.connect(self.main_window._on_file_load_error)
-        self.main_window.file_operations.finished.connect(self.main_window._on_file_load_finished)
+        self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)
+        self.main_window.file_operations.multi_point_data_loaded.connect(self.main_window.on_multi_point_data_loaded)
+        self.main_window.file_operations.image_sequence_loaded.connect(
+            self.main_window.background_controller.on_image_sequence_loaded
+        )
+        self.main_window.file_operations.progress_updated.connect(self.main_window.on_file_load_progress)
+        self.main_window.file_operations.error_occurred.connect(self.main_window.on_file_load_error)
+        self.main_window.file_operations.finished.connect(self.main_window.on_file_load_finished)
 
         # Connect file operation status signals
-        self.main_window.file_operations.file_loaded.connect(self.main_window._on_file_loaded)
-        self.main_window.file_operations.file_saved.connect(self.main_window._on_file_saved)
+        self.main_window.file_operations.file_loaded.connect(self.main_window.on_file_loaded)
+        self.main_window.file_operations.file_saved.connect(self.main_window.on_file_saved)
 
         logger.info("Connected file operations signals")
 
     def _connect_signals(self) -> None:
         """Connect signals from state manager and shortcuts."""
         # Connect state manager signals
-        _ = self.main_window.state_manager.file_changed.connect(self.main_window._on_file_changed)
-        _ = self.main_window.state_manager.modified_changed.connect(self.main_window._on_modified_changed)
-        _ = self.main_window.state_manager.frame_changed.connect(self.main_window._on_state_frame_changed)
-        _ = self.main_window.state_manager.selection_changed.connect(self.main_window._on_selection_changed)
-        _ = self.main_window.state_manager.view_state_changed.connect(self.main_window._on_view_state_changed)
+        _ = self.main_window.state_manager.file_changed.connect(self.main_window.on_file_changed)
+        _ = self.main_window.state_manager.modified_changed.connect(self.main_window.on_modified_changed)
+        _ = self.main_window.state_manager.frame_changed.connect(self.main_window.on_state_frame_changed)
+        _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)
+        _ = self.main_window.state_manager.view_state_changed.connect(self.main_window.on_view_state_changed)
 
         # Connect controller signals
         # Frame navigation controller handles frame changes internally
         _ = self.main_window.frame_nav_controller.frame_changed.connect(
-            self.main_window._on_frame_changed_from_controller
+            self.main_window.on_frame_changed_from_controller
         )
         _ = self.main_window.frame_nav_controller.status_message.connect(self.main_window.update_status)
 
@@ -88,23 +90,17 @@ class SignalConnectionManager:
         )
         _ = self.main_window.playback_controller.status_message.connect(self.main_window.update_status)
 
-        # Connect timeline tabs if available
-        if self.main_window.timeline_tabs:
-            _ = self.main_window.timeline_tabs.frame_changed.connect(self.main_window._on_timeline_tab_clicked)
-            _ = self.main_window.timeline_tabs.frame_hovered.connect(self.main_window._on_timeline_tab_hovered)
-            logger.info("Timeline tabs signals connected")
+        # Connect timeline tabs through the TimelineController
+        self.main_window.timeline_controller.connect_signals()
 
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
-        # Connect store signals directly to ensure timeline always updates
-        self.main_window._curve_store.data_changed.connect(self.main_window._update_timeline_tabs)
-        self.main_window._curve_store.point_added.connect(lambda idx, point: self.main_window._update_timeline_tabs())
-        self.main_window._curve_store.point_updated.connect(lambda idx, x, y: self.main_window._update_timeline_tabs())
-        self.main_window._curve_store.point_removed.connect(lambda idx: self.main_window._update_timeline_tabs())
-        self.main_window._curve_store.point_status_changed.connect(
-            lambda idx, status: self.main_window._update_timeline_tabs()
-        )
-        self.main_window._curve_store.selection_changed.connect(self.main_window._on_store_selection_changed)
+        # Timeline now connects directly to store signals - no manual updates needed
+        # The timeline_tabs widget subscribes to store signals directly in its __init__
+        # This ensures automatic reactive updates without going through the controller
+
+        # Only connect selection change which MainWindow needs
+        self.main_window.get_curve_store().selection_changed.connect(self.main_window.on_store_selection_changed)
 
         logger.info("Connected MainWindow to reactive store signals")
 
@@ -114,12 +110,15 @@ class SignalConnectionManager:
             return
 
         # Connect curve widget signals to handlers
-        _ = self.main_window.curve_widget.point_selected.connect(self.main_window._on_point_selected)
-        _ = self.main_window.curve_widget.point_moved.connect(self.main_window._on_point_moved)
-        _ = self.main_window.curve_widget.selection_changed.connect(self.main_window._on_curve_selection_changed)
-        _ = self.main_window.curve_widget.view_changed.connect(self.main_window._on_curve_view_changed)
-        _ = self.main_window.curve_widget.zoom_changed.connect(self.main_window._on_curve_zoom_changed)
-        _ = self.main_window.curve_widget.data_changed.connect(lambda: self.main_window._update_timeline_tabs())
+        _ = self.main_window.curve_widget.point_selected.connect(self.main_window.on_point_selected)
+        _ = self.main_window.curve_widget.point_moved.connect(self.main_window.on_point_moved)
+        _ = self.main_window.curve_widget.selection_changed.connect(self.main_window.on_curve_selection_changed)
+        _ = self.main_window.curve_widget.view_changed.connect(self.main_window.on_curve_view_changed)
+        _ = self.main_window.curve_widget.zoom_changed.connect(self.main_window.on_curve_zoom_changed)
+        # Timeline now updates automatically via store signals - no manual connection needed
+        # _ = self.main_window.curve_widget.data_changed.connect(
+        #     lambda: self.main_window.timeline_controller.update_timeline_tabs()
+        # )
 
         # Connect view options to view options controller
         if self.main_window.show_background_cb:
@@ -154,21 +153,21 @@ class SignalConnectionManager:
         # Add critical store connections to verify
         verifier.add_required_connection(
             "CurveDataStore",
-            self.main_window._curve_store,
+            self.main_window.get_curve_store(),
             "data_changed",
-            "MainWindow",
-            self.main_window,
-            "_update_timeline_tabs",
+            "TimelineController",
+            self.main_window.timeline_controller,
+            "update_timeline_tabs",
             critical=True,
         )
 
         verifier.add_required_connection(
             "CurveDataStore",
-            self.main_window._curve_store,
+            self.main_window.get_curve_store(),
             "selection_changed",
             "MainWindow",
             self.main_window,
-            "_on_store_selection_changed",
+            "on_store_selection_changed",
             critical=True,
         )
 
@@ -180,7 +179,7 @@ class SignalConnectionManager:
                 "point_selected",
                 "MainWindow",
                 self.main_window,
-                "_on_point_selected",
+                "on_point_selected",
                 critical=True,
             )
 
@@ -190,7 +189,7 @@ class SignalConnectionManager:
                 "selection_changed",
                 "MainWindow",
                 self.main_window,
-                "_on_curve_selection_changed",
+                "on_curve_selection_changed",
                 critical=True,
             )
 
@@ -200,9 +199,9 @@ class SignalConnectionManager:
                 "TimelineTabs",
                 self.main_window.timeline_tabs,
                 "frame_changed",
-                "MainWindow",
-                self.main_window,
-                "_on_timeline_tab_clicked",
+                "TimelineController",
+                self.main_window.timeline_controller,
+                "on_timeline_tab_clicked",
                 critical=False,  # Not critical if timeline is hidden
             )
 

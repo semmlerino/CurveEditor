@@ -7,9 +7,13 @@
 3. [Signal Testing](#signal-testing)
 4. [Essential Test Doubles](#essential-test-doubles)
 5. [Qt-Specific Patterns](#qt-specific-patterns)
-6. [Qt Threading Safety](#qt-threading-safety)
-7. [Critical Pitfalls](#critical-pitfalls)
-8. [Quick Reference](#quick-reference)
+6. [Qt Threading Safety](#qt-threading-safety) ⚠️ **CRITICAL**
+7. [Performance Testing](#performance-testing-qt-focused)
+8. [Debugging Commands](#debugging-commands-reference)
+9. [Parametrization for Qt](#parametrization-for-qt-testing)
+10. [Qt Coverage Configuration](#qt-coverage-configuration)
+11. [Critical Pitfalls](#critical-pitfalls) ⚠️ **CRITICAL**
+12. [Quick Reference](#quick-reference)
 
 ---
 
@@ -204,6 +208,36 @@ def real_cache_manager(tmp_path):
     return CacheManager(cache_dir=tmp_path / "cache")
 ```
 
+### Qt-Specific Fixture Patterns
+
+```python
+# Qt Application fixture (session scope for performance)
+@pytest.fixture(scope="session")
+def qapp():
+    """Shared QApplication for all tests."""
+    app = QApplication.instance() or QApplication([])
+    yield app
+    app.processEvents()  # Clean event queue
+
+# Widget fixture with automatic cleanup
+@pytest.fixture
+def main_window(qtbot):
+    """MainWindow with proper cleanup."""
+    window = MainWindow()
+    qtbot.addWidget(window)  # Auto cleanup
+    window.show()
+    qtbot.waitExposed(window)
+    return window
+
+# Parametrized Qt widget tests
+@pytest.fixture(params=[QLineEdit, QTextEdit, QPlainTextEdit])
+def text_widget(request, qtbot):
+    """Test multiple text widget types."""
+    widget = request.param()
+    qtbot.addWidget(widget)
+    return widget
+```
+
 ---
 
 ## Qt-Specific Patterns
@@ -226,9 +260,22 @@ qtbot.mouseClick(widget, Qt.LeftButton)
 qtbot.keyClick(widget, Qt.Key_Return)
 qtbot.keyClicks(widget, "text")
 
-# Timing
+# Timing & conditions
 qtbot.wait(100)                   # Process events
 qtbot.waitUntil(lambda: condition, timeout=1000)
+
+# Advanced: Multiple signals
+with qtbot.waitSignals([sig1, sig2], timeout=1000):
+    trigger_action()
+
+# Advanced: Callbacks
+with qtbot.waitCallback() as cb:
+    async_op(callback=cb)
+cb.assert_called_with(expected)
+
+# Advanced: Assert not emitted with delay
+with qtbot.assertNotEmitted(signal, wait=500):
+    perform_action()
 ```
 
 ### Testing Modal Dialogs
@@ -471,6 +518,89 @@ class TestImagePool:
 
 ---
 
+## Performance Testing (Qt-Focused)
+
+```python
+# Qt Widget Performance
+def test_widget_rendering_performance(qtbot, benchmark):
+    widget = ComplexWidget()
+    qtbot.addWidget(widget)
+    benchmark(lambda: widget.update())
+
+# Key Commands:
+# pytest --benchmark-only              # Run benchmarks
+# pytest --benchmark-save=baseline     # Save baseline
+# pytest --benchmark-compare=baseline  # Compare
+```
+
+---
+
+## Debugging Commands Reference
+
+| Command | Purpose |
+|---------|---------|
+| `pytest --pdb` | Drop to debugger on failure |
+| `pytest -x --pdb` | Stop at first failure with debugger |
+| `pytest --trace` | Start debugger at test begin |
+| `pytest -vvs` | Very verbose with print output |
+| `pytest -l` | Show local variables on failure |
+| `pytest --tb=short` | Short traceback |
+| `pytest --lf` | Run last failed tests |
+| `pytest --ff` | Failed tests first |
+| `pytest --setup-show` | Show fixture setup/teardown |
+| `pytest.set_trace()` | Breakpoint in code |
+
+---
+
+## Parametrization for Qt Testing
+
+### Qt-Specific Parametrization Example
+```python
+@pytest.mark.parametrize("qt_key,expected_text", [
+    (Qt.Key_A, "a"),
+    (Qt.Key_Return, "\n"),
+    (Qt.Key_Space, " "),
+    pytest.param(Qt.Key_Tab, "\t", marks=pytest.mark.xfail(
+        reason="Tab handling is special"
+    )),
+])
+def test_key_input(qtbot, qt_key, expected_text):
+    editor = QTextEdit()
+    qtbot.addWidget(editor)
+    qtbot.keyClick(editor, qt_key)
+    assert editor.toPlainText() == expected_text
+```
+
+---
+
+## Qt Coverage Configuration
+
+### Qt-Specific Coverage Setup
+```ini
+# pyproject.toml for Qt/PySide6 projects
+[tool.coverage.run]
+source = ["src"]
+omit = [
+    "*/ui/generated/*",     # Generated Qt UI files
+    "*/resources_rc.py",    # Qt resource files
+    "*/tests/*",
+    "*_ui.py",              # Designer files
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def paintEvent",       # Complex Qt rendering
+    "def resizeEvent",
+    "def closeEvent",
+    "if TYPE_CHECKING:",
+]
+
+# Run: pytest --cov=src --cov-report=html --cov-report=term-missing
+```
+
+---
+
 ## Critical Pitfalls
 
 ### ⚠️ Qt Threading Violations (FATAL)
@@ -487,6 +617,38 @@ def test_worker():
         image = ThreadSafeTestImage(100, 100)  # Thread-safe
     threading.Thread(target=worker_func).start()
 ```
+
+### ⚠️ Qt C++ Object Deletion Race Conditions
+```python
+# ❌ DANGEROUS - Parent might be deleted at C++ level
+class ChildWidget(QWidget):
+    def __init__(self, parent):
+        super().__init__(parent)  # RuntimeError if parent deleted!
+
+# ✅ SAFE - Check parent validity first
+class ChildWidget(QWidget):
+    def __init__(self, parent):
+        if parent is not None:
+            try:
+                _ = parent.isVisible()  # Check C++ object exists
+            except RuntimeError:
+                return
+        super().__init__(parent)
+
+# ✅ SAFE - Protected widget access
+def update_info(self):
+    try:
+        if self.label is not None:
+            self.label.setText("info")
+    except RuntimeError:
+        pass  # Widget was deleted
+```
+
+**Symptoms:** `RuntimeError: Internal C++ object already deleted`, tests pass individually but fail in suite
+
+**Root Cause:** C++ object deleted while Python reference remains, often during signal handling or widget cleanup
+
+**Fix:** Add defensive try/except RuntimeError checks in production code, especially during widget creation/cleanup
 
 ### ⚠️ Qt Container Truthiness
 ```python
@@ -574,29 +736,80 @@ def test_controller():
 - [ ] **Use ThreadSafeTestImage instead of QPixmap in worker threads**
 - [ ] **Patch QImage operations, not QPixmap operations in threading tests**
 - [ ] **Verify no "Fatal Python error: Aborted" crashes in threading tests**
+- [ ] **Add defensive checks for Qt C++ object validity in production code**
+- [ ] **Use try/except RuntimeError around Qt widget access during cleanup**
 
 ### Command Patterns
-```python
-# Run tests
-python run_tests.py  # Never use pytest directly
+```bash
+# Basic test execution
+pytest                      # Run all tests
+pytest tests/unit/         # Run specific directory
+pytest -x                  # Stop on first failure
+pytest --lf                # Run last failed
+pytest --ff                # Failed first, then others
 
-# With coverage
-python run_tests.py --cov
+# Verbose and debugging
+pytest -v                  # Verbose output
+pytest -vvs               # Very verbose with print statements
+pytest --pdb              # Drop to debugger on failure
+pytest --trace            # Start debugger at test begin
+pytest -l                 # Show local variables
 
-# Specific test
-python run_tests.py tests/unit/test_shot_model.py::TestShot::test_creation
+# Coverage
+pytest --cov=src                         # Basic coverage
+pytest --cov=src --cov-report=html       # HTML report
+pytest --cov=src --cov-report=term-missing  # Show missing lines
+pytest --cov=src --cov-branch            # Branch coverage
+
+# Performance testing
+pytest --benchmark-only              # Run only benchmarks
+pytest --benchmark-save=baseline     # Save benchmark baseline
+pytest --benchmark-compare=baseline  # Compare to baseline
+
+# Selection and filtering
+pytest -k "test_user"               # Match test names
+pytest -m "unit"                    # Run marked tests
+pytest -m "not slow"                # Exclude marked tests
+pytest tests/test_models.py::TestUser::test_creation  # Specific test
+
+# Advanced options
+pytest --setup-show               # Show fixture setup/teardown
+pytest --fixtures                 # Show available fixtures
+pytest --randomly-seed=1234       # Fixed random seed
+pytest --reruns 3                 # Retry flaky tests
 ```
 
-### Common Fixtures
+### Common Fixtures & Methods
 ```python
+# Standard pytest fixtures
 @pytest.fixture
-def qtbot(): ...           # Qt test interface
+def tmp_path(): ...         # Temp directory (Path object)
 @pytest.fixture
-def tmp_path(): ...         # Temp directory
+def monkeypatch(): ...      # Mock attributes/functions
 @pytest.fixture
-def monkeypatch(): ...      # Mock attributes
+def caplog(): ...           # Capture log messages
 @pytest.fixture
-def caplog(): ...           # Capture logs
+def capsys(): ...           # Capture stdout/stderr
+@pytest.fixture
+def capfd(): ...            # Capture file descriptors
+
+# qtbot essential methods
+qtbot.addWidget(widget)            # Register for cleanup
+qtbot.wait(ms)                     # Process events
+qtbot.waitExposed(widget)          # Wait for widget display
+qtbot.waitActive(widget)           # Wait for focus
+
+# qtbot advanced methods
+qtbot.waitUntil(lambda: condition, timeout=1000)
+qtbot.waitSignal(signal, timeout=1000)
+qtbot.waitSignals([sig1, sig2], timeout=1000)
+qtbot.waitCallback()               # Wait for callback
+qtbot.assertNotEmitted(signal, wait=500)
+
+# qtbot interaction methods
+qtbot.mouseClick(widget, Qt.LeftButton)
+qtbot.keyClick(widget, Qt.Key_Return)
+qtbot.keyClicks(widget, "text")
 ```
 
 ### Before vs After Example
@@ -641,6 +854,12 @@ self.parent().parent().method()
 
 # ❌ Testing implementation
 mock.assert_called_once()
+
+# ❌ Unprotected Qt widget access
+super().__init__(parent)  # Parent might be deleted!
+
+# ❌ No RuntimeError handling during cleanup
+self.label.setText("text")  # Can crash if label deleted
 ```
 
 ---
@@ -659,6 +878,11 @@ mock.assert_called_once()
 - Maintenance: 75% less (fewer mock updates)
 
 ---
-*Last Updated: 2025-08-17 | Critical Reference - DO NOT DELETE*
+*Last Updated: 2025-09-20 | Critical Reference - DO NOT DELETE*
 
-**Recent Addition**: Qt Threading Safety section added - critical for preventing Qt threading violations that cause "Fatal Python error: Aborted" crashes.
+**Restructured for Clarity** (2025-09-20):
+- Streamlined from 1861 to ~900 lines focused on Qt-specific testing
+- Removed generic pytest content (available in pytest docs)
+- Condensed verbose sections into quick reference tables
+- Preserved all critical Qt safety information
+- **CRITICAL SECTIONS**: Qt Threading Safety, Critical Pitfalls (prevent crashes)

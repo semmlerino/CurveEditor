@@ -66,22 +66,35 @@ class TestFramePointHighlighting:
             window.services.confirm_action = Mock(return_value=True)
             window.services.load_track_data = Mock(return_value=[])
             window.services.save_track_data = Mock(return_value=True)
+            window.services.analyze_curve_bounds = Mock(
+                return_value={
+                    "count": 5,
+                    "min_frame": 1,
+                    "max_frame": 20,
+                    "bounds": {"min_x": 100, "max_x": 300, "min_y": 200, "max_y": 400},
+                }
+            )
+            window.services.add_to_history = Mock()
 
             # Set up test data with points on different frames
-            window.curve_widget.set_curve_data(
-                [
-                    (1, 100.0, 200.0, "keyframe"),
-                    (5, 150.0, 250.0, "interpolated"),
-                    (10, 200.0, 300.0, "keyframe"),
-                    (15, 250.0, 350.0, "keyframe"),
-                    (20, 300.0, 400.0, "interpolated"),
-                ]
-            )
+            if window.curve_widget:
+                window.curve_widget.set_curve_data(
+                    [
+                        (1, 100.0, 200.0, "keyframe"),
+                        (5, 150.0, 250.0, "interpolated"),
+                        (10, 200.0, 300.0, "keyframe"),
+                        (15, 250.0, 350.0, "keyframe"),
+                        (20, 300.0, 400.0, "interpolated"),
+                    ]
+                )
 
             # Set up proper frame range
-            window.frame_spinbox.setMaximum(20)
-            window.frame_slider.setMaximum(20)
-            window.total_frames_label.setText("20")
+            if window.frame_spinbox:
+                window.frame_spinbox.setMaximum(20)
+            if window.frame_slider:
+                window.frame_slider.setMaximum(20)
+            if window.total_frames_label:
+                window.total_frames_label.setText("20")
             window.state_manager.total_frames = 20
 
             # Set up timeline if available
@@ -105,7 +118,7 @@ class TestFramePointHighlighting:
         curve_widget.main_window.state_manager.current_frame = 10
 
         # Force a repaint
-        curve_widget._invalidate_caches()
+        curve_widget.invalidate_caches()
         curve_widget.update()
         qtbot.wait(10)  # Give Qt time to process the update
 
@@ -136,7 +149,7 @@ class TestFramePointHighlighting:
 
         # Verify curve widget was told to update
         # The _on_frame_changed method should have called:
-        # - curve_widget._invalidate_caches()
+        # - curve_widget.invalidate_caches()
         # - curve_widget.update()
 
         # Change to frame 5 which has an interpolated point
@@ -153,7 +166,7 @@ class TestFramePointHighlighting:
 
         # This should trigger _on_slider_changed which now includes:
         # - Update state_manager.current_frame
-        # - Call curve_widget._invalidate_caches() and update()
+        # - Call curve_widget.invalidate_caches() and update()
         assert main_window.state_manager.current_frame == 15
 
         # Change to frame 20
@@ -227,7 +240,7 @@ class TestFramePointHighlighting:
         curve_widget.main_window.state_manager.current_frame = 10
 
         # Force a repaint
-        curve_widget._invalidate_caches()
+        curve_widget.invalidate_caches()
         curve_widget.update()
 
         # All three points should be highlighted as current frame points
@@ -238,7 +251,7 @@ class TestFramePointHighlighting:
         curve_widget.main_window.state_manager.current_frame = 3
 
         # Force a repaint
-        curve_widget._invalidate_caches()
+        curve_widget.invalidate_caches()
         curve_widget.update()
 
         # No points should be highlighted with current frame color
@@ -263,7 +276,7 @@ class TestFramePointHighlighting:
 
         # Change frame (simulating what main_window does)
         curve_widget.main_window.state_manager.current_frame = 10
-        curve_widget._invalidate_caches()
+        curve_widget.invalidate_caches()
 
         # Caches should be cleared
         assert len(curve_widget._visible_indices_cache) == 0

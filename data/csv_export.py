@@ -92,8 +92,8 @@ def export_to_excel(file_path: str, curve_data: list[tuple[int, float, float]], 
         return False
 
     try:
-        workbook = xlsxwriter.Workbook(file_path)  # pyright: ignore[reportUnknownMemberType]
-        worksheet = workbook.add_worksheet(sheet_name)  # pyright: ignore[reportUnknownMemberType]
+        workbook = xlsxwriter.Workbook(file_path)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+        worksheet = workbook.add_worksheet(sheet_name)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
 
         # Add header
         worksheet.write(0, 0, "Frame")  # pyright: ignore[reportUnknownMemberType]

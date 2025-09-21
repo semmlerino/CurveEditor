@@ -1,0 +1,70 @@
+{
+  "metadata": {
+    "label": "Timeline Status Test",
+    "color": "#FF0000",
+    "version": "1.0",
+    "point_count": 10
+  },
+  "points": [
+    {
+      "frame": 1,
+      "x": 100.0,
+      "y": 100.0,
+      "status": "keyframe"
+    },
+    {
+      "frame": 2,
+      "x": 110.0,
+      "y": 105.0,
+      "status": "interpolated"
+    },
+    {
+      "frame": 3,
+      "x": 120.0,
+      "y": 110.0,
+      "status": "interpolated"
+    },
+    {
+      "frame": 4,
+      "x": 130.0,
+      "y": 115.0,
+      "status": "keyframe"
+    },
+    {
+      "frame": 5,
+      "x": 140.0,
+      "y": 120.0,
+      "status": "tracked"
+    },
+    {
+      "frame": 6,
+      "x": 150.0,
+      "y": 125.0,
+      "status": "tracked"
+    },
+    {
+      "frame": 7,
+      "x": 160.0,
+      "y": 130.0,
+      "status": "keyframe"
+    },
+    {
+      "frame": 8,
+      "x": 170.0,
+      "y": 135.0,
+      "status": "interpolated"
+    },
+    {
+      "frame": 9,
+      "x": 180.0,
+      "y": 140.0,
+      "status": "endframe"
+    },
+    {
+      "frame": 10,
+      "x": 190.0,
+      "y": 145.0,
+      "status": "keyframe"
+    }
+  ]
+}
