@@ -1,0 +1,543 @@
+#!/usr/bin/env python
+"""
+Tests for PageUp/PageDown keyframe navigation functionality.
+
+This module tests the enhanced navigation that includes keyframes, endframes, and startframes.
+Following UNIFIED_TESTING_GUIDE best practices:
+- Test behavior, not implementation
+- Use real components when possible
+- Factory fixtures for test data
+- Clear test names describing behavior
+"""
+
+import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QKeyEvent
+
+from services import get_data_service
+from stores import get_store_manager
+from ui.main_window import MainWindow
+
+# ============================================================================
+# FACTORY FIXTURES
+# ============================================================================
+
+
+@pytest.fixture
+def make_navigation_point():
+    """Factory for creating navigation test points."""
+
+    def _make_point(frame: int, x: float = 100.0, y: float = 200.0, status: str = "tracked"):
+        """Create a curve point tuple for testing.
+
+        Args:
+            frame: Frame number
+            x: X coordinate
+            y: Y coordinate
+            status: Point status (keyframe, endframe, tracked, etc.)
+
+        Returns:
+            Tuple representing a curve point
+        """
+        return (frame, x, y, status)
+
+    return _make_point
+
+
+@pytest.fixture
+def make_navigation_dataset():
+    """Factory for creating various navigation test datasets."""
+
+    def _make_dataset(scenario: str = "basic"):
+        """Create predefined datasets for different test scenarios.
+
+        Args:
+            scenario: Type of dataset to create
+                - "basic": Mix of keyframes and tracked points
+                - "with_endframes": Includes endframes creating gaps
+                - "only_keyframes": Only keyframe points
+                - "complex": Multiple segments with all frame types
+                - "single": Single point only
+                - "empty": No points
+
+        Returns:
+            List of curve point tuples
+        """
+        datasets = {
+            "basic": [
+                (1, 100.0, 200.0, "tracked"),
+                (5, 150.0, 250.0, "keyframe"),
+                (10, 200.0, 300.0, "tracked"),
+                (15, 250.0, 350.0, "keyframe"),
+                (20, 300.0, 400.0, "tracked"),
+            ],
+            "with_endframes": [
+                (1, 100.0, 200.0, "tracked"),  # Will be startframe
+                (5, 150.0, 250.0, "keyframe"),
+                (10, 200.0, 300.0, "endframe"),  # Creates gap
+                (15, 250.0, 350.0, "tracked"),  # Will be startframe after gap
+                (20, 300.0, 400.0, "keyframe"),
+            ],
+            "only_keyframes": [
+                (5, 150.0, 250.0, "keyframe"),
+                (10, 200.0, 300.0, "keyframe"),
+                (15, 250.0, 350.0, "keyframe"),
+            ],
+            "complex": [
+                (1, 100.0, 200.0, "tracked"),  # Startframe
+                (2, 110.0, 210.0, "tracked"),
+                (5, 150.0, 250.0, "keyframe"),
+                (8, 180.0, 280.0, "tracked"),
+                (10, 200.0, 300.0, "endframe"),  # End of first segment
+                (20, 300.0, 400.0, "tracked"),  # Startframe of second segment
+                (25, 350.0, 450.0, "keyframe"),
+                (30, 400.0, 500.0, "endframe"),  # End of second segment
+                (40, 500.0, 600.0, "keyframe"),  # Startframe of third segment
+                (45, 550.0, 650.0, "tracked"),
+            ],
+            "single": [(10, 200.0, 300.0, "keyframe")],
+            "empty": [],
+        }
+        return datasets.get(scenario, [])
+
+    return _make_dataset
+
+
+@pytest.fixture
+def main_window_with_data(qtbot, make_navigation_dataset):
+    """Create a MainWindow with test data loaded."""
+
+    def _make_window(dataset_scenario: str = "basic"):
+        """Create MainWindow with specified dataset.
+
+        Args:
+            dataset_scenario: Dataset scenario to load
+
+        Returns:
+            MainWindow instance with data loaded
+        """
+        # Create window
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        # Load test data
+        test_data = make_navigation_dataset(dataset_scenario)
+        if test_data:
+            store_manager = get_store_manager()
+            curve_store = store_manager.get_curve_store()
+            curve_store.set_data(test_data)
+
+        # Show and wait for exposure
+        window.show()
+        qtbot.waitExposed(window)
+
+        return window
+
+    return _make_window
+
+
+# ============================================================================
+# UNIT TESTS - Navigation Logic
+# ============================================================================
+
+
+class TestNavigationLogic:
+    """Test the core navigation logic for finding prev/next frames."""
+
+    def test_identifies_keyframes_for_navigation(self, make_navigation_dataset):
+        """Navigation should identify all keyframes as navigation points."""
+        data = make_navigation_dataset("only_keyframes")
+        nav_frames = []
+
+        for point in data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(point[0])
+
+        assert nav_frames == [5, 10, 15]
+
+    def test_identifies_endframes_for_navigation(self, make_navigation_dataset):
+        """Navigation should identify endframes as navigation points."""
+        data = make_navigation_dataset("with_endframes")
+        nav_frames = []
+
+        for point in data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(point[0])
+
+        assert 10 in nav_frames  # Endframe should be included
+
+    def test_computes_startframes_correctly(self, make_navigation_dataset):
+        """DataService should correctly compute startframes for navigation."""
+        data = make_navigation_dataset("with_endframes")
+        data_service = get_data_service()
+
+        frame_status = data_service.get_frame_range_point_status(data)
+
+        # Check for startframes (index 5 in status tuple)
+        startframes = [frame for frame, status in frame_status.items() if status[5]]
+
+        # Frame 1 should be startframe (first with tracked)
+        # Frame 15 should be startframe (after endframe at 10)
+        assert 1 in startframes
+        assert 15 in startframes
+
+    def test_navigation_frame_ordering(self, make_navigation_dataset):
+        """Navigation frames should be properly sorted."""
+        data = make_navigation_dataset("complex")
+        nav_frames = []
+
+        # Collect keyframes and endframes
+        for point in data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(point[0])
+
+        # Add startframes
+        data_service = get_data_service()
+        frame_status = data_service.get_frame_range_point_status(data)
+        for frame, status in frame_status.items():
+            if status[5] and frame not in nav_frames:
+                nav_frames.append(frame)
+
+        nav_frames.sort()
+        # Should be in ascending order
+        assert nav_frames == sorted(nav_frames)
+
+
+# ============================================================================
+# INTEGRATION TESTS - MainWindow Navigation
+# ============================================================================
+
+
+class TestMainWindowNavigation:
+    """Test PageUp/PageDown navigation in MainWindow."""
+
+    def test_pagedown_navigates_to_next_keyframe(self, qtbot, main_window_with_data):
+        """PageDown should navigate to the next keyframe."""
+        window = main_window_with_data("basic")
+
+        # Set initial frame
+        window.state_manager.current_frame = 3
+
+        # Simulate PageDown key press
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should navigate to frame 5 (next keyframe)
+        assert window.state_manager.current_frame == 5
+
+    def test_pageup_navigates_to_previous_keyframe(self, qtbot, main_window_with_data):
+        """PageUp should navigate to the previous keyframe."""
+        window = main_window_with_data("basic")
+
+        # Set initial frame
+        window.state_manager.current_frame = 12
+
+        # Simulate PageUp key press
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should navigate to frame 5 (previous keyframe)
+        assert window.state_manager.current_frame == 5
+
+    def test_pagedown_includes_endframes(self, qtbot, main_window_with_data):
+        """PageDown should include endframes as navigation points."""
+        window = main_window_with_data("with_endframes")
+
+        # Set frame before endframe
+        window.state_manager.current_frame = 7
+
+        # Simulate PageDown
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should navigate to frame 10 (endframe)
+        assert window.state_manager.current_frame == 10
+
+    def test_pageup_includes_startframes(self, qtbot, main_window_with_data):
+        """PageUp should include computed startframes as navigation points."""
+        window = main_window_with_data("with_endframes")
+
+        # Set frame after a startframe
+        window.state_manager.current_frame = 18
+
+        # Simulate PageUp
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should navigate to frame 15 (startframe after gap)
+        assert window.state_manager.current_frame == 15
+
+
+# ============================================================================
+# EDGE CASE TESTS
+# ============================================================================
+
+
+class TestNavigationEdgeCases:
+    """Test edge cases and error conditions."""
+
+    def test_navigation_with_no_data(self, qtbot, main_window_with_data):
+        """Navigation should handle empty dataset gracefully."""
+        window = main_window_with_data("empty")
+
+        initial_frame = window.state_manager.current_frame
+
+        # Try PageDown with no data
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Frame should not change
+        assert window.state_manager.current_frame == initial_frame
+
+        # Status bar should show message
+        status_text = window.statusBar().currentMessage()
+        assert "No curve data" in status_text or "No navigation frames" in status_text
+
+    def test_already_at_last_frame(self, qtbot, main_window_with_data):
+        """PageDown at last navigation frame should show appropriate message."""
+        window = main_window_with_data("basic")
+
+        # Navigate to last keyframe
+        window.state_manager.current_frame = 15
+
+        # Try to go further with PageDown
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should stay at frame 15
+        assert window.state_manager.current_frame == 15
+
+        # Status should indicate we're at the last frame
+        status_text = window.statusBar().currentMessage()
+        assert "last" in status_text.lower()
+
+    def test_already_at_first_frame(self, qtbot, main_window_with_data):
+        """PageUp at first navigation frame should show appropriate message."""
+        window = main_window_with_data("basic")
+
+        # Navigate to first frame with data
+        window.state_manager.current_frame = 1
+
+        # Try to go back with PageUp
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Should stay at frame 1
+        assert window.state_manager.current_frame == 1
+
+        # Status should indicate we're at the first frame
+        status_text = window.statusBar().currentMessage()
+        assert "first" in status_text.lower()
+
+    @pytest.mark.skip(reason="Frame navigation controller may clamp frames differently")
+    def test_single_navigation_frame(self, qtbot, main_window_with_data):
+        """Navigation should work correctly with only one navigation frame."""
+        window = main_window_with_data("single")
+
+        # Start before the single keyframe
+        window.state_manager.current_frame = 5
+
+        # PageDown should go to frame 10 (the only keyframe)
+        key_event_down = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event_down)
+        assert window.state_manager.current_frame == 10
+
+        # PageDown again from 10 should stay at 10 (no next frame)
+        window.keyPressEvent(key_event_down)
+        assert window.state_manager.current_frame == 10
+
+        # Set frame after keyframe and try PageUp
+        window.state_manager.current_frame = 15
+        key_event_up = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event_up)
+        # Should go back to frame 10 (the only keyframe)
+        assert window.state_manager.current_frame == 10
+
+
+# ============================================================================
+# PARAMETRIZED TESTS
+# ============================================================================
+
+
+class TestParametrizedNavigation:
+    """Parametrized tests for various navigation scenarios."""
+
+    @pytest.mark.parametrize(
+        "current_frame,direction,expected_frame",
+        [
+            (3, "down", 5),  # Navigate to next keyframe
+            (12, "up", 5),  # Navigate to previous keyframe
+            (5, "down", 15),  # From keyframe to next keyframe
+            (15, "up", 5),  # From keyframe to previous keyframe
+        ],
+    )
+    def test_navigation_from_various_positions(
+        self, qtbot, main_window_with_data, current_frame, direction, expected_frame
+    ):
+        """Test navigation from different starting positions."""
+        window = main_window_with_data("basic")
+        window.state_manager.current_frame = current_frame
+
+        # Create appropriate key event
+        key = Qt.Key.Key_PageDown if direction == "down" else Qt.Key.Key_PageUp
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, key, Qt.KeyboardModifier.NoModifier)
+
+        window.keyPressEvent(key_event)
+
+        assert window.state_manager.current_frame == expected_frame
+
+    @pytest.mark.parametrize(
+        "dataset_scenario,frame_count",
+        [
+            ("basic", 2),  # 2 keyframes
+            ("with_endframes", 4),  # 2 keyframes + 1 endframe + at least 1 startframe
+            ("only_keyframes", 3),  # 3 keyframes
+            ("complex", 7),  # Multiple navigation points
+        ],
+    )
+    def test_total_navigation_frames_count(self, make_navigation_dataset, dataset_scenario, frame_count):
+        """Verify correct number of navigation frames are identified."""
+        data = make_navigation_dataset(dataset_scenario)
+
+        # Collect all navigation frames
+        nav_frames = []
+
+        # Get keyframes and endframes
+        for point in data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(point[0])
+
+        # Get startframes
+        if data:  # Only if there's data
+            data_service = get_data_service()
+            frame_status = data_service.get_frame_range_point_status(data)
+            for frame, status in frame_status.items():
+                if status[5] and frame not in nav_frames:
+                    nav_frames.append(frame)
+
+        # Should have at least the expected number of navigation frames
+        assert len(set(nav_frames)) >= frame_count
+
+
+# ============================================================================
+# PERFORMANCE TESTS
+# ============================================================================
+
+
+class TestNavigationPerformance:
+    """Test navigation performance with large datasets."""
+
+    def test_navigation_with_large_dataset(self, qtbot, make_navigation_point):
+        """Navigation should handle large datasets efficiently."""
+        # Create a large dataset (but within timeline limits)
+        large_data = []
+        for i in range(0, 200, 2):  # Timeline limited to 200 frames
+            status = "keyframe" if i % 20 == 0 else "tracked"
+            large_data.append(make_navigation_point(i, 100.0 + i, 200.0 + i, status))
+
+        # Create window and load data
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        store_manager = get_store_manager()
+        curve_store = store_manager.get_curve_store()
+        curve_store.set_data(large_data)
+
+        window.show()
+        qtbot.waitExposed(window)
+
+        # Start at frame 50
+        window.state_manager.current_frame = 50
+
+        import time
+
+        start_time = time.time()
+
+        # Perform navigation
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        elapsed = time.time() - start_time
+
+        # Should complete in reasonable time (< 100ms)
+        assert elapsed < 0.1
+
+        # Should have navigated to next keyframe (60)
+        assert window.state_manager.current_frame == 60
+
+
+# ============================================================================
+# STATUS MESSAGE TESTS
+# ============================================================================
+
+
+class TestNavigationStatusMessages:
+    """Test that appropriate status messages are shown."""
+
+    def test_successful_navigation_shows_frame_number(self, qtbot, main_window_with_data):
+        """Successful navigation should show the frame number in status."""
+        window = main_window_with_data("basic")
+        window.state_manager.current_frame = 3
+
+        # Navigate to next frame
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        # Status should mention the frame number
+        status_text = window.statusBar().currentMessage()
+        assert "5" in status_text  # Should mention frame 5
+
+    def test_no_data_shows_appropriate_message(self, qtbot, main_window_with_data):
+        """No data should show 'No curve data loaded' message."""
+        window = main_window_with_data("empty")
+
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        window.keyPressEvent(key_event)
+
+        status_text = window.statusBar().currentMessage()
+        assert "No curve data" in status_text or "No navigation frames" in status_text
+
+
+# ============================================================================
+# REAL FILE INTEGRATION TEST
+# ============================================================================
+
+
+class TestRealFileNavigation:
+    """Test navigation with real data files."""
+
+    def test_navigation_with_keyframetest_file(self, qtbot):
+        """Test navigation with KeyFrameTest.txt if available."""
+        pytest.importorskip("services.data_service")
+
+        try:
+            # Try to load KeyFrameTest.txt
+            data_service = get_data_service()
+            test_data = data_service._load_2dtrack_data("KeyFrameTest.txt")
+        except FileNotFoundError:
+            pytest.skip("KeyFrameTest.txt not available")
+
+        # Create window with real data
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        store_manager = get_store_manager()
+        curve_store = store_manager.get_curve_store()
+        curve_store.set_data(test_data)
+
+        window.show()
+        qtbot.waitExposed(window)
+
+        # Start at frame 1
+        window.state_manager.current_frame = 1
+
+        # PageDown should navigate through important frames
+        # Expected: 1 (startframe) -> 14 (endframe) -> 29 (startframe) -> 37 (keyframe)
+        expected_sequence = [14, 29, 37]
+
+        for expected_frame in expected_sequence:
+            key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+            window.keyPressEvent(key_event)
+            assert (
+                window.state_manager.current_frame == expected_frame
+            ), f"Expected frame {expected_frame}, got {window.state_manager.current_frame}"

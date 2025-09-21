@@ -962,6 +962,7 @@ class CurveViewWidget(QWidget):
             C: Center view on selected points
             F: Fit background image to view
             Numpad 2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
+            PageUp/PageDown: Navigate to previous/next navigation frame (keyframes, endframes, startframes) (handled by MainWindow)
 
         Args:
             event: Key event

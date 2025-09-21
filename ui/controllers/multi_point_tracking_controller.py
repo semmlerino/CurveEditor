@@ -65,11 +65,30 @@ class MultiPointTrackingController:
             for i in range(min(3, len(data))):
                 logger.debug(f"[DATA] Point {i}: {data[i]}")
 
+            # Add as a new tracking point to multi-point data
+            if self.tracked_data:
+                # We have existing data - add this as a new point
+                base_name = "Track"
+                point_name = self._get_unique_point_name(base_name)
+                self.tracked_data[point_name] = data  # pyright: ignore[reportArgumentType]
+                self.active_points = [point_name]  # Select the newly loaded point
+                logger.info(f"Added single trajectory as '{point_name}' to existing {len(self.tracked_data)-1} points")
+
+                # Update the tracking panel to show the new point
+                self.update_tracking_panel()
+            else:
+                # No existing data - create initial tracked_data with this trajectory
+                self.tracked_data = {"Track1": data}  # pyright: ignore[reportAttributeAccessIssue]
+                self.active_points = ["Track1"]
+                logger.info("Loaded single trajectory as 'Track1'")
+
+                # Update the tracking panel
+                self.update_tracking_panel()
+
             # Set up view for pixel-coordinate tracking data BEFORE setting data
             self.main_window.curve_widget.setup_for_pixel_tracking()
             self.main_window.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
             self.main_window.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
-            logger.info(f"Loaded {len(data)} tracking points from background thread")
 
             # Update frame range based on data
             self._update_frame_range_from_data(data)
@@ -90,16 +109,38 @@ class MultiPointTrackingController:
         )
 
         if multi_data:
-            # Store the multi-point tracking data
-            self.tracked_data = multi_data
-            self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+            # Merge with existing data instead of replacing
+            if self.tracked_data:
+                # We have existing data - merge the new points
+                logger.info(f"Merging {len(multi_data)} new points with {len(self.tracked_data)} existing points")
 
-            logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
+                # Track newly added points for selection
+                new_point_names = []
+
+                for point_name, trajectory in multi_data.items():
+                    # Check for naming conflicts and resolve them
+                    unique_name = self._get_unique_point_name(point_name)
+                    self.tracked_data[unique_name] = trajectory
+                    new_point_names.append(unique_name)
+
+                    if unique_name != point_name:
+                        logger.info(f"Renamed duplicate point '{point_name}' to '{unique_name}'")
+
+                # If no points were selected, select the first new point
+                if not self.active_points and new_point_names:
+                    self.active_points = [new_point_names[0]]
+
+                logger.info(f"Total points after merge: {len(self.tracked_data)}")
+            else:
+                # No existing data - use the new data directly
+                self.tracked_data = multi_data
+                self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+                logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
 
             # Update the tracking panel with the multi-point data
             self.update_tracking_panel()
 
-            # Display the first point's trajectory
+            # Display the active trajectory (could be existing or newly loaded)
             if self.active_points and self.main_window.curve_widget:
                 first_point = self.active_points[0]
                 if first_point in self.tracked_data:
@@ -111,6 +152,26 @@ class MultiPointTrackingController:
 
                     # Update frame range based on all trajectories
                     self._update_frame_range_from_multi_data()
+
+    def _get_unique_point_name(self, base_name: str) -> str:
+        """
+        Generate a unique point name by appending a suffix if needed.
+
+        Args:
+            base_name: The desired point name
+
+        Returns:
+            A unique point name that doesn't conflict with existing names
+        """
+        if base_name not in self.tracked_data:
+            return base_name
+
+        # Find a unique suffix
+        suffix = 2
+        while f"{base_name}_{suffix}" in self.tracked_data:
+            suffix += 1
+
+        return f"{base_name}_{suffix}"
 
     def on_tracking_points_selected(self, point_names: list[str]) -> None:
         """

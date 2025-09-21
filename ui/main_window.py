@@ -52,6 +52,7 @@ from PySide6.QtWidgets import (
 # Configure logger for this module
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
+from services import get_data_service
 from stores import get_store_manager
 from stores.curve_data_store import CurveDataStore
 
@@ -932,13 +933,121 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Apply smoothing operation (delegated to ActionHandlerController)."""
         self.action_controller.apply_smooth_operation()
 
+    def _navigate_to_prev_keyframe(self) -> None:
+        """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
+        current_frame = self.state_manager.current_frame
+        curve_data = self._curve_store.get_data()
+
+        if not curve_data:
+            self.statusBar().showMessage("No curve data loaded", 3000)
+            return
+
+        # Find all keyframes and endframes from point data
+        nav_frames: list[int] = []
+        for point in curve_data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(int(point[0]))
+
+        # Get startframes from DataService analysis
+        try:
+            data_service = get_data_service()
+            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            for frame, status in frame_status.items():
+                if status[5]:  # is_startframe flag at index 5
+                    if frame not in nav_frames:
+                        nav_frames.append(frame)
+        except Exception as e:
+            logger.warning(f"Could not identify startframes: {e}")
+
+        if not nav_frames:
+            self.statusBar().showMessage("No navigation frames found", 3000)
+            return
+
+        # Sort frames and find the previous one
+        nav_frames.sort()
+        prev_frame = None
+
+        for frame in reversed(nav_frames):
+            if frame < current_frame:
+                prev_frame = frame
+                break
+
+        if prev_frame is not None:
+            self.frame_nav_controller.set_frame(prev_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.statusBar().showMessage(f"Navigated to previous frame: {prev_frame}", 2000)
+        else:
+            self.statusBar().showMessage("Already at first navigation frame", 2000)
+
+    def _navigate_to_next_keyframe(self) -> None:
+        """Navigate to the next keyframe, endframe, or startframe relative to current frame."""
+        current_frame = self.state_manager.current_frame
+        curve_data = self._curve_store.get_data()
+
+        if not curve_data:
+            self.statusBar().showMessage("No curve data loaded", 3000)
+            return
+
+        # Find all keyframes and endframes from point data
+        nav_frames: list[int] = []
+        for point in curve_data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(int(point[0]))
+
+        # Get startframes from DataService analysis
+        try:
+            data_service = get_data_service()
+            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            for frame, status in frame_status.items():
+                if status[5]:  # is_startframe flag at index 5
+                    if frame not in nav_frames:
+                        nav_frames.append(frame)
+        except Exception as e:
+            logger.warning(f"Could not identify startframes: {e}")
+
+        if not nav_frames:
+            self.statusBar().showMessage("No navigation frames found", 3000)
+            return
+
+        # Sort frames and find the next one
+        nav_frames.sort()
+        next_frame = None
+
+        for frame in nav_frames:
+            if frame > current_frame:
+                next_frame = frame
+                break
+
+        if next_frame is not None:
+            self.frame_nav_controller.set_frame(next_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.statusBar().showMessage(f"Navigated to next frame: {next_frame}", 2000)
+        else:
+            self.statusBar().showMessage("Already at last navigation frame", 2000)
+
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle key press events for custom shortcuts."""
+        """Handle key press events for custom shortcuts.
+
+        Keyboard shortcuts:
+            Tab: Toggle tracking panel dock visibility
+            PageUp: Navigate to previous navigation frame (keyframes, endframes, startframes)
+            PageDown: Navigate to next navigation frame (keyframes, endframes, startframes)
+        """
         # Tab key toggles tracking panel dock visibility
         if event.key() == Qt.Key.Key_Tab:
             if self.tracking_panel_dock:
                 self.tracking_panel_dock.setVisible(not self.tracking_panel_dock.isVisible())
+            event.accept()
+            return
+
+        # PageUp: Navigate to previous keyframe
+        elif event.key() == Qt.Key.Key_PageUp:
+            self._navigate_to_prev_keyframe()
+            event.accept()
+            return
+
+        # PageDown: Navigate to next keyframe
+        elif event.key() == Qt.Key.Key_PageDown:
+            self._navigate_to_next_keyframe()
             event.accept()
             return
 

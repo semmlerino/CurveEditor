@@ -74,27 +74,10 @@ class ActionHandlerController:
             # Check if it's multi-point data
             if isinstance(data, dict):
                 # Successfully loaded multi-point data - delegate to tracking controller
-                self.main_window.tracking_controller.on_multi_point_data_loaded(data)
+                self.main_window.tracking_controller.on_multi_point_data_loaded(data)  # pyright: ignore[reportArgumentType]
             else:
-                # Single curve data
-                # Update curve widget with new data
-                if self.main_window.curve_widget:
-                    self.main_window.curve_widget.set_curve_data(data)
-                    self.main_window.update_tracking_panel()
-
-                # Update state manager
-                self.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
-
-                # Update frame range based on loaded data
-                max_frame = max(point[0] for point in data)
-                if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)
-                if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)
-                if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))
-                # CRITICAL: Update state manager's total frames!
-                self.state_manager.total_frames = max_frame
+                # Single curve data - also delegate to tracking controller for proper merging
+                self.main_window.tracking_controller.on_tracking_data_loaded(data)  # pyright: ignore[reportArgumentType]
 
                 # Update timeline tabs with frame range and point data
                 self.main_window.update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
