@@ -103,6 +103,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     play_toggled: Signal = Signal(bool)
     frame_rate_changed: Signal = Signal(int)
 
+    # Attributes initialized in __init__ - declare for type safety
+    _file_loading: bool = False  # Track file loading state
+    auto_center_enabled: bool = True  # Auto-centering state
+
     # Widget type annotations - initialized by UIInitializationController
     frame_spinbox: QSpinBox | None = None
     total_frames_label: QLabel | None = None
@@ -616,7 +620,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             if self.point_count_label:
                 self.point_count_label.setText(f"Points: {point_count}")
 
-            if point_count > 0:
+            if isinstance(point_count, int | float) and point_count > 0:
                 bounds = analysis["bounds"]
                 if isinstance(bounds, dict):
                     min_x = bounds.get("min_x", 0)
@@ -673,6 +677,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     self.curve_widget.setFocus()
                     _ = QApplication.sendEvent(self.curve_widget, event)
                     return True  # Consume original event to prevent double handling
+
+            # Handle Page Up/Down globally for keyframe navigation
+            elif key == Qt.Key.Key_PageUp:
+                logger.debug("[EVENT_FILTER] Page Up pressed, navigating to previous keyframe")
+                self._navigate_to_prev_keyframe()
+                return True  # Consume event
+            elif key == Qt.Key.Key_PageDown:
+                logger.debug("[EVENT_FILTER] Page Down pressed, navigating to next keyframe")
+                self._navigate_to_next_keyframe()
+                return True  # Consume event
 
         return super().eventFilter(watched, event)  # Proper delegation to parent
 
@@ -823,7 +837,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             )
 
         # Verify all connections exist
-        all_connected, reports = verifier.verify_all()
+        all_connected, _ = verifier.verify_all()
 
         if not all_connected:
             import os
@@ -889,12 +903,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot(float)
     def on_point_x_changed(self, value: float) -> None:
         """Handle X coordinate change in properties panel (delegated to PointEditorController)."""
-        self.point_editor_controller._on_point_x_changed(value)
+        self.point_editor_controller.on_point_x_changed(value)
 
     @Slot(float)
     def on_point_y_changed(self, value: float) -> None:
         """Handle Y coordinate change in properties panel (delegated to PointEditorController)."""
-        self.point_editor_controller._on_point_y_changed(value)
+        self.point_editor_controller.on_point_y_changed(value)
 
     # ==================== Public Methods for External Use ====================
 

@@ -728,7 +728,9 @@ class TestPointCollection:
 
     def test_from_tuples(self):
         """Test creation from legacy tuple list."""
-        tuples = [
+        from core.models import LegacyPointTuple
+
+        tuples: list[LegacyPointTuple] = [
             (100, 1920.0, 1080.0),
             (101, 1921.0, 1081.0, "interpolated"),
             (102, 1922.0, 1082.0, True),  # Boolean status
@@ -846,7 +848,9 @@ class TestUtilityFunctions:
 
     def test_convert_to_curve_collection(self):
         """Test converting tuple list to PointCollection."""
-        tuples = [
+        from core.models import PointsList
+
+        tuples: PointsList = [
             (100, 1920.0, 1080.0),
             (101, 1921.0, 1081.0, "keyframe"),
         ]
@@ -880,7 +884,9 @@ class TestBulkOperations:
 
     def test_bulk_convert_from_tuples(self):
         """Test bulk conversion from tuples to CurvePoints."""
-        tuples = [
+        from core.models import PointsList
+
+        tuples: PointsList = [
             (100, 1920.0, 1080.0),
             (101, 1921.0, 1081.0, "interpolated"),
             (102, 1922.0, 1082.0, True),  # Boolean status
@@ -1213,7 +1219,7 @@ class TestImageState:
         """Test clearing display with no sequence clears everything."""
         state = ImageState()
         pixmap = ThreadSafeTestImage(100, 100)
-        state.set_image_loaded(cast(QPixmap, pixmap), "/test/image.jpg")
+        state.set_image_loaded(cast(QPixmap, cast(object, pixmap)), "/test/image.jpg")
 
         state.clear_display()
 

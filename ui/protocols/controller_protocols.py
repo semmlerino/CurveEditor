@@ -118,6 +118,14 @@ class ActionHandlerProtocol(Protocol):
         """Update the zoom level label."""
         ...
 
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation to curve."""
+        ...
+
+    def _get_current_curve_data(self) -> object:
+        """Get current curve data."""
+        ...
+
 
 @runtime_checkable
 class ViewOptionsProtocol(Protocol):

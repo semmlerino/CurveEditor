@@ -554,10 +554,8 @@ class TimelineTabWidget(QWidget):
         # Use parent width if available, otherwise use a default
         try:
             parent = self.parent()
-            if parent:
-                available_width = (
-                    parent.width() - 100
-                )  # Subtract space for nav buttons and margins  # pyright: ignore[reportAttributeAccessIssue]
+            if parent and isinstance(parent, QWidget):
+                available_width = parent.width() - 100  # Subtract space for nav buttons and margins
             else:
                 available_width = 1300  # Default for 1400px window
         except RuntimeError:
@@ -798,14 +796,8 @@ class TimelineTabWidget(QWidget):
         elif event.key() == Qt.Key.Key_End:
             self.set_current_frame(self.max_frame)
             event.accept()
-        elif event.key() == Qt.Key.Key_PageUp:
-            self.set_current_frame(self.current_frame - 10)
-            event.accept()
-        elif event.key() == Qt.Key.Key_PageDown:
-            self.set_current_frame(self.current_frame + 10)
-            event.accept()
         else:
-            super().keyPressEvent(event)
+            event.ignore()
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Start scrubbing when mouse is pressed."""

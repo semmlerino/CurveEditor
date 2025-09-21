@@ -181,7 +181,28 @@ class TimelineController:
                     has_selected=has_selected,
                 )
 
-            logger.debug(f"Updated timeline tabs with {len(frame_status)} frames of point data")
+            # Explicitly mark frames without points to show "no_points" color
+            # This ensures gaps in the curve are visually represented in the timeline
+            all_frames = set(range(min_frame, max_frame + 1))
+            frames_with_points = set(frame_status.keys())
+            empty_frames = all_frames - frames_with_points
+
+            for frame in empty_frames:
+                self.main_window.timeline_tabs.update_frame_status(
+                    frame,
+                    keyframe_count=0,
+                    interpolated_count=0,
+                    tracked_count=0,
+                    endframe_count=0,
+                    normal_count=0,
+                    is_startframe=False,
+                    is_inactive=False,
+                    has_selected=False,
+                )
+
+            logger.debug(
+                f"Updated timeline tabs: {len(frame_status)} frames with data, " f"{len(empty_frames)} empty frames"
+            )
 
         except Exception as e:
             logger.warning(f"Could not update timeline tabs with point data: {e}")

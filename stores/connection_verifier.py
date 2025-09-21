@@ -135,6 +135,12 @@ class ConnectionVerifier:
                 getattr(component, target_name.lower(), None) if hasattr(component, target_name.lower()) else component
             )
 
+            # Ensure objects are QObjects or None
+            if source_obj is not None and not isinstance(source_obj, QObject):
+                source_obj = None
+            if target_obj is not None and not isinstance(target_obj, QObject):
+                target_obj = None
+
             self.add_required_connection(
                 source_name=source_name,
                 source_obj=source_obj,

@@ -255,25 +255,41 @@ COLORS_HIGH_CONTRAST = {
     "accent_info": "#00ffff",  # Info actions (cyan)
 }
 
+
 # ============================================================================
-# CURVE VISUALIZATION COLORS
+# COLOR HELPER FUNCTIONS
 # ============================================================================
 
-CURVE_COLORS = {
-    "point_normal": "#ffffff",  # Normal point - white
-    "point_keyframe": "#00ff66",  # Keyframe - bright green
-    "point_tracked": "#00bfff",  # Tracked - bright cyan
-    "point_interpolated": "#ff9500",  # Interpolated - orange
-    "point_endframe": "#ff4444",  # Endframe - red
-    "point_selected": "#ffff00",  # Selected - yellow
-    "point_hover": "#00ccff",  # Hover state
-    "curve_line": "#0066cc",  # Curve line color
-    "tangent_line": "#666666",  # Tangent handles
-    "grid_minor": (200, 208, 220, 60),  # Minor grid RGBA
-    "grid_major": (180, 188, 200, 120),  # Major grid RGBA
-    "axis_x": "#ff0000",  # X axis
-    "axis_y": "#00ff00",  # Y axis
-}
+
+def hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    """Convert hex color to RGB tuple.
+
+    Args:
+        hex_color: Hex color string (with or without #)
+
+    Returns:
+        RGB tuple (r, g, b) with values 0-255
+    """
+    hex_color = hex_color.lstrip("#")
+    r = int(hex_color[0:2], 16)
+    g = int(hex_color[2:4], 16)
+    b = int(hex_color[4:6], 16)
+    return (r, g, b)
+
+
+def darken_color(hex_color: str, factor: float = 0.6) -> tuple[int, int, int]:
+    """Darken a hex color by factor and return RGB tuple.
+
+    Args:
+        hex_color: Hex color string
+        factor: Darkening factor (0=black, 1=original)
+
+    Returns:
+        Darkened RGB tuple
+    """
+    r, g, b = hex_to_rgb(hex_color)
+    return (int(r * factor), int(g * factor), int(b * factor))
+
 
 # ============================================================================
 # STATUS COLOR SYSTEM - Single Source of Truth
@@ -289,13 +305,14 @@ STATUS_COLORS = {
 }
 
 # Timeline-specific colors (RGB tuples for QColor)
+# Dynamically generated from STATUS_COLORS for consistency
 STATUS_COLORS_TIMELINE = {
     "no_points": (52, 58, 64),  # Dark gray - no points at frame
-    "keyframe": (20, 80, 30),  # Green tint - has keyframe points
-    "tracked": (20, 60, 90),  # Blue tint - has tracked points
-    "interpolated": (80, 50, 20),  # Orange tint - only interpolated
-    "endframe": (90, 25, 25),  # Red tint - segment end
-    "startframe": (30, 100, 40),  # Bright green - segment start
+    "keyframe": darken_color(STATUS_COLORS["keyframe"], 0.6),  # Darkened green
+    "tracked": darken_color(STATUS_COLORS["tracked"], 0.6),  # Darkened cyan
+    "interpolated": darken_color(STATUS_COLORS["interpolated"], 0.6),  # Darkened orange
+    "endframe": darken_color(STATUS_COLORS["endframe"], 0.6),  # Darkened red
+    "startframe": darken_color(STATUS_COLORS["keyframe"], 0.7),  # Slightly brighter green
     "inactive": (30, 30, 30),  # Dark gray - inactive segments
     "mixed": (70, 70, 30),  # Yellow tint - multiple statuses
     "selected": (73, 80, 87),  # Selected state
@@ -306,6 +323,27 @@ SPECIAL_COLORS = {
     "selected_point": "#ffff00",  # Yellow - selected points
     "current_frame": "#ff00ff",  # Magenta - current frame indicator
     "hover": "#00ccff",  # Light cyan - hover state
+}
+
+# ============================================================================
+# CURVE VISUALIZATION COLORS
+# ============================================================================
+
+# Now defined after STATUS_COLORS to reference them directly (DRY principle)
+CURVE_COLORS = {
+    "point_normal": STATUS_COLORS["normal"],  # Normal point - white
+    "point_keyframe": STATUS_COLORS["keyframe"],  # Keyframe - bright green
+    "point_tracked": STATUS_COLORS["tracked"],  # Tracked - bright cyan
+    "point_interpolated": STATUS_COLORS["interpolated"],  # Interpolated - orange
+    "point_endframe": STATUS_COLORS["endframe"],  # Endframe - red
+    "point_selected": SPECIAL_COLORS["selected_point"],  # Selected - yellow
+    "point_hover": SPECIAL_COLORS["hover"],  # Hover state
+    "curve_line": "#0066cc",  # Curve line color
+    "tangent_line": "#666666",  # Tangent handles
+    "grid_minor": (200, 208, 220, 60),  # Minor grid RGBA
+    "grid_major": (180, 188, 200, 120),  # Major grid RGBA
+    "axis_x": "#ff0000",  # X axis
+    "axis_y": "#00ff00",  # Y axis
 }
 
 

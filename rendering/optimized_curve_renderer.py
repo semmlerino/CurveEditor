@@ -10,9 +10,10 @@ This renderer addresses the critical performance issues identified in the analys
 
 import time
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Protocol
 
 import numpy as np
+from numpy.typing import NDArray
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
@@ -29,8 +30,8 @@ else:
     StateManager = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-type FloatArray = np.ndarray[Any, np.dtype[np.float64]]  # pyright: ignore[reportExplicitAny,reportPrivateImportUsage]
-type IntArray = np.ndarray[Any, np.dtype[np.int32]]  # pyright: ignore[reportExplicitAny,reportPrivateImportUsage]
+type FloatArray = NDArray[np.float64]
+type IntArray = NDArray[np.int32]
 
 logger = get_logger("optimized_curve_renderer")
 

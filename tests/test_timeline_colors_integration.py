@@ -96,11 +96,12 @@ class TestTimelineColorsIntegration:
 
         # Verify specific color assignments match FrameTab expected colors
         # The colors should be from the right category even if exact values vary slightly
-        # (May vary due to hover effects or gradients)
+        # (May vary due to hover effects or gradients - up to 10% lighter)
         keyframe_expected = tab1.COLORS["keyframe"]
-        assert abs(colors["keyframe"].red() - keyframe_expected.red()) <= 20
-        assert abs(colors["keyframe"].green() - keyframe_expected.green()) <= 20
-        assert abs(colors["keyframe"].blue() - keyframe_expected.blue()) <= 20
+        # Increased tolerance to 30 to account for gradient effect (lighter(110) = 10% brighter)
+        assert abs(colors["keyframe"].red() - keyframe_expected.red()) <= 30
+        assert abs(colors["keyframe"].green() - keyframe_expected.green()) <= 30
+        assert abs(colors["keyframe"].blue() - keyframe_expected.blue()) <= 30
 
     def test_timeline_updates_on_status_change(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors update when point status changes."""

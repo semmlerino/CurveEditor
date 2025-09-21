@@ -82,6 +82,7 @@ class TestConnectionVerifier:
         assert all_connected is False
         assert len(reports) == 1
         assert reports[0].status == ConnectionStatus.MISSING_SOURCE
+        assert reports[0].error_message is not None
         assert "Source object 'MockSource' is None" in reports[0].error_message
 
     def test_verify_missing_target(self):
@@ -98,6 +99,7 @@ class TestConnectionVerifier:
         assert all_connected is False
         assert len(reports) == 1
         assert reports[0].status == ConnectionStatus.MISSING_TARGET
+        assert reports[0].error_message is not None
         assert "Target object 'MockTarget' is None" in reports[0].error_message
 
     def test_verify_missing_signal(self):
@@ -121,6 +123,7 @@ class TestConnectionVerifier:
         assert all_connected is False
         assert len(reports) == 1
         assert reports[0].status == ConnectionStatus.ERROR
+        assert reports[0].error_message is not None
         assert "has no signal 'nonexistent_signal'" in reports[0].error_message
 
     def test_verify_missing_slot(self):
@@ -144,6 +147,7 @@ class TestConnectionVerifier:
         assert all_connected is False
         assert len(reports) == 1
         assert reports[0].status == ConnectionStatus.ERROR
+        assert reports[0].error_message is not None
         assert "has no slot 'nonexistent_slot'" in reports[0].error_message
 
     def test_non_critical_failure(self):
