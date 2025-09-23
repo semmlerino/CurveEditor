@@ -137,7 +137,7 @@ class TestPointDataManagement:
         curve_view_widget._select_point(1)
         assert 1 in curve_view_widget.selected_indices
 
-        curve_view_widget._clear_selection()
+        curve_view_widget.clear_selection()
         assert len(curve_view_widget.selected_indices) == 0
 
         curve_view_widget.select_all()
@@ -295,7 +295,7 @@ class TestInteractionHandling:
         curve_view_widget._curve_store.select(2, add_to_selection=True)
         original_length = len(curve_view_widget.curve_data)
 
-        curve_view_widget._delete_selected_points()
+        curve_view_widget.delete_selected_points()
 
         # Should have removed 2 points
         assert len(curve_view_widget.curve_data) == original_length - 2
@@ -312,7 +312,7 @@ class TestInteractionHandling:
         original_y = curve_view_widget.curve_data[0][2]
 
         # Nudge point
-        curve_view_widget._nudge_selected(10.0, 5.0)
+        curve_view_widget.nudge_selected(10.0, 5.0)
 
         # Check that point moved
         new_x = curve_view_widget.curve_data[0][1]
@@ -375,8 +375,8 @@ class TestErrorHandling:
         curve_view_widget._select_point(99)  # Should not crash
 
         # Clear selection when already empty
-        curve_view_widget._clear_selection()
-        curve_view_widget._clear_selection()  # Should not crash
+        curve_view_widget.clear_selection()
+        curve_view_widget.clear_selection()  # Should not crash
 
 
 class TestRealComponentBenefits:

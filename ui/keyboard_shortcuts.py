@@ -9,11 +9,11 @@ application, creating and managing all QActions with their shortcuts.
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
-    pass
+    from ui.curve_view_widget import CurveViewWidget
 
 from core.logger_utils import get_logger
 
@@ -51,6 +51,7 @@ class ShortcutManager(QObject):
     action_zoom_out: QAction
     action_zoom_fit: QAction
     action_reset_view: QAction
+    action_toggle_grid: QAction
 
     # Curve actions
     action_smooth_curve: QAction
@@ -151,6 +152,10 @@ class ShortcutManager(QObject):
         self.action_reset_view.setShortcut("Ctrl+R")
         self.action_reset_view.setStatusTip("Reset the view to default")
 
+        self.action_toggle_grid = QAction("Toggle &Grid", self.parent_widget)
+        self.action_toggle_grid.setShortcut("Ctrl+Shift+G")
+        self.action_toggle_grid.setStatusTip("Show/hide the grid overlay")
+
     def _create_curve_actions(self) -> None:
         """Create curve manipulation QActions."""
         self.action_smooth_curve = QAction("S&mooth Curve", self.parent_widget)
@@ -243,6 +248,7 @@ class ShortcutManager(QObject):
             self.action_zoom_fit,
             None,  # Separator
             self.action_reset_view,
+            self.action_toggle_grid,
         ]
 
     def get_curve_actions(self) -> list[QAction | None]:
@@ -298,6 +304,7 @@ class ShortcutManager(QObject):
             "zoom_out": self.action_zoom_out,
             "zoom_fit": self.action_zoom_fit,
             "reset_view": self.action_reset_view,
+            "toggle_grid": self.action_toggle_grid,
             "smooth_curve": self.action_smooth_curve,
             "filter_curve": self.action_filter_curve,
             "analyze_curve": self.action_analyze_curve,
@@ -335,6 +342,7 @@ class ShortcutManager(QObject):
         _ = self.action_zoom_out.triggered.connect(main_window._on_action_zoom_out)
         _ = self.action_zoom_fit.triggered.connect(main_window._on_zoom_fit)
         _ = self.action_reset_view.triggered.connect(main_window._on_action_reset_view)
+        _ = self.action_toggle_grid.triggered.connect(main_window._on_toggle_grid)
 
         # Curve actions
         _ = self.action_smooth_curve.triggered.connect(main_window._on_smooth_curve)
@@ -351,3 +359,168 @@ class ShortcutManager(QObject):
         _ = self.action_oscillate_playback.triggered.connect(main_window.playback_controller.toggle_playback)
 
         logger.info("Connected all shortcuts to MainWindow")
+
+
+class CurveViewKeyboardHandler:
+    """
+    Handles direct keyboard events for the CurveViewWidget.
+
+    This class processes keypress events that are handled directly in the widget,
+    separate from the QAction-based shortcuts managed by ShortcutManager.
+    """
+
+    def __init__(self, curve_widget: "CurveViewWidget") -> None:
+        """
+        Initialize the keyboard handler.
+
+        Args:
+            curve_widget: The CurveViewWidget instance to handle events for
+        """
+        self.curve_widget: CurveViewWidget = curve_widget
+        logger.info("CurveViewKeyboardHandler initialized")
+
+    def handle_key_press(self, event: QKeyEvent) -> bool:
+        """
+        Process a key press event.
+
+        Args:
+            event: QKeyEvent to process
+
+        Returns:
+            True if the event was handled, False otherwise
+        """
+        key = event.key()
+        modifiers = event.modifiers()
+
+        # Debug logging
+        logger.info(
+            f"[HANDLER] Key: {key}, Modifiers: {modifiers}, Selected: {len(self.curve_widget.selected_indices)} points"
+        )
+
+        # Clean modifiers by removing KeypadModifier for consistent checks
+        clean_modifiers = modifiers & ~Qt.KeyboardModifier.KeypadModifier
+
+        # Delete selected points
+        if key == Qt.Key.Key_Delete and self.curve_widget.selected_indices:
+            self._delete_selected_points()
+            return True
+
+        # Select all (Ctrl+A)
+        elif key == Qt.Key.Key_A and clean_modifiers & Qt.KeyboardModifier.ControlModifier:
+            self.curve_widget.select_all()
+            return True
+
+        # Deselect all (Escape)
+        elif key == Qt.Key.Key_Escape:
+            self._clear_selection()
+            return True
+
+        # Toggle centering mode (C key)
+        elif key == Qt.Key.Key_C and not clean_modifiers:
+            self._toggle_centering_mode()
+            return True
+
+        # Fit background image to view (F key)
+        elif key == Qt.Key.Key_F and not clean_modifiers:
+            if self.curve_widget.background_image:
+                self.curve_widget.fit_to_background_image()
+                logger.debug("[VIEW] Fitted background image to view")
+                return True
+
+        # Nudge selected points using number keys 2/4/6/8
+        # Works with both numpad and regular number keys
+        # Numpad keys have the same key codes but with KeypadModifier set
+        elif self.curve_widget.selected_indices and key in (Qt.Key.Key_2, Qt.Key.Key_4, Qt.Key.Key_6, Qt.Key.Key_8):
+            logger.info(
+                f"[NUDGE] Handling nudge for key {key} with {len(self.curve_widget.selected_indices)} selected points"
+            )
+            # Accept both regular number keys and numpad keys (which have KeypadModifier)
+            # Use clean_modifiers for modifier checks (Shift/Ctrl) but accept the key regardless of KeypadModifier
+            return self._handle_nudging(key, clean_modifiers)
+
+        # Arrow keys - pass through to parent for frame navigation
+        elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
+            return False  # Let parent handle
+
+        return False
+
+    def _handle_nudging(self, key: int, modifiers: Qt.KeyboardModifier) -> bool:
+        """
+        Handle point nudging with number keys.
+
+        Args:
+            key: The key pressed (2/4/6/8)
+            modifiers: Keyboard modifiers (cleaned, without KeypadModifier)
+
+        Returns:
+            True if nudging was performed
+        """
+        from ui.ui_constants import DEFAULT_NUDGE_AMOUNT
+
+        # Calculate nudge amount based on modifiers
+        nudge_amount = DEFAULT_NUDGE_AMOUNT
+        if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            nudge_amount = 10.0
+        elif modifiers & Qt.KeyboardModifier.ControlModifier:
+            nudge_amount = 0.1
+
+        logger.info(f"[NUDGE] Nudge amount: {nudge_amount}, Key: {key}")
+
+        # Apply nudging based on key
+        # Both regular number keys and numpad keys use the same key codes
+        if key == Qt.Key.Key_4:  # Left
+            logger.info(f"[NUDGE] Moving left by {-nudge_amount}")
+            self._nudge_selected(-nudge_amount, 0)
+        elif key == Qt.Key.Key_6:  # Right
+            logger.info(f"[NUDGE] Moving right by {nudge_amount}")
+            self._nudge_selected(nudge_amount, 0)
+        elif key == Qt.Key.Key_8:  # Up
+            logger.info(f"[NUDGE] Moving up by {-nudge_amount}")
+            self._nudge_selected(0, -nudge_amount)
+        elif key == Qt.Key.Key_2:  # Down
+            logger.info(f"[NUDGE] Moving down by {nudge_amount}")
+            self._nudge_selected(0, nudge_amount)
+
+        self.curve_widget.update()
+        logger.info("[NUDGE] Update called on curve widget")
+        return True
+
+    def _nudge_selected(self, dx: float, dy: float) -> None:
+        """
+        Nudge selected points by the given offset.
+
+        Args:
+            dx: X offset in data units
+            dy: Y offset in data units
+        """
+        self.curve_widget.nudge_selected(dx, dy)
+
+    def _delete_selected_points(self) -> None:
+        """Delete all selected points."""
+        self.curve_widget.delete_selected_points()
+
+    def _clear_selection(self) -> None:
+        """Clear the current selection."""
+        self.curve_widget.clear_selection()
+
+    def _toggle_centering_mode(self) -> None:
+        """Toggle centering mode on/off."""
+        self.curve_widget.centering_mode = not self.curve_widget.centering_mode
+        logger.info(f"[KEY_C] Centering mode {'enabled' if self.curve_widget.centering_mode else 'disabled'}")
+
+        # If enabling centering mode, immediately center on selection or current frame
+        if self.curve_widget.centering_mode:
+            if self.curve_widget.selected_indices:
+                logger.info(f"[KEY_C] Centering view on {len(self.curve_widget.selected_indices)} selected points...")
+                self.curve_widget.center_on_selection()
+                logger.info("[KEY_C] View centering completed")
+            else:
+                current_frame = self.curve_widget.get_current_frame()
+                if current_frame is not None:
+                    logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
+                    self.curve_widget.center_on_frame(current_frame)
+                    logger.info("[KEY_C] View centered on current frame")
+
+        # Update status bar to show centering mode state
+        status_msg = "Centering: ON" if self.curve_widget.centering_mode else "Centering: OFF"
+        self.curve_widget.update_status(status_msg, 2000)

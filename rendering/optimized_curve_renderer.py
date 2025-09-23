@@ -831,7 +831,7 @@ class OptimizedCurveRenderer:
             painter.setOpacity(1.0)
 
     def _render_grid_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
-        """Optimized grid rendering with adaptive density."""
+        """Optimized grid rendering with adaptive density, centered on selected points."""
         from ui.ui_constants import COLORS_DARK
 
         grid_color = QColor(COLORS_DARK["grid_lines"])
@@ -848,13 +848,56 @@ class OptimizedCurveRenderer:
         width = curve_view.width()
         height = curve_view.height()
 
+        # Calculate grid center based on selected points
+        center_x = width // 2  # Default to widget center
+        center_y = height // 2
+
+        if curve_view.selected_points:
+            # Calculate center of selected points
+            selected_indices = curve_view.selected_points
+            points = curve_view.points
+
+            sum_x = 0.0
+            sum_y = 0.0
+            count = 0
+
+            for idx in selected_indices:
+                if 0 <= idx < len(points):
+                    point = points[idx]
+                    # Handle different point tuple formats
+                    if len(point) >= 3:
+                        _, data_x, data_y = point[0], point[1], point[2]
+                        sum_x += data_x
+                        sum_y += data_y
+                        count += 1
+
+            if count > 0:
+                # Get average position in data coordinates
+                avg_x = sum_x / count
+                avg_y = sum_y / count
+
+                # Transform to screen coordinates
+                transform = curve_view.get_transform()
+                screen_x, screen_y = transform.data_to_screen(avg_x, avg_y)
+                center_x = int(screen_x)
+                center_y = int(screen_y)
+
+        # Calculate starting positions for grid lines aligned to center
+        # This ensures grid lines pass through the center point
+        start_x = center_x % step
+        start_y = center_y % step
+
         # Vertical lines
-        for x in range(0, width + step, step):
+        x = start_x
+        while x < width:
             painter.drawLine(x, 0, x, height)
+            x += step
 
         # Horizontal lines
-        for y in range(0, height + step, step):
+        y = start_y
+        while y < height:
             painter.drawLine(0, y, width, y)
+            y += step
 
     def _render_info_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Render info overlay with performance metrics."""

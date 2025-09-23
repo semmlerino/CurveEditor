@@ -64,6 +64,9 @@ class MainWindowMock:
     def _on_action_reset_view(self):
         self.action_calls.append("reset_view")
 
+    def _on_toggle_grid(self):
+        self.action_calls.append("toggle_grid")
+
     def _on_smooth_curve(self):
         self.action_calls.append("smooth_curve")
 

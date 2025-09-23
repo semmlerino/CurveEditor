@@ -543,6 +543,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_controller._on_action_reset_view()
 
     @Slot()
+    def _on_toggle_grid(self) -> None:
+        """Toggle the grid visibility."""
+        if self.show_grid_cb:
+            # Toggle the checkbox state, which will trigger the existing handler
+            self.show_grid_cb.setChecked(not self.show_grid_cb.isChecked())
+
+    @Slot()
     def _on_load_images(self) -> None:
         """Handle load background images action (delegated to ActionHandlerController)."""
         self.action_controller._on_load_images()

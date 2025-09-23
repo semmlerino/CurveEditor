@@ -115,7 +115,7 @@ class TestCurveViewWidgetStoreIntegration:
         assert len(store.get_selection()) == 5
 
         # Clear through widget
-        widget._clear_selection()
+        widget.clear_selection()
 
         # Verify cleared in store
         assert store.get_selection() == set()

@@ -172,8 +172,49 @@ class TestKeyboardShortcuts:
         assert final_x == new_x
         assert final_y < new_y  # Y decreases when going up
 
+    def test_regular_number_keys_nudge_selected(self, curve_widget: CurveViewWidget):
+        """Test that regular number keys (non-numpad) also nudge selected points."""
+        # Select a point
+        curve_widget._curve_store.select(0)
+
+        # Get original position
+        _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])
+
+        # Press regular 6 (right) - without KeypadModifier
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify X position changed
+        _, new_x, new_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert new_x > original_x, "Regular key 6 should nudge right"
+        assert new_y == original_y
+
+        # Press regular 8 (up) - without KeypadModifier
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_8, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify Y position changed
+        _, final_x, final_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert final_x == new_x
+        assert final_y < new_y, "Regular key 8 should nudge up"
+
+        # Test with modifiers - regular 4 with Shift (10x left)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_4, Qt.KeyboardModifier.ShiftModifier)
+        curve_widget.keyPressEvent(event)
+
+        _, shifted_x, shifted_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert shifted_x == final_x - 10.0, "Shift+4 should nudge left by 10"
+        assert shifted_y == final_y
+
+        # Test with Ctrl modifier - regular 2 with Ctrl (0.1x down)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_2, Qt.KeyboardModifier.ControlModifier)
+        curve_widget.keyPressEvent(event)
+
+        _, ctrl_x, ctrl_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert ctrl_x == shifted_x
+        assert ctrl_y == pytest.approx(shifted_y + 0.1, rel=1e-5), "Ctrl+2 should nudge down by 0.1"
+
     def test_arrow_keys_pass_through_for_frame_navigation(self, curve_widget: CurveViewWidget):
-        """Test that arrow keys are passed through to parent for frame navigation."""
         # Select a point to confirm they don't get nudged
         curve_widget._curve_store.select(0)
 

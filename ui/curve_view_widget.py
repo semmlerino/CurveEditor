@@ -64,7 +64,6 @@ from ui.ui_constants import (
     DEFAULT_BACKGROUND_OPACITY,
     DEFAULT_IMAGE_HEIGHT,
     DEFAULT_IMAGE_WIDTH,
-    DEFAULT_NUDGE_AMOUNT,
     DEFAULT_ZOOM_FACTOR,
 )
 
@@ -223,6 +222,11 @@ class CurveViewWidget(QWidget):
         # Widget setup
         self._setup_widget()
 
+        # Initialize keyboard handler
+        from ui.keyboard_shortcuts import CurveViewKeyboardHandler
+
+        self.keyboard_handler = CurveViewKeyboardHandler(self)
+
         logger.info("CurveViewWidget initialized with OptimizedCurveRenderer and reactive store")
 
     @property
@@ -353,9 +357,9 @@ class CurveViewWidget(QWidget):
             "• Delete: Remove selected points\n"
             "• Ctrl+A: Select all points\n"
             "• Escape: Clear selection\n"
-            "• Numpad 2/4/6/8: Nudge selected points (down/left/right/up)\n"
-            "• Shift+Numpad: Nudge by 10x amount\n"
-            "• Ctrl+Numpad: Nudge by 0.1x amount"
+            "• 2/4/6/8: Nudge selected points (down/left/right/up)\n"
+            "• Shift+2/4/6/8: Nudge by 10x amount\n"
+            "• Ctrl+2/4/6/8: Nudge by 0.1x amount"
         )
         self.setToolTip(tooltip_text)
 
@@ -723,7 +727,7 @@ class CurveViewWidget(QWidget):
                 else:
                     # Clear selection if not Ctrl-clicking
                     if not (modifiers & Qt.KeyboardModifier.ControlModifier):
-                        self._clear_selection()
+                        self.clear_selection()
 
         elif button == Qt.MouseButton.MiddleButton:
             # Start panning
@@ -961,112 +965,34 @@ class CurveViewWidget(QWidget):
             Escape: Clear selection
             C: Center view on selected points
             F: Fit background image to view
-            Numpad 2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
-            PageUp/PageDown: Navigate to previous/next navigation frame (keyframes, endframes, startframes) (handled by MainWindow)
+            2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
+            PageUp/PageDown: Navigate to previous/next navigation frame (handled by MainWindow)
 
         Args:
             event: Key event
         """
-        key = event.key()
-        modifiers = event.modifiers()
-
-        # Debug logging for all key events
+        # Debug: Log ALL key events
         logger.info(
-            f"[KEYPRESSEVENT] Key pressed: key={key} (Qt.Key.Key_C={Qt.Key.Key_C}), modifiers={modifiers}, has_focus={self.hasFocus()}"
+            f"[KEYEVENT] keyPressEvent called! Key: {event.key()}, Modifiers: {event.modifiers()}, HasFocus: {self.hasFocus()}"
         )
 
-        # Debug logging to verify key events are received
-        logger.debug(f"[KEYPRESS] Key: {key}, Modifiers: {modifiers}, HasFocus: {self.hasFocus()}")
-
-        # Check if this is a numpad key
-        is_numpad = bool(modifiers & Qt.KeyboardModifier.KeypadModifier)
-
-        # Delete selected points
-        if key == Qt.Key.Key_Delete and self.selected_indices:
-            self._delete_selected_points()
+        # Delegate to keyboard handler
+        if self.keyboard_handler.handle_key_press(event):
             event.accept()
-
-        # Select all
-        elif key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
-            self.select_all()
-            event.accept()
-
-        # Deselect all
-        elif key == Qt.Key.Key_Escape:
-            self._clear_selection()
-            event.accept()
-
-        # Toggle centering mode - keeps view centered on current frame/selection
-        elif key == Qt.Key.Key_C and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
-            self.centering_mode = not self.centering_mode
-            logger.info(f"[KEY_C] Centering mode {'enabled' if self.centering_mode else 'disabled'}")
-
-            # If enabling centering mode, immediately center on selection or current frame
-            if self.centering_mode:
-                if self.selected_indices:
-                    logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
-                    self.center_on_selection()
-                    logger.info("[KEY_C] View centering completed")
-                else:
-                    current_frame = self._get_current_frame()
-                    if current_frame is not None:
-                        logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
-                        self.center_on_frame(current_frame)
-                    logger.info("[KEY_C] View centered on current frame")
-
-            # Update status bar to show centering mode state
-            status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
-            self._update_status(status_msg, 2000)
-
-            event.accept()
-
-        # Fit background image to view
-        elif key == Qt.Key.Key_F and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
-            if self.background_image:
-                self.fit_to_background_image()
-                logger.debug("[VIEW] Fitted background image to view")
-                event.accept()
-            else:
-                event.ignore()
-
-        # Nudge selected points using numpad keys
-        elif self.selected_indices and is_numpad:
-            # Check if it's a numpad number key for nudging
-            handled = False
-
-            # Calculate nudge amount based on modifiers (ignoring KeypadModifier)
-            nudge_amount = DEFAULT_NUDGE_AMOUNT
-            clean_modifiers = modifiers & ~Qt.KeyboardModifier.KeypadModifier
-            if clean_modifiers & Qt.KeyboardModifier.ShiftModifier:
-                nudge_amount = 10.0
-            elif clean_modifiers & Qt.KeyboardModifier.ControlModifier:
-                nudge_amount = 0.1
-
-            if key == Qt.Key.Key_4:  # Numpad 4 - left
-                self._nudge_selected(-nudge_amount, 0)
-                handled = True
-            elif key == Qt.Key.Key_6:  # Numpad 6 - right
-                self._nudge_selected(nudge_amount, 0)
-                handled = True
-            elif key == Qt.Key.Key_8:  # Numpad 8 - up
-                self._nudge_selected(0, -nudge_amount)
-                handled = True
-            elif key == Qt.Key.Key_2:  # Numpad 2 - down
-                self._nudge_selected(0, nudge_amount)
-                handled = True
-
-            if handled:
-                self.update()
-                event.accept()
-            else:
-                event.ignore()
-
-        # For arrow keys, always pass them through to parent for frame navigation
-        elif key in [Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down]:
-            event.ignore()  # Let parent handle arrow keys for frame navigation
-
         else:
-            event.ignore()  # Let parent handle unrecognized keys
+            event.ignore()
+
+    @override
+    def focusInEvent(self, event) -> None:
+        """Handle focus in event."""
+        logger.info(f"[FOCUS] CurveViewWidget gained focus! Reason: {event.reason()}")
+        super().focusInEvent(event)
+
+    @override
+    def focusOutEvent(self, event) -> None:
+        """Handle focus out event."""
+        logger.info(f"[FOCUS] CurveViewWidget lost focus! Reason: {event.reason()}")
+        super().focusOutEvent(event)
 
     # View Operations
 
@@ -1373,7 +1299,7 @@ class CurveViewWidget(QWidget):
             # Note: Protocol mismatch with InteractionService - using pyright: ignore for service integration
             self.interaction_service.on_point_selected(self, self.main_window, index)  # pyright: ignore[reportArgumentType]
 
-    def _clear_selection(self) -> None:
+    def clear_selection(self) -> None:
         """Clear all selection."""
         self._curve_store.clear_selection()
 
@@ -1445,7 +1371,7 @@ class CurveViewWidget(QWidget):
             if getattr(self.main_window, "add_to_history", None) is not None:
                 self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
 
-    def _update_status(self, message: str, timeout: int = 2000) -> None:
+    def update_status(self, message: str, timeout: int = 2000) -> None:
         """Update status bar if main window available.
 
         Args:
@@ -1456,7 +1382,7 @@ class CurveViewWidget(QWidget):
             if getattr(self.main_window, "status_bar", None) is not None:
                 self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
 
-    def _get_current_frame(self) -> int | None:
+    def get_current_frame(self) -> int | None:
         """Get current frame from main window if available.
 
         Returns:
@@ -1500,7 +1426,7 @@ class CurveViewWidget(QWidget):
                 if index in self._screen_points_cache:
                     self._screen_points_cache[index] = self.data_to_screen(new_x, new_y)
 
-    def _nudge_selected(self, dx: float, dy: float) -> None:
+    def nudge_selected(self, dx: float, dy: float) -> None:
         """
         Nudge selected points.
 
@@ -1515,7 +1441,7 @@ class CurveViewWidget(QWidget):
 
         self._add_to_history()
 
-    def _delete_selected_points(self) -> None:
+    def delete_selected_points(self) -> None:
         """Delete selected points."""
         # Sort indices in reverse to delete from end first
         indices = sorted(self.selected_indices, reverse=True)
