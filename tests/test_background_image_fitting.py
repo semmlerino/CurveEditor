@@ -10,50 +10,10 @@ Following UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md best practices:
 """
 
 import pytest
-from PySide6.QtCore import QSize
-from PySide6.QtGui import QColor, QImage
 from PySide6.QtWidgets import QApplication
 
+from tests.qt_test_helpers import ThreadSafeTestImage
 from ui.curve_view_widget import CurveViewWidget
-
-
-class ThreadSafeTestImage:
-    """Thread-safe test double for QPixmap using QImage internally.
-
-    Based on Qt's canonical threading pattern from the testing guide.
-    QPixmap is not thread-safe and can only be used in the main GUI thread.
-    QImage is thread-safe and can be used in any thread.
-    """
-
-    def __init__(self, width: int = 100, height: int = 100):
-        """Create a thread-safe test image."""
-        # Use QImage which is thread-safe, unlike QPixmap
-        self._image = QImage(width, height, QImage.Format.Format_RGB32)
-        self._width = width
-        self._height = height
-        self._image.fill(QColor(255, 255, 255))  # Fill with white by default
-
-    def width(self) -> int:
-        """Return image width."""
-        return self._width
-
-    def height(self) -> int:
-        """Return image height."""
-        return self._height
-
-    def size(self) -> QSize:
-        """Return the size of the image."""
-        return QSize(self._width, self._height)
-
-    def fill(self, color: QColor | None = None) -> None:
-        """Fill the image with a color."""
-        if color is None:
-            color = QColor(255, 255, 255)
-        self._image.fill(color)
-
-    def isNull(self) -> bool:
-        """Check if the image is null."""
-        return self._image.isNull()
 
 
 class TestBackgroundImageFitting:

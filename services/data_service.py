@@ -25,9 +25,8 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QImage
     from PySide6.QtWidgets import QWidget
 
-# Lazy import scipy to avoid slow startup times (especially in tests)
-# Will be imported only when needed by apply_filter method
-signal = None  # pyright: ignore[reportAssignmentType]
+# Simple filter import (replaces scipy dependency)
+from core.simple_filters import simple_lowpass_filter
 
 logger = get_logger("data_service")
 
@@ -167,52 +166,32 @@ class DataService:
         return result
 
     def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
-        """Apply Butterworth low-pass filter using scipy."""
-        # Lazy import scipy only when this method is called
-        global signal
-        if signal is None:
-            try:
-                from scipy import signal  # pyright: ignore[reportMissingTypeStubs, reportRedeclaration]
-            except ImportError:
-                if self._logger:
-                    self._logger.log_error("scipy not available for filtering")
-                return data
+        """Apply lowpass filter to curve data.
+
+        Now uses simple moving average instead of scipy.
+
+        Args:
+            data: Curve data to filter
+            cutoff: Not used (kept for compatibility)
+            order: Used as window size factor (default 2)
+
+        Returns:
+            Filtered curve data
+        """
+        if not data:
+            return []
+
+        # Use order as window size factor, ensure odd number for symmetry
+        window_size = order * 2 + 1 if order < 10 else 5
 
         try:
-            if len(data) < 4:
-                return data
-
-            frames = [p[0] for p in data]
-            x_coords = [p[1] for p in data]
-            y_coords = [p[2] for p in data]
-
-            # Design and apply filter - properly handle scipy return types
-            assert signal is not None  # Type guard for mypy/basedpyright
-            filter_result = signal.butter(order, cutoff, btype="low")  # pyright: ignore[reportAttributeAccessIssue]
-
-            # scipy.signal.butter always returns a 2-tuple (b, a) when output='ba' (default)
-            if not isinstance(filter_result, tuple) or len(filter_result) != 2:
-                raise ValueError("Unexpected return type from signal.butter")
-
-            b, a = filter_result
-            filtered_x = signal.filtfilt(b, a, x_coords)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
-            filtered_y = signal.filtfilt(b, a, y_coords)  # pyright: ignore[reportAttributeAccessIssue, reportArgumentType]
-
-            # Reconstruct data
-            result: CurveDataList = []
-            for i, frame in enumerate(frames):
-                if len(data[i]) > 3:
-                    result.append((frame, filtered_x[i], filtered_y[i]) + data[i][3:])  # pyright: ignore[reportArgumentType]
-                else:
-                    result.append((frame, filtered_x[i], filtered_y[i]))
-
+            result = simple_lowpass_filter(data, window_size)
             if self._status:
-                self._status.set_status("Applied Butterworth filter")
+                self._status.set_status("Applied lowpass filter")
             return result
-
         except Exception as e:
             if self._logger:
-                self._logger.log_error(f"Butterworth filter failed: {e}")
+                self._logger.log_error(f"Filtering failed: {e}. Returning original data.")
             return data
 
     def fill_gaps(self, data: CurveDataList, max_gap: int = 5) -> CurveDataList:

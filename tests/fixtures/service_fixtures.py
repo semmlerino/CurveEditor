@@ -45,6 +45,34 @@ def isolated_services():
 
 
 @pytest.fixture
+def all_services():
+    """Provide all service instances in a convenient namespace.
+
+    This fixture consolidates the common pattern of initializing all services
+    at the start of a test, reducing duplication across test files.
+
+    Yields:
+        SimpleNamespace: Object with data_service, transform_service,
+                        interaction_service, and ui_service attributes
+    """
+    from types import SimpleNamespace
+
+    from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
+
+    # Create namespace with all services
+    services_ns = SimpleNamespace(
+        data=get_data_service(),
+        transform=get_transform_service(),
+        interaction=get_interaction_service(),
+        ui=get_ui_service(),
+    )
+
+    yield services_ns
+
+    # Services are singletons, no cleanup needed
+
+
+@pytest.fixture
 def memory_monitor():
     """Monitor memory usage during tests.
 

@@ -14,6 +14,7 @@ from typing import Any
 from unittest.mock import Mock
 
 from core.models import CurvePoint
+from tests.qt_test_helpers import ThreadSafeTestImage
 
 # Qt imports with fallback for non-GUI environments
 try:
@@ -95,65 +96,6 @@ PointsList = list[Point3 | Point4]  # Matches CurveDataList
 
 
 # ==================== Thread-Safe Image Handling ====================
-
-
-class ThreadSafeTestImage:
-    """
-    Thread-safe test double for QPixmap using QImage internally.
-
-    Based on Qt's canonical threading pattern from the testing guide.
-    QPixmap is not thread-safe and can only be used in the main GUI thread.
-    QImage is thread-safe and can be used in any thread.
-
-    This class provides a QPixmap-like interface while using QImage internally
-    for thread safety in tests.
-    """
-
-    def __init__(self, width: int = 100, height: int = 100) -> None:
-        """Create a thread-safe test image."""
-        # Use QImage which is thread-safe, unlike QPixmap
-        if HAS_QT:
-            self._image = QImage(width, height, QImage.Format_RGB32)
-            self._image.fill(QColor(255, 255, 255))  # White by default
-        else:
-            self._image = None
-        self._width = width
-        self._height = height
-
-    def fill(self, color: QColor | None = None) -> None:
-        """Fill the image with a color."""
-        if HAS_QT and self._image:
-            if color is None:
-                color = QColor(255, 255, 255)
-            self._image.fill(color)
-
-    def isNull(self) -> bool:
-        """Check if the image is null."""
-        if HAS_QT and self._image:
-            return self._image.isNull()
-        return False
-
-    def sizeInBytes(self) -> int:
-        """Return the size of the image in bytes."""
-        if HAS_QT and self._image:
-            return self._image.sizeInBytes()
-        return self._width * self._height * 4  # Approximate
-
-    def size(self) -> QSize:
-        """Return the size of the image."""
-        return QSize(self._width, self._height)
-
-    def width(self) -> int:
-        """Return image width."""
-        return self._width
-
-    def height(self) -> int:
-        """Return image height."""
-        return self._height
-
-    def to_qimage(self) -> QImage | None:
-        """Get the internal QImage for Qt operations."""
-        return self._image if HAS_QT else None
 
 
 class TestImagePool:
