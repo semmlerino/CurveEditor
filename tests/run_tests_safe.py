@@ -53,7 +53,8 @@ def main():
 
     # Configure Qt for testing
     app.setAttribute(Qt.ApplicationAttribute.AA_Use96Dpi, True)  # Consistent DPI
-    app.setQuitOnLastWindowClosed(False)  # Don't quit during tests
+    if isinstance(app, QApplication):
+        app.setQuitOnLastWindowClosed(False)  # Don't quit during tests
 
     # Run pytest with recommended options for Qt testing
     pytest_args = [

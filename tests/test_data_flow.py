@@ -67,13 +67,13 @@ class TestDataFlowIntegration:
         # Check status cache updated
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
         status_5 = timeline.status_cache.get_status(5)
-        assert status_5[0] == 1  # keyframe_count
+        assert status_5 is not None and status_5[0] == 1  # keyframe_count
 
         status_10 = timeline.status_cache.get_status(10)
-        assert status_10[1] == 1  # interpolated_count
+        assert status_10 is not None and status_10[1] == 1  # interpolated_count
 
         status_15 = timeline.status_cache.get_status(15)
-        assert status_15[0] == 1  # keyframe_count
+        assert status_15 is not None and status_15[0] == 1  # keyframe_count
 
     def test_store_to_curve_widget_data_flow(self, qtbot):
         """Test that curve store updates propagate to curve widget."""
@@ -153,7 +153,8 @@ class TestDataFlowIntegration:
         assert len(widget.curve_data) == 2
         assert timeline.max_frame == 5
         assert frame_store.max_frame == 5
-        assert timeline.status_cache.get_status(5)[0] == 1  # keyframe_count
+        status_5 = timeline.status_cache.get_status(5)
+        assert status_5 is not None and status_5[0] == 1  # keyframe_count
 
     def test_point_removal_propagates_to_all_components(self, qtbot):
         """Test that removing a point updates all connected components."""
@@ -183,7 +184,8 @@ class TestDataFlowIntegration:
 
         # All components should have updated
         assert len(widget.curve_data) == 2
-        assert timeline.status_cache.get_status(5)[0] == 0  # keyframe_count
+        status_5 = timeline.status_cache.get_status(5)
+        assert status_5 is not None and status_5[0] == 0  # keyframe_count
         # Frame range should still be 1-10 since endpoints remain
         assert timeline.max_frame == 10
         assert frame_store.max_frame == 10

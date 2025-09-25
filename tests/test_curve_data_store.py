@@ -337,7 +337,8 @@ class TestStoreManager:
 
         # Verify restored
         assert store.point_count() == 2
-        assert store.get_point(1)[3] == "tracked"
+        point = store.get_point(1)
+        assert point is not None and len(point) > 3 and point[3] == "tracked"
         assert store.get_selection() == {1}
 
     @pytest.fixture(autouse=True)

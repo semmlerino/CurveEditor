@@ -59,7 +59,7 @@ def test_current_frame_property_setter(qtbot: QtBot):
     def track_frame_set(frame):
         frame_set_to[0] = frame
 
-    window.frame_nav_controller.set_frame = track_frame_set
+    window.frame_nav_controller.set_frame = track_frame_set  # pyright: ignore[reportAttributeAccessIssue]
 
     # Set via property
     window.current_frame = 100
@@ -83,7 +83,7 @@ def test_curve_view_can_access_current_frame(qtbot: QtBot):
     window.frame_nav_controller.get_current_frame = Mock(return_value=50)
 
     # Link them
-    widget.main_window = window
+    widget.main_window = window  # pyright: ignore[reportAttributeAccessIssue]
 
     # Test type-safe access
     if widget.main_window is not None:
@@ -119,7 +119,7 @@ def test_protocol_compliance(qtbot: QtBot):
     def track_frame(f):
         frame_set_to[0] = f
 
-    window.frame_nav_controller.set_frame = track_frame
+    window.frame_nav_controller.set_frame = track_frame  # pyright: ignore[reportAttributeAccessIssue]
     window.current_frame = 42
 
     # Verify behavior: frame was set correctly
