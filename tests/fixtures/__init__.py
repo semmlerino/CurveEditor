@@ -25,12 +25,9 @@ from tests.fixtures.mock_fixtures import (
     protocol_compliant_mock_main_window,
 )
 from tests.fixtures.qt_fixtures import (
-    curve_view,
     curve_view_widget,
     qapp,
     qt_cleanup,
-    qt_widget_cleanup,
-    widget_factory,
 )
 from tests.fixtures.service_fixtures import (
     all_services,
@@ -55,10 +52,7 @@ __all__ = [
     # Qt fixtures
     "qapp",
     "qt_cleanup",
-    "qt_widget_cleanup",
-    "curve_view",
     "curve_view_widget",
-    "widget_factory",
     # Service fixtures
     "all_services",
     "isolated_services",

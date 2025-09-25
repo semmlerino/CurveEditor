@@ -9,7 +9,6 @@ to make them available to all tests.
 # Import all fixtures from the fixtures package
 from tests.fixtures import (
     all_services,
-    curve_view,
     curve_view_widget,
     # Service fixtures
     isolated_services,
@@ -27,11 +26,9 @@ from tests.fixtures import (
     # Qt fixtures
     qapp,
     qt_cleanup,
-    qt_widget_cleanup,
     # Data fixtures
     sample_curve_data,
     sample_points,
-    widget_factory,
 )
 
 # Re-export all fixtures so pytest can find them
@@ -52,10 +49,7 @@ __all__ = [
     # Qt fixtures
     "qapp",
     "qt_cleanup",
-    "qt_widget_cleanup",
-    "curve_view",
     "curve_view_widget",
-    "widget_factory",
     # Service fixtures
     "all_services",
     "isolated_services",

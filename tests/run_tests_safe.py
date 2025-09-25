@@ -23,10 +23,13 @@ import pytest  # noqa: E402
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication  # noqa: E402
 
+from tests.test_utils import cleanup_qt_widgets  # noqa: E402
+
 
 def cleanup_qt():
     """Ensure Qt is properly cleaned up."""
     app = QApplication.instance()
+    cleanup_qt_widgets(app)
     if app:
         app.quit()
         app.deleteLater()

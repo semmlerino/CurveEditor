@@ -10,9 +10,10 @@ import sys
 from collections.abc import Generator
 
 import pytest
-from PySide6.QtCore import QCoreApplication, QTimer
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtCore import QCoreApplication
+from PySide6.QtWidgets import QApplication
 
+from tests.test_utils import cleanup_qt_widgets
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -70,74 +71,8 @@ def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
     """
     yield
 
-    # Process any pending events
-    qapp.processEvents()
-
-    # Clean up any remaining widgets
-    for widget in qapp.topLevelWidgets():
-        if widget and not widget.isHidden():
-            widget.close()
-            widget.deleteLater()
-
-    # Process deletion events
-    qapp.processEvents()
-
-    # Clear any remaining timers
-    for timer in qapp.findChildren(QTimer):
-        timer.stop()
-        timer.deleteLater()
-
-    # Final event processing
-    qapp.processEvents()
-
-
-@pytest.fixture
-def qt_widget_cleanup(qapp: QApplication):
-    """Explicit widget cleanup fixture for tests that create many widgets.
-
-    Use this fixture when your test creates multiple widgets to ensure
-    they are properly cleaned up.
-
-    Args:
-        qapp: The QApplication instance
-
-    Yields:
-        Cleanup function that can be called to clean widgets
-    """
-    widgets_to_clean = []
-
-    def register_widget(widget: QWidget):
-        """Register a widget for cleanup."""
-        widgets_to_clean.append(widget)
-
-    yield register_widget
-
-    # Cleanup registered widgets
-    for widget in widgets_to_clean:
-        if widget and not widget.isHidden():
-            widget.close()
-            widget.deleteLater()
-
-    qapp.processEvents()
-
-
-@pytest.fixture
-def curve_view(qapp: QApplication) -> CurveViewWidget:
-    """Create a CurveViewWidget instance for testing.
-
-    Args:
-        qapp: The QApplication instance
-
-    Returns:
-        CurveViewWidget: A fresh curve view widget
-    """
-    widget = CurveViewWidget()
-    widget.resize(800, 600)
-
-    # Ensure widget is properly initialized
-    qapp.processEvents()
-
-    return widget
+    # Use unified cleanup function
+    cleanup_qt_widgets(qapp)
 
 
 @pytest.fixture
@@ -155,82 +90,13 @@ def curve_view_widget(qapp: QApplication):
     widget = CurveViewWidget()
     widget.resize(800, 600)
 
-    yield widget
-
-    # Cleanup
-    widget.close()
-    widget.deleteLater()
+    # Ensure widget is properly initialized
     qapp.processEvents()
 
+    yield widget
 
-@pytest.fixture
-def widget_factory(qapp: QApplication, qtbot):
-    """Factory fixture for creating and auto-managing Qt widgets.
+    # Use unified cleanup for single widget
+    from tests.test_utils import safe_cleanup_widget
 
-    This fixture consolidates widget creation and cleanup patterns,
-    automatically registering widgets with qtbot for proper cleanup.
-    Reduces duplication of widget setup/teardown code across tests.
-
-    Args:
-        qapp: The QApplication instance
-        qtbot: pytest-qt's qtbot fixture
-
-    Yields:
-        WidgetFactory: Factory object with methods to create common widgets
-
-    Example:
-        def test_main_window(widget_factory):
-            window = widget_factory.create_main_window()
-            assert window.curve_widget is not None
-    """
-
-    class WidgetFactory:
-        def __init__(self, qtbot_instance):
-            self.qtbot = qtbot_instance
-            self.widgets = []
-
-        def create_main_window(self):
-            """Create and register a MainWindow instance."""
-            from ui.main_window import MainWindow
-
-            window = MainWindow()
-            self.qtbot.addWidget(window)
-            self.widgets.append(window)
-            return window
-
-        def create_curve_view(self, with_data=False):
-            """Create and register a CurveViewWidget instance."""
-            widget = CurveViewWidget()
-            self.qtbot.addWidget(widget)
-            if with_data:
-                widget.set_curve_data([(1, 100, 100), (5, 200, 150), (10, 300, 200)])
-            self.widgets.append(widget)
-            return widget
-
-        def create_timeline_tabs(self):
-            """Create and register a TimelineTabWidget instance."""
-            from ui.timeline_tabs import TimelineTabWidget
-
-            widget = TimelineTabWidget()
-            self.qtbot.addWidget(widget)
-            self.widgets.append(widget)
-            return widget
-
-        def create_widget(self, widget_class, *args, **kwargs):
-            """Generic method to create and register any widget."""
-            widget = widget_class(*args, **kwargs)
-            self.qtbot.addWidget(widget)
-            self.widgets.append(widget)
-            return widget
-
-        def cleanup_all(self):
-            """Explicitly clean up all created widgets."""
-            for widget in self.widgets:
-                if widget and not widget.isHidden():
-                    widget.close()
-            self.widgets.clear()
-
-    factory = WidgetFactory(qtbot)
-    yield factory
-    # Cleanup is automatic via qtbot, but ensure everything is cleaned
-    factory.cleanup_all()
+    safe_cleanup_widget(widget)
+    qapp.processEvents()

@@ -15,6 +15,7 @@ from unittest.mock import Mock
 
 from core.models import CurvePoint
 from tests.qt_test_helpers import ThreadSafeTestImage
+from tests.test_utils import safe_cleanup_widget as safe_qt_cleanup
 
 # Qt imports with fallback for non-GUI environments
 try:
@@ -812,22 +813,7 @@ def assert_qt_container_exists(container, name: str = "container"):
     assert container is not None, f"{name} should not be None"
 
 
-def safe_qt_cleanup(widget):
-    """
-    Safely cleanup Qt widget avoiding common pitfalls.
-
-    Args:
-        widget: Qt widget to cleanup
-    """
-    if widget is None:
-        return
-
-    try:
-        if HAS_QT and hasattr(widget, "deleteLater"):
-            widget.deleteLater()
-    except RuntimeError:
-        # Widget already deleted
-        pass
+# safe_qt_cleanup is now imported at the top of the file
 
 
 def mock_dialog_exec(dialog_class, return_value=True):
@@ -935,7 +921,7 @@ __all__ = [
     "make_curve_data",
     # Utilities
     "assert_qt_container_exists",
-    "safe_qt_cleanup",
+    "safe_qt_cleanup",  # Now imported from test_utils
     "mock_dialog_exec",
     # Performance
     "PerformanceTimer",
