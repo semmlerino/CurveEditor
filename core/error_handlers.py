@@ -50,10 +50,11 @@ def handle_service_error(
                 return func(*args, **kwargs)
             except Exception as e:
                 # Get the logger from the instance if available (for methods)
-                if args and hasattr(args[0], "_logger"):
-                    error_logger = args[0]._logger
-                else:
-                    error_logger = logger
+                error_logger = logger
+                if args:
+                    instance = args[0]
+                    if hasattr(instance, "_logger") and isinstance(getattr(instance, "_logger", None), logging.Logger):
+                        error_logger = getattr(instance, "_logger")
 
                 error_logger.log(log_level, f"Failed to {operation}: {e}")
 

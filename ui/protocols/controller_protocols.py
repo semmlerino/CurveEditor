@@ -8,12 +8,16 @@ enabling type-safe programming and reducing coupling between MainWindow and cont
 
 from typing import Protocol, runtime_checkable
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Signal, Slot
 
 
 @runtime_checkable
 class PlaybackControllerProtocol(Protocol):
     """Protocol for playback controller functionality."""
+
+    # Signals
+    frame_requested: Signal  # Signal[int] - Request a specific frame
+    status_message: Signal  # Signal[str] - Status bar updates
 
     def start_playback(self) -> None:
         """Start playback animation."""
@@ -44,6 +48,13 @@ class PlaybackControllerProtocol(Protocol):
 class FrameNavigationProtocol(Protocol):
     """Protocol for frame navigation controller."""
 
+    # Attributes
+    frame_spinbox: object  # QSpinBox - Frame navigation spinbox
+
+    # Signals
+    frame_changed: Signal  # Signal[int] - Emitted when frame changes
+    status_message: Signal  # Signal[str] - Status bar updates
+
     def next_frame(self) -> None:
         """Navigate to next frame."""
         ...
@@ -62,6 +73,14 @@ class FrameNavigationProtocol(Protocol):
 
     def go_to_frame(self, frame: int) -> None:
         """Navigate to specific frame."""
+        ...
+
+    def set_frame(self, frame: int) -> None:
+        """Set the current frame."""
+        ...
+
+    def get_current_frame(self) -> int:
+        """Get the current frame."""
         ...
 
     @Slot(int)
@@ -151,6 +170,14 @@ class ViewOptionsProtocol(Protocol):
         """Toggle tooltip display."""
         ...
 
+    def update_curve_point_size(self, value: int) -> None:
+        """Update curve point size from slider."""
+        ...
+
+    def update_curve_line_width(self, value: int) -> None:
+        """Update curve line width from slider."""
+        ...
+
     def update_curve_view_options(self) -> None:
         """Update curve view widget options."""
         ...
@@ -186,6 +213,10 @@ class TimelineControllerProtocol(Protocol):
 
     def update_timeline_tabs(self, curve_data: object | None = None) -> None:
         """Update timeline tabs with curve data."""
+        ...
+
+    def connect_signals(self) -> None:
+        """Connect timeline-related signals."""
         ...
 
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:

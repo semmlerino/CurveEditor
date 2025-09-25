@@ -214,16 +214,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._curve_store = self._store_manager.get_curve_store()
 
         # Initialize controllers (typed as protocols for better decoupling)
-        self.playback_controller: PlaybackControllerProtocol = PlaybackController(self.state_manager, self)
-        self.frame_nav_controller: FrameNavigationProtocol = FrameNavigationController(self.state_manager, self)
-        self.action_controller: ActionHandlerProtocol = ActionHandlerController(self.state_manager, self)
-        self.ui_init_controller: UIInitializationProtocol = UIInitializationController(self)
-        self.view_options_controller: ViewOptionsProtocol = ViewOptionsController(self)
-        self.point_editor_controller: PointEditorProtocol = PointEditorController(self, self.state_manager)
-        self.timeline_controller: TimelineControllerProtocol = TimelineController(self)
-        self.background_controller: BackgroundImageProtocol = BackgroundImageController(self)
-        self.tracking_controller: MultiPointTrackingProtocol = MultiPointTrackingController(self)
-        self.signal_manager: SignalConnectionProtocol = SignalConnectionManager(self)
+        self.playback_controller = PlaybackController(self.state_manager, self)
+        self.frame_nav_controller = FrameNavigationController(self.state_manager, self)
+        self.action_controller = ActionHandlerController(self.state_manager, self)
+        self.ui_init_controller = UIInitializationController(self)
+        self.view_options_controller = ViewOptionsController(self)
+        self.point_editor_controller = PointEditorController(self, self.state_manager)
+        self.timeline_controller = TimelineController(self)
+        self.background_controller = BackgroundImageController(self)
+        self.tracking_controller = MultiPointTrackingController(self)
+        self.signal_manager = SignalConnectionManager(self)
 
         # Initialize service facade
         from services.service_protocols import MainWindowProtocol

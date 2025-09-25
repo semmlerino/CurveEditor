@@ -190,8 +190,10 @@ class UIInitializationController:
 
         # Add frame control to toolbar (from FrameNavigationController)
         _ = toolbar.addWidget(QLabel("Frame:"))
-        self.main_window.frame_spinbox = self.main_window.frame_nav_controller.frame_spinbox
-        _ = toolbar.addWidget(self.main_window.frame_spinbox)
+        frame_spinbox = self.main_window.frame_nav_controller.frame_spinbox
+        if isinstance(frame_spinbox, QWidget):
+            self.main_window.frame_spinbox = frame_spinbox
+            _ = toolbar.addWidget(frame_spinbox)
         self.main_window.ui.timeline.frame_spinbox = self.main_window.frame_spinbox  # Map to timeline group
         _ = toolbar.addSeparator()
 
