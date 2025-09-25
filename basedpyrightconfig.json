@@ -6,7 +6,7 @@
   "venv": "venv",
   "stubPath": "./typings",
   "useLibraryCodeForTypes": true,
-  "allowedUntypedLibraries": ["scipy", "numpy", "pytest"],
+  "allowedUntypedLibraries": ["numpy", "pytest"],
   "include": [
     "core",
     "data",
