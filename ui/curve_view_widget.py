@@ -1428,16 +1428,25 @@ class CurveViewWidget(QWidget):
 
     def nudge_selected(self, dx: float, dy: float) -> None:
         """
-        Nudge selected points.
+        Nudge selected points and convert them to keyframes.
 
         Args:
             dx: X offset in data units
             dy: Y offset in data units
         """
+        # Use batch mode for efficiency when nudging multiple points
+        if len(self.selected_indices) > 1:
+            self._curve_store.begin_batch_operation()
+
         for idx in self.selected_indices:
             if 0 <= idx < len(self.curve_data):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
                 self.update_point(idx, x + dx, y + dy)
+                # Convert to keyframe since user manually adjusted it
+                self._curve_store.set_point_status(idx, PointStatus.KEYFRAME)
+
+        if len(self.selected_indices) > 1:
+            self._curve_store.end_batch_operation()
 
         self._add_to_history()
 

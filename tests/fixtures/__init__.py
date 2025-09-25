@@ -30,8 +30,10 @@ from tests.fixtures.qt_fixtures import (
     qapp,
     qt_cleanup,
     qt_widget_cleanup,
+    widget_factory,
 )
 from tests.fixtures.service_fixtures import (
+    all_services,
     isolated_services,
     memory_monitor,
 )
@@ -56,7 +58,9 @@ __all__ = [
     "qt_widget_cleanup",
     "curve_view",
     "curve_view_widget",
+    "widget_factory",
     # Service fixtures
+    "all_services",
     "isolated_services",
     "memory_monitor",
 ]

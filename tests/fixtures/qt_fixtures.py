@@ -161,3 +161,76 @@ def curve_view_widget(qapp: QApplication):
     widget.close()
     widget.deleteLater()
     qapp.processEvents()
+
+
+@pytest.fixture
+def widget_factory(qapp: QApplication, qtbot):
+    """Factory fixture for creating and auto-managing Qt widgets.
+
+    This fixture consolidates widget creation and cleanup patterns,
+    automatically registering widgets with qtbot for proper cleanup.
+    Reduces duplication of widget setup/teardown code across tests.
+
+    Args:
+        qapp: The QApplication instance
+        qtbot: pytest-qt's qtbot fixture
+
+    Yields:
+        WidgetFactory: Factory object with methods to create common widgets
+
+    Example:
+        def test_main_window(widget_factory):
+            window = widget_factory.create_main_window()
+            assert window.curve_widget is not None
+    """
+
+    class WidgetFactory:
+        def __init__(self, qtbot_instance):
+            self.qtbot = qtbot_instance
+            self.widgets = []
+
+        def create_main_window(self):
+            """Create and register a MainWindow instance."""
+            from ui.main_window import MainWindow
+
+            window = MainWindow()
+            self.qtbot.addWidget(window)
+            self.widgets.append(window)
+            return window
+
+        def create_curve_view(self, with_data=False):
+            """Create and register a CurveViewWidget instance."""
+            widget = CurveViewWidget()
+            self.qtbot.addWidget(widget)
+            if with_data:
+                widget.set_curve_data([(1, 100, 100), (5, 200, 150), (10, 300, 200)])
+            self.widgets.append(widget)
+            return widget
+
+        def create_timeline_tabs(self):
+            """Create and register a TimelineTabWidget instance."""
+            from ui.timeline_tabs import TimelineTabWidget
+
+            widget = TimelineTabWidget()
+            self.qtbot.addWidget(widget)
+            self.widgets.append(widget)
+            return widget
+
+        def create_widget(self, widget_class, *args, **kwargs):
+            """Generic method to create and register any widget."""
+            widget = widget_class(*args, **kwargs)
+            self.qtbot.addWidget(widget)
+            self.widgets.append(widget)
+            return widget
+
+        def cleanup_all(self):
+            """Explicitly clean up all created widgets."""
+            for widget in self.widgets:
+                if widget and not widget.isHidden():
+                    widget.close()
+            self.widgets.clear()
+
+    factory = WidgetFactory(qtbot)
+    yield factory
+    # Cleanup is automatic via qtbot, but ensure everything is cleaned
+    factory.cleanup_all()

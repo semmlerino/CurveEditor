@@ -427,16 +427,27 @@ class CurveViewKeyboardHandler:
                 logger.debug("[VIEW] Fitted background image to view")
                 return True
 
-        # Nudge selected points using number keys 2/4/6/8
+        # Nudge points using number keys 2/4/6/8
         # Works with both numpad and regular number keys
-        # Numpad keys have the same key codes but with KeypadModifier set
-        elif self.curve_widget.selected_indices and key in (Qt.Key.Key_2, Qt.Key.Key_4, Qt.Key.Key_6, Qt.Key.Key_8):
-            logger.info(
-                f"[NUDGE] Handling nudge for key {key} with {len(self.curve_widget.selected_indices)} selected points"
+        # Nudges selected points if any, otherwise nudges point at current frame
+        elif key in (Qt.Key.Key_2, Qt.Key.Key_4, Qt.Key.Key_6, Qt.Key.Key_8):
+            # Check if we have selected points or a current frame to work with
+            has_selection = bool(self.curve_widget.selected_indices)
+            current_frame = self.curve_widget.get_current_frame()
+            has_current_frame = current_frame is not None and 0 <= (current_frame - 1) < len(
+                self.curve_widget.curve_data
             )
-            # Accept both regular number keys and numpad keys (which have KeypadModifier)
-            # Use clean_modifiers for modifier checks (Shift/Ctrl) but accept the key regardless of KeypadModifier
-            return self._handle_nudging(key, clean_modifiers)
+
+            if has_selection or has_current_frame:
+                logger.info(
+                    f"[NUDGE] Handling nudge for key {key} - Selected: {len(self.curve_widget.selected_indices)} points, Current frame: {current_frame}"
+                )
+                # Accept both regular number keys and numpad keys (which have KeypadModifier)
+                # Use clean_modifiers for modifier checks (Shift/Ctrl) but accept the key regardless of KeypadModifier
+                return self._handle_nudging(key, clean_modifiers)
+            else:
+                logger.info(f"[NUDGE] Cannot nudge - no selection and no valid point at frame {current_frame}")
+                return False
 
         # Arrow keys - pass through to parent for frame navigation
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
@@ -487,13 +498,32 @@ class CurveViewKeyboardHandler:
 
     def _nudge_selected(self, dx: float, dy: float) -> None:
         """
-        Nudge selected points by the given offset.
+        Nudge selected points or current frame point by the given offset.
 
         Args:
             dx: X offset in data units
             dy: Y offset in data units
         """
-        self.curve_widget.nudge_selected(dx, dy)
+        # If points are selected, nudge them
+        if self.curve_widget.selected_indices:
+            logger.info(f"[NUDGE] Nudging {len(self.curve_widget.selected_indices)} selected points")
+            self.curve_widget.nudge_selected(dx, dy)
+        else:
+            # Otherwise, nudge the point at the current frame
+            current_frame = self.curve_widget.get_current_frame()
+            if current_frame is not None:
+                frame_index = current_frame - 1  # Convert to 0-based index
+                if 0 <= frame_index < len(self.curve_widget.curve_data):
+                    logger.info(f"[NUDGE] Nudging point at frame {current_frame} (index {frame_index})")
+                    # Temporarily select the point, nudge it, then clear selection
+                    self.curve_widget._select_point(frame_index, add_to_selection=False)
+                    self.curve_widget.nudge_selected(dx, dy)
+                    # The nudge_selected method already sets KEYFRAME status
+                    self.curve_widget.clear_selection()
+                else:
+                    logger.warning(
+                        f"[NUDGE] Frame {current_frame} out of range (0-{len(self.curve_widget.curve_data)-1})"
+                    )
 
     def _delete_selected_points(self) -> None:
         """Delete all selected points."""

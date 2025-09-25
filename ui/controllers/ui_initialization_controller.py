@@ -164,20 +164,28 @@ class UIInitializationController:
         self.main_window.addToolBar(toolbar)
 
         # File operations
-        _ = toolbar.addAction(self.main_window.action_new)
-        _ = toolbar.addAction(self.main_window.action_open)
-        _ = toolbar.addAction(self.main_window.action_save)
+        if self.main_window.action_new:
+            _ = toolbar.addAction(self.main_window.action_new)
+        if self.main_window.action_open:
+            _ = toolbar.addAction(self.main_window.action_open)
+        if self.main_window.action_save:
+            _ = toolbar.addAction(self.main_window.action_save)
         _ = toolbar.addSeparator()
 
         # Edit operations
-        _ = toolbar.addAction(self.main_window.action_undo)
-        _ = toolbar.addAction(self.main_window.action_redo)
+        if self.main_window.action_undo:
+            _ = toolbar.addAction(self.main_window.action_undo)
+        if self.main_window.action_redo:
+            _ = toolbar.addAction(self.main_window.action_redo)
         _ = toolbar.addSeparator()
 
         # View operations
-        _ = toolbar.addAction(self.main_window.action_zoom_in)
-        _ = toolbar.addAction(self.main_window.action_zoom_out)
-        _ = toolbar.addAction(self.main_window.action_reset_view)
+        if self.main_window.action_zoom_in:
+            _ = toolbar.addAction(self.main_window.action_zoom_in)
+        if self.main_window.action_zoom_out:
+            _ = toolbar.addAction(self.main_window.action_zoom_out)
+        if self.main_window.action_reset_view:
+            _ = toolbar.addAction(self.main_window.action_reset_view)
         _ = toolbar.addSeparator()
 
         # Add frame control to toolbar (from FrameNavigationController)

@@ -175,6 +175,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     save_button: QPushButton | None = None  # Required by protocol, created from action
     ui_components: object | None = None  # UIComponents container - deprecated, use self.ui instead
 
+    # Controllers - initialized in __init__
+    playback_controller: PlaybackControllerProtocol
+    frame_nav_controller: FrameNavigationProtocol
+    action_controller: ActionHandlerProtocol
+    ui_init_controller: UIInitializationProtocol
+    view_options_controller: ViewOptionsProtocol
+    point_editor_controller: PointEditorProtocol
+    timeline_controller: TimelineControllerProtocol
+    background_controller: BackgroundImageProtocol
+    tracking_controller: MultiPointTrackingProtocol
+    signal_manager: SignalConnectionProtocol
+
     def __init__(self, parent: QWidget | None = None):
         """Initialize the MainWindow with enhanced UI functionality."""
         super().__init__(parent)

@@ -229,3 +229,205 @@ class TestKeyboardShortcuts:
         _, new_x, new_y, _ = safe_extract_point(curve_widget.curve_data[0])
         assert new_x == original_x
         assert new_y == original_y
+
+    def test_nudge_current_frame_point_without_selection(self, curve_widget: CurveViewWidget, monkeypatch):
+        """Test that nudging works on current frame point when no points are selected."""
+        # Mock the main_window to provide current frame
+        from unittest.mock import MagicMock
+
+        mock_main_window = MagicMock()
+        mock_main_window.current_frame = 2  # Frame 2 (index 1 in 0-based)
+        curve_widget.main_window = mock_main_window
+
+        # Clear any selection
+        curve_widget.clear_selection()
+        assert len(curve_widget.selected_indices) == 0
+
+        # Get original position of point at frame 2 (index 1)
+        _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[1])
+
+        # Press key 6 (right) - should nudge current frame point
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify the point at frame 2 moved right
+        _, new_x, new_y, _ = safe_extract_point(curve_widget.curve_data[1])
+        assert new_x == original_x + 1.0  # Default nudge amount
+        assert new_y == original_y
+
+    def test_nudge_prefers_selected_over_current_frame(self, curve_widget: CurveViewWidget):
+        """Test that selected points take precedence over current frame."""
+        from unittest.mock import MagicMock
+
+        mock_main_window = MagicMock()
+        mock_main_window.current_frame = 2  # Frame 2 (index 1)
+        curve_widget.main_window = mock_main_window
+
+        # Select point at index 0 (not the current frame)
+        curve_widget._curve_store.select(0)
+
+        # Get original positions
+        _, sel_orig_x, sel_orig_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        _, curr_orig_x, curr_orig_y, _ = safe_extract_point(curve_widget.curve_data[1])
+
+        # Press key 8 (up) - should nudge selected point, not current frame
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_8, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Selected point should move
+        _, sel_new_x, sel_new_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert sel_new_x == sel_orig_x
+        assert sel_new_y < sel_orig_y  # Moved up
+
+        # Current frame point should NOT move
+        _, curr_new_x, curr_new_y, _ = safe_extract_point(curve_widget.curve_data[1])
+        assert curr_new_x == curr_orig_x
+        assert curr_new_y == curr_orig_y
+
+    def test_nudge_with_modifiers_on_current_frame(self, curve_widget: CurveViewWidget):
+        """Test that modifiers work when nudging current frame point."""
+        from unittest.mock import MagicMock
+
+        mock_main_window = MagicMock()
+        mock_main_window.current_frame = 1  # Frame 1 (index 0)
+        curve_widget.main_window = mock_main_window
+
+        # Clear selection
+        curve_widget.clear_selection()
+
+        # Get original position
+        _, original_x, original_y, _ = safe_extract_point(curve_widget.curve_data[0])
+
+        # Test Shift modifier (10x)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_4, Qt.KeyboardModifier.ShiftModifier)
+        curve_widget.keyPressEvent(event)
+
+        _, new_x, new_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert new_x == original_x - 10.0  # 10x left
+        assert new_y == original_y
+
+        # Test Ctrl modifier (0.1x)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_2, Qt.KeyboardModifier.ControlModifier)
+        curve_widget.keyPressEvent(event)
+
+        _, final_x, final_y, _ = safe_extract_point(curve_widget.curve_data[0])
+        assert final_x == new_x
+        assert final_y == pytest.approx(new_y + 0.1, rel=1e-5)  # 0.1x down
+
+    def test_no_nudge_when_no_selection_and_no_current_frame(self, curve_widget: CurveViewWidget):
+        """Test that nudging does nothing when no selection and no current frame."""
+        # No main_window means no current frame
+        curve_widget.main_window = None
+
+        # Clear selection
+        curve_widget.clear_selection()
+
+        # Get original positions
+        original_positions = [safe_extract_point(p) for p in curve_widget.curve_data]
+
+        # Try to nudge - should do nothing
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify nothing moved
+        new_positions = [safe_extract_point(p) for p in curve_widget.curve_data]
+        for orig, new in zip(original_positions, new_positions):
+            assert orig == new
+
+    def test_no_nudge_when_current_frame_out_of_range(self, curve_widget: CurveViewWidget):
+        """Test that nudging handles out-of-range current frame gracefully."""
+        from unittest.mock import MagicMock
+
+        mock_main_window = MagicMock()
+        mock_main_window.current_frame = 10  # Out of range (only 3 points)
+        curve_widget.main_window = mock_main_window
+
+        # Clear selection
+        curve_widget.clear_selection()
+
+        # Get original positions
+        original_positions = [safe_extract_point(p) for p in curve_widget.curve_data]
+
+        # Try to nudge - should do nothing
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_8, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify nothing moved
+        new_positions = [safe_extract_point(p) for p in curve_widget.curve_data]
+        for orig, new in zip(original_positions, new_positions):
+            assert orig == new
+
+    def test_nudge_converts_to_keyframe_status(self, curve_widget: CurveViewWidget):
+        """Test that nudging a point converts it to KEYFRAME status."""
+        from core.models import PointStatus
+
+        # Start with a point that's not a keyframe (e.g., NORMAL status)
+        test_data = [(1, 100.0, 200.0, PointStatus.NORMAL.value)]
+        curve_widget.set_curve_data(test_data)
+        curve_widget._curve_store.select(0)
+
+        # Verify initial status is NORMAL
+        _, _, _, status = safe_extract_point(curve_widget.curve_data[0])
+        assert status == PointStatus.NORMAL.value
+
+        # Nudge the point
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify status changed to KEYFRAME
+        _, _, _, new_status = safe_extract_point(curve_widget.curve_data[0])
+        assert new_status == PointStatus.KEYFRAME.value
+
+    def test_nudge_current_frame_converts_to_keyframe(self, curve_widget: CurveViewWidget):
+        """Test that nudging current frame point converts it to KEYFRAME status."""
+        from unittest.mock import MagicMock
+
+        from core.models import PointStatus
+
+        # Set up test data with INTERPOLATED status
+        test_data = [(1, 100.0, 200.0, PointStatus.INTERPOLATED.value), (2, 150.0, 250.0, PointStatus.NORMAL.value)]
+        curve_widget.set_curve_data(test_data)
+
+        # Mock current frame
+        mock_main_window = MagicMock()
+        mock_main_window.current_frame = 1  # Frame 1 (index 0)
+        curve_widget.main_window = mock_main_window
+
+        # Clear selection
+        curve_widget.clear_selection()
+
+        # Verify initial status
+        _, _, _, status = safe_extract_point(curve_widget.curve_data[0])
+        assert status == PointStatus.INTERPOLATED.value
+
+        # Nudge using key 8 (up)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_8, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify status changed to KEYFRAME
+        _, _, _, new_status = safe_extract_point(curve_widget.curve_data[0])
+        assert new_status == PointStatus.KEYFRAME.value
+
+    def test_nudge_multiple_points_all_become_keyframes(self, curve_widget: CurveViewWidget):
+        """Test that nudging multiple selected points converts all to KEYFRAME status."""
+        from core.models import PointStatus
+
+        # Set up test data with mixed statuses
+        test_data = [
+            (1, 100.0, 200.0, PointStatus.NORMAL.value),
+            (2, 150.0, 250.0, PointStatus.INTERPOLATED.value),
+            (3, 200.0, 300.0, PointStatus.TRACKED.value),
+        ]
+        curve_widget.set_curve_data(test_data)
+
+        # Select all points
+        curve_widget.select_all()
+
+        # Nudge all points
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_4, Qt.KeyboardModifier.NoModifier)
+        curve_widget.keyPressEvent(event)
+
+        # Verify all points became KEYFRAME
+        for i in range(3):
+            _, _, _, status = safe_extract_point(curve_widget.curve_data[i])
+            assert status == PointStatus.KEYFRAME.value, f"Point {i} should be KEYFRAME"
