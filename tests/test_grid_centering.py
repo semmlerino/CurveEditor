@@ -13,6 +13,7 @@ import pytest
 from PySide6.QtGui import QImage, QPainter
 from PySide6.QtWidgets import QApplication
 
+from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from ui.curve_view_widget import CurveViewWidget
 
@@ -46,7 +47,7 @@ class TestGridCentering:
     ):
         """Test that grid centers on a single selected point."""
         # Setup: Add points and select one
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 200.0),
             (2, 300.0, 400.0),
             (3, 500.0, 600.0),
@@ -73,7 +74,7 @@ class TestGridCentering:
     ):
         """Test that grid centers on the average of multiple selected points."""
         # Setup: Add points and select multiple
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 200.0),
             (2, 300.0, 400.0),
             (3, 500.0, 600.0),
@@ -101,7 +102,7 @@ class TestGridCentering:
     ):
         """Test that grid defaults to widget center when nothing is selected."""
         # Setup: Add points but don't select any
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 200.0),
             (2, 300.0, 400.0),
         ]
@@ -125,7 +126,7 @@ class TestGridCentering:
     ):
         """Test that grid re-centers when selection changes."""
         # Setup: Add points
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 200.0),
             (2, 500.0, 600.0),
         ]
@@ -183,7 +184,7 @@ class TestGridCentering:
         self, curve_widget: CurveViewWidget, renderer: OptimizedCurveRenderer, test_image: QImage
     ):
         """Test that grid spacing adapts to zoom level."""
-        test_data = [(1, 100.0, 200.0)]
+        test_data: CurveDataList = [(1, 100.0, 200.0)]
         curve_widget.set_curve_data(test_data)
         curve_widget._select_point(0)
 
@@ -205,7 +206,7 @@ class TestGridCentering:
     def test_grid_transform_integration(self, curve_widget: CurveViewWidget, renderer: OptimizedCurveRenderer):
         """Test that grid correctly uses transform service for coordinate conversion."""
         # Setup data
-        test_data = [(1, 250.0, 350.0)]
+        test_data: CurveDataList = [(1, 250.0, 350.0)]
         curve_widget.set_curve_data(test_data)
         curve_widget._select_point(0)
 
@@ -224,7 +225,7 @@ class TestGridCentering:
         """Test that Ctrl+Shift+G toggles grid and it centers correctly."""
 
         # Setup
-        test_data = [(1, 100.0, 200.0)]
+        test_data: CurveDataList = [(1, 100.0, 200.0)]
         curve_widget.set_curve_data(test_data)
         curve_widget._select_point(0)
 
@@ -268,7 +269,7 @@ class TestGridCenteringProtocol:
         # renderer = OptimizedCurveRenderer()  # Not used in test
 
         # Set up test data
-        test_data = [(1, 100.0, 200.0), (2, 300.0, 400.0)]
+        test_data: CurveDataList = [(1, 100.0, 200.0), (2, 300.0, 400.0)]
         widget.set_curve_data(test_data)
         widget._select_point(1)
         widget.show_grid = True

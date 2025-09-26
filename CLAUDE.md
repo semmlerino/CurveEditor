@@ -99,7 +99,7 @@ CurveEditor/
 ├── session/        # Session state persistence
 ├── main.py         # Entry point
 ├── bpr             # Basedpyright wrapper (MUST USE THIS!)
-└── venv/           # Python 3.12, PySide6==6.4.0
+└── venv/           # Python 3.11, PySide6==6.4.0
 ```
 
 ## Development Environment

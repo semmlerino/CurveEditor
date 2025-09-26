@@ -194,6 +194,33 @@ class TestViewStateManagement:
         curve_view_widget.center_on_selection()
         assert True
 
+    def test_center_on_frame(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
+        """Test centering on a specific frame."""
+        curve_view_widget.set_curve_data(sample_points)
+
+        # Test centering on valid frame (1-based indexing)
+        frame_to_center = 2  # Second point in sample_points
+        initial_pan_x = curve_view_widget.pan_offset_x
+        initial_pan_y = curve_view_widget.pan_offset_y
+
+        # Center on frame
+        curve_view_widget.center_on_frame(frame_to_center)
+
+        # Pan offsets should change (view should move)
+        assert curve_view_widget.pan_offset_x != initial_pan_x or curve_view_widget.pan_offset_y != initial_pan_y
+
+        # Test with out-of-bounds frame (should not crash)
+        curve_view_widget.center_on_frame(999)  # Invalid frame
+        assert True  # Should not raise exceptions
+
+        # Test with frame 0 (invalid, should not crash)
+        curve_view_widget.center_on_frame(0)
+        assert True
+
+        # Test with negative frame (invalid, should not crash)
+        curve_view_widget.center_on_frame(-1)
+        assert True
+
 
 class TestCoordinateTransformation:
     """Test coordinate transformation functionality."""

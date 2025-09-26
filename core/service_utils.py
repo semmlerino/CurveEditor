@@ -4,7 +4,7 @@ This module provides centralized access to services, reducing import duplication
 Previously, service imports were repeated 29+ times across the codebase.
 """
 
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 if TYPE_CHECKING:
     from services.data_service import DataService
@@ -84,7 +84,7 @@ class ServiceProvider:
         cls._ui_service = None
 
 
-class ServiceContext[T]:
+class ServiceContext(Generic[T]):
     """Context manager for temporary service operations.
 
     Example:

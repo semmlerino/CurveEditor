@@ -29,7 +29,9 @@ from tests.test_utils import cleanup_qt_widgets  # noqa: E402
 def cleanup_qt():
     """Ensure Qt is properly cleaned up."""
     app = QApplication.instance()
-    cleanup_qt_widgets(app)
+    # QApplication.instance() returns QCoreApplication | None, but cleanup_qt_widgets expects QApplication | None
+    qt_app = app if isinstance(app, QApplication) else None
+    cleanup_qt_widgets(qt_app)
     if app:
         app.quit()
         app.deleteLater()

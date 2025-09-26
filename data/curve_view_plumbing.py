@@ -112,14 +112,14 @@ def operation(action_name: str, record_history: bool = True) -> Callable[[Callab
                 logger.error(f"Exception in {action_name}: {e}\n{error_traceback}")
                 return None
             # Determine success and message
-            if isinstance(result, tuple) and len(result) == 2:
-                success: bool = bool(result[0])
-                msg: str = str(result[1])
+            if isinstance(result, tuple) and len(result) == 2:  # pyright: ignore[reportUnknownArgumentType]
+                success: bool = bool(result[0])  # pyright: ignore[reportUnknownArgumentType]
+                msg: str = str(result[1])  # pyright: ignore[reportUnknownArgumentType]
                 retval: T | None = None  # Tuple case returns status info, not the actual result
             else:
-                success = bool(result)
+                success = bool(result)  # pyright: ignore[reportUnknownArgumentType]
                 msg = action_name
-                retval = result
+                retval = cast(T, result)  # Cast to help type checker understand the return type
             # Only finalize (restore state, history) if requested
             if success and record_history:
                 new_sel = sorted(getattr(curve_view, "selected_points", []))

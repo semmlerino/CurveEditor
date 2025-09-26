@@ -19,8 +19,8 @@ from tests.test_utils import safe_cleanup_widget as safe_qt_cleanup
 
 # Qt imports with fallback for non-GUI environments
 try:
-    from PySide6.QtCore import QObject, QSize
-    from PySide6.QtGui import QAction, QColor, QImage
+    from PySide6.QtCore import QObject, QSize  # pyright: ignore[reportUnusedImport]
+    from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportUnusedImport]
     from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget
 
     HAS_QT = True

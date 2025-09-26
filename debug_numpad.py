@@ -5,6 +5,7 @@ Run this and press numpad 2,4,6,8 to see what Qt receives.
 """
 
 import sys
+from typing import override
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -22,13 +23,13 @@ class KeyDebugWidget(QWidget):
         # Instructions
         info = QLabel(
             "Click in this window then press numpad keys 2, 4, 6, 8\n"
-            "Try with NumLock ON and OFF\n"
-            "Also try regular number keys for comparison"
+            + "Try with NumLock ON and OFF\n"
+            + "Also try regular number keys for comparison"
         )
         layout.addWidget(info)
 
         # Output display
-        self.output = QTextEdit()
+        self.output: QTextEdit = QTextEdit()
         self.output.setReadOnly(True)
         layout.addWidget(self.output)
 
@@ -37,7 +38,8 @@ class KeyDebugWidget(QWidget):
         # Ensure we have keyboard focus
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
-    def keyPressEvent(self, event: QKeyEvent):
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
         key = event.key()
         modifiers = event.modifiers()
 
@@ -49,7 +51,7 @@ class KeyDebugWidget(QWidget):
                 break
 
         # Get modifier names
-        mod_names = []
+        mod_names: list[str] = []
         if modifiers & Qt.KeyboardModifier.ShiftModifier:
             mod_names.append("Shift")
         if modifiers & Qt.KeyboardModifier.ControlModifier:

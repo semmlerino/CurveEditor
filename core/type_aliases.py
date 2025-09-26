@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
+from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPointF
@@ -30,11 +30,11 @@ PathLike = str | Path
 
 # Qt types (with better type handling)
 if TYPE_CHECKING:
-    type QtPointF = QPointF
-    type QtPixmap = QPixmap
-    type QtImage = QImage
-    type QtWidget = QWidget
-    type QtSignal = object  # Signal[...] - specific types in protocols
+    QtPointF: TypeAlias = QPointF
+    QtPixmap: TypeAlias = QPixmap
+    QtImage: TypeAlias = QImage
+    QtWidget: TypeAlias = QWidget
+    QtSignal: TypeAlias = object  # Signal[...] - specific types in protocols
 else:
     # Runtime stubs - avoid Any for better type inference
     QtPointF = QtPixmap = QtImage = QtWidget = QtSignal = object

@@ -188,11 +188,11 @@ class UIInitializationController:
             _ = toolbar.addAction(self.main_window.action_reset_view)
         _ = toolbar.addSeparator()
 
-        # Add frame control to toolbar (from FrameNavigationController)
+        # Add frame control to toolbar (from TimelineController)
         _ = toolbar.addWidget(QLabel("Frame:"))
-        frame_spinbox = self.main_window.frame_nav_controller.frame_spinbox
+        frame_spinbox = self.main_window.timeline_controller.frame_spinbox
         if isinstance(frame_spinbox, QWidget):
-            self.main_window.frame_spinbox = frame_spinbox
+            self.main_window.frame_spinbox = frame_spinbox  # pyright: ignore[reportAttributeAccessIssue]
             _ = toolbar.addWidget(frame_spinbox)
         self.main_window.ui.timeline.frame_spinbox = self.main_window.frame_spinbox  # Map to timeline group
         _ = toolbar.addSeparator()
@@ -251,16 +251,16 @@ class UIInitializationController:
         self.main_window.line_width_slider.setValue(2)
         self.main_window.ui.visualization.line_width_slider = self.main_window.line_width_slider
 
-        # Playback controls from PlaybackController
-        self.main_window.btn_play_pause = self.main_window.playback_controller.btn_play_pause
+        # Playback controls from TimelineController
+        self.main_window.btn_play_pause = self.main_window.timeline_controller.btn_play_pause  # pyright: ignore[reportAttributeAccessIssue]
         self.main_window.ui.timeline.play_button = self.main_window.btn_play_pause
 
-        # FPS control from PlaybackController
-        self.main_window.fps_spinbox = self.main_window.playback_controller.fps_spinbox
+        # FPS control from TimelineController
+        self.main_window.fps_spinbox = self.main_window.timeline_controller.fps_spinbox  # pyright: ignore[reportAttributeAccessIssue]
         self.main_window.ui.timeline.fps_spinbox = self.main_window.fps_spinbox
 
-        # Frame slider from FrameNavigationController
-        self.main_window.frame_slider = self.main_window.frame_nav_controller.frame_slider
+        # Frame slider from TimelineController
+        self.main_window.frame_slider = self.main_window.timeline_controller.frame_slider  # pyright: ignore[reportAttributeAccessIssue]
         self.main_window.ui.timeline.timeline_slider = self.main_window.frame_slider
 
         # Labels
@@ -385,3 +385,30 @@ class UIInitializationController:
 
         self.main_window.position_label = QLabel("X: 0.000, Y: 0.000")
         self.main_window.status_bar.addPermanentWidget(self.main_window.position_label)
+
+    # Protocol compliance methods
+    def _init_curve_view(self) -> None:
+        """Initialize curve view widget (Protocol API)."""
+        # Already handled in _init_central_widget
+        pass
+
+    def _init_control_panel(self) -> None:
+        """Initialize control panel (Protocol API)."""
+        # Control panel elements are created in _create_ui_component_widgets
+        # and integrated in _init_toolbar
+        pass
+
+    def _init_properties_panel(self) -> None:
+        """Initialize properties panel (Protocol API)."""
+        # Properties panel elements are created in _create_ui_component_widgets
+        pass
+
+    def _init_timeline_tabs(self) -> None:
+        """Initialize timeline tabs (Protocol API)."""
+        # Timeline tabs are created in _init_central_widget
+        pass
+
+    def _init_tracking_panel(self) -> None:
+        """Initialize tracking panel (Protocol API)."""
+        # Tracking panel is created in _init_dock_widgets
+        pass

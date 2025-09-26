@@ -10,7 +10,7 @@ import functools
 import logging
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from typing import Any, ParamSpec, TypeVar
+from typing import ParamSpec, TypeVar
 
 from core.logger_utils import get_logger
 
@@ -23,8 +23,8 @@ logger = get_logger(__name__)
 
 
 def handle_service_error(
-    operation: str = "operation", default: Any = None, log_level: int = logging.ERROR, reraise: bool = False
-) -> Callable[[Callable[P, T]], Callable[P, T | Any]]:
+    operation: str = "operation", default: T | None = None, log_level: int = logging.ERROR, reraise: bool = False
+) -> Callable[[Callable[P, T]], Callable[P, T | None]]:
     """
     Decorator for consistent service-level error handling.
 
@@ -43,9 +43,9 @@ def handle_service_error(
             # implementation
     """
 
-    def decorator(func: Callable[P, T]) -> Callable[P, T | Any]:
+    def decorator(func: Callable[P, T]) -> Callable[P, T | None]:
         @functools.wraps(func)
-        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | Any:
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> T | None:
             try:
                 return func(*args, **kwargs)
             except Exception as e:
@@ -53,8 +53,10 @@ def handle_service_error(
                 error_logger = logger
                 if args:
                     instance = args[0]
-                    if hasattr(instance, "_logger") and isinstance(getattr(instance, "_logger", None), logging.Logger):
-                        error_logger = getattr(instance, "_logger")
+                    # Type-safe logger access without hasattr
+                    instance_logger = getattr(instance, "_logger", None)
+                    if instance_logger is not None and isinstance(instance_logger, logging.Logger):
+                        error_logger = instance_logger
 
                 error_logger.log(log_level, f"Failed to {operation}: {e}")
 
@@ -69,8 +71,8 @@ def handle_service_error(
 
 @contextmanager
 def suppress_and_log(
-    operation: str = "operation", default: Any = None, logger_instance: logging.Logger | None = None
-) -> Generator[dict[str, Any], None, None]:
+    operation: str = "operation", default: object | None = None, logger_instance: logging.Logger | None = None
+) -> Generator[dict[str, object | None], None, None]:
     """
     Context manager for suppressing exceptions with logging.
 
@@ -97,7 +99,7 @@ def suppress_and_log(
         result["value"] = default
 
 
-def safe_file_operation[**P, T](func: Callable[P, T]) -> Callable[P, T | None]:
+def safe_file_operation(func: Callable[P, T]) -> Callable[P, T | None]:
     """
     Decorator for safe file operations with automatic resource cleanup.
 
@@ -246,7 +248,7 @@ class ErrorAccumulator:
         self.errors.clear()
 
 
-def validate_not_none[T](value: T | None, name: str = "value", message: str | None = None) -> T:
+def validate_not_none(value: T | None, name: str = "value", message: str | None = None) -> T:
     """
     Validate that a value is not None, with descriptive error.
 
@@ -271,7 +273,7 @@ def validate_not_none[T](value: T | None, name: str = "value", message: str | No
     return value
 
 
-def safe_getattr(obj: Any, attr: str, default: Any = None, log_missing: bool = False) -> Any:
+def safe_getattr(obj: object, attr: str, default: object | None = None, log_missing: bool = False) -> object | None:
     """
     Safely get an attribute with optional logging.
 

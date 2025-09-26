@@ -45,9 +45,9 @@ class TestMainWindowShortcutRegistration:
 
     def test_spacebar_triggers_action_through_window(self, main_window, qtbot):
         """Test that spacebar key press triggers action through window hierarchy."""
-        # Setup spy on playback controller
-        start_spy = QSignalSpy(main_window.playback_controller.playback_started)
-        stop_spy = QSignalSpy(main_window.playback_controller.playback_stopped)
+        # Setup spy on timeline controller
+        start_spy = QSignalSpy(main_window.timeline_controller.playback_started)
+        stop_spy = QSignalSpy(main_window.timeline_controller.playback_stopped)
 
         # Make sure window is active to receive key events
         main_window.show()
@@ -64,7 +64,7 @@ class TestMainWindowShortcutRegistration:
 
         # Should start playback
         assert start_spy.count() >= 1
-        assert main_window.playback_controller.playback_state.mode.name in ["PLAYING_FORWARD", "PLAYING_BACKWARD"]
+        assert main_window.timeline_controller.playback_state.mode.name in ["PLAYING_FORWARD", "PLAYING_BACKWARD"]
 
         # Press again to stop
         qtbot.keyClick(main_window, Qt.Key.Key_Space)
@@ -87,7 +87,7 @@ class TestMainWindowShortcutRegistration:
         action = main_window.action_oscillate_playback
 
         # Setup spy
-        start_spy = QSignalSpy(main_window.playback_controller.playback_started)
+        start_spy = QSignalSpy(main_window.timeline_controller.playback_started)
 
         # Trigger action directly
         action.trigger()
@@ -150,23 +150,21 @@ class TestMainWindowInitialization:
     def test_shortcut_manager_connected(self, main_window):
         """Test that shortcut manager is connected to main window."""
         # Action should be connected - test by triggering
-        initial_mode = main_window.playback_controller.playback_state.mode
+        initial_mode = main_window.timeline_controller.playback_state.mode
 
         main_window.action_oscillate_playback.trigger()
 
-        new_mode = main_window.playback_controller.playback_state.mode
+        new_mode = main_window.timeline_controller.playback_state.mode
         assert new_mode != initial_mode
 
     def test_controllers_properly_initialized(self, main_window):
         """Test that all controllers are properly initialized."""
-        assert main_window.playback_controller is not None
-        assert main_window.frame_nav_controller is not None
+        assert main_window.timeline_controller is not None
         assert main_window.action_controller is not None
         assert main_window.shortcut_manager is not None
 
         # Controllers should be connected to state manager
-        assert main_window.playback_controller.state_manager is main_window.state_manager
-        assert main_window.frame_nav_controller.state_manager is main_window.state_manager
+        assert main_window.timeline_controller.state_manager is main_window.state_manager
 
 
 class TestMainWindowKeyEvents:
@@ -213,7 +211,7 @@ class TestMainWindowKeyEvents:
         qtbot.wait(10)
 
         # Setup spy
-        start_spy = QSignalSpy(main_window.playback_controller.playback_started)
+        start_spy = QSignalSpy(main_window.timeline_controller.playback_started)
 
         # Send Space key event directly
         qtbot.keyClick(main_window, Qt.Key.Key_Space)
@@ -237,8 +235,8 @@ class TestRealWorldIntegration:
         assert main_window.isEnabled()
 
         # Controllers should be ready
-        assert main_window.playback_controller.playback_state.mode.name == "STOPPED"
-        assert not main_window.playback_controller.playback_timer.isActive()
+        assert main_window.timeline_controller.playback_state.mode.name == "STOPPED"
+        assert not main_window.timeline_controller.playback_timer.isActive()
 
         # Ensure focus for key events
         main_window.setFocus(Qt.FocusReason.OtherFocusReason)
@@ -249,7 +247,7 @@ class TestRealWorldIntegration:
         qtbot.wait(10)
 
         # Should start playback
-        assert main_window.playback_controller.playback_state.mode.name in ["PLAYING_FORWARD", "PLAYING_BACKWARD"]
+        assert main_window.timeline_controller.playback_state.mode.name in ["PLAYING_FORWARD", "PLAYING_BACKWARD"]
 
     def test_window_cleanup_on_close(self, main_window, qtbot):
         """Test proper cleanup when window closes."""
@@ -265,7 +263,7 @@ class TestRealWorldIntegration:
         qtbot.wait(10)
 
         # Should be playing
-        assert main_window.playback_controller.playback_timer.isActive()
+        assert main_window.timeline_controller.playback_timer.isActive()
 
         # Close window
         main_window.close()

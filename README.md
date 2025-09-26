@@ -27,7 +27,7 @@ A professional Python/PySide6 application for editing animation curves and track
 ## Installation
 
 ### Prerequisites
-- Python 3.12 or higher
+- Python 3.11 or higher
 - Virtual environment (recommended)
 
 ### Setup
@@ -231,7 +231,7 @@ User preferences stored in: `~/.curveEditor/settings.json`
 ### Common Issues
 
 #### Application Won't Start
-- Ensure Python 3.12+ is installed
+- Ensure Python 3.11+ is installed
 - Check all dependencies are installed: `pip install -r requirements.txt`
 - Verify PySide6 installation: `python -c "import PySide6"`
 

@@ -83,14 +83,6 @@ class StatusServiceProtocol(Protocol):
         ...
 
 
-class ServiceProtocol(Protocol):
-    """Base protocol for all services."""
-
-    def initialize(self) -> None:
-        """Initialize the service."""
-        ...
-
-
 class StateManagerProtocol(Protocol):
     """Protocol for state manager."""
 
@@ -291,46 +283,6 @@ class MainWindowProtocol(Protocol):
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation to selected points."""
-        ...
-
-
-class HistoryContainerProtocol(Protocol):
-    """Protocol for objects that can be saved and restored in history.
-
-    This consolidates the HistoryContainerProtocol from history_service.py
-    to avoid protocol duplication and import issues.
-    """
-
-    # Data attributes (writeable for history operations)
-    curve_data: CurveDataList
-    point_name: str
-    point_color: str
-
-    # History management attributes
-    history: list[object]  # list[HistoryState]
-    history_index: int
-    max_history_size: int
-
-    # Component references
-    curve_widget: object  # CurveView widget
-    curve_view: object  # CurveView widget (alias)
-    services: object  # Service container
-    ui_components: object  # UI components container
-
-    def restore_state(self, state: HistoryState) -> None:
-        """Restore state from history."""
-        ...
-
-
-class HistoryCommandProtocol(Protocol):
-    """Protocol for history commands that can be undone and redone."""
-
-    def undo(self, container: HistoryContainerProtocol) -> None:
-        """Undo this command."""
-        ...
-
-    def redo(self, container: HistoryContainerProtocol) -> None:
-        """Redo this command."""
         ...
 
 

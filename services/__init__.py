@@ -25,11 +25,8 @@ from typing import TYPE_CHECKING
 from services.service_protocols import (
     BatchEditableProtocol,
     CurveViewProtocol,
-    HistoryCommandProtocol,
-    HistoryContainerProtocol,
     LoggingServiceProtocol,
     MainWindowProtocol,
-    ServiceProtocol,
     StateManagerProtocol,
     StatusServiceProtocol,
 )
@@ -38,7 +35,7 @@ from services.service_protocols import (
 if TYPE_CHECKING:
     from services.data_service import DataService
     from services.interaction_service import InteractionService
-    from services.transform_service import Transform, TransformService, ViewState
+    from services.transform_service import TransformService
     from services.ui_service import UIService
 else:
     # These will be imported lazily in the getter functions
@@ -46,8 +43,6 @@ else:
     InteractionService = None
     TransformService = None
     UIService = None
-    Transform = None
-    ViewState = None
 
 # Sprint 8 services have been removed in favor of the consolidated 4-service architecture
 
@@ -71,11 +66,8 @@ __all__ = [
     # Service Protocols for type safety (always available)
     "BatchEditableProtocol",
     "CurveViewProtocol",
-    "HistoryCommandProtocol",
-    "HistoryContainerProtocol",
     "LoggingServiceProtocol",
     "MainWindowProtocol",
-    "ServiceProtocol",
     "StateManagerProtocol",
     "StatusServiceProtocol",
     # Service getters (4 core) - always available
@@ -84,7 +76,6 @@ __all__ = [
     "get_interaction_service",
     "get_ui_service",
     # Utility
-    "get_module_logger",
     "reset_all_services",
 ]
 
@@ -94,8 +85,6 @@ if not TYPE_CHECKING:
     __all__.extend(
         [
             "TransformService",
-            "Transform",
-            "ViewState",
             "DataService",
             "InteractionService",
             "UIService",

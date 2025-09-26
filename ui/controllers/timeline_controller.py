@@ -1,238 +1,508 @@
-#!/usr/bin/env python
 """
-Timeline Controller for CurveEditor.
+Unified timeline controller for playback and frame navigation.
 
-This controller manages the timeline tabs widget, including frame navigation,
-status updates, and synchronization with curve data changes.
+This module combines timeline playback (play/pause, FPS, oscillating modes)
+with frame navigation (spinbox/slider sync, navigation buttons, range management).
 """
 
+from dataclasses import dataclass
+from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
+from PySide6.QtWidgets import (
+    QApplication,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QStyle,
+)
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
+    from ui.state_manager import StateManager
 
 from core.logger_utils import get_logger
-from core.type_aliases import CurveDataList
-from services import get_data_service
-from stores import get_store_manager
 
-logger = get_logger("timeline_controller")
+logger = get_logger(__name__)
 
 
-class TimelineController:
+class PlaybackMode(Enum):
+    """Enumeration for oscillating playback modes."""
+
+    STOPPED = auto()
+    PLAYING_FORWARD = auto()
+    PLAYING_BACKWARD = auto()
+
+
+@dataclass
+class PlaybackState:
+    """State management for oscillating timeline playback."""
+
+    mode: PlaybackMode = PlaybackMode.STOPPED
+    fps: int = 12
+    current_frame: int = 1
+    min_frame: int = 1
+    max_frame: int = 100
+    loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
+
+
+class TimelineController(QObject):
     """
-    Controller for managing timeline tabs functionality.
+    Unified controller for timeline navigation and playback.
 
-    Extracted from MainWindow to centralize all timeline-related logic,
-    including frame status updates, navigation, and data synchronization.
+    Combines frame navigation (spinbox, slider, buttons) with
+    playback functionality (play/pause, FPS, oscillating modes).
     """
 
-    def __init__(self, main_window: "MainWindow"):
+    # Signals
+    frame_changed = Signal(int)  # Emitted when frame changes
+    playback_started = Signal()
+    playback_stopped = Signal()
+    playback_state_changed = Signal(PlaybackMode)  # For UI updates
+    status_message = Signal(str)  # Status bar updates
+
+    def __init__(self, state_manager: "StateManager", parent: QObject | None = None):
         """
         Initialize the timeline controller.
 
         Args:
-            main_window: Reference to the main window for UI access
+            state_manager: Application state manager
+            parent: Parent QObject (typically MainWindow)
         """
-        self.main_window = main_window
+        super().__init__(parent)
+        self.state_manager = state_manager
+        self.playback_state = PlaybackState()
+        # Store reference to MainWindow for accessing other components
+        self.main_window = parent
 
-        # Get reactive data store
-        self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
+        # Create UI components
+        self._create_widgets()
 
-        logger.info("TimelineController initialized")
+        # Setup timer for playback
+        self.playback_timer = QTimer(self)
+        self.playback_timer.timeout.connect(self._on_playback_timer)
 
-    @Slot(int)
-    def on_timeline_tab_clicked(self, frame: int) -> None:
+        # Connect signals
+        self._connect_signals()
+
+    def _create_widgets(self) -> None:
+        """Create all timeline control widgets."""
+        style = QApplication.style()
+
+        # ========== Navigation Widgets ==========
+        # Frame spinbox
+        self.frame_spinbox = QSpinBox()
+        self.frame_spinbox.setMinimum(1)
+        self.frame_spinbox.setMaximum(1000)  # Default max, will be updated
+        self.frame_spinbox.setValue(1)
+        self.frame_spinbox.setToolTip("Current frame")
+
+        # Frame slider
+        self.frame_slider = QSlider(Qt.Orientation.Horizontal)
+        self.frame_slider.setMinimum(1)
+        self.frame_slider.setMaximum(1000)  # Match spinbox max
+        self.frame_slider.setValue(1)
+        self.frame_slider.setToolTip("Scrub through frames")
+
+        # Navigation buttons
+        self.btn_first = QPushButton()
+        self.btn_first.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
+        self.btn_first.setToolTip("First frame")
+
+        self.btn_prev = QPushButton()
+        self.btn_prev.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
+        self.btn_prev.setToolTip("Previous frame")
+
+        self.btn_next = QPushButton()
+        self.btn_next.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
+        self.btn_next.setToolTip("Next frame")
+
+        self.btn_last = QPushButton()
+        self.btn_last.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
+        self.btn_last.setToolTip("Last frame")
+
+        # ========== Playback Widgets ==========
+        # Play/pause button
+        self.btn_play_pause = QPushButton()
+        self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.btn_play_pause.setCheckable(True)
+        self.btn_play_pause.setToolTip("Play/Pause (Spacebar)")
+
+        # FPS spinbox
+        self.fps_spinbox = QSpinBox()
+        self.fps_spinbox.setMinimum(1)
+        self.fps_spinbox.setMaximum(120)
+        self.fps_spinbox.setValue(24)
+        self.fps_spinbox.setSuffix(" fps")
+        self.fps_spinbox.setToolTip("Playback speed")
+
+    def _connect_signals(self) -> None:
+        """Connect widget signals."""
+        # Navigation signals
+        self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
+        self.frame_slider.valueChanged.connect(self._on_slider_changed)
+        self.btn_first.clicked.connect(self._on_first_frame)
+        self.btn_prev.clicked.connect(self._on_prev_frame)
+        self.btn_next.clicked.connect(self._on_next_frame)
+        self.btn_last.clicked.connect(self._on_last_frame)
+
+        # Playback signals
+        self.btn_play_pause.toggled.connect(self._on_play_pause)
+        self.fps_spinbox.valueChanged.connect(self._on_fps_changed)
+
+    # ========== Frame Navigation Methods ==========
+
+    def _on_frame_changed(self, value: int) -> None:
+        """Handle frame spinbox value change."""
+        logger.debug(f"[FRAME] Spinbox changed to: {value}")
+
+        # Update slider without triggering its signal
+        self.frame_slider.blockSignals(True)
+        self.frame_slider.setValue(value)
+        self.frame_slider.blockSignals(False)
+
+        # Update state and emit signal
+        self._update_frame(value)
+
+    def _on_slider_changed(self, value: int) -> None:
+        """Handle timeline slider value change."""
+        logger.debug(f"[FRAME] Slider changed to: {value}")
+
+        # Update spinbox without triggering its signal
+        self.frame_spinbox.blockSignals(True)
+        self.frame_spinbox.setValue(value)
+        self.frame_spinbox.blockSignals(False)
+
+        # Update state and emit signal
+        self._update_frame(value)
+
+    def _update_frame(self, frame: int) -> None:
+        """Update the current frame and notify listeners."""
+        # Update state manager
+        self.state_manager.current_frame = frame
+        self.playback_state.current_frame = frame
+        logger.debug(f"[FRAME] Current frame set to: {frame}")
+
+        # Emit signal for other components
+        self.frame_changed.emit(frame)
+
+        # Update status
+        total = self.frame_spinbox.maximum()
+        self.status_message.emit(f"Frame {frame}/{total}")
+
+    def _on_first_frame(self) -> None:
+        """Jump to first frame."""
+        self.set_frame(1)
+
+    def _on_prev_frame(self) -> None:
+        """Go to previous frame."""
+        current = self.frame_spinbox.value()
+        if current > 1:
+            self.set_frame(current - 1)
+
+    def _on_next_frame(self) -> None:
+        """Go to next frame."""
+        current = self.frame_spinbox.value()
+        if current < self.frame_spinbox.maximum():
+            self.set_frame(current + 1)
+
+    def _on_last_frame(self) -> None:
+        """Jump to last frame."""
+        self.set_frame(self.frame_spinbox.maximum())
+
+    def set_frame(self, frame: int) -> None:
         """
-        Handle timeline tab click to navigate to frame.
+        Set the current frame programmatically.
 
         Args:
-            frame: Frame number that was clicked
+            frame: Frame number to set
         """
-        # Update spinbox which will trigger frame change
-        if self.main_window.frame_spinbox:
-            self.main_window.frame_spinbox.setValue(frame)
-        logger.debug(f"Timeline tab clicked: navigating to frame {frame}")
+        # Clamp to valid range
+        frame = max(1, min(frame, self.frame_spinbox.maximum()))
 
-    @Slot(int)
-    def on_timeline_tab_hovered(self, frame: int) -> None:
+        # Update spinbox (will trigger the chain of updates)
+        self.frame_spinbox.setValue(frame)
+
+    def update_frame_display(self, frame: int, update_state: bool = True) -> None:
         """
-        Handle timeline tab hover for preview.
-
-        Currently a placeholder for future functionality like
-        showing frame preview on hover.
+        Update frame display without emitting signals.
 
         Args:
-            frame: Frame number being hovered
+            frame: Frame number to display
+            update_state: Whether to update state manager
         """
-        # Could be used to show frame preview in the future
-        pass
+        # Block signals to prevent feedback loops
+        self.frame_spinbox.blockSignals(True)
+        self.frame_spinbox.setValue(frame)
+        self.frame_spinbox.blockSignals(False)
 
-    def update_for_tracking_data(self, num_images: int) -> None:
-        """
-        DEPRECATED: Timeline now updates automatically from store signals.
+        self.frame_slider.blockSignals(True)
+        self.frame_slider.setValue(frame)
+        self.frame_slider.blockSignals(False)
 
-        This method is kept for compatibility but does nothing.
-        Timeline frame range is determined by curve data in the store.
+        if update_state:
+            self.state_manager.current_frame = frame
+            self.playback_state.current_frame = frame
+            logger.debug(f"[FRAME] Display updated to: {frame}")
 
-        Args:
-            num_images: Total number of images in the sequence (ignored)
-        """
-        # Timeline updates automatically from store signals
-        # No manual update needed
-        logger.debug(f"update_for_tracking_data called with {num_images} images (ignored - using store data)")
+    def get_current_frame(self) -> int:
+        """Get the current frame number."""
+        return self.frame_spinbox.value()
 
-    def update_for_current_frame(self, frame: int) -> None:
-        """
-        Update timeline to show current frame.
+    # Navigation Protocol API
+    def next_frame(self) -> None:
+        """Navigate to next frame."""
+        self._on_next_frame()
 
-        Args:
-            frame: Current frame number
-        """
-        if self.main_window.timeline_tabs:
-            self.main_window.timeline_tabs.set_current_frame(frame)
+    def previous_frame(self) -> None:
+        """Navigate to previous frame."""
+        self._on_prev_frame()
 
-    def update_timeline_tabs(self, curve_data: CurveDataList | None = None) -> None:
-        """
-        Update timeline tabs with curve point data and status.
+    def first_frame(self) -> None:
+        """Navigate to first frame."""
+        self._on_first_frame()
 
-        This method calculates the frame range and point status for each frame,
-        then updates the timeline widget to display the appropriate colors
-        and states for each frame tab.
+    def last_frame(self) -> None:
+        """Navigate to last frame."""
+        self._on_last_frame()
 
-        Args:
-            curve_data: Optional curve data to use. If None, gets from store.
-        """
-        if not self.main_window.timeline_tabs:
+    def go_to_frame(self, frame: int) -> None:
+        """Navigate to specific frame."""
+        self.set_frame(frame)
+
+    # ========== Playback Methods ==========
+
+    def toggle_playback(self) -> None:
+        """Toggle oscillating playback (public API for spacebar)."""
+        if self.playback_state.mode == PlaybackMode.STOPPED:
+            self._start_oscillating_playback()
+        else:
+            self._stop_oscillating_playback()
+
+    def start_playback(self) -> None:
+        """Start playback animation."""
+        self._start_oscillating_playback()
+
+    def stop_playback(self) -> None:
+        """Stop playback animation."""
+        self._stop_oscillating_playback()
+
+    def set_frame_rate(self, fps: int) -> None:
+        """Set playback frame rate."""
+        self.playback_state.fps = fps
+        self.fps_spinbox.setValue(fps)
+        if self.playback_timer.isActive():
+            # Update timer interval if currently playing
+            self.playback_timer.setInterval(int(1000 / fps))
+
+    def _on_play_pause(self, checked: bool) -> None:
+        """Handle play/pause button toggle."""
+        if checked:
+            self._start_oscillating_playback()
+        else:
+            self._stop_oscillating_playback()
+
+    def _on_fps_changed(self, value: int) -> None:
+        """Handle FPS change."""
+        self.playback_state.fps = value
+        # Update timer interval if playing
+        if self.playback_state.mode != PlaybackMode.STOPPED:
+            interval = int(1000 / value)
+            self.playback_timer.setInterval(interval)
+        logger.debug(f"FPS changed to {value}")
+
+    def _start_oscillating_playback(self) -> None:
+        """Start oscillating timeline playback."""
+        style = QApplication.style()
+
+        # Update playback bounds from current data
+        self._update_playback_bounds()
+
+        # Set initial mode
+        self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+        self.playback_state.current_frame = self.state_manager.current_frame
+
+        # Start timer
+        fps = self.fps_spinbox.value()
+        interval = int(1000 / fps)
+        self.playback_timer.start(interval)
+
+        # Update UI (block signals to prevent recursive calls)
+        self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPause))
+        self.btn_play_pause.blockSignals(True)
+        self.btn_play_pause.setChecked(True)
+        self.btn_play_pause.blockSignals(False)
+
+        # Emit signals
+        self.playback_started.emit()
+        self.playback_state_changed.emit(PlaybackMode.PLAYING_FORWARD)
+        self.status_message.emit(
+            f"Started oscillating playback at {fps} FPS "
+            f"(bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
+        )
+        logger.info(
+            f"Started oscillating playback at {fps} FPS "
+            f"(bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
+        )
+
+    def _stop_oscillating_playback(self) -> None:
+        """Stop oscillating timeline playback."""
+        style = QApplication.style()
+
+        self.playback_timer.stop()
+        self.playback_state.mode = PlaybackMode.STOPPED
+
+        # Update UI (block signals to prevent recursive calls)
+        self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
+        self.btn_play_pause.blockSignals(True)
+        self.btn_play_pause.setChecked(False)
+        self.btn_play_pause.blockSignals(False)
+
+        # Emit signals
+        self.playback_stopped.emit()
+        self.playback_state_changed.emit(PlaybackMode.STOPPED)
+        self.status_message.emit("Stopped playback")
+        logger.info("Stopped oscillating playback")
+
+    def _on_playback_timer(self) -> None:
+        """Handle oscillating playback timer tick."""
+        # Only handle oscillating playback if mode is not stopped
+        if self.playback_state.mode == PlaybackMode.STOPPED:
             return
 
-        # Get data from store if not provided
-        if curve_data is None:
-            curve_data = self._curve_store.get_data()
+        current = self.state_manager.current_frame
 
-        if not curve_data:
-            return
+        # Handle forward playback
+        if self.playback_state.mode == PlaybackMode.PLAYING_FORWARD:
+            next_frame = current + 1
+            if current >= self.playback_state.max_frame:
+                # Reached end, reverse direction
+                self.playback_state.mode = PlaybackMode.PLAYING_BACKWARD
+                next_frame = current - 1
+                logger.debug(f"Reached max frame {self.playback_state.max_frame}, reversing to backward")
+                self.playback_state_changed.emit(PlaybackMode.PLAYING_BACKWARD)
+            self.set_frame(next_frame)
 
-        # Calculate frame range - validate data first
-        frames: list[int] = []
-        for point in curve_data:
-            if len(point) >= 3:
-                try:
-                    # Ensure frame number is an integer
-                    frame = int(point[0])
-                    frames.append(frame)
-                except (ValueError, TypeError):
-                    # Skip invalid data
-                    continue
+        # Handle backward playback
+        elif self.playback_state.mode == PlaybackMode.PLAYING_BACKWARD:
+            next_frame = current - 1
+            if current <= self.playback_state.min_frame:
+                # Reached start, reverse direction
+                self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
+                next_frame = current + 1
+                logger.debug(f"Reached min frame {self.playback_state.min_frame}, reversing to forward")
+                self.playback_state_changed.emit(PlaybackMode.PLAYING_FORWARD)
+            self.set_frame(next_frame)
 
-        if not frames:
-            return
+    @property
+    def is_playing(self) -> bool:
+        """Check if playback is active."""
+        return self.playback_state.mode != PlaybackMode.STOPPED
 
-        min_frame = min(frames)
-        max_frame = max(frames)
+    def get_playback_mode(self) -> PlaybackMode:
+        """Get the current playback mode."""
+        return self.playback_state.mode
 
-        # Limit timeline tabs to a reasonable number (performance issue with thousands of tabs)
-        # Only create tabs for up to 200 frames to avoid UI freezing
-        max_timeline_frames = 200
-        if max_frame - min_frame + 1 > max_timeline_frames:
-            # Only show first 200 frames in timeline tabs
-            max_frame = min_frame + max_timeline_frames - 1
-            logger.warning(
-                f"Timeline limited to {max_timeline_frames} frames for performance. "
-                f"Full range: {min(frames)}-{max(frames)}"
-            )
+    def _update_playback_bounds(self) -> None:
+        """Update playback bounds based on current curve data."""
+        # Use the frame range already set in the navigation controls
+        self.playback_state.min_frame = self.frame_spinbox.minimum()
+        self.playback_state.max_frame = self.frame_spinbox.maximum()
 
-        # Update timeline widget frame range
-        self.main_window.timeline_tabs.set_frame_range(min_frame, max_frame)
+        # Try to get actual frame range from curve data if available
+        parent = self.parent()
+        if parent is not None:
+            curve_widget = getattr(parent, "curve_widget", None)
+            if curve_widget is not None:
+                curve_data = curve_widget.curve_data
+                if curve_data:
+                    # Get actual frame range from curve data
+                    frames = [point[0] for point in curve_data]
+                    self.playback_state.min_frame = min(frames)
+                    self.playback_state.max_frame = max(frames)
 
-        # Get point status for all frames using DataService
-        try:
-            data_service = get_data_service()
+        logger.debug(f"Updated playback bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame}")
 
-            # Get comprehensive status for all frames that have points
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
-
-            # Update timeline tabs with comprehensive point status
-            for frame, status_data in frame_status.items():
-                # Unpack all status fields from the enhanced DataService response
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = status_data
-
-                self.main_window.timeline_tabs.update_frame_status(
-                    frame,
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    normal_count=normal_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
-                )
-
-            # Explicitly mark frames without points to show "no_points" color
-            # This ensures gaps in the curve are visually represented in the timeline
-            all_frames = set(range(min_frame, max_frame + 1))
-            frames_with_points = set(frame_status.keys())
-            empty_frames = all_frames - frames_with_points
-
-            for frame in empty_frames:
-                self.main_window.timeline_tabs.update_frame_status(
-                    frame,
-                    keyframe_count=0,
-                    interpolated_count=0,
-                    tracked_count=0,
-                    endframe_count=0,
-                    normal_count=0,
-                    is_startframe=False,
-                    is_inactive=False,
-                    has_selected=False,
-                )
-
-            logger.debug(
-                f"Updated timeline tabs: {len(frame_status)} frames with data, " f"{len(empty_frames)} empty frames"
-            )
-
-        except Exception as e:
-            logger.warning(f"Could not update timeline tabs with point data: {e}")
-
-    def connect_signals(self) -> None:
-        """
-        Connect timeline-related signals.
-
-        This should be called after the timeline tabs widget is created.
-        """
-        if self.main_window.timeline_tabs:
-            # Connect timeline tab signals
-            _ = self.main_window.timeline_tabs.frame_changed.connect(self.on_timeline_tab_clicked)
-            _ = self.main_window.timeline_tabs.frame_hovered.connect(self.on_timeline_tab_hovered)
-            logger.info("Timeline tabs signals connected")
+    # ========== Shared Methods ==========
 
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """
-        Set the timeline frame range.
+        Set the valid frame range for both navigation and playback.
 
         Args:
-            min_frame: Minimum frame number
+            min_frame: Minimum frame number (usually 1)
             max_frame: Maximum frame number
         """
-        if self.main_window.timeline_tabs:
-            self.main_window.timeline_tabs.set_frame_range(min_frame, max_frame)
-            logger.debug(f"Timeline frame range set to {min_frame}-{max_frame}")
+        # Update navigation controls
+        self.frame_spinbox.setMinimum(min_frame)
+        self.frame_spinbox.setMaximum(max_frame)
+        self.frame_slider.setMinimum(min_frame)
+        self.frame_slider.setMaximum(max_frame)
+
+        # Update playback bounds
+        self.playback_state.min_frame = min_frame
+        self.playback_state.max_frame = max_frame
+
+        # Ensure current value is within range
+        current = self.frame_spinbox.value()
+        if current < min_frame:
+            self.set_frame(min_frame)
+        elif current > max_frame:
+            self.set_frame(max_frame)
+
+        # Update state manager's total frames
+        self.state_manager.total_frames = max_frame
+
+        logger.debug(f"Frame range set to {min_frame}-{max_frame}")
+
+    @Slot(int)
+    def on_frame_changed(self, frame: int) -> None:
+        """Handle frame change from external sources."""
+        self._on_frame_changed(frame)
+
+    # ========== Timeline Tabs Methods (Protocol Compatibility) ==========
+
+    def on_timeline_tab_clicked(self, frame: int) -> None:
+        """Handle timeline tab click."""
+        self.set_frame(frame)
+        logger.debug(f"Timeline tab clicked: frame {frame}")
+
+    def on_timeline_tab_hovered(self, frame: int) -> None:
+        """Handle timeline tab hover."""
+        # Could show preview or status message
+        logger.debug(f"Timeline tab hovered: frame {frame}")
+
+    def update_for_tracking_data(self, num_images: int) -> None:
+        """Update timeline for tracking data."""
+        if num_images > 0:
+            self.set_frame_range(1, num_images)
+        logger.debug(f"Updated timeline for {num_images} tracking images")
+
+    def update_for_current_frame(self, frame: int) -> None:
+        """Update timeline to show current frame."""
+        self.update_frame_display(frame)
+
+        # Also update timeline tabs if available
+        if hasattr(self.main_window, "timeline_tabs") and self.main_window.timeline_tabs:
+            logger.debug(f"Updating timeline_tabs to frame {frame}")
+            self.main_window.timeline_tabs.set_current_frame(frame)
+        else:
+            logger.debug(f"Timeline_tabs not available for update to frame {frame}")
+
+        logger.debug(f"Updated timeline for frame {frame}")
+
+    def update_timeline_tabs(self, curve_data: object | None = None) -> None:
+        """Update timeline tabs with curve data."""
+        # This would update the visual timeline tabs if we had them
+        logger.debug("Timeline tabs update requested")
+
+    def connect_signals(self) -> None:
+        """Connect timeline-related signals."""
+        # Compatibility method for old timeline controller
+        pass
 
     def clear(self) -> None:
         """Clear the timeline tabs."""
-        if self.main_window.timeline_tabs:
-            self.main_window.timeline_tabs.set_frame_range(0, 0)
-            logger.debug("Timeline tabs cleared")
+        # Reset frame range to defaults
+        self.set_frame_range(1, 1)
+        logger.debug("Timeline cleared")

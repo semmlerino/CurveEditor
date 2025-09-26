@@ -606,16 +606,7 @@ class TestTransformService:
     def transform_service(self) -> TransformService:
         """Create a TransformService for testing."""
         service = TransformService()
-        service.clear_cache()  # Ensure clean state
         return service
-
-    @pytest.fixture(autouse=True)
-    def clear_cache_between_tests(self) -> None:
-        """Automatically clear cache between tests to ensure isolation."""
-        # Clear cache before each test
-        from services import get_transform_service
-
-        get_transform_service().clear_cache()
 
     @pytest.fixture
     def real_curve_view(self, qtbot: QtBot) -> None:
@@ -662,8 +653,6 @@ class TestTransformService:
         """Test that TransformService can be created."""
         service = TransformService()
         assert service is not None
-        assert hasattr(service, "_create_transform_cached")
-        assert hasattr(service, "get_cache_info")
 
     def test_create_view_state(self, transform_service: TransformService, real_curve_view, qtbot) -> None:
         """Test creating ViewState from CurveView using real Qt widget."""
@@ -683,68 +672,6 @@ class TestTransformService:
 
         assert isinstance(transform, Transform)
         assert transform.scale == 1.0
-
-    def test_transform_caching(self, transform_service: TransformService) -> None:
-        """Test that transforms are cached for identical ViewStates."""
-        view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-
-        # Create transform twice with same ViewState
-        transform1 = transform_service.create_transform_from_view_state(view_state)
-        transform2 = transform_service.create_transform_from_view_state(view_state)
-
-        # Should return the same cached instance
-        assert transform1 is transform2
-
-    def test_transform_cache_different_states(self, transform_service: TransformService) -> None:
-        """Test that different ViewStates create different transforms."""
-        view_state1 = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-
-        view_state2 = ViewState(
-            display_width=1920,
-            display_height=1080,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=2.0,  # Different parameter
-        )
-
-        transform1 = transform_service.create_transform_from_view_state(view_state1)
-        transform2 = transform_service.create_transform_from_view_state(view_state2)
-
-        # Should be different instances
-        assert transform1 is not transform2
-        assert transform1.scale != transform2.scale
-
-    def test_cache_size_limit(self, transform_service: TransformService) -> None:
-        """Test that cache respects size limit."""
-        # Create more transforms than cache limit (100)
-        transforms = []
-        for i in range(105):
-            view_state = ViewState(
-                display_width=1920,
-                display_height=1080,
-                widget_width=800,
-                widget_height=600,
-                zoom_factor=1.0 + i * 0.01,  # Make each unique
-            )
-            transforms.append(transform_service.create_transform_from_view_state(view_state))
-
-        # Cache should not exceed max size
-        cache_info = transform_service.get_cache_info()
-        assert cache_info["current_size"] <= cache_info["max_size"]
-
-    def test_clear_cache(self, transform_service: TransformService) -> None:
-        """Test clearing the transform cache."""
-        view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-
-        # Create a transform to populate cache
-        transform_service.create_transform_from_view_state(view_state)
-        cache_info = transform_service.get_cache_info()
-        assert cache_info["current_size"] > 0
-
-        # Clear cache
-        transform_service.clear_cache()
-        cache_info = transform_service.get_cache_info()
-        assert cache_info["current_size"] == 0
 
     def test_transform_point_to_screen(self, transform_service: TransformService) -> None:
         """Test transforming points to screen coordinates."""
@@ -836,7 +763,6 @@ class TestTransformServiceIntegration:
     def service(self) -> TransformService:
         """Create a fresh TransformService for integration tests."""
         service = TransformService()
-        service.clear_cache()
         return service
 
     def test_full_workflow_basic(self, service: TransformService, qtbot) -> None:

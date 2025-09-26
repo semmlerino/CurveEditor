@@ -74,6 +74,15 @@ class TestNavigationIntegration:
         qtbot.waitExposed(window)
         qtbot.wait(100)  # Let everything settle
 
+        # Set the frame range to match our test data (frames 1-30)
+        # Do this AFTER show() to avoid it being overridden during initialization
+        window.timeline_controller.set_frame_range(1, 30)
+        window.frame_spinbox.setMaximum(30)
+        window.frame_slider.setMaximum(30)
+        window.state_manager.total_frames = 30
+        if window.timeline_tabs:
+            window.timeline_tabs.set_frame_range(1, 30)
+
         return window
 
     def test_complete_navigation_workflow(self, fully_configured_window: MainWindow, qtbot: QtBot) -> None:

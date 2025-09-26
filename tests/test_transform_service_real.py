@@ -186,8 +186,8 @@ class TestTransformService:
         # Transform will calculate center offset internally
         assert transform.scale == 3.0
 
-    def test_transform_caching(self):
-        """Test that transform service caches transforms efficiently."""
+    def test_transform_consistency(self):
+        """Test that transform service creates consistent transforms for same parameters."""
         from services.transform_service import ViewState
 
         service = TransformService()
@@ -228,8 +228,9 @@ class TestTransformService:
         transform1 = service.create_transform_from_view_state(view_state1)
         transform2 = service.create_transform_from_view_state(view_state2)
 
-        # Should return the same cached instance for same parameters
-        assert transform1 is transform2
+        # Should create equivalent transforms for same parameters (not cached anymore)
+        assert transform1._parameters == transform2._parameters
+        assert transform1.scale == transform2.scale
 
     def test_update_transform(self):
         """Test updating transform parameters."""

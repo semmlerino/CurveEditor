@@ -12,7 +12,6 @@ Provides a unified interface for all coordinate transformations and view state m
 import hashlib
 import threading
 from dataclasses import dataclass, field
-from functools import lru_cache
 from typing import TYPE_CHECKING
 
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
@@ -394,7 +393,6 @@ class Transform:
         )
 
     @classmethod
-    @lru_cache(maxsize=128)
     def from_view_state(cls, view_state: ViewState) -> "Transform":
         """Create a Transform from a ViewState."""
         # Calculate scale

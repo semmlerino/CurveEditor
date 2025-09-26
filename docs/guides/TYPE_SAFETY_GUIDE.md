@@ -79,7 +79,7 @@ class ServiceProtocol(Protocol):
 ```json
 {
   "typeCheckingMode": "standard",
-  "pythonVersion": "3.12",
+  "pythonVersion": "3.11",
   "reportUnknownMemberType": "none",  // Reduces PySide6 noise
   "reportUnknownParameterType": "none",
   "reportUnknownVariableType": "none",

@@ -130,10 +130,6 @@ class TestServiceThreadSafety:
                     transform = service.create_transform_from_view_state(view_state)
                     transforms_created.append(id(transform))
 
-                    # Occasionally clear cache
-                    if i % 20 == 0:
-                        service.clear_cache()
-
             except Exception as e:
                 errors.append(f"Thread {thread_id}: {e}")
 

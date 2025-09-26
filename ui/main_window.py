@@ -60,15 +60,12 @@ from stores.curve_data_store import CurveDataStore
 # CurveView removed - using CurveViewWidget
 from .controllers import (
     ActionHandlerController,
-    BackgroundImageController,
-    FrameNavigationController,
     MultiPointTrackingController,
-    PlaybackController,
     PointEditorController,
     SignalConnectionManager,
     TimelineController,
     UIInitializationController,
-    ViewOptionsController,
+    ViewManagementController,
 )
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
@@ -77,9 +74,7 @@ from .keyboard_shortcuts import ShortcutManager
 from .protocols.controller_protocols import (
     ActionHandlerProtocol,
     BackgroundImageProtocol,
-    FrameNavigationProtocol,
     MultiPointTrackingProtocol,
-    PlaybackControllerProtocol,
     PointEditorProtocol,
     SignalConnectionProtocol,
     TimelineControllerProtocol,
@@ -115,7 +110,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # Removed orphaned playback button attributes - they were never used
     btn_play_pause: QPushButton | None = None  # Used for playback control (not visible but functional)
     fps_spinbox: QSpinBox | None = None
-    # playback_timer was moved to PlaybackController
+    # playback_timer was moved to TimelineController
     curve_widget: "CurveViewWidget | None" = None
     curve_container: QWidget | None = None
     selected_point_label: QLabel | None = None
@@ -176,11 +171,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     ui_components: object | None = None  # UIComponents container - deprecated, use self.ui instead
 
     # Controllers - initialized in __init__
-    playback_controller: PlaybackControllerProtocol
-    frame_nav_controller: FrameNavigationProtocol
+    timeline_controller: TimelineControllerProtocol
     action_controller: ActionHandlerProtocol
     ui_init_controller: UIInitializationProtocol
-    view_options_controller: ViewOptionsProtocol
+    view_management_controller: ViewOptionsProtocol
     point_editor_controller: PointEditorProtocol
     timeline_controller: TimelineControllerProtocol
     background_controller: BackgroundImageProtocol
@@ -214,14 +208,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._curve_store = self._store_manager.get_curve_store()
 
         # Initialize controllers (typed as protocols for better decoupling)
-        self.playback_controller = PlaybackController(self.state_manager, self)
-        self.frame_nav_controller = FrameNavigationController(self.state_manager, self)
+        self.timeline_controller = TimelineController(self.state_manager, self)
         self.action_controller = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller = UIInitializationController(self)
-        self.view_options_controller = ViewOptionsController(self)
+        self.view_management_controller = ViewManagementController(self)
         self.point_editor_controller = PointEditorController(self, self.state_manager)
-        self.timeline_controller = TimelineController(self)
-        self.background_controller = BackgroundImageController(self)
         self.tracking_controller = MultiPointTrackingController(self)
         self.signal_manager = SignalConnectionManager(self)
 
@@ -257,10 +248,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Initialize centering state
         self.auto_center_enabled: bool = False
 
-        # Image data now managed by BackgroundImageController
+        # Image data now managed by ViewManagementController
 
-        # Playback functionality now handled by PlaybackController
-        # Frame navigation functionality now handled by FrameNavigationController
+        # Playback and frame navigation now handled by TimelineController
 
         # Initialize dynamic instance variables that will be checked later
         self._point_spinbox_connected: bool = False
@@ -284,7 +274,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.file_operations.load_burger_data_async()
 
         # Initialize tooltips as disabled by default
-        self.view_options_controller.toggle_tooltips()
+        self.view_management_controller.toggle_tooltips()
 
         logger.info("MainWindow initialized successfully")
 
@@ -355,7 +345,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _update_frame_display(self, frame: int, update_state_manager: bool = True) -> None:
         """Shared method to update frame display across all UI components.
 
-        Note: Spinbox/slider updates are now handled by FrameNavigationController.
+        Note: Spinbox/slider updates are now handled by TimelineController.
         """
         # Controller now handles spinbox/slider synchronization
 
@@ -368,8 +358,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
 
         # Update background image if image sequence is loaded
-        # Update background image for frame (delegated to BackgroundImageController)
-        self.background_controller.update_background_for_frame(frame)
+        # Update background image for frame (delegated to ViewManagementController)
+        self.view_management_controller.update_background_for_frame(frame)
 
         # Update curve widget to highlight current frame's point
         if self.curve_widget:
@@ -379,21 +369,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.curve_widget.invalidate_caches()
             self.curve_widget.update()
 
-    # Frame navigation methods removed - now handled by FrameNavigationController
-
-    # Playback methods removed - now handled by PlaybackController
+    # Frame navigation and playback methods removed - now handled by TimelineController
     # The controller manages play/pause, FPS changes, and oscillating playback
 
     def _get_current_frame(self) -> int:
         """Get the current frame number."""
-        return self.frame_nav_controller.get_current_frame()
+        return self.timeline_controller.get_current_frame()
 
     def _set_current_frame(self, frame: int) -> None:
         """Set the current frame with UI updates.
 
-        Now delegates to FrameNavigationController.
+        Now delegates to TimelineController.
         """
-        self.frame_nav_controller.set_frame(frame)
+        self.timeline_controller.set_frame(frame)
 
     @property
     def current_frame(self) -> int:
@@ -402,7 +390,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Property accessor for better type safety and compatibility.
         Provides a clean interface for accessing the current frame.
         """
-        return self.frame_nav_controller.get_current_frame()
+        return self.timeline_controller.get_current_frame()
 
     @current_frame.setter
     def current_frame(self, value: int) -> None:
@@ -411,7 +399,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Property setter for better type safety and compatibility.
         Provides a clean interface for setting the current frame.
         """
-        self.frame_nav_controller.set_frame(value)
+        self.timeline_controller.set_frame(value)
 
     # MainWindowProtocol required properties
     @property
@@ -499,7 +487,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @Slot(str, list)
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
-        """Handle image sequence loaded (delegated to BackgroundImageController)."""
+        """Handle image sequence loaded (delegated to ViewManagementController)."""
         self.background_controller.on_image_sequence_loaded(image_dir, image_files)
 
     @Slot(int, str)
@@ -526,8 +514,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._file_loading = False
 
     def _update_background_image_for_frame(self, frame: int) -> None:
-        """Update background image (delegated to BackgroundImageController)."""
-        self.background_controller.update_background_for_frame(frame)
+        """Update background image (delegated to ViewManagementController)."""
+        self.view_management_controller.update_background_for_frame(frame)
 
     @Slot()
     def _on_action_undo(self) -> None:
@@ -626,7 +614,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update frame controls via controller
         total_frames = self.state_manager.total_frames
         # Use controller's set_frame_range instead of direct manipulation
-        self.frame_nav_controller.set_frame_range(1, max(total_frames, 1000))
+        self.timeline_controller.set_frame_range(1, max(total_frames, 1000))
         if self.total_frames_label:
             self.total_frames_label.setText(str(total_frames))
 
@@ -779,7 +767,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.tracking_controller.update_curve_display()
 
     # ==================== View Options Handlers ====================
-    # View options are now handled by ViewOptionsController
+    # View options are now handled by ViewManagementController
 
     # ==================== Frame Navigation Handlers ====================
 
@@ -881,14 +869,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         protocol compliance issues during development.
         """
         protocol_checks = [
-            (self.playback_controller, PlaybackControllerProtocol, "PlaybackController"),
-            (self.frame_nav_controller, FrameNavigationProtocol, "FrameNavigationController"),
+            (self.timeline_controller, TimelineControllerProtocol, "TimelineController"),
             (self.action_controller, ActionHandlerProtocol, "ActionHandlerController"),
             (self.ui_init_controller, UIInitializationProtocol, "UIInitializationController"),
-            (self.view_options_controller, ViewOptionsProtocol, "ViewOptionsController"),
             (self.point_editor_controller, PointEditorProtocol, "PointEditorController"),
-            (self.timeline_controller, TimelineControllerProtocol, "TimelineController"),
-            (self.background_controller, BackgroundImageProtocol, "BackgroundImageController"),
             (self.tracking_controller, MultiPointTrackingProtocol, "MultiPointTrackingController"),
             (self.signal_manager, SignalConnectionProtocol, "SignalConnectionManager"),
         ]
@@ -938,7 +922,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def get_view_options(self) -> dict[str, object]:
         """Get current view options."""
-        return self.view_options_controller.get_view_options()
+        return self.view_management_controller.get_view_options()
 
     def set_centering_enabled(self, enabled: bool) -> None:
         """Enable or disable auto-centering on frame change.
@@ -1006,7 +990,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 break
 
         if prev_frame is not None:
-            self.frame_nav_controller.set_frame(prev_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.timeline_controller.set_frame(prev_frame)  # pyright: ignore[reportAttributeAccessIssue]
             self.statusBar().showMessage(f"Navigated to previous frame: {prev_frame}", 2000)
         else:
             self.statusBar().showMessage("Already at first navigation frame", 2000)
@@ -1051,7 +1035,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 break
 
         if next_frame is not None:
-            self.frame_nav_controller.set_frame(next_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.timeline_controller.set_frame(next_frame)  # pyright: ignore[reportAttributeAccessIssue]
             self.statusBar().showMessage(f"Navigated to next frame: {next_frame}", 2000)
         else:
             self.statusBar().showMessage("Already at last navigation frame", 2000)

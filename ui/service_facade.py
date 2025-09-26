@@ -156,11 +156,6 @@ class ServiceFacade:
             return transform.screen_to_data(x, y)
         return (x, y)
 
-    def clear_transform_cache(self) -> None:
-        """Clear the transform cache."""
-        if self._transform_service:
-            self._transform_service.clear_cache()
-
     # ==================== Data Service Methods ====================
 
     @property
@@ -173,7 +168,7 @@ class ServiceFacade:
     ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply smoothing to curve data."""
         if self._data_service:
-            from core.type_aliases import CurveDataList
+            from core.type_aliases import CurveDataList  # pyright: ignore[reportUnusedImport]
 
             # Convert to CurveDataList for service call
             curve_data = cast(CurveDataList, data)
@@ -190,7 +185,7 @@ class ServiceFacade:
     ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Apply filtering to curve data."""
         if self._data_service:
-            from core.type_aliases import CurveDataList
+            from core.type_aliases import CurveDataList  # pyright: ignore[reportUnusedImport]
 
             # Convert to CurveDataList for service call
             curve_data = cast(CurveDataList, data)
@@ -209,7 +204,7 @@ class ServiceFacade:
     ) -> list[tuple[int, float, float]] | list[tuple[int, float, float, str]]:
         """Fill gaps in curve data."""
         if self._data_service:
-            from core.type_aliases import CurveDataList
+            from core.type_aliases import CurveDataList  # pyright: ignore[reportUnusedImport]
 
             # Convert to CurveDataList for service call
             curve_data = cast(CurveDataList, data)
@@ -223,7 +218,7 @@ class ServiceFacade:
     ) -> list[int]:
         """Detect outliers in curve data."""
         if self._data_service:
-            from core.type_aliases import CurveDataList
+            from core.type_aliases import CurveDataList  # pyright: ignore[reportUnusedImport]
 
             # Convert to CurveDataList for service call
             curve_data = cast(CurveDataList, data)
@@ -235,7 +230,7 @@ class ServiceFacade:
     ) -> dict[str, object]:
         """Analyze curve data and return bounds information."""
         if self._data_service:
-            from core.type_aliases import CurveDataList
+            from core.type_aliases import CurveDataList  # pyright: ignore[reportUnusedImport]
 
             # Convert to CurveDataList for service call
             curve_data = cast(CurveDataList, data)

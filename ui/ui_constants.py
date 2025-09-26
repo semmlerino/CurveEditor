@@ -12,19 +12,20 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 # Import all color functionality from color_manager for backward compatibility
+# These are re-exported for other modules - pyright: ignore
 from ui.color_manager import (  # noqa: F401
-    COLORS_DARK,
-    COLORS_HIGH_CONTRAST,
-    COLORS_LIGHT,
-    CURVE_COLORS,
-    SPECIAL_COLORS,
-    STATUS_COLORS,
-    STATUS_COLORS_TIMELINE,
-    darken_color,
-    get_status_color,
-    get_timeline_color,
-    hex_to_rgb,
-    tuple_status_to_string,
+    COLORS_DARK,  # pyright: ignore[reportUnusedImport]
+    COLORS_HIGH_CONTRAST,  # pyright: ignore[reportUnusedImport]
+    COLORS_LIGHT,  # pyright: ignore[reportUnusedImport]
+    CURVE_COLORS,  # pyright: ignore[reportUnusedImport]
+    SPECIAL_COLORS,  # pyright: ignore[reportUnusedImport]
+    STATUS_COLORS,  # pyright: ignore[reportUnusedImport]
+    STATUS_COLORS_TIMELINE,  # pyright: ignore[reportUnusedImport]
+    darken_color,  # pyright: ignore[reportUnusedImport]
+    get_status_color,  # pyright: ignore[reportUnusedImport]
+    get_timeline_color,  # pyright: ignore[reportUnusedImport]
+    hex_to_rgb,  # pyright: ignore[reportUnusedImport]
+    tuple_status_to_string,  # pyright: ignore[reportUnusedImport]
 )
 
 if TYPE_CHECKING:

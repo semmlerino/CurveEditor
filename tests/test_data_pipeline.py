@@ -43,8 +43,8 @@ class TestFileToDisplayPipeline:
 
     def setup_method(self) -> None:
         """Set up test environment for each test method."""
-        self.data_service: DataService = get_data_service()
-        self.transform_service: TransformService = get_transform_service()
+        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def test_json_load_to_display_workflow(self) -> None:
         """Test: JSON file → Load → Process → Transform → Display coordinates."""
@@ -220,9 +220,9 @@ class TestPointManipulationPipeline:
 
     def setup_method(self) -> None:
         """Set up test environment."""
-        self.interaction_service: InteractionService = get_interaction_service()
-        self.transform_service: TransformService = get_transform_service()
-        self.data_service: DataService = get_data_service()
+        self.interaction_service: InteractionService = get_interaction_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def test_point_selection_to_modification_workflow(self) -> None:
         """Test: Point selection → Coordinate modification → Transform update → Display."""
@@ -371,8 +371,8 @@ class TestImageSequencePipeline:
 
     def setup_method(self) -> None:
         """Set up test environment."""
-        self.data_service: DataService = get_data_service()
-        self.transform_service: TransformService = get_transform_service()
+        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def test_image_sequence_loading_to_display(self) -> None:
         """Test: Image directory → Load sequence → Frame navigation → Display sync."""
@@ -467,8 +467,8 @@ class TestDataConsistencyPipeline:
 
     def setup_method(self) -> None:
         """Set up services."""
-        self.data_service: DataService = get_data_service()
-        self.transform_service: TransformService = get_transform_service()
+        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
 
     def test_data_integrity_through_full_pipeline(self) -> None:
         """Test: Load → Process → Transform → Modify → Save → Reload → Verify consistency."""

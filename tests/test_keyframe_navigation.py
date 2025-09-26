@@ -329,7 +329,6 @@ class TestNavigationEdgeCases:
         status_text = window.statusBar().currentMessage()
         assert "first" in status_text.lower()
 
-    @pytest.mark.skip(reason="Frame navigation controller may clamp frames differently")
     def test_single_navigation_frame(self, qtbot, main_window_with_data):
         """Navigation should work correctly with only one navigation frame."""
         window = main_window_with_data("single")

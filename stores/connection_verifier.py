@@ -127,13 +127,12 @@ class ConnectionVerifier:
             else:
                 target_name, slot_name = component_name, target_slot
 
-            # Try to get the actual objects
-            source_obj = (
-                getattr(component, source_name.lower(), None) if hasattr(component, source_name.lower()) else component
-            )
-            target_obj = (
-                getattr(component, target_name.lower(), None) if hasattr(component, target_name.lower()) else component
-            )
+            # Try to get the actual objects (type-safe without hasattr)
+            source_attr = getattr(component, source_name.lower(), None)
+            source_obj = source_attr if source_attr is not None else component
+
+            target_attr = getattr(component, target_name.lower(), None)
+            target_obj = target_attr if target_attr is not None else component
 
             # Ensure objects are QObjects or None
             if source_obj is not None and not isinstance(source_obj, QObject):

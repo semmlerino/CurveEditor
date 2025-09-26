@@ -23,6 +23,10 @@ Architecture:
     - Implements caching for performance optimization
 """
 
+# Import cycle is expected due to circular dependency with MainWindow
+# This is resolved by using Protocol pattern for type safety
+# pyright: reportImportCycles=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any, override
@@ -70,6 +74,8 @@ from ui.ui_constants import (
 if TYPE_CHECKING:
     from typing import Protocol
 
+    from services.interaction_service import InteractionService
+
     class MainWindow(Protocol):
         """Main window protocol for type checking."""
 
@@ -79,6 +85,7 @@ if TYPE_CHECKING:
         def add_to_history(self) -> None: ...
 else:
     MainWindow = Any  # Runtime fallback to avoid import cycle
+    InteractionService = Any  # Runtime fallback to avoid import cycle
 
 from core.logger_utils import get_logger
 
@@ -211,9 +218,7 @@ class CurveViewWidget(QWidget):
 
         # Services (will be set by main window)
         self.main_window: MainWindow | None = None
-        self.interaction_service: object = (
-            get_interaction_service()
-        )  # InteractionService type not imported to avoid cycle
+        self.interaction_service: InteractionService = get_interaction_service()
 
         # Initialize optimized renderer for 47x performance improvement
         self._optimized_renderer: OptimizedCurveRenderer = OptimizedCurveRenderer()
@@ -273,11 +278,16 @@ class CurveViewWidget(QWidget):
 
     def _on_store_point_added(self, index: int, point: object) -> None:
         """Handle store point added signal."""
+        from typing import cast
+
+        # Cast to expected tuple type for type safety
+        point_tuple = cast(tuple[int, float, float] | tuple[int, float, float, str | bool], point)
+
         # Update collection if needed
         if self.point_collection:
-            self.point_collection.points.append(CurvePoint.from_tuple(point))
+            self.point_collection.points.append(CurvePoint.from_tuple(point_tuple))
         else:
-            self.point_collection = PointCollection([CurvePoint.from_tuple(point)])
+            self.point_collection = PointCollection([CurvePoint.from_tuple(point_tuple)])
 
         self._invalidate_point_region(index)
         self.update()
@@ -453,19 +463,8 @@ class CurveViewWidget(QWidget):
 
         from services import get_transform_service
 
-        # Calculate display dimensions
-        # When Y-flip is enabled (for pixel tracking), use widget dimensions for coordinate system
-        # Otherwise use image dimensions for traditional image-based coordinates
-        if self.flip_y_axis:
-            display_width = self.width()
-            display_height = self.height()
-        else:
-            display_width = self.image_width
-            display_height = self.image_height
-
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
+        # Calculate display dimensions using helper method
+        display_width, display_height = self._get_display_dimensions()
 
         logger.info(
             f"[TRANSFORM] Display dimensions: {display_width}x{display_height}, zoom_factor: {self.zoom_factor}"
@@ -516,12 +515,60 @@ class CurveViewWidget(QWidget):
         transform_service = get_transform_service()
         self._transform_cache = transform_service.create_transform_from_view_state(view_state)
 
-        # Log cache stats for verification
-        cache_info = transform_service.get_cache_info()
-        if cache_info["hits"] > 0:
-            logger.debug(
-                f"[TRANSFORM CACHE] Hit rate: {cache_info['hit_rate']:.1%} ({cache_info['hits']}/{cache_info['hits'] + cache_info['misses']})"
-            )
+    def _get_display_dimensions(self) -> tuple[int, int]:
+        """
+        Get display dimensions based on Y-axis flip mode.
+
+        When Y-flip is enabled (for pixel tracking), use widget dimensions.
+        Otherwise use image dimensions for traditional image-based coordinates.
+
+        Returns:
+            Tuple of (width, height) for display calculations
+        """
+        if self.flip_y_axis:
+            return self.width(), self.height()
+        else:
+            display_width = self.image_width
+            display_height = self.image_height
+
+            if self.background_image:
+                display_width = self.background_image.width()
+                display_height = self.background_image.height()
+
+            return display_width, display_height
+
+    def _apply_pan_offset_y(self, delta_y: float) -> None:
+        """
+        Apply Y pan offset with conditional inversion for Y-axis flip mode.
+
+        When Y-axis is flipped, invert the pan direction for Y to ensure
+        the curve follows the expected mouse drag direction.
+
+        Args:
+            delta_y: The Y offset to apply
+        """
+        if self.flip_y_axis:
+            self.pan_offset_y -= delta_y
+        else:
+            self.pan_offset_y += delta_y
+
+    def _get_image_top_coordinates(self, img_height: float, transform: Any) -> tuple[float, float]:
+        """
+        Get image top-left coordinates accounting for Y-axis flip mode.
+
+        Args:
+            img_height: Height of the image
+            transform: Transform object for coordinate conversion
+
+        Returns:
+            Tuple of (x, y) screen coordinates for image top-left
+        """
+        if self.flip_y_axis:
+            # With Y-flip, image top is at Y=image_height in data space
+            return transform.data_to_screen(0, img_height)
+        else:
+            # Without Y-flip, image top is at Y=0 in data space
+            return transform.data_to_screen(0, 0)
 
     def data_to_screen(self, x: float, y: float) -> QPointF:
         """
@@ -600,7 +647,7 @@ class CurveViewWidget(QWidget):
 
         # DELEGATE ALL RENDERING TO OPTIMIZED RENDERER
         # This is the ONLY rendering path - do not add paint methods to this widget
-        self._optimized_renderer.render(painter, event, self)
+        self._optimized_renderer.render(painter, event, self)  # pyright: ignore[reportArgumentType]
 
         # Draw overlay elements that aren't handled by the renderer
         # These are lightweight UI elements that don't impact performance
@@ -782,12 +829,8 @@ class CurveViewWidget(QWidget):
         elif self.pan_active and self.last_mouse_pos:
             delta = pos - self.last_mouse_pos
             self.pan_offset_x += delta.x()
-            # When Y-axis is flipped, invert the pan direction for Y
-            # This ensures the curve follows the mouse drag direction
-            if self.flip_y_axis:
-                self.pan_offset_y -= delta.y()
-            else:
-                self.pan_offset_y += delta.y()
+            # Apply Y pan offset with conditional inversion for Y-flip mode
+            self._apply_pan_offset_y(delta.y())
             self.last_mouse_pos = pos
             self.invalidate_caches()
             self.update()
@@ -940,12 +983,8 @@ class CurveViewWidget(QWidget):
             offset = pos - new_screen_pos
             self.pan_offset_x += offset.x()
 
-            # When Y-axis is flipped, invert the pan adjustment for Y
-            # This ensures zoom keeps the point under cursor stationary
-            if self.flip_y_axis:
-                self.pan_offset_y -= offset.y()
-            else:
-                self.pan_offset_y += offset.y()
+            # Apply Y pan offset adjustment for zoom centering
+            self._apply_pan_offset_y(offset.y())
 
             # Invalidate caches again after pan adjustment
             self.invalidate_caches()
@@ -1156,13 +1195,8 @@ class CurveViewWidget(QWidget):
         logger.info(f"[FIT_BG] Final center offsets: ({params['center_offset_x']}, {params['center_offset_y']})")
         logger.info(f"[FIT_BG] Final pan offsets: ({params['pan_offset_x']}, {params['pan_offset_y']})")
 
-        # Test image positioning - account for Y-flip
-        if self.flip_y_axis:
-            # With Y-flip, image top is at Y=image_height in data space
-            top_left_x, top_left_y = transform.data_to_screen(0, img_height)
-        else:
-            # Without Y-flip, image top is at Y=0 in data space
-            top_left_x, top_left_y = transform.data_to_screen(0, 0)
+        # Test image positioning using helper method
+        top_left_x, top_left_y = self._get_image_top_coordinates(img_height, transform)
         logger.info(f"[FIT_BG] Image top-left will be at: ({top_left_x}, {top_left_y})")
 
         self.update()
@@ -1170,6 +1204,28 @@ class CurveViewWidget(QWidget):
         # Emit signals
         self.view_changed.emit()
         self.zoom_changed.emit(self.zoom_factor)
+
+    def _center_view_on_point(self, x: float, y: float) -> None:
+        """Center the view on a specific data coordinate point.
+
+        Args:
+            x: Data x-coordinate to center on
+            y: Data y-coordinate to center on
+        """
+        # Convert data coordinates to screen position
+        screen_pos = self.data_to_screen(x, y)
+        widget_center = QPointF(self.width() / 2, self.height() / 2)
+
+        # Calculate and apply pan offset
+        offset = widget_center - screen_pos
+        self.pan_offset_x += offset.x()
+        self._apply_pan_offset_y(offset.y())  # Y-flip aware
+
+        # Trigger view updates
+        self.invalidate_caches()
+        self.update()
+        self.repaint()
+        self.view_changed.emit()
 
     def center_on_selection(self) -> None:
         """Center view on selected points."""
@@ -1194,31 +1250,16 @@ class CurveViewWidget(QWidget):
             center_y = sum_y / count
             logger.debug(f"[CENTER] Data center: ({center_x:.2f}, {center_y:.2f})")
 
-            # Get screen position of center
-            screen_pos = self.data_to_screen(center_x, center_y)
-            widget_center = QPointF(self.width() / 2, self.height() / 2)
-            logger.debug(f"[CENTER] Screen pos: ({screen_pos.x():.2f}, {screen_pos.y():.2f})")
-            logger.debug(f"[CENTER] Widget center: ({widget_center.x():.2f}, {widget_center.y():.2f})")
-
-            # Adjust pan
-            offset = widget_center - screen_pos
+            # Log current pan offset for debugging
             old_pan_x = self.pan_offset_x
             old_pan_y = self.pan_offset_y
-            self.pan_offset_x += offset.x()
-            # When Y-axis is flipped, invert the pan adjustment for Y
-            # This ensures centering works consistently with panning behavior
-            if self.flip_y_axis:
-                self.pan_offset_y -= offset.y()
-            else:
-                self.pan_offset_y += offset.y()
+
+            # Use consolidated centering logic
+            self._center_view_on_point(center_x, center_y)
+
             logger.debug(
                 f"[CENTER] Pan offset changed from ({old_pan_x:.2f}, {old_pan_y:.2f}) to ({self.pan_offset_x:.2f}, {self.pan_offset_y:.2f})"
             )
-
-            self.invalidate_caches()
-            self.update()
-            self.repaint()  # Force immediate repaint
-            self.view_changed.emit()
 
     def center_on_frame(self, frame: int) -> None:
         """Center view on a specific frame.
@@ -1233,26 +1274,10 @@ class CurveViewWidget(QWidget):
             _, x, y, _ = safe_extract_point(self.curve_data[frame_index])
             logger.debug(f"[CENTER] Centering on frame {frame} at ({x:.2f}, {y:.2f})")
 
-            # Get screen position of the point
-            screen_pos = self.data_to_screen(x, y)
-            widget_center = QPointF(self.width() / 2, self.height() / 2)
-
-            # Adjust pan
-            offset = widget_center - screen_pos
-            self.pan_offset_x += offset.x()
-            # When Y-axis is flipped, invert the pan adjustment for Y
-            # This ensures centering works consistently with panning behavior
-            if self.flip_y_axis:
-                self.pan_offset_y -= offset.y()
-            else:
-                self.pan_offset_y += offset.y()
+            # Use consolidated centering logic
+            self._center_view_on_point(x, y)
 
             logger.debug(f"[CENTER] View centered on frame {frame}")
-
-            self.invalidate_caches()
-            self.update()
-            self.repaint()
-            self.view_changed.emit()
         else:
             logger.warning(f"[CENTER] Frame {frame} is out of range (data has {len(self.curve_data)} points)")
 
@@ -1407,7 +1432,9 @@ class CurveViewWidget(QWidget):
             # Convert delta to data space
             transform = self.get_transform()
             params = transform.get_parameters()
-            scale: float = params["scale"]
+            from typing import cast
+
+            scale: float = cast(float, params["scale"])
 
             if scale > 0:
                 dx: float = delta.x() / scale
@@ -1553,18 +1580,8 @@ class CurveViewWidget(QWidget):
         Returns:
             ViewState object with current parameters
         """
-        # When Y-flip is enabled (for pixel tracking), use widget dimensions for coordinate system
-        # Otherwise use image dimensions for traditional image-based coordinates
-        if self.flip_y_axis:
-            display_width = self.width()
-            display_height = self.height()
-        else:
-            display_width = self.image_width
-            display_height = self.image_height
-
-            if self.background_image:
-                display_width = self.background_image.width()
-                display_height = self.background_image.height()
+        # Calculate display dimensions using helper method
+        display_width, display_height = self._get_display_dimensions()
 
         return ViewState(
             display_width=display_width,

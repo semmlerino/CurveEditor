@@ -251,3 +251,14 @@ class PointEditorController:
                 _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
                 self._spinbox_connected = True
                 logger.info("Point editor spinbox signals connected")
+
+    # Protocol compliance methods
+    @Slot(float)
+    def on_point_x_changed(self, value: float) -> None:
+        """Handle X coordinate change (Protocol API)."""
+        self._on_point_x_changed(value)
+
+    @Slot(float)
+    def on_point_y_changed(self, value: float) -> None:
+        """Handle Y coordinate change (Protocol API)."""
+        self._on_point_y_changed(value)

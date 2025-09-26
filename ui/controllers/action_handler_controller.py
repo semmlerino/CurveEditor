@@ -325,3 +325,16 @@ class ActionHandlerController:
             zoom_percent = int(self.state_manager.zoom_level * 100)
         if self.main_window.zoom_label:
             self.main_window.zoom_label.setText(f"Zoom: {zoom_percent}%")
+
+    # Protocol compliance aliases
+    def _on_zoom_in(self) -> None:
+        """Handle zoom in action (Protocol API)."""
+        self._on_action_zoom_in()
+
+    def _on_zoom_out(self) -> None:
+        """Handle zoom out action (Protocol API)."""
+        self._on_action_zoom_out()
+
+    def _on_reset_view(self) -> None:
+        """Handle reset view action (Protocol API)."""
+        self._on_action_reset_view()

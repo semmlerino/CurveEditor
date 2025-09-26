@@ -3,9 +3,7 @@
 from .controller_protocols import (
     ActionHandlerProtocol,
     BackgroundImageProtocol,
-    FrameNavigationProtocol,
     MultiPointTrackingProtocol,
-    PlaybackControllerProtocol,
     PointEditorProtocol,
     SignalConnectionProtocol,
     TimelineControllerProtocol,
@@ -14,8 +12,6 @@ from .controller_protocols import (
 )
 
 __all__ = [
-    "PlaybackControllerProtocol",
-    "FrameNavigationProtocol",
     "ActionHandlerProtocol",
     "ViewOptionsProtocol",
     "TimelineControllerProtocol",

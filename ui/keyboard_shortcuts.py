@@ -349,14 +349,14 @@ class ShortcutManager(QObject):
         _ = self.action_filter_curve.triggered.connect(main_window._on_filter_curve)
         _ = self.action_analyze_curve.triggered.connect(main_window._on_analyze_curve)
 
-        # Navigation actions (now handled by FrameNavigationController)
-        _ = self.action_next_frame.triggered.connect(main_window.frame_nav_controller._on_next_frame)
-        _ = self.action_prev_frame.triggered.connect(main_window.frame_nav_controller._on_prev_frame)
-        _ = self.action_first_frame.triggered.connect(main_window.frame_nav_controller._on_first_frame)
-        _ = self.action_last_frame.triggered.connect(main_window.frame_nav_controller._on_last_frame)
+        # Navigation actions (now handled by TimelineController)
+        _ = self.action_next_frame.triggered.connect(main_window.timeline_controller._on_next_frame)
+        _ = self.action_prev_frame.triggered.connect(main_window.timeline_controller._on_prev_frame)
+        _ = self.action_first_frame.triggered.connect(main_window.timeline_controller._on_first_frame)
+        _ = self.action_last_frame.triggered.connect(main_window.timeline_controller._on_last_frame)
 
-        # Playback actions (now handled by PlaybackController)
-        _ = self.action_oscillate_playback.triggered.connect(main_window.playback_controller.toggle_playback)
+        # Playback actions (now handled by TimelineController)
+        _ = self.action_oscillate_playback.triggered.connect(main_window.timeline_controller.toggle_playback)
 
         logger.info("Connected all shortcuts to MainWindow")
 

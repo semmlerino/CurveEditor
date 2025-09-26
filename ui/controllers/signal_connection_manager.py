@@ -56,7 +56,7 @@ class SignalConnectionManager:
         self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)
         self.main_window.file_operations.multi_point_data_loaded.connect(self.main_window.on_multi_point_data_loaded)
         self.main_window.file_operations.image_sequence_loaded.connect(
-            self.main_window.background_controller.on_image_sequence_loaded
+            self.main_window.view_management_controller.on_image_sequence_loaded
         )
         self.main_window.file_operations.progress_updated.connect(self.main_window.on_file_load_progress)
         self.main_window.file_operations.error_occurred.connect(self.main_window.on_file_load_error)
@@ -77,21 +77,11 @@ class SignalConnectionManager:
         _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)
         _ = self.main_window.state_manager.view_state_changed.connect(self.main_window.on_view_state_changed)
 
-        # Connect controller signals
-        # Frame navigation controller handles frame changes internally
-        _ = self.main_window.frame_nav_controller.frame_changed.connect(
+        # Connect timeline controller signals (unified playback and navigation)
+        _ = self.main_window.timeline_controller.frame_changed.connect(
             self.main_window.on_frame_changed_from_controller
         )
-        _ = self.main_window.frame_nav_controller.status_message.connect(self.main_window.update_status)
-
-        # Connect playback controller signals
-        _ = self.main_window.playback_controller.frame_requested.connect(
-            self.main_window.frame_nav_controller.set_frame
-        )
-        _ = self.main_window.playback_controller.status_message.connect(self.main_window.update_status)
-
-        # Connect timeline tabs through the TimelineController
-        self.main_window.timeline_controller.connect_signals()
+        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)
 
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
@@ -123,27 +113,27 @@ class SignalConnectionManager:
         # Connect view options to view options controller
         if self.main_window.show_background_cb:
             _ = self.main_window.show_background_cb.stateChanged.connect(
-                self.main_window.view_options_controller.update_curve_view_options
+                self.main_window.view_management_controller.update_curve_view_options
             )
         if self.main_window.show_grid_cb:
             _ = self.main_window.show_grid_cb.stateChanged.connect(
-                self.main_window.view_options_controller.update_curve_view_options
+                self.main_window.view_management_controller.update_curve_view_options
             )
         if self.main_window.show_info_cb:
             _ = self.main_window.show_info_cb.stateChanged.connect(
-                self.main_window.view_options_controller.update_curve_view_options
+                self.main_window.view_management_controller.update_curve_view_options
             )
         if self.main_window.show_tooltips_cb:
             _ = self.main_window.show_tooltips_cb.stateChanged.connect(
-                self.main_window.view_options_controller.toggle_tooltips
+                self.main_window.view_management_controller.toggle_tooltips
             )
         if self.main_window.point_size_slider:
             _ = self.main_window.point_size_slider.valueChanged.connect(
-                self.main_window.view_options_controller.update_curve_point_size
+                self.main_window.view_management_controller.update_curve_point_size
             )
         if self.main_window.line_width_slider:
             _ = self.main_window.line_width_slider.valueChanged.connect(
-                self.main_window.view_options_controller.update_curve_line_width
+                self.main_window.view_management_controller.update_curve_line_width
             )
 
     def _verify_connections(self) -> None:

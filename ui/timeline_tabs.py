@@ -618,7 +618,9 @@ class TimelineTabWidget(QWidget):
                 return
 
             # Check if tab was actually created (FrameTab.__init__ can return early)
-            if not hasattr(tab, "set_tab_width"):
+            # Type-safe check without hasattr
+            set_tab_width_method = getattr(tab, "set_tab_width", None)
+            if set_tab_width_method is None or not callable(set_tab_width_method):
                 continue
 
             tab.set_tab_width(tab_width)

@@ -12,7 +12,7 @@ segmentation faults in tests, particularly:
 from contextlib import contextmanager
 
 from PySide6.QtCore import QSize
-from PySide6.QtGui import QColor, QImage, QPainter
+from PySide6.QtGui import QColor, QImage, QPaintDevice, QPainter
 
 
 class ThreadSafeTestImage:
@@ -28,9 +28,9 @@ class ThreadSafeTestImage:
     def __init__(self, width: int = 100, height: int = 100):
         """Create a thread-safe test image."""
         # Use QImage which is thread-safe, unlike QPixmap
-        self._image = QImage(width, height, QImage.Format.Format_RGB32)
-        self._width = width
-        self._height = height
+        self._image: QImage = QImage(width, height, QImage.Format.Format_RGB32)
+        self._width: int = width
+        self._height: int = height
         # Initialize image to prevent garbage data
         self._image.fill(QColor(255, 255, 255))
 
@@ -66,7 +66,7 @@ class ThreadSafeTestImage:
 
 
 @contextmanager
-def safe_painter(paint_device):
+def safe_painter(paint_device: QPaintDevice):
     """Context manager for safe QPainter usage.
 
     Ensures QPainter is properly ended even if exceptions occur,
@@ -92,7 +92,7 @@ def safe_painter(paint_device):
         yield painter
     finally:
         if painter.isActive():
-            painter.end()
+            _ = painter.end()
 
 
 def create_test_image(width: int = 800, height: int = 600, fill_color: QColor | None = None) -> QImage:

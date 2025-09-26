@@ -26,8 +26,8 @@ def simple_lowpass_filter(data: CurveDataList, window_size: int = 5) -> CurveDat
     y_values = [p[2] for p in sorted_data]
 
     # Apply simple moving average to x and y values
-    filtered_x = []
-    filtered_y = []
+    filtered_x: list[float] = []
+    filtered_y: list[float] = []
     half_window = window_size // 2
 
     for i in range(len(x_values)):
@@ -37,7 +37,7 @@ def simple_lowpass_filter(data: CurveDataList, window_size: int = 5) -> CurveDat
         filtered_y.append(sum(y_values[start:end]) / (end - start))
 
     # Reconstruct data, preserving any additional elements
-    result = []
+    result: CurveDataList = []
     for i in range(len(frames)):
         if len(sorted_data[i]) > 3:
             # Preserve extra elements like status

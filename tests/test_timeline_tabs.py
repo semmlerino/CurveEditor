@@ -121,32 +121,32 @@ class TestTimelineControls:
         main_window.frame_spinbox.setValue(20)
 
         # Test next frame (Right arrow) - call through controller
-        main_window.frame_nav_controller._on_next_frame()
+        main_window.timeline_controller._on_next_frame()
         assert main_window.frame_spinbox.value() == 21
 
         # Test previous frame (Left arrow)
-        main_window.frame_nav_controller._on_prev_frame()
+        main_window.timeline_controller._on_prev_frame()
         assert main_window.frame_spinbox.value() == 20
 
         # Test first frame (Home)
-        main_window.frame_nav_controller._on_first_frame()
+        main_window.timeline_controller._on_first_frame()
         assert main_window.frame_spinbox.value() == 1
 
         # Test last frame (End)
-        main_window.frame_nav_controller._on_last_frame()
+        main_window.timeline_controller._on_last_frame()
         assert main_window.frame_spinbox.value() == 37  # Default max
 
     def test_frame_bounds_checking(self, main_window):
         """Test that frame navigation respects bounds."""
         # Test lower bound
         main_window.frame_spinbox.setValue(1)
-        main_window.frame_nav_controller._on_prev_frame()
+        main_window.timeline_controller._on_prev_frame()
         assert main_window.frame_spinbox.value() == 1  # Should stay at 1
 
         # Test upper bound
         max_frame = main_window.frame_spinbox.maximum()
         main_window.frame_spinbox.setValue(max_frame)
-        main_window.frame_nav_controller._on_next_frame()
+        main_window.timeline_controller._on_next_frame()
         assert main_window.frame_spinbox.value() == max_frame  # Should stay at max
 
     def test_timeline_state_persistence(self, main_window):
