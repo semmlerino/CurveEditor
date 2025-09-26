@@ -28,14 +28,23 @@ Based on multi-agent comprehensive review of CurveEditor codebase focusing on SO
 
 ## PHASE 1: IMMEDIATE WINS
 **Time**: 1-2 hours
-**Impact**: Removes ~500 lines, eliminates 100MB dependency
+**Impact**: ~~Removes ~500 lines~~ Removes ~350 lines, eliminates 100MB dependency
 
-### 1.1 Delete Unused CurveSegment Module
+### 1.1 ~~Delete Unused CurveSegment Module~~ INVESTIGATED - MODULE IS USED
 - **File**: `core/curve_segments.py`
-- **Size**: 150+ lines of completely dead code
-- **Violations**: YAGNI
-- **Evidence**: No imports or usage anywhere in codebase
-- **Action**: Simple deletion
+- **Status**: ✅ COMPLETED - Investigation revealed module IS actively used
+- **Finding**: NOT DEAD CODE - Used by `rendering/optimized_curve_renderer.py` for ENDFRAME handling
+- **Size**: 326 lines of ACTIVE code handling discontinuous curves
+- **Violations**: None (was incorrectly flagged)
+- **Evidence**:
+  - Imported at `rendering/optimized_curve_renderer.py:19`
+  - Used in `_render_segmented_lines()` method
+  - Handles 3DEqualizer-style tracking with gaps
+- **Action Taken**:
+  - Added 23 comprehensive tests (0% → 100% coverage)
+  - Created `CURVE_SEGMENTS_FINDINGS.md` documenting behavioral issues
+  - Discovered implementation bugs (KEYFRAME after ENDFRAME doesn't reactivate)
+- **Recommendation**: Keep module, consider refactoring after testing with real data
 
 ### 1.2 Remove/Simplify Scipy Dependency
 - **Location**: `services/data_service.py` lines 169-216
@@ -163,11 +172,12 @@ Based on multi-agent comprehensive review of CurveEditor codebase focusing on SO
 ## EXPECTED OUTCOMES
 
 ### Quantitative Improvements:
-- **Code Reduction**: 2,500-3,000 lines removed
+- **Code Reduction**: ~~2,500-3,000~~ 2,200-2,700 lines removed (curve_segments.py kept)
 - **Dependency Size**: -100MB (scipy removal)
 - **Service Count**: 4 → 1-2
 - **Controller Count**: 10 → 3-4
 - **Protocol Complexity**: -50% methods
+- **Test Coverage**: +23 tests for previously untested curve_segments.py
 
 ### Qualitative Improvements:
 - **Maintainability**: Centralized logic, no duplication
