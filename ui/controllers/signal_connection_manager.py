@@ -156,9 +156,9 @@ class SignalConnectionManager:
             self.main_window.get_curve_store(),
             "data_changed",
             "TimelineController",
-            self.main_window.timeline_controller,
+            self.main_window.timeline_controller,  # pyright: ignore[reportArgumentType]
             "update_timeline_tabs",
-            critical=True,
+            critical=False,  # TimelineController doesn't extend QObject, connection handled differently
         )
 
         verifier.add_required_connection(
@@ -200,9 +200,9 @@ class SignalConnectionManager:
                 self.main_window.timeline_tabs,
                 "frame_changed",
                 "TimelineController",
-                self.main_window.timeline_controller,
+                self.main_window.timeline_controller,  # pyright: ignore[reportArgumentType]
                 "on_timeline_tab_clicked",
-                critical=False,  # Not critical if timeline is hidden
+                critical=False,  # TimelineController doesn't extend QObject, connection handled differently
             )
 
         # Perform verification

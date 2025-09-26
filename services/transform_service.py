@@ -394,6 +394,7 @@ class Transform:
         )
 
     @classmethod
+    @lru_cache(maxsize=128)
     def from_view_state(cls, view_state: ViewState) -> "Transform":
         """Create a Transform from a ViewState."""
         # Calculate scale
@@ -466,14 +467,9 @@ class TransformService:
         """Create a ViewState from a CurveView instance."""
         return ViewState.from_curve_view(curve_view)
 
-    @staticmethod
-    @lru_cache(maxsize=128)
-    def _create_transform_cached(view_state: ViewState) -> Transform:
+    def create_transform_from_view_state(self, view_state: ViewState) -> Transform:
         """
-        Create a Transform from a ViewState with LRU caching.
-
-        This method uses @lru_cache for optimal performance. Since ViewState is
-        a frozen dataclass, it's hashable and works perfectly as a cache key.
+        Create a Transform from a ViewState.
 
         Args:
             view_state: The ViewState to create a transform for
@@ -482,21 +478,6 @@ class TransformService:
             Transform instance for the given view state
         """
         return Transform.from_view_state(view_state)
-
-    def create_transform_from_view_state(self, view_state: ViewState) -> Transform:
-        """
-        Create a Transform from a ViewState with caching.
-
-        This method uses LRU caching for optimal performance. The cache is
-        automatically managed by functools.lru_cache.
-
-        Args:
-            view_state: The ViewState to create a transform for
-
-        Returns:
-            Transform instance (potentially cached)
-        """
-        return self._create_transform_cached(view_state)
 
     def create_transform(
         self,
@@ -541,26 +522,6 @@ class TransformService:
             image_scale_y=image_scale_y,
             scale_to_image=scale_to_image,
         )
-
-    def clear_cache(self) -> None:
-        """Clear the transform cache."""
-        self._create_transform_cached.cache_clear()
-
-    def get_cache_info(self) -> dict[str, object]:
-        """
-        Get transform cache statistics.
-
-        Returns:
-            Dictionary with cache hit/miss statistics
-        """
-        info = self._create_transform_cached.cache_info()
-        return {
-            "hits": info.hits,
-            "misses": info.misses,
-            "current_size": info.currsize,
-            "max_size": info.maxsize,
-            "hit_rate": info.hits / (info.hits + info.misses) if (info.hits + info.misses) > 0 else 0.0,
-        }
 
     def transform_point_to_screen(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
         """Transform a data point to screen coordinates."""

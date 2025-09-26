@@ -335,6 +335,10 @@ class UIService:
             enabled: Whether to enable (True) or disable (False)
         """
         for component_name in components:
+            # Skip invalid component names
+            if not isinstance(component_name, str) or not component_name:
+                continue
+
             component = getattr(main_window, component_name, None)
             if component is not None and callable(getattr(component, "setEnabled", None)):  # pyright: ignore[reportAny]
                 component.setEnabled(enabled)  # pyright: ignore[reportAny]

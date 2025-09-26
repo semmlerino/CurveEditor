@@ -100,3 +100,47 @@ def curve_view_widget(qapp: QApplication):
 
     safe_cleanup_widget(widget)
     qapp.processEvents()
+
+
+@pytest.fixture
+def main_window(qapp: QApplication):
+    """Create a fully initialized MainWindow with all UI components.
+
+    This fixture creates a MainWindow with properly initialized UI components
+    including timeline_tabs, frame_spinbox, etc. to prevent "not available"
+    errors in integration tests.
+
+    Args:
+        qapp: The QApplication instance
+
+    Yields:
+        MainWindow: Fully initialized main window
+    """
+    from PySide6.QtWidgets import QSpinBox
+
+    from ui.main_window import MainWindow
+    from ui.timeline_tabs import TimelineTabWidget
+
+    window = MainWindow()
+
+    # Initialize commonly needed UI components that tests expect
+    # These would normally be created by UIInitializationController
+    if window.timeline_tabs is None:
+        window.timeline_tabs = TimelineTabWidget()
+
+    # Initialize frame spinbox if not present
+    if not hasattr(window, "frame_spinbox") or window.frame_spinbox is None:
+        window.frame_spinbox = QSpinBox()
+        window.frame_spinbox.setMinimum(1)
+        window.frame_spinbox.setMaximum(9999)
+
+    # Process events to ensure widgets are ready
+    qapp.processEvents()
+
+    yield window
+
+    # Cleanup
+    from tests.test_utils import safe_cleanup_widget
+
+    safe_cleanup_widget(window)
+    qapp.processEvents()

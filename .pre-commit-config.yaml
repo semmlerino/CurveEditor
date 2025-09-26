@@ -1,7 +1,7 @@
 # Pre-commit hooks for CurveEditor - Production Configuration
 # Optimized for speed and developer experience
 default_language_version:
-  python: python3.12
+  python: python3.11
 
 # Run hooks in parallel for better performance
 ci:
