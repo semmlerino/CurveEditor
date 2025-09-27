@@ -28,8 +28,8 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QWidget {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
     }}
 
     /* ========================================================================
@@ -37,17 +37,17 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QMainWindow {{
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
     }}
 
     QDialog {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
     }}
 
     QFrame {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
         border: none;
     }}
 
@@ -56,9 +56,9 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QMenuBar {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        border-bottom: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        border-bottom: 1px solid {colors["border_default"]};
         padding: 3px;
     }}
 
@@ -68,13 +68,13 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QMenuBar::item:selected {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     QMenu {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         padding: 4px;
     }}
 
@@ -84,24 +84,44 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QMenu::item:selected {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     QMenu::item:disabled {{
-        color: {colors['text_disabled']};
+        color: {colors["text_disabled"]};
     }}
 
     QMenu::separator {{
         height: 1px;
-        background-color: {colors['border_default']};
+        background-color: {colors["border_default"]};
         margin: 4px 10px;
     }}
 
     QToolBar {{
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         border: none;
         spacing: 3px;
         padding: 4px;
+    }}
+
+    /* Visually distinct frame for smoothing/filter controls */
+    QFrame#smoothingControlsFrame {{
+        background-color: #3a3a3a;
+        border: 1px solid {colors["border_default"]};
+        border-radius: 4px;
+        padding: 2px;
+        margin: 0px 4px;
+    }}
+
+    QFrame#smoothingControlsFrame QLabel {{
+        color: {colors["accent_primary"]};
+        font-weight: bold;
+    }}
+
+    QFrame#smoothingControlsFrame QComboBox,
+    QFrame#smoothingControlsFrame QSpinBox {{
+        background-color: {colors["bg_primary"]};
+        border: 1px solid {colors["border_hover"]};
     }}
 
     QToolButton {{
@@ -109,21 +129,21 @@ def get_dark_theme_stylesheet() -> str:
         border: 1px solid transparent;
         border-radius: 3px;
         padding: 4px;
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
     }}
 
     QToolButton:hover {{
-        background-color: {colors['bg_hover']};
-        border: 1px solid {colors['border_hover']};
+        background-color: {colors["bg_hover"]};
+        border: 1px solid {colors["border_hover"]};
     }}
 
     QToolButton:pressed {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     QToolButton:checked {{
-        background-color: {colors['accent_primary']};
-        border: 1px solid {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
+        border: 1px solid {colors["accent_primary"]};
     }}
 
     /* ========================================================================
@@ -131,31 +151,31 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QPushButton {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
         padding: 5px 12px;
         min-width: 60px;
     }}
 
     QPushButton:hover {{
-        background-color: {colors['bg_hover']};
-        border: 1px solid {colors['border_hover']};
+        background-color: {colors["bg_hover"]};
+        border: 1px solid {colors["border_hover"]};
     }}
 
     QPushButton:pressed {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     QPushButton:disabled {{
-        color: {colors['text_disabled']};
-        background-color: {colors['bg_disabled']};
-        border: 1px solid {colors['bg_disabled']};
+        color: {colors["text_disabled"]};
+        background-color: {colors["bg_disabled"]};
+        border: 1px solid {colors["bg_disabled"]};
     }}
 
     QPushButton:default {{
-        border: 2px solid {colors['accent_primary']};
+        border: 2px solid {colors["accent_primary"]};
     }}
 
     /* ========================================================================
@@ -163,79 +183,79 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QLineEdit {{
-        background-color: {colors['bg_input']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_input"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
         padding: 4px;
-        selection-background-color: {colors['accent_primary']};
+        selection-background-color: {colors["accent_primary"]};
     }}
 
     QLineEdit:focus {{
-        border: 1px solid {colors['border_focus']};
+        border: 1px solid {colors["border_focus"]};
     }}
 
     QLineEdit:disabled {{
-        background-color: {colors['bg_disabled']};
-        color: {colors['text_disabled']};
+        background-color: {colors["bg_disabled"]};
+        color: {colors["text_disabled"]};
     }}
 
     QSpinBox, QDoubleSpinBox {{
-        background-color: {colors['bg_input']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_input"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
         padding: 4px;
-        selection-background-color: {colors['accent_primary']};
+        selection-background-color: {colors["accent_primary"]};
     }}
 
     QSpinBox:focus, QDoubleSpinBox:focus {{
-        border: 1px solid {colors['border_focus']};
+        border: 1px solid {colors["border_focus"]};
     }}
 
     QSpinBox:disabled, QDoubleSpinBox:disabled {{
-        background-color: {colors['bg_disabled']};
-        color: {colors['text_disabled']};
+        background-color: {colors["bg_disabled"]};
+        color: {colors["text_disabled"]};
     }}
 
     QSpinBox::up-button, QDoubleSpinBox::up-button {{
-        background-color: {colors['bg_secondary']};
-        border-left: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        border-left: 1px solid {colors["border_default"]};
     }}
 
     QSpinBox::up-button:hover, QDoubleSpinBox::up-button:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     QSpinBox::down-button, QDoubleSpinBox::down-button {{
-        background-color: {colors['bg_secondary']};
-        border-left: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        border-left: 1px solid {colors["border_default"]};
     }}
 
     QSpinBox::down-button:hover, QDoubleSpinBox::down-button:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     QComboBox {{
-        background-color: {colors['bg_input']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_input"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
         padding: 4px;
         min-width: 75px;
     }}
 
     QComboBox:hover {{
-        border: 1px solid {colors['border_hover']};
+        border: 1px solid {colors["border_hover"]};
     }}
 
     QComboBox:focus {{
-        border: 1px solid {colors['border_focus']};
+        border: 1px solid {colors["border_focus"]};
     }}
 
     QComboBox::drop-down {{
         border: none;
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
     }}
 
     QComboBox::down-arrow {{
@@ -244,10 +264,10 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QComboBox QAbstractItemView {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        selection-background-color: {colors['accent_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        selection-background-color: {colors["accent_primary"]};
+        border: 1px solid {colors["border_default"]};
     }}
 
     /* ========================================================================
@@ -255,49 +275,49 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QCheckBox {{
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
         spacing: 5px;
     }}
 
     QCheckBox::indicator {{
         width: 16px;
         height: 16px;
-        border: 1px solid {colors['border_default']};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
-        background-color: {colors['bg_input']};
+        background-color: {colors["bg_input"]};
     }}
 
     QCheckBox::indicator:checked {{
-        background-color: {colors['accent_primary']};
-        border: 1px solid {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
+        border: 1px solid {colors["accent_primary"]};
     }}
 
     QCheckBox::indicator:disabled {{
-        background-color: {colors['bg_disabled']};
-        border: 1px solid {colors['bg_disabled']};
+        background-color: {colors["bg_disabled"]};
+        border: 1px solid {colors["bg_disabled"]};
     }}
 
     QRadioButton {{
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
         spacing: 5px;
     }}
 
     QRadioButton::indicator {{
         width: 16px;
         height: 16px;
-        border: 1px solid {colors['border_default']};
+        border: 1px solid {colors["border_default"]};
         border-radius: 8px;
-        background-color: {colors['bg_input']};
+        background-color: {colors["bg_input"]};
     }}
 
     QRadioButton::indicator:checked {{
-        background-color: {colors['accent_primary']};
-        border: 1px solid {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
+        border: 1px solid {colors["accent_primary"]};
     }}
 
     QRadioButton::indicator:disabled {{
-        background-color: {colors['bg_disabled']};
-        border: 1px solid {colors['bg_disabled']};
+        background-color: {colors["bg_disabled"]};
+        border: 1px solid {colors["bg_disabled"]};
     }}
 
     /* ========================================================================
@@ -305,12 +325,12 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QLabel {{
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
         background-color: transparent;
     }}
 
     QLabel:disabled {{
-        color: {colors['text_disabled']};
+        color: {colors["text_disabled"]};
     }}
 
     /* ========================================================================
@@ -318,8 +338,8 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QGroupBox {{
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 4px;
         margin-top: 7px;
         padding-top: 7px;
@@ -330,7 +350,7 @@ def get_dark_theme_stylesheet() -> str:
         subcontrol-origin: margin;
         left: 10px;
         padding: 0 5px 0 5px;
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
     }}
 
     /* ========================================================================
@@ -338,13 +358,13 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QTabWidget::pane {{
-        background-color: {colors['bg_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_primary"]};
+        border: 1px solid {colors["border_default"]};
     }}
 
     QTabBar::tab {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_secondary']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_secondary"]};
         padding: 6px 12px;
         margin-right: 2px;
         border-top-left-radius: 3px;
@@ -352,13 +372,13 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QTabBar::tab:selected {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
-        border-bottom: 2px solid {colors['accent_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
+        border-bottom: 2px solid {colors["accent_primary"]};
     }}
 
     QTabBar::tab:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     /* ========================================================================
@@ -367,33 +387,33 @@ def get_dark_theme_stylesheet() -> str:
 
     QSlider::groove:horizontal {{
         height: 4px;
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         border-radius: 2px;
     }}
 
     QSlider::handle:horizontal {{
         width: 14px;
         height: 14px;
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
         border-radius: 7px;
         margin: -5px 0;
     }}
 
     QSlider::handle:horizontal:hover {{
-        background-color: {colors['accent_primary']};
-        border: 2px solid {colors['text_primary']};
+        background-color: {colors["accent_primary"]};
+        border: 2px solid {colors["text_primary"]};
     }}
 
     QSlider::groove:vertical {{
         width: 4px;
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         border-radius: 2px;
     }}
 
     QSlider::handle:vertical {{
         width: 14px;
         height: 14px;
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
         border-radius: 7px;
         margin: 0 -5px;
     }}
@@ -403,16 +423,16 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QProgressBar {{
-        background-color: {colors['bg_secondary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        border: 1px solid {colors["border_default"]};
         border-radius: 3px;
         text-align: center;
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
         min-height: 20px;
     }}
 
     QProgressBar::chunk {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
         border-radius: 2px;
     }}
 
@@ -421,19 +441,19 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QScrollBar:vertical {{
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         width: 12px;
         border: none;
     }}
 
     QScrollBar::handle:vertical {{
-        background-color: {colors['border_default']};
+        background-color: {colors["border_default"]};
         border-radius: 6px;
         min-height: 20px;
     }}
 
     QScrollBar::handle:vertical:hover {{
-        background-color: {colors['border_hover']};
+        background-color: {colors["border_hover"]};
     }}
 
     QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
@@ -443,19 +463,19 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QScrollBar:horizontal {{
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         height: 12px;
         border: none;
     }}
 
     QScrollBar::handle:horizontal {{
-        background-color: {colors['border_default']};
+        background-color: {colors["border_default"]};
         border-radius: 6px;
         min-width: 20px;
     }}
 
     QScrollBar::handle:horizontal:hover {{
-        background-color: {colors['border_hover']};
+        background-color: {colors["border_hover"]};
     }}
 
     QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
@@ -469,42 +489,42 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QTableWidget {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        gridline-color: {colors['border_default']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        gridline-color: {colors["border_default"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
     }}
 
     QTableView {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        gridline-color: {colors['border_default']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        gridline-color: {colors["border_default"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
     }}
 
     QHeaderView {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
         border: none;
     }}
 
     QHeaderView::section {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
         padding: 5px;
         border: none;
-        border-right: 1px solid {colors['border_default']};
-        border-bottom: 1px solid {colors['border_default']};
+        border-right: 1px solid {colors["border_default"]};
+        border-bottom: 1px solid {colors["border_default"]};
     }}
 
     QHeaderView::section:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     QTableWidget::item {{
@@ -513,13 +533,13 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QTableWidget::item:selected {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     /* QTableWidget::item:hover - removed to prevent confusing hover effects */
 
     QTableCornerButton::section {{
-        background-color: {colors['bg_secondary']};
+        background-color: {colors["bg_secondary"]};
         border: none;
     }}
 
@@ -528,22 +548,22 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QListWidget {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
         outline: none;
     }}
 
     QListView {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
         outline: none;
     }}
 
@@ -552,11 +572,11 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QListWidget::item:selected {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     QListWidget::item:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     /* ========================================================================
@@ -564,22 +584,22 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QTreeWidget {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         outline: none;
     }}
 
     QTreeView {{
-        background-color: {colors['bg_primary']};
-        alternate-background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_primary"]};
+        alternate-background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         outline: none;
     }}
 
@@ -588,19 +608,19 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QTreeWidget::item:selected {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     QTreeWidget::item:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     QTreeWidget::branch {{
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
     }}
 
     QTreeWidget::branch:selected {{
-        background-color: {colors['accent_primary']};
+        background-color: {colors["accent_primary"]};
     }}
 
     /* ========================================================================
@@ -608,27 +628,27 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QTextEdit {{
-        background-color: {colors['bg_input']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_input"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
     }}
 
     QTextEdit:focus {{
-        border: 1px solid {colors['border_focus']};
+        border: 1px solid {colors["border_focus"]};
     }}
 
     QPlainTextEdit {{
-        background-color: {colors['bg_input']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
-        selection-background-color: {colors['accent_primary']};
-        selection-color: {colors['text_primary']};
+        background-color: {colors["bg_input"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
+        selection-background-color: {colors["accent_primary"]};
+        selection-color: {colors["text_primary"]};
     }}
 
     QPlainTextEdit:focus {{
-        border: 1px solid {colors['border_focus']};
+        border: 1px solid {colors["border_focus"]};
     }}
 
     /* ========================================================================
@@ -636,12 +656,12 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QScrollArea {{
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
         border: none;
     }}
 
     QScrollArea > QWidget > QWidget {{
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
     }}
 
     /* ========================================================================
@@ -649,11 +669,11 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QSplitter::handle {{
-        background-color: {colors['border_default']};
+        background-color: {colors["border_default"]};
     }}
 
     QSplitter::handle:hover {{
-        background-color: {colors['border_hover']};
+        background-color: {colors["border_hover"]};
     }}
 
     QSplitter::handle:horizontal {{
@@ -669,9 +689,9 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QStatusBar {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_secondary']};
-        border-top: 1px solid {colors['border_default']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_secondary"]};
+        border-top: 1px solid {colors["border_default"]};
     }}
 
     QStatusBar::item {{
@@ -689,16 +709,16 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QDockWidget {{
-        color: {colors['text_primary']};
+        color: {colors["text_primary"]};
         titlebar-close-icon: none;
         titlebar-normal-icon: none;
     }}
 
     QDockWidget::title {{
-        background-color: {colors['bg_secondary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_secondary"]};
+        color: {colors["text_primary"]};
         padding: 5px;
-        border-bottom: 1px solid {colors['border_default']};
+        border-bottom: 1px solid {colors["border_default"]};
     }}
 
     QDockWidget::close-button, QDockWidget::float-button {{
@@ -708,7 +728,7 @@ def get_dark_theme_stylesheet() -> str:
     }}
 
     QDockWidget::close-button:hover, QDockWidget::float-button:hover {{
-        background-color: {colors['bg_hover']};
+        background-color: {colors["bg_hover"]};
     }}
 
     /* ========================================================================
@@ -716,9 +736,9 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QToolTip {{
-        background-color: {colors['bg_elevated']};
-        color: {colors['text_primary']};
-        border: 1px solid {colors['border_default']};
+        background-color: {colors["bg_elevated"]};
+        color: {colors["text_primary"]};
+        border: 1px solid {colors["border_default"]};
         padding: 4px;
     }}
 
@@ -727,8 +747,8 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QMessageBox {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
     }}
 
     QMessageBox QPushButton {{
@@ -741,8 +761,8 @@ def get_dark_theme_stylesheet() -> str:
        ======================================================================== */
 
     QFileDialog {{
-        background-color: {colors['bg_primary']};
-        color: {colors['text_primary']};
+        background-color: {colors["bg_primary"]};
+        color: {colors["text_primary"]};
     }}
 
     /* ========================================================================
@@ -751,7 +771,7 @@ def get_dark_theme_stylesheet() -> str:
 
     /* Fix for white corners in some widgets */
     QWidget:window {{
-        background-color: {colors['bg_primary']};
+        background-color: {colors["bg_primary"]};
     }}
 
     /* Ensure context menus are styled */
@@ -762,6 +782,6 @@ def get_dark_theme_stylesheet() -> str:
 
     /* Disabled text for all widgets */
     *:disabled {{
-        color: {colors['text_disabled']};
+        color: {colors["text_disabled"]};
     }}
     """

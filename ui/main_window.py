@@ -70,6 +70,7 @@ from .controllers import (
 from .curve_view_widget import CurveViewWidget
 from .dark_theme_stylesheet import get_dark_theme_stylesheet
 from .file_operations import FileOperations
+from .global_event_filter import GlobalEventFilter
 from .keyboard_shortcuts import ShortcutManager
 from .protocols.controller_protocols import (
     ActionHandlerProtocol,
@@ -81,6 +82,7 @@ from .protocols.controller_protocols import (
     UIInitializationProtocol,
     ViewOptionsProtocol,
 )
+from .shortcut_registry import ShortcutRegistry
 from .state_manager import StateManager
 from .tracking_points_panel import TrackingPointsPanel
 
@@ -258,6 +260,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Connect all signals via manager
         self.signal_manager.connect_all_signals()
 
+        # Initialize global keyboard shortcut system
+        self._init_global_shortcuts()
+
         # Verify all critical connections are established
         self._verify_connections()
 
@@ -301,6 +306,65 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.setTabOrder(self.show_info_cb, self.curve_widget)
 
         logger.debug("Tab order configured for keyboard navigation")
+
+    def _init_global_shortcuts(self) -> None:
+        """Initialize the global keyboard shortcut system."""
+        from core.commands.shortcut_commands import (
+            CenterViewCommand,
+            DeletePointsCommand,
+            DeselectAllCommand,
+            FitBackgroundCommand,
+            NudgePointsCommand,
+            SelectAllCommand,
+            SetEndframeCommand,
+            SetTrackingDirectionCommand,
+        )
+        from core.models import TrackingDirection
+
+        # Create shortcut registry
+        self.shortcut_registry = ShortcutRegistry()
+
+        # Register shortcuts
+        # Editing shortcuts
+        self.shortcut_registry.register(SetEndframeCommand())
+        self.shortcut_registry.register(DeletePointsCommand())
+
+        # Tracking direction shortcuts
+        self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_BW, "Shift+1"))
+        self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW, "Shift+2"))
+        self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW_BW, "Shift+F3"))
+        # Global registrations for international keyboard symbols (for when table doesn't have focus)
+        self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_BW, "!"))
+        self.shortcut_registry.register(
+            SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW, '"')  # German layout
+        )
+        self.shortcut_registry.register(
+            SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW, "@")  # US layout
+        )
+
+        # View shortcuts
+        self.shortcut_registry.register(CenterViewCommand())
+        self.shortcut_registry.register(FitBackgroundCommand())
+
+        # Nudging shortcuts (numpad 2/4/6/8)
+        self.shortcut_registry.register(NudgePointsCommand("4", -1, 0))  # Left
+        self.shortcut_registry.register(NudgePointsCommand("6", 1, 0))  # Right
+        self.shortcut_registry.register(NudgePointsCommand("8", 0, -1))  # Up
+        self.shortcut_registry.register(NudgePointsCommand("2", 0, 1))  # Down
+
+        # Selection shortcuts
+        self.shortcut_registry.register(SelectAllCommand())
+        self.shortcut_registry.register(DeselectAllCommand())
+
+        # Install global event filter
+        self.global_event_filter = GlobalEventFilter(self, self.shortcut_registry)
+        app = QApplication.instance()
+        if app:
+            app.installEventFilter(self.global_event_filter)
+            logger.info(
+                "Global keyboard shortcut system initialized with %d shortcuts",
+                len(self.shortcut_registry.list_shortcuts()),
+            )
 
     @Slot(str)
     def on_file_changed(self, file_path: str) -> None:

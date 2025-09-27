@@ -188,10 +188,21 @@ class UIInitializationController:
             _ = toolbar.addAction(self.main_window.action_reset_view)
         _ = toolbar.addSeparator()
 
-        # Add smoothing controls to toolbar
-        from PySide6.QtWidgets import QComboBox, QSpinBox
+        # Add smoothing controls to toolbar wrapped in distinct frame
+        from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QSpinBox
 
-        _ = toolbar.addWidget(QLabel("Smoothing:"))
+        # Create container frame for smoothing controls with distinct styling
+        smoothing_frame = QFrame()
+        smoothing_frame.setObjectName("smoothingControlsFrame")
+        smoothing_frame.setFrameStyle(QFrame.Shape.StyledPanel | QFrame.Shadow.Raised)
+
+        # Create horizontal layout for smoothing controls
+        smoothing_layout = QHBoxLayout(smoothing_frame)
+        smoothing_layout.setContentsMargins(6, 3, 6, 3)
+        smoothing_layout.setSpacing(4)
+
+        # Add smoothing label
+        smoothing_layout.addWidget(QLabel("Smoothing:"))
 
         # Filter type combo box
         self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
@@ -199,9 +210,10 @@ class UIInitializationController:
         self.main_window.ui.toolbar.smoothing_type_combo.setCurrentIndex(0)
         self.main_window.ui.toolbar.smoothing_type_combo.setToolTip("Select smoothing filter type")
         _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.connect(self._on_smoothing_type_changed)
-        _ = toolbar.addWidget(self.main_window.ui.toolbar.smoothing_type_combo)
+        smoothing_layout.addWidget(self.main_window.ui.toolbar.smoothing_type_combo)
 
-        _ = toolbar.addWidget(QLabel("Size:"))
+        # Size label
+        smoothing_layout.addWidget(QLabel("Size:"))
 
         # Window size spin box
         self.main_window.ui.toolbar.smoothing_size_spinbox = QSpinBox()
@@ -209,7 +221,10 @@ class UIInitializationController:
         self.main_window.ui.toolbar.smoothing_size_spinbox.setValue(5)
         self.main_window.ui.toolbar.smoothing_size_spinbox.setToolTip("Smoothing window size (3-15)")
         _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.connect(self._on_smoothing_size_changed)
-        _ = toolbar.addWidget(self.main_window.ui.toolbar.smoothing_size_spinbox)
+        smoothing_layout.addWidget(self.main_window.ui.toolbar.smoothing_size_spinbox)
+
+        # Add the frame to toolbar
+        _ = toolbar.addWidget(smoothing_frame)
 
         _ = toolbar.addSeparator()
 

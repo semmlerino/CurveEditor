@@ -799,7 +799,8 @@ class TimelineTabWidget(QWidget):
             self.set_current_frame(self.max_frame)
             event.accept()
         else:
-            event.ignore()
+            # Properly propagate unhandled events up the widget hierarchy
+            super().keyPressEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Start scrubbing when mouse is pressed."""

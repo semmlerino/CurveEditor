@@ -2,7 +2,7 @@
 
 from typing import TypedDict
 
-from PySide6.QtCore import QPoint, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -21,6 +21,99 @@ from PySide6.QtWidgets import (
 
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
+
+
+class TrackingTableEventFilter(QObject):
+    """Event filter for tracking table to handle tracking direction shortcuts."""
+
+    def __init__(self, panel: "TrackingPointsPanel") -> None:
+        """Initialize the event filter.
+
+        Args:
+            panel: The tracking points panel that owns the table
+        """
+        super().__init__()
+        self.panel = panel
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Filter events for the tracking table.
+
+        Args:
+            watched: The object that would receive the event (should be the table)
+            event: The event to filter
+
+        Returns:
+            True if event was handled and should be consumed, False otherwise
+        """
+        # Only handle key press events
+        if event.type() != QEvent.Type.KeyPress:
+            return False
+
+        if not isinstance(event, QKeyEvent):
+            return False
+
+        # Only handle shortcuts when the table has focus
+        # This allows global shortcuts to work when other widgets have focus
+        if not self.panel.table.hasFocus():
+            return False
+
+        key = event.key()
+        modifiers = event.modifiers()
+
+        # Handle tracking direction shortcuts
+        tracking_direction = None
+
+        # Check for Shift+1, Shift+2, Shift+F3
+        if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            if key == Qt.Key.Key_1:
+                tracking_direction = TrackingDirection.TRACKING_BW
+            elif key == Qt.Key.Key_2:
+                tracking_direction = TrackingDirection.TRACKING_FW
+            elif key == Qt.Key.Key_F3:
+                tracking_direction = TrackingDirection.TRACKING_FW_BW
+
+        # Check for symbol keys !, ", and @ (international keyboard layouts - separate check)
+        if key == Qt.Key.Key_Exclam:  # ! (Shift+1 on most layouts)
+            tracking_direction = TrackingDirection.TRACKING_BW
+        elif key == Qt.Key.Key_QuoteDbl:  # " (Shift+2 on German layout)
+            tracking_direction = TrackingDirection.TRACKING_FW
+        elif key == Qt.Key.Key_At:  # @ (Shift+2 on US layout)
+            tracking_direction = TrackingDirection.TRACKING_FW
+
+        # If we found a tracking direction shortcut, handle it
+        if tracking_direction is not None:
+            return self._handle_tracking_direction_shortcut(tracking_direction)
+
+        # Not a tracking direction shortcut, continue normal processing
+        return False
+
+    def _handle_tracking_direction_shortcut(self, direction: TrackingDirection) -> bool:
+        """Handle a tracking direction shortcut.
+
+        Args:
+            direction: The tracking direction to set
+
+        Returns:
+            True if the shortcut was handled, False otherwise
+        """
+        # Get selected points from the panel
+        selected_points = self.panel.get_selected_points()
+
+        if not selected_points:
+            # No points selected, don't consume the event
+            return False
+
+        # Set tracking direction for all selected points
+        for point_name in selected_points:
+            if point_name in self.panel._point_metadata:
+                self.panel._point_metadata[point_name]["tracking_direction"] = direction
+                self.panel.tracking_direction_changed.emit(point_name, direction)
+
+        # Update the direction dropdowns in the table
+        self.panel._update_direction_dropdowns_for_points(selected_points, direction)
+
+        # Event was handled, consume it
+        return True
 
 
 class PointMetadata(TypedDict):
@@ -49,6 +142,10 @@ class TrackingPointsPanel(QWidget):
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
         self._init_ui()
+
+        # Install event filter for tracking direction shortcuts
+        self._table_event_filter = TrackingTableEventFilter(self)
+        self.table.installEventFilter(self._table_event_filter)
 
     def _init_ui(self) -> None:
         """Initialize the user interface."""
@@ -180,9 +277,18 @@ class TrackingPointsPanel(QWidget):
     def get_selected_points(self) -> list[str]:
         """Get list of selected tracking point names."""
         selected_points = []
-        for item in self.table.selectedItems():
-            if item.column() == 1:  # Name column
+        selected_rows = set()
+
+        # Get all selected rows using selection model
+        for index in self.table.selectionModel().selectedIndexes():
+            selected_rows.add(index.row())
+
+        # Get point names for selected rows
+        for row in selected_rows:
+            item = self.table.item(row, 1)  # Name column
+            if item:
                 selected_points.append(item.text())
+
         return selected_points
 
     def get_visible_points(self) -> list[str]:
@@ -349,16 +455,27 @@ class TrackingPointsPanel(QWidget):
                 if direction_combo and isinstance(direction_combo, QComboBox):
                     direction_combo.setCurrentText(direction.abbreviation)
 
+    def _update_direction_dropdowns_for_points(self, points: list[str], direction: TrackingDirection) -> None:
+        """Update direction dropdowns for specified points without changing metadata."""
+        for row in range(self.table.rowCount()):
+            point_name_item = self.table.item(row, 1)
+            if point_name_item:
+                point_name = point_name_item.text()
+                if point_name in points:
+                    direction_combo = self.table.cellWidget(row, 3)  # Direction is in column 3
+                    if direction_combo and isinstance(direction_combo, QComboBox):
+                        direction_combo.setCurrentText(direction.abbreviation)
+
     def _delete_points(self, points: list[str]) -> None:
         """Delete selected points."""
         for point_name in points:
             self.point_deleted.emit(point_name)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
-        """Handle key press events."""
-        if event.key() == Qt.Key.Key_Delete:
-            selected_points = self.get_selected_points()
-            if selected_points:
-                self._delete_points(selected_points)
-        else:
-            super().keyPressEvent(event)
+        """Handle key press events.
+
+        All keyboard shortcuts are now handled by the global shortcut system.
+        This method just ensures proper event propagation.
+        """
+        # Let the event propagate to the global event filter
+        super().keyPressEvent(event)

@@ -300,7 +300,7 @@ Point01
         content = "12\n"  # 12 points
 
         for i in range(1, 13):
-            content += f"Point{i:02d}\n0\n1\n1 {100 + i*10} {50 + i*5}\n"
+            content += f"Point{i:02d}\n0\n1\n1 {100 + i * 10} {50 + i * 5}\n"
 
         tracking_file.write_text(content)
 

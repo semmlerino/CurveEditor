@@ -227,11 +227,6 @@ class CurveViewWidget(QWidget):
         # Widget setup
         self._setup_widget()
 
-        # Initialize keyboard handler
-        from ui.keyboard_shortcuts import CurveViewKeyboardHandler
-
-        self.keyboard_handler = CurveViewKeyboardHandler(self)
-
         logger.info("CurveViewWidget initialized with OptimizedCurveRenderer and reactive store")
 
     @property
@@ -998,28 +993,14 @@ class CurveViewWidget(QWidget):
         """
         Handle keyboard events.
 
-        Keyboard shortcuts:
-            Delete: Delete selected points
-            Ctrl+A: Select all points
-            Escape: Clear selection
-            C: Center view on selected points
-            F: Fit background image to view
-            2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
-            PageUp/PageDown: Navigate to previous/next navigation frame (handled by MainWindow)
+        All keyboard shortcuts are now handled by the global shortcut system.
+        This method just ensures proper event propagation.
 
         Args:
             event: Key event
         """
-        # Debug: Log ALL key events
-        logger.info(
-            f"[KEYEVENT] keyPressEvent called! Key: {event.key()}, Modifiers: {event.modifiers()}, HasFocus: {self.hasFocus()}"
-        )
-
-        # Delegate to keyboard handler
-        if self.keyboard_handler.handle_key_press(event):
-            event.accept()
-        else:
-            event.ignore()
+        # Let the event propagate to the global event filter
+        super().keyPressEvent(event)
 
     @override
     def focusInEvent(self, event) -> None:

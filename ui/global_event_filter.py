@@ -1,0 +1,182 @@
+#!/usr/bin/env python
+"""
+Application-level event filter for global keyboard shortcuts.
+
+This module provides an event filter that intercepts keyboard events at the
+application level, enabling global keyboard shortcuts that work regardless
+of which widget has focus.
+"""
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QEvent, QObject
+from PySide6.QtGui import QKeyEvent
+
+if TYPE_CHECKING:
+    from ui.main_window import MainWindow
+    from ui.shortcut_registry import ShortcutRegistry
+
+from core.commands.shortcut_command import ShortcutContext
+from core.logger_utils import get_logger
+
+logger = get_logger("global_event_filter")
+
+
+class GlobalEventFilter(QObject):
+    """Application-level event filter for keyboard shortcuts.
+
+    Intercepts keyboard events before they reach individual widgets,
+    allowing for consistent global shortcut handling throughout the application.
+    """
+
+    def __init__(self, main_window: MainWindow, registry: ShortcutRegistry) -> None:
+        """Initialize the global event filter.
+
+        Args:
+            main_window: Reference to the main application window
+            registry: The shortcut registry to use for command lookup
+        """
+        super().__init__()
+        self.main_window = main_window
+        self.registry = registry
+        logger.info("GlobalEventFilter initialized")
+
+    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+        """Filter events for the application.
+
+        Args:
+            obj: The object that would normally receive the event
+            event: The event to filter
+
+        Returns:
+            True if the event was handled and should be filtered out,
+            False to allow normal event processing to continue
+        """
+        # Only handle key press events
+        if event.type() != QEvent.Type.KeyPress:
+            return False
+
+        # Ensure it's a QKeyEvent
+        if not isinstance(event, QKeyEvent):
+            return False
+
+        # Don't interfere with text input in certain widgets
+        if self._should_skip_widget(obj):
+            return False
+
+        # Build context for the shortcut
+        try:
+            context = self._build_context(event, obj)
+        except Exception as e:
+            logger.error(f"Failed to build shortcut context: {e}")
+            return False
+
+        # Look up command in registry
+        command = self.registry.get_command(event)
+        if not command:
+            # No command registered for this key
+            return False
+
+        # Check if command can execute in this context
+        if not command.can_execute(context):
+            logger.debug(
+                f"Shortcut [{command.key_sequence}] cannot execute in current context (widget: {context.widget_type})"
+            )
+            return False
+
+        # Execute the command
+        try:
+            success = command.execute(context)
+            command.log_execution(context, success)
+
+            if success:
+                # Event was handled, stop propagation
+                event.accept()
+                return True
+            else:
+                # Command failed, let event continue
+                return False
+
+        except Exception as e:
+            logger.error(f"Error executing shortcut [{command.key_sequence}]: {e}")
+            return False
+
+    def _build_context(self, event: QKeyEvent, obj: QObject) -> ShortcutContext:
+        """Build a context object for shortcut execution.
+
+        Args:
+            event: The key event that triggered the shortcut
+            obj: The object that would normally receive the event
+
+        Returns:
+            Context object with current application state
+        """
+        from PySide6.QtWidgets import QWidget
+
+        # Get focused widget
+        focused_widget = None
+        if isinstance(obj, QWidget):
+            focused_widget = obj
+        else:
+            # Try to get the currently focused widget
+            from PySide6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app:
+                focused_widget = app.focusWidget()
+
+        # Get selected curve points
+        selected_curve_points = set()
+        if hasattr(self.main_window, "curve_widget") and self.main_window.curve_widget:
+            selected_curve_points = self.main_window.curve_widget.selected_indices
+
+        # Get selected tracking points
+        selected_tracking_points = []
+        if hasattr(self.main_window, "tracking_panel") and self.main_window.tracking_panel:
+            selected_tracking_points = self.main_window.tracking_panel.get_selected_points()
+
+        # Get current frame
+        current_frame = None
+        if hasattr(self.main_window, "current_frame"):
+            current_frame = self.main_window.current_frame
+
+        return ShortcutContext(
+            main_window=self.main_window,
+            focused_widget=focused_widget,
+            key_event=event,
+            selected_curve_points=selected_curve_points,
+            selected_tracking_points=selected_tracking_points,
+            current_frame=current_frame,
+        )
+
+    def _should_skip_widget(self, obj: QObject) -> bool:
+        """Check if we should skip shortcut processing for this widget.
+
+        Some widgets need normal key handling for text input and shouldn't
+        have their events intercepted.
+
+        Args:
+            obj: The object to check
+
+        Returns:
+            True if shortcuts should be skipped for this widget
+        """
+        from PySide6.QtWidgets import QDoubleSpinBox, QLineEdit, QPlainTextEdit, QSpinBox, QTextEdit
+
+        # Skip text input widgets when they have focus
+        skip_types = (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox)
+
+        if isinstance(obj, skip_types):
+            # Check if the widget is in edit mode
+            if hasattr(obj, "hasFocus") and obj.hasFocus():
+                return True
+
+        # Check for combo box dropdown
+        from PySide6.QtWidgets import QComboBox
+
+        if isinstance(obj, QComboBox) and obj.isEditable():
+            return True
+
+        return False

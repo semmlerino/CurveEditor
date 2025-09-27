@@ -72,7 +72,9 @@ class MultiPointTrackingController:
                 point_name = self._get_unique_point_name(base_name)
                 self.tracked_data[point_name] = data  # pyright: ignore[reportArgumentType]
                 self.active_points = [point_name]  # Select the newly loaded point
-                logger.info(f"Added single trajectory as '{point_name}' to existing {len(self.tracked_data)-1} points")
+                logger.info(
+                    f"Added single trajectory as '{point_name}' to existing {len(self.tracked_data) - 1} points"
+                )
 
                 # Update the tracking panel to show the new point
                 self.update_tracking_panel()
