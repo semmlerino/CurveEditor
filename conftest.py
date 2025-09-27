@@ -8,7 +8,9 @@ popup windows during testing.
 import os
 
 import pytest
-from PySide6.QtWidgets import QApplication
+
+# Import all fixtures to make them globally available
+from tests.fixtures import *  # noqa: F403, F401 - fixtures need to be available globally
 
 
 def pytest_configure(config: object) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -22,18 +24,8 @@ def pytest_configure(config: object) -> None:  # pyright: ignore[reportUnusedPar
     _ = os.environ.setdefault("QT_LOGGING_RULES", "*.debug=false;qt.qpa.*=false")
 
 
-@pytest.fixture(scope="session")
-def qapp():
-    """Create a QApplication instance for the entire test session."""
-    # Check if application already exists
-    app = QApplication.instance()
-    if app is None:
-        # Create new application in offscreen mode
-        app = QApplication([])
-
-    yield app
-
-    # Don't quit the app - let pytest-qt handle it
+# qapp fixture is imported from tests.fixtures.qt_fixtures
+# No need to redefine it here
 
 
 @pytest.fixture(autouse=True)

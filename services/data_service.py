@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import PointStatus
 from core.type_aliases import CurveDataList
@@ -58,6 +59,10 @@ class DataService:
         self._last_directory: str = ""
         self._image_cache: dict[str, object] = {}
         self._max_cache_size: int = 100  # Maximum number of cached images
+
+        # Persistent SegmentedCurve for restoration functionality
+        self._segmented_curve: SegmentedCurve | None = None
+        self._current_curve_data: CurveDataList | None = None
 
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
 
@@ -343,6 +348,77 @@ class DataService:
 
         return (keyframe_count, interpolated_count, False)
 
+    def get_position_at_frame(self, points: CurveDataList, frame: int) -> tuple[float, float] | None:
+        """Get position at a specific frame using gap-aware interpolation.
+
+        Uses SegmentedCurve logic to handle gaps properly:
+        - Active segments: Normal interpolation between keyframes
+        - Inactive segments (gaps): Returns held position from preceding endframe
+
+        Args:
+            points: List of curve data points
+            frame: Frame number to get position for
+
+        Returns:
+            Tuple of (x, y) coordinates or None if no position available
+        """
+        if not points:
+            return None
+
+        # Use persistent segmented curve if points match current data
+        if self._current_curve_data == points and self._segmented_curve:
+            return self._segmented_curve.get_position_at_frame(frame)
+
+        # Create new segmented curve for gap-aware position lookup
+        segmented_curve = SegmentedCurve.from_curve_data(points)
+        return segmented_curve.get_position_at_frame(frame)
+
+    def update_curve_data(self, points: CurveDataList) -> None:
+        """Update the persistent SegmentedCurve when curve data changes.
+
+        This should be called whenever the curve data is loaded or significantly changed
+        to ensure the restoration system has the latest data structure.
+
+        Args:
+            points: Updated curve data points
+        """
+        self._current_curve_data = points
+        if points:
+            self._segmented_curve = SegmentedCurve.from_curve_data(points)
+        else:
+            self._segmented_curve = None
+
+    def handle_point_status_change(self, point_index: int, new_status: str | PointStatus) -> None:
+        """Handle point status changes with restoration logic.
+
+        This method should be called when a point's status is changed (e.g., via the E key)
+        to ensure proper restoration of tracked data when endframes are converted back to keyframes.
+
+        Args:
+            point_index: Index of the point whose status changed
+            new_status: New status for the point
+        """
+        if not self._segmented_curve or not self._current_curve_data:
+            logger.warning("Cannot handle status change: no current curve data")
+            return
+
+        # Convert status to PointStatus enum if needed
+        if isinstance(new_status, str):
+            try:
+                status_enum = PointStatus(new_status)
+            except ValueError:
+                logger.warning(f"Invalid status value: {new_status}")
+                return
+        else:
+            status_enum = new_status
+
+        # Update the persistent SegmentedCurve with restoration logic
+        try:
+            self._segmented_curve.update_segment_activity(point_index, status_enum)
+            logger.debug(f"Updated segment activity for point {point_index} to {status_enum.value}")
+        except Exception as e:
+            logger.error(f"Error updating segment activity: {e}")
+
     def get_frame_range_point_status(
         self, points: CurveDataList
     ) -> dict[int, tuple[int, int, int, int, int, bool, bool, bool]]:
@@ -414,36 +490,90 @@ class DataService:
                 else:  # normal
                     frame_status[frame][4] += 1
 
-        # Second pass: detect startframes and inactive regions
-        # Optimized O(n) algorithm instead of O(n³) nested loops
-        sorted_frames = sorted(frame_status.keys())
+        # Second pass: detect startframes and inactive regions using SegmentedCurve
+        # This provides accurate gap detection and startframe identification
+        segmented_curve = SegmentedCurve.from_curve_data(points)
 
-        # Single pass to identify startframes and inactive regions
-        last_endframe_idx = -1
-        last_keyframe_idx = -1
+        # Get all frame numbers that need to be checked (including gaps)
+        if sorted_points:
+            min_frame = min(frame_status.keys())
+            max_frame = max(frame_status.keys())
 
-        for i, frame in enumerate(sorted_frames):
-            has_keyframe_or_tracked = frame_status[frame][0] > 0 or frame_status[frame][2] > 0
+            # Check all frames in the range for inactive status
+            for frame in range(min_frame, max_frame + 1):
+                segment = segmented_curve.get_segment_at_frame(frame)
 
-            # Check if this is a startframe
-            if has_keyframe_or_tracked:
-                if i == 0:
-                    # First frame with keyframes is a startframe
-                    frame_status[frame][5] = True
-                elif last_endframe_idx > last_keyframe_idx:
-                    # This keyframe comes after an endframe with no keyframes in between
-                    frame_status[frame][5] = True
+                # If frame exists in our data, update startframe and inactive status
+                if frame in frame_status:
+                    # Check if this is a startframe using SegmentedCurve logic
+                    if segment and segment.points:
+                        # Find the point at this frame
+                        frame_point = None
+                        for point in segment.points:
+                            if point.frame == frame:
+                                frame_point = point
+                                break
 
-                last_keyframe_idx = i
+                        if frame_point:
+                            # Find previous point for startframe detection
+                            prev_point = None
+                            for pt in segmented_curve.all_points:
+                                if pt.frame < frame:
+                                    if prev_point is None or pt.frame > prev_point.frame:
+                                        prev_point = pt
 
-            # Mark endframe position
-            if frame in endframe_frames:
-                last_endframe_idx = i
+                            # Use CurvePoint's startframe detection
+                            if frame_point.is_startframe(prev_point, segmented_curve.all_points):
+                                frame_status[frame][5] = True
 
-            # Check if frame is in inactive region
-            # Frame is inactive if it comes after an endframe and no startframes have occurred since
-            if last_endframe_idx > last_keyframe_idx and not has_keyframe_or_tracked:
-                frame_status[frame][6] = True
+                    # Update inactive status based on segment activity
+                    # A frame is inactive ONLY if it's in an inactive segment (e.g., tracked points after endframe)
+                    # Gaps (segment is None) are NOT inactive, they just have no data
+                    is_inactive = segment is not None and not segment.is_active
+                    frame_status[frame][6] = is_inactive
+                else:
+                    # Frame has no data at this frame
+                    # Check if this frame is in a gap after an endframe
+                    is_gap_after_endframe = False
+
+                    # Find the last endframe before this frame
+                    last_endframe_frame = None
+                    for ef_frame in sorted(endframe_frames, reverse=True):
+                        if ef_frame < frame:
+                            last_endframe_frame = ef_frame
+                            break
+
+                    if last_endframe_frame is not None:
+                        # Check if there's any keyframe between the endframe and this frame
+                        has_keyframe_between = False
+                        for pt in sorted_points:
+                            pt_frame = pt[0] if isinstance(pt, list | tuple) else pt.frame
+                            if last_endframe_frame < pt_frame < frame:
+                                pt_status = (
+                                    pt[3]
+                                    if isinstance(pt, list | tuple) and len(pt) > 3
+                                    else getattr(pt, "status", "keyframe")
+                                )
+                                if isinstance(pt_status, str) and pt_status == "keyframe":
+                                    has_keyframe_between = True
+                                    break
+                                elif hasattr(pt_status, "value") and pt_status.value == "keyframe":
+                                    has_keyframe_between = True
+                                    break
+
+                        # Frame is in gap after endframe only if there's no keyframe between endframe and this frame
+                        if not has_keyframe_between:
+                            is_gap_after_endframe = True
+
+                    if segment and not segment.is_active:
+                        # Frame is in an inactive segment
+                        frame_status[frame] = [0, 0, 0, 0, 0, False, True, False]
+                    elif is_gap_after_endframe:
+                        # Frame is in gap after endframe (should be inactive)
+                        frame_status[frame] = [0, 0, 0, 0, 0, False, True, False]
+                    else:
+                        # Normal gap between keyframes - NOT inactive
+                        frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
         # Convert lists to tuples
         return {frame: tuple(counts) for frame, counts in frame_status.items()}

@@ -302,13 +302,13 @@ class TestSmoothingFileIO:
         smoothed_data = list(window.curve_widget.curve_data)
 
         # Save to file
-        test_file = tmp_path / "smoothed_curve.txt"
+        test_file = tmp_path / "smoothed_curve.json"
         data_service = get_data_service()
-        data_service.save_track_data(str(test_file), smoothed_data)
+        data_service.save_json(str(test_file), smoothed_data)
 
         # Clear and reload
         window.curve_widget.set_curve_data([])
-        loaded_data = data_service.load_track_data(str(test_file))
+        loaded_data = data_service.load_json(str(test_file))
         window.curve_widget.set_curve_data(loaded_data)
 
         # Verify data matches

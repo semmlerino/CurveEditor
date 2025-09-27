@@ -219,7 +219,7 @@ class TestCompleteWorkflows:
         finally:
             os.unlink(temp_file)
 
-    def test_point_manipulation_workflow(self):
+    def test_point_manipulation_workflow(self, qapp):
         """Test complete workflow: Point selection → Manipulation → History → UI update."""
         get_interaction_service()
         transform_service = get_transform_service()

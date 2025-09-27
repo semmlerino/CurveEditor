@@ -75,8 +75,9 @@ def make_navigation_dataset():
                 (1, 100.0, 200.0, "tracked"),  # Will be startframe
                 (5, 150.0, 250.0, "keyframe"),
                 (10, 200.0, 300.0, "endframe"),  # Creates gap
-                (15, 250.0, 350.0, "tracked"),  # Will be startframe after gap
-                (20, 300.0, 400.0, "keyframe"),
+                (15, 250.0, 350.0, "tracked"),  # Stays in gap
+                (20, 300.0, 400.0, "keyframe"),  # Will be startframe after gap
+                (25, 350.0, 450.0, "tracked"),  # Additional frame to allow testing from frame 22
             ],
             "only_keyframes": [
                 (5, 150.0, 250.0, "keyframe"),
@@ -89,7 +90,7 @@ def make_navigation_dataset():
                 (5, 150.0, 250.0, "keyframe"),
                 (8, 180.0, 280.0, "tracked"),
                 (10, 200.0, 300.0, "endframe"),  # End of first segment
-                (20, 300.0, 400.0, "tracked"),  # Startframe of second segment
+                (20, 300.0, 400.0, "keyframe"),  # Startframe of second segment
                 (25, 350.0, 450.0, "keyframe"),
                 (30, 400.0, 500.0, "endframe"),  # End of second segment
                 (40, 500.0, 600.0, "keyframe"),  # Startframe of third segment
@@ -123,9 +124,19 @@ def main_window_with_data(qtbot, make_navigation_dataset):
         # Load test data
         test_data = make_navigation_dataset(dataset_scenario)
         if test_data:
+            # Apply default status assignment as DataService does when loading files
+            data_service = get_data_service()
+            processed_data = data_service._apply_default_statuses(test_data)
+
             store_manager = get_store_manager()
             curve_store = store_manager.get_curve_store()
-            curve_store.set_data(test_data)
+            curve_store.set_data(processed_data)
+
+            # Update state manager's total frames based on loaded data
+            # This is normally done by timeline controller when data is loaded
+            if processed_data:
+                max_frame = max(point[0] for point in processed_data)
+                window.state_manager.total_frames = max_frame
 
         # Show and wait for exposure
         window.show()
@@ -177,9 +188,9 @@ class TestNavigationLogic:
         startframes = [frame for frame, status in frame_status.items() if status[5]]
 
         # Frame 1 should be startframe (first with tracked)
-        # Frame 15 should be startframe (after endframe at 10)
+        # Frame 20 should be startframe (keyframe after endframe at 10)
         assert 1 in startframes
-        assert 15 in startframes
+        assert 20 in startframes
 
     def test_navigation_frame_ordering(self, make_navigation_dataset):
         """Navigation frames should be properly sorted."""
@@ -257,15 +268,15 @@ class TestMainWindowNavigation:
         """PageUp should include computed startframes as navigation points."""
         window = main_window_with_data("with_endframes")
 
-        # Set frame after a startframe
-        window.state_manager.current_frame = 18
+        # Set frame after the startframe (frame 20)
+        window.state_manager.current_frame = 22
 
         # Simulate PageUp
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
 
-        # Should navigate to frame 15 (startframe after gap)
-        assert window.state_manager.current_frame == 15
+        # Should navigate to frame 20 (startframe after gap)
+        assert window.state_manager.current_frame == 20
 
 
 # ============================================================================

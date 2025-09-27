@@ -5,6 +5,7 @@ Test the FrameStore for managing frame state.
 
 import pytest
 
+from core.type_aliases import CurveDataList
 from stores import get_store_manager
 from stores.store_manager import StoreManager
 
@@ -29,7 +30,7 @@ class TestFrameStore:
         assert frame_store.current_frame == 1
 
         # Set curve data
-        test_data = [
+        test_data: CurveDataList = [
             (5, 100.0, 100.0, "keyframe"),
             (10, 110.0, 110.0, "interpolated"),
             (15, 120.0, 120.0, "keyframe"),
@@ -48,7 +49,7 @@ class TestFrameStore:
         curve_store = store_manager.get_curve_store()
 
         # Set up test data
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 100.0, "keyframe"),
             (5, 110.0, 110.0, "interpolated"),
             (10, 120.0, 120.0, "keyframe"),

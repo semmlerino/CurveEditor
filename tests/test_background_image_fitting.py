@@ -110,24 +110,23 @@ class TestBackgroundImageFitting:
         assert curve_view.pan_offset_x == 0
         assert curve_view.pan_offset_y == 0
 
-    def test_fit_handles_zero_dimensions_gracefully(self, curve_view):
+    def test_fit_handles_minimal_dimensions_gracefully(self, curve_view):
         """Test behavior with minimal widget dimensions."""
-        # Setup: Try to make widget very small (Qt enforces minimum sizes)
-        curve_view.resize(0, 0)
-        actual_width = curve_view.width()
-        actual_height = curve_view.height()
+        # Setup: Use Qt's minimum size (which it enforces anyway)
+        # We're testing that the method handles small dimensions gracefully
+        curve_view.resize(100, 100)  # Small but reasonable dimensions
+        curve_view.background_image = ThreadSafeTestImage(1920, 1080)  # Much larger image
 
-        # Skip test if Qt doesn't allow truly small dimensions
-        if actual_width > 50 or actual_height > 50:
-            pytest.skip("Qt enforces minimum widget dimensions")
-
-        curve_view.background_image = ThreadSafeTestImage(100, 100)
+        # Store initial state
+        initial_zoom = curve_view.zoom_factor
 
         # Behavior: Should handle gracefully without crashing
+        # and should scale down the large image to fit the small widget
         curve_view.fit_to_background_image()
 
-        # Should recalculate based on actual widget dimensions
-        # (not necessarily unchanged since Qt enforces minimums)
+        # Verify the image was scaled down to fit
+        assert curve_view.zoom_factor < initial_zoom
+        # The function should still work even with small widget dimensions
 
     def test_fit_handles_zero_image_dimensions_gracefully(self, curve_view):
         """Test behavior with zero image dimensions."""

@@ -76,10 +76,8 @@ class InteractionService:
         # Spatial index for efficient point lookups
         self._point_index: PointIndex = PointIndex(grid_width=20, grid_height=20)
 
-        # Command-based history management (delayed import to avoid cycles)
-        from core.commands import CommandManager
-
-        self._command_manager: CommandManager = CommandManager(max_history_size=100)
+        # Command-based history management (lazy initialization to avoid cycles)
+        self._command_manager: CommandManager | None = None
 
         # Legacy history state (for backward compatibility)
         self._history: list[dict[str, object]] = []
@@ -87,6 +85,15 @@ class InteractionService:
         self._max_history_size: int = 100
 
         logger.info("InteractionService initialized with command manager and spatial indexing")
+
+    @property
+    def command_manager(self) -> CommandManager:
+        """Lazy initialization of CommandManager to avoid circular imports."""
+        if self._command_manager is None:
+            from core.commands import CommandManager
+
+            self._command_manager = CommandManager(max_history_size=100)
+        return self._command_manager
 
     # ==================== Main Event Handlers (Delegate to Adapter) ====================
 
@@ -713,11 +720,11 @@ class InteractionService:
         else:
             # Default reset behavior
             if getattr(view, "zoom_factor", None) is not None:
-                view.zoom_factor = 1.0  # pyright: ignore[reportAttributeAccessIssue]
+                view.zoom_factor = 1.0
             if getattr(view, "offset_x", None) is not None:
-                view.offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.offset_x = 0
             if getattr(view, "offset_y", None) is not None:
-                view.offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.offset_y = 0
             if getattr(view, "pan_offset_x", None) is not None:
                 view.pan_offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
             if getattr(view, "pan_offset_y", None) is not None:
@@ -733,8 +740,8 @@ class InteractionService:
     def undo_action(self, main_window: MainWindowProtocol) -> None:
         """Legacy undo action - now uses command manager."""
         # Prefer command manager if available and has commands
-        if hasattr(self, "_command_manager") and self._command_manager.can_undo():
-            self._command_manager.undo(cast("MainWindow", cast(object, main_window)))
+        if self.command_manager.can_undo():
+            self.command_manager.undo(cast("MainWindow", cast(object, main_window)))
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system")
@@ -754,17 +761,16 @@ class InteractionService:
         else:
             # Use command manager even if it has no commands (for consistency)
             logger.info("Using command manager for undo (fallback)")
-            if hasattr(self, "_command_manager"):
-                self._command_manager.undo(cast("MainWindow", main_window))
+            self.command_manager.undo(cast("MainWindow", main_window))
 
     def redo_action(self, main_window: MainWindowProtocol) -> None:
         """Legacy redo action - now uses command manager."""
         logger.info("InteractionService.redo_action called")
 
         # Prefer command manager if available and has commands to redo
-        if hasattr(self, "_command_manager") and self._command_manager.can_redo():
+        if self.command_manager.can_redo():
             logger.info("Using command manager for redo")
-            self._command_manager.redo(cast("MainWindow", cast(object, main_window)))
+            self.command_manager.redo(cast("MainWindow", cast(object, main_window)))
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system for redo")
@@ -784,8 +790,7 @@ class InteractionService:
         else:
             # Use command manager even if it has no commands (for consistency)
             logger.info("Using command manager for redo (fallback)")
-            if hasattr(self, "_command_manager"):
-                self._command_manager.redo(cast("MainWindow", main_window))
+            self.command_manager.redo(cast("MainWindow", main_window))
 
     def save_state(self, main_window: MainWindowProtocol) -> None:
         """Legacy save state."""
@@ -861,11 +866,11 @@ class InteractionService:
 
         # Restore point_name
         if "point_name" in state and getattr(main_window, "point_name", None) is not None:
-            main_window.point_name = cast(str, state["point_name"])  # pyright: ignore[reportAttributeAccessIssue]
+            main_window.point_name = cast(str, state["point_name"])
 
         # Restore point_color
         if "point_color" in state and getattr(main_window, "point_color", None) is not None:
-            main_window.point_color = cast(str, state["point_color"])  # pyright: ignore[reportAttributeAccessIssue]
+            main_window.point_color = cast(str, state["point_color"])
 
         # Update the view
         if main_window.curve_view is not None:
@@ -964,14 +969,14 @@ class InteractionService:
     def can_undo(self) -> bool:
         """Check if undo is possible."""
         # Check both command manager and legacy history
-        if hasattr(self, "_command_manager") and self._command_manager.can_undo():
+        if self.command_manager.can_undo():
             return True
         return self._current_index > 0
 
     def can_redo(self) -> bool:
         """Check if redo is possible."""
         # Check both command manager and legacy history
-        if hasattr(self, "_command_manager") and self._command_manager.can_redo():
+        if self.command_manager.can_redo():
             return True
         return self._current_index < len(self._history) - 1
 

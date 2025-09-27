@@ -116,6 +116,8 @@ class TimelineControllerProtocol(Protocol):
     """Protocol for timeline controller."""
 
     frame_spinbox: Any  # QSpinBox but avoiding circular imports
+    frame_changed: Any  # Signal(int) - emitted when frame changes
+    status_message: Any  # Signal(str) - emitted to update status bar
 
     def on_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click."""
@@ -143,6 +145,10 @@ class TimelineControllerProtocol(Protocol):
 
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """Set the timeline frame range."""
+        ...
+
+    def set_frame(self, frame: int) -> None:
+        """Set the current frame."""
         ...
 
     def clear(self) -> None:

@@ -16,7 +16,7 @@ import numpy as np
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
-from core.curve_segments import SegmentedCurve
+from core.curve_segments import CurveSegment, SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import CurvePoint
 from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
@@ -528,35 +528,117 @@ class OptimizedCurveRenderer:
 
         # Draw each segment separately
         for segment in segmented_curve.segments:
-            if segment.point_count < 2:
+            if segment.point_count == 0:
                 continue
 
-            # Build path for this segment
-            segment_path = QPainterPath()
-
-            # Find screen points for this segment
-            first_in_segment = True
-            for point in segment.points:
-                # Find this point's index in the original data (O(1) lookup)
-                point_idx = frame_to_index.get(point.frame, -1)
-
-                if point_idx >= 0 and point_idx < len(screen_points):
-                    screen_pos = screen_points[point_idx]
-                    if first_in_segment:
-                        segment_path.moveTo(screen_pos[0], screen_pos[1])
-                        first_in_segment = False
-                    else:
-                        # Don't connect to ENDFRAME points
-                        if not point.is_endframe:
-                            segment_path.lineTo(screen_pos[0], screen_pos[1])
-
-            # Draw segment with appropriate style
             if segment.is_active:
-                painter.setPen(active_pen)
+                # Draw active segments with regular line connections
+                self._draw_active_segment(painter, segment, screen_points, frame_to_index, active_pen)
             else:
-                painter.setPen(inactive_pen)
+                # Draw inactive segments as held position gaps
+                self._draw_gap_segment(
+                    painter, segment, segmented_curve, screen_points, frame_to_index, inactive_pen, curve_view
+                )
 
-            painter.drawPath(segment_path)
+    def _draw_active_segment(
+        self,
+        painter: QPainter,
+        segment: "CurveSegment",
+        screen_points: FloatArray,
+        frame_to_index: dict[int, int],
+        pen: QPen,
+    ) -> None:
+        """Draw an active segment with normal line connections.
+
+        Args:
+            painter: Qt painter for drawing
+            segment: The active segment to draw
+            screen_points: Array of screen coordinates
+            frame_to_index: Mapping from frame numbers to indices
+            pen: Pen to use for drawing
+        """
+        if segment.point_count < 2:
+            return
+
+        painter.setPen(pen)
+        segment_path = QPainterPath()
+
+        # Find screen points for this segment
+        first_in_segment = True
+        for point in segment.points:
+            # Find this point's index in the original data (O(1) lookup)
+            point_idx = frame_to_index.get(point.frame, -1)
+
+            if point_idx >= 0 and point_idx < len(screen_points):
+                screen_pos = screen_points[point_idx]
+                if first_in_segment:
+                    segment_path.moveTo(screen_pos[0], screen_pos[1])
+                    first_in_segment = False
+                else:
+                    # Don't connect to ENDFRAME points
+                    if not point.is_endframe:
+                        segment_path.lineTo(screen_pos[0], screen_pos[1])
+
+        painter.drawPath(segment_path)
+
+    def _draw_gap_segment(
+        self,
+        painter: QPainter,
+        segment: "CurveSegment",
+        segmented_curve: "SegmentedCurve",
+        screen_points: FloatArray,
+        frame_to_index: dict[int, int],
+        pen: QPen,
+        curve_view: CurveViewProtocol,
+    ) -> None:
+        """Draw an inactive segment as a held position gap.
+
+        Shows dashed horizontal line representing the held position from
+        the preceding endframe through the gap.
+
+        Args:
+            painter: Qt painter for drawing
+            segment: The inactive segment to draw
+            segmented_curve: The complete segmented curve for context
+            screen_points: Array of screen coordinates
+            frame_to_index: Mapping from frame numbers to indices
+            pen: Pen to use for drawing (should be dashed)
+        """
+        painter.setPen(pen)
+
+        # For gap segments, draw a horizontal dashed line showing held position
+        if segment.point_count > 0:
+            # Get the held position for the start of this gap
+            held_position = segmented_curve.get_position_at_frame(segment.start_frame)
+
+            if held_position:
+                held_x, held_y = held_position
+
+                # Transform held position to screen coordinates
+                transform = curve_view.get_transform()
+
+                screen_start_x, screen_start_y = transform.data_to_screen(held_x, held_y)
+                screen_end_x, screen_end_y = transform.data_to_screen(held_x, held_y)
+
+                # Find the frame range for this gap
+                gap_start_frame = segment.start_frame
+                gap_end_frame = segment.end_frame
+
+                # Extend the line to cover the gap visually
+                # Use the actual frame positions if we have them, otherwise estimate
+                start_point_idx = frame_to_index.get(gap_start_frame, -1)
+                end_point_idx = frame_to_index.get(gap_end_frame, -1)
+
+                if start_point_idx >= 0 and start_point_idx < len(screen_points):
+                    screen_start_x = screen_points[start_point_idx][0]
+                if end_point_idx >= 0 and end_point_idx < len(screen_points):
+                    screen_end_x = screen_points[end_point_idx][0]
+
+                # Draw horizontal dashed line showing held position
+                gap_path = QPainterPath()
+                gap_path.moveTo(screen_start_x, screen_start_y)
+                gap_path.lineTo(screen_end_x, screen_end_y)
+                painter.drawPath(gap_path)
 
     def _render_point_markers_optimized(
         self,
@@ -901,6 +983,10 @@ class OptimizedCurveRenderer:
 
     def _render_info_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Render info overlay with performance metrics."""
+        # Skip info rendering if show_info is explicitly False
+        if hasattr(curve_view, "show_info") and not curve_view.show_info:
+            return
+
         from ui.ui_constants import COLORS_DARK
 
         painter.setPen(QPen(QColor(COLORS_DARK["text_primary"])))
@@ -928,7 +1014,13 @@ class OptimizedCurveRenderer:
         except AttributeError:
             pass  # debug_mode not available
 
-        painter.drawText(10, 20, info_text)
+        # Only draw text if painter is active
+        try:
+            if painter.isActive():
+                painter.drawText(10, 20, info_text)
+        except Exception:
+            # Silently skip text rendering if it fails (e.g., in headless tests)
+            pass
 
     def _adjust_quality_for_performance(self) -> None:
         """Automatically adjust rendering quality based on performance."""

@@ -238,15 +238,19 @@ class CurvePoint:
         """Get (x, y) coordinates as tuple."""
         return (self.x, self.y)
 
-    def is_startframe(self, prev_point: CurvePoint | None = None) -> bool:
+    def is_startframe(self, prev_point: CurvePoint | None = None, all_points: list[CurvePoint] | None = None) -> bool:
         """Check if this point is a startframe (first keyframe after a gap).
 
-        A startframe is a keyframe (KEYFRAME or TRACKED) that either:
-        - Is the first point in the curve (no previous point)
-        - Follows an ENDFRAME point
+        A startframe is a keyframe that either:
+        - Is the first point in the curve (KEYFRAME or TRACKED, no previous point)
+        - Is a KEYFRAME that follows an ENDFRAME point (3DEqualizer behavior)
+
+        In 3DEqualizer behavior, tracked points after endframes stay in gaps,
+        and only the first keyframe after the gap becomes the startframe.
 
         Args:
-            prev_point: The previous point in the curve (if any)
+            prev_point: The immediate previous point in the curve (if any)
+            all_points: All points in the curve (used for gap detection)
 
         Returns:
             True if this is a startframe
@@ -255,23 +259,46 @@ class CurvePoint:
         if self.status not in (PointStatus.KEYFRAME, PointStatus.TRACKED):
             return False
 
-        # First point in curve is always a startframe
+        # First point in curve can be startframe (KEYFRAME or TRACKED)
         if prev_point is None:
             return True
 
-        # Check if previous point is an endframe
-        return prev_point.is_endframe
+        # For 3DEqualizer gap behavior: check if this keyframe is the first after an endframe
+        if self.status == PointStatus.KEYFRAME and all_points:
+            # Find the last endframe before this point
+            last_endframe = None
+            for point in all_points:
+                if point.frame < self.frame and point.is_endframe:
+                    if last_endframe is None or point.frame > last_endframe.frame:
+                        last_endframe = point
 
-    def get_contextual_status_label(self, prev_point: CurvePoint | None = None) -> str:
+            # If there's an endframe before this keyframe, check if this is the first keyframe after it
+            if last_endframe:
+                # Check if there are any keyframes between the endframe and this point
+                for point in all_points:
+                    if last_endframe.frame < point.frame < self.frame and point.status == PointStatus.KEYFRAME:
+                        return False  # Not the first keyframe after the gap
+                return True  # First keyframe after the endframe gap
+
+        # Immediate previous point logic (original behavior)
+        if prev_point and prev_point.is_endframe:
+            return self.status == PointStatus.KEYFRAME
+
+        return False
+
+    def get_contextual_status_label(
+        self, prev_point: CurvePoint | None = None, all_points: list[CurvePoint] | None = None
+    ) -> str:
         """Get the display label for this point's status, considering context.
 
         Args:
             prev_point: The previous point in the curve (if any)
+            all_points: All points in the curve (used for gap detection)
 
         Returns:
             Status label string for display (e.g., "startframe", "keyframe", "endframe")
         """
-        if self.is_startframe(prev_point):
+        if self.is_startframe(prev_point, all_points):
             return "startframe"
         return self.status.value
 

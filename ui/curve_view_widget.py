@@ -62,7 +62,7 @@ from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 
 # Import services
-from services import get_interaction_service
+from services import get_data_service, get_interaction_service
 from services.transform_service import Transform, ViewState
 from ui.ui_constants import (
     DEFAULT_BACKGROUND_OPACITY,
@@ -318,6 +318,10 @@ class CurveViewWidget(QWidget):
             # Map string status to PointStatus enum using from_legacy
             status_enum = PointStatus.from_legacy(status)
             self.point_collection.points[index] = old_cp.with_status(status_enum)
+
+        # Handle restoration logic via data service
+        data_service = get_data_service()
+        data_service.handle_point_status_change(index, status)
 
         self.update()
         self.data_changed.emit()
@@ -1243,24 +1247,29 @@ class CurveViewWidget(QWidget):
             )
 
     def center_on_frame(self, frame: int) -> None:
-        """Center view on a specific frame.
+        """Center view on a specific frame using gap-aware position logic.
 
         Args:
-            frame: Frame number to center on (1-based)
+            frame: Frame number to center on
         """
-        # Find the point at the given frame
-        frame_index = frame - 1  # Convert to 0-based index
+        if not self.curve_data:
+            logger.warning(f"[CENTER] No curve data available for frame {frame}")
+            return
 
-        if 0 <= frame_index < len(self.curve_data):
-            _, x, y, _ = safe_extract_point(self.curve_data[frame_index])
-            logger.debug(f"[CENTER] Centering on frame {frame} at ({x:.2f}, {y:.2f})")
+        # Use gap-aware position lookup through data service
+        data_service = get_data_service()
+        position = data_service.get_position_at_frame(self.curve_data, frame)
+
+        if position:
+            x, y = position
+            logger.debug(f"[CENTER] Centering on frame {frame} at ({x:.2f}, {y:.2f}) (gap-aware)")
 
             # Use consolidated centering logic
             self._center_view_on_point(x, y)
 
             logger.debug(f"[CENTER] View centered on frame {frame}")
         else:
-            logger.warning(f"[CENTER] Frame {frame} is out of range (data has {len(self.curve_data)} points)")
+            logger.warning(f"[CENTER] No position available for frame {frame}")
 
     # Selection Operations
 

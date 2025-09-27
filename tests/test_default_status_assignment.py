@@ -77,13 +77,13 @@ class TestApplyDefaultStatuses:
         assert result[0] == (10, 100.0, 200.0, "keyframe")
 
     def test_two_points_no_gap(self, data_service, make_curve_point):
-        """Test two consecutive points: first tracked, last keyframe."""
+        """Test two consecutive points: first keyframe, last keyframe."""
         data = [make_curve_point(1, 100.0, 200.0), make_curve_point(2, 110.0, 210.0)]
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 2
-        assert result[0] == (1, 100.0, 200.0, "tracked")
-        assert result[1] == (2, 110.0, 210.0, "keyframe")
+        assert result[0] == (1, 100.0, 200.0, "keyframe")  # First frame becomes keyframe
+        assert result[1] == (2, 110.0, 210.0, "keyframe")  # Last frame becomes keyframe
 
     def test_points_with_gap_creates_endframe(self, data_service, make_curve_point):
         """Test that frame before gap becomes endframe."""
@@ -97,11 +97,11 @@ class TestApplyDefaultStatuses:
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 5
-        assert result[0] == (1, 100.0, 200.0, "tracked")
-        assert result[1] == (2, 110.0, 210.0, "tracked")
+        assert result[0] == (1, 100.0, 200.0, "keyframe")  # First frame becomes keyframe
+        assert result[1] == (2, 110.0, 210.0, "tracked")  # Middle frame
         assert result[2] == (3, 120.0, 220.0, "endframe")  # Before gap
-        assert result[3] == (10, 200.0, 300.0, "tracked")
-        assert result[4] == (11, 210.0, 310.0, "keyframe")  # Last frame
+        assert result[3] == (10, 200.0, 300.0, "keyframe")  # First after gap becomes keyframe
+        assert result[4] == (11, 210.0, 310.0, "keyframe")  # Last frame becomes keyframe
 
     def test_multiple_gaps(self, data_service, make_curve_point):
         """Test multiple gaps create multiple endframes."""
@@ -114,10 +114,10 @@ class TestApplyDefaultStatuses:
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 4
-        assert result[0] == (1, 100.0, 200.0, "endframe")  # Before gap
-        assert result[1] == (5, 150.0, 250.0, "endframe")  # Before gap
-        assert result[2] == (10, 200.0, 300.0, "endframe")  # Before gap
-        assert result[3] == (15, 250.0, 350.0, "keyframe")  # Last frame
+        assert result[0] == (1, 100.0, 200.0, "keyframe")  # First frame becomes keyframe
+        assert result[1] == (5, 150.0, 250.0, "keyframe")  # First after gap becomes keyframe
+        assert result[2] == (10, 200.0, 300.0, "keyframe")  # First after gap becomes keyframe
+        assert result[3] == (15, 250.0, 350.0, "keyframe")  # Last frame becomes keyframe
 
     def test_preserves_explicit_status(self, data_service, make_curve_point):
         """Test that explicitly set valid statuses are preserved."""
@@ -149,10 +149,10 @@ class TestApplyDefaultStatuses:
         assert result[1][0] == 5  # Frame 5
         assert result[2][0] == 10  # Frame 10
 
-        # Check statuses (frame 1->5 is gap, frame 5->10 is gap)
-        assert result[0][3] == "endframe"  # Before gap (1->5)
-        assert result[1][3] == "endframe"  # Before gap (5->10)
-        assert result[2][3] == "keyframe"  # Last frame
+        # Check statuses according to rules: first frame, first after gap, last frame
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
+        assert result[1][3] == "keyframe"  # First after gap (1->5) becomes keyframe
+        assert result[2][3] == "keyframe"  # Last frame becomes keyframe
 
 
 # ============================================================================
@@ -166,23 +166,23 @@ class TestApplyDefaultStatuses:
         # Single point
         ([(1, 100.0, 200.0)], ["keyframe"]),
         # Two consecutive points
-        ([(1, 100.0, 200.0), (2, 110.0, 210.0)], ["tracked", "keyframe"]),
+        ([(1, 100.0, 200.0), (2, 110.0, 210.0)], ["keyframe", "keyframe"]),
         # Three consecutive points (no gaps)
-        ([(1, 100.0, 200.0), (2, 110.0, 210.0), (3, 120.0, 220.0)], ["tracked", "tracked", "keyframe"]),
+        ([(1, 100.0, 200.0), (2, 110.0, 210.0), (3, 120.0, 220.0)], ["keyframe", "tracked", "keyframe"]),
         # Five consecutive points (no gaps)
         (
             [(1, 100.0, 200.0), (2, 110.0, 210.0), (3, 120.0, 220.0), (4, 130.0, 230.0), (5, 140.0, 240.0)],
-            ["tracked", "tracked", "tracked", "tracked", "keyframe"],
+            ["keyframe", "tracked", "tracked", "tracked", "keyframe"],
         ),
         # Gap in sequence
-        ([(1, 100.0, 200.0), (2, 110.0, 210.0), (5, 150.0, 250.0)], ["tracked", "endframe", "keyframe"]),
+        ([(1, 100.0, 200.0), (2, 110.0, 210.0), (5, 150.0, 250.0)], ["keyframe", "endframe", "keyframe"]),
         # Multiple gaps
         (
             [(1, 100.0, 200.0), (3, 120.0, 220.0), (7, 170.0, 270.0), (8, 180.0, 280.0)],
-            ["endframe", "endframe", "tracked", "keyframe"],
+            ["keyframe", "keyframe", "keyframe", "keyframe"],
         ),
         # Large gap
-        ([(1, 100.0, 200.0), (100, 1000.0, 2000.0)], ["endframe", "keyframe"]),
+        ([(1, 100.0, 200.0), (100, 1000.0, 2000.0)], ["keyframe", "keyframe"]),
     ],
 )
 def test_status_assignment_scenarios(data_service, input_data, expected_statuses):
@@ -218,9 +218,9 @@ class TestFileLoadingIntegration:
 
         # Verify status assignment
         assert len(result) == 4
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before gap
-        assert result[2][3] == "tracked"
+        assert result[2][3] == "keyframe"  # First frame after gap becomes keyframe
         assert result[3][3] == "keyframe"  # Last frame
 
     def test_csv_with_explicit_status_preserved(self, data_service, tmp_path):
@@ -255,7 +255,7 @@ class TestFileLoadingIntegration:
         result = data_service._load_json(str(json_file))
 
         assert len(result) == 3
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before gap
         assert result[2][3] == "keyframe"  # Last frame
 
@@ -276,9 +276,9 @@ class TestFileLoadingIntegration:
         result = data_service._load_2dtrack_data(str(track_file))
 
         assert len(result) == 4
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before gap
-        assert result[2][3] == "tracked"
+        assert result[2][3] == "keyframe"  # First frame after gap becomes keyframe
         assert result[3][3] == "keyframe"  # Last frame
 
 
@@ -310,9 +310,9 @@ class TestRealFileLoading:
         endframe_count = sum(1 for s in statuses.values() if s == "endframe")
         keyframe_count = sum(1 for s in statuses.values() if s == "keyframe")
 
-        assert tracked_count == 21  # Most frames are tracked
+        assert tracked_count == 19  # Most frames are tracked
         assert endframe_count == 1  # One endframe before gap
-        assert keyframe_count == 1  # One keyframe at end
+        assert keyframe_count == 3  # First frame, first after gap, and last frame are keyframes
 
 
 # ============================================================================
@@ -333,7 +333,7 @@ class TestEdgeCases:
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 3
-        assert result[0][3] == "tracked"  # Default applied
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe (default applied)
         assert result[1][3] == "tracked"  # Default applied
         assert result[2][3] == "keyframe"  # Default applied (last frame)
 
@@ -347,7 +347,7 @@ class TestEdgeCases:
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 3
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before large gap
         assert result[2][3] == "keyframe"  # Last frame
 
@@ -367,7 +367,7 @@ class TestEdgeCases:
         assert result[2][0] == 1
 
         # Check statuses
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before gap
         assert result[2][3] == "keyframe"  # Last frame
 
@@ -426,6 +426,6 @@ class TestPerformance:
         result = data_service._apply_default_statuses(data)
 
         assert len(result) == 3
-        assert result[0][3] == "tracked"
+        assert result[0][3] == "keyframe"  # First frame becomes keyframe
         assert result[1][3] == "endframe"  # Before gap of any size
         assert result[2][3] == "keyframe"  # Last frame

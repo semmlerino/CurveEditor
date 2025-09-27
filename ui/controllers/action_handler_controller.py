@@ -273,7 +273,11 @@ class ActionHandlerController:
         )
 
         interaction_service = get_interaction_service()
-        if interaction_service and hasattr(interaction_service, "_command_manager"):
+        if (
+            interaction_service
+            and hasattr(interaction_service, "_command_manager")
+            and interaction_service._command_manager
+        ):
             logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
             if interaction_service._command_manager.execute_command(smooth_command, self.main_window):
                 # Update status with details

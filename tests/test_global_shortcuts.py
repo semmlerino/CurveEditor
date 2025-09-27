@@ -18,6 +18,7 @@ from core.commands.shortcut_commands import (
     SetTrackingDirectionCommand,
 )
 from core.models import PointStatus, TrackingDirection
+from core.type_aliases import CurveDataList
 from ui.main_window import MainWindow
 from ui.shortcut_registry import ShortcutRegistry
 
@@ -30,7 +31,7 @@ def main_window_with_shortcuts(qtbot):
 
     # Add test curve data
     if window.curve_widget:
-        test_data = [
+        test_data: CurveDataList = [
             (1, 100.0, 100.0, PointStatus.NORMAL.value),
             (2, 150.0, 120.0, PointStatus.KEYFRAME.value),
             (3, 200.0, 130.0, PointStatus.NORMAL.value),
@@ -41,7 +42,7 @@ def main_window_with_shortcuts(qtbot):
 
     # Add test tracking data
     if window.tracking_panel:
-        tracked_data = {
+        tracked_data: dict[str, CurveDataList] = {
             "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
             "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
         }

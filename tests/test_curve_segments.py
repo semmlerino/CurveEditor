@@ -446,3 +446,110 @@ class TestSegmentedCurve:
         # Frame 7 is in inactive segment
         prev, next = curve.get_interpolation_boundaries(7)
         assert prev is None and next is None
+
+
+class TestPositionHolding:
+    """Test position holding behavior in gaps (inactive segments)."""
+
+    def test_position_holding_basic_gap(self):
+        """Test basic position holding in a gap after endframe."""
+        points = [
+            CurvePoint(frame=1, x=100.0, y=200.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=5, x=150.0, y=250.0, status=PointStatus.ENDFRAME),  # Creates gap
+            CurvePoint(frame=10, x=200.0, y=300.0, status=PointStatus.KEYFRAME),  # Startframe after gap
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # Active segment: frames 1-5
+        assert curve.get_position_at_frame(1) == (100.0, 200.0)
+        assert curve.get_position_at_frame(3) is not None  # Interpolated in active segment
+        assert curve.get_position_at_frame(5) == (150.0, 250.0)  # Endframe position
+
+        # Gap (inactive segment): frames 6-9 should hold endframe position
+        assert curve.get_position_at_frame(6) == (150.0, 250.0)  # Held position
+        assert curve.get_position_at_frame(7) == (150.0, 250.0)  # Held position
+        assert curve.get_position_at_frame(8) == (150.0, 250.0)  # Held position
+        assert curve.get_position_at_frame(9) == (150.0, 250.0)  # Held position
+
+        # Next active segment starts at frame 10
+        assert curve.get_position_at_frame(10) == (200.0, 300.0)  # Startframe
+
+    def test_position_holding_multiple_gaps(self):
+        """Test position holding with multiple gaps."""
+        points = [
+            CurvePoint(frame=1, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=3, x=120.0, y=120.0, status=PointStatus.ENDFRAME),  # First gap starts
+            CurvePoint(frame=6, x=150.0, y=150.0, status=PointStatus.KEYFRAME),  # End first gap
+            CurvePoint(frame=8, x=170.0, y=170.0, status=PointStatus.ENDFRAME),  # Second gap starts
+            CurvePoint(frame=12, x=200.0, y=200.0, status=PointStatus.KEYFRAME),  # End second gap
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # First gap: frames 4-5 hold position from frame 3
+        assert curve.get_position_at_frame(4) == (120.0, 120.0)
+        assert curve.get_position_at_frame(5) == (120.0, 120.0)
+
+        # Second gap: frames 9-11 hold position from frame 8
+        assert curve.get_position_at_frame(9) == (170.0, 170.0)
+        assert curve.get_position_at_frame(10) == (170.0, 170.0)
+        assert curve.get_position_at_frame(11) == (170.0, 170.0)
+
+        # Active segments work normally
+        assert curve.get_position_at_frame(6) == (150.0, 150.0)  # Startframe
+        assert curve.get_position_at_frame(12) == (200.0, 200.0)  # Startframe
+
+    def test_position_holding_no_gaps(self):
+        """Test that position holding doesn't affect curves without gaps."""
+        points = [
+            CurvePoint(frame=1, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=5, x=150.0, y=150.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=10, x=200.0, y=200.0, status=PointStatus.KEYFRAME),
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # All frames should interpolate normally (no gaps)
+        assert curve.get_position_at_frame(1) == (100.0, 100.0)
+        assert curve.get_position_at_frame(3) is not None  # Should interpolate
+        assert curve.get_position_at_frame(5) == (150.0, 150.0)
+        assert curve.get_position_at_frame(7) is not None  # Should interpolate
+        assert curve.get_position_at_frame(10) == (200.0, 200.0)
+
+    def test_position_holding_edge_cases(self):
+        """Test edge cases for position holding."""
+        points = [
+            CurvePoint(frame=5, x=150.0, y=150.0, status=PointStatus.ENDFRAME),
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # Single endframe - should return its position for any later frame
+        assert curve.get_position_at_frame(5) == (150.0, 150.0)
+        assert curve.get_position_at_frame(6) == (150.0, 150.0)
+        assert curve.get_position_at_frame(10) == (150.0, 150.0)
+
+        # Frame before endframe - no position available
+        assert curve.get_position_at_frame(4) is None
+
+    def test_interpolation_in_active_segments(self):
+        """Test that interpolation works correctly in active segments."""
+        points = [
+            CurvePoint(frame=1, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=5, x=200.0, y=200.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=7, x=250.0, y=250.0, status=PointStatus.ENDFRAME),
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # Test interpolation between keyframes in active segment
+        position = curve.get_position_at_frame(3)  # Halfway between frame 1 and 5
+        assert position is not None
+        x, y = position
+        assert x == 150.0  # Interpolated X: 100 + (200-100) * 0.5
+        assert y == 150.0  # Interpolated Y: 100 + (200-100) * 0.5
+
+        # Test exact positions
+        assert curve.get_position_at_frame(1) == (100.0, 100.0)
+        assert curve.get_position_at_frame(5) == (200.0, 200.0)
+        assert curve.get_position_at_frame(7) == (250.0, 250.0)
+
+        # Test gap after endframe (frame 8+ should hold endframe position)
+        assert curve.get_position_at_frame(8) == (250.0, 250.0)
+        assert curve.get_position_at_frame(10) == (250.0, 250.0)

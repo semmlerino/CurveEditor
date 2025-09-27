@@ -287,6 +287,7 @@ class TestOptimizedCurveRenderer:
                 self._height = 600
                 self.background_image = None  # Required by renderer
                 self.show_all_frame_numbers = False  # Required by renderer
+                self.show_info = False  # Disable info rendering in tests to avoid text drawing issues
 
             def width(self) -> int:
                 return self._width

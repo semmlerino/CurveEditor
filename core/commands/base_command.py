@@ -9,7 +9,7 @@ used throughout the CurveEditor application for undo/redo operations.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -35,8 +35,8 @@ class Command(ABC):
         Args:
             description: Human-readable description of the command
         """
-        self.description = description
-        self.executed = False
+        self.description: str = description
+        self.executed: bool = False
 
     @abstractmethod
     def execute(self, main_window: MainWindow) -> bool:
@@ -155,6 +155,7 @@ class CompositeCommand(Command):
         """
         self.commands.append(command)
 
+    @override
     def execute(self, main_window: MainWindow) -> bool:
         """
         Execute all commands in order.
@@ -191,6 +192,7 @@ class CompositeCommand(Command):
                     logger.error(f"Error during rollback: {rollback_error}")
             return False
 
+    @override
     def undo(self, main_window: MainWindow) -> bool:
         """
         Undo all commands in reverse order.
@@ -249,16 +251,19 @@ class NullCommand(Command):
         """Initialize the null command."""
         super().__init__("No operation")
 
+    @override
     def execute(self, main_window: MainWindow) -> bool:
         """Do nothing and report success."""
         self.executed = True
         return True
 
+    @override
     def undo(self, main_window: MainWindow) -> bool:
         """Do nothing and report success."""
         self.executed = False
         return True
 
+    @override
     def redo(self, main_window: MainWindow) -> bool:
         """Do nothing and report success."""
         return self.execute(main_window)
