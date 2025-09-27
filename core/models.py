@@ -120,6 +120,57 @@ class PointStatus(Enum):
         return self == PointStatus.INTERPOLATED
 
 
+class TrackingDirection(Enum):
+    """Tracking direction metadata for 3DEqualizer compatibility.
+
+    Indicates how a trajectory was originally tracked. This is metadata
+    only and does not affect tracking functionality within the application.
+    Used for proper export back to 3DEqualizer.
+
+    Direction types:
+    - TRACKING_FW: Forward tracking from reference frame
+    - TRACKING_BW: Backward tracking from reference frame
+    - TRACKING_FW_BW: Bidirectional tracking (forward and backward)
+    """
+
+    TRACKING_FW = "forward"
+    TRACKING_BW = "backward"
+    TRACKING_FW_BW = "bidirectional"
+
+    @property
+    def abbreviation(self) -> str:
+        """Get abbreviated display text for UI."""
+        if self == TrackingDirection.TRACKING_FW:
+            return "FW"
+        elif self == TrackingDirection.TRACKING_BW:
+            return "BW"
+        else:  # TRACKING_FW_BW
+            return "FW+BW"
+
+    @property
+    def display_name(self) -> str:
+        """Get full display name for tooltips."""
+        if self == TrackingDirection.TRACKING_FW:
+            return "Forward"
+        elif self == TrackingDirection.TRACKING_BW:
+            return "Backward"
+        else:  # TRACKING_FW_BW
+            return "Bidirectional"
+
+    @classmethod
+    def from_abbreviation(cls, abbrev: str) -> TrackingDirection:
+        """Create enum from abbreviation string."""
+        abbrev_upper = abbrev.upper()
+        if abbrev_upper == "FW":
+            return cls.TRACKING_FW
+        elif abbrev_upper == "BW":
+            return cls.TRACKING_BW
+        elif abbrev_upper in ("FW+BW", "FWBW", "FB"):
+            return cls.TRACKING_FW_BW
+        else:
+            return cls.TRACKING_FW_BW  # Default
+
+
 @dataclass(frozen=True)
 class CurvePoint:
     """Immutable representation of a single curve point.

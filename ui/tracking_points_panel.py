@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
     QColorDialog,
+    QComboBox,
     QHBoxLayout,
     QHeaderView,
     QMenu,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
 
 
@@ -26,6 +28,7 @@ class PointMetadata(TypedDict):
 
     visible: bool
     color: str
+    tracking_direction: TrackingDirection
 
 
 class TrackingPointsPanel(QWidget):
@@ -35,6 +38,7 @@ class TrackingPointsPanel(QWidget):
     points_selected: Signal = Signal(list)  # List of selected point names
     point_visibility_changed: Signal = Signal(str, bool)  # Point name, visible
     point_color_changed: Signal = Signal(str, str)  # Point name, color hex
+    tracking_direction_changed: Signal = Signal(str, object)  # Point name, TrackingDirection
     point_deleted: Signal = Signal(str)  # Point name
     point_renamed: Signal = Signal(str, str)  # Old name, new name
 
@@ -53,8 +57,8 @@ class TrackingPointsPanel(QWidget):
 
         # Create table widget
         self.table: QTableWidget = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["Visible", "Name", "Frames", "Color"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["Visible", "Name", "Frames", "Direction", "Color"])
 
         # Configure table appearance
         self.table.setAlternatingRowColors(True)
@@ -62,16 +66,21 @@ class TrackingPointsPanel(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.DoubleClicked)
 
+        # Disable mouse tracking to prevent hover selection
+        self.table.setMouseTracking(False)
+
         # Set column widths
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Fixed)  # Visible checkbox
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)  # Name
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Fixed)  # Frame count
-        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)  # Color
+        header.setSectionResizeMode(3, QHeaderView.ResizeMode.Fixed)  # Direction
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.Fixed)  # Color
 
         self.table.setColumnWidth(0, 60)  # Visible
         self.table.setColumnWidth(2, 70)  # Frames
-        self.table.setColumnWidth(3, 60)  # Color
+        self.table.setColumnWidth(3, 80)  # Direction
+        self.table.setColumnWidth(4, 60)  # Color
 
         # Connect signals
         _ = self.table.itemSelectionChanged.connect(self._on_selection_changed)
@@ -112,7 +121,11 @@ class TrackingPointsPanel(QWidget):
         color_index = 0
         for point_name in tracked_data:
             if point_name not in self._point_metadata:
-                self._point_metadata[point_name] = {"visible": True, "color": colors[color_index % len(colors)]}
+                self._point_metadata[point_name] = {
+                    "visible": True,
+                    "color": colors[color_index % len(colors)],
+                    "tracking_direction": TrackingDirection.TRACKING_FW_BW,  # Default
+                }
                 color_index += 1
 
         # Clear and repopulate table
@@ -145,12 +158,22 @@ class TrackingPointsPanel(QWidget):
             count_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             self.table.setItem(i, 2, count_item)
 
+            # Tracking direction dropdown
+            direction_combo = QComboBox()
+            direction_combo.addItems(["FW", "BW", "FW+BW"])
+            current_direction = metadata["tracking_direction"]
+            direction_combo.setCurrentText(current_direction.abbreviation)
+            _ = direction_combo.currentTextChanged.connect(
+                lambda text, name=point_name: self._on_direction_changed(name, text)
+            )
+            self.table.setCellWidget(i, 3, direction_combo)
+
             # Color button
             color_button = QPushButton()
             color_button.setStyleSheet(f"background-color: {metadata['color']}; border: 1px solid black;")
             color_button.setMaximumHeight(20)
             _ = color_button.clicked.connect(lambda checked, name=point_name: self._on_color_button_clicked(name))
-            self.table.setCellWidget(i, 3, color_button)
+            self.table.setCellWidget(i, 4, color_button)
 
         self._updating = False
 
@@ -175,6 +198,12 @@ class TrackingPointsPanel(QWidget):
         if point_name in self._point_metadata:
             return self._point_metadata[point_name]["color"]
         return "#FFFFFF"
+
+    def get_tracking_direction(self, point_name: str) -> TrackingDirection:
+        """Get tracking direction for a tracking point."""
+        if point_name in self._point_metadata:
+            return self._point_metadata[point_name]["tracking_direction"]
+        return TrackingDirection.TRACKING_FW_BW  # Default
 
     def _on_selection_changed(self) -> None:
         """Handle table selection changes."""
@@ -204,6 +233,16 @@ class TrackingPointsPanel(QWidget):
             self._point_metadata[point_name]["visible"] = visible
             self.point_visibility_changed.emit(point_name, visible)
 
+    def _on_direction_changed(self, point_name: str, direction_text: str) -> None:
+        """Handle tracking direction dropdown changes."""
+        if self._updating:
+            return
+
+        if point_name in self._point_metadata:
+            new_direction = TrackingDirection.from_abbreviation(direction_text)
+            self._point_metadata[point_name]["tracking_direction"] = new_direction
+            self.tracking_direction_changed.emit(point_name, new_direction)
+
     def _on_color_button_clicked(self, point_name: str) -> None:
         """Handle color button click."""
         current_color = QColor(self._point_metadata[point_name]["color"])
@@ -216,7 +255,7 @@ class TrackingPointsPanel(QWidget):
             # Update button color
             for row in range(self.table.rowCount()):
                 if self.table.item(row, 1).text() == point_name:
-                    button = self.table.cellWidget(row, 3)
+                    button = self.table.cellWidget(row, 4)  # Color button is now in column 4
                     if button:
                         button.setStyleSheet(f"background-color: {color_hex}; border: 1px solid black;")
                     break
@@ -240,6 +279,31 @@ class TrackingPointsPanel(QWidget):
         hide_action = QAction("Hide", self)
         _ = hide_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, False))
         menu.addAction(hide_action)
+
+        menu.addSeparator()
+
+        # Tracking direction submenu
+        direction_menu = QMenu("Set Direction", self)
+
+        fw_action = QAction("Forward (FW)", self)
+        _ = fw_action.triggered.connect(
+            lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_FW)
+        )
+        direction_menu.addAction(fw_action)
+
+        bw_action = QAction("Backward (BW)", self)
+        _ = bw_action.triggered.connect(
+            lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_BW)
+        )
+        direction_menu.addAction(bw_action)
+
+        fwbw_action = QAction("Bidirectional (FW+BW)", self)
+        _ = fwbw_action.triggered.connect(
+            lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_FW_BW)
+        )
+        direction_menu.addAction(fwbw_action)
+
+        menu.addMenu(direction_menu)
 
         menu.addSeparator()
 
@@ -269,6 +333,21 @@ class TrackingPointsPanel(QWidget):
                     checkbox = checkbox_widget.findChild(QCheckBox)
                     if checkbox:
                         checkbox.setChecked(visible)
+
+    def _set_direction_for_points(self, points: list[str], direction: TrackingDirection) -> None:
+        """Set tracking direction for multiple points."""
+        for point_name in points:
+            if point_name in self._point_metadata:
+                self._point_metadata[point_name]["tracking_direction"] = direction
+                self.tracking_direction_changed.emit(point_name, direction)
+
+        # Update dropdowns
+        for row in range(self.table.rowCount()):
+            point_name = self.table.item(row, 1).text()
+            if point_name in points:
+                direction_combo = self.table.cellWidget(row, 3)  # Direction is in column 3
+                if direction_combo and isinstance(direction_combo, QComboBox):
+                    direction_combo.setCurrentText(direction.abbreviation)
 
     def _delete_points(self, points: list[str]) -> None:
         """Delete selected points."""
