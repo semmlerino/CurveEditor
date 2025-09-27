@@ -335,8 +335,9 @@ class UIService:
             enabled: Whether to enable (True) or disable (False)
         """
         for component_name in components:
-            # Skip invalid component names
-            if not isinstance(component_name, str) or not component_name:
+            # Skip invalid component names (non-strings or empty)
+            # pyright: ignore[reportUnnecessaryIsInstance] - needed to handle invalid types in list
+            if not component_name or not isinstance(component_name, str):
                 continue
 
             component = getattr(main_window, component_name, None)
@@ -535,7 +536,8 @@ class UIService:
         <table>
         <tr><td><b>Ctrl+O</b></td><td>Open track file</td></tr>
         <tr><td><b>Ctrl+S</b></td><td>Save track file</td></tr>
-        <tr><td><b>Ctrl+E</b></td><td>Export to CSV</td></tr>
+        <tr><td><b>Ctrl+E</b></td><td>Smooth selected points</td></tr>
+        <tr><td><b>Ctrl+Shift+E</b></td><td>Export to CSV</td></tr>
         <tr><td><b>Ctrl+Z</b></td><td>Undo</td></tr>
         <tr><td><b>Ctrl+Y</b></td><td>Redo</td></tr>
         <tr><td><b>Ctrl+A</b></td><td>Select all points</td></tr>

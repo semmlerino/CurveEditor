@@ -10,7 +10,6 @@ existing ShortcutManager connections and behavior.
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Slot
-from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 from core.type_aliases import CurveDataList
 from services import get_data_service
@@ -45,8 +44,11 @@ class ActionHandlerController:
         self.main_window: MainWindow = main_window
 
         # Get reactive data store
-        self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
+        from stores import StoreManager
+        from stores.curve_data_store import CurveDataStore
+
+        self._store_manager: StoreManager = get_store_manager()
+        self._curve_store: CurveDataStore = self._store_manager.get_curve_store()
         logger.info("ActionHandlerController initialized")
 
     # ==================== File Action Handlers ====================
@@ -122,6 +124,7 @@ class ActionHandlerController:
     @Slot()
     def _on_action_undo(self) -> None:
         """Handle undo action."""
+        logger.info("ActionHandlerController._on_action_undo called")
         self.main_window.services.undo()
         if self.main_window.status_label:
             self.main_window.status_label.setText("Undo")
@@ -212,9 +215,7 @@ class ActionHandlerController:
     @Slot()
     def _on_smooth_curve(self) -> None:
         """Handle smooth curve action."""
-        # TODO: Implement curve smoothing
-        if self.main_window.status_label:
-            self.main_window.status_label.setText("Smooth curve not yet implemented")
+        self.apply_smooth_operation()
 
     @Slot()
     def _on_filter_curve(self) -> None:
@@ -235,8 +236,8 @@ class ActionHandlerController:
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation to selected points in the curve.
 
-        Shows a dialog to get smoothing parameters and applies smoothing
-        to the currently selected points or all points if none selected.
+        Uses the smoothing parameters from the toolbar controls and applies
+        smoothing to the currently selected points or all points if none selected.
         """
         # curve_widget is Optional
         if self.main_window.curve_widget is None:
@@ -246,38 +247,53 @@ class ActionHandlerController:
         # Get the current curve data
         curve_data = getattr(self.main_window.curve_widget, "curve_data", [])
         if not curve_data:
-            _ = QMessageBox.information(self.main_window, "No Data", "No curve data to smooth.")
+            self.main_window.statusBar().showMessage("No curve data to smooth", 2000)
             return
 
         # Get selected points or use all points
         selected_indices = getattr(self.main_window.curve_widget, "selected_indices", [])
         if not selected_indices:
-            # Ask if user wants to smooth all points
-            reply = QMessageBox.question(
-                self.main_window,
-                "No Selection",
-                "No points selected. Apply smoothing to all points?",
-                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            )
-            if reply != QMessageBox.StandardButton.Yes:
-                return
+            # Use all points if none selected
             selected_indices = list(range(len(curve_data)))
+            self.main_window.statusBar().showMessage("No selection - smoothing all points", 2000)
 
-        # Get smoothing window size from user
-        from services import get_ui_service
+        # Get smoothing parameters from toolbar/state manager
+        window_size = self.state_manager.smoothing_window_size
+        filter_type = self.state_manager.smoothing_filter_type
 
-        ui_service = get_ui_service()
-        if ui_service:
-            window_size = ui_service.get_smooth_window_size(self.main_window)
-            if window_size is None:
-                return  # User cancelled
-        else:
-            # Fallback to simple input dialog
-            window_size, ok = QInputDialog.getInt(
-                self.main_window, "Smoothing Window Size", "Enter window size (3-15):", 5, 3, 15
-            )
-            if not ok:
+        # Create and execute smooth command
+        from core.commands import SmoothCommand
+        from services import get_interaction_service
+
+        smooth_command = SmoothCommand(
+            description=f"Smooth {len(selected_indices)} points ({filter_type})",
+            indices=selected_indices,
+            filter_type=filter_type,
+            window_size=window_size,
+        )
+
+        interaction_service = get_interaction_service()
+        if interaction_service and hasattr(interaction_service, "_command_manager"):
+            logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
+            if interaction_service._command_manager.execute_command(smooth_command, self.main_window):
+                # Update status with details
+                filter_display = {
+                    "moving_average": "Moving Average",
+                    "median": "Median",
+                    "butterworth": "Butterworth",
+                }.get(filter_type, filter_type)
+
+                self.main_window.statusBar().showMessage(
+                    f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
+                )
+                logger.info(f"{filter_display} smoothing applied successfully via command system")
                 return
+            else:
+                logger.error("Command system failed, falling back to legacy approach")
+        else:
+            logger.warning("Command system not available, using legacy approach")
+
+        # Fallback to legacy approach if command system not available
 
         # Apply smoothing using DataService
         data_service = get_data_service()
@@ -285,8 +301,17 @@ class ActionHandlerController:
             # Extract points to smooth
             points_to_smooth = [curve_data[i] for i in selected_indices]
 
-            # Apply smoothing
-            smoothed_points = data_service.smooth_moving_average(points_to_smooth, window_size)
+            # Apply the appropriate filter based on toolbar selection
+            if filter_type == "moving_average":
+                smoothed_points = data_service.smooth_moving_average(points_to_smooth, window_size)
+            elif filter_type == "median":
+                smoothed_points = data_service.filter_median(points_to_smooth, window_size)
+            elif filter_type == "butterworth":
+                # Butterworth uses window_size as order parameter
+                smoothed_points = data_service.filter_butterworth(points_to_smooth, order=window_size // 2)
+            else:
+                logger.warning(f"Unknown filter type: {filter_type}")
+                smoothed_points = points_to_smooth
 
             # Update the curve data
             new_curve_data = list(curve_data)
@@ -296,19 +321,21 @@ class ActionHandlerController:
 
             # Set the new data
             self.main_window.curve_widget.set_curve_data(new_curve_data)
-            # self._update_point_list_data()  # Method doesn't exist
 
             # Mark as modified
-            # state_manager is always initialized in __init__
             self.state_manager.is_modified = True
 
-            # Update status
-            self.main_window.statusBar().showMessage(
-                f"Applied smoothing to {len(selected_indices)} points (window size: {window_size})", 3000
+            # Update status with details
+            filter_display = {"moving_average": "Moving Average", "median": "Median", "butterworth": "Butterworth"}.get(
+                filter_type, filter_type
             )
-            logger.info(f"Smoothing applied to {len(selected_indices)} points")
+
+            self.main_window.statusBar().showMessage(
+                f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
+            )
+            logger.info(f"{filter_display} smoothing applied to {len(selected_indices)} points (size: {window_size})")
         else:
-            _ = QMessageBox.warning(self.main_window, "Service Error", "Data service not available for smoothing.")
+            self.main_window.statusBar().showMessage("Data service not available for smoothing", 3000)
 
     # ==================== Helper Methods ====================
 

@@ -46,7 +46,7 @@ class UIInitializationController:
         Args:
             main_window: Reference to the main window for UI component setup
         """
-        self.main_window = main_window
+        self.main_window: MainWindow = main_window
         logger.info("UIInitializationController initialized")
 
     def initialize_ui(self) -> None:
@@ -186,6 +186,31 @@ class UIInitializationController:
             _ = toolbar.addAction(self.main_window.action_zoom_out)
         if self.main_window.action_reset_view:
             _ = toolbar.addAction(self.main_window.action_reset_view)
+        _ = toolbar.addSeparator()
+
+        # Add smoothing controls to toolbar
+        from PySide6.QtWidgets import QComboBox, QSpinBox
+
+        _ = toolbar.addWidget(QLabel("Smoothing:"))
+
+        # Filter type combo box
+        self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
+        self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average", "Median", "Butterworth"])
+        self.main_window.ui.toolbar.smoothing_type_combo.setCurrentIndex(0)
+        self.main_window.ui.toolbar.smoothing_type_combo.setToolTip("Select smoothing filter type")
+        _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.connect(self._on_smoothing_type_changed)
+        _ = toolbar.addWidget(self.main_window.ui.toolbar.smoothing_type_combo)
+
+        _ = toolbar.addWidget(QLabel("Size:"))
+
+        # Window size spin box
+        self.main_window.ui.toolbar.smoothing_size_spinbox = QSpinBox()
+        self.main_window.ui.toolbar.smoothing_size_spinbox.setRange(3, 15)
+        self.main_window.ui.toolbar.smoothing_size_spinbox.setValue(5)
+        self.main_window.ui.toolbar.smoothing_size_spinbox.setToolTip("Smoothing window size (3-15)")
+        _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.connect(self._on_smoothing_size_changed)
+        _ = toolbar.addWidget(self.main_window.ui.toolbar.smoothing_size_spinbox)
+
         _ = toolbar.addSeparator()
 
         # Add frame control to toolbar (from TimelineController)
@@ -362,11 +387,13 @@ class UIInitializationController:
         self.main_window.tracking_panel_dock.setVisible(True)
 
         # Connect signals for tracking point management
-        self.main_window.tracking_panel.points_selected.connect(self.main_window.on_tracking_points_selected)
-        self.main_window.tracking_panel.point_visibility_changed.connect(self.main_window.on_point_visibility_changed)
-        self.main_window.tracking_panel.point_color_changed.connect(self.main_window.on_point_color_changed)
-        self.main_window.tracking_panel.point_deleted.connect(self.main_window.on_point_deleted)
-        self.main_window.tracking_panel.point_renamed.connect(self.main_window.on_point_renamed)
+        _ = self.main_window.tracking_panel.points_selected.connect(self.main_window.on_tracking_points_selected)
+        _ = self.main_window.tracking_panel.point_visibility_changed.connect(
+            self.main_window.on_point_visibility_changed
+        )
+        _ = self.main_window.tracking_panel.point_color_changed.connect(self.main_window.on_point_color_changed)
+        _ = self.main_window.tracking_panel.point_deleted.connect(self.main_window.on_point_deleted)
+        _ = self.main_window.tracking_panel.point_renamed.connect(self.main_window.on_point_renamed)
 
         logger.info("Tracking points panel dock widget initialized")
 
@@ -412,3 +439,16 @@ class UIInitializationController:
         """Initialize tracking panel (Protocol API)."""
         # Tracking panel is created in _init_dock_widgets
         pass
+
+    def _on_smoothing_type_changed(self, text: str) -> None:
+        """Handle smoothing type combo box change."""
+        # Map display text to internal filter types
+        filter_map = {"Moving Average": "moving_average", "Median": "median", "Butterworth": "butterworth"}
+        filter_type = filter_map.get(text, "moving_average")
+        self.main_window.state_manager.smoothing_filter_type = filter_type
+        logger.debug(f"Smoothing filter type changed to: {filter_type}")
+
+    def _on_smoothing_size_changed(self, value: int) -> None:
+        """Handle smoothing size spin box change."""
+        self.main_window.state_manager.smoothing_window_size = value
+        logger.debug(f"Smoothing window size changed to: {value}")

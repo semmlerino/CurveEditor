@@ -83,6 +83,10 @@ class SignalConnectionManager:
         )
         _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)
 
+        # Connect timeline tabs widget frame_changed signal for mouse scrubbing
+        if self.main_window.timeline_tabs:
+            _ = self.main_window.timeline_tabs.frame_changed.connect(self.main_window.timeline_controller.set_frame)
+
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
         # Timeline now connects directly to store signals - no manual updates needed

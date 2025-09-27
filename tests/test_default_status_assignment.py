@@ -26,7 +26,7 @@ from services.data_service import DataService
 def make_curve_point():
     """Factory for creating curve point tuples."""
 
-    def _make_point(frame: int, x: float, y: float, status: str = None):
+    def _make_point(frame: int, x: float, y: float, status: str | None = None):
         if status is None:
             return (frame, x, y)
         return (frame, x, y, status)

@@ -27,7 +27,9 @@ from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
 
+    from core.commands import CommandManager
     from services.transform_service import TransformService
+    from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
 
@@ -74,12 +76,17 @@ class InteractionService:
         # Spatial index for efficient point lookups
         self._point_index: PointIndex = PointIndex(grid_width=20, grid_height=20)
 
-        # History state
+        # Command-based history management (delayed import to avoid cycles)
+        from core.commands import CommandManager
+
+        self._command_manager: CommandManager = CommandManager(max_history_size=100)
+
+        # Legacy history state (for backward compatibility)
         self._history: list[dict[str, object]] = []
         self._current_index: int = -1
         self._max_history_size: int = 100
 
-        logger.info("InteractionService initialized with history and spatial indexing")
+        logger.info("InteractionService initialized with command manager and spatial indexing")
 
     # ==================== Main Event Handlers (Delegate to Adapter) ====================
 
@@ -540,6 +547,7 @@ class InteractionService:
 
     def undo(self, main_window: MainWindowProtocol) -> None:
         """Undo last operation - alias for undo_action."""
+        logger.info("InteractionService.undo called")
         self.undo_action(main_window)
 
     def redo(self, main_window: MainWindowProtocol) -> None:
@@ -723,40 +731,61 @@ class InteractionService:
     # ==================== Legacy Methods (Minimal Implementation) ====================
 
     def undo_action(self, main_window: MainWindowProtocol) -> None:
-        """Legacy undo action."""
-        # Check if main_window manages its own history
-        if main_window.history is not None and main_window.history_index is not None:
+        """Legacy undo action - now uses command manager."""
+        # Prefer command manager if available and has commands
+        if hasattr(self, "_command_manager") and self._command_manager.can_undo():
+            self._command_manager.undo(cast("MainWindow", cast(object, main_window)))
+        # Check if main_window manages its own history (legacy compatibility)
+        elif main_window.history is not None and main_window.history_index is not None:
+            logger.info("Using legacy history system")
             if main_window.history_index > 0:
                 main_window.history_index -= 1
                 state = main_window.history[main_window.history_index]
                 typed_state = cast(dict[str, object], state)
                 self.restore_state(main_window, typed_state)
                 self.update_history_buttons(main_window)
+        # Check internal history when main_window doesn't manage its own
+        elif self._current_index > 0:
+            logger.info("Using internal history system")
+            self._current_index -= 1
+            state = self._history[self._current_index]
+            self.restore_state(main_window, state)
+            self.update_history_buttons(main_window)
         else:
-            # Use internal history
-            if self.can_undo():
-                self._current_index -= 1
-                state = self._history[self._current_index]
-                self.restore_state(main_window, state)
-                self.update_history_buttons(main_window)
+            # Use command manager even if it has no commands (for consistency)
+            logger.info("Using command manager for undo (fallback)")
+            if hasattr(self, "_command_manager"):
+                self._command_manager.undo(cast("MainWindow", main_window))
 
     def redo_action(self, main_window: MainWindowProtocol) -> None:
-        """Legacy redo action."""
-        # Check if main_window manages its own history
-        if main_window.history is not None and main_window.history_index is not None:
+        """Legacy redo action - now uses command manager."""
+        logger.info("InteractionService.redo_action called")
+
+        # Prefer command manager if available and has commands to redo
+        if hasattr(self, "_command_manager") and self._command_manager.can_redo():
+            logger.info("Using command manager for redo")
+            self._command_manager.redo(cast("MainWindow", cast(object, main_window)))
+        # Check if main_window manages its own history (legacy compatibility)
+        elif main_window.history is not None and main_window.history_index is not None:
+            logger.info("Using legacy history system for redo")
             if main_window.history_index < len(main_window.history) - 1:
                 main_window.history_index += 1
                 state = main_window.history[main_window.history_index]
                 typed_state = cast(dict[str, object], state)
                 self.restore_state(main_window, typed_state)
                 self.update_history_buttons(main_window)
+        # Check internal history when main_window doesn't manage its own
+        elif self._current_index < len(self._history) - 1:
+            logger.info("Using internal history system for redo")
+            self._current_index += 1
+            state = self._history[self._current_index]
+            self.restore_state(main_window, state)
+            self.update_history_buttons(main_window)
         else:
-            # Use internal history
-            if self.can_redo():
-                self._current_index += 1
-                state = self._history[self._current_index]
-                self.restore_state(main_window, state)
-                self.update_history_buttons(main_window)
+            # Use command manager even if it has no commands (for consistency)
+            logger.info("Using command manager for redo (fallback)")
+            if hasattr(self, "_command_manager"):
+                self._command_manager.redo(cast("MainWindow", main_window))
 
     def save_state(self, main_window: MainWindowProtocol) -> None:
         """Legacy save state."""
@@ -934,10 +963,16 @@ class InteractionService:
 
     def can_undo(self) -> bool:
         """Check if undo is possible."""
+        # Check both command manager and legacy history
+        if hasattr(self, "_command_manager") and self._command_manager.can_undo():
+            return True
         return self._current_index > 0
 
     def can_redo(self) -> bool:
         """Check if redo is possible."""
+        # Check both command manager and legacy history
+        if hasattr(self, "_command_manager") and self._command_manager.can_redo():
+            return True
         return self._current_index < len(self._history) - 1
 
     def get_history_stats(self) -> dict[str, object]:

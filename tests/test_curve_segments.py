@@ -375,13 +375,17 @@ class TestSegmentedCurve:
     def test_from_curve_data(self):
         """Test from_curve_data classmethod."""
         # Legacy format with tuples
+        from typing import cast
+
+        from core.type_aliases import CurveDataList
+
         curve_data = [
             (1, 0.0, 0.0, "keyframe"),
             (2, 1.0, 1.0, "interpolated"),
             (3, 2.0, 2.0, "endframe"),
             (4, 3.0, 3.0, "normal"),
         ]
-        curve = SegmentedCurve.from_curve_data(curve_data)
+        curve = SegmentedCurve.from_curve_data(cast(CurveDataList, curve_data))
 
         assert len(curve.all_points) == 4
         assert curve.all_points[0].status == PointStatus.KEYFRAME

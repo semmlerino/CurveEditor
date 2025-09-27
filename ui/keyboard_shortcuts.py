@@ -6,7 +6,7 @@ This module provides a centralized way to manage keyboard shortcuts for the
 application, creating and managing all QActions with their shortcuts.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
@@ -108,7 +108,7 @@ class ShortcutManager(QObject):
         self.action_load_images.setStatusTip("Load background images")
 
         self.action_export_data = QAction("&Export Data...", self.parent_widget)
-        self.action_export_data.setShortcut("Ctrl+E")
+        self.action_export_data.setShortcut("Ctrl+Shift+E")
         self.action_export_data.setStatusTip("Export curve data")
 
         self.action_quit = QAction("&Quit", self.parent_widget)
@@ -159,8 +159,8 @@ class ShortcutManager(QObject):
     def _create_curve_actions(self) -> None:
         """Create curve manipulation QActions."""
         self.action_smooth_curve = QAction("S&mooth Curve", self.parent_widget)
-        self.action_smooth_curve.setShortcut("Ctrl+M")
-        self.action_smooth_curve.setStatusTip("Apply smoothing to the curve")
+        self.action_smooth_curve.setShortcut("Ctrl+E")
+        self.action_smooth_curve.setStatusTip("Apply smoothing to selected points")
 
         self.action_filter_curve = QAction("&Filter Curve", self.parent_widget)
         self.action_filter_curve.setShortcut("Ctrl+F")
@@ -315,7 +315,7 @@ class ShortcutManager(QObject):
             "oscillate_playback": self.action_oscillate_playback,
         }
 
-    def connect_to_main_window(self, main_window) -> None:
+    def connect_to_main_window(self, main_window: Any) -> None:
         """
         Connect actions to MainWindow slots.
 

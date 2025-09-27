@@ -45,6 +45,21 @@ class PlaybackState:
     max_frame: int = 100
     loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
 
+    @property
+    def is_playing(self) -> bool:
+        """Check if playback is active."""
+        return self.mode != PlaybackMode.STOPPED
+
+    @property
+    def is_playing_forward(self) -> bool:
+        """Check if playing forward."""
+        return self.mode == PlaybackMode.PLAYING_FORWARD
+
+    @property
+    def is_playing_backward(self) -> bool:
+        """Check if playing backward."""
+        return self.mode == PlaybackMode.PLAYING_BACKWARD
+
 
 class TimelineController(QObject):
     """

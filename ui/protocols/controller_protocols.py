@@ -6,7 +6,7 @@ These protocols define the interfaces for all controllers in the application,
 enabling type-safe programming and reducing coupling between MainWindow and controllers.
 """
 
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
 
 @runtime_checkable
@@ -114,6 +114,8 @@ class ViewOptionsProtocol(Protocol):
 @runtime_checkable
 class TimelineControllerProtocol(Protocol):
     """Protocol for timeline controller."""
+
+    frame_spinbox: Any  # QSpinBox but avoiding circular imports
 
     def on_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click."""

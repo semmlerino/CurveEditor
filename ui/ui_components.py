@@ -86,6 +86,10 @@ class ToolbarUIComponents:
         # Utility
         self.shortcuts_button: QPushButton | None = None
 
+        # Smoothing controls
+        self.smoothing_type_combo: QComboBox | None = None
+        self.smoothing_size_spinbox: QSpinBox | None = None
+
 
 class TimelineUIComponents:
     """Container for timeline and playback UI components."""

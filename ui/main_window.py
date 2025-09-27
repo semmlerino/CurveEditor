@@ -520,6 +520,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def _on_action_undo(self) -> None:
         """Handle undo action (delegated to ActionHandlerController)."""
+        logger.info("MainWindow._on_action_undo called")
         self.action_controller._on_action_undo()
 
     @Slot()

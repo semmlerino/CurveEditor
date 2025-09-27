@@ -26,11 +26,11 @@ class StateManager(QObject):
     """
 
     # Signals for state changes
-    file_changed = Signal(str)  # Emits new file path
-    modified_changed = Signal(bool)  # Emits modification status
-    view_state_changed = Signal()  # Emits when view state changes
-    selection_changed = Signal(list)  # Emits list of selected indices
-    frame_changed = Signal(int)  # Emits new frame number
+    file_changed: Signal = Signal(str)  # Emits new file path
+    modified_changed: Signal = Signal(bool)  # Emits modification status
+    view_state_changed: Signal = Signal()  # Emits when view state changes
+    selection_changed: Signal = Signal(list)  # Emits list of selected indices
+    frame_changed: Signal = Signal(int)  # Emits new frame number
 
     def __init__(self, parent: QObject | None = None):
         """
@@ -76,6 +76,10 @@ class StateManager(QObject):
         # Tools state
         self._current_tool: str = "select"
         self._tool_options: dict[str, object] = {}
+
+        # Smoothing state
+        self._smoothing_window_size: int = 5
+        self._smoothing_filter_type: str = "moving_average"
 
         # History state
         self._history_position: int = 0
@@ -381,6 +385,35 @@ class StateManager(QObject):
         """Check if redo is available."""
         return self._can_redo
 
+    # ==================== Smoothing State Properties ====================
+
+    @property
+    def smoothing_window_size(self) -> int:
+        """Get the smoothing window size."""
+        return self._smoothing_window_size
+
+    @smoothing_window_size.setter
+    def smoothing_window_size(self, size: int) -> None:
+        """Set the smoothing window size."""
+        # Clamp to valid range
+        self._smoothing_window_size = max(3, min(15, size))
+        logger.debug(f"Smoothing window size set to: {self._smoothing_window_size}")
+
+    @property
+    def smoothing_filter_type(self) -> str:
+        """Get the smoothing filter type."""
+        return self._smoothing_filter_type
+
+    @smoothing_filter_type.setter
+    def smoothing_filter_type(self, filter_type: str) -> None:
+        """Set the smoothing filter type."""
+        valid_types = ["moving_average", "median", "butterworth"]
+        if filter_type in valid_types:
+            self._smoothing_filter_type = filter_type
+            logger.debug(f"Smoothing filter type set to: {self._smoothing_filter_type}")
+        else:
+            logger.warning(f"Invalid filter type: {filter_type}. Keeping current: {self._smoothing_filter_type}")
+
     # ==================== Utility Methods ====================
 
     def reset_to_defaults(self) -> None:
@@ -412,6 +445,10 @@ class StateManager(QObject):
         # Tools state
         self._current_tool = "select"
         self._tool_options.clear()
+
+        # Smoothing state
+        self._smoothing_window_size = 5
+        self._smoothing_filter_type = "moving_average"
 
         # History state
         self._history_position = 0
