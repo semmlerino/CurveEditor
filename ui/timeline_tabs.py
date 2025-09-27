@@ -625,7 +625,7 @@ class TimelineTabWidget(QWidget):
 
             tab.set_tab_width(tab_width)
             _ = tab.frame_clicked.connect(self.set_current_frame)
-            _ = tab.frame_hovered.connect(self.frame_hovered.emit)
+            # frame_hovered connection removed - no hover actions needed
 
             # Set current frame status
             if frame == self.current_frame:

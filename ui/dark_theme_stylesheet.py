@@ -516,9 +516,7 @@ def get_dark_theme_stylesheet() -> str:
         background-color: {colors['accent_primary']};
     }}
 
-    QTableWidget::item:hover {{
-        background-color: {colors['bg_hover']};
-    }}
+    /* QTableWidget::item:hover - removed to prevent confusing hover effects */
 
     QTableCornerButton::section {{
         background-color: {colors['bg_secondary']};

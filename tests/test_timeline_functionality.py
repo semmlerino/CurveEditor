@@ -185,24 +185,34 @@ class TestFrameTab:
         # Check signal was emitted with correct frame number
         assert blocker.args == [15]
 
-    def test_frame_hovered_signal(self, frame_tab: FrameTab, qtbot: QtBot) -> None:
-        """Test frame hovered signal emission."""
-        # Test hover signal by directly calling enterEvent
-        # Mouse events in tests don't always trigger enterEvent reliably
+    def test_frame_hover_no_signal(self, frame_tab: FrameTab, qtbot: QtBot) -> None:
+        """Test that frame hover does NOT emit signals (hover functionality removed)."""
+        # Test that hover events do not trigger signals anymore
         from PySide6.QtCore import QPointF
         from PySide6.QtGui import QEnterEvent
 
-        with qtbot.waitSignal(frame_tab.frame_hovered, timeout=1000) as blocker:
-            # Manually trigger enterEvent since mouse simulation doesn't work reliably in tests
-            enter_event = QEnterEvent(
-                QPointF(10, 10),  # localPos
-                QPointF(10, 10),  # windowPos
-                QPointF(10, 10),  # screenPos
-            )
-            frame_tab.enterEvent(enter_event)
+        # Set up signal tracking
+        signal_emitted = False
 
-        # The signal should be emitted with the frame number
-        assert blocker.args == [15]
+        def on_signal():
+            nonlocal signal_emitted
+            signal_emitted = True
+
+        frame_tab.frame_hovered.connect(on_signal)
+
+        # Manually trigger enterEvent
+        enter_event = QEnterEvent(
+            QPointF(10, 10),  # localPos
+            QPointF(10, 10),  # windowPos
+            QPointF(10, 10),  # screenPos
+        )
+        frame_tab.enterEvent(enter_event)
+
+        # Process events and wait a bit
+        qtbot.wait(100)
+
+        # Verify no signal was emitted (hover functionality disabled)
+        assert not signal_emitted, "frame_hovered signal should not be emitted after enterEvent"
 
 
 class TestFrameStatusCache:

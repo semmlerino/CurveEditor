@@ -242,9 +242,7 @@ class FrameTab(QWidget):
 
         # Draw background with optional gradient for depth
         bg_color = self._get_background_color()
-        if self.is_hovered and not self.is_current_frame:
-            # Very subtle hover effect
-            bg_color = bg_color.lighter(105)
+        # Hover effect removed - no visual change on hover
 
         # Create subtle gradient for depth (3DE style)
         from PySide6.QtGui import QLinearGradient
@@ -276,16 +274,15 @@ class FrameTab(QWidget):
         super().mousePressEvent(event)
 
     def enterEvent(self, event: QEnterEvent) -> None:
-        """Handle mouse enter for hover effect."""
+        """Handle mouse enter for hover tracking."""
         self.is_hovered = True
-        self.frame_hovered.emit(self.frame_number)
-        self.update()
+        # frame_hovered signal removed - no action needed on hover
         super().enterEvent(event)
 
     def leaveEvent(self, event: QEnterEvent) -> None:
         """Handle mouse leave."""
         self.is_hovered = False
-        self.update()
+        # No visual update needed since hover effect is removed
         super().leaveEvent(event)
 
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
