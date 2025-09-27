@@ -15,7 +15,9 @@ if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
+from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
+from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 
 logger = get_logger("multi_point_tracking_controller")
 
@@ -41,6 +43,7 @@ class MultiPointTrackingController:
         # Tracking data storage
         self.tracked_data: dict[str, CurveDataList] = {}  # All tracking points
         self.active_points: list[str] = []  # Currently selected points
+        self.point_tracking_directions: dict[str, TrackingDirection] = {}  # Track previous directions
 
         logger.info("MultiPointTrackingController initialized")
 
@@ -72,6 +75,8 @@ class MultiPointTrackingController:
                 point_name = self._get_unique_point_name(base_name)
                 self.tracked_data[point_name] = data  # pyright: ignore[reportArgumentType]
                 self.active_points = [point_name]  # Select the newly loaded point
+                # Initialize with default tracking direction
+                self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
                 logger.info(
                     f"Added single trajectory as '{point_name}' to existing {len(self.tracked_data) - 1} points"
                 )
@@ -82,6 +87,8 @@ class MultiPointTrackingController:
                 # No existing data - create initial tracked_data with this trajectory
                 self.tracked_data = {"Track1": data}  # pyright: ignore[reportAttributeAccessIssue]
                 self.active_points = ["Track1"]
+                # Initialize with default tracking direction
+                self.point_tracking_directions["Track1"] = TrackingDirection.TRACKING_FW
                 logger.info("Loaded single trajectory as 'Track1'")
 
                 # Update the tracking panel
@@ -124,6 +131,8 @@ class MultiPointTrackingController:
                     unique_name = self._get_unique_point_name(point_name)
                     self.tracked_data[unique_name] = trajectory
                     new_point_names.append(unique_name)
+                    # Initialize with default tracking direction
+                    self.point_tracking_directions[unique_name] = TrackingDirection.TRACKING_FW
 
                     if unique_name != point_name:
                         logger.info(f"Renamed duplicate point '{point_name}' to '{unique_name}'")
@@ -137,6 +146,9 @@ class MultiPointTrackingController:
                 # No existing data - use the new data directly
                 self.tracked_data = multi_data
                 self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+                # Initialize all points with default tracking direction
+                for point_name in multi_data.keys():
+                    self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
                 logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
 
             # Update the tracking panel with the multi-point data
@@ -221,6 +233,9 @@ class MultiPointTrackingController:
             del self.tracked_data[point_name]
             if point_name in self.active_points:
                 self.active_points.remove(point_name)
+            # Clean up tracking direction mapping
+            if point_name in self.point_tracking_directions:
+                del self.point_tracking_directions[point_name]
             self.update_tracking_panel()
             self.update_curve_display()
             logger.info(f"Deleted tracking point: {point_name}")
@@ -238,8 +253,61 @@ class MultiPointTrackingController:
             if old_name in self.active_points:
                 idx = self.active_points.index(old_name)
                 self.active_points[idx] = new_name
+            # Update tracking direction mapping
+            if old_name in self.point_tracking_directions:
+                self.point_tracking_directions[new_name] = self.point_tracking_directions.pop(old_name)
             self.update_tracking_panel()
             logger.info(f"Renamed tracking point: {old_name} -> {new_name}")
+
+    @Slot(str, object)
+    def on_tracking_direction_changed(self, point_name: str, new_direction: object) -> None:
+        """
+        Handle tracking direction change for a point.
+
+        Updates keyframe statuses based on the new tracking direction,
+        mirroring 3DEqualizer's behavior patterns.
+
+        Args:
+            point_name: Name of the tracking point
+            new_direction: New tracking direction (passed as object from signal)
+        """
+        if point_name not in self.tracked_data:
+            logger.warning(f"Tracking direction changed for unknown point: {point_name}")
+            return
+
+        # Convert object back to TrackingDirection (signal passes as object)
+        if not isinstance(new_direction, TrackingDirection):
+            logger.error(f"Invalid tracking direction type: {type(new_direction)}")
+            return
+
+        # Get previous direction (default to forward if unknown)
+        previous_direction = self.point_tracking_directions.get(point_name, TrackingDirection.TRACKING_FW)
+
+        # Skip update if direction hasn't actually changed
+        if previous_direction == new_direction:
+            logger.debug(f"Tracking direction unchanged for {point_name}: {new_direction.value}")
+            return
+
+        logger.info(f"Tracking direction changed for {point_name}: {previous_direction.value} → {new_direction.value}")
+
+        # Update keyframe statuses based on new direction
+        curve_data = self.tracked_data[point_name]
+        updated_data = update_keyframe_status_for_tracking_direction(curve_data, new_direction, previous_direction)
+
+        # Update the stored data
+        self.tracked_data[point_name] = updated_data
+
+        # Store the new direction
+        self.point_tracking_directions[point_name] = new_direction
+
+        # Update the curve display if this is the active point
+        if point_name in self.active_points:
+            self.update_curve_display()
+
+        # Update the tracking panel to reflect any status changes
+        self.update_tracking_panel()
+
+        logger.info(f"Keyframe status update completed for {point_name}")
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
@@ -308,6 +376,7 @@ class MultiPointTrackingController:
         """Clear all tracking data."""
         self.tracked_data.clear()
         self.active_points.clear()
+        self.point_tracking_directions.clear()
         self.update_tracking_panel()
         self.update_curve_display()
         logger.info("Cleared all tracking data")

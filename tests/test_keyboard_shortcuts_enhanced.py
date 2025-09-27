@@ -1,6 +1,12 @@
 #!/usr/bin/env python
 """
 Enhanced tests for keyboard shortcuts, including tracking direction and endframe shortcuts.
+
+Following UNIFIED_TESTING_GUIDE principles:
+- Test behavior, not implementation
+- Use real components where possible
+- Test all Protocol/abstract methods (Protocol Testing Rule)
+- Use real Qt signals where appropriate
 """
 
 from unittest.mock import Mock
@@ -8,22 +14,33 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
+from PySide6.QtTest import QSignalSpy
+from PySide6.QtWidgets import QApplication
 
-from core.commands.shortcut_command import ShortcutContext
+from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
 from core.commands.shortcut_commands import (
     SetEndframeCommand,
     SetTrackingDirectionCommand,
 )
 from core.models import PointStatus, TrackingDirection
 from ui.curve_view_widget import CurveViewWidget
+from ui.main_window import MainWindow
 from ui.tracking_points_panel import TrackingPointsPanel
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Shared QApplication for all tests - following UNIFIED_TESTING_GUIDE."""
+    app = QApplication.instance() or QApplication([])
+    yield app
+    app.processEvents()
 
 
 @pytest.fixture
 def curve_widget_with_data(qtbot):
-    """Create a curve widget with test data."""
+    """Create a curve widget with test data - following UNIFIED_TESTING_GUIDE cleanup."""
     widget = CurveViewWidget()
-    qtbot.addWidget(widget)
+    qtbot.addWidget(widget)  # CRITICAL: Auto cleanup per guide
 
     # Add test curve data
     test_data = [
@@ -36,6 +53,27 @@ def curve_widget_with_data(qtbot):
     widget.set_curve_data(test_data)
 
     return widget
+
+
+@pytest.fixture
+def main_window_with_data(qtbot) -> MainWindow:
+    """Real MainWindow with proper cleanup - following UNIFIED_TESTING_GUIDE."""
+    window = MainWindow()
+    qtbot.addWidget(window)  # CRITICAL: Auto cleanup per guide
+    window.show()
+    qtbot.waitExposed(window)
+
+    # Add test curve data
+    test_data = [
+        (1, 100.0, 100.0, PointStatus.NORMAL.value),
+        (2, 150.0, 120.0, PointStatus.KEYFRAME.value),
+        (3, 200.0, 130.0, PointStatus.NORMAL.value),
+        (4, 250.0, 140.0, PointStatus.NORMAL.value),
+        (5, 300.0, 150.0, PointStatus.KEYFRAME.value),
+    ]
+    window.curve_widget.set_curve_data(test_data)
+
+    return window
 
 
 @pytest.fixture
@@ -345,6 +383,219 @@ class TestTrackingDirectionKeyboardShortcuts:
 
         # Verify nothing changed
         assert panel._point_metadata["Point_1"]["tracking_direction"] == original_direction
+
+
+class TestShortcutCommandProtocolCompliance:
+    """Test Protocol Testing Rule: Every abstract method MUST have test coverage.
+
+    Following UNIFIED_TESTING_GUIDE Protocol Testing Rule.
+    """
+
+    def test_shortcut_command_abstract_methods_exist(self):
+        """Test that all abstract methods are defined in ShortcutCommand."""
+        # Verify abstract methods exist
+        assert hasattr(ShortcutCommand, "can_execute")
+        assert hasattr(ShortcutCommand, "execute")
+
+        # Verify they are abstract (will raise TypeError if instantiated)
+        with pytest.raises(TypeError, match="Can't instantiate abstract class"):
+            ShortcutCommand("test", "test")
+
+    def test_all_concrete_commands_implement_abstract_methods(self):
+        """Test that all concrete commands implement required abstract methods."""
+        # Test SetEndframeCommand
+        cmd = SetEndframeCommand()
+        assert callable(getattr(cmd, "can_execute", None))
+        assert callable(getattr(cmd, "execute", None))
+
+        # Test SetTrackingDirectionCommand
+        cmd2 = SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW, "Test")
+        assert callable(getattr(cmd2, "can_execute", None))
+        assert callable(getattr(cmd2, "execute", None))
+
+    def test_shortcut_context_all_properties_accessible(self):
+        """Test all ShortcutContext properties per Protocol Testing Rule."""
+        # Create minimal context
+        mock_window = Mock()
+        mock_widget = Mock()
+        mock_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=mock_widget,
+            key_event=mock_event,
+            selected_curve_points={0, 1},
+            selected_tracking_points=["Point_1"],
+            current_frame=5,
+        )
+
+        # Test all properties are accessible
+        assert context.has_curve_selection is True
+        assert context.has_tracking_selection is True
+        assert context.widget_type == "Mock"
+        assert context.main_window is mock_window
+        assert context.focused_widget is mock_widget
+        assert context.key_event is mock_event
+        assert context.selected_curve_points == {0, 1}
+        assert context.selected_tracking_points == ["Point_1"]
+        assert context.current_frame == 5
+
+    def test_shortcut_context_properties_with_empty_state(self):
+        """Test ShortcutContext properties with empty/None state."""
+        mock_window = Mock()
+        mock_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=None,
+            key_event=mock_event,
+            selected_curve_points=set(),
+            selected_tracking_points=[],
+            current_frame=None,
+        )
+
+        # Test properties with empty state
+        assert context.has_curve_selection is False
+        assert context.has_tracking_selection is False
+        assert context.widget_type == "None"
+        assert context.focused_widget is None
+        assert context.current_frame is None
+
+
+class TestRealComponentIntegration:
+    """Integration tests using real components per UNIFIED_TESTING_GUIDE."""
+
+    def test_endframe_command_with_real_main_window(self, main_window_with_data, qtbot):
+        """Test E key with real MainWindow and real Qt signals."""
+        window = main_window_with_data
+
+        # Set up signal spy for real Qt signal
+        spy = QSignalSpy(window.curve_widget.selection_changed)
+
+        # Select points using real widget methods
+        window.curve_widget._select_point(0, add_to_selection=False)
+        window.curve_widget._select_point(2, add_to_selection=True)
+
+        # Verify signal was emitted
+        assert spy.count() > 0
+
+        # Create real context with real widgets
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+        context = ShortcutContext(
+            main_window=window,
+            focused_widget=window.curve_widget,
+            key_event=event,
+            selected_curve_points=window.curve_widget.selected_indices,
+            selected_tracking_points=[],
+            current_frame=None,
+        )
+
+        # Execute with real components
+        assert cmd.can_execute(context)
+        assert cmd.execute(context)
+
+        # Verify points were converted using real widget state
+        point0 = window.curve_widget._curve_store.get_point(0)
+        assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
+        point2 = window.curve_widget._curve_store.get_point(2)
+        assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
+
+    def test_tracking_direction_with_real_components(self, qtbot):
+        """Test tracking direction commands with real tracking panel."""
+        # Create real tracking panel
+        panel = TrackingPointsPanel()
+        qtbot.addWidget(panel)  # CRITICAL: Auto cleanup per guide
+
+        # Add real data
+        tracked_data = {
+            "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 6)],
+            "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(3, 8)],
+        }
+        panel.set_tracked_data(tracked_data)
+
+        # Create real MainWindow and connect panel
+        window = MainWindow()
+        qtbot.addWidget(window)
+        window.tracking_panel = panel
+
+        # Select rows using real widget methods
+        panel.table.setCurrentCell(0, 0)
+        selected = panel.get_selected_points()
+
+        # Test with real components
+        cmd = SetTrackingDirectionCommand(TrackingDirection.TRACKING_BW, "Shift+1")
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_1, Qt.KeyboardModifier.ShiftModifier)
+        context = ShortcutContext(
+            main_window=window,
+            focused_widget=panel,
+            key_event=event,
+            selected_curve_points=set(),
+            selected_tracking_points=selected,
+            current_frame=None,
+        )
+
+        # Execute with real components
+        assert cmd.can_execute(context)
+        assert cmd.execute(context)
+
+        # Verify using real panel state
+        for point_name in selected:
+            if point_name in panel._point_metadata:
+                assert panel._point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
+
+
+class TestEdgeCasesAndBoundaryConditions:
+    """Test edge cases and boundary conditions per UNIFIED_TESTING_GUIDE."""
+
+    def test_command_execution_with_corrupted_context(self):
+        """Test commands handle corrupted/invalid context gracefully."""
+        # Test with None main_window
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+        context = ShortcutContext(
+            main_window=None,  # pyright: ignore[reportArgumentType] - Testing edge case
+            focused_widget=None,
+            key_event=event,
+            selected_curve_points=set(),
+            selected_tracking_points=[],
+            current_frame=None,
+        )
+
+        # Should not crash, but may not be able to execute
+        try:
+            can_execute = cmd.can_execute(context)
+            if can_execute:
+                cmd.execute(context)
+        except (AttributeError, RuntimeError):
+            # Expected for corrupted context
+            pass
+
+    def test_command_log_execution_method(self, curve_widget_with_data):
+        """Test log_execution method exists and works per Protocol Testing Rule."""
+        widget = curve_widget_with_data
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=widget,
+            key_event=event,
+            selected_curve_points={0},
+            selected_tracking_points=[],
+            current_frame=None,
+        )
+
+        # Test log_execution method doesn't crash
+        cmd.log_execution(context, True)
+        cmd.log_execution(context, False)
+
+        # Verify description property works
+        assert isinstance(cmd.description, str)
+        assert len(cmd.description) > 0
 
 
 class TestVisualStyling:

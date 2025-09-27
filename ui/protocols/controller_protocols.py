@@ -211,6 +211,10 @@ class MultiPointTrackingProtocol(Protocol):
         """Handle point rename."""
         ...
 
+    def on_tracking_direction_changed(self, point_name: str, new_direction: object) -> None:
+        """Handle tracking direction change."""
+        ...
+
     def update_tracking_panel(self) -> None:
         """Update tracking panel display."""
         ...

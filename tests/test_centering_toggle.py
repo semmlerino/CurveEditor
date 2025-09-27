@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy
 
 from core.models import CurvePoint
+from core.type_aliases import CurveDataList
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -24,19 +25,48 @@ class TestCenteringToggle:
         assert not widget.centering_mode
 
     def test_toggle_with_c_key(self, qtbot):
-        """Test that C key toggles centering mode."""
-        widget = CurveViewWidget()
-        qtbot.addWidget(widget)
+        """Test that C key toggles centering mode through global shortcut system."""
+        from PySide6.QtGui import QKeyEvent
+        from PySide6.QtWidgets import QApplication
+
+        from ui.main_window import MainWindow
+
+        # Create a full MainWindow with global shortcuts initialized
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        widget = window.curve_widget
+        if not widget:
+            import pytest
+
+            pytest.skip("CurveViewWidget not available in MainWindow")
+
+        # Add some test data and selection so centering can work
+        test_data: CurveDataList = [
+            (1, 100.0, 100.0),
+            (2, 200.0, 200.0),
+            (3, 300.0, 300.0),
+        ]
+        widget.set_curve_data(test_data)
+        widget._select_point(1, add_to_selection=False)  # Select a point for centering
 
         # Initial state
         assert not widget.centering_mode
 
-        # Press C to enable
-        qtbot.keyClick(widget, Qt.Key.Key_C)
+        # Create key event and send through application (global shortcut system)
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_C, Qt.KeyboardModifier.NoModifier)
+        QApplication.sendEvent(widget, key_event)
+        qtbot.wait(10)  # Allow event processing
+
+        # Should toggle centering mode ON
         assert widget.centering_mode
 
         # Press C again to disable
-        qtbot.keyClick(widget, Qt.Key.Key_C)
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_C, Qt.KeyboardModifier.NoModifier)
+        QApplication.sendEvent(widget, key_event)
+        qtbot.wait(10)  # Allow event processing
+
+        # Should toggle centering mode OFF
         assert not widget.centering_mode
 
     def test_centering_on_frame_change_when_enabled(self, qtbot):

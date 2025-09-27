@@ -158,7 +158,7 @@ class InteractionService:
                 if view.rubber_band is None:
                     # Create rubber band with parent widget workaround
                     parent_widget = getattr(view, "parentWidget", lambda: None)() or None
-                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)  # pyright: ignore[reportArgumentType]
+                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)
                 view.rubber_band_origin = pos
                 view.rubber_band_active = True
                 view.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))

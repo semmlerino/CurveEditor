@@ -409,6 +409,9 @@ class UIInitializationController:
         _ = self.main_window.tracking_panel.point_color_changed.connect(self.main_window.on_point_color_changed)
         _ = self.main_window.tracking_panel.point_deleted.connect(self.main_window.on_point_deleted)
         _ = self.main_window.tracking_panel.point_renamed.connect(self.main_window.on_point_renamed)
+        _ = self.main_window.tracking_panel.tracking_direction_changed.connect(
+            self.main_window.tracking_controller.on_tracking_direction_changed
+        )
 
         logger.info("Tracking points panel dock widget initialized")
 

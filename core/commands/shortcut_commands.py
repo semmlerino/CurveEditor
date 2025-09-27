@@ -23,14 +23,14 @@ logger = get_logger("shortcut_commands")
 
 
 class SetEndframeCommand(ShortcutCommand):
-    """Command to set selected points or current frame point to ENDFRAME status."""
+    """Command to toggle between KEYFRAME and ENDFRAME status for selected points."""
 
     def __init__(self) -> None:
-        """Initialize the endframe command."""
-        super().__init__("E", "Set point(s) to end frame")
+        """Initialize the endframe toggle command."""
+        super().__init__("E", "Toggle between keyframe and end frame")
 
     def can_execute(self, context: ShortcutContext) -> bool:
-        """Check if we can set endframe status.
+        """Check if we can toggle endframe status.
 
         Can execute if:
         - There are selected curve points, OR
@@ -57,36 +57,78 @@ class SetEndframeCommand(ShortcutCommand):
         return False
 
     def execute(self, context: ShortcutContext) -> bool:
-        """Execute the endframe command."""
+        """Execute the endframe toggle command."""
         curve_widget = context.main_window.curve_widget
         if not curve_widget:
             return False
 
         try:
             if context.has_curve_selection:
-                # Convert selected points to ENDFRAME
-                logger.info(f"Converting {len(context.selected_curve_points)} points to ENDFRAME")
+                # Toggle status for selected points
+                toggled_count = 0
+                endframe_count = 0
+                keyframe_count = 0
+
                 for idx in context.selected_curve_points:
-                    curve_widget._curve_store.set_point_status(idx, PointStatus.ENDFRAME.value)
+                    # Get current point status
+                    point = curve_widget._curve_store.get_point(idx)
+                    if point and len(point) >= 4:
+                        current_status = point[3]
 
-                curve_widget._add_to_history()
-                curve_widget.update()
-                curve_widget.update_status(f"Set {len(context.selected_curve_points)} points to ENDFRAME", 2000)
-                return True
+                        # Toggle logic
+                        if current_status == PointStatus.ENDFRAME.value:
+                            new_status = PointStatus.KEYFRAME.value
+                            keyframe_count += 1
+                        else:
+                            new_status = PointStatus.ENDFRAME.value
+                            endframe_count += 1
 
-            elif context.current_frame is not None:
-                # Convert point at current frame to ENDFRAME
-                frame_index = context.current_frame - 1
-                if 0 <= frame_index < len(curve_widget.curve_data):
-                    logger.info(f"Converting point at frame {context.current_frame} to ENDFRAME")
-                    curve_widget._curve_store.set_point_status(frame_index, PointStatus.ENDFRAME.value)
+                        curve_widget._curve_store.set_point_status(idx, new_status)
+                        toggled_count += 1
+
+                if toggled_count > 0:
                     curve_widget._add_to_history()
                     curve_widget.update()
-                    curve_widget.update_status(f"Set frame {context.current_frame} to ENDFRAME", 2000)
+
+                    # Create informative status message
+                    if endframe_count > 0 and keyframe_count > 0:
+                        msg = f"Toggled {toggled_count} points ({endframe_count} to ENDFRAME, {keyframe_count} to KEYFRAME)"
+                    elif endframe_count > 0:
+                        msg = f"Set {endframe_count} points to ENDFRAME"
+                    else:
+                        msg = f"Set {keyframe_count} points to KEYFRAME"
+
+                    curve_widget.update_status(msg, 2000)
+                    logger.info(msg)
                     return True
 
+            elif context.current_frame is not None:
+                # Toggle point at current frame
+                frame_index = context.current_frame - 1
+                if 0 <= frame_index < len(curve_widget.curve_data):
+                    point = curve_widget._curve_store.get_point(frame_index)
+                    if point and len(point) >= 4:
+                        current_status = point[3]
+
+                        # Toggle logic
+                        if current_status == PointStatus.ENDFRAME.value:
+                            new_status = PointStatus.KEYFRAME.value
+                            status_text = "KEYFRAME"
+                        else:
+                            new_status = PointStatus.ENDFRAME.value
+                            status_text = "ENDFRAME"
+
+                        curve_widget._curve_store.set_point_status(frame_index, new_status)
+                        curve_widget._add_to_history()
+                        curve_widget.update()
+
+                        msg = f"Set frame {context.current_frame} to {status_text}"
+                        curve_widget.update_status(msg, 2000)
+                        logger.info(msg)
+                        return True
+
         except Exception as e:
-            logger.error(f"Failed to set endframe status: {e}")
+            logger.error(f"Failed to toggle endframe status: {e}")
 
         return False
 

@@ -134,7 +134,7 @@ class DataService:
 
             # Preserve frame and additional data
             if len(data[i]) > 3:
-                result.append((data[i][0], avg_x, avg_y) + data[i][3:])  # pyright: ignore[reportArgumentType]
+                result.append((data[i][0], avg_x, avg_y) + data[i][3:])
             else:
                 result.append((data[i][0], avg_x, avg_y))
 
@@ -157,7 +157,7 @@ class DataService:
             med_y = statistics.median(p[2] for p in window)
 
             if len(data[i]) > 3:
-                result.append((data[i][0], med_x, med_y) + data[i][3:])  # pyright: ignore[reportArgumentType]
+                result.append((data[i][0], med_x, med_y) + data[i][3:])
             else:
                 result.append((data[i][0], med_x, med_y))
 
@@ -946,9 +946,11 @@ class DataService:
         """Apply default status rules to loaded curve data.
 
         Rules:
-        1. All frames default to "tracked" status
-        2. Last frame becomes "keyframe"
-        3. Frames before gaps (>1 frame jump) become "endframe"
+        1. First frame becomes "keyframe"
+        2. First frame after a gap becomes "keyframe" (startframe)
+        3. Last frame becomes "keyframe"
+        4. Frames before gaps (>1 frame jump) become "endframe"
+        5. All other frames default to "tracked" status
 
         Args:
             curve_data: Raw curve data with potentially inconsistent statuses
@@ -973,14 +975,24 @@ class DataService:
 
             # Apply default rules if no explicit status
             if explicit_status is None:
-                # Check if this is the last frame
-                if i == len(sorted_data) - 1:
+                # Check if this is the first frame
+                if i == 0:
                     status = "keyframe"
-                # Check if this is the last frame before a gap
-                elif i < len(sorted_data) - 1:
-                    next_frame = sorted_data[i + 1][0]
-                    if next_frame - frame > 1:  # Gap detected
-                        status = "endframe"
+                # Check if this is the first frame after a gap
+                elif i > 0:
+                    prev_frame = sorted_data[i - 1][0]
+                    if frame - prev_frame > 1:  # Gap detected before this frame
+                        status = "keyframe"
+                    # Check if this is the last frame
+                    elif i == len(sorted_data) - 1:
+                        status = "keyframe"
+                    # Check if this is the last frame before a gap
+                    elif i < len(sorted_data) - 1:
+                        next_frame = sorted_data[i + 1][0]
+                        if next_frame - frame > 1:  # Gap detected after
+                            status = "endframe"
+                        else:
+                            status = "tracked"
                     else:
                         status = "tracked"
                 else:

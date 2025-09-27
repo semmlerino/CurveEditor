@@ -796,7 +796,7 @@ class OptimizedCurveRenderer:
         from PySide6.QtGui import QImage, QPixmap
 
         # Cast background_image to proper type for type checker
-        bg_image = background_image  # type: QImage | QPixmap  # pyright: ignore[reportAssignmentType]
+        bg_image = background_image  # type: QImage | QPixmap
 
         # Get image position - account for Y-flip
         # When Y-flip is enabled, the image's top-left in data space is at (0, image_height)
@@ -821,7 +821,7 @@ class OptimizedCurveRenderer:
         if isinstance(bg_image, QImage):
             pixmap = QPixmap.fromImage(bg_image)
         else:
-            pixmap = bg_image  # pyright: ignore[reportAssignmentType]
+            pixmap = bg_image
         print(
             f"[RENDERER_BG] Drawing at pos=({int(top_left_x)}, {int(top_left_y)}), size=({int(target_width)}, {int(target_height)})"
         )
