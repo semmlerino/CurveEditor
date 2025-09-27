@@ -854,8 +854,8 @@ class CurveViewWidget(QWidget):
                 self.drag_start_pos = None
                 self.last_mouse_pos = None
 
-                # Notify about changes
-                self._add_to_history()
+                # History is now handled by commands in InteractionService
+                # self._add_to_history()  # Legacy - removed in favor of command system
 
         elif button == Qt.MouseButton.MiddleButton:
             self.pan_active = False
@@ -943,8 +943,8 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.set_point_status(idx, status.value)
 
-        # Add to history if main window available
-        self._add_to_history()
+        # History is now handled by commands
+        # self._add_to_history()  # Legacy - removed in favor of command system
 
         point = self._curve_store.get_point(idx)
         if point:
@@ -1381,10 +1381,10 @@ class CurveViewWidget(QWidget):
         return self.main_window is not None
 
     def _add_to_history(self) -> None:
-        """Add current state to history if main window available."""
-        if self.main_window is not None:
-            if getattr(self.main_window, "add_to_history", None) is not None:
-                self.main_window.add_to_history()  # pyright: ignore[reportAttributeAccessIssue]
+        """Legacy method - history is now handled by command system."""
+        # This method is kept for backward compatibility but should not be used
+        # All history operations should go through the command system
+        pass
 
     def update_status(self, message: str, timeout: int = 2000) -> None:
         """Update status bar if main window available.
@@ -1451,33 +1451,66 @@ class CurveViewWidget(QWidget):
             dx: X offset in data units
             dy: Y offset in data units
         """
-        # Use batch mode for efficiency when nudging multiple points
-        if len(self.selected_indices) > 1:
-            self._curve_store.begin_batch_operation()
+        if not self.selected_indices or not self.main_window:
+            return
 
+        from core.commands import BatchMoveCommand
+        from services import get_interaction_service
+
+        # Collect moves
+        moves = []
         for idx in self.selected_indices:
             if 0 <= idx < len(self.curve_data):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
-                self.update_point(idx, x + dx, y + dy)
-                # Convert to keyframe since user manually adjusted it
-                self._curve_store.set_point_status(idx, PointStatus.KEYFRAME)
+                old_pos = (x, y)
+                new_pos = (x + dx, y + dy)
+                moves.append((idx, old_pos, new_pos))
 
-        if len(self.selected_indices) > 1:
-            self._curve_store.end_batch_operation()
+        if moves:
+            # Create and execute move command
+            command = BatchMoveCommand(
+                description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                moves=moves,
+            )
 
-        self._add_to_history()
+            # Execute the command through the interaction service's command manager
+            interaction_service = get_interaction_service()
+            if interaction_service and hasattr(interaction_service, "command_manager"):
+                interaction_service.command_manager.execute_command(command, self.main_window)
+
+                # Convert to keyframes since user manually adjusted them
+                for idx in self.selected_indices:
+                    self._curve_store.set_point_status(idx, PointStatus.KEYFRAME)
 
     def delete_selected_points(self) -> None:
         """Delete selected points."""
-        # Sort indices in reverse to delete from end first
-        indices = sorted(self.selected_indices, reverse=True)
+        if not self.selected_indices or not self.main_window:
+            return
 
-        for idx in indices:
-            self.remove_point(idx)
+        from core.commands import DeletePointsCommand
+        from services import get_interaction_service
 
-        # Selection is cleared automatically by the store when points are removed
+        # Collect points to delete
+        indices = list(self.selected_indices)
+        deleted_points = []
+        for idx in sorted(indices):
+            if 0 <= idx < len(self.curve_data):
+                deleted_points.append((idx, self.curve_data[idx]))
 
-        self._add_to_history()
+        if deleted_points:
+            # Create and execute delete command
+            command = DeletePointsCommand(
+                description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
+                indices=indices,
+                deleted_points=deleted_points,
+            )
+
+            # Execute the command through the interaction service's command manager
+            interaction_service = get_interaction_service()
+            if interaction_service and hasattr(interaction_service, "command_manager"):
+                interaction_service.command_manager.execute_command(command, self.main_window)
+
+        # Selection is cleared automatically by the command
 
     # Cache Management
 

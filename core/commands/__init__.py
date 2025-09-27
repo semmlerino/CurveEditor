@@ -10,9 +10,11 @@ from core.commands.base_command import Command, CompositeCommand, NullCommand
 from core.commands.command_manager import CommandManager
 from core.commands.curve_commands import (
     AddPointCommand,
+    BatchMoveCommand,
     DeletePointsCommand,
     MovePointCommand,
     SetCurveDataCommand,
+    SetPointStatusCommand,
     SmoothCommand,
 )
 
@@ -27,6 +29,8 @@ __all__ = [
     "SetCurveDataCommand",
     "SmoothCommand",
     "MovePointCommand",
+    "BatchMoveCommand",
     "DeletePointsCommand",
+    "SetPointStatusCommand",
     "AddPointCommand",
 ]

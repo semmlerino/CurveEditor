@@ -84,6 +84,9 @@ class InteractionService:
         self._current_index: int = -1
         self._max_history_size: int = 100
 
+        # Track original positions for drag operations
+        self._drag_original_positions: dict[int, tuple[float, float]] | None = None
+
         logger.info("InteractionService initialized with command manager and spatial indexing")
 
     @property
@@ -153,10 +156,18 @@ class InteractionService:
                 view.selected_points = {point_idx}
                 view.selected_point_idx = point_idx
 
-            # Start drag
+            # Start drag - capture original positions for undo
             view.drag_active = True
             view.last_drag_pos = pos
             self.drag_point_idx = point_idx
+
+            # Capture original positions of all selected points
+            self._drag_original_positions = {}
+            if view.selected_points:
+                for idx in view.selected_points:
+                    if 0 <= idx < len(view.curve_data):
+                        point = view.curve_data[idx]
+                        self._drag_original_positions[idx] = (point[1], point[2])
 
         elif event.button() == Qt.MouseButton.LeftButton:
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -249,15 +260,40 @@ class InteractionService:
 
         # drag_active is bool in CurveViewProtocol
         if view.drag_active:
-            # End dragging
+            # End dragging - create command for undo/redo
             view.drag_active = False
             view.last_drag_pos = None
             self.drag_point_idx = None
 
-            # Add to history if we have a main window
-            # main_window is defined in CurveViewProtocol
-            if view.main_window is not None:
-                self.add_to_history(view.main_window)
+            # Create command if points were actually moved
+            if self._drag_original_positions and view.main_window is not None:
+                from core.commands import BatchMoveCommand
+
+                # Collect the moves
+                moves = []
+                for idx, old_pos in self._drag_original_positions.items():
+                    if 0 <= idx < len(view.curve_data):
+                        point = view.curve_data[idx]
+                        new_pos = (point[1], point[2])
+                        if old_pos != new_pos:  # Only add if actually moved
+                            moves.append((idx, old_pos, new_pos))
+
+                # Execute command through command manager if points were moved
+                if moves:
+                    command = BatchMoveCommand(
+                        description=f"Move {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                        moves=moves,
+                    )
+                    # The points have already been moved during dragging,
+                    # so we mark the command as executed and add it to history
+                    command.executed = True
+                    self.command_manager._history.append(command)
+                    self.command_manager._current_index = len(self.command_manager._history) - 1
+                    self.command_manager._enforce_history_limit()
+                    self.command_manager._update_ui_state(cast("MainWindow", cast(object, view.main_window)))
+
+            # Clear the tracked positions
+            self._drag_original_positions = None
 
         # pan_active is bool in CurveViewProtocol
         elif view.pan_active:
@@ -320,16 +356,32 @@ class InteractionService:
         key = event.key()
 
         if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
-            # Delete selected points
+            # Delete selected points using command for undo/redo
             # selected_points is defined in CurveViewProtocol
-            if view.selected_points:
-                for idx in sorted(view.selected_points, reverse=True):
-                    # curve_data is defined in CurveViewProtocol
-                    if 0 <= idx < len(view.curve_data):
-                        view.curve_data.pop(idx)
+            if view.selected_points and view.main_window is not None:
+                from core.commands import DeletePointsCommand
 
-                view.selected_points.clear()
-                view.selected_point_idx = -1
+                # Collect points to delete
+                indices = list(view.selected_points)
+                deleted_points = []
+                for idx in sorted(indices):
+                    if 0 <= idx < len(view.curve_data):
+                        deleted_points.append((idx, view.curve_data[idx]))
+
+                if deleted_points:
+                    # Create and execute delete command
+                    command = DeletePointsCommand(
+                        description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
+                        indices=indices,
+                        deleted_points=deleted_points,
+                    )
+
+                    # Execute the command through the command manager
+                    self.command_manager.execute_command(command, cast("MainWindow", cast(object, view.main_window)))
+
+                    # Clear selection
+                    view.selected_points.clear()
+                    view.selected_point_idx = -1
 
                 # Add to history
                 # main_window is defined in CurveViewProtocol

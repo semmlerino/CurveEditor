@@ -418,6 +418,222 @@ class DeletePointsCommand(Command):
         return self.execute(main_window)
 
 
+class BatchMoveCommand(Command):
+    """
+    Command for moving multiple points at once.
+
+    This command is used for operations that move several points simultaneously,
+    such as dragging multiple selected points or nudging a selection.
+    """
+
+    def __init__(
+        self,
+        description: str,
+        moves: list[tuple[int, tuple[float, float], tuple[float, float]]],
+    ) -> None:
+        """
+        Initialize the batch move command.
+
+        Args:
+            description: Human-readable description
+            moves: List of (index, old_pos, new_pos) tuples
+        """
+        super().__init__(description)
+        self.moves = moves  # List of (index, old_pos, new_pos)
+
+    def execute(self, main_window: MainWindow) -> bool:
+        """Execute batch point movement."""
+        try:
+            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+
+            # Apply all moves
+            for index, _, new_pos in self.moves:
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Preserve frame and status, update x and y
+                    if len(point) >= 4:
+                        curve_data[index] = (point[0], new_pos[0], new_pos[1], point[3])
+                    elif len(point) == 3:
+                        curve_data[index] = (point[0], new_pos[0], new_pos[1])
+
+            main_window.curve_widget.set_curve_data(curve_data)
+            self.executed = True
+            return True
+
+        except Exception as e:
+            logger.error(f"Error executing BatchMoveCommand: {e}")
+            return False
+
+    def undo(self, main_window: MainWindow) -> bool:
+        """Undo batch point movement."""
+        try:
+            if not main_window.curve_widget:
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+
+            # Restore all original positions
+            for index, old_pos, _ in self.moves:
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Restore original position
+                    if len(point) >= 4:
+                        curve_data[index] = (point[0], old_pos[0], old_pos[1], point[3])
+                    elif len(point) == 3:
+                        curve_data[index] = (point[0], old_pos[0], old_pos[1])
+
+            main_window.curve_widget.set_curve_data(curve_data)
+            self.executed = False
+            return True
+
+        except Exception as e:
+            logger.error(f"Error undoing BatchMoveCommand: {e}")
+            return False
+
+    def redo(self, main_window: MainWindow) -> bool:
+        """Redo batch point movement."""
+        return self.execute(main_window)
+
+    def can_merge_with(self, other: Command) -> bool:
+        """Check if this batch move can be merged with another."""
+        if not isinstance(other, BatchMoveCommand):
+            return False
+
+        # Can merge if moving the same set of points
+        self_indices = {move[0] for move in self.moves}
+        other_indices = {move[0] for move in other.moves}
+        return self_indices == other_indices
+
+    def merge_with(self, other: Command) -> Command:
+        """Merge with another batch move command."""
+        if not isinstance(other, BatchMoveCommand) or not self.can_merge_with(other):
+            raise ValueError("Cannot merge incompatible batch moves")
+
+        # Create new moves using original positions from self and new positions from other
+        merged_moves = []
+        other_dict = {move[0]: move[2] for move in other.moves}  # index -> new_pos
+
+        for index, old_pos, _ in self.moves:
+            new_pos = other_dict[index]
+            merged_moves.append((index, old_pos, new_pos))
+
+        return BatchMoveCommand(
+            description=f"Move {len(merged_moves)} points",
+            moves=merged_moves,
+        )
+
+
+class SetPointStatusCommand(Command):
+    """
+    Command for changing the status of points.
+
+    This command is used for operations that change point status,
+    such as converting between keyframe, tracked, interpolated, and endframe.
+    """
+
+    def __init__(
+        self,
+        description: str,
+        changes: list[tuple[int, str, str]],  # (index, old_status, new_status)
+    ) -> None:
+        """
+        Initialize the set point status command.
+
+        Args:
+            description: Human-readable description
+            changes: List of (index, old_status, new_status) tuples
+        """
+        super().__init__(description)
+        self.changes = changes
+
+    def execute(self, main_window: MainWindow) -> bool:
+        """Execute status changes."""
+        try:
+            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+
+            # Apply all status changes
+            for index, _, new_status in self.changes:
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Update status, preserve other fields
+                    if len(point) >= 4:
+                        curve_data[index] = (point[0], point[1], point[2], new_status)
+                    elif len(point) == 3:
+                        curve_data[index] = (point[0], point[1], point[2], new_status)
+
+            main_window.curve_widget.set_curve_data(curve_data)
+            self.executed = True
+            return True
+
+        except Exception as e:
+            logger.error(f"Error executing SetPointStatusCommand: {e}")
+            return False
+
+    def undo(self, main_window: MainWindow) -> bool:
+        """Undo status changes."""
+        try:
+            if not main_window.curve_widget:
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+
+            # Restore all original statuses
+            for index, old_status, _ in self.changes:
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Restore original status
+                    if len(point) >= 4:
+                        curve_data[index] = (point[0], point[1], point[2], old_status)
+                    elif len(point) == 3:
+                        curve_data[index] = (point[0], point[1], point[2], old_status)
+
+            main_window.curve_widget.set_curve_data(curve_data)
+            self.executed = False
+            return True
+
+        except Exception as e:
+            logger.error(f"Error undoing SetPointStatusCommand: {e}")
+            return False
+
+    def redo(self, main_window: MainWindow) -> bool:
+        """Redo status changes."""
+        return self.execute(main_window)
+
+    def can_merge_with(self, other: Command) -> bool:
+        """Check if this status change can be merged with another."""
+        if not isinstance(other, SetPointStatusCommand):
+            return False
+
+        # Can merge if changing the same set of points
+        self_indices = {change[0] for change in self.changes}
+        other_indices = {change[0] for change in other.changes}
+        return self_indices == other_indices
+
+    def merge_with(self, other: Command) -> Command:
+        """Merge with another status change command."""
+        if not isinstance(other, SetPointStatusCommand) or not self.can_merge_with(other):
+            raise ValueError("Cannot merge incompatible status changes")
+
+        # Create new changes using original statuses from self and new statuses from other
+        merged_changes = []
+        other_dict = {change[0]: change[2] for change in other.changes}  # index -> new_status
+
+        for index, old_status, _ in self.changes:
+            new_status = other_dict[index]
+            merged_changes.append((index, old_status, new_status))
+
+        return SetPointStatusCommand(
+            description=f"Change status of {len(merged_changes)} points",
+            changes=merged_changes,
+        )
+
+
 class AddPointCommand(Command):
     """
     Command for adding new points to the curve.
