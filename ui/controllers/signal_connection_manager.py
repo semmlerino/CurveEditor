@@ -77,6 +77,15 @@ class SignalConnectionManager:
         _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)
         _ = self.main_window.state_manager.view_state_changed.connect(self.main_window.on_view_state_changed)
 
+        # Connect ViewManagementController to frame changes for background updates
+        _ = self.main_window.state_manager.frame_changed.connect(
+            self.main_window.view_management_controller.update_background_for_frame
+        )
+
+        # Connect timeline_tabs to frame changes for automatic updates
+        if self.main_window.timeline_tabs:
+            _ = self.main_window.state_manager.frame_changed.connect(self.main_window.timeline_tabs.set_current_frame)
+
         # Connect timeline controller signals (unified playback and navigation)
         _ = self.main_window.timeline_controller.frame_changed.connect(
             self.main_window.on_frame_changed_from_controller

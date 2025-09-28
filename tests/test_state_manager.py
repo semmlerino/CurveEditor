@@ -234,7 +234,7 @@ class TestStateManagerSelectionState:
 
         assert state_manager.selected_points == [2, 5, 8]
         assert selection_spy.count() == 1
-        assert selection_spy.at(0)[0] == [2, 5, 8]
+        assert selection_spy.at(0)[0] == {2, 5, 8}
 
     def test_set_selected_points_with_set(self, state_manager, qtbot):
         """Test setting selected points with set."""
@@ -285,7 +285,7 @@ class TestStateManagerSelectionState:
 
         assert state_manager.selected_points == []
         assert selection_spy.count() == 1
-        assert selection_spy.at(0)[0] == []
+        assert selection_spy.at(0)[0] == set()
 
         # Clearing empty selection doesn't emit
         state_manager.clear_selection()
@@ -560,7 +560,7 @@ class TestStateManagerReset:
         assert modified_spy.count() == 1
         assert modified_spy.at(0)[0] is False
         assert selection_spy.count() == 1
-        assert selection_spy.at(0)[0] == []
+        assert selection_spy.at(0)[0] == set()
         assert frame_spy.count() == 1
         assert frame_spy.at(0)[0] == 1
         assert view_spy.count() == 1

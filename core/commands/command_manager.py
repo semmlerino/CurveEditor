@@ -307,7 +307,7 @@ class CommandManager:
         """
         try:
             # Update state manager if available
-            if hasattr(main_window, "state_manager") and main_window.state_manager:
+            if main_window.state_manager is not None:
                 main_window.state_manager.set_history_state(
                     can_undo=self.can_undo(),
                     can_redo=self.can_redo(),
@@ -316,7 +316,7 @@ class CommandManager:
                 )
 
             # Update main window UI state (includes QActions)
-            if hasattr(main_window, "update_ui_state"):
+            if getattr(main_window, "update_ui_state", None) is not None:
                 main_window.update_ui_state()
 
             # Update UI buttons if available - use safe access pattern
@@ -325,11 +325,11 @@ class CommandManager:
                 if ui:
                     # Look for undo/redo buttons in various UI sections
                     undo_button = getattr(ui, "undo_button", None)
-                    if undo_button and hasattr(undo_button, "setEnabled"):
+                    if undo_button is not None:
                         undo_button.setEnabled(self.can_undo())
 
                     redo_button = getattr(ui, "redo_button", None)
-                    if redo_button and hasattr(redo_button, "setEnabled"):
+                    if redo_button is not None:
                         redo_button.setEnabled(self.can_redo())
             except AttributeError:
                 # UI structure may vary, ignore button update errors

@@ -7,6 +7,8 @@ tracking current file, modification status, view state, and other
 application-level state information.
 """
 
+from contextlib import contextmanager
+from enum import Enum
 from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
@@ -14,6 +16,14 @@ from PySide6.QtCore import QObject, Signal
 from core.logger_utils import get_logger
 
 logger = get_logger("state_manager")
+
+
+class PlaybackMode(Enum):
+    """Playback modes for the timeline."""
+
+    STOPPED = "stopped"
+    PLAYING = "playing"
+    PAUSED = "paused"
 
 
 class StateManager(QObject):
@@ -29,8 +39,9 @@ class StateManager(QObject):
     file_changed: Signal = Signal(str)  # Emits new file path
     modified_changed: Signal = Signal(bool)  # Emits modification status
     view_state_changed: Signal = Signal()  # Emits when view state changes
-    selection_changed: Signal = Signal(list)  # Emits list of selected indices
+    selection_changed: Signal = Signal(set)  # Emits set of selected indices
     frame_changed: Signal = Signal(int)  # Emits new frame number
+    playback_state_changed: Signal = Signal(object)  # Emits PlaybackMode
 
     def __init__(self, parent: QObject | None = None):
         """
@@ -86,6 +97,13 @@ class StateManager(QObject):
         self._history_size: int = 0
         self._can_undo: bool = False
         self._can_redo: bool = False
+
+        # Playback state
+        self._playback_mode: PlaybackMode = PlaybackMode.STOPPED
+
+        # Batch update state
+        self._batch_mode: bool = False
+        self._pending_signals: list[tuple[Signal, object]] = []
 
         logger.info("StateManager initialized")
 
@@ -201,28 +219,28 @@ class StateManager(QObject):
         new_selection = set(indices) if not isinstance(indices, set) else indices
         if self._selected_points != new_selection:
             self._selected_points = new_selection
-            self.selection_changed.emit(sorted(new_selection))
+            self._emit_signal(self.selection_changed, new_selection)
             logger.debug(f"Selection changed: {len(new_selection)} points selected")
 
     def add_to_selection(self, index: int) -> None:
         """Add a point to the selection."""
         if index not in self._selected_points:
             self._selected_points.add(index)
-            self.selection_changed.emit(sorted(self._selected_points))
+            self._emit_signal(self.selection_changed, self._selected_points)
             logger.debug(f"Added point {index} to selection")
 
     def remove_from_selection(self, index: int) -> None:
         """Remove a point from the selection."""
         if index in self._selected_points:
             self._selected_points.discard(index)
-            self.selection_changed.emit(sorted(self._selected_points))
+            self._emit_signal(self.selection_changed, self._selected_points)
             logger.debug(f"Removed point {index} from selection")
 
     def clear_selection(self) -> None:
         """Clear the current selection."""
         if self._selected_points:
             self._selected_points.clear()
-            self.selection_changed.emit([])
+            self._emit_signal(self.selection_changed, set())
             logger.debug("Selection cleared")
 
     @property
@@ -250,7 +268,7 @@ class StateManager(QObject):
         frame = max(1, min(frame, self._total_frames))
         if self._current_frame != frame:
             self._current_frame = frame
-            self.frame_changed.emit(frame)
+            self._emit_signal(self.frame_changed, frame)
             logger.debug(f"Current frame changed to: {frame}")
 
     @property
@@ -414,6 +432,63 @@ class StateManager(QObject):
         else:
             logger.warning(f"Invalid filter type: {filter_type}. Keeping current: {self._smoothing_filter_type}")
 
+    # ==================== Playback State Properties ====================
+
+    @property
+    def playback_mode(self) -> PlaybackMode:
+        """Get the current playback mode."""
+        return self._playback_mode
+
+    @playback_mode.setter
+    def playback_mode(self, mode: PlaybackMode) -> None:
+        """Set the current playback mode."""
+        if self._playback_mode != mode:
+            self._playback_mode = mode
+            self._emit_signal(self.playback_state_changed, mode)
+            logger.debug(f"Playback mode changed to: {mode.value}")
+
+    # ==================== Batch Update Support ====================
+
+    @contextmanager
+    def batch_update(self):
+        """
+        Batch multiple state changes into single signal emissions.
+
+        This prevents signal storms during complex operations by deferring
+        signal emission until the context exits.
+
+        Example:
+            with state_manager.batch_update():
+                state_manager.current_frame = 10
+                state_manager.set_selected_points([1, 2, 3])
+                # Signals are emitted here when context exits
+        """
+        self._batch_mode = True
+        self._pending_signals = []
+        try:
+            yield
+        finally:
+            self._batch_mode = False
+            # Emit all pending signals
+            for signal, value in self._pending_signals:
+                signal.emit(value)
+            self._pending_signals.clear()
+
+    def _emit_signal(self, signal: Signal, value: object) -> None:
+        """
+        Emit a signal, potentially batching if in batch mode.
+
+        Args:
+            signal: The signal to emit
+            value: The value to emit with the signal
+        """
+        if self._batch_mode:
+            # In batch mode, queue the signal
+            self._pending_signals.append((signal, value))
+        else:
+            # Normal mode, emit immediately
+            signal.emit(value)
+
     # ==================== Utility Methods ====================
 
     def reset_to_defaults(self) -> None:
@@ -456,12 +531,16 @@ class StateManager(QObject):
         self._can_undo = False
         self._can_redo = False
 
+        # Reset playback mode
+        self._playback_mode = PlaybackMode.STOPPED
+
         # Emit relevant signals
         self.file_changed.emit("")
         self.modified_changed.emit(False)
-        self.selection_changed.emit([])
+        self.selection_changed.emit(set())
         self.frame_changed.emit(1)
         self.view_state_changed.emit()
+        self.playback_state_changed.emit(PlaybackMode.STOPPED)
 
         logger.info("State manager reset to defaults")
 

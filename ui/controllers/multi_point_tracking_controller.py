@@ -161,7 +161,7 @@ class MultiPointTrackingController:
                     # Set up view for pixel-coordinate tracking data
                     self.main_window.curve_widget.setup_for_pixel_tracking()
                     trajectory = self.tracked_data[first_point]
-                    self.main_window.curve_widget.set_curve_data(trajectory)  # pyright: ignore[reportArgumentType]
+                    self.main_window.curve_widget.set_curve_data(trajectory)
                     self.main_window.state_manager.set_track_data(trajectory, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
                     # Update frame range based on all trajectories
@@ -202,9 +202,13 @@ class MultiPointTrackingController:
         # Center view on selected point at current frame
         # Small delay to ensure curve data and point selection are processed
         if self.main_window.curve_widget and point_names:
-            if hasattr(self.main_window.curve_widget, "center_on_selection"):
+            if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
                 # Use small delay to allow widget updates to complete
-                QTimer.singleShot(10, self.main_window.curve_widget.center_on_selection)
+                def safe_center_on_selection():
+                    if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
+                        self.main_window.curve_widget.center_on_selection()
+
+                QTimer.singleShot(10, safe_center_on_selection)
                 logger.debug("Scheduled centering on selected point after 10ms delay")
 
         logger.debug(f"Selected tracking points: {point_names}")
@@ -218,7 +222,9 @@ class MultiPointTrackingController:
             visible: Whether the point should be visible
         """
         # Update curve visibility directly if multi-curve is supported
-        if hasattr(self.main_window.curve_widget, "update_curve_visibility"):
+        if self.main_window.curve_widget is not None and callable(
+            getattr(self.main_window.curve_widget, "update_curve_visibility", None)
+        ):
             self.main_window.curve_widget.update_curve_visibility(point_name, visible)
         else:
             # Fallback to full display update
@@ -234,7 +240,9 @@ class MultiPointTrackingController:
             color: New color for the point
         """
         # Update curve color directly if multi-curve is supported
-        if hasattr(self.main_window.curve_widget, "update_curve_color"):
+        if self.main_window.curve_widget is not None and callable(
+            getattr(self.main_window.curve_widget, "update_curve_color", None)
+        ):
             self.main_window.curve_widget.update_curve_color(point_name, color)
         else:
             # Fallback to full display update
@@ -339,16 +347,17 @@ class MultiPointTrackingController:
             return
 
         # Check if curve widget supports multi-curve display
-        if hasattr(self.main_window.curve_widget, "set_curves_data"):
+        if self.main_window.curve_widget is not None and callable(
+            getattr(self.main_window.curve_widget, "set_curves_data", None)
+        ):
             # Get metadata from tracking panel if available
-            metadata = {}
-            if hasattr(self.main_window, "tracking_panel"):
-                panel = self.main_window.tracking_panel
+            metadata: dict[str, dict[str, str | bool]] = {}
+            if self.main_window.tracking_panel is not None:
+                # Use public interface for getting point metadata
                 for name in self.tracked_data:
-                    point_meta = panel._point_metadata.get(name, {})
                     metadata[name] = {
-                        "visible": point_meta.get("visible", True),
-                        "color": point_meta.get("color", "#FFFFFF"),
+                        "visible": self.main_window.tracking_panel.get_point_visibility(name),
+                        "color": self.main_window.tracking_panel.get_point_color(name),
                     }
 
             # Set all curves with the active points as selected
@@ -361,8 +370,12 @@ class MultiPointTrackingController:
             )
 
             # After setting curve data, select point at current frame for better centering
-            if active_curve and hasattr(self.main_window.curve_widget, "select_point_at_frame"):
-                current_frame = self.main_window.current_frame
+            if (
+                active_curve
+                and self.main_window.curve_widget is not None
+                and callable(getattr(self.main_window.curve_widget, "select_point_at_frame", None))
+            ):
+                current_frame = getattr(self.main_window, "current_frame", 0)
                 self.main_window.curve_widget.select_point_at_frame(current_frame)
                 logger.debug(f"Selected point at frame {current_frame} for active curve {active_curve}")
         else:
@@ -372,8 +385,10 @@ class MultiPointTrackingController:
                 self.main_window.curve_widget.set_curve_data(trajectory)
 
                 # Select point at current frame for better centering
-                if hasattr(self.main_window.curve_widget, "select_point_at_frame"):
-                    current_frame = self.main_window.current_frame
+                if self.main_window.curve_widget is not None and callable(
+                    getattr(self.main_window.curve_widget, "select_point_at_frame", None)
+                ):
+                    current_frame = getattr(self.main_window, "current_frame", 0)
                     self.main_window.curve_widget.select_point_at_frame(current_frame)
                     logger.debug(f"Selected point at frame {current_frame} for fallback display")
             else:

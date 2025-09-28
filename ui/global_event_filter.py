@@ -129,17 +129,17 @@ class GlobalEventFilter(QObject):
 
         # Get selected curve points
         selected_curve_points = set()
-        if hasattr(self.main_window, "curve_widget") and self.main_window.curve_widget:
+        if self.main_window.curve_widget is not None:
             selected_curve_points = self.main_window.curve_widget.selected_indices
 
         # Get selected tracking points
         selected_tracking_points = []
-        if hasattr(self.main_window, "tracking_panel") and self.main_window.tracking_panel:
+        if getattr(self.main_window, "tracking_panel", None) is not None:
             selected_tracking_points = self.main_window.tracking_panel.get_selected_points()
 
         # Get current frame
         current_frame = None
-        if hasattr(self.main_window, "current_frame"):
+        if getattr(self.main_window, "current_frame", None) is not None:
             current_frame = self.main_window.current_frame
 
         return ShortcutContext(
@@ -170,7 +170,7 @@ class GlobalEventFilter(QObject):
 
         if isinstance(obj, skip_types):
             # Check if the widget is in edit mode
-            if hasattr(obj, "hasFocus") and obj.hasFocus():
+            if obj.hasFocus():
                 return True
 
         # Check for combo box dropdown

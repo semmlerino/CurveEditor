@@ -48,7 +48,7 @@ class SetCurveDataCommand(Command):
         try:
             # Capture old data if not provided
             if self.old_data is None:
-                if main_window.curve_widget and hasattr(main_window.curve_widget, "curve_data"):
+                if main_window.curve_widget is not None:
                     self.old_data = copy.deepcopy(main_window.curve_widget.curve_data)
                 else:
                     self.old_data = []
@@ -124,7 +124,7 @@ class SmoothCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute smoothing operation."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if main_window.curve_widget is None:
                 logger.error("No curve widget or curve data available")
                 return False
 
@@ -306,7 +306,7 @@ class MovePointCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point movement."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if main_window.curve_widget is None:
                 return False
 
             curve_data = list(main_window.curve_widget.curve_data)
@@ -398,7 +398,7 @@ class DeletePointsCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point deletion."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if main_window.curve_widget is None:
                 return False
 
             curve_data = list(main_window.curve_widget.curve_data)
@@ -475,7 +475,7 @@ class BatchMoveCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute batch point movement."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if main_window.curve_widget is None:
                 return False
 
             curve_data = list(main_window.curve_widget.curve_data)
@@ -583,22 +583,22 @@ class SetPointStatusCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute status changes."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if not main_window.curve_widget:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            # Get the curve store to update individual point statuses
+            # This preserves selections and emits appropriate signals
+            from stores import get_store_manager
 
-            # Apply all status changes
+            store_manager = get_store_manager()
+            curve_store = store_manager.get_curve_store()
+
+            # Apply all status changes using store method
             for index, _, new_status in self.changes:
-                if 0 <= index < len(curve_data):
-                    point = curve_data[index]
-                    # Update status, preserve other fields
-                    if len(point) >= 4:
-                        curve_data[index] = (point[0], point[1], point[2], new_status)
-                    elif len(point) == 3:
-                        curve_data[index] = (point[0], point[1], point[2], new_status)
+                success = curve_store.set_point_status(index, new_status)
+                if not success:
+                    logger.warning(f"Failed to set status for point {index}")
 
-            main_window.curve_widget.set_curve_data(curve_data)
             self.executed = True
             return True
 
@@ -612,19 +612,19 @@ class SetPointStatusCommand(Command):
             if not main_window.curve_widget:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            # Get the curve store to restore individual point statuses
+            # This preserves selections and emits appropriate signals
+            from stores import get_store_manager
 
-            # Restore all original statuses
+            store_manager = get_store_manager()
+            curve_store = store_manager.get_curve_store()
+
+            # Restore all original statuses using store method
             for index, old_status, _ in self.changes:
-                if 0 <= index < len(curve_data):
-                    point = curve_data[index]
-                    # Restore original status
-                    if len(point) >= 4:
-                        curve_data[index] = (point[0], point[1], point[2], old_status)
-                    elif len(point) == 3:
-                        curve_data[index] = (point[0], point[1], point[2], old_status)
+                success = curve_store.set_point_status(index, old_status)
+                if not success:
+                    logger.warning(f"Failed to restore status for point {index}")
 
-            main_window.curve_widget.set_curve_data(curve_data)
             self.executed = False
             return True
 
@@ -686,7 +686,7 @@ class AddPointCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point addition."""
         try:
-            if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
+            if main_window.curve_widget is None:
                 return False
 
             curve_data = list(main_window.curve_widget.curve_data)

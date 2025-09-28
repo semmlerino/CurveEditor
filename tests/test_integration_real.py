@@ -12,7 +12,6 @@ from PySide6.QtWidgets import QApplication
 from core.models import CurvePoint
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
-from services.transform_service import Transform
 from tests.qt_test_helpers import create_test_image, safe_painter
 
 
@@ -128,47 +127,33 @@ class TestRenderingPipeline:
     def test_renderer_with_transform_service(self, app):
         """Test renderer using Transform service."""
         renderer = OptimizedCurveRenderer()
-        transform_service = get_transform_service()
 
-        # Create transform
-        transform = transform_service.create_transform(scale=2.0, center_offset=(100, 100), pan_offset=(50, 50))
+        # Create RenderState with test data
+        from rendering.render_state import RenderState
 
-        # Create mock curve view
-        class MockCurveView:
-            def __init__(self):
-                self.points = [
-                    (1, 100, 100),
-                    (2, 200, 200),
-                    (3, 300, 300),
-                ]
-                self.transform = transform
-                self.show_background = False
-                self.show_grid = True
-                self.selected_points = {1}  # Select middle point
-                self.point_radius = 5
-                self.selected_point_radius = 7
-                self.zoom_factor = 2.0
-                self.pan_offset_x = 50
-                self.pan_offset_y = 50
-                self.manual_offset_x = 0
-                self.manual_offset_y = 0
-                self.flip_y_axis = False
-                self.image_width = 800
-                self.image_height = 600
-                self.main_window = None  # For OptimizedCurveRenderer compatibility
-                self.background_image = None  # Required by renderer
-                self.show_all_frame_numbers = False  # Required by renderer
-
-            def get_transform(self):
-                return self.transform
-
-            def width(self):
-                return 800
-
-            def height(self):
-                return 600
-
-        view = MockCurveView()
+        render_state = RenderState(
+            points=[
+                (1, 100, 100),
+                (2, 200, 200),
+                (3, 300, 300),
+            ],
+            current_frame=1,
+            selected_points={1},  # Select middle point
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=2.0,
+            pan_offset_x=50,
+            pan_offset_y=50,
+            manual_offset_x=0,
+            manual_offset_y=0,
+            flip_y_axis=False,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
 
         # Create properly initialized image
         image = create_test_image(800, 600)
@@ -176,7 +161,7 @@ class TestRenderingPipeline:
         # Use safe painter context manager to ensure proper cleanup
         with safe_painter(image) as painter:
             # Render
-            renderer.render(painter, None, view)
+            renderer.render(painter, None, render_state)
 
         # Check that something was rendered
         assert renderer._render_count > 0
@@ -185,51 +170,33 @@ class TestRenderingPipeline:
         """Test that background and curve stay synchronized."""
         renderer = OptimizedCurveRenderer()
 
-        # Create view with background
-        class MockViewWithBackground:
-            def __init__(self):
-                self.points = [(1, 100, 100), (2, 400, 300)]
-                self.show_background = True
-                self.main_window = None  # For OptimizedCurveRenderer compatibility
-                self.background_image = QImage(800, 600, QImage.Format.Format_RGB32)
-                self.background_image.fill(Qt.GlobalColor.blue)
-                self.background_opacity = 0.5
-                self.show_grid = False
-                self.selected_points = set()
-                self.point_radius = 5
-                self.selected_point_radius = 7
-                self.zoom_factor = 2.0
-                self.pan_offset_x = 100
-                self.pan_offset_y = 50
-                self.manual_offset_x = 0
-                self.manual_offset_y = 0
-                self.flip_y_axis = False
-                self.image_width = 800
-                self.image_height = 600
-                self.show_all_frame_numbers = False  # Required by renderer
+        # Create background image
+        background_image = QImage(800, 600, QImage.Format.Format_RGB32)
+        background_image.fill(Qt.GlobalColor.blue)
 
-            def get_transform(self):
-                # Calculate center offset
-                scaled_width = self.image_width * self.zoom_factor
-                scaled_height = self.image_height * self.zoom_factor
-                center_x = (self.width() - scaled_width) / 2
-                center_y = (self.height() - scaled_height) / 2
+        # Create RenderState with background
+        from rendering.render_state import RenderState
 
-                return Transform(
-                    scale=self.zoom_factor,
-                    center_offset_x=center_x,
-                    center_offset_y=center_y,
-                    pan_offset_x=self.pan_offset_x,
-                    pan_offset_y=self.pan_offset_y,
-                )
-
-            def width(self):
-                return 800
-
-            def height(self):
-                return 600
-
-        view = MockViewWithBackground()
+        render_state = RenderState(
+            points=[(1, 100, 100), (2, 400, 300)],
+            current_frame=1,
+            selected_points=set(),
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=2.0,
+            pan_offset_x=100,
+            pan_offset_y=50,
+            manual_offset_x=0,
+            manual_offset_y=0,
+            flip_y_axis=False,
+            show_background=True,
+            background_image=background_image,
+            background_opacity=0.5,
+            image_width=800,
+            image_height=600,
+            show_grid=False,
+            point_radius=5,
+        )
 
         # Create properly initialized image
         image = create_test_image(800, 600)
@@ -237,7 +204,7 @@ class TestRenderingPipeline:
         # Use safe painter context manager to ensure proper cleanup
         with safe_painter(image) as painter:
             # Render
-            renderer.render(painter, None, view)
+            renderer.render(painter, None, render_state)
 
         # Both background and curves should be rendered
         # Check that render completed without errors
@@ -247,50 +214,31 @@ class TestRenderingPipeline:
         """Test viewport culling with large dataset."""
         renderer = OptimizedCurveRenderer()
 
-        # Create view with many points
-        class MockLargeDataView:
-            def __init__(self):
-                # Create 1000 points (enough to test viewport culling without memory issues)
-                self.points = [(i, i * 10, i * 5) for i in range(1000)]
-                self.main_window = None  # For OptimizedCurveRenderer compatibility
-                self.show_background = False
-                self.show_grid = False
-                self.selected_points = set()
-                self.point_radius = 3
-                self.selected_point_radius = 5
-                self.zoom_factor = 1.0
-                self.pan_offset_x = 0
-                self.pan_offset_y = 0
-                self.manual_offset_x = 0
-                self.manual_offset_y = 0
-                self.flip_y_axis = False
-                self.image_width = 800
-                self.image_height = 600
-                self.background_image = None  # Required by renderer
-                self.show_all_frame_numbers = False  # Required by renderer
+        # Create 1000 points (enough to test viewport culling without memory issues)
+        large_points = [(i, i * 10, i * 5) for i in range(1000)]
 
-            def get_transform(self):
-                # Calculate center offset for proper Transform initialization
-                scaled_width = self.image_width * self.zoom_factor
-                scaled_height = self.image_height * self.zoom_factor
-                center_x = (self.width() - scaled_width) / 2
-                center_y = (self.height() - scaled_height) / 2
+        # Create RenderState with large dataset
+        from rendering.render_state import RenderState
 
-                return Transform(
-                    scale=self.zoom_factor,
-                    center_offset_x=center_x,
-                    center_offset_y=center_y,
-                    pan_offset_x=self.pan_offset_x,
-                    pan_offset_y=self.pan_offset_y,
-                )
-
-            def width(self):
-                return 800
-
-            def height(self):
-                return 600
-
-        view = MockLargeDataView()
+        render_state = RenderState(
+            points=large_points,
+            current_frame=1,
+            selected_points=set(),
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=1.0,
+            pan_offset_x=0,
+            pan_offset_y=0,
+            manual_offset_x=0,
+            manual_offset_y=0,
+            flip_y_axis=False,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=False,
+            point_radius=3,
+        )
 
         # Create properly initialized image (using QImage for thread safety per Qt best practices)
         image = create_test_image(800, 600)
@@ -298,7 +246,7 @@ class TestRenderingPipeline:
         # Use safe painter context manager for guaranteed cleanup
         with safe_painter(image) as painter:
             # Render with proper resource management - should use viewport culling
-            renderer.render(painter, None, view)
+            renderer.render(painter, None, render_state)
 
         # Should have culled most points (only visible ones rendered)
         # Renderer should complete quickly even with 1000 points
@@ -306,7 +254,7 @@ class TestRenderingPipeline:
         assert stats["render_count"] > 0
 
         # Verify the large dataset was handled without crash
-        assert len(view.points) == 1000
+        assert len(large_points) == 1000
 
 
 class TestUIIntegration:

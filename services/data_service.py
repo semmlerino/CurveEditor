@@ -557,7 +557,7 @@ class DataService:
                                 if isinstance(pt_status, str) and pt_status == "keyframe":
                                     has_keyframe_between = True
                                     break
-                                elif hasattr(pt_status, "value") and pt_status.value == "keyframe":
+                                elif getattr(pt_status, "value", None) == "keyframe":
                                     has_keyframe_between = True
                                     break
 

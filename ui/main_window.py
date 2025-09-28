@@ -209,6 +209,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._store_manager = get_store_manager()
         self._curve_store = self._store_manager.get_curve_store()
 
+        # Connect StateManager to FrameStore for delegation
+        self._store_manager.set_state_manager(self.state_manager)
+
         # Initialize controllers (typed as protocols for better decoupling)
         self.timeline_controller = TimelineController(self.state_manager, self)
         self.action_controller = ActionHandlerController(self.state_manager, self)
@@ -409,35 +412,20 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         so we just need to update other dependent components.
         """
         logger.debug(f"[FRAME] Frame changed via controller to: {frame}")
-        # Update dependent components using existing logic
-        self._update_frame_display(frame, update_state_manager=False)
+        # Update dependent components using simplified Observer pattern
+        # Note: StateManager already updated by controller, so we skip duplicate update
+        # All observers will be notified via existing signals
 
-    def _update_frame_display(self, frame: int, update_state_manager: bool = True) -> None:
-        """Shared method to update frame display across all UI components.
-
-        Note: Spinbox/slider updates are now handled by TimelineController.
+    def _update_frame_display(self, frame: int) -> None:
         """
-        # Controller now handles spinbox/slider synchronization
+        Update frame display using KISS/SOLID Observer pattern.
 
-        # Update timeline tabs if available (delegated to TimelineController)
-        self.timeline_controller.update_for_current_frame(frame)
-
-        # Update state manager (only when called from user input, not state sync)
-        if update_state_manager:
-            self.state_manager.current_frame = frame
-            logger.debug(f"[FRAME] State manager current_frame set to: {self.state_manager.current_frame}")
-
-        # Update background image if image sequence is loaded
-        # Update background image for frame (delegated to ViewManagementController)
-        self.view_management_controller.update_background_for_frame(frame)
-
-        # Update curve widget to highlight current frame's point
-        if self.curve_widget:
-            # Notify curve widget of frame change for centering mode
-            self.curve_widget.on_frame_changed(frame)
-            # Invalidate caches to ensure proper repainting with new frame highlight
-            self.curve_widget.invalidate_caches()
-            self.curve_widget.update()
+        Simply updates StateManager - all observers react automatically via signals.
+        This eliminates cascade calls and tight coupling.
+        """
+        # Single source of truth update - observers handle the rest
+        self.state_manager.current_frame = frame
+        logger.debug(f"[FRAME] StateManager updated to frame {frame} - signals will notify observers")
 
     # Frame navigation and playback methods removed - now handled by TimelineController
     # The controller manages play/pause, FPS changes, and oscillating playback
@@ -583,10 +571,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Mark loading as complete but keep worker alive for reuse
         self._file_loading = False
 
-    def _update_background_image_for_frame(self, frame: int) -> None:
-        """Update background image (delegated to ViewManagementController)."""
-        self.view_management_controller.update_background_for_frame(frame)
-
     @Slot()
     def _on_action_undo(self) -> None:
         """Handle undo action (delegated to ActionHandlerController)."""
@@ -662,10 +646,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== State Change Handlers ====================
 
-    @Slot(list)
-    def on_selection_changed(self, indices: list[int]) -> None:
+    @Slot(set)
+    def on_selection_changed(self, indices: set[int]) -> None:
         """Handle selection change from state manager (delegated to PointEditorController)."""
-        self.point_editor_controller.on_selection_changed(indices)
+        # Convert set to sorted list for compatibility with PointEditorController
+        self.point_editor_controller.on_selection_changed(sorted(indices))
 
     @Slot()
     def on_view_state_changed(self) -> None:
@@ -850,8 +835,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot(int)
     def on_state_frame_changed(self, frame: int) -> None:
         """Handle frame change from state manager."""
-        # Use shared frame update logic, but don't update state manager to avoid loops
-        self._update_frame_display(frame, update_state_manager=False)
+        # StateManager already updated - Observer pattern handles propagation automatically
+        # No manual cascade calls needed with KISS/SOLID architecture
+        logger.debug(f"[FRAME] Received StateManager frame_changed signal for frame {frame}")
 
     # ==================== Utility Methods ====================
 
@@ -1154,14 +1140,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Remove global event filter to prevent accumulation
         app = QApplication.instance()
-        if app and hasattr(self, "global_event_filter"):
+        if app and getattr(self, "global_event_filter", None) is not None:
             app.removeEventFilter(self.global_event_filter)
             logger.info("Removed global event filter")
 
         # Stop playback timer if running
-        if hasattr(self, "timeline_controller") and self.timeline_controller is not None:
+        if getattr(self, "timeline_controller", None) is not None:
             self.timeline_controller.stop_playback()
-            if hasattr(self.timeline_controller, "playback_timer"):
+            if getattr(self.timeline_controller, "playback_timer", None) is not None:
                 self.timeline_controller.playback_timer.stop()
 
         # Stop any file operation threads

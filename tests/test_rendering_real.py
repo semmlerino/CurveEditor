@@ -261,57 +261,37 @@ class TestOptimizedCurveRenderer:
         # Create properly initialized image to render to
         image = create_test_image(800, 600, QColor(0, 0, 0))
 
-        # Create a mock curve view with minimal required attributes
-        class MockCurveView:
-            def __init__(self) -> None:
-                self.points = [
-                    (1, 100, 100),
-                    (2, 200, 200),
-                    (3, 300, 300),
-                ]
-                self.show_background = False
-                self.show_grid = False
-                self.selected_points: set[int] = set()
-                self.point_radius = 5
-                self.selected_point_radius = 7
-                self.zoom_factor = 1.0
-                self.pan_offset_x = 0
-                self.pan_offset_y = 0
-                self.manual_offset_x = 0
-                self.manual_offset_y = 0
-                self.flip_y_axis = False
-                self.image_width = 800
-                self.image_height = 600
-                self._width = 800
-                self.main_window = None  # For OptimizedCurveRenderer compatibility
-                self._height = 600
-                self.background_image = None  # Required by renderer
-                self.show_all_frame_numbers = False  # Required by renderer
-                self.show_info = False  # Disable info rendering in tests to avoid text drawing issues
+        # Create a RenderState object with test data
+        from rendering.render_state import RenderState
 
-            def width(self) -> int:
-                return self._width
-
-            def height(self) -> int:
-                return self._height
-
-            def get_transform(self) -> object:
-                from services.transform_service import Transform
-
-                return Transform(
-                    scale=self.zoom_factor,
-                    center_offset_x=0.0,
-                    center_offset_y=0.0,
-                    pan_offset_x=self.pan_offset_x,
-                    pan_offset_y=self.pan_offset_y,
-                )
-
-        curve_view = MockCurveView()
+        render_state = RenderState(
+            points=[
+                (1, 100, 100),
+                (2, 200, 200),
+                (3, 300, 300),
+            ],
+            current_frame=1,
+            selected_points=set(),
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=1.0,
+            pan_offset_x=0,
+            pan_offset_y=0,
+            manual_offset_x=0,
+            manual_offset_y=0,
+            flip_y_axis=False,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=False,
+            point_radius=5,
+        )
 
         # Use safe painter context manager for guaranteed cleanup
         with safe_painter(image) as painter:  # pyright: ignore[reportUnknownVariableType]
             # Render
-            renderer.render(painter, None, curve_view)
+            renderer.render(painter, None, render_state)
 
         # Check that render count increased
         assert renderer._render_count > 0

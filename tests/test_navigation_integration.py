@@ -231,7 +231,7 @@ class TestNavigationIntegration:
         # Navigate using Page Down
         window.state_manager.current_frame = 1
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(window.timeline_tabs, key_event)
+        QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(50)
 
         # Check signal was emitted
@@ -278,6 +278,10 @@ class TestNavigationIntegration:
 
         initial_frame = 10
         window.state_manager.current_frame = initial_frame
+
+        # Ensure timeline_tabs is properly synchronized
+        if window.timeline_tabs:
+            window.timeline_tabs.set_current_frame(initial_frame)
 
         # Rapidly send multiple navigation commands
         for _ in range(5):

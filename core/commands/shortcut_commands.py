@@ -127,7 +127,8 @@ class SetEndframeCommand(ShortcutCommand):
                 if 0 <= frame_index < len(curve_widget.curve_data):
                     point = curve_widget._curve_store.get_point(frame_index)
                     if point and len(point) >= 4:
-                        current_status = point[3]
+                        # Normalize current status to string format for command compatibility
+                        current_status = PointStatus.from_legacy(point[3]).to_legacy_string()
 
                         # Toggle logic
                         if current_status == PointStatus.ENDFRAME.value:

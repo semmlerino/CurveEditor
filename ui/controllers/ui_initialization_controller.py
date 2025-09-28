@@ -376,8 +376,8 @@ class UIInitializationController:
         layout = QVBoxLayout(container)
         layout.setContentsMargins(0, 0, 0, 0)
 
-        # Create the actual CurveViewWidget
-        self.main_window.curve_widget = CurveViewWidget(container)
+        # Create the actual CurveViewWidget with dependency injection
+        self.main_window.curve_widget = CurveViewWidget(container, state_manager=self.main_window.state_manager)
         self.main_window.curve_widget.set_main_window(self.main_window)  # pyright: ignore[reportArgumentType]
 
         # Ensure the curve widget can receive keyboard focus

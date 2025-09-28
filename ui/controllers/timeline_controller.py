@@ -40,7 +40,6 @@ class PlaybackState:
 
     mode: PlaybackMode = PlaybackMode.STOPPED
     fps: int = 12
-    current_frame: int = 1
     min_frame: int = 1
     max_frame: int = 100
     loop_boundaries: bool = True  # True for oscillation, False for loop-to-start
@@ -193,9 +192,8 @@ class TimelineController(QObject):
 
     def _update_frame(self, frame: int) -> None:
         """Update the current frame and notify listeners."""
-        # Update state manager
+        # Update state manager (single source of truth)
         self.state_manager.current_frame = frame
-        self.playback_state.current_frame = frame
         logger.debug(f"[FRAME] Current frame set to: {frame}")
 
         # Emit signal for other components
@@ -257,7 +255,6 @@ class TimelineController(QObject):
 
         if update_state:
             self.state_manager.current_frame = frame
-            self.playback_state.current_frame = frame
             logger.debug(f"[FRAME] Display updated to: {frame}")
 
     def get_current_frame(self) -> int:
@@ -335,7 +332,6 @@ class TimelineController(QObject):
 
         # Set initial mode
         self.playback_state.mode = PlaybackMode.PLAYING_FORWARD
-        self.playback_state.current_frame = self.state_manager.current_frame
 
         # Start timer
         fps = self.fps_spinbox.value()
@@ -497,12 +493,7 @@ class TimelineController(QObject):
         """Update timeline to show current frame."""
         self.update_frame_display(frame)
 
-        # Also update timeline tabs if available
-        if hasattr(self.main_window, "timeline_tabs") and self.main_window.timeline_tabs:
-            logger.debug(f"Updating timeline_tabs to frame {frame}")
-            self.main_window.timeline_tabs.set_current_frame(frame)
-        else:
-            logger.debug(f"Timeline_tabs not available for update to frame {frame}")
+        # Timeline tabs will update themselves via StateManager.frame_changed signal
 
         logger.debug(f"Updated timeline for frame {frame}")
 

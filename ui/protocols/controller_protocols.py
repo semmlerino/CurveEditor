@@ -65,6 +65,46 @@ class ActionHandlerProtocol(Protocol):
         """Get current curve data."""
         ...
 
+    def _on_action_undo(self) -> None:
+        """Handle undo action."""
+        ...
+
+    def _on_action_redo(self) -> None:
+        """Handle redo action."""
+        ...
+
+    def _on_action_zoom_in(self) -> None:
+        """Handle zoom in action."""
+        ...
+
+    def _on_action_zoom_out(self) -> None:
+        """Handle zoom out action."""
+        ...
+
+    def _on_action_reset_view(self) -> None:
+        """Handle reset view action."""
+        ...
+
+    def _on_load_images(self) -> None:
+        """Handle load images action."""
+        ...
+
+    def _on_export_data(self) -> None:
+        """Handle export data action."""
+        ...
+
+    def _on_smooth_curve(self) -> None:
+        """Handle smooth curve action."""
+        ...
+
+    def _on_filter_curve(self) -> None:
+        """Handle filter curve action."""
+        ...
+
+    def _on_analyze_curve(self) -> None:
+        """Handle analyze curve action."""
+        ...
+
 
 @runtime_checkable
 class ViewOptionsProtocol(Protocol):
@@ -108,6 +148,14 @@ class ViewOptionsProtocol(Protocol):
 
     def set_view_options(self, options: dict[str, object]) -> None:
         """Set view options from dictionary."""
+        ...
+
+    def on_image_sequence_loaded(self) -> None:
+        """Handle image sequence loaded event."""
+        ...
+
+    def update_background_for_frame(self, frame: int) -> None:
+        """Update background image for specific frame."""
         ...
 
 
@@ -154,6 +202,17 @@ class TimelineControllerProtocol(Protocol):
     def clear(self) -> None:
         """Clear the timeline tabs."""
         ...
+
+    def get_current_frame(self) -> int:
+        """Get the current frame number."""
+        ...
+
+    def stop_playback(self) -> None:
+        """Stop playback if active."""
+        ...
+
+    # Playback timer attribute
+    playback_timer: Any  # QTimer for playback control
 
 
 @runtime_checkable

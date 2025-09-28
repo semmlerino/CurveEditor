@@ -1,27 +1,32 @@
 """
 Reactive frame state store for CurveEditor.
 
-This store manages all frame-related state including current frame,
-frame range, and playback state. It derives frame range from the
-CurveDataStore to maintain a single source of truth.
+This store manages frame range and playback state, while delegating
+current_frame to StateManager to maintain single source of truth.
+It derives frame range from the CurveDataStore.
 """
+
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 
+if TYPE_CHECKING:
+    from ui.state_manager import StateManager
+
 logger = get_logger("frame_store")
 
 
 class FrameStore(QObject):
     """
-    Centralized store for frame-related state with reactive signals.
+    Store for frame range and playback state with reactive signals.
 
     This store manages:
-    - Current frame position
     - Frame range (derived from curve data)
     - Playback state
+    - Delegates current_frame to StateManager (single source of truth)
     """
 
     # Signals for frame state changes
@@ -33,20 +38,29 @@ class FrameStore(QObject):
         """Initialize the frame store."""
         super().__init__()
 
-        # Frame state
-        self._current_frame: int = 1
+        # Frame range state (current_frame delegated to StateManager)
         self._min_frame: int = 1
         self._max_frame: int = 1
         self._is_playing: bool = False
 
-        logger.info("FrameStore initialized")
+        # StateManager reference (will be set by store manager)
+        self._state_manager: StateManager | None = None
+
+        logger.info("FrameStore initialized (delegates current_frame to StateManager)")
+
+    def set_state_manager(self, state_manager: "StateManager") -> None:
+        """Set the StateManager reference for current_frame delegation."""
+        self._state_manager = state_manager
+        logger.debug("StateManager reference set for frame delegation")
 
     # ==================== Frame Access ====================
 
     @property
     def current_frame(self) -> int:
-        """Get the current frame."""
-        return self._current_frame
+        """Get the current frame from StateManager (single source of truth)."""
+        if self._state_manager is not None:
+            return self._state_manager.current_frame
+        return 1  # Fallback if StateManager not set yet
 
     @property
     def min_frame(self) -> int:
@@ -72,18 +86,26 @@ class FrameStore(QObject):
 
     def set_current_frame(self, frame: int) -> None:
         """
-        Set the current frame.
+        Set the current frame via StateManager (single source of truth).
 
         Args:
             frame: Frame number to set (will be clamped to valid range)
         """
+        if self._state_manager is None:
+            logger.warning("StateManager not set - cannot set current frame")
+            return
+
         # Clamp to valid range
         frame = max(self._min_frame, min(frame, self._max_frame))
 
-        if self._current_frame != frame:
-            self._current_frame = frame
+        # Get current frame from StateManager for comparison
+        current = self._state_manager.current_frame
+        if current != frame:
+            # Update StateManager (single source of truth)
+            self._state_manager.current_frame = frame
+            # Emit our signal for components that depend on FrameStore
             self.current_frame_changed.emit(frame)
-            logger.debug(f"Current frame changed to: {frame}")
+            logger.debug(f"Current frame set via StateManager to: {frame}")
 
     def set_playback_state(self, is_playing: bool) -> None:
         """
@@ -99,11 +121,11 @@ class FrameStore(QObject):
 
     def next_frame(self) -> None:
         """Move to next frame."""
-        self.set_current_frame(self._current_frame + 1)
+        self.set_current_frame(self.current_frame + 1)
 
     def previous_frame(self) -> None:
         """Move to previous frame."""
-        self.set_current_frame(self._current_frame - 1)
+        self.set_current_frame(self.current_frame - 1)
 
     def first_frame(self) -> None:
         """Move to first frame."""
@@ -166,10 +188,16 @@ class FrameStore(QObject):
             self._min_frame = min_frame
             self._max_frame = max_frame
 
+            # Update StateManager's total_frames to accommodate new range
+            if self._state_manager is not None:
+                # Set total_frames to max_frame to allow current_frame to be set anywhere in range
+                self._state_manager.total_frames = max_frame
+
             # Ensure current frame is within new range
-            if self._current_frame < min_frame:
+            current = self.current_frame
+            if current < min_frame:
                 self.set_current_frame(min_frame)
-            elif self._current_frame > max_frame:
+            elif current > max_frame:
                 self.set_current_frame(max_frame)
 
             self.frame_range_changed.emit(min_frame, max_frame)
@@ -177,10 +205,14 @@ class FrameStore(QObject):
 
     def clear(self) -> None:
         """Clear the frame store to default state."""
-        self._current_frame = 1
+        # Reset frame range
         self._min_frame = 1
         self._max_frame = 1
         self._is_playing = False
+
+        # Reset current frame via StateManager
+        if self._state_manager is not None:
+            self._state_manager.current_frame = 1
 
         # Emit signals for reset
         self.current_frame_changed.emit(1)

@@ -29,7 +29,7 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, Any, cast, override
 
 from PySide6.QtCore import (
     QPointF,
@@ -60,6 +60,7 @@ from core.type_aliases import CurveDataList
 
 # Import optimized renderer for 47x performance improvement
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
+from rendering.render_state import RenderState
 
 # Import services
 from services import get_data_service, get_interaction_service
@@ -77,12 +78,14 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     from services.interaction_service import InteractionService
+    from ui.state_manager import StateManager
 
     class MainWindow(Protocol):
         """Main window protocol for type checking."""
 
         current_frame: int
         status_bar: QStatusBar
+        state_manager: StateManager
 
         def add_to_history(self) -> None: ...
 else:
@@ -131,17 +134,21 @@ class CurveViewWidget(QWidget):
     zoom_changed: Signal = Signal(float)  # zoom level
     data_changed: Signal = Signal()  # curve data changed
 
-    def __init__(self, parent: QWidget | None = None):
+    def __init__(self, parent: QWidget | None = None, state_manager: StateManager | None = None):
         """
         Initialize the CurveViewWidget.
 
         Args:
             parent: Parent widget (typically MainWindow)
+            state_manager: Optional state manager for dependency injection
         """
         super().__init__(parent)
 
         # Signal management for proper cleanup
         self.signal_manager: SignalManager = SignalManager(self)
+
+        # Store injected state manager
+        self._state_manager = state_manager
 
         # Get the reactive data store
         self._store_manager = get_store_manager()
@@ -150,13 +157,18 @@ class CurveViewWidget(QWidget):
         # Connect to store signals for reactive updates
         self._connect_store_signals()
 
+        # Connect state manager signals if available
+        if self._state_manager is not None:
+            self._state_manager.frame_changed.connect(self._on_state_frame_changed)
+            logger.debug("Connected to injected state manager frame_changed signal")
+
         # Core data (now derived from store)
         self.point_collection: PointCollection | None = None
         self.hover_index: int = -1
 
         # Multi-curve support
         self.curves_data: dict[str, CurveDataList] = {}  # All curves with names
-        self.curve_metadata: dict[str, dict] = {}  # Per-curve visibility/color settings
+        self.curve_metadata: dict[str, dict[str, Any]] = {}  # Per-curve visibility/color settings
         self.active_curve_name: str | None = None  # Currently selected curve for editing
         self.show_all_curves: bool = False  # Toggle for showing all curves
         self.selected_curve_names: set[str] = set()  # Currently selected curves to display
@@ -260,6 +272,30 @@ class CurveViewWidget(QWidget):
 
         logger.debug("Connected to reactive store signals")
 
+    def _connect_state_manager_signals(self) -> None:
+        """Connect to state manager signals for frame updates."""
+        # Use injected state manager or fallback to main window
+        if self._state_manager is not None:
+            state_manager = self._state_manager
+            state_manager.frame_changed.connect(self._on_state_frame_changed)
+            logger.debug("Connected to state manager frame_changed signal")
+        else:
+            # No state manager available - will connect later if main window provides one
+            logger.debug("No state manager available - state manager connection will be made when available")
+
+    def _on_state_frame_changed(self, frame: int) -> None:
+        """Handle frame changes from state manager."""
+        logger.debug(f"[FRAME] State manager frame changed to {frame}, updating view")
+
+        # Force a full update to ensure current frame highlighting updates
+        self.invalidate_caches()
+        self.update()
+
+        # Handle centering mode
+        if self.centering_mode:
+            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
+            self.center_on_frame(frame)
+
     def _on_store_data_changed(self) -> None:
         """Handle store data changed signal."""
         # Update internal point collection
@@ -282,7 +318,6 @@ class CurveViewWidget(QWidget):
 
     def _on_store_point_added(self, index: int, point: object) -> None:
         """Handle store point added signal."""
-        from typing import cast
 
         # Cast to expected tuple type for type safety
         point_tuple = cast(tuple[int, float, float] | tuple[int, float, float, str | bool], point)
@@ -455,7 +490,7 @@ class CurveViewWidget(QWidget):
     def set_curves_data(
         self,
         curves: dict[str, CurveDataList],
-        metadata: dict[str, dict] | None = None,
+        metadata: dict[str, dict[str, Any]] | None = None,
         active_curve: str | None = None,
         selected_curves: list[str] | None = None,
     ) -> None:
@@ -499,7 +534,7 @@ class CurveViewWidget(QWidget):
         self.update()
         logger.debug(f"Set {len(curves)} curves, active: {self.active_curve_name}")
 
-    def add_curve(self, name: str, data: CurveDataList, metadata: dict | None = None) -> None:
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
         """
         Add a new curve to the display.
 
@@ -898,7 +933,21 @@ class CurveViewWidget(QWidget):
 
         # DELEGATE ALL RENDERING TO OPTIMIZED RENDERER
         # This is the ONLY rendering path - do not add paint methods to this widget
-        self._optimized_renderer.render(painter, event, self)  # pyright: ignore[reportArgumentType]
+
+        # Build RenderState from StateManager and widget properties (KISS/SOLID decoupling)
+        current_frame = 1  # Default fallback
+        selected_points: set[int] = set()  # Default fallback
+
+        if self._state_manager is not None:
+            state_manager = self._state_manager
+            current_frame = state_manager.current_frame
+            selected_points = set(state_manager.selected_points)
+
+        # Create RenderState with all necessary data for rendering
+        render_state = RenderState.from_curve_view(self, current_frame, selected_points)
+
+        # Pass explicit state to renderer instead of widget reference
+        self._optimized_renderer.render(painter, event, render_state)
 
         # Draw overlay elements that aren't handled by the renderer
         # These are lightweight UI elements that don't impact performance
@@ -1338,13 +1387,19 @@ class CurveViewWidget(QWidget):
     def on_frame_changed(self, frame: int) -> None:
         """Handle frame change event from timeline navigation.
 
-        Centers the view on the current frame if centering mode is enabled.
+        Note: This method is now primarily for legacy compatibility.
+        The main frame update logic is handled by _on_state_frame_changed.
 
         Args:
             frame: The new current frame number
         """
+        logger.debug(f"[FRAME] Legacy on_frame_changed called with frame {frame}")
+        # The StateManager will be updated by the caller, which will trigger our signal handler
+        # This method is kept for compatibility with any direct calls
+
+        # Handle centering mode for legacy compatibility
         if self.centering_mode:
-            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
+            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled via legacy call)")
             self.center_on_frame(frame)
 
     def setup_for_pixel_tracking(self) -> None:
@@ -1589,7 +1644,15 @@ class CurveViewWidget(QWidget):
 
         # First try to find exact match at frame
         for i, point in enumerate(self.curve_data):
-            point_frame = int(point[0])
+            try:
+                if len(point) < 1:
+                    logger.warning(f"Invalid point data at index {i}: {point} (insufficient data)")
+                    continue
+                point_frame = int(point[0])
+            except (ValueError, TypeError, IndexError) as e:
+                logger.warning(f"Invalid point data at index {i}: {point} - {e}")
+                continue
+
             if point_frame == frame:
                 self.clear_selection()
                 self._select_point(i)
@@ -1601,7 +1664,15 @@ class CurveViewWidget(QWidget):
         closest_index = None
 
         for i, point in enumerate(self.curve_data):
-            point_frame = int(point[0])
+            try:
+                if len(point) < 1:
+                    logger.warning(f"Invalid point data at index {i}: {point} (insufficient data)")
+                    continue
+                point_frame = int(point[0])
+            except (ValueError, TypeError, IndexError) as e:
+                logger.warning(f"Invalid point data at index {i}: {point} - {e}")
+                continue
+
             distance = abs(point_frame - frame)
             if distance < min_distance:
                 min_distance = distance
@@ -1693,15 +1764,26 @@ class CurveViewWidget(QWidget):
                 self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
 
     def get_current_frame(self) -> int | None:
-        """Get current frame from main window if available.
-
-        Returns:
-            Current frame number or None if not available
+        """Get the current frame from state manager if available.
+        Used by renderer for frame highlighting.
+        Returns None if state manager is not accessible.
         """
-        if self.main_window is not None:
-            if getattr(self.main_window, "current_frame", None) is not None:
-                return self.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
-        return None
+        try:
+            if self._state_manager is not None:
+                return self._state_manager.current_frame
+            return None
+        except (AttributeError, RuntimeError):
+            return None
+
+    @property
+    def current_frame(self) -> int:
+        """Current frame property - reads from state manager."""
+        try:
+            if self._state_manager is not None:
+                return self._state_manager.current_frame
+            return 1  # Default fallback
+        except (AttributeError, RuntimeError):
+            return 1  # Default fallback
 
     # Point Operations
 
@@ -1717,7 +1799,6 @@ class CurveViewWidget(QWidget):
             # Convert delta to data space
             transform = self.get_transform()
             params = transform.get_parameters()
-            from typing import cast
 
             scale: float = cast(float, params["scale"])
 
@@ -1770,8 +1851,8 @@ class CurveViewWidget(QWidget):
 
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and hasattr(interaction_service, "command_manager"):
-                interaction_service.command_manager.execute_command(command, self.main_window)
+            if interaction_service and interaction_service.command_manager is not None:
+                interaction_service.command_manager.execute_command(command, cast(object, self.main_window))
 
                 # Convert to keyframes since user manually adjusted them
                 for idx in self.selected_indices:
@@ -1802,8 +1883,8 @@ class CurveViewWidget(QWidget):
 
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and hasattr(interaction_service, "command_manager"):
-                interaction_service.command_manager.execute_command(command, self.main_window)
+            if interaction_service and interaction_service.command_manager is not None:
+                interaction_service.command_manager.execute_command(command, cast(object, self.main_window))
 
         # Selection is cleared automatically by the command
 
@@ -1871,6 +1952,20 @@ class CurveViewWidget(QWidget):
         """
         self.main_window = main_window
         # Services are already initialized in __init__
+
+        # Legacy compatibility - state_manager now injected via constructor
+        # If state manager wasn't injected, try to get from main window as fallback
+        if self._state_manager is None and getattr(main_window, "state_manager", None) is not None:
+            self._state_manager = main_window.state_manager
+            # Only connect if not already connected to prevent duplicates
+            try:
+                self._state_manager.frame_changed.connect(self._on_state_frame_changed)
+                logger.debug("Connected to fallback state manager from main window")
+            except (RuntimeError, TypeError) as e:
+                # Signal might already be connected or other connection issue
+                logger.debug(f"State manager signal connection issue: {e}")
+
+        # State manager signals are connected above if needed
 
     def set_background_image(self, pixmap: QPixmap | None) -> None:
         """

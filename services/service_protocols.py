@@ -13,6 +13,8 @@ from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
+
+    from ui.curve_view_widget import CurveViewWidget
     # Note: Transform import moved to avoid circular dependency
     # Transform will be imported as needed in individual methods
 
@@ -130,9 +132,6 @@ class CurveViewProtocol(Protocol):
     show_velocity_vectors: bool
     show_all_frame_numbers: bool
 
-    # Parent reference
-    main_window: "MainWindowProtocol"  # Forward reference
-
     # Qt signals (properly typed for type safety)
     point_selected: SignalProtocol  # Signal[int]
     point_moved: SignalProtocol  # Signal[int, float, float]
@@ -215,19 +214,21 @@ class MainWindowProtocol(Protocol):
     """
 
     # Basic attributes commonly used by services
-    selected_indices: list[int]
-    curve_view: object  # CurveViewProtocol, but avoid circular reference
-    curve_data: CurveDataList
-    curve_widget: object  # CurveViewWidget
+    curve_view: "CurveViewWidget | None"
+    curve_widget: "CurveViewWidget | None"
 
-    # Frame management - property for type-safe access
     @property
-    def current_frame(self) -> int:
-        """Get the current frame number."""
+    def selected_indices(self) -> list[int]:
+        """Get the currently selected point indices."""
+        ...
+
+    @property
+    def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
+        """Get the current curve data."""
         ...
 
     # History management
-    history: list[object]  # list[HistoryState] but avoiding complex types
+    history: list[dict[str, object]]  # Each history entry is a dict with curve data
     history_index: int
     max_history_size: int
 

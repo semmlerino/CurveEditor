@@ -5,7 +5,7 @@ Provides centralized access to all reactive data stores, ensuring
 single source of truth for application state.
 """
 
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 
 from PySide6.QtCore import QObject
 
@@ -13,6 +13,9 @@ from core.logger_utils import get_logger
 
 from .curve_data_store import CurveDataStore
 from .frame_store import FrameStore
+
+if TYPE_CHECKING:
+    from ui.state_manager import StateManager
 
 logger = get_logger("store_manager")
 
@@ -100,6 +103,16 @@ class StoreManager(QObject):
             The singleton FrameStore instance
         """
         return self.frame_store
+
+    def set_state_manager(self, state_manager: "StateManager") -> None:
+        """
+        Set the StateManager reference for FrameStore delegation.
+
+        Args:
+            state_manager: The StateManager instance to delegate current_frame to
+        """
+        self.frame_store.set_state_manager(state_manager)
+        logger.debug("StateManager reference set for FrameStore delegation")
 
     def _connect_stores(self) -> None:
         """

@@ -33,6 +33,15 @@ class TestDataFlowIntegration:
         """Reset stores before each test."""
         StoreManager.reset()
 
+        # Create StateManager for FrameStore delegation
+        from ui.state_manager import StateManager
+
+        self.state_manager = StateManager()
+
+        # Connect StateManager to StoreManager for frame delegation
+        store_manager = get_store_manager()
+        store_manager.set_state_manager(self.state_manager)
+
     def teardown_method(self):
         """Clean up after each test."""
         StoreManager.reset()

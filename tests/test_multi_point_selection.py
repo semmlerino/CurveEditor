@@ -11,7 +11,6 @@ import pytest
 from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 
-from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
 from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 from ui.curve_view_widget import CurveViewWidget
@@ -215,7 +214,10 @@ class TestMultiPointTrackingController:
 
         # Verify centering was scheduled with QTimer.singleShot
         if hasattr(mock_main_window.curve_widget, "center_on_selection"):
-            mock_qtimer.singleShot.assert_called_once_with(10, mock_main_window.curve_widget.center_on_selection)
+            # Check that singleShot was called with 10ms delay (function is now wrapped for safety)
+            mock_qtimer.singleShot.assert_called_once()
+            call_args = mock_qtimer.singleShot.call_args
+            assert call_args[0][0] == 10  # First argument should be the delay
 
     @patch("ui.controllers.multi_point_tracking_controller.QTimer")
     def test_on_tracking_points_selected_multiple(self, mock_qtimer, controller, mock_main_window):
@@ -240,7 +242,10 @@ class TestMultiPointTrackingController:
         assert call_args[1].get("selected_curves") == ["Track1", "Track2", "Track3"]
 
         # Verify centering was scheduled with QTimer.singleShot
-        mock_qtimer.singleShot.assert_called_once_with(10, mock_main_window.curve_widget.center_on_selection)
+        # Check that singleShot was called with 10ms delay (function is now wrapped for safety)
+        mock_qtimer.singleShot.assert_called_once()
+        call_args = mock_qtimer.singleShot.call_args
+        assert call_args[0][0] == 10  # First argument should be the delay
 
     def test_update_curve_display_no_force_show_all(self, controller, mock_main_window):
         """Test that update_curve_display doesn't force show_all_curves."""
@@ -271,12 +276,26 @@ class TestMultiPointTrackingController:
 
     def test_selection_preserves_visibility_metadata(self, controller, mock_main_window):
         """Test that selection respects visibility metadata."""
-        # Set up tracking panel metadata
-        mock_main_window.tracking_panel._point_metadata = {
-            "Track1": {"visible": True, "color": "#FF0000", "tracking_direction": TrackingDirection.TRACKING_FW},
-            "Track2": {"visible": False, "color": "#00FF00", "tracking_direction": TrackingDirection.TRACKING_BW},
-            "Track3": {"visible": True, "color": "#0000FF", "tracking_direction": TrackingDirection.TRACKING_FW_BW},
-        }
+
+        # Mock the public interface methods to return expected values
+        def mock_get_point_visibility(point_name):
+            visibility_map = {
+                "Track1": True,
+                "Track2": False,
+                "Track3": True,
+            }
+            return visibility_map.get(point_name, True)
+
+        def mock_get_point_color(point_name):
+            color_map = {
+                "Track1": "#FF0000",
+                "Track2": "#00FF00",
+                "Track3": "#0000FF",
+            }
+            return color_map.get(point_name, "#FFFFFF")
+
+        mock_main_window.tracking_panel.get_point_visibility.side_effect = mock_get_point_visibility
+        mock_main_window.tracking_panel.get_point_color.side_effect = mock_get_point_color
 
         # Select points including invisible one
         controller.on_tracking_points_selected(["Track1", "Track2", "Track3"])

@@ -322,6 +322,12 @@ class TrackingPointsPanel(QWidget):
             return self._point_metadata[point_name]["tracking_direction"]
         return TrackingDirection.TRACKING_FW_BW  # Default
 
+    def get_point_visibility(self, point_name: str) -> bool:
+        """Get visibility status for a tracking point."""
+        if point_name in self._point_metadata:
+            return self._point_metadata[point_name]["visible"]
+        return True  # Default to visible
+
     def _on_show_all_curves_toggled(self, checked: bool) -> None:
         """Handle toggle of show all curves checkbox.
 

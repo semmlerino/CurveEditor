@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 
 from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
+from rendering.render_state import RenderState
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -56,8 +57,27 @@ class TestGridCentering:
         curve_widget._select_point(0)  # Select first point at (100, 200)
 
         # Behavior: Render the grid
+        render_state = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, curve_widget)
+        renderer._render_grid_optimized(painter, render_state)
         painter.end()
 
         # Verify: Grid should be centered on the selected point
@@ -89,8 +109,27 @@ class TestGridCentering:
         # avg_y = (200.0 + 400.0 + 600.0) / 3  # Would be 400.0
 
         # Behavior: Render the grid
+        render_state = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, curve_widget)
+        renderer._render_grid_optimized(painter, render_state)
         painter.end()
 
         # Verify: Grid centers on average position
@@ -110,8 +149,27 @@ class TestGridCentering:
         curve_widget.clear_selection()
 
         # Behavior: Render the grid
+        render_state = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, curve_widget)
+        renderer._render_grid_optimized(painter, render_state)
         painter.end()
 
         # Verify: Grid should center on widget center (400, 300 for 800x600 widget)
@@ -136,8 +194,27 @@ class TestGridCentering:
         curve_widget._select_point(0)
 
         # Render with first selection
+        render_state1 = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter1 = QPainter(test_image)
-        renderer._render_grid_optimized(painter1, curve_widget)
+        renderer._render_grid_optimized(painter1, render_state1)
         painter1.end()
 
         # Change selection
@@ -147,8 +224,27 @@ class TestGridCentering:
         test_image.fill(0)
 
         # Render with new selection
+        render_state2 = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter2 = QPainter(test_image)
-        renderer._render_grid_optimized(painter2, curve_widget)
+        renderer._render_grid_optimized(painter2, render_state2)
         painter2.end()
 
         # Grid center should have moved from (100, 200) to (500, 600)
@@ -162,8 +258,27 @@ class TestGridCentering:
         curve_widget.set_curve_data([])
         curve_widget.clear_selection()
 
+        render_state1 = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, curve_widget)
+        renderer._render_grid_optimized(painter, render_state1)
         painter.end()
 
         # Should not crash, grid defaults to widget center
@@ -174,8 +289,27 @@ class TestGridCentering:
         curve_widget._curve_store.select(5)  # Invalid index
 
         test_image.fill(0)
+        render_state2 = RenderState(
+            points=curve_widget.curve_data,
+            current_frame=1,
+            selected_points=curve_widget.selected_indices,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=curve_widget.zoom_factor,
+            pan_offset_x=curve_widget.pan_offset_x,
+            pan_offset_y=curve_widget.pan_offset_y,
+            manual_offset_x=curve_widget.manual_offset_x,
+            manual_offset_y=curve_widget.manual_offset_y,
+            flip_y_axis=curve_widget.flip_y_axis,
+            show_background=False,
+            background_image=None,
+            image_width=800,
+            image_height=600,
+            show_grid=True,
+            point_radius=5,
+        )
         painter2 = QPainter(test_image)
-        renderer._render_grid_optimized(painter2, curve_widget)
+        renderer._render_grid_optimized(painter2, render_state2)
         painter2.end()
 
         # Should handle gracefully
@@ -195,8 +329,27 @@ class TestGridCentering:
             curve_widget.zoom_factor = zoom
 
             test_image.fill(0)
+            render_state = RenderState(
+                points=curve_widget.curve_data,
+                current_frame=1,
+                selected_points=curve_widget.selected_indices,
+                widget_width=800,
+                widget_height=600,
+                zoom_factor=curve_widget.zoom_factor,
+                pan_offset_x=curve_widget.pan_offset_x,
+                pan_offset_y=curve_widget.pan_offset_y,
+                manual_offset_x=curve_widget.manual_offset_x,
+                manual_offset_y=curve_widget.manual_offset_y,
+                flip_y_axis=curve_widget.flip_y_axis,
+                show_background=False,
+                background_image=None,
+                image_width=800,
+                image_height=600,
+                show_grid=True,
+                point_radius=5,
+            )
             painter = QPainter(test_image)
-            renderer._render_grid_optimized(painter, curve_widget)
+            renderer._render_grid_optimized(painter, render_state)
             painter.end()
 
             # Grid density should adapt based on zoom
