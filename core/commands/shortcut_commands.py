@@ -63,19 +63,22 @@ class SetEndframeCommand(ShortcutCommand):
             return False
 
         try:
-            if context.has_curve_selection:
-                # Toggle status for selected points
-                toggled_count = 0
-                endframe_count = 0
-                keyframe_count = 0
+            from core.commands import SetPointStatusCommand
+            from services import get_interaction_service
 
+            changes = []
+            endframe_count = 0
+            keyframe_count = 0
+
+            if context.has_curve_selection:
+                # Collect changes for selected points
                 for idx in context.selected_curve_points:
                     # Get current point status
                     point = curve_widget._curve_store.get_point(idx)
                     if point and len(point) >= 4:
                         current_status = point[3]
 
-                        # Toggle logic
+                        # Determine new status (toggle logic)
                         if current_status == PointStatus.ENDFRAME.value:
                             new_status = PointStatus.KEYFRAME.value
                             keyframe_count += 1
@@ -83,66 +86,40 @@ class SetEndframeCommand(ShortcutCommand):
                             new_status = PointStatus.ENDFRAME.value
                             endframe_count += 1
 
-                        curve_widget._curve_store.set_point_status(idx, new_status)
-                        toggled_count += 1
+                        changes.append((idx, current_status, new_status))
 
-                if toggled_count > 0:
-                    # Instead of directly modifying, create a command for undo/redo
-                    from core.commands import SetPointStatusCommand
-                    from services import get_interaction_service
-
-                    # Already applied the changes, now record them for undo/redo
-                    interaction_service = get_interaction_service()
-                    if interaction_service and hasattr(interaction_service, "command_manager"):
-                        # The changes have already been applied above
-                        # We need to reverse engineer what was changed
-                        changes = []
-                        for idx in context.selected_curve_points:
-                            point = curve_widget._curve_store.get_point(idx)
-                            if point and len(point) >= 4:
-                                current_status = point[3]
-                                # Determine what the old status was based on what we changed to
-                                if current_status == PointStatus.ENDFRAME.value:
-                                    old_status = PointStatus.KEYFRAME.value
-                                else:
-                                    old_status = PointStatus.ENDFRAME.value
-                                changes.append((idx, old_status, current_status))
-
-                        if changes:
-                            # Build description based on what was changed
-                            if endframe_count > 0 and keyframe_count > 0:
-                                desc = f"Toggle {toggled_count} points"
-                            elif endframe_count > 0:
-                                desc = f"Set {endframe_count} points to ENDFRAME"
-                            else:
-                                desc = f"Set {keyframe_count} points to KEYFRAME"
-
-                            command = SetPointStatusCommand(
-                                description=desc,
-                                changes=changes,
-                            )
-                            # Mark as already executed since we already applied the changes
-                            command.executed = True
-                            # Add to history
-                            cm = interaction_service.command_manager
-                            cm._history.append(command)
-                            cm._current_index = len(cm._history) - 1
-                            cm._enforce_history_limit()
-                            cm._update_ui_state(context.main_window)
-
-                    curve_widget.update()
-
-                    # Create informative status message
+                if changes:
+                    # Build description
                     if endframe_count > 0 and keyframe_count > 0:
-                        msg = f"Toggled {toggled_count} points ({endframe_count} to ENDFRAME, {keyframe_count} to KEYFRAME)"
+                        desc = f"Toggle {len(changes)} points"
                     elif endframe_count > 0:
-                        msg = f"Set {endframe_count} points to ENDFRAME"
+                        desc = f"Set {endframe_count} points to ENDFRAME"
                     else:
-                        msg = f"Set {keyframe_count} points to KEYFRAME"
+                        desc = f"Set {keyframe_count} points to KEYFRAME"
 
-                    curve_widget.update_status(msg, 2000)
-                    logger.info(msg)
-                    return True
+                    # Create command and execute it properly
+                    command = SetPointStatusCommand(
+                        description=desc,
+                        changes=changes,
+                    )
+
+                    # Execute through command manager for proper undo/redo
+                    interaction_service = get_interaction_service()
+                    if interaction_service:
+                        success = interaction_service.command_manager.execute_command(command, context.main_window)
+                        if success:
+                            # Create informative status message
+                            if endframe_count > 0 and keyframe_count > 0:
+                                msg = f"Toggled {len(changes)} points ({endframe_count} to ENDFRAME, {keyframe_count} to KEYFRAME)"
+                            elif endframe_count > 0:
+                                msg = f"Set {endframe_count} points to ENDFRAME"
+                            else:
+                                msg = f"Set {keyframe_count} points to KEYFRAME"
+
+                            curve_widget.update_status(msg, 2000)
+                            logger.info(msg)
+                            return True
+                    return False
 
             elif context.current_frame is not None:
                 # Toggle point at current frame
@@ -160,34 +137,24 @@ class SetEndframeCommand(ShortcutCommand):
                             new_status = PointStatus.ENDFRAME.value
                             status_text = "ENDFRAME"
 
-                        curve_widget._curve_store.set_point_status(frame_index, new_status)
-
-                        # Create command for undo/redo
-                        from core.commands import SetPointStatusCommand
-                        from services import get_interaction_service
-
-                        interaction_service = get_interaction_service()
-                        if interaction_service and hasattr(interaction_service, "command_manager"):
-                            old_status = current_status
-                            command = SetPointStatusCommand(
-                                description=msg,
-                                changes=[(frame_index, old_status, new_status)],
-                            )
-                            # Mark as already executed since we already applied the change
-                            command.executed = True
-                            # Add to history
-                            cm = interaction_service.command_manager
-                            cm._history.append(command)
-                            cm._current_index = len(cm._history) - 1
-                            cm._enforce_history_limit()
-                            cm._update_ui_state(context.main_window)
-
-                        curve_widget.update()
-
+                        # Create status message first (before using it)
                         msg = f"Set frame {context.current_frame} to {status_text}"
-                        curve_widget.update_status(msg, 2000)
-                        logger.info(msg)
-                        return True
+
+                        # Create command with proper description
+                        command = SetPointStatusCommand(
+                            description=msg,
+                            changes=[(frame_index, current_status, new_status)],
+                        )
+
+                        # Execute through command manager
+                        interaction_service = get_interaction_service()
+                        if interaction_service:
+                            success = interaction_service.command_manager.execute_command(command, context.main_window)
+                            if success:
+                                curve_widget.update_status(msg, 2000)
+                                logger.info(msg)
+                                return True
+                        return False
 
         except Exception as e:
             logger.error(f"Failed to toggle endframe status: {e}")
