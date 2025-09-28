@@ -668,6 +668,14 @@ class OptimizedCurveRenderer:
         # Import PointStatus for status checking
         from core.models import PointStatus
 
+        # Create SegmentedCurve to check for inactive segments
+        # Only create if we have status information
+        segmented_curve = None
+        has_status = any(len(pt) > 3 for pt in points_data[:100] if pt)
+        if has_status:
+            points = [CurvePoint.from_tuple(pt) for pt in points_data]
+            segmented_curve = SegmentedCurve.from_points(points)
+
         # Batch points by state for efficient rendering
         points_by_status = {
             "normal": [],
@@ -686,6 +694,7 @@ class OptimizedCurveRenderer:
             # Check if this point is on the current frame
             is_current_frame = False
             status = "normal"  # Default status
+            frame = -1  # Initialize frame
 
             if 0 <= original_idx < len(points_data):
                 point_data = points_data[original_idx]
@@ -707,6 +716,13 @@ class OptimizedCurveRenderer:
                                 status = "interpolated"
                             elif status_value == PointStatus.ENDFRAME.value:
                                 status = "endframe"
+
+            # Skip points in inactive segments (except endframes which mark segment boundaries)
+            if segmented_curve and frame >= 0 and status != "endframe":
+                segment = segmented_curve.get_segment_at_frame(frame)
+                if segment and not segment.is_active:
+                    # Skip this point - it's in an inactive segment
+                    continue
 
             if is_current_frame:
                 current_frame_points.append(screen_pos)
