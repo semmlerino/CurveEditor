@@ -69,6 +69,8 @@ from ui.ui_constants import (
     DEFAULT_IMAGE_HEIGHT,
     DEFAULT_IMAGE_WIDTH,
     DEFAULT_ZOOM_FACTOR,
+    MAX_ZOOM_FACTOR,
+    MIN_ZOOM_FACTOR,
 )
 
 if TYPE_CHECKING:
@@ -157,6 +159,7 @@ class CurveViewWidget(QWidget):
         self.curve_metadata: dict[str, dict] = {}  # Per-curve visibility/color settings
         self.active_curve_name: str | None = None  # Currently selected curve for editing
         self.show_all_curves: bool = False  # Toggle for showing all curves
+        self.selected_curve_names: set[str] = set()  # Currently selected curves to display
 
         # View transformation
         self.zoom_factor: float = DEFAULT_ZOOM_FACTOR
@@ -454,6 +457,7 @@ class CurveViewWidget(QWidget):
         curves: dict[str, CurveDataList],
         metadata: dict[str, dict] | None = None,
         active_curve: str | None = None,
+        selected_curves: list[str] | None = None,
     ) -> None:
         """
         Set multiple curves to display.
@@ -462,6 +466,7 @@ class CurveViewWidget(QWidget):
             curves: Dictionary mapping curve names to curve data
             metadata: Optional dictionary with per-curve metadata (visibility, color, etc.)
             active_curve: Name of the currently active curve for editing
+            selected_curves: Optional list of curves to select for display
         """
         self.curves_data = curves.copy()
         if metadata:
@@ -469,6 +474,13 @@ class CurveViewWidget(QWidget):
         else:
             # Initialize default metadata for each curve
             self.curve_metadata = {name: {"visible": True, "color": "#FFFFFF"} for name in curves.keys()}
+
+        # Update selected curves if specified
+        if selected_curves is not None:
+            self.selected_curve_names = set(selected_curves)
+        elif not self.selected_curve_names:
+            # If no selection specified and no existing selection, default to active curve
+            self.selected_curve_names = {active_curve} if active_curve else set()
 
         # Set the active curve
         if active_curve and active_curve in curves:
@@ -597,6 +609,89 @@ class CurveViewWidget(QWidget):
         self.show_all_curves = show_all
         self.update()
         logger.debug(f"Show all curves: {show_all}")
+
+    def set_selected_curves(self, curve_names: list[str]) -> None:
+        """
+        Set which curves are currently selected for display.
+
+        When show_all_curves is False, only these selected curves will be displayed.
+        The last curve in the list becomes the active curve for editing.
+
+        Args:
+            curve_names: List of curve names to select and display
+        """
+        self.selected_curve_names = set(curve_names)
+
+        # Set the last selected as the active curve for editing
+        if curve_names and curve_names[-1] in self.curves_data:
+            self.set_active_curve(curve_names[-1])
+
+        self.update()
+        logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self.active_curve_name}")
+
+    def center_on_selected_curves(self) -> None:
+        """
+        Center the view on all selected curves.
+
+        Calculates the bounding box of all selected curves and centers the view on it.
+        """
+        logger.debug(
+            f"center_on_selected_curves called with selected: {self.selected_curve_names}, curves_data keys: {self.curves_data.keys() if self.curves_data else 'None'}"
+        )
+        if not self.selected_curve_names or not self.curves_data:
+            logger.debug("Early return - no selected curves or no data")
+            return
+
+        # Collect all points from selected curves
+        all_points: list[tuple[float, float]] = []
+        for curve_name in self.selected_curve_names:
+            if curve_name in self.curves_data:
+                curve_data = self.curves_data[curve_name]
+                logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
+                for point in curve_data:
+                    if len(point) >= 3:
+                        all_points.append((float(point[1]), float(point[2])))
+
+        if not all_points:
+            logger.debug("No points found in selected curves")
+            return
+        logger.debug(f"Collected {len(all_points)} points for centering")
+
+        # Calculate bounding box
+        x_coords = [p[0] for p in all_points]
+        y_coords = [p[1] for p in all_points]
+
+        min_x, max_x = min(x_coords), max(x_coords)
+        min_y, max_y = min(y_coords), max(y_coords)
+
+        # Calculate center point
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+
+        # Calculate required zoom to fit all points with some padding
+        padding_factor = 1.2
+        width_needed = (max_x - min_x) * padding_factor
+        height_needed = (max_y - min_y) * padding_factor
+
+        if width_needed > 0 and height_needed > 0:
+            zoom_x = self.width() / width_needed
+            zoom_y = self.height() / height_needed
+            optimal_zoom = min(zoom_x, zoom_y, MAX_ZOOM_FACTOR)
+
+            # Apply zoom
+            self.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
+
+        # Use the proper centering method that handles coordinate transformation and Y-flip
+        self._center_view_on_point(center_x, center_y)
+
+        self.invalidate_caches()
+        self.update()
+        self.view_changed.emit()
+
+        logger.debug(f"Centered on {len(all_points)} points from {len(self.selected_curve_names)} curves")
+        logger.debug(
+            f"Center position: ({center_x:.2f}, {center_y:.2f}), Zoom: {self.zoom_factor:.2f}, Pan offset: ({self.pan_offset_x:.2f}, {self.pan_offset_y:.2f})"
+        )
 
     # Coordinate Transformation
 
@@ -1478,6 +1573,49 @@ class CurveViewWidget(QWidget):
     def select_all(self) -> None:
         """Select all points."""
         self._curve_store.select_all()
+
+    def select_point_at_frame(self, frame: int) -> int | None:
+        """
+        Select the point at the given frame (or closest to it).
+
+        Args:
+            frame: Frame number to find point at
+
+        Returns:
+            Index of selected point, or None if no points exist
+        """
+        if not self.curve_data:
+            return None
+
+        # First try to find exact match at frame
+        for i, point in enumerate(self.curve_data):
+            point_frame = int(point[0])
+            if point_frame == frame:
+                self.clear_selection()
+                self._select_point(i)
+                logger.debug(f"Selected point at exact frame {frame}, index {i}")
+                return i
+
+        # If no exact match, find closest point
+        min_distance = float("inf")
+        closest_index = None
+
+        for i, point in enumerate(self.curve_data):
+            point_frame = int(point[0])
+            distance = abs(point_frame - frame)
+            if distance < min_distance:
+                min_distance = distance
+                closest_index = i
+
+        if closest_index is not None:
+            self.clear_selection()
+            self._select_point(closest_index)
+            logger.debug(
+                f"Selected closest point to frame {frame} at index {closest_index} (frame {int(self.curve_data[closest_index][0])})"
+            )
+            return closest_index
+
+        return None
 
     def _start_rubber_band(self, pos: QPointF) -> None:
         """Start rubber band selection."""

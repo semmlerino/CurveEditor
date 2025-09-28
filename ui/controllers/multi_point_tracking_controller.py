@@ -8,7 +8,7 @@ selection, and display of multiple tracking trajectories.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QThread, Slot
+from PySide6.QtCore import QThread, QTimer, Slot
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
@@ -196,12 +196,16 @@ class MultiPointTrackingController:
         """
         self.active_points = point_names
 
-        # Set the first selected point as the active curve for editing
-        if point_names and hasattr(self.main_window.curve_widget, "set_active_curve"):
-            self.main_window.curve_widget.set_active_curve(point_names[0])
-        else:
-            # Fallback to updating the entire display
-            self.update_curve_display()
+        # Update the curve display (which now handles selection properly)
+        self.update_curve_display()
+
+        # Center view on selected point at current frame
+        # Small delay to ensure curve data and point selection are processed
+        if self.main_window.curve_widget and point_names:
+            if hasattr(self.main_window.curve_widget, "center_on_selection"):
+                # Use small delay to allow widget updates to complete
+                QTimer.singleShot(10, self.main_window.curve_widget.center_on_selection)
+                logger.debug("Scheduled centering on selected point after 10ms delay")
 
         logger.debug(f"Selected tracking points: {point_names}")
 
@@ -347,18 +351,31 @@ class MultiPointTrackingController:
                         "color": point_meta.get("color", "#FFFFFF"),
                     }
 
-            # Set all curves with the first active point as the editing target
-            active_curve = self.active_points[0] if self.active_points else None
-            self.main_window.curve_widget.set_curves_data(self.tracked_data, metadata, active_curve)
+            # Set all curves with the active points as selected
+            active_curve = self.active_points[-1] if self.active_points else None  # Last selected is active
+            self.main_window.curve_widget.set_curves_data(
+                self.tracked_data,
+                metadata,
+                active_curve,
+                selected_curves=self.active_points,  # Pass selected curves
+            )
 
-            # Enable multi-curve display if we have multiple curves
-            if len(self.tracked_data) > 1:
-                self.main_window.curve_widget.toggle_show_all_curves(True)
+            # After setting curve data, select point at current frame for better centering
+            if active_curve and hasattr(self.main_window.curve_widget, "select_point_at_frame"):
+                current_frame = self.main_window.current_frame
+                self.main_window.curve_widget.select_point_at_frame(current_frame)
+                logger.debug(f"Selected point at frame {current_frame} for active curve {active_curve}")
         else:
             # Fallback to single curve display for backward compatibility
             if self.active_points and self.active_points[0] in self.tracked_data:
                 trajectory = self.tracked_data[self.active_points[0]]
                 self.main_window.curve_widget.set_curve_data(trajectory)
+
+                # Select point at current frame for better centering
+                if hasattr(self.main_window.curve_widget, "select_point_at_frame"):
+                    current_frame = self.main_window.current_frame
+                    self.main_window.curve_widget.select_point_at_frame(current_frame)
+                    logger.debug(f"Selected point at frame {current_frame} for fallback display")
             else:
                 self.main_window.curve_widget.set_curve_data([])
 

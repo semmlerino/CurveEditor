@@ -308,9 +308,10 @@ class OptimizedCurveRenderer:
 
             # Check if curve_view supports multi-curve rendering
             has_multi_curve = hasattr(curve_view, "show_all_curves") and hasattr(curve_view, "curves_data")
+            has_selected_curves = hasattr(curve_view, "selected_curve_names") and curve_view.selected_curve_names  # pyright: ignore[reportAttributeAccessIssue]
 
-            if has_multi_curve and curve_view.show_all_curves and curve_view.curves_data:  # pyright: ignore[reportAttributeAccessIssue]
-                # Render multiple curves
+            if has_multi_curve and curve_view.curves_data and (curve_view.show_all_curves or has_selected_curves):  # pyright: ignore[reportAttributeAccessIssue]
+                # Render multiple curves (all curves if show_all_curves, or just selected curves)
                 self._render_multiple_curves(painter, curve_view)
             else:
                 # Render single curve with advanced optimizations (backward compatibility)
@@ -880,6 +881,8 @@ class OptimizedCurveRenderer:
         curves_data = curve_view.curves_data  # pyright: ignore[reportAttributeAccessIssue]
         curve_metadata = curve_view.curve_metadata  # pyright: ignore[reportAttributeAccessIssue]
         active_curve = getattr(curve_view, "active_curve_name", None)
+        show_all_curves = getattr(curve_view, "show_all_curves", False)
+        selected_curve_names = getattr(curve_view, "selected_curve_names", set())
 
         # Get transform once for all curves
         transform = curve_view.get_transform()
@@ -891,6 +894,10 @@ class OptimizedCurveRenderer:
             # Check if curve should be visible
             metadata = curve_metadata.get(curve_name, {})
             if not metadata.get("visible", True):
+                continue
+
+            # When show_all_curves is False, only render selected curves
+            if not show_all_curves and curve_name not in selected_curve_names:
                 continue
 
             # Determine curve styling
