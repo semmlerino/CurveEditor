@@ -591,10 +591,10 @@ class OptimizedCurveRenderer:
         pen: QPen,
         curve_view: CurveViewProtocol,
     ) -> None:
-        """Draw an inactive segment as a held position gap.
+        """Draw an inactive segment with dashed lines following actual tracked positions.
 
-        Shows dashed horizontal line representing the held position from
-        the preceding endframe through the gap.
+        Shows dashed lines connecting the tracked points in the inactive segment,
+        visualizing the tracked data that is held but not active.
 
         Args:
             painter: Qt painter for drawing
@@ -606,38 +606,27 @@ class OptimizedCurveRenderer:
         """
         painter.setPen(pen)
 
-        # For gap segments, draw a horizontal dashed line showing held position
-        if segment.point_count > 0:
-            # Get the held position for the start of this gap
-            held_position = segmented_curve.get_position_at_frame(segment.start_frame)
+        # Draw dashed lines connecting the actual tracked points in the segment
+        if segment.point_count > 1:
+            gap_path = QPainterPath()
+            first_point = True
 
-            if held_position:
-                held_x, held_y = held_position
+            for point in segment.points:
+                # Get the screen position for this point
+                point_idx = frame_to_index.get(point.frame, -1)
 
-                # Transform held position to screen coordinates
-                transform = curve_view.get_transform()
+                if point_idx >= 0 and point_idx < len(screen_points):
+                    screen_x = screen_points[point_idx][0]
+                    screen_y = screen_points[point_idx][1]
 
-                screen_start_x, screen_start_y = transform.data_to_screen(held_x, held_y)
-                screen_end_x, screen_end_y = transform.data_to_screen(held_x, held_y)
+                    if first_point:
+                        gap_path.moveTo(screen_x, screen_y)
+                        first_point = False
+                    else:
+                        gap_path.lineTo(screen_x, screen_y)
 
-                # Find the frame range for this gap
-                gap_start_frame = segment.start_frame
-                gap_end_frame = segment.end_frame
-
-                # Extend the line to cover the gap visually
-                # Use the actual frame positions if we have them, otherwise estimate
-                start_point_idx = frame_to_index.get(gap_start_frame, -1)
-                end_point_idx = frame_to_index.get(gap_end_frame, -1)
-
-                if start_point_idx >= 0 and start_point_idx < len(screen_points):
-                    screen_start_x = screen_points[start_point_idx][0]
-                if end_point_idx >= 0 and end_point_idx < len(screen_points):
-                    screen_end_x = screen_points[end_point_idx][0]
-
-                # Draw horizontal dashed line showing held position
-                gap_path = QPainterPath()
-                gap_path.moveTo(screen_start_x, screen_start_y)
-                gap_path.lineTo(screen_end_x, screen_end_y)
+            # Draw the dashed path
+            if not first_point:  # Only draw if we had at least one valid point
                 painter.drawPath(gap_path)
 
     def _render_point_markers_optimized(
