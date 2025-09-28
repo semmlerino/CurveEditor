@@ -315,9 +315,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             DeselectAllCommand,
             FitBackgroundCommand,
             NudgePointsCommand,
+            RedoCommand,
             SelectAllCommand,
             SetEndframeCommand,
             SetTrackingDirectionCommand,
+            UndoCommand,
         )
         from core.models import TrackingDirection
 
@@ -325,6 +327,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.shortcut_registry = ShortcutRegistry()
 
         # Register shortcuts
+        # Undo/Redo shortcuts
+        self.shortcut_registry.register(UndoCommand())
+        self.shortcut_registry.register(RedoCommand())
+
         # Editing shortcuts
         self.shortcut_registry.register(SetEndframeCommand())
         self.shortcut_registry.register(DeletePointsCommand())

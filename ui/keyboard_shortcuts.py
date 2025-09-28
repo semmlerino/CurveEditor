@@ -349,6 +349,14 @@ class ShortcutManager(QObject):
         _ = self.action_filter_curve.triggered.connect(main_window._on_filter_curve)
         _ = self.action_analyze_curve.triggered.connect(main_window._on_analyze_curve)
 
+        # Add actions to window for keyboard shortcuts to work globally
+        main_window.addAction(self.action_undo)
+        main_window.addAction(self.action_redo)
+        main_window.addAction(self.action_select_all)
+        main_window.addAction(self.action_zoom_in)
+        main_window.addAction(self.action_zoom_out)
+        main_window.addAction(self.action_reset_view)
+
         # Navigation actions (now handled by TimelineController)
         _ = self.action_next_frame.triggered.connect(main_window.timeline_controller._on_next_frame)
         _ = self.action_prev_frame.triggered.connect(main_window.timeline_controller._on_prev_frame)

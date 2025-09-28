@@ -287,10 +287,9 @@ class InteractionService:
                     # The points have already been moved during dragging,
                     # so we mark the command as executed and add it to history
                     command.executed = True
-                    self.command_manager._history.append(command)
-                    self.command_manager._current_index = len(self.command_manager._history) - 1
-                    self.command_manager._enforce_history_limit()
-                    self.command_manager._update_ui_state(cast("MainWindow", cast(object, view.main_window)))
+                    self.command_manager.add_executed_command(
+                        command, cast("MainWindow", cast(object, view.main_window))
+                    )
 
             # Clear the tracked positions
             self._drag_original_positions = None
@@ -383,10 +382,7 @@ class InteractionService:
                     view.selected_points.clear()
                     view.selected_point_idx = -1
 
-                # Add to history
-                # main_window is defined in CurveViewProtocol
-            if view.main_window is not None:
-                self.add_to_history(view.main_window)
+                # Note: No need to add_to_history - command manager handles it
 
         elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             # Select all points
@@ -409,7 +405,9 @@ class InteractionService:
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
             # Nudge selected points
             # selected_points is defined in CurveViewProtocol
-            if view.selected_points:
+            if view.selected_points and view.main_window is not None:
+                from core.commands import BatchMoveCommand
+
                 nudge_distance = 1.0
                 delta_x = (
                     nudge_distance if key == Qt.Key.Key_Right else (-nudge_distance if key == Qt.Key.Key_Left else 0)
@@ -424,22 +422,24 @@ class InteractionService:
                 curve_delta_x = delta_x / transform.scale
                 curve_delta_y = -delta_y / transform.scale  # Invert Y
 
-                # Move selected points
+                # Collect moves for command
+                moves = []
                 for idx in view.selected_points:
                     # curve_data is defined in CurveViewProtocol
                     if 0 <= idx < len(view.curve_data):
                         point = view.curve_data[idx]
-                        new_x = point[1] + curve_delta_x
-                        new_y = point[2] + curve_delta_y
-                        if len(point) >= 4:
-                            view.curve_data[idx] = (point[0], new_x, new_y, point[3])
-                        else:
-                            view.curve_data[idx] = (point[0], new_x, new_y)
+                        old_pos = (point[1], point[2])
+                        new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
+                        moves.append((idx, old_pos, new_pos))
 
-                # Add to history
-                # main_window is defined in CurveViewProtocol
-            if view.main_window is not None:
-                self.add_to_history(view.main_window)
+                if moves:
+                    # Create and execute move command
+                    command = BatchMoveCommand(
+                        description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                        moves=moves,
+                    )
+                    self.command_manager.execute_command(command, cast("MainWindow", cast(object, view.main_window)))
+                    # Note: No need to add_to_history - command manager handles it
 
         view.update()
 
@@ -718,15 +718,25 @@ class InteractionService:
         return False
 
     def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
-        """Delete selected points."""
+        """Delete selected points using DeletePointsCommand."""
         if view.selected_points and view.curve_data:
-            # Store current state for undo
-            self.add_to_history(main_window)
+            from core.commands import DeletePointsCommand
 
-            # Delete points in reverse order to maintain indices
-            for idx in sorted(view.selected_points, reverse=True):
+            # Collect points to delete
+            indices = list(view.selected_points)
+            deleted_points = []
+            for idx in sorted(indices):
                 if 0 <= idx < len(view.curve_data):
-                    del view.curve_data[idx]
+                    deleted_points.append((idx, view.curve_data[idx]))
+
+            if deleted_points:
+                # Create and execute delete command
+                command = DeletePointsCommand(
+                    description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
+                    indices=indices,
+                    deleted_points=deleted_points,
+                )
+                self.command_manager.execute_command(command, cast("MainWindow", cast(object, main_window)))
 
             # Clear selection
             view.selected_points.clear()

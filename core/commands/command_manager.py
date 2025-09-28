@@ -97,6 +97,50 @@ class CommandManager:
             logger.error(f"Error executing command {command}: {e}")
             return False
 
+    def add_executed_command(self, command: Command, main_window: MainWindow) -> bool:
+        """
+        Add an already-executed command to history without re-executing it.
+
+        This is used for operations where the action has already been performed
+        (e.g., during interactive dragging) and we just need to record it for undo.
+
+        Args:
+            command: Command that has already been executed
+            main_window: Reference to the main application window
+
+        Returns:
+            True if command was successfully added, False otherwise
+        """
+        try:
+            # Command should already be marked as executed
+            if not command.executed:
+                logger.warning(f"Command {command} is not marked as executed")
+                command.executed = True
+
+            # Clear any redo history
+            if self._current_index < len(self._history) - 1:
+                self._history = self._history[: self._current_index + 1]
+
+            # Add command to history
+            self._history.append(command)
+            self._current_index += 1
+
+            # Enforce history size limit
+            self._enforce_history_limit()
+
+            # Update UI state
+            self._update_ui_state(main_window)
+
+            logger.info(
+                f"Already-executed command added to history: {command} "
+                f"(history size: {len(self._history)}, index: {self._current_index})"
+            )
+            return True
+
+        except Exception as e:
+            logger.error(f"Error adding executed command {command}: {e}")
+            return False
+
     def undo(self, main_window: MainWindow) -> bool:
         """
         Undo the last command.

@@ -543,3 +543,63 @@ class NudgePointsCommand(ShortcutCommand):
         except Exception as e:
             logger.error(f"Failed to nudge points: {e}")
             return False
+
+
+class UndoCommand(ShortcutCommand):
+    """Command to undo the last action."""
+
+    def __init__(self) -> None:
+        """Initialize the undo command."""
+        super().__init__("Ctrl+Z", "Undo last action")
+
+    def can_execute(self, context: ShortcutContext) -> bool:
+        """Check if we can undo.
+
+        Can execute if there's an action to undo.
+        """
+        # Check if we have undo available
+        if context.main_window and context.main_window.action_undo:
+            return context.main_window.action_undo.isEnabled()
+        return False
+
+    def execute(self, context: ShortcutContext) -> bool:
+        """Execute the undo command."""
+        if context.main_window and context.main_window.action_undo:
+            try:
+                context.main_window.action_undo.trigger()
+                logger.info("Executed undo via shortcut")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to execute undo: {e}")
+                return False
+        return False
+
+
+class RedoCommand(ShortcutCommand):
+    """Command to redo the last undone action."""
+
+    def __init__(self) -> None:
+        """Initialize the redo command."""
+        super().__init__("Ctrl+Y", "Redo last action")
+
+    def can_execute(self, context: ShortcutContext) -> bool:
+        """Check if we can redo.
+
+        Can execute if there's an action to redo.
+        """
+        # Check if we have redo available
+        if context.main_window and context.main_window.action_redo:
+            return context.main_window.action_redo.isEnabled()
+        return False
+
+    def execute(self, context: ShortcutContext) -> bool:
+        """Execute the redo command."""
+        if context.main_window and context.main_window.action_redo:
+            try:
+                context.main_window.action_redo.trigger()
+                logger.info("Executed redo via shortcut")
+                return True
+            except Exception as e:
+                logger.error(f"Failed to execute redo: {e}")
+                return False
+        return False
