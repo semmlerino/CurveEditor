@@ -15,13 +15,19 @@ Comprehensive reference for the CurveEditor codebase - a Python/PySide6 applicat
 ### Core Services
 1. **TransformService**: Coordinate transformations, view state (99.9% cache hit rate)
 2. **DataService**: Data operations, file I/O, image management
-3. **InteractionService**: User interactions, point manipulation (64.7x spatial indexing)
+3. **InteractionService**: User interactions, point manipulation, command history
 4. **UIService**: UI operations, dialogs, status updates
 
 ### Service Access
 ```python
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
 ```
+
+### Command System
+- **CommandManager**: Manages undo/redo history with command pattern
+- **Command Classes**: BatchMoveCommand, DeletePointsCommand, SetPointStatusCommand, SmoothCommand
+- **ShortcutRegistry**: Global keyboard shortcut registration and handling
+- **GlobalEventFilter**: Application-level keyboard event interception
 
 ## Core Data Models (`core/models.py`)
 
@@ -64,7 +70,7 @@ class PointStatus(Enum):
 - **Select**: Left-click (single), Ctrl+click (multi), Alt+drag (rubber band)
 - **Move**: Drag & drop, Numpad 2/4/6/8 (with Shift=10x, Ctrl=0.1x)
 - **Delete**: Delete key
-- **Status**: Toggle Normal/Interpolated/Keyframe
+- **Status**: E key toggles Normal/Keyframe/Endframe
 
 ### View Controls
 - **Zoom**: Mouse wheel (cursor-centered)
@@ -76,7 +82,14 @@ class PointStatus(Enum):
 ```
 C: Center on selection    Delete: Remove points     Numpad 2/4/6/8: Nudge
 F: Fit to view           Escape: Deselect all      Ctrl+Z/Y: Undo/Redo
+E: Toggle endframe
 ```
+
+### Undo/Redo System
+- **Command Pattern**: All operations use commands for undo/redo support
+- **Global Shortcuts**: Ctrl+Z/Ctrl+Y work via ShortcutRegistry and GlobalEventFilter
+- **Command Merging**: Continuous operations (e.g., dragging) merge into single undo step
+- **Full Coverage**: Move, delete, status changes, smoothing all undoable
 
 ## Rendering Pipeline (`rendering/optimized_curve_renderer.py`)
 
