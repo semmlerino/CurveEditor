@@ -141,27 +141,31 @@ class TestSegmentedCurve:
         """Test segmentation with ENDFRAME points."""
         points = [
             CurvePoint(frame=1, x=0.0, y=0.0, status=PointStatus.KEYFRAME),
-            CurvePoint(frame=2, x=1.0, y=1.0, status=PointStatus.INTERPOLATED),
+            CurvePoint(frame=2, x=1.0, y=1.1, status=PointStatus.INTERPOLATED),
             CurvePoint(frame=3, x=2.0, y=2.0, status=PointStatus.ENDFRAME),  # Ends segment
             CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.INTERPOLATED),  # Inactive
-            CurvePoint(frame=5, x=4.0, y=4.0, status=PointStatus.KEYFRAME),  # Should start new segment but doesn't
+            CurvePoint(frame=5, x=4.0, y=4.0, status=PointStatus.KEYFRAME),  # Starts new active segment
             CurvePoint(frame=6, x=5.0, y=5.0, status=PointStatus.NORMAL),
         ]
         curve = SegmentedCurve.from_points(points)
 
-        # The algorithm creates 2 segments, not 3 as might be expected
-        assert len(curve.segments) == 2
+        # Correct behavior: 3 segments with proper activity states
+        assert len(curve.segments) == 3
 
         # First segment (active, ends with ENDFRAME)
         assert curve.segments[0].is_active is True
         assert curve.segments[0].point_count == 3
         assert curve.segments[0].frame_range == (1, 3)
 
-        # Second segment includes all points after ENDFRAME
-        # It's marked as inactive because it starts with an INTERPOLATED point
+        # Second segment (inactive, INTERPOLATED after ENDFRAME)
         assert curve.segments[1].is_active is False
-        assert curve.segments[1].point_count == 3
-        assert curve.segments[1].frame_range == (4, 6)
+        assert curve.segments[1].point_count == 1
+        assert curve.segments[1].frame_range == (4, 4)
+
+        # Third segment (active, starts with KEYFRAME)
+        assert curve.segments[2].is_active is True
+        assert curve.segments[2].point_count == 2
+        assert curve.segments[2].frame_range == (5, 6)
 
     def test_from_points_multiple_endframes(self):
         """Test handling multiple ENDFRAME points."""
@@ -169,15 +173,15 @@ class TestSegmentedCurve:
             CurvePoint(frame=1, x=0.0, y=0.0, status=PointStatus.KEYFRAME),
             CurvePoint(frame=2, x=1.0, y=1.0, status=PointStatus.ENDFRAME),
             CurvePoint(frame=3, x=2.0, y=2.0, status=PointStatus.ENDFRAME),  # Another ENDFRAME
-            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.TRACKED),  # Starts new segment
+            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.TRACKED),  # Inactive after ENDFRAME
             CurvePoint(frame=5, x=4.0, y=4.0, status=PointStatus.NORMAL),
         ]
         curve = SegmentedCurve.from_points(points)
 
         # Should create appropriate segments
         assert len(curve.segments) >= 2
-        # Last segment should be active (started by TRACKED point)
-        assert curve.segments[-1].is_active is True
+        # Last segment should be inactive (TRACKED points after ENDFRAME remain inactive until KEYFRAME)
+        assert curve.segments[-1].is_active is False
 
     def test_from_points_unsorted(self):
         """Test that points are sorted before segmentation."""
@@ -199,14 +203,15 @@ class TestSegmentedCurve:
             CurvePoint(frame=1, x=0.0, y=0.0, status=PointStatus.KEYFRAME),
             CurvePoint(frame=2, x=1.0, y=1.0, status=PointStatus.ENDFRAME),
             CurvePoint(frame=3, x=2.0, y=2.0, status=PointStatus.INTERPOLATED),  # Inactive
-            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.KEYFRAME),  # Still in inactive segment
+            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.KEYFRAME),  # Starts new active segment
         ]
         curve = SegmentedCurve.from_points(points)
 
         active = curve.active_segments
-        assert len(active) == 1  # Only first segment is active
+        assert len(active) == 2  # First segment and KEYFRAME segment are active
         assert all(s.is_active for s in active)
         assert active[0].frame_range == (1, 2)
+        assert active[1].frame_range == (4, 4)
 
     def test_inactive_segments_property(self):
         """Test inactive_segments property."""
@@ -267,8 +272,8 @@ class TestSegmentedCurve:
             CurvePoint(frame=1, x=0.0, y=0.0, status=PointStatus.KEYFRAME),
             CurvePoint(frame=2, x=1.0, y=1.0, status=PointStatus.ENDFRAME),
             CurvePoint(frame=3, x=2.0, y=2.0, status=PointStatus.INTERPOLATED),  # Inactive
-            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.KEYFRAME),  # Still inactive
-            CurvePoint(frame=5, x=4.0, y=4.0, status=PointStatus.NORMAL),  # Still inactive
+            CurvePoint(frame=4, x=3.0, y=3.0, status=PointStatus.KEYFRAME),  # Starts new active segment
+            CurvePoint(frame=5, x=4.0, y=4.0, status=PointStatus.NORMAL),  # Active (part of KEYFRAME segment)
         ]
         curve = SegmentedCurve.from_points(points)
 
@@ -277,10 +282,9 @@ class TestSegmentedCurve:
         active_frames = [p.frame for p in active_points]
         assert 1 in active_frames  # From first active segment
         assert 2 in active_frames  # From first active segment
-        # Points 3-5 are all in the inactive segment
-        assert 3 not in active_frames
-        assert 4 not in active_frames
-        assert 5 not in active_frames
+        assert 3 not in active_frames  # Inactive segment
+        assert 4 in active_frames  # From second active segment (KEYFRAME)
+        assert 5 in active_frames  # From second active segment (continues from KEYFRAME)
 
     def test_get_interpolation_boundaries(self):
         """Test get_interpolation_boundaries method."""
@@ -289,8 +293,8 @@ class TestSegmentedCurve:
             CurvePoint(frame=5, x=1.0, y=1.0, status=PointStatus.KEYFRAME),
             CurvePoint(frame=10, x=2.0, y=2.0, status=PointStatus.ENDFRAME),
             CurvePoint(frame=15, x=3.0, y=3.0, status=PointStatus.INTERPOLATED),  # Inactive
-            CurvePoint(frame=20, x=4.0, y=4.0, status=PointStatus.KEYFRAME),  # Still inactive
-            CurvePoint(frame=25, x=5.0, y=5.0, status=PointStatus.KEYFRAME),  # Still inactive
+            CurvePoint(frame=20, x=4.0, y=4.0, status=PointStatus.KEYFRAME),  # Starts new active segment
+            CurvePoint(frame=25, x=5.0, y=5.0, status=PointStatus.KEYFRAME),  # Active segment continues
         ]
         curve = SegmentedCurve.from_points(points)
 
@@ -305,15 +309,15 @@ class TestSegmentedCurve:
         assert prev is not None and prev.frame == 5
         assert next is None  # ENDFRAME at frame 10 is not returned as boundary
 
-        # Frame 17: in inactive segment (all points after ENDFRAME are in one inactive segment)
+        # Frame 17: in inactive segment
         prev, next = curve.get_interpolation_boundaries(17)
         assert prev is None
         assert next is None
 
-        # Frame 22: also in inactive segment (doesn't become active again)
+        # Frame 22: in new active segment started by KEYFRAME at frame 20
         prev, next = curve.get_interpolation_boundaries(22)
-        assert prev is None
-        assert next is None
+        assert prev is not None and prev.frame == 20
+        assert next is not None and next.frame == 25
 
     def test_get_interpolation_boundaries_edge_cases(self):
         """Test get_interpolation_boundaries edge cases."""
@@ -411,30 +415,34 @@ class TestSegmentedCurve:
             CurvePoint(frame=9, x=8.0, y=8.0, status=PointStatus.ENDFRAME),
             # Another inactive region
             CurvePoint(frame=10, x=9.0, y=9.0, status=PointStatus.INTERPOLATED),
-            # Third active segment (starts with TRACKED)
+            # Third segment (inactive - TRACKED after ENDFRAME)
             CurvePoint(frame=11, x=10.0, y=10.0, status=PointStatus.TRACKED),
             CurvePoint(frame=12, x=11.0, y=11.0, status=PointStatus.NORMAL),
         ]
         curve = SegmentedCurve.from_points(points)
 
-        # Based on actual behavior from test output
-        assert len(curve.segments) == 3
+        # Correct behavior: 4 segments with proper activity states
+        assert len(curve.segments) == 4
 
         # First segment: frames 1-4 (active, ends with ENDFRAME)
         assert curve.segments[0].is_active is True
         assert curve.segments[0].frame_range == (1, 4)
 
-        # Second segment: frames 5-9 (inactive, includes KEYFRAME but starts with INTERPOLATED)
+        # Second segment: frames 5-6 (inactive after ENDFRAME)
         assert curve.segments[1].is_active is False
-        assert curve.segments[1].frame_range == (5, 9)
+        assert curve.segments[1].frame_range == (5, 6)
 
-        # Third segment: frames 10-12 (inactive, includes TRACKED but starts with INTERPOLATED)
-        assert curve.segments[2].is_active is False
-        assert curve.segments[2].frame_range == (10, 12)
+        # Third segment: frames 7-9 (active, starts with KEYFRAME)
+        assert curve.segments[2].is_active is True
+        assert curve.segments[2].frame_range == (7, 9)
 
-        # Only the first segment is active
+        # Fourth segment: frames 10-12 (inactive, TRACKED after ENDFRAME remains inactive)
+        assert curve.segments[3].is_active is False
+        assert curve.segments[3].frame_range == (10, 12)
+
+        # Two segments should be active (frames 1-4 and 7-9)
         active_segs = curve.active_segments
-        assert len(active_segs) == 1
+        assert len(active_segs) == 2
         assert active_segs[0].frame_range == (1, 4)
 
         # Verify interpolation boundaries

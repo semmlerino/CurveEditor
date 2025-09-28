@@ -50,3 +50,23 @@ def reset_singletons():
         reset_all_services()
     except ImportError:
         pass  # Services might not exist in all test contexts
+
+    try:
+        # Reset service facade singleton
+        from ui.service_facade import reset_service_facade
+
+        reset_service_facade()
+    except ImportError:
+        pass  # Service facade might not exist in all test contexts
+
+    # Force event processing to clear any pending operations
+    try:
+        from PySide6.QtCore import QCoreApplication
+
+        app = QCoreApplication.instance()
+        if app:
+            for _ in range(10):
+                app.processEvents()
+                app.sendPostedEvents(None, 0)
+    except ImportError:
+        pass

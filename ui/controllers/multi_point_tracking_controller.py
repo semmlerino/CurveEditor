@@ -195,7 +195,14 @@ class MultiPointTrackingController:
             point_names: List of selected point names
         """
         self.active_points = point_names
-        self.update_curve_display()
+
+        # Set the first selected point as the active curve for editing
+        if point_names and hasattr(self.main_window.curve_widget, "set_active_curve"):
+            self.main_window.curve_widget.set_active_curve(point_names[0])
+        else:
+            # Fallback to updating the entire display
+            self.update_curve_display()
+
         logger.debug(f"Selected tracking points: {point_names}")
 
     def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
@@ -206,8 +213,12 @@ class MultiPointTrackingController:
             point_name: Name of the tracking point
             visible: Whether the point should be visible
         """
-        # Update display to show/hide the trajectory
-        self.update_curve_display()
+        # Update curve visibility directly if multi-curve is supported
+        if hasattr(self.main_window.curve_widget, "update_curve_visibility"):
+            self.main_window.curve_widget.update_curve_visibility(point_name, visible)
+        else:
+            # Fallback to full display update
+            self.update_curve_display()
         logger.debug(f"Point {point_name} visibility changed to {visible}")
 
     def on_point_color_changed(self, point_name: str, color: str) -> None:
@@ -218,8 +229,12 @@ class MultiPointTrackingController:
             point_name: Name of the tracking point
             color: New color for the point
         """
-        # Update display with new color
-        self.update_curve_display()
+        # Update curve color directly if multi-curve is supported
+        if hasattr(self.main_window.curve_widget, "update_curve_color"):
+            self.main_window.curve_widget.update_curve_color(point_name, color)
+        else:
+            # Fallback to full display update
+            self.update_curve_display()
         logger.debug(f"Point {point_name} color changed to {color}")
 
     def on_point_deleted(self, point_name: str) -> None:
@@ -319,13 +334,33 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
-        # For now, display the first selected point's trajectory
-        # TODO: Support multiple trajectory display
-        if self.active_points and self.active_points[0] in self.tracked_data:
-            trajectory = self.tracked_data[self.active_points[0]]
-            self.main_window.curve_widget.set_curve_data(trajectory)
+        # Check if curve widget supports multi-curve display
+        if hasattr(self.main_window.curve_widget, "set_curves_data"):
+            # Get metadata from tracking panel if available
+            metadata = {}
+            if hasattr(self.main_window, "tracking_panel"):
+                panel = self.main_window.tracking_panel
+                for name in self.tracked_data:
+                    point_meta = panel._point_metadata.get(name, {})
+                    metadata[name] = {
+                        "visible": point_meta.get("visible", True),
+                        "color": point_meta.get("color", "#FFFFFF"),
+                    }
+
+            # Set all curves with the first active point as the editing target
+            active_curve = self.active_points[0] if self.active_points else None
+            self.main_window.curve_widget.set_curves_data(self.tracked_data, metadata, active_curve)
+
+            # Enable multi-curve display if we have multiple curves
+            if len(self.tracked_data) > 1:
+                self.main_window.curve_widget.toggle_show_all_curves(True)
         else:
-            self.main_window.curve_widget.set_curve_data([])
+            # Fallback to single curve display for backward compatibility
+            if self.active_points and self.active_points[0] in self.tracked_data:
+                trajectory = self.tracked_data[self.active_points[0]]
+                self.main_window.curve_widget.set_curve_data(trajectory)
+            else:
+                self.main_window.curve_widget.set_curve_data([])
 
     def _update_frame_range_from_data(
         self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]

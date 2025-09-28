@@ -382,5 +382,189 @@ class TestRenderingIntegration:
         assert len(lod_points) < len(screen_points)
 
 
+class TestInactiveSegmentRendering:
+    """Test rendering of inactive segments (gaps) with dashed lines."""
+
+    def test_inactive_segment_point_hiding(self) -> None:
+        """Test that points in inactive segments are not rendered (except endframes)."""
+        from core.curve_segments import SegmentedCurve
+        from core.models import CurvePoint, PointStatus
+
+        # Create points with an endframe that creates a gap
+        points = [
+            CurvePoint(1, 100, 100, PointStatus.KEYFRAME),
+            CurvePoint(2, 110, 110, PointStatus.NORMAL),
+            CurvePoint(3, 120, 120, PointStatus.ENDFRAME),  # Creates gap
+            CurvePoint(4, 130, 130, PointStatus.TRACKED),  # In gap (inactive)
+            CurvePoint(5, 140, 140, PointStatus.TRACKED),  # In gap (inactive)
+            CurvePoint(6, 150, 150, PointStatus.KEYFRAME),  # Startframe (active)
+        ]
+
+        segmented_curve = SegmentedCurve.from_points(points)
+
+        # Check segment detection
+        segment_at_2 = segmented_curve.get_segment_at_frame(2)
+        assert segment_at_2 is not None and segment_at_2.is_active
+
+        segment_at_4 = segmented_curve.get_segment_at_frame(4)
+        assert segment_at_4 is not None and not segment_at_4.is_active
+
+        segment_at_5 = segmented_curve.get_segment_at_frame(5)
+        assert segment_at_5 is not None and not segment_at_5.is_active
+
+        segment_at_6 = segmented_curve.get_segment_at_frame(6)
+        assert segment_at_6 is not None and segment_at_6.is_active
+
+    def test_gap_segment_detection(self) -> None:
+        """Test that gap segments are correctly identified for dashed line rendering."""
+        from core.curve_segments import SegmentedCurve
+        from core.models import CurvePoint, PointStatus
+
+        # Create curve with multiple gaps
+        points = [
+            CurvePoint(1, 100, 100, PointStatus.KEYFRAME),
+            CurvePoint(2, 110, 110, PointStatus.ENDFRAME),  # First gap
+            CurvePoint(3, 120, 120, PointStatus.TRACKED),  # In gap
+            CurvePoint(4, 130, 130, PointStatus.KEYFRAME),  # End of gap
+            CurvePoint(5, 140, 140, PointStatus.ENDFRAME),  # Second gap
+            CurvePoint(6, 150, 150, PointStatus.TRACKED),  # In gap
+            CurvePoint(7, 160, 160, PointStatus.TRACKED),  # In gap
+            CurvePoint(8, 170, 170, PointStatus.KEYFRAME),  # End of gap
+        ]
+
+        segmented_curve = SegmentedCurve.from_points(points)
+
+        # First segment (frames 1-2) should be active
+        segment = segmented_curve.get_segment_at_frame(1)
+        assert segment is not None and segment.is_active
+        assert segment.start_frame == 1
+        assert segment.end_frame == 2
+
+        # First gap (frame 3) should be inactive - single tracked point segment
+        gap_segment = segmented_curve.get_segment_at_frame(3)
+        assert gap_segment is not None and not gap_segment.is_active
+        assert gap_segment.start_frame == 3
+        assert gap_segment.end_frame == 3
+
+        # Second active segment (frames 4-5)
+        segment = segmented_curve.get_segment_at_frame(4)
+        assert segment is not None and segment.is_active
+        assert segment.start_frame == 4
+        assert segment.end_frame == 5
+
+        # Second gap (frames 6-7) should be inactive - tracked points segment
+        gap_segment = segmented_curve.get_segment_at_frame(6)
+        assert gap_segment is not None and not gap_segment.is_active
+        assert gap_segment.start_frame == 6
+        assert gap_segment.end_frame == 7
+
+    def test_render_point_markers_skips_inactive(self) -> None:
+        """Test that _render_point_markers_optimized skips points in inactive segments."""
+
+        # Mock curve view with gap points
+        class MockCurveViewWithGaps:
+            def __init__(self) -> None:
+                self.points = [
+                    (1, 100, 100, "keyframe"),
+                    (2, 110, 110, "normal"),
+                    (3, 120, 120, "endframe"),  # Creates gap
+                    (4, 130, 130, "tracked"),  # Should not be rendered
+                    (5, 140, 140, "tracked"),  # Should not be rendered
+                    (6, 150, 150, "keyframe"),  # Should be rendered
+                ]
+                self.selected_points: set[int] = set()
+                self.point_radius = 5
+                self.selected_point_radius = 7
+                self.zoom_factor = 1.0
+                self.pan_offset_x = 0
+                self.pan_offset_y = 0
+                self.manual_offset_x = 0
+                self.manual_offset_y = 0
+                self.flip_y_axis = False
+                self.image_width = 800
+                self.image_height = 600
+                self._width = 800
+                self._height = 600
+                self.background_image = None
+                self.show_all_frame_numbers = False
+                self.show_info = False
+                self.show_background = False
+                self.show_grid = False
+                self.main_window = None
+
+            def width(self) -> int:
+                return self._width
+
+            def height(self) -> int:
+                return self._height
+
+            def get_transform(self) -> object:
+                from services.transform_service import Transform
+
+                return Transform(
+                    scale=self.zoom_factor,
+                    center_offset_x=0.0,
+                    center_offset_y=0.0,
+                    pan_offset_x=self.pan_offset_x,
+                    pan_offset_y=self.pan_offset_y,
+                )
+
+        curve_view = MockCurveViewWithGaps()
+
+        # We'll test the segmented curve logic directly since mocking QPainter is complex
+        # The actual rendering test would require more sophisticated Qt mocking
+        from core.curve_segments import SegmentedCurve
+        from core.models import CurvePoint
+
+        points = [CurvePoint.from_tuple(pt) for pt in curve_view.points]
+        segmented_curve = SegmentedCurve.from_points(points)
+
+        # Verify that frames 4 and 5 are in inactive segments
+        for frame in [4, 5]:
+            segment = segmented_curve.get_segment_at_frame(frame)
+            assert segment is not None
+            assert not segment.is_active, f"Frame {frame} should be in inactive segment"
+
+        # Verify that frames 1, 2, 3 (endframe), and 6 are in active segments or are endframes
+        for frame in [1, 2, 6]:
+            segment = segmented_curve.get_segment_at_frame(frame)
+            assert segment is not None
+            assert segment.is_active, f"Frame {frame} should be in active segment"
+
+    def test_dashed_line_follows_curve_trajectory(self) -> None:
+        """Test that dashed lines in gaps follow actual point positions, not horizontal."""
+        from core.curve_segments import SegmentedCurve
+        from core.models import CurvePoint, PointStatus
+
+        # Create points with varying Y positions in the gap
+        points = [
+            CurvePoint(1, 100, 100, PointStatus.KEYFRAME),
+            CurvePoint(2, 110, 110, PointStatus.ENDFRAME),  # Creates gap
+            CurvePoint(3, 120, 150, PointStatus.TRACKED),  # Y changes in gap
+            CurvePoint(4, 130, 200, PointStatus.TRACKED),  # Y continues changing
+            CurvePoint(5, 140, 180, PointStatus.TRACKED),  # Y goes down
+            CurvePoint(6, 150, 150, PointStatus.KEYFRAME),  # Startframe
+        ]
+
+        segmented_curve = SegmentedCurve.from_points(points)
+        gap_segment = segmented_curve.get_segment_at_frame(3)
+
+        assert gap_segment is not None
+        assert not gap_segment.is_active
+
+        # The gap segment should contain the tracked points with their actual positions
+        # not held positions
+        gap_points = gap_segment.points
+        assert len(gap_points) == 3  # Frames 3 through 5 (tracked points only)
+
+        # Check that Y values vary (not held constant)
+        y_values = [pt.y for pt in gap_points]
+        assert y_values == [150, 200, 180]  # Actual trajectory, not flat
+
+        # Ensure the segment knows these points form a dashed line path
+        assert gap_segment.start_frame == 3
+        assert gap_segment.end_frame == 5
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

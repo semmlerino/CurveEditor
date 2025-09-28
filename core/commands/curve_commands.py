@@ -12,7 +12,7 @@ import copy
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
+    from services.service_protocols import MainWindowProtocol
 
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
@@ -43,7 +43,7 @@ class SetCurveDataCommand(Command):
         self.new_data = copy.deepcopy(new_data)
         self.old_data = copy.deepcopy(old_data) if old_data is not None else None
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute the command by setting new curve data."""
         try:
             # Capture old data if not provided
@@ -66,7 +66,7 @@ class SetCurveDataCommand(Command):
             logger.error(f"Error executing SetCurveDataCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo by restoring the old curve data."""
         try:
             if self.old_data is not None and main_window.curve_widget:
@@ -81,7 +81,7 @@ class SetCurveDataCommand(Command):
             logger.error(f"Error undoing SetCurveDataCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo by setting the new curve data again."""
         return self.execute(main_window)
 
@@ -121,7 +121,7 @@ class SmoothCommand(Command):
         self.old_points = copy.deepcopy(old_points) if old_points else None
         self.new_points = copy.deepcopy(new_points) if new_points else None
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute smoothing operation."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -171,7 +171,17 @@ class SmoothCommand(Command):
                 if i < len(self.new_points) and 0 <= idx < len(new_curve_data):
                     new_curve_data[idx] = self.new_points[i]
 
+            # Preserve view state when updating data
+            old_zoom = main_window.curve_widget.zoom_factor
+            old_pan_x = main_window.curve_widget.pan_offset_x
+            old_pan_y = main_window.curve_widget.pan_offset_y
+
             main_window.curve_widget.set_curve_data(new_curve_data)
+
+            # Restore view state
+            main_window.curve_widget.zoom_factor = old_zoom
+            main_window.curve_widget.pan_offset_x = old_pan_x
+            main_window.curve_widget.pan_offset_y = old_pan_y
             self.executed = True
             return True
 
@@ -179,7 +189,7 @@ class SmoothCommand(Command):
             logger.error(f"Error executing SmoothCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo smoothing by restoring original points."""
         try:
             if not self.old_points or not main_window.curve_widget:
@@ -190,7 +200,18 @@ class SmoothCommand(Command):
             for i, idx in enumerate(self.indices):
                 if i < len(self.old_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.old_points[i]
+
+            # Preserve view state when updating data
+            old_zoom = main_window.curve_widget.zoom_factor
+            old_pan_x = main_window.curve_widget.pan_offset_x
+            old_pan_y = main_window.curve_widget.pan_offset_y
+
             main_window.curve_widget.set_curve_data(curve_data)
+
+            # Restore view state
+            main_window.curve_widget.zoom_factor = old_zoom
+            main_window.curve_widget.pan_offset_x = old_pan_x
+            main_window.curve_widget.pan_offset_y = old_pan_y
             self.executed = False
             return True
 
@@ -198,7 +219,7 @@ class SmoothCommand(Command):
             logger.error(f"Error undoing SmoothCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo smoothing by applying smoothed points."""
         try:
             if not self.new_points or not main_window.curve_widget:
@@ -210,7 +231,17 @@ class SmoothCommand(Command):
                 if i < len(self.new_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.new_points[i]
 
+            # Preserve view state when updating data
+            old_zoom = main_window.curve_widget.zoom_factor
+            old_pan_x = main_window.curve_widget.pan_offset_x
+            old_pan_y = main_window.curve_widget.pan_offset_y
+
             main_window.curve_widget.set_curve_data(curve_data)
+
+            # Restore view state
+            main_window.curve_widget.zoom_factor = old_zoom
+            main_window.curve_widget.pan_offset_x = old_pan_x
+            main_window.curve_widget.pan_offset_y = old_pan_y
             self.executed = True
             return True
 
@@ -272,7 +303,7 @@ class MovePointCommand(Command):
         self.old_pos = old_pos
         self.new_pos = new_pos
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point movement."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -297,7 +328,7 @@ class MovePointCommand(Command):
             logger.error(f"Error executing MovePointCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point movement."""
         try:
             if not main_window.curve_widget:
@@ -322,7 +353,7 @@ class MovePointCommand(Command):
             logger.error(f"Error undoing MovePointCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point movement."""
         return self.execute(main_window)
 
@@ -364,7 +395,7 @@ class DeletePointsCommand(Command):
         self.indices = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
         self.deleted_points = copy.deepcopy(deleted_points) if deleted_points else None
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point deletion."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -392,7 +423,7 @@ class DeletePointsCommand(Command):
             logger.error(f"Error executing DeletePointsCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point deletion by restoring deleted points."""
         try:
             if not self.deleted_points or not main_window.curve_widget:
@@ -413,7 +444,7 @@ class DeletePointsCommand(Command):
             logger.error(f"Error undoing DeletePointsCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point deletion."""
         return self.execute(main_window)
 
@@ -441,7 +472,7 @@ class BatchMoveCommand(Command):
         super().__init__(description)
         self.moves = moves  # List of (index, old_pos, new_pos)
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute batch point movement."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -467,7 +498,7 @@ class BatchMoveCommand(Command):
             logger.error(f"Error executing BatchMoveCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo batch point movement."""
         try:
             if not main_window.curve_widget:
@@ -493,7 +524,7 @@ class BatchMoveCommand(Command):
             logger.error(f"Error undoing BatchMoveCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo batch point movement."""
         return self.execute(main_window)
 
@@ -549,7 +580,7 @@ class SetPointStatusCommand(Command):
         super().__init__(description)
         self.changes = changes
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute status changes."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -575,7 +606,7 @@ class SetPointStatusCommand(Command):
             logger.error(f"Error executing SetPointStatusCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo status changes."""
         try:
             if not main_window.curve_widget:
@@ -601,7 +632,7 @@ class SetPointStatusCommand(Command):
             logger.error(f"Error undoing SetPointStatusCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo status changes."""
         return self.execute(main_window)
 
@@ -652,7 +683,7 @@ class AddPointCommand(Command):
         self.index = index
         self.point = copy.deepcopy(point)
 
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point addition."""
         try:
             if not main_window.curve_widget or not hasattr(main_window.curve_widget, "curve_data"):
@@ -671,7 +702,7 @@ class AddPointCommand(Command):
             logger.error(f"Error executing AddPointCommand: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point addition by removing the added point."""
         try:
             if not main_window.curve_widget:
@@ -690,6 +721,6 @@ class AddPointCommand(Command):
             logger.error(f"Error undoing AddPointCommand: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point addition."""
         return self.execute(main_window)

@@ -95,13 +95,7 @@ class ServiceFacade:
 
     main_window: MainWindowProtocol | None
     logger: logging.Logger
-    _transform_service: TransformService | None
-    _data_service: DataService | None
-    _interaction_service: InteractionService | None
-    _ui_service: UIService | None
     image_state: ImageState
-    _file_service: DataService | None
-    _history_service: InteractionService | None
 
     def __init__(self, main_window: MainWindowProtocol | None = None):
         """Initialize the service facade with consolidated services.
@@ -112,18 +106,39 @@ class ServiceFacade:
         self.main_window = main_window
         self.logger = get_logger("service_facade")
 
-        # Initialize consolidated services
-        self._transform_service = get_transform_service() if get_transform_service else None
-        self._data_service = get_data_service() if get_data_service else None
-        self._interaction_service = get_interaction_service() if get_interaction_service else None
-        self._ui_service = get_ui_service() if get_ui_service else None  # pyright: ignore[reportPossiblyUnboundVariable]
-
         # Initialize state management
         self.image_state = ImageState()
 
-        # Legacy service references (now redirect to consolidated services)
-        self._file_service = self._data_service  # FileService -> DataService
-        self._history_service = self._interaction_service  # HistoryService -> InteractionService
+    # Service properties that always fetch fresh instances
+    @property
+    def _transform_service(self) -> TransformService | None:
+        """Get the current transform service instance."""
+        return get_transform_service() if get_transform_service else None
+
+    @property
+    def _data_service(self) -> DataService | None:
+        """Get the current data service instance."""
+        return get_data_service() if get_data_service else None
+
+    @property
+    def _interaction_service(self) -> InteractionService | None:
+        """Get the current interaction service instance."""
+        return get_interaction_service() if get_interaction_service else None
+
+    @property
+    def _ui_service(self) -> UIService | None:
+        """Get the current UI service instance."""
+        return get_ui_service() if get_ui_service else None  # pyright: ignore[reportPossiblyUnboundVariable]
+
+    @property
+    def _file_service(self) -> DataService | None:
+        """Legacy service reference (FileService -> DataService)."""
+        return self._data_service
+
+    @property
+    def _history_service(self) -> InteractionService | None:
+        """Legacy service reference (HistoryService -> InteractionService)."""
+        return self._interaction_service
 
     # ==================== Transform Service Methods ====================
 
@@ -476,11 +491,8 @@ class ServiceFacade:
 
     def refresh_services(self) -> None:
         """Refresh service instances (useful after configuration changes)."""
-        self._transform_service = get_transform_service() if get_transform_service else None
-        self._data_service = get_data_service() if get_data_service else None
-        self._interaction_service = get_interaction_service() if get_interaction_service else None
-        self._ui_service = get_ui_service() if get_ui_service else None  # pyright: ignore[reportPossiblyUnboundVariable]
-
+        # Services are already refreshed automatically via @property getters
+        # No caching needed - each property fetches the current service instance
         self.logger.info(f"Services refreshed. Available: {self.get_available_services()}")
 
 
@@ -504,3 +516,12 @@ def get_service_facade(main_window: MainWindowProtocol | None = None) -> Service
         # Update main window reference if provided
         _facade_instance.main_window = main_window
     return _facade_instance
+
+
+def reset_service_facade() -> None:
+    """Reset the ServiceFacade singleton (for testing).
+
+    This clears the cached facade instance, allowing tests to start fresh.
+    """
+    global _facade_instance
+    _facade_instance = None

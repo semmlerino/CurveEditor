@@ -206,28 +206,27 @@ class TestSmoothingOperation:
         self, mock_get_interaction_service, mock_get_data_service, action_handler, mock_main_window
     ):
         """Test smoothing applies to selected points."""
-        # Setup - Force fallback to legacy approach by disabling command system
-        mock_get_interaction_service.return_value = None  # No interaction service = legacy fallback
+        # Setup - Mock interaction service with command system
+        mock_interaction_service = Mock()
+        mock_command_manager = Mock()
+        mock_command_manager.execute_command.return_value = True
+        mock_interaction_service.command_manager = mock_command_manager
+        mock_get_interaction_service.return_value = mock_interaction_service
 
         mock_main_window.curve_widget.selected_indices = [1, 2, 3]
         mock_data_service = Mock()
-        mock_data_service.smooth_moving_average.return_value = [
-            (2, 160.0, 260.0),
-            (3, 210.0, 310.0),
-            (4, 260.0, 360.0),
-        ]
         mock_get_data_service.return_value = mock_data_service
 
         # Execute
         action_handler.apply_smooth_operation()
 
-        # Verify
-        mock_data_service.smooth_moving_average.assert_called_once()
-        call_args = mock_data_service.smooth_moving_average.call_args
-        assert len(call_args[0][0]) == 3  # 3 selected points
-        assert call_args[0][1] == 5  # Default window size (positional arg)
+        # Verify that command was executed
+        mock_command_manager.execute_command.assert_called_once()
 
-        mock_main_window.curve_widget.set_curve_data.assert_called_once()
+        # Verify status message
+        mock_main_window.statusBar().showMessage.assert_called_with(
+            "Applied Moving Average smoothing to 3 points (size: 5)", 3000
+        )
         assert mock_main_window.state_manager.is_modified is True
 
     @patch("ui.controllers.action_handler_controller.get_data_service")

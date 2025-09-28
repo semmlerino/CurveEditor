@@ -453,6 +453,16 @@ class TestSmoothingWithOtherFeatures:
         window = full_featured_window
 
         if window.curve_widget:
+            # Stop any file loading threads that might interfere
+            window.file_operations.cleanup_threads()
+
+            # Clear any background image to avoid fit_to_background_image interference
+            window.curve_widget.background_image = None
+            window.curve_widget.show_background = False
+
+            # Process events to clear any pending operations
+            qtbot.wait(10)
+
             # Set custom zoom and pan
             original_zoom = 2.0
             original_pan = (50.0, 100.0)

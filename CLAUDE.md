@@ -111,7 +111,7 @@ CurveEditor/
 ├── tests/          # Test suite (549 tests)
 ├── session/        # Session state persistence
 ├── main.py         # Entry point
-├── bpr             # Basedpyright wrapper (MUST USE THIS!)
+├── bpr             # Python wrapper for basedpyright with enhanced features
 └── venv/           # Python 3.11, PySide6==6.4.0
 ```
 
@@ -124,12 +124,14 @@ source venv/bin/activate
 # Ruff
 ruff check . --fix
 
-# Basedpyright (MUST use wrapper due to shell redirection bug)
-./bpr                     # Check all
-./bpr ui/main_window.py  # Check specific
-./bpr | tail -10         # Summary
+# Basedpyright (Python wrapper with enhanced features)
+./bpr                      # Check all
+./bpr --errors-only        # Show only errors
+./bpr --summary            # Show just error/warning counts
+./bpr ui/main_window.py    # Check specific file
+./bpr --check-config       # Check if config excludes irrelevant folders
 
-# DON'T use: basedpyright . 2>&1  # BROKEN - interprets "2" as filename
+# Wrapper features: clean piping, JSON output, automatic folder exclusion
 ```
 
 ### Testing
@@ -261,7 +263,7 @@ from ui.file_operations import FileOperations
 ## Development Tips
 
 1. Always activate venv: `source venv/bin/activate`
-2. Use `./bpr` for type checking, never `basedpyright` directly
+2. Use `./bpr` for type checking - enhanced Python wrapper with clean output
 3. Check syntax first: `python3 -m py_compile <file>`
 4. Validate before integration to prevent silent failures
 5. Prefer None checks over hasattr() for type safety

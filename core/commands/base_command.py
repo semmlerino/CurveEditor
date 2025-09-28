@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, override
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
+    from services.service_protocols import MainWindowProtocol
 
 from core.logger_utils import get_logger
 
@@ -39,7 +39,7 @@ class Command(ABC):
         self.executed: bool = False
 
     @abstractmethod
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """
         Execute the command.
 
@@ -52,7 +52,7 @@ class Command(ABC):
         pass
 
     @abstractmethod
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """
         Undo the command.
 
@@ -65,7 +65,8 @@ class Command(ABC):
         pass
 
     @abstractmethod
-    def redo(self, main_window: MainWindow) -> bool:
+    @override
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """
         Redo the command (same as execute but may have optimizations).
 
@@ -107,6 +108,7 @@ class Command(ABC):
         """
         raise NotImplementedError("Command merging not implemented")
 
+    @override
     def get_memory_usage(self) -> int:
         """
         Get approximate memory usage of this command in bytes.
@@ -118,10 +120,12 @@ class Command(ABC):
 
         return sys.getsizeof(self)
 
+    @override
     def __str__(self) -> str:
         """String representation of the command."""
         return f"{self.__class__.__name__}: {self.description}"
 
+    @override
     def __repr__(self) -> str:
         """Detailed string representation of the command."""
         return f"{self.__class__.__name__}(description='{self.description}', executed={self.executed})"
@@ -156,7 +160,7 @@ class CompositeCommand(Command):
         self.commands.append(command)
 
     @override
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """
         Execute all commands in order.
 
@@ -193,7 +197,7 @@ class CompositeCommand(Command):
             return False
 
     @override
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """
         Undo all commands in reverse order.
 
@@ -214,7 +218,8 @@ class CompositeCommand(Command):
 
         return success
 
-    def redo(self, main_window: MainWindow) -> bool:
+    @override
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """
         Redo all commands in order.
 
@@ -226,6 +231,7 @@ class CompositeCommand(Command):
         """
         return self.execute(main_window)
 
+    @override
     def get_memory_usage(self) -> int:
         """
         Get total memory usage of all contained commands.
@@ -235,6 +241,7 @@ class CompositeCommand(Command):
         """
         return sum(cmd.get_memory_usage() for cmd in self.commands) + super().get_memory_usage()
 
+    @override
     def __str__(self) -> str:
         """String representation of the composite command."""
         return f"CompositeCommand: {self.description} ({len(self.commands)} commands)"
@@ -252,18 +259,19 @@ class NullCommand(Command):
         super().__init__("No operation")
 
     @override
-    def execute(self, main_window: MainWindow) -> bool:
+    def execute(self, main_window: MainWindowProtocol) -> bool:
         """Do nothing and report success."""
         self.executed = True
         return True
 
     @override
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """Do nothing and report success."""
         self.executed = False
         return True
 
     @override
-    def redo(self, main_window: MainWindow) -> bool:
+    @override
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """Do nothing and report success."""
         return self.execute(main_window)

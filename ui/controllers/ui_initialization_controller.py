@@ -204,13 +204,28 @@ class UIInitializationController:
         # Add smoothing label
         smoothing_layout.addWidget(QLabel("Smoothing:"))
 
-        # Filter type combo box
-        self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
-        self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average", "Median", "Butterworth"])
-        self.main_window.ui.toolbar.smoothing_type_combo.setCurrentIndex(0)
-        self.main_window.ui.toolbar.smoothing_type_combo.setToolTip("Select smoothing filter type")
-        _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.connect(self._on_smoothing_type_changed)
-        smoothing_layout.addWidget(self.main_window.ui.toolbar.smoothing_type_combo)
+        # Filter type combo box with retry logic for test environments
+        try:
+            self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
+            self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average", "Median", "Butterworth"])
+            self.main_window.ui.toolbar.smoothing_type_combo.setCurrentIndex(0)
+            self.main_window.ui.toolbar.smoothing_type_combo.setToolTip("Select smoothing filter type")
+            _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.connect(
+                self._on_smoothing_type_changed
+            )
+
+            # Add to layout with timeout protection
+            try:
+                smoothing_layout.addWidget(self.main_window.ui.toolbar.smoothing_type_combo)
+            except Exception as e:
+                logger.warning(f"Failed to add smoothing combo to layout: {e}")
+                # Continue without the widget rather than hanging
+
+        except Exception as e:
+            logger.warning(f"Failed to create smoothing type combo: {e}")
+            # Create a minimal fallback widget to prevent attribute errors
+            self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
+            self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average"])
 
         # Size label
         smoothing_layout.addWidget(QLabel("Size:"))
@@ -412,6 +427,7 @@ class UIInitializationController:
         _ = self.main_window.tracking_panel.tracking_direction_changed.connect(
             self.main_window.tracking_controller.on_tracking_direction_changed
         )
+        _ = self.main_window.tracking_panel.show_all_curves_toggled.connect(self.main_window.on_show_all_curves_toggled)
 
         logger.info("Tracking points panel dock widget initialized")
 

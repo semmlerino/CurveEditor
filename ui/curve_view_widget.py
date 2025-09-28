@@ -152,6 +152,12 @@ class CurveViewWidget(QWidget):
         self.point_collection: PointCollection | None = None
         self.hover_index: int = -1
 
+        # Multi-curve support
+        self.curves_data: dict[str, CurveDataList] = {}  # All curves with names
+        self.curve_metadata: dict[str, dict] = {}  # Per-curve visibility/color settings
+        self.active_curve_name: str | None = None  # Currently selected curve for editing
+        self.show_all_curves: bool = False  # Toggle for showing all curves
+
         # View transformation
         self.zoom_factor: float = DEFAULT_ZOOM_FACTOR
         self.pan_offset_x: float = 0.0
@@ -440,6 +446,157 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         # Store handles selection updates automatically
         self._curve_store.remove_point(index)
+
+    # Multi-curve Management
+
+    def set_curves_data(
+        self,
+        curves: dict[str, CurveDataList],
+        metadata: dict[str, dict] | None = None,
+        active_curve: str | None = None,
+    ) -> None:
+        """
+        Set multiple curves to display.
+
+        Args:
+            curves: Dictionary mapping curve names to curve data
+            metadata: Optional dictionary with per-curve metadata (visibility, color, etc.)
+            active_curve: Name of the currently active curve for editing
+        """
+        self.curves_data = curves.copy()
+        if metadata:
+            self.curve_metadata = metadata.copy()
+        else:
+            # Initialize default metadata for each curve
+            self.curve_metadata = {name: {"visible": True, "color": "#FFFFFF"} for name in curves.keys()}
+
+        # Set the active curve
+        if active_curve and active_curve in curves:
+            self.active_curve_name = active_curve
+            # Update the single curve data for backward compatibility
+            self.set_curve_data(curves[active_curve])
+        elif curves:
+            # Default to first curve if no active curve specified
+            self.active_curve_name = next(iter(curves.keys()))
+            self.set_curve_data(curves[self.active_curve_name])
+        else:
+            self.active_curve_name = None
+            self.set_curve_data([])
+
+        # Trigger repaint to show all curves
+        self.update()
+        logger.debug(f"Set {len(curves)} curves, active: {self.active_curve_name}")
+
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict | None = None) -> None:
+        """
+        Add a new curve to the display.
+
+        Args:
+            name: Unique name for the curve
+            data: Curve data points
+            metadata: Optional metadata for the curve
+        """
+        self.curves_data[name] = data
+        if metadata:
+            self.curve_metadata[name] = metadata
+        else:
+            self.curve_metadata[name] = {"visible": True, "color": "#FFFFFF"}
+
+        # If this is the first curve, make it active
+        if not self.active_curve_name:
+            self.active_curve_name = name
+            self.set_curve_data(data)
+
+        self.update()
+        logger.debug(f"Added curve '{name}' with {len(data)} points")
+
+    def remove_curve(self, name: str) -> None:
+        """
+        Remove a curve from the display.
+
+        Args:
+            name: Name of the curve to remove
+        """
+        if name not in self.curves_data:
+            return
+
+        del self.curves_data[name]
+        if name in self.curve_metadata:
+            del self.curve_metadata[name]
+
+        # If this was the active curve, select another
+        if self.active_curve_name == name:
+            if self.curves_data:
+                self.active_curve_name = next(iter(self.curves_data.keys()))
+                self.set_curve_data(self.curves_data[self.active_curve_name])
+            else:
+                self.active_curve_name = None
+                self.set_curve_data([])
+
+        self.update()
+        logger.debug(f"Removed curve '{name}'")
+
+    def update_curve_visibility(self, name: str, visible: bool) -> None:
+        """
+        Update visibility of a specific curve.
+
+        Args:
+            name: Name of the curve
+            visible: Whether the curve should be visible
+        """
+        if name in self.curve_metadata:
+            self.curve_metadata[name]["visible"] = visible
+            self.update()
+            logger.debug(f"Set curve '{name}' visibility to {visible}")
+
+    def update_curve_color(self, name: str, color: str) -> None:
+        """
+        Update color of a specific curve.
+
+        Args:
+            name: Name of the curve
+            color: Color in hex format (e.g., "#FF0000")
+        """
+        if name in self.curve_metadata:
+            self.curve_metadata[name]["color"] = color
+            self.update()
+            logger.debug(f"Set curve '{name}' color to {color}")
+
+    def set_active_curve(self, name: str) -> None:
+        """
+        Set the active curve for editing operations.
+
+        Args:
+            name: Name of the curve to make active
+        """
+        if name in self.curves_data:
+            self.active_curve_name = name
+            # Update the single curve data for editing operations
+            # This is needed for backward compatibility with editing tools
+            self._curve_store.set_data(self.curves_data[name])
+            # Trigger display update to show the new active curve
+            self.update()
+            logger.debug(f"Set active curve to '{name}'")
+
+            # Auto-center on the current frame if centering mode is active
+            if self.centering_mode:
+                if self.main_window and getattr(self.main_window, "current_frame", None) is not None:
+                    current_frame = self.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
+                    logger.debug(
+                        f"[CENTERING] Auto-centering on frame {current_frame} for newly selected curve '{name}'"
+                    )
+                    self.center_on_frame(current_frame)
+
+    def toggle_show_all_curves(self, show_all: bool) -> None:
+        """
+        Toggle whether to show all curves or just the active one.
+
+        Args:
+            show_all: If True, show all visible curves; if False, show only active curve
+        """
+        self.show_all_curves = show_all
+        self.update()
+        logger.debug(f"Show all curves: {show_all}")
 
     # Coordinate Transformation
 

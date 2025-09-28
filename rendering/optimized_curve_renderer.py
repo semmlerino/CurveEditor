@@ -306,10 +306,17 @@ class OptimizedCurveRenderer:
             if curve_view.show_grid:
                 self._render_grid_optimized(painter, curve_view)
 
-            # Render curve points with advanced optimizations
-            # points is defined in CurveViewProtocol
-            if curve_view.points:
-                self._render_points_ultra_optimized(painter, curve_view)
+            # Check if curve_view supports multi-curve rendering
+            has_multi_curve = hasattr(curve_view, "show_all_curves") and hasattr(curve_view, "curves_data")
+
+            if has_multi_curve and curve_view.show_all_curves and curve_view.curves_data:  # pyright: ignore[reportAttributeAccessIssue]
+                # Render multiple curves
+                self._render_multiple_curves(painter, curve_view)
+            else:
+                # Render single curve with advanced optimizations (backward compatibility)
+                # points is defined in CurveViewProtocol
+                if curve_view.points:
+                    self._render_points_ultra_optimized(painter, curve_view)
 
             # Render info overlay
             self._render_info_optimized(painter, curve_view)
@@ -859,6 +866,88 @@ class OptimizedCurveRenderer:
                     label_x = int(screen_pos[0] + 15)
                     label_y = int(screen_pos[1] + 5)
                     painter.drawText(label_x, label_y, label.upper())
+
+    def _render_multiple_curves(self, painter: QPainter, curve_view: Any) -> None:  # pyright: ignore[reportExplicitAny]
+        """Render multiple curves with different colors and styles.
+
+        Args:
+            painter: Qt painter for drawing
+            curve_view: The curve view widget with multi-curve support
+        """
+        if not hasattr(curve_view, "curves_data") or not hasattr(curve_view, "curve_metadata"):
+            return
+
+        curves_data = curve_view.curves_data  # pyright: ignore[reportAttributeAccessIssue]
+        curve_metadata = curve_view.curve_metadata  # pyright: ignore[reportAttributeAccessIssue]
+        active_curve = getattr(curve_view, "active_curve_name", None)
+
+        # Get transform once for all curves
+        transform = curve_view.get_transform()
+
+        for curve_name, curve_points in curves_data.items():
+            if not curve_points:
+                continue
+
+            # Check if curve should be visible
+            metadata = curve_metadata.get(curve_name, {})
+            if not metadata.get("visible", True):
+                continue
+
+            # Determine curve styling
+            is_active = curve_name == active_curve
+            color_str = metadata.get("color", "#FFFFFF")
+            curve_color = QColor(color_str)
+
+            # Adjust opacity for inactive curves
+            if not is_active:
+                curve_color.setAlpha(128)  # 50% opacity for inactive curves
+
+            # Convert points to NumPy array
+            try:
+                point_data = np.array([(p[0], p[1], p[2]) for p in curve_points if len(p) >= 3])  # pyright: ignore[reportPrivateImportUsage]
+            except (IndexError, TypeError):
+                continue
+
+            if len(point_data) == 0:
+                continue
+
+            # Transform points to screen coordinates
+            screen_points = np.zeros((len(point_data), 2))  # pyright: ignore[reportPrivateImportUsage]
+            for i, point in enumerate(point_data):
+                x, y = transform.data_to_screen(point[1], point[2])
+                screen_points[i] = [x, y]
+
+            # Render curve lines
+            if len(screen_points) > 1:
+                pen = QPen(curve_color)
+                pen.setWidth(3 if is_active else 2)  # Thicker line for active curve
+                painter.setPen(pen)
+
+                path = QPainterPath()
+                path.moveTo(screen_points[0][0], screen_points[0][1])
+                for i in range(1, len(screen_points)):
+                    path.lineTo(screen_points[i][0], screen_points[i][1])
+                painter.drawPath(path)
+
+            # Render points
+            point_radius = 7 if is_active else 5  # Larger points for active curve
+            painter.setPen(QPen(curve_color))
+            painter.setBrush(QBrush(curve_color))
+
+            for i, (x, y) in enumerate(screen_points):
+                # Skip points outside viewport
+                if x < -50 or x > curve_view.width() + 50 or y < -50 or y > curve_view.height() + 50:
+                    continue
+
+                # Draw point
+                painter.drawEllipse(QPointF(x, y), point_radius, point_radius)
+
+                # Label active curve points with frame numbers if in debug mode
+                if is_active and getattr(curve_view, "show_all_frame_numbers", False):
+                    frame_num = int(point_data[i][0])
+                    painter.drawText(QPointF(x + 10, y - 10), str(frame_num))
+
+        logger.debug(f"Rendered {len(curves_data)} curves")
 
     def _render_background_optimized(self, painter: QPainter, curve_view: CurveViewProtocol) -> None:
         """Optimized background rendering with proper transformations."""

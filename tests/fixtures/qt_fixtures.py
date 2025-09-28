@@ -71,39 +71,76 @@ def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
     """
     yield
 
+    # Process all pending events before cleanup
+    for _ in range(10):  # Process events multiple times to clear queue
+        qapp.processEvents()
+        qapp.sendPostedEvents(None, 0)  # Process all posted events
+
     # Use unified cleanup function
     cleanup_qt_widgets(qapp)
 
+    # Final event processing to ensure deleteLater operations complete
+    for _ in range(5):
+        qapp.processEvents()
+        qapp.sendPostedEvents(None, 0)
+
 
 @pytest.fixture
-def curve_view_widget(qapp: QApplication):
+def curve_view_widget(qapp: QApplication, qtbot):
     """Create a curve view widget with cleanup.
 
     This fixture ensures the widget is properly cleaned up after the test.
 
     Args:
         qapp: The QApplication instance
+        qtbot: pytest-qt bot for automatic cleanup
 
     Yields:
         CurveViewWidget: The widget instance
     """
+    # Initialize services first - needed for commands to work
+    from services import get_data_service, get_interaction_service
+
+    data_service = get_data_service()
+    _ = get_interaction_service()  # Initialize but don't use
+
     widget = CurveViewWidget()
     widget.resize(800, 600)
+
+    # CRITICAL: Use qtbot.addWidget for automatic cleanup (required per testing guide)
+    qtbot.addWidget(widget)
+
+    # Set up basic main window for command execution
+    # This is needed for delete_selected_points and nudge_selected to work
+    from tests.test_helpers import ProtocolCompliantMockMainWindow
+
+    mock_main_window = ProtocolCompliantMockMainWindow()
+    # CRITICAL: Set the mock's curve_widget to point to our actual widget
+    # so that commands execute on the real widget, not the mock
+    mock_main_window.curve_widget = widget
+    widget.set_main_window(mock_main_window)
+
+    # Store original set_curve_data method and wrap it to sync with data service
+    original_set_curve_data = widget.set_curve_data
+
+    def synced_set_curve_data(data):
+        original_set_curve_data(data)
+        # Sync with data service so commands can work
+        data_service.update_curve_data(data)
+
+    widget.set_curve_data = synced_set_curve_data
 
     # Ensure widget is properly initialized
     qapp.processEvents()
 
     yield widget
 
-    # Use unified cleanup for single widget
-    from tests.test_utils import safe_cleanup_widget
-
-    safe_cleanup_widget(widget)
-    qapp.processEvents()
+    # qtbot.addWidget handles cleanup automatically
+    # No manual cleanup needed
 
 
 @pytest.fixture
-def main_window(qapp: QApplication):
+def main_window(qapp: QApplication, qtbot):
     """Create a fully initialized MainWindow with all UI components.
 
     This fixture creates a MainWindow with properly initialized UI components
@@ -112,6 +149,7 @@ def main_window(qapp: QApplication):
 
     Args:
         qapp: The QApplication instance
+        qtbot: pytest-qt bot for automatic cleanup
 
     Yields:
         MainWindow: Fully initialized main window
@@ -122,6 +160,9 @@ def main_window(qapp: QApplication):
     from ui.timeline_tabs import TimelineTabWidget
 
     window = MainWindow()
+
+    # CRITICAL: Use qtbot.addWidget for automatic cleanup (required per testing guide)
+    qtbot.addWidget(window)
 
     # Initialize commonly needed UI components that tests expect
     # These would normally be created by UIInitializationController
@@ -139,8 +180,5 @@ def main_window(qapp: QApplication):
 
     yield window
 
-    # Cleanup
-    from tests.test_utils import safe_cleanup_widget
-
-    safe_cleanup_widget(window)
-    qapp.processEvents()
+    # qtbot.addWidget handles cleanup automatically
+    # No manual cleanup needed

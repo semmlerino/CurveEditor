@@ -829,6 +829,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle point renaming (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_point_renamed(old_name, new_name)
 
+    def on_show_all_curves_toggled(self, show_all: bool) -> None:
+        """Handle toggling of show all curves option."""
+        if self.curve_widget:
+            self.curve_widget.toggle_show_all_curves(show_all)
+
     def update_tracking_panel(self) -> None:
         """Update tracking panel (delegated to MultiPointTrackingController)."""
         self.tracking_controller.update_tracking_panel()
@@ -1146,6 +1151,18 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
+
+        # Remove global event filter to prevent accumulation
+        app = QApplication.instance()
+        if app and hasattr(self, "global_event_filter"):
+            app.removeEventFilter(self.global_event_filter)
+            logger.info("Removed global event filter")
+
+        # Stop playback timer if running
+        if hasattr(self, "timeline_controller") and self.timeline_controller is not None:
+            self.timeline_controller.stop_playback()
+            if hasattr(self.timeline_controller, "playback_timer"):
+                self.timeline_controller.playback_timer.stop()
 
         # Stop any file operation threads
         # file_operations is always initialized in __init__

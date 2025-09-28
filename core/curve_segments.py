@@ -236,13 +236,14 @@ class SegmentedCurve:
         # Create the segmented curve
         curve = cls(segments=segments, all_points=sorted_points)
 
-        # Apply 3DEqualizer gap behavior automatically only when needed:
-        # Only if there are tracked points immediately after endframes
+        # Apply 3DEqualizer gap behavior automatically when there are any points after endframes
+        # All points after ENDFRAME should be in inactive segments until a KEYFRAME starts a new active segment
         needs_gap_splitting = False
         for i, point in enumerate(sorted_points[:-1]):  # Check all but last point
             if point.is_endframe:
+                # Any point after ENDFRAME requires gap behavior (except if it's immediately a KEYFRAME)
                 next_point = sorted_points[i + 1]
-                if next_point.status == PointStatus.TRACKED:
+                if next_point.status != PointStatus.KEYFRAME:
                     needs_gap_splitting = True
                     break
 

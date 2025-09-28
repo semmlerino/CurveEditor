@@ -264,6 +264,14 @@ class TimelineTabWidget(QWidget):
 
     def _on_store_data_changed(self) -> None:
         """Handle complete data change from store."""
+        # Guard against operations during widget destruction in teardown only
+        try:
+            # Only block during actual teardown, not normal operation
+            self.isVisible()  # This will raise RuntimeError if widget is being destroyed
+        except RuntimeError:
+            # Widget is being destroyed, ignore the signal
+            return
+
         # Get updated data and rebuild timeline
         from services import get_data_service
 
@@ -657,7 +665,11 @@ class TimelineTabWidget(QWidget):
             self.frame_tabs[frame] = tab
             # Check layout still exists before adding
             if self.tabs_layout:
-                self.tabs_layout.addWidget(tab)
+                try:
+                    self.tabs_layout.addWidget(tab)
+                except RuntimeError:
+                    # Layout or widget being destroyed during teardown
+                    return
 
         # Update container size to fit all tabs
         total_width = tab_width * len(self.frame_tabs) + 4

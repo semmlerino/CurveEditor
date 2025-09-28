@@ -1,20 +1,179 @@
-#!/bin/bash
-# Basedpyright wrapper that avoids the "2>&1" redirection bug
-# Usage: ./bpr [options] [files...]
-#
-# The bug: When shell redirection "2>&1" is used, basedpyright incorrectly
-# interprets "2" as a filename argument, causing "File or directory '2' does not exist"
+#!/usr/bin/env python3
+"""
+Basedpyright wrapper that avoids the "2>&1" redirection bug and provides enhanced features.
 
-cd "$(dirname "$0")"
-source venv/bin/activate
+The bug: When shell redirection "2>&1" is used, basedpyright incorrectly
+interprets "2" as a filename argument, causing "File or directory '2' does not exist"
 
-# WORKAROUND: Use script command without shell redirection operators
-# The script command captures both stdout and stderr naturally
-if [ -t 1 ] ; then
-    # Terminal is attached - run normally with color
-    basedpyright "$@"
-else
-    # Output is being piped/redirected - use script to capture all output
-    # Note: We use script WITHOUT 2>&1 to avoid the bug
-    script -q -c "basedpyright $*" /dev/null
-fi
+This wrapper:
+- Uses subprocess to capture output without shell redirection
+- Supports all basedpyright options transparently
+- Adds convenience features for common tasks
+- Preserves colors in terminal, strips them when piping
+"""
+
+import json
+import os
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+
+def is_terminal():
+    """Check if stdout is connected to a terminal."""
+    return sys.stdout.isatty()
+
+
+def strip_ansi(text):
+    """Remove ANSI escape codes from text."""
+    ansi_escape = re.compile(r"\x1b\[[0-9;]*m")
+    return ansi_escape.sub("", text)
+
+
+def main():
+    # Change to script directory
+    script_dir = Path(__file__).parent
+    os.chdir(script_dir)
+
+    # Activate virtual environment
+    venv_python = script_dir / "venv" / "bin" / "python"
+    if not venv_python.exists():
+        print("Error: Virtual environment not found. Please run: python3 -m venv venv", file=sys.stderr)
+        sys.exit(1)
+
+    # Get basedpyright path
+    basedpyright = script_dir / "venv" / "bin" / "basedpyright"
+    if not basedpyright.exists():
+        print("Error: basedpyright not found. Please install with: pip install basedpyright", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse arguments for convenience features
+    args = sys.argv[1:]
+    show_summary = False
+    json_output = False
+
+    # Show help if requested
+    if "--help" in args or "-h" in args:
+        print("""
+Basedpyright wrapper with enhanced features
+
+Usage: ./bpr [options] [files...]
+
+Custom options (processed by wrapper):
+  --summary          Show only the error/warning/note summary line
+  --errors-only      Show only errors (adds --level error)
+  --json             Output in JSON format (adds --outputjson)
+  --check-config     Check if config properly excludes irrelevant folders
+  --help, -h         Show this help message
+
+All other options are passed directly to basedpyright.
+
+Note: Folders are excluded via basedpyrightconfig.json. Use --check-config
+to see if any common irrelevant folders should be added to the exclude list.
+        """)
+        # Also show basedpyright's help
+        subprocess.run([str(basedpyright), "--help"])
+        sys.exit(0)
+
+    # Check for our custom flags
+    if "--summary" in args:
+        show_summary = True
+        args.remove("--summary")
+
+    if "--errors-only" in args:
+        args.remove("--errors-only")
+        # Add --level error if not already present
+        if "--level" not in args:
+            args.extend(["--level", "error"])
+
+    if "--json" in args:
+        json_output = True
+        args.remove("--json")
+        args.append("--outputjson")
+
+    if "--check-config" in args:
+        # Check if config has proper exclusions
+        args.remove("--check-config")
+        config_path = script_dir / "basedpyrightconfig.json"
+        if config_path.exists():
+            with open(config_path) as f:
+                config = json.load(f)
+
+            recommended_excludes = [
+                ".pytest_cache",
+                ".benchmarks",
+                ".hypothesis",
+                ".ruff_cache",
+                "LogicExamples",
+                "test_images_output",
+                "test_data",
+            ]
+
+            current_excludes = config.get("exclude", [])
+            missing = []
+            for exc in recommended_excludes:
+                if exc not in current_excludes:
+                    exc_path = script_dir / exc
+                    if exc_path.exists():
+                        missing.append(exc)
+
+            if missing:
+                print("Consider adding these folders to basedpyrightconfig.json exclude:")
+                for m in missing:
+                    print(f"  - {m}")
+                print()
+
+        # Continue with normal execution
+
+    # Build command
+    cmd = [str(basedpyright)] + args
+
+    # Run basedpyright with captured output
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, env={**os.environ, "PYTHONPATH": str(script_dir)})
+
+        stdout = result.stdout
+        stderr = result.stderr
+
+        # Combine stdout and stderr
+        output = stdout
+        if stderr:
+            output += stderr
+
+        # Process output based on options
+        if json_output and stdout:
+            try:
+                # Pretty print JSON if valid
+                data = json.loads(stdout)
+                output = json.dumps(data, indent=2)
+            except json.JSONDecodeError:
+                # Not valid JSON, use as-is
+                pass
+
+        if show_summary:
+            # Extract just the summary line
+            lines = output.split("\n")
+            for line in lines:
+                if "error" in line and "warning" in line and "note" in line:
+                    output = line
+                    break
+
+        # Output handling
+        if is_terminal():
+            # Terminal: preserve colors
+            sys.stdout.write(output)
+        else:
+            # Pipe/redirect: strip ANSI codes for clean output
+            sys.stdout.write(strip_ansi(output))
+
+        # Exit with basedpyright's exit code
+        sys.exit(result.returncode)
+
+    except Exception as e:
+        print(f"Error running basedpyright: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

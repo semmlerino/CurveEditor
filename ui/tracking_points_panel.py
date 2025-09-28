@@ -134,6 +134,7 @@ class TrackingPointsPanel(QWidget):
     tracking_direction_changed: Signal = Signal(str, object)  # Point name, TrackingDirection
     point_deleted: Signal = Signal(str)  # Point name
     point_renamed: Signal = Signal(str, str)  # Old name, new name
+    show_all_curves_toggled: Signal = Signal(bool)  # Show all curves state
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the tracking points panel."""
@@ -151,6 +152,16 @@ class TrackingPointsPanel(QWidget):
         """Initialize the user interface."""
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
+
+        # Add checkbox for toggling multi-curve display
+        self.show_all_curves_checkbox: QCheckBox = QCheckBox("Show all curves")
+        self.show_all_curves_checkbox.setToolTip(
+            "When checked, displays all visible curves simultaneously.\n"
+            "When unchecked, shows only the selected/active curve."
+        )
+        self.show_all_curves_checkbox.setChecked(False)
+        _ = self.show_all_curves_checkbox.toggled.connect(self._on_show_all_curves_toggled)
+        layout.addWidget(self.show_all_curves_checkbox)
 
         # Create table widget
         self.table: QTableWidget = QTableWidget()
@@ -310,6 +321,14 @@ class TrackingPointsPanel(QWidget):
         if point_name in self._point_metadata:
             return self._point_metadata[point_name]["tracking_direction"]
         return TrackingDirection.TRACKING_FW_BW  # Default
+
+    def _on_show_all_curves_toggled(self, checked: bool) -> None:
+        """Handle toggle of show all curves checkbox.
+
+        Args:
+            checked: Whether to show all curves
+        """
+        self.show_all_curves_toggled.emit(checked)
 
     def _on_selection_changed(self) -> None:
         """Handle table selection changes."""

@@ -89,7 +89,7 @@ class CommandManager:
 
             logger.info(
                 f"Command executed and added to history: {command} "
-                f"(history size: {len(self._history)}, index: {self._current_index})"
+                + f"(history size: {len(self._history)}, index: {self._current_index})"
             )
             return True
 
@@ -133,7 +133,7 @@ class CommandManager:
 
             logger.info(
                 f"Already-executed command added to history: {command} "
-                f"(history size: {len(self._history)}, index: {self._current_index})"
+                + f"(history size: {len(self._history)}, index: {self._current_index})"
             )
             return True
 
@@ -153,7 +153,7 @@ class CommandManager:
         """
         logger.info(
             f"Undo requested: history size={len(self._history)}, "
-            f"current_index={self._current_index}, can_undo={self.can_undo()}"
+            + f"current_index={self._current_index}, can_undo={self.can_undo()}"
         )
 
         if not self.can_undo():

@@ -276,6 +276,9 @@ class ActionHandlerController:
         if interaction_service is not None:
             logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
             if interaction_service.command_manager.execute_command(smooth_command, self.main_window):
+                # Mark as modified
+                self.state_manager.is_modified = True
+
                 # Update status with details
                 filter_display = {
                     "moving_average": "Moving Average",
@@ -287,13 +290,15 @@ class ActionHandlerController:
                     f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
                 )
                 logger.info(f"{filter_display} smoothing applied successfully via command system")
+                return  # Command succeeded, exit early
             else:
                 logger.error("Command system failed to execute smooth command")
+                # Fall through to legacy implementation
         else:
-            logger.error("Interaction service not available for smoothing")
-            return
+            logger.info("Interaction service not available, using legacy smoothing implementation")
+            # Fall through to legacy implementation
 
-        # Only reached if command execution failed
+        # Fallback to legacy DataService implementation if command system unavailable or failed
 
         # Apply smoothing using DataService
         data_service = get_data_service()
