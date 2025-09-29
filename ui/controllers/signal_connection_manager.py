@@ -105,6 +105,12 @@ class SignalConnectionManager:
         # Only connect selection change which MainWindow needs
         self.main_window.get_curve_store().selection_changed.connect(self.main_window.on_store_selection_changed)
 
+        # BIDIRECTIONAL SYNC: Connect CurveDataStore selection changes to tracking controller
+        # This ensures point-level selection changes are reflected in the tracking panel
+        self.main_window.get_curve_store().selection_changed.connect(
+            self.main_window.tracking_controller.on_curve_selection_changed
+        )
+
         logger.info("Connected MainWindow to reactive store signals")
 
     def _connect_curve_widget_signals(self) -> None:

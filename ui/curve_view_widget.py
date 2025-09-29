@@ -982,8 +982,9 @@ class CurveViewWidget(QWidget):
             # Grid and visual settings
             show_grid=self.show_grid,
             point_radius=self.point_radius,
-            # Multi-curve support
-            curves_data=getattr(self, "curves_data", None),
+            # Multi-curve support - CRITICAL FIX for gap visualization
+            # Use live curves data that includes current status changes for active curve
+            curves_data=self._get_live_curves_data(),
             show_all_curves=getattr(self, "show_all_curves", False),
             selected_curve_names=getattr(self, "selected_curve_names", None),
         )
@@ -2121,6 +2122,42 @@ class CurveViewWidget(QWidget):
         from ui.ui_constants import SPECIAL_COLORS
 
         return QColor(SPECIAL_COLORS["current_frame"])
+
+    def _get_live_curves_data(self) -> dict[str, CurveDataList]:
+        """
+        Get curves data with live status information for active curve.
+
+        This fixes the gap visualization issue by ensuring the active curve
+        uses live data from the curve store (which has current status changes)
+        instead of static data from the tracking controller.
+
+        Returns:
+            Dictionary of curve data with active curve having live status data
+        """
+        # Start with static curves data as base
+        curves_data: dict[str, CurveDataList] | None = getattr(self, "curves_data", None)
+        if not curves_data:
+            return {}
+
+        # Create a copy to avoid modifying the original
+        live_curves_data: dict[str, CurveDataList] = curves_data.copy()
+
+        # Get the active curve name from the tracking controller if available
+        active_curve_name: str | None = getattr(self, "active_curve_name", None)
+
+        # If we have an active curve and live curve store data, replace with live data
+        if active_curve_name and active_curve_name in live_curves_data and hasattr(self, "_curve_store"):
+            live_data = self._curve_store.get_data()
+            if live_data:
+                # Replace the active curve's static data with live data from store
+                live_curves_data[active_curve_name] = live_data
+                logger.debug(
+                    f"Using live curve store data for active curve '{active_curve_name}' ({len(live_data)} points)"
+                )
+            else:
+                logger.debug(f"No live data available for active curve '{active_curve_name}'")
+
+        return live_curves_data
 
 
 # Example usage and testing

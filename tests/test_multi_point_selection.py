@@ -177,6 +177,16 @@ class TestMultiPointTrackingController:
         """Create a mock main window with necessary attributes."""
         mock = Mock(spec=MainWindow)
         mock.curve_widget = Mock(spec=CurveViewWidget)
+        mock.curve_widget.curve_data = []  # Set as empty list to support iteration
+
+        # Add mock _curve_store for auto-selection functionality
+        mock_curve_store = Mock()
+        mock.curve_widget._curve_store = mock_curve_store
+
+        # Add state manager mock for auto-selection
+        mock.state_manager = Mock()
+        mock.state_manager.current_frame = 1
+
         mock.tracking_panel = Mock(spec=TrackingPointsPanel)
         mock.tracking_panel._point_metadata = {}
         return mock
@@ -409,6 +419,16 @@ def test_selection_bug_fix_tdd():
     # Setup
     main_window = Mock(spec=MainWindow)
     curve_widget = Mock(spec=CurveViewWidget)
+    curve_widget.curve_data = []  # Set as empty list to support iteration
+
+    # Add mock _curve_store for auto-selection functionality
+    mock_curve_store = Mock()
+    curve_widget._curve_store = mock_curve_store
+
+    # Add state manager mock for auto-selection
+    main_window.state_manager = Mock()
+    main_window.state_manager.current_frame = 1
+
     main_window.curve_widget = curve_widget
     main_window.tracking_panel = Mock()
     main_window.tracking_panel._point_metadata = {}

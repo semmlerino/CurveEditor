@@ -105,11 +105,11 @@ class TestTimelineFocusBehavior:
         assert timeline_widget.current_frame == initial_frame
 
     def test_frame_changed_signal_on_navigation(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
-        """Test that frame_changed signal is emitted on keyboard navigation."""
+        """Test that StateManager's frame_changed signal is emitted on keyboard navigation (Single Source of Truth)."""
         timeline_widget.setFocus()
 
-        # Use qtbot.waitSignal to test real Qt signal
-        with qtbot.waitSignal(timeline_widget.frame_changed, timeout=1000) as blocker:
+        # Use qtbot.waitSignal to test StateManager's signal (Single Source of Truth)
+        with qtbot.waitSignal(timeline_widget._state_manager.frame_changed, timeout=1000) as blocker:
             qtbot.keyClick(timeline_widget, Qt.Key.Key_Right)
 
         # Verify signal was emitted with correct frame

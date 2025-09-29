@@ -144,13 +144,34 @@ class MockCurveWidget:
 
     def __init__(self):
         self.data: CurveDataList = []
+        self.curves_data = {}
         self.setup_called = False
+        # Mock curve_data property for auto-selection
+        self.curve_data: CurveDataList = []
+        # Mock curve store for auto-selection
+        self._curve_store = MockCurveStore()
 
     def setup_for_pixel_tracking(self):
         self.setup_called = True
 
     def set_curve_data(self, data: CurveDataList):
         self.data = data
+        self.curve_data = data  # Update both for compatibility
+
+    def set_curves_data(self, curves: dict[str, CurveDataList], metadata=None, active_curve=None, selected_curves=None):
+        """Mock implementation of set_curves_data."""
+        self.curves_data = curves
+
+
+class MockCurveStore:
+    """Mock curve store for testing auto-selection."""
+
+    def __init__(self):
+        self.selection = set()
+
+    def select(self, index: int) -> None:
+        """Mock select method."""
+        self.selection = {index}
 
 
 class MockStateManager:
@@ -180,9 +201,22 @@ class MockTrackingPanel:
 
     def __init__(self):
         self.tracked_data = {}
+        self.selected_points = []
 
     def set_tracked_data(self, data: dict[str, CurveDataList]):
         self.tracked_data = data
+
+    def set_selected_points(self, point_names: list[str]) -> None:
+        """Mock implementation of set_selected_points."""
+        self.selected_points = point_names
+
+    def get_point_visibility(self, point_name: str) -> bool:
+        """Mock implementation of get_point_visibility."""
+        return True  # Default to visible for testing
+
+    def get_point_color(self, point_name: str) -> str:
+        """Mock implementation of get_point_color."""
+        return "#FFFFFF"  # Default to white for testing
 
 
 class MockFileOperations:

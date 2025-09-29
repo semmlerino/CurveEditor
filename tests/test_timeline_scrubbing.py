@@ -107,8 +107,8 @@ class TestTimelineScrubbing:
         widget.scrub_start_frame = 1
         initial_frame = widget.current_frame
 
-        # Create signal spy for frame_changed
-        frame_spy = qt_api.QtTest.QSignalSpy(widget.frame_changed)
+        # Create signal spy for StateManager's frame_changed (Single Source of Truth)
+        frame_spy = qt_api.QtTest.QSignalSpy(widget._state_manager.frame_changed)
 
         # Simulate mouse move to different position
         move_x = widget.width() * 3 // 4  # 75% across widget
@@ -125,7 +125,7 @@ class TestTimelineScrubbing:
 
         # Verify
         assert widget.current_frame != initial_frame
-        assert frame_spy.count() >= 1  # frame_changed signal should be emitted
+        assert frame_spy.count() >= 1  # StateManager's frame_changed signal should be emitted
 
     def test_scrubbing_stops_on_mouse_release(self, timeline_with_frames: TimelineTabWidget):
         """Test that mouse release stops scrubbing mode."""
@@ -307,8 +307,8 @@ class TestTimelineScrubbing:
         """Test multiple rapid mouse events in succession."""
         widget = timeline_with_frames
 
-        # Create signal spy
-        frame_spy = qt_api.QtTest.QSignalSpy(widget.frame_changed)
+        # Create signal spy for StateManager's frame_changed (Single Source of Truth)
+        frame_spy = qt_api.QtTest.QSignalSpy(widget._state_manager.frame_changed)
 
         # Rapid sequence of events
         positions = [20, 40, 60, 80]

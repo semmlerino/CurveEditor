@@ -43,11 +43,11 @@ class GlobalEventFilter(QObject):
         self.registry = registry
         logger.info("GlobalEventFilter initialized")
 
-    def eventFilter(self, obj: QObject, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Filter events for the application.
 
         Args:
-            obj: The object that would normally receive the event
+            watched: The object that would normally receive the event
             event: The event to filter
 
         Returns:
@@ -63,12 +63,12 @@ class GlobalEventFilter(QObject):
             return False
 
         # Don't interfere with text input in certain widgets
-        if self._should_skip_widget(obj):
+        if self._should_skip_widget(watched):
             return False
 
         # Build context for the shortcut
         try:
-            context = self._build_context(event, obj)
+            context = self._build_context(event, watched)
         except Exception as e:
             logger.error(f"Failed to build shortcut context: {e}")
             return False
@@ -103,28 +103,26 @@ class GlobalEventFilter(QObject):
             logger.error(f"Error executing shortcut [{command.key_sequence}]: {e}")
             return False
 
-    def _build_context(self, event: QKeyEvent, obj: QObject) -> ShortcutContext:
+    def _build_context(self, event: QKeyEvent, watched: QObject) -> ShortcutContext:
         """Build a context object for shortcut execution.
 
         Args:
             event: The key event that triggered the shortcut
-            obj: The object that would normally receive the event
+            watched: The object that would normally receive the event
 
         Returns:
             Context object with current application state
         """
-        from PySide6.QtWidgets import QWidget
+        from PySide6.QtWidgets import QApplication, QWidget
 
         # Get focused widget
         focused_widget = None
-        if isinstance(obj, QWidget):
-            focused_widget = obj
+        if isinstance(watched, QWidget):
+            focused_widget = watched
         else:
             # Try to get the currently focused widget
-            from PySide6.QtWidgets import QApplication
-
             app = QApplication.instance()
-            if app:
+            if app and isinstance(app, QApplication):
                 focused_widget = app.focusWidget()
 
         # Get selected curve points
@@ -132,10 +130,13 @@ class GlobalEventFilter(QObject):
         if self.main_window.curve_widget is not None:
             selected_curve_points = self.main_window.curve_widget.selected_indices
 
-        # Get selected tracking points
+        # Get selected tracking points - UNIFIED SELECTION STATE
+        # Selection synchronization is now handled by proper signal connections
+        # in MultiPointTrackingController, not during shortcut context building
         selected_tracking_points = []
-        if getattr(self.main_window, "tracking_panel", None) is not None:
-            selected_tracking_points = self.main_window.tracking_panel.get_selected_points()
+        tracking_panel = getattr(self.main_window, "tracking_panel", None)
+        if tracking_panel is not None and hasattr(tracking_panel, "get_selected_points"):
+            selected_tracking_points = tracking_panel.get_selected_points()
 
         # Get current frame
         current_frame = None

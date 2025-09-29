@@ -317,6 +317,7 @@ class TimelineTabWidget(QWidget):
         self._curve_store.point_updated.connect(self._on_store_point_updated)
         self._curve_store.point_removed.connect(self._on_store_point_removed)
         self._curve_store.point_status_changed.connect(self._on_store_status_changed)
+        self._curve_store.selection_changed.connect(self._on_store_selection_changed)
 
         logger.info("TimelineTabWidget connected to reactive store signals")
 
@@ -420,6 +421,78 @@ class TimelineTabWidget(QWidget):
             # Invalidate and update this specific frame
             self.invalidate_frame_status(frame)
             self._schedule_deferred_update()
+
+    def _on_store_selection_changed(self, selection: set[int]) -> None:
+        """Handle selection changed in store."""
+        # Get current curve data to find frames containing selected points
+        curve_data = self._curve_store.get_data()
+        if not curve_data:
+            return
+
+        # Find frames that contain selected points
+        selected_frames: set[int] = set()
+        for index in selection:
+            if 0 <= index < len(curve_data):
+                point = curve_data[index]
+                if len(point) >= 3:
+                    frame = int(point[0])
+                    selected_frames.add(frame)
+
+        # Update has_selected status for all frames
+        from services import get_data_service
+
+        data_service = get_data_service()
+        frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+
+        for frame in range(self.min_frame, self.max_frame + 1):
+            # Check if this frame has selected points
+            has_selected = frame in selected_frames
+
+            # Get existing status from cache or calculate defaults
+            cached_status = self.status_cache.get_status(frame)
+            if cached_status:
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    _,
+                ) = cached_status
+            else:
+                # Get status from data service if not cached
+                if frame in frame_status:
+                    status_data = frame_status[frame]
+                    (
+                        keyframe_count,
+                        interpolated_count,
+                        tracked_count,
+                        endframe_count,
+                        normal_count,
+                        is_startframe,
+                        is_inactive,
+                        _,
+                    ) = status_data
+                else:
+                    # Default values for frames with no points
+                    keyframe_count = interpolated_count = tracked_count = 0
+                    endframe_count = normal_count = 0
+                    is_startframe = is_inactive = False
+
+            # Update frame status with new has_selected value
+            self.update_frame_status(
+                frame,
+                keyframe_count=keyframe_count,
+                interpolated_count=interpolated_count,
+                tracked_count=tracked_count,
+                endframe_count=endframe_count,
+                normal_count=normal_count,
+                is_startframe=is_startframe,
+                is_inactive=is_inactive,
+                has_selected=has_selected,
+            )
 
     def _create_navigation_controls(self) -> None:
         """Create navigation buttons and frame info."""
@@ -858,16 +931,24 @@ class TimelineTabWidget(QWidget):
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard navigation."""
         if event.key() == Qt.Key.Key_Left:
-            self.set_current_frame(self.current_frame - 1)
+            # Delegate to StateManager (single source of truth)
+            if self._state_manager:
+                self._state_manager.current_frame = max(self.min_frame, self._state_manager.current_frame - 1)
             event.accept()
         elif event.key() == Qt.Key.Key_Right:
-            self.set_current_frame(self.current_frame + 1)
+            # Delegate to StateManager (single source of truth)
+            if self._state_manager:
+                self._state_manager.current_frame = min(self.max_frame, self._state_manager.current_frame + 1)
             event.accept()
         elif event.key() == Qt.Key.Key_Home:
-            self.set_current_frame(self.min_frame)
+            # Delegate to StateManager (single source of truth)
+            if self._state_manager:
+                self._state_manager.current_frame = self.min_frame
             event.accept()
         elif event.key() == Qt.Key.Key_End:
-            self.set_current_frame(self.max_frame)
+            # Delegate to StateManager (single source of truth)
+            if self._state_manager:
+                self._state_manager.current_frame = self.max_frame
             event.accept()
         else:
             # Properly propagate unhandled events up the widget hierarchy
@@ -878,10 +959,11 @@ class TimelineTabWidget(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             # Calculate which frame was clicked based on mouse position
             frame = self._get_frame_from_position(event.pos().x())
-            if frame is not None:
+            if frame is not None and self._state_manager:
                 self.is_scrubbing = True
                 self.scrub_start_frame = frame
-                self.set_current_frame(frame)
+                # Delegate to StateManager (single source of truth)
+                self._state_manager.current_frame = frame
                 event.accept()
                 return
         super().mousePressEvent(event)
@@ -891,8 +973,9 @@ class TimelineTabWidget(QWidget):
         if self.is_scrubbing:
             # Calculate frame from mouse position
             frame = self._get_frame_from_position(event.pos().x())
-            if frame is not None and frame != self.current_frame:
-                self.set_current_frame(frame)
+            if frame is not None and frame != self.current_frame and self._state_manager:
+                # Delegate to StateManager (single source of truth)
+                self._state_manager.current_frame = frame
             event.accept()
         else:
             super().mouseMoveEvent(event)
