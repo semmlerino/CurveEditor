@@ -270,6 +270,9 @@ class CurveViewWidget(QWidget):
         self._curve_store.point_status_changed.connect(self._on_store_status_changed)
         self._curve_store.selection_changed.connect(self._on_store_selection_changed)
 
+        # Ensure DataService stays synchronized with curve data changes
+        _ = self._curve_store.data_changed.connect(self._sync_data_service)
+
         logger.debug("Connected to reactive store signals")
 
     def _connect_state_manager_signals(self) -> None:
@@ -379,6 +382,16 @@ class CurveViewWidget(QWidget):
         # Update display and notify listeners
         self.update()
         self.selection_changed.emit(list(selection))
+
+    def _sync_data_service(self) -> None:
+        """Synchronize DataService with current curve data."""
+        try:
+            data_service = get_data_service()
+            current_data = self._curve_store.get_data()
+            data_service.update_curve_data(current_data)
+            logger.debug(f"Synchronized DataService with {len(current_data)} points")
+        except Exception as e:
+            logger.error(f"Failed to synchronize DataService: {e}")
 
     def _setup_widget(self) -> None:
         """Configure widget properties and settings."""
@@ -943,8 +956,37 @@ class CurveViewWidget(QWidget):
             current_frame = state_manager.current_frame
             selected_points = set(state_manager.selected_points)
 
-        # Create RenderState with all necessary data for rendering
-        render_state = RenderState.from_curve_view(self, current_frame, selected_points)
+        # Create RenderState with all necessary data for rendering (explicit state passing)
+        render_state = RenderState(
+            # Core data
+            points=self.points,
+            current_frame=current_frame,
+            selected_points=selected_points,
+            # Widget dimensions
+            widget_width=self.width(),
+            widget_height=self.height(),
+            # View transform settings
+            zoom_factor=self.zoom_factor,
+            pan_offset_x=self.pan_offset_x,
+            pan_offset_y=self.pan_offset_y,
+            manual_offset_x=self.manual_offset_x,
+            manual_offset_y=self.manual_offset_y,
+            flip_y_axis=self.flip_y_axis,
+            # Background settings
+            show_background=self.show_background,
+            background_image=self.background_image,
+            background_opacity=self.background_opacity,
+            # Image dimensions
+            image_width=self.image_width,
+            image_height=self.image_height,
+            # Grid and visual settings
+            show_grid=self.show_grid,
+            point_radius=self.point_radius,
+            # Multi-curve support
+            curves_data=getattr(self, "curves_data", None),
+            show_all_curves=getattr(self, "show_all_curves", False),
+            selected_curve_names=getattr(self, "selected_curve_names", None),
+        )
 
         # Pass explicit state to renderer instead of widget reference
         self._optimized_renderer.render(painter, event, render_state)

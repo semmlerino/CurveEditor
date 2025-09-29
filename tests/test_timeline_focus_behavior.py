@@ -15,6 +15,7 @@ from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
+from ui.state_manager import StateManager
 from ui.timeline_tabs import TimelineTabWidget
 
 
@@ -35,9 +36,15 @@ class TestTimelineFocusBehavior:
         widget = TimelineTabWidget()
         qtbot.addWidget(widget)  # Register for cleanup
 
+        # Create and connect StateManager for Single Source of Truth architecture
+        state_manager = StateManager()
+        state_manager.total_frames = 100  # Set total frames first
+        state_manager.current_frame = 50  # Then set current frame
+        widget.set_state_manager(state_manager)
+
         # Set up a frame range
         widget.set_frame_range(1, 100)
-        widget.set_current_frame(50)
+        # StateManager already has frame 50, no need to set again
 
         # Add some frame status for visual testing
         widget.update_frame_status(10, keyframe_count=1)

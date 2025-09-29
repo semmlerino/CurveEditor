@@ -142,6 +142,8 @@ class TimelineTabWidget(QWidget):
     """Main timeline widget with frame tabs and navigation."""
 
     # Signals
+    # DEPRECATED: Use StateManager.frame_changed instead for new code
+    # Kept for backward compatibility only
     frame_changed: Signal = Signal(int)
     frame_hovered: Signal = Signal(int)
 
@@ -151,7 +153,6 @@ class TimelineTabWidget(QWidget):
     TOTAL_HEIGHT: int = 60  # Height: 20px nav + 40px scroll area
 
     # State variables - initialized in __init__
-    current_frame: int
     total_frames: int
     min_frame: int
     max_frame: int
@@ -203,7 +204,8 @@ class TimelineTabWidget(QWidget):
         """)
 
         # State - start with minimal range, will be updated when data is loaded
-        self.current_frame = 1
+        self._state_manager = None
+        self._current_frame = 1  # Only for tracking old frame for visual updates
         self.total_frames = 1
         self.min_frame = 1
         self.max_frame = 1
@@ -234,6 +236,62 @@ class TimelineTabWidget(QWidget):
 
         # Initialize timeline from current store data
         self._on_store_data_changed()
+
+    @property
+    def current_frame(self) -> int:
+        """Get current frame from StateManager (single source of truth)."""
+        if self._state_manager:
+            return self._state_manager.current_frame
+        return 1  # Default during initialization before StateManager connected
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Redirect frame changes through StateManager."""
+        if self._state_manager:
+            self._state_manager.current_frame = value
+            # Visual update happens via signal callback
+        else:
+            # No fallback - StateManager must be connected for frame changes
+            import warnings
+
+            warnings.warn(
+                "timeline_tabs.current_frame setter called without StateManager connection. "
+                "This violates Single Source of Truth architecture.",
+                UserWarning,
+                stacklevel=2,
+            )
+
+    def set_state_manager(self, state_manager) -> None:
+        """Connect to StateManager for frame synchronization."""
+        self._state_manager = state_manager
+        # Connect to frame changes
+        state_manager.frame_changed.connect(self._on_state_frame_changed)
+
+        # Sync initial state
+        if self._state_manager.current_frame != self._current_frame:
+            self._on_state_frame_changed(self._state_manager.current_frame)
+
+    def _on_state_frame_changed(self, frame: int) -> None:
+        """React to StateManager frame changes (visual updates only)."""
+        # Clamp to valid range
+        frame = max(self.min_frame, min(self.max_frame, frame))
+
+        # Update old frame tab visual state
+        old_frame = self._current_frame  # Always use internal tracking for old frame
+        if old_frame in self.frame_tabs:
+            self.frame_tabs[old_frame].set_current_frame(False)
+
+        # Update new frame tab visual state
+        if frame in self.frame_tabs:
+            self.frame_tabs[frame].set_current_frame(True)
+
+        # Update internal tracking (for visual old frame reference only)
+        self._current_frame = frame
+
+        # Update frame info display
+        self._update_frame_info()
+
+        # Do NOT emit frame_changed here (would create loop)
 
     def _setup_ui(self) -> None:
         """Setup the timeline UI components."""
@@ -470,21 +528,22 @@ class TimelineTabWidget(QWidget):
         # Clamp to valid range
         frame = max(self.min_frame, min(self.max_frame, frame))
 
-        if frame != self.current_frame:
-            # Update old frame tab
-            if self.current_frame in self.frame_tabs:
-                self.frame_tabs[self.current_frame].set_current_frame(False)
+        # Store old frame before setting new one
+        old_frame = self.current_frame
 
+        if frame != old_frame:
+            # Set through StateManager (triggers _on_state_frame_changed for visual updates)
             self.current_frame = frame
 
-            # Update new frame tab
-            if frame in self.frame_tabs:
-                self.frame_tabs[frame].set_current_frame(True)
+            # Emit signal for backward compatibility (with deprecation warning)
+            import warnings
 
-            # Update frame info
-            self._update_frame_info()
-
-            # Emit signal
+            warnings.warn(
+                "timeline_tabs.frame_changed signal is deprecated. "
+                "Use StateManager.frame_changed instead for Single Source of Truth architecture.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
             self.frame_changed.emit(frame)
 
     def update_frame_status(
@@ -597,7 +656,7 @@ class TimelineTabWidget(QWidget):
             return
 
         # Check if layout still exists (might be deleted during destruction)
-        if not self.tabs_layout:
+        if self.tabs_layout is None:
             return
 
         # Clear existing tabs
@@ -664,7 +723,7 @@ class TimelineTabWidget(QWidget):
 
             self.frame_tabs[frame] = tab
             # Check layout still exists before adding
-            if self.tabs_layout:
+            if self.tabs_layout is not None:
                 try:
                     self.tabs_layout.addWidget(tab)
                 except RuntimeError:

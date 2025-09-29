@@ -225,17 +225,23 @@ class TestNavigationIntegration:
         if not window.timeline_tabs:
             pytest.skip("Timeline tabs not available")
 
-        # Set up signal spy on timeline's frame_changed signal
-        spy = QSignalSpy(window.timeline_tabs.frame_changed)
+        # Set up signal spy on StateManager's frame_changed signal (new architecture)
+        state_spy = QSignalSpy(window.state_manager.frame_changed)
 
-        # Navigate using Page Down
+        # Navigate using Right arrow - handled by global navigation system
         window.state_manager.current_frame = 1
-        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(50)
 
-        # Check signal was emitted
-        assert spy.count() > 0, "frame_changed signal should be emitted"
+        # In new architecture: StateManager frame_changed should be emitted
+        # timeline_tabs should update visually but not emit its own signal (avoids loops)
+        assert state_spy.count() > 0, "StateManager frame_changed signal should be emitted"
+
+        # Test direct timeline_tabs interaction (should emit timeline_tabs signal)
+        timeline_spy = QSignalSpy(window.timeline_tabs.frame_changed)
+        window.timeline_tabs.set_current_frame(5)
+        assert timeline_spy.count() > 0, "timeline_tabs.frame_changed should be emitted for direct calls"
 
         # Check UI elements updated
         assert window.frame_spinbox.value() == window.state_manager.current_frame
@@ -279,9 +285,7 @@ class TestNavigationIntegration:
         initial_frame = 10
         window.state_manager.current_frame = initial_frame
 
-        # Ensure timeline_tabs is properly synchronized
-        if window.timeline_tabs:
-            window.timeline_tabs.set_current_frame(initial_frame)
+        # StateManager automatically synchronizes timeline_tabs via observer pattern
 
         # Rapidly send multiple navigation commands
         for _ in range(5):

@@ -49,10 +49,11 @@ class SetEndframeCommand(ShortcutCommand):
         # Or if we have a current frame with a point
         if context.current_frame is not None:
             curve_widget = context.main_window.curve_widget
-            if curve_widget:
-                frame_index = context.current_frame - 1
-                if 0 <= frame_index < len(curve_widget.curve_data):
-                    return True
+            if curve_widget and curve_widget.curve_data:
+                # Check if any point exists at the current frame
+                for point in curve_widget.curve_data:
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        return True
 
         return False
 
@@ -123,9 +124,15 @@ class SetEndframeCommand(ShortcutCommand):
 
             elif context.current_frame is not None:
                 # Toggle point at current frame
-                frame_index = context.current_frame - 1
-                if 0 <= frame_index < len(curve_widget.curve_data):
-                    point = curve_widget._curve_store.get_point(frame_index)
+                # Find the point at the current frame
+                point_index = None
+                for i, point in enumerate(curve_widget.curve_data):
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        point_index = i
+                        break
+
+                if point_index is not None:
+                    point = curve_widget._curve_store.get_point(point_index)
                     if point and len(point) >= 4:
                         # Normalize current status to string format for command compatibility
                         current_status = PointStatus.from_legacy(point[3]).to_legacy_string()
@@ -144,7 +151,7 @@ class SetEndframeCommand(ShortcutCommand):
                         # Create command with proper description
                         command = SetPointStatusCommand(
                             description=msg,
-                            changes=[(frame_index, current_status, new_status)],
+                            changes=[(point_index, current_status, new_status)],
                         )
 
                         # Execute through command manager
@@ -463,10 +470,11 @@ class NudgePointsCommand(ShortcutCommand):
         # Or if we have a current frame with a point
         if context.current_frame is not None:
             curve_widget = context.main_window.curve_widget
-            if curve_widget:
-                frame_index = context.current_frame - 1
-                if 0 <= frame_index < len(curve_widget.curve_data):
-                    return True
+            if curve_widget and curve_widget.curve_data:
+                # Check if any point exists at the current frame
+                for point in curve_widget.curve_data:
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        return True
 
         return False
 
@@ -497,11 +505,17 @@ class NudgePointsCommand(ShortcutCommand):
                 logger.info(f"Nudging {len(context.selected_curve_points)} selected points by ({dx}, {dy})")
                 curve_widget.nudge_selected(dx, dy)
             elif context.current_frame is not None:
-                frame_index = context.current_frame - 1
-                if 0 <= frame_index < len(curve_widget.curve_data):
+                # Find the point at the current frame
+                point_index = None
+                for i, point in enumerate(curve_widget.curve_data):
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        point_index = i
+                        break
+
+                if point_index is not None:
                     logger.info(f"Nudging point at frame {context.current_frame} by ({dx}, {dy})")
                     # Temporarily select the point, nudge it, then clear
-                    curve_widget._select_point(frame_index, add_to_selection=False)
+                    curve_widget._select_point(point_index, add_to_selection=False)
                     curve_widget.nudge_selected(dx, dy)
                     curve_widget.clear_selection()
 

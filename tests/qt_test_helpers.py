@@ -131,3 +131,85 @@ def ensure_qapplication():
     if app is None:
         app = QApplication([])
     return app
+
+
+class TestSignal:
+    """Complete signal test double for non-Qt objects.
+
+    Use this class for testing signals on mock objects or non-Qt components.
+    For real Qt objects, use QSignalSpy instead.
+
+    Example usage:
+        mock_object = Mock()
+        mock_object.signal = TestSignal()
+
+        # Test signal emission
+        mock_object.signal.emit(42)
+        assert mock_object.signal.was_emitted
+        assert mock_object.signal.emit_count == 1
+        assert mock_object.signal.emissions[0] == (42,)
+
+        # Test signal connection
+        result = []
+        mock_object.signal.connect(lambda x: result.append(x))
+        mock_object.signal.emit(100)
+        assert result == [100]
+    """
+
+    def __init__(self):
+        """Initialize empty signal test double."""
+        self.emissions = []
+        self.callbacks = []
+
+    def emit(self, *args):
+        """Emit the signal with given arguments.
+
+        Args:
+            *args: Arguments to emit with the signal
+        """
+        self.emissions.append(args)
+        for callback in self.callbacks:
+            callback(*args)
+
+    def connect(self, callback):
+        """Connect a callback to the signal.
+
+        Args:
+            callback: Function to call when signal is emitted
+        """
+        self.callbacks.append(callback)
+
+    def disconnect(self, callback):
+        """Disconnect a callback from the signal.
+
+        Args:
+            callback: Function to remove from callbacks
+        """
+        if callback in self.callbacks:
+            self.callbacks.remove(callback)
+
+    @property
+    def was_emitted(self):
+        """Check if the signal was emitted at least once.
+
+        Returns:
+            bool: True if signal was emitted, False otherwise
+        """
+        return len(self.emissions) > 0
+
+    @property
+    def emit_count(self):
+        """Get the number of times the signal was emitted.
+
+        Returns:
+            int: Number of emissions
+        """
+        return len(self.emissions)
+
+    def clear(self):
+        """Clear all emissions and reset state.
+
+        Useful for reusing the same TestSignal in multiple test phases.
+        """
+        self.emissions.clear()
+        # Note: Keep callbacks connected for reuse

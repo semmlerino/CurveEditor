@@ -46,10 +46,17 @@ class TestTimelineMainWindowIntegration:
     def timeline_widget(self, app, qtbot):
         """Create TimelineTabWidget directly for testing."""
         try:
+            from ui.state_manager import StateManager
             from ui.timeline_tabs import TimelineTabWidget
 
             widget = TimelineTabWidget()
             qtbot.addWidget(widget)
+
+            # Create and connect StateManager for Single Source of Truth architecture
+            state_manager = StateManager()
+            state_manager.total_frames = 10000  # Set high enough for large range tests
+            widget.set_state_manager(state_manager)
+
             return widget
         except ImportError:
             pytest.skip("TimelineTabWidget not available")

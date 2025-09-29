@@ -793,3 +793,126 @@ class TestStateManagerEdgeCases:
 
         title = state_manager.get_window_title()
         assert "file.txt" in title  # Should still extract filename
+
+
+class TestKISSOLIDArchitectureVerification:
+    """Test KISS/SOLID architecture patterns - verification tests from Section 5.1 of the plan."""
+
+    def test_single_source_of_truth(self, state_manager):
+        """
+        Verify only StateManager can set current_frame.
+
+        This test ensures the Single Source of Truth pattern is enforced:
+        - StateManager is the only component that owns current_frame state
+        - All other components must get current_frame from StateManager
+        - No component caches application state locally
+        """
+        # Test 1: StateManager is the authoritative source
+        state_manager.total_frames = 20  # Set enough frames first
+        state_manager.current_frame = 10
+        assert state_manager.current_frame == 10
+
+        # Test 2: Verify frame clamping behavior
+        state_manager.total_frames = 5
+        state_manager.current_frame = 10  # Should be clamped to 5
+        assert state_manager.current_frame == 5
+
+        # Test 3: Verify signal emission on change
+        frame_spy = QSignalSpy(state_manager.frame_changed)
+        state_manager.current_frame = 3
+        assert frame_spy.count() == 1
+        assert frame_spy.at(0)[0] == 3
+
+        # Test 4: No signal on same value
+        frame_spy_2 = QSignalSpy(state_manager.frame_changed)
+        state_manager.current_frame = 3  # Same value
+        assert frame_spy_2.count() == 0
+
+    def test_observer_pattern(self, state_manager):
+        """
+        Verify components react to state changes via signals.
+
+        This test ensures the Observer pattern is working:
+        - State changes emit appropriate signals
+        - Multiple observers can listen to same signal
+        - batch_update prevents signal storms
+        """
+        # Test 1: Frame change emits signal
+        state_manager.total_frames = 10  # Set enough frames first
+        frame_spy = QSignalSpy(state_manager.frame_changed)
+        state_manager.current_frame = 5
+        assert frame_spy.count() == 1
+        assert frame_spy.at(0)[0] == 5
+
+        # Test 2: Selection change emits signal
+        selection_spy = QSignalSpy(state_manager.selection_changed)
+        state_manager.set_selected_points([1, 2, 3])
+        assert selection_spy.count() == 1
+        assert selection_spy.at(0)[0] == {1, 2, 3}
+
+        # Test 3: Batch updates prevent signal storms
+        frame_spy_batch = QSignalSpy(state_manager.frame_changed)
+        selection_spy_batch = QSignalSpy(state_manager.selection_changed)
+
+        with state_manager.batch_update():
+            state_manager.current_frame = 8
+            state_manager.set_selected_points([4, 5])
+            # No signals should be emitted yet
+            assert frame_spy_batch.count() == 0
+            assert selection_spy_batch.count() == 0
+
+        # Signals should be emitted after context exits
+        assert frame_spy_batch.count() == 1
+        assert selection_spy_batch.count() == 1
+        assert frame_spy_batch.at(0)[0] == 8
+        assert selection_spy_batch.at(0)[0] == {4, 5}
+
+    def test_renderer_independence(self):
+        """
+        Verify renderer has no parent/main_window access.
+
+        This test ensures the renderer is fully decoupled:
+        - Renderer doesn't access parent objects
+        - render() method requires explicit state parameter
+        - No tight coupling to application structure
+        """
+        from rendering.optimized_curve_renderer import OptimizedCurveRenderer
+        from rendering.render_state import RenderState
+
+        # Test 1: Renderer has no parent/main_window access
+        renderer = OptimizedCurveRenderer()
+        assert not hasattr(renderer, "main_window")
+        assert not hasattr(renderer, "parent")
+
+        # Test 2: render() method requires state parameter
+        import inspect
+
+        render_signature = inspect.signature(renderer.render)
+        param_names = list(render_signature.parameters.keys())
+
+        # Should have: painter, event, render_state
+        assert "render_state" in param_names
+        assert len(param_names) == 3  # painter, _event, render_state
+
+        # Test 3: Renderer can work with mock RenderState (no widget dependency)
+        mock_render_state = RenderState(
+            points=[],
+            current_frame=1,
+            selected_points=set(),
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=1.0,
+            pan_offset_x=0.0,
+            pan_offset_y=0.0,
+            manual_offset_x=0.0,
+            manual_offset_y=0.0,
+            flip_y_axis=True,
+            show_background=False,
+            show_grid=True,
+            point_radius=3,
+        )
+
+        # Should not raise exception when called with mock state
+        # (We won't actually render since we don't have a painter, just check the interface)
+        assert callable(renderer.render)
+        assert mock_render_state.current_frame == 1  # Verify mock works

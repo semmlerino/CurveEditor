@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
 from ui.frame_tab import FrameTab
+from ui.state_manager import StateManager
 from ui.timeline_tabs import FrameStatusCache, TimelineTabWidget
 
 
@@ -292,6 +293,12 @@ class TestTimelineTabWidget:
         """Create real TimelineTabWidget for testing."""
         widget = TimelineTabWidget()
         qtbot.addWidget(widget)
+
+        # Create and connect StateManager for Single Source of Truth architecture
+        state_manager = StateManager()
+        state_manager.total_frames = 200  # Set reasonable total frames for tests
+        widget.set_state_manager(state_manager)
+
         return widget
 
     def test_timeline_initialization(self, timeline_widget: TimelineTabWidget) -> None:

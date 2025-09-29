@@ -109,13 +109,13 @@ def update_keyframe_status_for_forward_tracking(curve_data: CurveDataList) -> Cu
         if current_status == PointStatus.ENDFRAME and has_next_valid:
             # ENDFRAME with valid next frame → KEYFRAME
             new_status = PointStatus.KEYFRAME
-            logger.debug(f"Frame {frame}: ENDFRAME → KEYFRAME (has valid tracking after)")
+            logger.debug(f"Frame {frame}: ENDFRAME -> KEYFRAME (has valid tracking after)")
             changes_made += 1
 
         elif current_status == PointStatus.KEYFRAME and not has_next_valid:
             # KEYFRAME with no valid next frame → ENDFRAME
             new_status = PointStatus.ENDFRAME
-            logger.debug(f"Frame {frame}: KEYFRAME → ENDFRAME (no valid tracking after)")
+            logger.debug(f"Frame {frame}: KEYFRAME -> ENDFRAME (no valid tracking after)")
             changes_made += 1
 
         # Update the tuple if status changed
@@ -171,13 +171,13 @@ def update_keyframe_status_for_backward_tracking(curve_data: CurveDataList) -> C
         if current_status == PointStatus.ENDFRAME and has_prev_valid:
             # ENDFRAME with valid previous frame → KEYFRAME
             new_status = PointStatus.KEYFRAME
-            logger.debug(f"Frame {frame}: ENDFRAME → KEYFRAME (has valid tracking before)")
+            logger.debug(f"Frame {frame}: ENDFRAME -> KEYFRAME (has valid tracking before)")
             changes_made += 1
 
         elif current_status == PointStatus.KEYFRAME and not has_prev_valid:
             # KEYFRAME with no valid previous frame → ENDFRAME
             new_status = PointStatus.ENDFRAME
-            logger.debug(f"Frame {frame}: KEYFRAME → ENDFRAME (no valid tracking before)")
+            logger.debug(f"Frame {frame}: KEYFRAME -> ENDFRAME (no valid tracking before)")
             changes_made += 1
 
         # Update the tuple if status changed
@@ -243,13 +243,13 @@ def update_keyframe_status_for_bidirectional_tracking(
         if current_status == PointStatus.KEYFRAME and not has_next_valid:
             # KEYFRAME with no valid next frame → ENDFRAME
             new_status = PointStatus.ENDFRAME
-            logger.debug(f"Frame {frame}: KEYFRAME → ENDFRAME (bidirectional from backward)")
+            logger.debug(f"Frame {frame}: KEYFRAME -> ENDFRAME (bidirectional from backward)")
             changes_made += 1
 
         elif current_status == PointStatus.ENDFRAME and has_next_valid:
             # ENDFRAME with valid next frame → KEYFRAME
             new_status = PointStatus.KEYFRAME
-            logger.debug(f"Frame {frame}: ENDFRAME → KEYFRAME (bidirectional from backward)")
+            logger.debug(f"Frame {frame}: ENDFRAME -> KEYFRAME (bidirectional from backward)")
             changes_made += 1
 
         # Update the tuple if status changed
@@ -276,7 +276,7 @@ def update_keyframe_status_for_tracking_direction(
     Returns:
         Updated curve data with modified statuses
     """
-    logger.info(f"Updating keyframe statuses for direction change: {previous_direction} → {new_direction}")
+    logger.info(f"Updating keyframe statuses for direction change: {previous_direction} -> {new_direction}")
 
     if new_direction == TrackingDirection.TRACKING_FW:
         return update_keyframe_status_for_forward_tracking(curve_data)

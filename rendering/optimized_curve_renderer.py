@@ -512,8 +512,8 @@ class OptimizedCurveRenderer:
             self._render_point_state_labels(painter, render_state, lod_points, visible_indices, curve_data)
 
         # Render frame numbers if enabled (with heavy culling)
-        # Note: show_all_frame_numbers not yet in RenderState, skip for now
-        # TODO: Add show_all_frame_numbers to RenderState if needed
+        # Note: show_all_frame_numbers is an optional future feature - not in current RenderState
+        # Future enhancement: Add show_all_frame_numbers to RenderState for debug visualization
         # if render_state.show_all_frame_numbers and self._render_quality == RenderQuality.HIGH:
         #     self._render_frame_numbers_optimized(painter, render_state, lod_points, visible_indices, step)
 
@@ -1142,7 +1142,7 @@ class OptimizedCurveRenderer:
             )
 
             # Label active curve points with frame numbers if in debug mode
-            # TODO: Add show_all_frame_numbers to RenderState if needed
+            # Future enhancement: Add show_all_frame_numbers to RenderState for debug visualization
             if is_active:
                 for i, (x, y) in enumerate(screen_points):
                     # Skip points outside viewport
@@ -1271,8 +1271,8 @@ class OptimizedCurveRenderer:
     def _render_info_optimized(self, painter: QPainter, render_state: "RenderState") -> None:
         """Render info overlay with performance metrics."""
         # Skip info rendering if show_info is explicitly False
-        # Note: show_info not yet in RenderState, assume enabled for now
-        # TODO: Add show_info to RenderState if needed
+        # Note: show_info is an optional future feature - not in current RenderState
+        # Future enhancement: Add show_info to RenderState for selective info display
 
         from ui.ui_constants import COLORS_DARK
 

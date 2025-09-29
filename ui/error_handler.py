@@ -380,13 +380,13 @@ class ErrorHandler(QObject):
         type(exception).__name__
         exc_msg = str(exception).lower()
 
+        # Permission errors (check before OSError since PermissionError inherits from OSError)
+        if isinstance(exception, PermissionError):
+            return ErrorCategory.PERMISSION
+
         # File I/O errors
         if isinstance(exception, IOError | OSError | FileNotFoundError):
             return ErrorCategory.FILE_IO
-
-        # Permission errors
-        if isinstance(exception, PermissionError):
-            return ErrorCategory.PERMISSION
 
         # Memory errors
         if isinstance(exception, MemoryError):

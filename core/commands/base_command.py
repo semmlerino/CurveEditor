@@ -65,7 +65,6 @@ class Command(ABC):
         pass
 
     @abstractmethod
-    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """
         Redo the command (same as execute but may have optimizations).
@@ -108,7 +107,6 @@ class Command(ABC):
         """
         raise NotImplementedError("Command merging not implemented")
 
-    @override
     def get_memory_usage(self) -> int:
         """
         Get approximate memory usage of this command in bytes.

@@ -82,9 +82,9 @@ class SignalConnectionManager:
             self.main_window.view_management_controller.update_background_for_frame
         )
 
-        # Connect timeline_tabs to frame changes for automatic updates
+        # Connect timeline_tabs to StateManager as observer
         if self.main_window.timeline_tabs:
-            _ = self.main_window.state_manager.frame_changed.connect(self.main_window.timeline_tabs.set_current_frame)
+            self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)
 
         # Connect timeline controller signals (unified playback and navigation)
         _ = self.main_window.timeline_controller.frame_changed.connect(
@@ -92,9 +92,9 @@ class SignalConnectionManager:
         )
         _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)
 
-        # Connect timeline tabs widget frame_changed signal for mouse scrubbing
-        if self.main_window.timeline_tabs:
-            _ = self.main_window.timeline_tabs.frame_changed.connect(self.main_window.timeline_controller.set_frame)
+        # NOTE: timeline_tabs.frame_changed connection REMOVED to prevent circular signal flow
+        # With StateManager as single source of truth, timeline_tabs delegates frame changes
+        # through StateManager, eliminating need for this connection
 
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""

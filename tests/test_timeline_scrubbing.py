@@ -40,8 +40,16 @@ class TestTimelineScrubbing:
     @pytest.fixture
     def timeline_widget(self, qtbot: QtBot) -> TimelineTabWidget:
         """TimelineTabWidget with proper cleanup."""
+        from ui.state_manager import StateManager
+
         widget = TimelineTabWidget()
         qtbot.addWidget(widget)  # CRITICAL: Auto cleanup
+
+        # Create and connect StateManager for Single Source of Truth architecture
+        state_manager = StateManager()
+        state_manager.total_frames = 200  # Set reasonable total frames
+        widget.set_state_manager(state_manager)
+
         return widget
 
     @pytest.fixture

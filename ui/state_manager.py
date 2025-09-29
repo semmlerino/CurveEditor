@@ -219,28 +219,28 @@ class StateManager(QObject):
         new_selection = set(indices) if not isinstance(indices, set) else indices
         if self._selected_points != new_selection:
             self._selected_points = new_selection
-            self._emit_signal(self.selection_changed, new_selection)
+            self._emit_signal(self.selection_changed, new_selection)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Selection changed: {len(new_selection)} points selected")
 
     def add_to_selection(self, index: int) -> None:
         """Add a point to the selection."""
         if index not in self._selected_points:
             self._selected_points.add(index)
-            self._emit_signal(self.selection_changed, self._selected_points)
+            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Added point {index} to selection")
 
     def remove_from_selection(self, index: int) -> None:
         """Remove a point from the selection."""
         if index in self._selected_points:
             self._selected_points.discard(index)
-            self._emit_signal(self.selection_changed, self._selected_points)
+            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Removed point {index} from selection")
 
     def clear_selection(self) -> None:
         """Clear the current selection."""
         if self._selected_points:
             self._selected_points.clear()
-            self._emit_signal(self.selection_changed, set())
+            self._emit_signal(self.selection_changed, set())  # pyright: ignore[reportArgumentType]
             logger.debug("Selection cleared")
 
     @property
@@ -268,7 +268,7 @@ class StateManager(QObject):
         frame = max(1, min(frame, self._total_frames))
         if self._current_frame != frame:
             self._current_frame = frame
-            self._emit_signal(self.frame_changed, frame)
+            self._emit_signal(self.frame_changed, frame)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Current frame changed to: {frame}")
 
     @property
@@ -444,7 +444,7 @@ class StateManager(QObject):
         """Set the current playback mode."""
         if self._playback_mode != mode:
             self._playback_mode = mode
-            self._emit_signal(self.playback_state_changed, mode)
+            self._emit_signal(self.playback_state_changed, mode)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Playback mode changed to: {mode.value}")
 
     # ==================== Batch Update Support ====================
@@ -471,10 +471,10 @@ class StateManager(QObject):
             self._batch_mode = False
             # Emit all pending signals
             for signal, value in self._pending_signals:
-                signal.emit(value)
+                signal.emit(value)  # pyright: ignore[reportAttributeAccessIssue]
             self._pending_signals.clear()
 
-    def _emit_signal(self, signal: Signal, value: object) -> None:
+    def _emit_signal(self, signal: Signal, value: object) -> None:  # pyright: ignore[reportGeneralTypeIssues]
         """
         Emit a signal, potentially batching if in batch mode.
 
@@ -487,7 +487,7 @@ class StateManager(QObject):
             self._pending_signals.append((signal, value))
         else:
             # Normal mode, emit immediately
-            signal.emit(value)
+            signal.emit(value)  # pyright: ignore[reportAttributeAccessIssue]
 
     # ==================== Utility Methods ====================
 

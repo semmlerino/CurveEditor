@@ -2,7 +2,7 @@
 
 from typing import TypedDict
 
-from PySide6.QtCore import QEvent, QObject, QPoint, Qt, Signal
+from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -301,6 +301,41 @@ class TrackingPointsPanel(QWidget):
                 selected_points.append(item.text())
 
         return selected_points
+
+    def set_selected_points(self, point_names: list[str]) -> None:
+        """
+        Programmatically select points in the table to sync with external state.
+
+        This method updates the visual selection in the table without emitting
+        the points_selected signal, preventing infinite loops when synchronizing
+        selection state between the curve view and side pane.
+
+        Args:
+            point_names: List of point names to select in the table
+        """
+        if self._updating:
+            return
+
+        self._updating = True
+        try:
+            # Clear current selection
+            self.table.clearSelection()
+
+            # Find and select rows that match the point names
+            selection_model = self.table.selectionModel()
+            if selection_model is None:
+                return
+
+            for row in range(self.table.rowCount()):
+                name_item = self.table.item(row, 1)  # Name column
+                if name_item and name_item.text() in point_names:
+                    # Select the entire row
+                    selection_model.select(
+                        self.table.model().index(row, 0),
+                        QItemSelectionModel.SelectionFlag.Select | QItemSelectionModel.SelectionFlag.Rows,
+                    )
+        finally:
+            self._updating = False
 
     def get_visible_points(self) -> list[str]:
         """Get list of visible tracking point names."""

@@ -217,6 +217,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_controller = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller = UIInitializationController(self)
         self.view_management_controller = ViewManagementController(self)
+        self.background_controller = self.view_management_controller  # Same controller handles background images
         self.point_editor_controller = PointEditorController(self, self.state_manager)
         self.tracking_controller = MultiPointTrackingController(self)
         self.signal_manager = SignalConnectionManager(self)

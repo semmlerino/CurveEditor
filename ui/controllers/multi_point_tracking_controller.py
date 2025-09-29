@@ -87,6 +87,9 @@ class MultiPointTrackingController:
                 # No existing data - create initial tracked_data with this trajectory
                 self.tracked_data = {"Track1": data}  # pyright: ignore[reportAttributeAccessIssue]
                 self.active_points = ["Track1"]
+                # Sync table selection for file loading case
+                if self.main_window.tracking_panel:
+                    self.main_window.tracking_panel.set_selected_points(self.active_points)
                 # Initialize with default tracking direction
                 self.point_tracking_directions["Track1"] = TrackingDirection.TRACKING_FW
                 logger.info("Loaded single trajectory as 'Track1'")
@@ -140,12 +143,18 @@ class MultiPointTrackingController:
                 # If no points were selected, select the first new point
                 if not self.active_points and new_point_names:
                     self.active_points = [new_point_names[0]]
+                    # Sync table selection for file loading case
+                    if self.main_window.tracking_panel:
+                        self.main_window.tracking_panel.set_selected_points(self.active_points)
 
                 logger.info(f"Total points after merge: {len(self.tracked_data)}")
             else:
                 # No existing data - use the new data directly
                 self.tracked_data = multi_data
                 self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+                # Sync table selection for file loading case
+                if self.main_window.tracking_panel:
+                    self.main_window.tracking_panel.set_selected_points(self.active_points)
                 # Initialize all points with default tracking direction
                 for point_name in multi_data.keys():
                     self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
@@ -198,6 +207,10 @@ class MultiPointTrackingController:
 
         # Update the curve display (which now handles selection properly)
         self.update_curve_display()
+
+        # Synchronize table selection ONLY when selection actually changes from user interaction
+        if self.main_window.tracking_panel:
+            self.main_window.tracking_panel.set_selected_points(self.active_points)
 
         # Center view on selected point at current frame
         # Small delay to ensure curve data and point selection are processed
@@ -315,7 +328,7 @@ class MultiPointTrackingController:
             logger.debug(f"Tracking direction unchanged for {point_name}: {new_direction.value}")
             return
 
-        logger.info(f"Tracking direction changed for {point_name}: {previous_direction.value} → {new_direction.value}")
+        logger.info(f"Tracking direction changed for {point_name}: {previous_direction.value} -> {new_direction.value}")
 
         # Update keyframe statuses based on new direction
         curve_data = self.tracked_data[point_name]

@@ -152,6 +152,9 @@ class TimelineController(QObject):
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
+        # StateManager observer connection
+        self.state_manager.frame_changed.connect(lambda frame: self.update_frame_display(frame, update_state=False))
+
         # Navigation signals
         self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
         self.frame_slider.valueChanged.connect(self._on_slider_changed)
@@ -209,13 +212,13 @@ class TimelineController(QObject):
 
     def _on_prev_frame(self) -> None:
         """Go to previous frame."""
-        current = self.frame_spinbox.value()
+        current = self.state_manager.current_frame
         if current > 1:
             self.set_frame(current - 1)
 
     def _on_next_frame(self) -> None:
         """Go to next frame."""
-        current = self.frame_spinbox.value()
+        current = self.state_manager.current_frame
         if current < self.frame_spinbox.maximum():
             self.set_frame(current + 1)
 
@@ -259,7 +262,7 @@ class TimelineController(QObject):
 
     def get_current_frame(self) -> int:
         """Get the current frame number."""
-        return self.frame_spinbox.value()
+        return self.state_manager.current_frame
 
     # Navigation Protocol API
     def next_frame(self) -> None:
@@ -455,7 +458,7 @@ class TimelineController(QObject):
         self.playback_state.max_frame = max_frame
 
         # Ensure current value is within range
-        current = self.frame_spinbox.value()
+        current = self.state_manager.current_frame
         if current < min_frame:
             self.set_frame(min_frame)
         elif current > max_frame:
