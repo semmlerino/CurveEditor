@@ -394,8 +394,8 @@ class MenuBar(QMenuBar):
 
     def _handle_load_images(self) -> None:
         """Handle load image sequence action."""
-        # TODO: Fix service method signature - load_image_sequence expects directory string
-        pass  # Temporarily disabled due to signature mismatch
+        if self.main_window and self.main_window.file_operations:
+            self.main_window.file_operations.load_images(self.main_window)
 
     # Tools menu handlers
     def _handle_smooth_selected(self) -> None:

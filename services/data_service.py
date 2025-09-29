@@ -667,7 +667,7 @@ class DataService:
                 return []
 
             # Common image extensions
-            image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif"}
+            image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
             image_files = []
 
             for file_path in sorted(path.iterdir()):

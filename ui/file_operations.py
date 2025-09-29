@@ -189,7 +189,7 @@ class FileLoadWorker:
 
     def _scan_image_directory(self, directory: str) -> list[str]:
         """Scan directory for image files."""
-        image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif"}
+        image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
         image_files = []
 
         try:
@@ -522,18 +522,31 @@ class FileOperations(QObject):
 
     def load_images(self, parent_widget: QWidget | None = None) -> bool:
         """
-        Load background images (placeholder for future implementation).
+        Load background image sequence using visual browser dialog.
 
         Args:
             parent_widget: Parent widget for dialogs
 
         Returns:
-            True if loaded successfully
+            True if loading started successfully
         """
+        from ui.image_sequence_browser import ImageSequenceBrowserDialog
+
         parent = parent_widget or self.parent_widget
-        # TODO: Implement image loading dialog
-        QMessageBox.information(parent, "Not Implemented", "Image loading will be implemented soon.")
-        return False
+
+        # Show image sequence browser dialog
+        dialog = ImageSequenceBrowserDialog(parent)
+        if dialog.exec() != ImageSequenceBrowserDialog.DialogCode.Accepted:
+            return False
+
+        selected_directory = dialog.get_selected_directory()
+        if not selected_directory:
+            return False
+
+        # Start background loading of image sequence
+        self.file_load_worker.start_loading(tracking_file_path=None, image_dir_path=selected_directory)
+
+        return True
 
     def export_data(self, data: CurveDataList, parent_widget: QWidget | None = None) -> bool:
         """
