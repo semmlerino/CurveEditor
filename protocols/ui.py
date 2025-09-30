@@ -101,6 +101,18 @@ class StateManagerProtocol(Protocol):
         """Get window title."""
         ...
 
+    def set_selected_points(self, indices: list[int]) -> None:
+        """Set selected point indices."""
+        ...
+
+    def undo(self) -> None:
+        """Undo the last operation."""
+        ...
+
+    def redo(self) -> None:
+        """Redo the last undone operation."""
+        ...
+
 
 class CurveViewProtocol(Protocol):
     """Protocol for curve view widgets.
@@ -275,12 +287,14 @@ class MainWindowProtocol(Protocol):
     redo_button: "QPushButton | None"
     save_button: "QPushButton | None"
     ui_components: object
+    _point_spinbox_connected: bool
 
     # Service references
     services: object
 
     # State management
     state_manager: StateManagerProtocol
+    command_manager: "CommandManagerProtocol"
 
     @property
     def is_modified(self) -> bool:
@@ -356,6 +370,30 @@ class MainWindowProtocol(Protocol):
 
     def update_ui_state(self) -> None:
         """Update UI state."""
+        ...
+
+    def update_selection_labels(self) -> None:
+        """Update selection labels in UI."""
+        ...
+
+    def update_point_spinboxes(self) -> None:
+        """Update point coordinate spinboxes."""
+        ...
+
+    def connect_point_spinbox_handlers(self) -> None:
+        """Connect point spinbox signal handlers."""
+        ...
+
+    def update_zoom_label(self) -> None:
+        """Update zoom level label."""
+        ...
+
+    def _on_point_x_changed(self) -> None:
+        """Handle point X coordinate spinbox change."""
+        ...
+
+    def _on_point_y_changed(self) -> None:
+        """Handle point Y coordinate spinbox change."""
         ...
 
     # Properties needed by controllers

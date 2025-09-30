@@ -41,13 +41,13 @@ class SmoothingController:
                 return
 
             # Get the current curve data
-            curve_data = self.main_window.curve_widget.curve_data
+            curve_data = self.main_window.curve_widget.curve_data  # pyright: ignore[reportAttributeAccessIssue]
             if not curve_data:
                 QMessageBox.information(self.main_window, "No Data", "No curve data to smooth.")  # pyright: ignore
                 return
 
             # Get selected points or use all points
-            selected_indices = self.main_window.curve_widget.selected_indices
+            selected_indices = self.main_window.curve_widget.selected_indices  # pyright: ignore[reportAttributeAccessIssue]
             if not selected_indices:
                 # Ask if user wants to smooth all points
                 reply = QMessageBox.question(

@@ -4,7 +4,36 @@ import numpy as np
 
 from rendering.optimized_curve_renderer import RenderQuality, VectorizedTransform
 from services.transform_service import Transform, TransformService, ViewState
-from ui.curve_view_widget import CacheMonitor, CurveViewWidget
+from ui.curve_view_widget import CurveViewWidget
+
+
+# Stub for CacheMonitor (removed from codebase)
+class CacheMonitor:
+    """Stub for legacy CacheMonitor tests."""
+
+    def __init__(self) -> None:
+        self.hits = 0
+        self.misses = 0
+        self.invalidations = 0
+
+    def record_hit(self) -> None:
+        self.hits += 1
+
+    def record_miss(self) -> None:
+        self.misses += 1
+
+    def record_invalidation(self) -> None:
+        self.invalidations += 1
+
+    @property
+    def hit_rate(self) -> float:
+        total = self.hits + self.misses
+        return self.hits / total if total > 0 else 0.0
+
+    def reset(self) -> None:
+        self.hits = 0
+        self.misses = 0
+        self.invalidations = 0
 
 
 class TestCachePerformance:

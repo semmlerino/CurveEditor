@@ -261,6 +261,17 @@ class CurveViewWidget(QWidget):
         """Get selected indices from the store."""
         return self._curve_store.get_selection()
 
+    @selected_indices.setter
+    def selected_indices(self, value: set[int]) -> None:
+        """Set selected indices in the store."""
+        if not value:
+            self._curve_store.clear_selection()
+        else:
+            # Clear first then add each index
+            self._curve_store.clear_selection()
+            for idx in value:
+                self._curve_store.select_point(idx)
+
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
         # Connect store signals to widget updates

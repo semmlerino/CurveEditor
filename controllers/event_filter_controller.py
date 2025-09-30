@@ -54,8 +54,8 @@ class EventFilterController:
                 # If C key pressed elsewhere, redirect to curve widget
                 elif watched != self.main_window.curve_widget and self.main_window.curve_widget:
                     logger.debug("[EVENT_FILTER] Redirecting C key to curve_widget")
-                    self.main_window.curve_widget.setFocus()
-                    QApplication.sendEvent(self.main_window.curve_widget, event)
+                    self.main_window.curve_widget.setFocus()  # pyright: ignore[reportAttributeAccessIssue]
+                    QApplication.sendEvent(self.main_window.curve_widget, event)  # pyright: ignore[reportArgumentType]
                     return True  # Consume original event to prevent double handling
 
         return False  # Let other events pass through

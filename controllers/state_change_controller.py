@@ -44,30 +44,30 @@ class StateChangeController:
             indices: List of selected point indices
         """
         # Update selection labels through ViewUpdateManager
-        self.main_window.view_update_manager.update_selection_labels(indices)
+        self.main_window.view_update_manager.update_selection_labels(indices)  # pyright: ignore[reportAttributeAccessIssue]
 
         count = len(indices)
         if count == 1:
             # Get actual point data from curve widget
             idx = indices[0]
-            if self.main_window.curve_widget and idx < len(self.main_window.curve_widget.curve_data):
-                point_data = self.main_window.curve_widget.curve_data[idx]
+            if self.main_window.curve_widget and idx < len(self.main_window.curve_widget.curve_data):  # pyright: ignore[reportAttributeAccessIssue]
+                point_data = self.main_window.curve_widget.curve_data[idx]  # pyright: ignore[reportAttributeAccessIssue]
                 from core.point_types import safe_extract_point
 
                 frame, x, y, _ = safe_extract_point(point_data)
 
                 # Update spinboxes with actual values
-                self.main_window.view_update_manager.update_point_spinboxes(x, y, enabled=True)
+                self.main_window.view_update_manager.update_point_spinboxes(x, y, enabled=True)  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Connect spinbox changes to update point
                 if getattr(self.main_window, "_point_spinbox_connected", False) is False:
-                    self.main_window.view_update_manager.connect_point_spinbox_handlers(
+                    self.main_window.view_update_manager.connect_point_spinbox_handlers(  # pyright: ignore[reportAttributeAccessIssue]
                         self.main_window._on_point_x_changed, self.main_window._on_point_y_changed
                     )
                     self.main_window._point_spinbox_connected = True
         else:
             # Disable spinboxes for multiple or no selection
-            self.main_window.view_update_manager.update_point_spinboxes(enabled=False)
+            self.main_window.view_update_manager.update_point_spinboxes(enabled=False)  # pyright: ignore[reportAttributeAccessIssue]
 
     def handle_view_state_changed(self) -> None:
         """Handle view state changes (zoom, pan, etc)."""
@@ -100,7 +100,7 @@ class StateChangeController:
         logger.debug(f"Curve zoom changed to: {zoom}")
         # Update zoom label in status bar
         if hasattr(self.main_window.view_update_manager, "update_zoom_label"):
-            self.main_window.view_update_manager.update_zoom_label()
+            self.main_window.view_update_manager.update_zoom_label()  # pyright: ignore[reportAttributeAccessIssue]
 
     def handle_state_frame_changed(self, frame: int) -> None:
         """Handle frame changes from state manager.
@@ -119,7 +119,7 @@ class StateChangeController:
         # Update UI after undo
         self.main_window.update_ui_state()
         if self.main_window.curve_widget:
-            self.main_window.curve_widget.update()
+            self.main_window.curve_widget.update()  # pyright: ignore[reportAttributeAccessIssue]
 
     def handle_action_redo(self) -> None:
         """Handle redo action."""
@@ -128,4 +128,4 @@ class StateChangeController:
         # Update UI after redo
         self.main_window.update_ui_state()
         if self.main_window.curve_widget:
-            self.main_window.curve_widget.update()
+            self.main_window.curve_widget.update()  # pyright: ignore[reportAttributeAccessIssue]

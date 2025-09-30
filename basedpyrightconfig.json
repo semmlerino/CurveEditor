@@ -47,6 +47,7 @@
     "stores",
     "commands",
     "session",
+    "profiling",
     "test_*.py",
     "performance*.py",
     "SetTracking*.py"
