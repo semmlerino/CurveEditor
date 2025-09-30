@@ -201,7 +201,7 @@ class ApplicationBundler:
             try:
                 with open(config_path) as f:
                     user_config: dict[str, Any] = json.load(f)
-                    default_config.update(user_config)  # type: ignore[typeddict-item]
+                    default_config.update(user_config)  # pyright: ignore[reportCallIssue,reportArgumentType]
                     if self.verbose:
                         print(f"Loaded config from {config_path}", file=sys.stderr)
             except Exception as e:
