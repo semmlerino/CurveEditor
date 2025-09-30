@@ -9,8 +9,6 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
-from protocols.ui import MainWindowProtocol
-
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
@@ -26,7 +24,7 @@ class SmoothingController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: MainWindowProtocol = main_window
+        self.main_window: "MainWindow" = main_window
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation to selected points in the curve using Command pattern.
@@ -66,14 +64,21 @@ class SmoothingController:
                 return  # User cancelled
 
             # Create and execute smooth command
-            from commands.smooth_command import SmoothCommand
+            from core.commands import SmoothCommand
+            from services import get_interaction_service
 
             smooth_command = SmoothCommand(
-                self.main_window.curve_widget, selected_indices, window_size, f"Smooth {len(selected_indices)} points"
+                self.main_window.curve_widget,
+                list(selected_indices),
+                window_size,
+                f"Smooth {len(selected_indices)} points",
             )
 
             # Execute through command manager for undo/redo support
-            success = self.main_window.command_manager.execute(smooth_command)
+            interaction_service = get_interaction_service()
+            success = False
+            if interaction_service and interaction_service.command_manager is not None:
+                success = interaction_service.command_manager.execute_command(smooth_command, self.main_window)
 
             if success:
                 # Update status

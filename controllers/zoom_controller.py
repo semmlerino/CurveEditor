@@ -193,8 +193,7 @@ class ZoomController:
         """Fallback view reset using state manager."""
         if hasattr(self.main_window, "state_manager"):
             self.main_window.state_manager.zoom_level = self.DEFAULT_ZOOM
-            self.main_window.state_manager.pan_x = 0.0
-            self.main_window.state_manager.pan_y = 0.0
+            # Note: pan_x and pan_y are managed by the curve_widget, not state_manager
 
     def _set_zoom_fallback(self, zoom_level: float) -> None:
         """Fallback zoom set using state manager.

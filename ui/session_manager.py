@@ -135,6 +135,13 @@ class SessionManager:
             if "image_directory" in processed_data and processed_data["image_directory"]:
                 processed_data["image_directory"] = self._make_relative_path(processed_data["image_directory"])
 
+            # Save recent directories
+            if "recent_directories" in processed_data and processed_data["recent_directories"]:
+                # Make paths relative where possible
+                processed_data["recent_directories"] = [
+                    self._make_relative_path(path) for path in processed_data["recent_directories"]
+                ]
+
             # Add metadata
             processed_data["_metadata"] = {"saved_at": str(Path.cwd().resolve()), "version": "1.0"}
 
@@ -145,7 +152,7 @@ class SessionManager:
             logger.info(f"Session saved successfully to {self.session_file}")
             return True
 
-        except (OSError, json.JSONEncodeError) as e:
+        except (OSError, TypeError, ValueError) as e:
             logger.error(f"Failed to save session: {e}")
             return False
 
@@ -192,6 +199,15 @@ class SessionManager:
                     logger.warning("Stored image directory no longer exists")
                     session_data["image_directory"] = None
 
+            # Load recent directories
+            if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
+                resolved_recents = []
+                for path in session_data["recent_directories"]:
+                    resolved = self._resolve_path(path)
+                    if resolved and Path(resolved).exists():
+                        resolved_recents.append(resolved)
+                session_data["recent_directories"] = resolved_recents
+
             logger.info(f"Session loaded successfully from {self.session_file}")
             return session_data
 
@@ -234,6 +250,7 @@ class SessionManager:
         window_geometry: tuple[int, int, int, int] | None = None,
         active_points: list[str] | None = None,
         view_bounds: tuple[float, float, float, float] | None = None,
+        recent_directories: list[str] | None = None,
     ) -> dict[str, Any]:
         """
         Create a session data dictionary with the provided values.
@@ -247,6 +264,7 @@ class SessionManager:
             window_geometry: Window geometry (x, y, width, height)
             active_points: List of active point names (for multi-point tracking)
             view_bounds: View bounds (min_x, min_y, max_x, max_y)
+            recent_directories: List of recently visited directories
 
         Returns:
             Dictionary containing session data
@@ -260,6 +278,7 @@ class SessionManager:
             "window_geometry": list(window_geometry) if window_geometry else None,
             "active_points": active_points or [],
             "view_bounds": list(view_bounds) if view_bounds else None,
+            "recent_directories": recent_directories if recent_directories else [],
         }
 
     def restore_session_state(self, main_window: Any, session_data: dict[str, Any]) -> None:
@@ -283,6 +302,13 @@ class SessionManager:
 
             # Restore active points for multi-point data
             active_points = session_data.get("active_points", [])
+
+            # Restore recent directories
+            if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
+                if hasattr(main_window, "state_manager") and hasattr(
+                    main_window.state_manager, "set_recent_directories"
+                ):
+                    main_window.state_manager.set_recent_directories(session_data["recent_directories"])
 
             # Load files using background thread if available
             if hasattr(main_window, "file_load_worker") and main_window.file_load_worker:

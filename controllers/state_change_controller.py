@@ -8,8 +8,6 @@ and undo/redo operations, reducing MainWindow complexity.
 import logging
 from typing import TYPE_CHECKING
 
-from protocols.ui import MainWindowProtocol
-
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
@@ -25,7 +23,7 @@ class StateChangeController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: MainWindowProtocol = main_window
+        self.main_window: "MainWindow" = main_window
 
     def handle_modified_changed(self, modified: bool) -> None:
         """Handle modification status changes.
@@ -61,13 +59,16 @@ class StateChangeController:
 
                 # Connect spinbox changes to update point
                 if getattr(self.main_window, "_point_spinbox_connected", False) is False:
-                    self.main_window.view_update_manager.connect_point_spinbox_handlers(  # pyright: ignore[reportAttributeAccessIssue]
-                        self.main_window._on_point_x_changed, self.main_window._on_point_y_changed
-                    )
+                    # TODO: Re-implement spinbox handler connection when methods exist
+                    # self.main_window.view_update_manager.connect_point_spinbox_handlers(
+                    #     self.main_window._on_point_x_changed, self.main_window._on_point_y_changed
+                    # )
                     self.main_window._point_spinbox_connected = True
         else:
             # Disable spinboxes for multiple or no selection
-            self.main_window.view_update_manager.update_point_spinboxes(enabled=False)  # pyright: ignore[reportAttributeAccessIssue]
+            # TODO: Re-implement when update_point_spinboxes exists
+            # self.main_window.view_update_manager.update_point_spinboxes(enabled=False)
+            pass
 
     def handle_view_state_changed(self) -> None:
         """Handle view state changes (zoom, pan, etc)."""
@@ -89,7 +90,9 @@ class StateChangeController:
         """Handle curve view changes."""
         logger.debug("Curve view changed")
         # Update curve view options when view changes
-        self.main_window.update_curve_view_options()
+        # TODO: Re-implement when update_curve_view_options exists
+        # self.main_window.update_curve_view_options()
+        pass
 
     def handle_curve_zoom_changed(self, zoom: float) -> None:
         """Handle curve zoom level changes.
@@ -115,7 +118,11 @@ class StateChangeController:
     def handle_action_undo(self) -> None:
         """Handle undo action."""
         logger.debug("Undo action triggered")
-        self.main_window.state_manager.undo()
+        from services import get_interaction_service
+
+        interaction_service = get_interaction_service()
+        if interaction_service:
+            interaction_service.undo(self.main_window)
         # Update UI after undo
         self.main_window.update_ui_state()
         if self.main_window.curve_widget:
@@ -124,7 +131,11 @@ class StateChangeController:
     def handle_action_redo(self) -> None:
         """Handle redo action."""
         logger.debug("Redo action triggered")
-        self.main_window.state_manager.redo()
+        from services import get_interaction_service
+
+        interaction_service = get_interaction_service()
+        if interaction_service:
+            interaction_service.redo(self.main_window)
         # Update UI after redo
         self.main_window.update_ui_state()
         if self.main_window.curve_widget:

@@ -124,24 +124,20 @@ class MainWindowInitializer:
     def setup_controllers(self) -> None:
         """Initialize all controllers."""
         # Import controllers locally to avoid circular imports
-        from commands.base import CommandManager
-        from controllers import (
-            EventCoordinator,
-            EventFilterController,
-            FileOperationsManager,
-            FrameNavigationController,
-            PlaybackController,
-            PointEditController,
-            SmoothingController,
-            StateChangeController,
-            TimelineController,
-            TrackingPanelController,
-            ViewUpdateManager,
-            ZoomController,
-        )
+        from controllers.event_filter_controller import EventFilterController
+        from controllers.file_operations_manager import FileOperationsManager
+        from controllers.frame_navigation_controller import FrameNavigationController
+        from controllers.playback_controller import PlaybackController
+        from controllers.point_edit_controller import PointEditController
+        from controllers.smoothing_controller import SmoothingController
+        from controllers.state_change_controller import StateChangeController
+        from controllers.timeline_controller import TimelineController
+        from controllers.tracking_panel_controller import TrackingPanelController
+        from controllers.view_update_manager import ViewUpdateManager
+        from controllers.zoom_controller import ZoomController
+        from core.commands import CommandManager
 
         # Initialize original controllers (reverted from Phase 4 consolidation)
-        self.main_window.event_coordinator = EventCoordinator(self.main_window, parent=self.main_window)
         self.main_window.event_filter_controller = EventFilterController(self.main_window)
         self.main_window.file_operations_manager = FileOperationsManager(self.main_window, parent=self.main_window)
         self.main_window.frame_navigation_controller = FrameNavigationController(

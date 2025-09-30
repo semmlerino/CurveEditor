@@ -534,8 +534,13 @@ class FileOperations(QObject):
 
         parent = parent_widget or self.parent_widget
 
-        # Show image sequence browser dialog
-        dialog = ImageSequenceBrowserDialog(parent)
+        # Get last used directory from state manager
+        last_dir: str | None = None
+        if self.state_manager is not None and hasattr(self.state_manager, "image_directory"):
+            last_dir = self.state_manager.image_directory
+
+        # Show image sequence browser dialog with last directory
+        dialog = ImageSequenceBrowserDialog(parent, start_directory=last_dir)
         if dialog.exec() != ImageSequenceBrowserDialog.DialogCode.Accepted:
             return False
 
@@ -543,8 +548,15 @@ class FileOperations(QObject):
         if not selected_directory:
             return False
 
+        # Remember the selected directory for next time
+        if self.state_manager is not None:
+            if hasattr(self.state_manager, "image_directory"):
+                self.state_manager.image_directory = selected_directory  # type: ignore[misc]
+            if hasattr(self.state_manager, "add_recent_directory"):
+                self.state_manager.add_recent_directory(selected_directory)  # type: ignore[misc]
+
         # Start background loading of image sequence
-        self.file_load_worker.start_loading(tracking_file_path=None, image_dir_path=selected_directory)
+        self.file_load_worker.start_work(tracking_file_path=None, image_dir_path=selected_directory)
 
         return True
 

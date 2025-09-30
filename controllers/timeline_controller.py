@@ -8,7 +8,7 @@ reducing MainWindow complexity.
 import logging
 from typing import TYPE_CHECKING
 
-from protocols.ui import MainWindowProtocol
+from core.type_aliases import CurveDataList
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -25,7 +25,7 @@ class TimelineController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: MainWindowProtocol = main_window
+        self.main_window: "MainWindow" = main_window
 
     def handle_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click event.
@@ -34,7 +34,7 @@ class TimelineController:
             frame: Frame number that was clicked
         """
         logger.debug(f"Timeline tab clicked: frame {frame}")
-        self.main_window.navigate_to_frame(frame, update_state_manager=True)
+        self.main_window._set_current_frame(frame)
 
     def handle_timeline_tab_hovered(self, frame: int) -> None:
         """Handle timeline tab hover event.
@@ -46,9 +46,7 @@ class TimelineController:
         # Could be extended to show preview or tooltip
         logger.debug(f"Timeline tab hovered: frame {frame}")
 
-    def update_timeline_tabs(
-        self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] | None = None
-    ) -> None:
+    def update_timeline_tabs(self, curve_data: CurveDataList | None = None) -> None:
         """Update timeline tabs with current curve data and frame range.
 
         Args:
@@ -95,7 +93,17 @@ class TimelineController:
             frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
 
             # Update timeline tabs with point status
-            for frame, (keyframe_count, interpolated_count, has_selected) in frame_status.items():
+            for frame, status_tuple in frame_status.items():
+                (
+                    keyframe_count,
+                    interpolated_count,
+                    tracked_count,
+                    endframe_count,
+                    normal_count,
+                    is_startframe,
+                    is_inactive,
+                    has_selected,
+                ) = status_tuple
                 self.main_window.timeline_tabs.update_frame_status(
                     frame, keyframe_count, interpolated_count, has_selected
                 )

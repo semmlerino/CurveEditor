@@ -78,6 +78,7 @@ from ui.ui_constants import (
 if TYPE_CHECKING:
     from typing import Protocol
 
+    from core.commands import BatchMoveCommand, DeletePointsCommand
     from services.interaction_service import InteractionService
     from ui.state_manager import StateManager
 
@@ -92,6 +93,8 @@ if TYPE_CHECKING:
 else:
     MainWindow = Any  # Runtime fallback to avoid import cycle
     InteractionService = Any  # Runtime fallback to avoid import cycle
+    BatchMoveCommand = Any  # Runtime fallback to avoid import cycle
+    DeletePointsCommand = Any  # Runtime fallback to avoid import cycle
 
 from core.logger_utils import get_logger
 
@@ -1885,7 +1888,6 @@ class CurveViewWidget(QWidget):
         if not self.selected_indices or not self.main_window:
             return
 
-        from core.commands import BatchMoveCommand
         from services import get_interaction_service
 
         # Collect moves
@@ -1918,7 +1920,6 @@ class CurveViewWidget(QWidget):
         if not self.selected_indices or not self.main_window:
             return
 
-        from core.commands import DeletePointsCommand
         from services import get_interaction_service
 
         # Collect points to delete

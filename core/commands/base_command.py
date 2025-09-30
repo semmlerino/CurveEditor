@@ -271,7 +271,6 @@ class NullCommand(Command):
         return True
 
     @override
-    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Do nothing and report success."""
         return self.execute(main_window)
