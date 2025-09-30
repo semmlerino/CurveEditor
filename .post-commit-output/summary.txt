@@ -1,8 +1,0 @@
-
-Post-Commit Hook Summary
-========================
-Commit: ee102de
-Timestamp: 20250930_103417
-Encoded file: release_ee102de_20250930_103417.txt
-Bundle exit code: 0
-Output directory: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/.post-commit-output

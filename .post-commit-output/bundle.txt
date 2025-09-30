@@ -1,168 +1,6 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 111 files to bundle
-Bundled: .pre-commit-config.yaml
-Bundled: 2DTrackData.txt
-Bundled: 2DTrackDatav2.txt
-Bundled: ARCHITECTURE.md
-Bundled: basedpyrightconfig.json
-Bundled: CLAUDE.md
-Bundled: CLAUDE_stashed.md
-Bundled: conftest.py
-Bundled: CURVE_SEGMENTS_FINDINGS.md
-Bundled: KeyFrameTest.txt
-Bundled: KNOWN_ISSUES.md
-Bundled: main.py
-Bundled: PERFORMANCE_BASELINE_REPORT.txt
-Bundled: performance_bottleneck_analysis.txt
-Bundled: PLAN_EPSILON_DO_NOT_DELETE.md
-Bundled: PLAN_OMEGA.md
-Bundled: PLAN_PHASE_1.md
-Bundled: pytest.ini
-Bundled: README.md
-Bundled: requirements.txt
-Bundled: run_tests.sh
-Bundled: run_typecheck.sh
-Bundled: SetTrackingBwd.py
-Bundled: SetTrackingFwd.py
-Bundled: SetTrackingFwdBwd.py
-Bundled: testspline.txt
-Bundled: TEST_REMEDIATION_PLAN.md
-Bundled: transfer_config.json
-Bundled: .claude/settings.local.json
-Bundled: .claude/commands/TestRules.md
-Bundled: .windsurf/rules/coding.md
-Bundled: commands/Advice.md
-Bundled: commands/TestRules.md
-Bundled: core/curve_segments.py
-Bundled: core/error_handlers.py
-Bundled: core/image_state.py
-Bundled: core/logger_utils.py
-Bundled: core/math_utils.py
-Bundled: core/models.py
-Bundled: core/path_security.py
-Bundled: core/point_types.py
-Bundled: core/service_utils.py
-Bundled: core/signal_manager.py
-Bundled: core/signal_types.py
-Bundled: core/simple_filters.py
-Bundled: core/spatial_index.py
-Bundled: core/type_aliases.py
-Bundled: core/__init__.py
-Bundled: core/commands/base_command.py
-Bundled: core/commands/command_manager.py
-Bundled: core/commands/curve_commands.py
-Bundled: core/commands/shortcut_command.py
-Bundled: core/commands/shortcut_commands.py
-Bundled: core/commands/__init__.py
-Bundled: data/batch_edit.py
-Bundled: data/csv_export.py
-Bundled: data/curve_data_utils.py
-Bundled: data/curve_view_plumbing.py
-Bundled: data/tracking_direction_utils.py
-Bundled: footage/Burger/2DTrackData.txt
-Bundled: LogicExamples/SetTrackingBwd.py
-Bundled: LogicExamples/SetTrackingFwd.py
-Bundled: LogicExamples/SetTrackingFwdBwd.py
-Bundled: rendering/optimized_curve_renderer.py
-Bundled: rendering/rendering_protocols.py
-Bundled: rendering/render_state.py
-Bundled: rendering/__init__.py
-Bundled: services/data_service.py
-Bundled: services/interaction_service.py
-Bundled: services/service_protocols.py
-Bundled: services/transform_service.py
-Bundled: services/ui_service.py
-Bundled: services/__init__.py
-Bundled: session/last_session.json
-Bundled: stores/connection_verifier.py
-Bundled: stores/curve_data_store.py
-Bundled: stores/frame_store.py
-Bundled: stores/store_manager.py
-Bundled: stores/__init__.py
-Bundled: test_data/timeline_test_statuses.json
-Bundled: ui/color_manager.py
-Bundled: ui/curve_view_widget.py
-Bundled: ui/dark_theme_stylesheet.py
-Bundled: ui/error_handler.py
-Bundled: ui/file_operations.py
-Bundled: ui/frame_tab.py
-Bundled: ui/global_event_filter.py
-Bundled: ui/image_sequence_browser.py
-Bundled: ui/keyboard_shortcuts.py
-Bundled: ui/main_window.py
-Bundled: ui/menu_bar.py
-Bundled: ui/multi_curve_manager.py
-Bundled: ui/progress_manager.py
-Bundled: ui/service_facade.py
-Bundled: ui/shortcut_registry.py
-Bundled: ui/state_manager.py
-Bundled: ui/timeline_tabs.py
-Bundled: ui/tracking_points_panel.py
-Bundled: ui/ui_components.py
-Bundled: ui/ui_constants.py
-Bundled: ui/controllers/action_handler_controller.py
-Bundled: ui/controllers/multi_point_tracking_controller.py
-Bundled: ui/controllers/point_editor_controller.py
-Bundled: ui/controllers/signal_connection_manager.py
-Bundled: ui/controllers/timeline_controller.py
-Bundled: ui/controllers/ui_initialization_controller.py
-Bundled: ui/controllers/view_camera_controller.py
-Bundled: ui/controllers/view_management_controller.py
-Bundled: ui/controllers/__init__.py
-Bundled: ui/protocols/controller_protocols.py
-Bundled: ui/protocols/__init__.py
-Bundle created at: /tmp/shotbot_bundle_temp
-Encoding bundle...
-Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_1a41355_20250930_102321.txt -c 5120 --single-file --metadata -v
-Folder size: 1.24 MB
-Encoding folder: /tmp/shotbot_bundle_temp
-Encoded size: 386004 bytes
-Creating 1 chunks of 5120KB each
-Saved combined chunks to: release_1a41355_20250930_102321.txt
-Encoding completed successfully
-
-Cleaned up bundle directory: /tmp/shotbot_bundle_temp
-Encoded bundle saved to: release_1a41355_20250930_102321.txt
-✓ Bundle created successfully: release_1a41355_20250930_102321.txt
-Committing to encoded-releases branch...
-error: pathspec 'encoded-releases' did not match any file(s) known to git
-Trim trailing whitespace.................................................Passed
-Fix end of files.........................................................Failed
-- hook id: end-of-file-fixer
-- exit code: 1
-- files were modified by this hook
-
-Fixing release_1a41355_20250930_102321.txt
-
-Check YAML syntax....................................(no files to check)Skipped
-Check JSON syntax....................................(no files to check)Skipped
-Check TOML syntax....................................(no files to check)Skipped
-Check for large files....................................................Passed
-Check for merge conflicts................................................Passed
-Check for case conflicts.................................................Passed
-Fix line endings.........................................................Passed
-Check for debug statements...........................(no files to check)Skipped
-Detect private keys......................................................Passed
-Ruff linter..........................................(no files to check)Skipped
-Ruff formatter.......................................(no files to check)Skipped
-Check blanket noqa...................................(no files to check)Skipped
-Check blanket type ignore............................(no files to check)Skipped
-Check for eval().....................................(no files to check)Skipped
-Check for log.warn().................................(no files to check)Skipped
-Pushing to remote...
-error: src refspec encoded-releases does not match any
-error: failed to push some refs to 'github.com:semmlerino/CurveEditor.git'
-✗ Push failed (exit code: 1)
-Already on 'main'
-A	release_1a41355_20250930_102321.txt
-Your branch is ahead of 'origin/main' by 129 commits.
-  (use "git push" to publish your local commits)
-✓ Encoded release committed successfully
-Creating encoded bundle...
-Loaded config from transfer_config.json
-Creating application bundle...
 Found 188 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -354,16 +192,15 @@ Bundled: ui/protocols/controller_protocols.py
 Bundled: ui/protocols/__init__.py
 Bundle created at: /tmp/shotbot_bundle_temp
 Encoding bundle...
-Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_ee102de_20250930_103417.txt -c 5120 --single-file --metadata -v
+Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_391ecb0_20250930_104407.txt -c 5120 --single-file --metadata -v
 Folder size: 2.08 MB
 Encoding folder: /tmp/shotbot_bundle_temp
-Encoded size: 636708 bytes
+Encoded size: 636844 bytes
 Creating 1 chunks of 5120KB each
-Saved combined chunks to: release_ee102de_20250930_103417.txt
+Saved combined chunks to: release_391ecb0_20250930_104407.txt
 Encoding completed successfully
 
 Cleaned up bundle directory: /tmp/shotbot_bundle_temp
-Encoded bundle saved to: release_ee102de_20250930_103417.txt
-✓ Bundle created successfully: release_ee102de_20250930_103417.txt
+Encoded bundle saved to: release_391ecb0_20250930_104407.txt
+✓ Bundle created successfully: release_391ecb0_20250930_104407.txt
 Committing to encoded-releases branch...
-✓ Encoded release committed successfully
