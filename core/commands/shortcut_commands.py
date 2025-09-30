@@ -64,7 +64,7 @@ class SetEndframeCommand(ShortcutCommand):
             return False
 
         try:
-            from core.commands import SetPointStatusCommand
+            from core.commands.curve_commands import SetPointStatusCommand
             from services import get_interaction_service
 
             changes = []

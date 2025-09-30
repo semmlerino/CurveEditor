@@ -5,6 +5,7 @@ Shortcut Command base class for keyboard shortcuts.
 This module provides the foundation for keyboard shortcut commands that can be
 executed globally regardless of widget focus.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 

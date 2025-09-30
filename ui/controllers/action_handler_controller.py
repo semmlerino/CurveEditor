@@ -262,7 +262,7 @@ class ActionHandlerController:
         filter_type = self.state_manager.smoothing_filter_type
 
         # Create and execute smooth command
-        from core.commands import SmoothCommand
+        from core.commands.curve_commands import SmoothCommand
         from services import get_interaction_service
 
         smooth_command = SmoothCommand(

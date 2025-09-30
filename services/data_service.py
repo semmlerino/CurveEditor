@@ -16,6 +16,7 @@ import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import PointStatus
@@ -904,7 +905,7 @@ class DataService:
                 self._logger.log_error(f"Failed to load tracked data: {e}")
             return {}
 
-    def _load_2dtrack_data(self, file_path: str) -> CurveDataList:
+    def _load_2dtrack_data(self, file_path: str) -> "CurveDataList | CurveDataWithMetadata":
         """Load 2DTrackData.txt format file (single curve).
 
         Format:
@@ -934,8 +935,7 @@ class DataService:
                                 frame = int(parts[0])
                                 x = float(parts[1])
                                 y = float(parts[2])
-                                # Apply Y-flip for 3DEqualizer coordinates (bottom-origin to top-origin)
-                                y = 720 - y
+                                # Store raw coordinates - metadata system handles Y-flip
 
                                 # Optional status field - only include if explicitly provided
                                 if len(parts) >= 4:
@@ -955,16 +955,47 @@ class DataService:
             if self._logger:
                 self._logger.log_info(f"Loaded {len(result)} points from {file_path}")
 
-            return result
+            # Wrap with 3DEqualizer metadata for coordinate system awareness
+            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
+            from core.curve_data import CurveDataWithMetadata
+
+            metadata = CoordinateMetadata(
+                system=CoordinateSystem.THREE_DE_EQUALIZER,
+                origin=CoordinateOrigin.BOTTOM_LEFT,
+                width=1280,  # 3DE default
+                height=720,  # 3DE default
+            )
+
+            return CurveDataWithMetadata(data=result, metadata=metadata)
 
         except FileNotFoundError:
             if self._logger:
                 self._logger.log_error(f"File not found: {file_path}")
-            return []
+            # Return empty metadata-aware data
+            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
+            from core.curve_data import CurveDataWithMetadata
+
+            metadata = CoordinateMetadata(
+                system=CoordinateSystem.THREE_DE_EQUALIZER,
+                origin=CoordinateOrigin.BOTTOM_LEFT,
+                width=1280,
+                height=720,
+            )
+            return CurveDataWithMetadata(data=[], metadata=metadata)
         except Exception as e:
             if self._logger:
                 self._logger.log_error(f"Failed to load 2DTrackData file {file_path}: {e}")
-            return []
+            # Return empty metadata-aware data
+            from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
+            from core.curve_data import CurveDataWithMetadata
+
+            metadata = CoordinateMetadata(
+                system=CoordinateSystem.THREE_DE_EQUALIZER,
+                origin=CoordinateOrigin.BOTTOM_LEFT,
+                width=1280,
+                height=720,
+            )
+            return CurveDataWithMetadata(data=[], metadata=metadata)
 
     def _load_csv(self, file_path: str) -> CurveDataList:
         """Load CSV file implementation."""

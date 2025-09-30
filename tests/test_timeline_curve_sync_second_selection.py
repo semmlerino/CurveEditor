@@ -12,7 +12,6 @@ This test follows the exact user-reported scenario:
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QApplication
 
 from core.models import PointStatus
 from stores import get_store_manager
@@ -21,13 +20,6 @@ from ui.main_window import MainWindow
 
 class TestTimelineCurveSyncSecondSelection:
     """Test timeline-curve synchronization when selecting multiple points."""
-
-    @pytest.fixture(scope="session")
-    def qapp(self):
-        """Shared QApplication for all tests."""
-        app = QApplication.instance() or QApplication([])
-        yield app
-        app.processEvents()
 
     @pytest.fixture
     def main_window(self, qtbot, qapp):

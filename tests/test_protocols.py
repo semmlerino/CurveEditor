@@ -12,8 +12,7 @@ a Protocol method went undetected and caused application crashes.
 import logging
 from unittest.mock import Mock
 
-import pytest
-from PySide6.QtWidgets import QApplication, QStatusBar
+from PySide6.QtWidgets import QStatusBar
 
 from rendering.rendering_protocols import CurveViewProtocol
 from rendering.rendering_protocols import MainWindowProtocol as RenderingMainWindowProtocol
@@ -42,14 +41,6 @@ from ui.protocols.controller_protocols import (
     UIInitializationProtocol,
     ViewOptionsProtocol,
 )
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 class TestRenderingProtocols:
@@ -742,20 +733,6 @@ class TestControllerProtocols:
 
         mock_options.set_view_options(test_options)
         mock_options.set_view_options.assert_called_once_with(test_options)
-
-    def test_view_options_protocol_on_image_sequence_loaded_method(self):
-        """Test ViewOptionsProtocol.on_image_sequence_loaded() method exists and is callable."""
-        mock_options = Mock(spec=ViewOptionsProtocol)
-
-        mock_options.on_image_sequence_loaded()
-        mock_options.on_image_sequence_loaded.assert_called_once()
-
-    def test_view_options_protocol_update_background_for_frame_method(self):
-        """Test ViewOptionsProtocol.update_background_for_frame() method exists and is callable."""
-        mock_options = Mock(spec=ViewOptionsProtocol)
-
-        mock_options.update_background_for_frame(42)
-        mock_options.update_background_for_frame.assert_called_once_with(42)
 
     def test_timeline_controller_protocol_on_timeline_tab_clicked_method(self):
         """Test TimelineControllerProtocol.on_timeline_tab_clicked() method exists and is callable."""

@@ -46,6 +46,10 @@ class LoggingServiceProtocol(Protocol):
         """Log a warning message."""
         ...
 
+    def log_debug(self, message: str) -> None:
+        """Log a debug message."""
+        ...
+
 
 class StatusServiceProtocol(Protocol):
     """Protocol for status service dependency injection."""

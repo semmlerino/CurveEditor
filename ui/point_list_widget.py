@@ -27,7 +27,7 @@ class PointListWidget(QWidget):
     def __init__(self, parent: QWidget | None = None):
         """Initialize the point list widget."""
         super().__init__(parent)
-        self._curve_data: list[tuple] = []
+        self._curve_data: list[tuple[int, float, float] | tuple[int, float, float, PointStatus]] = []
         self._updating: bool = False  # Prevent recursive updates
         self._init_ui()
 
@@ -67,7 +67,9 @@ class PointListWidget(QWidget):
 
         layout.addWidget(self.table)
 
-    def set_curve_data(self, curve_data: list[tuple]) -> None:
+    def set_curve_data(
+        self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, PointStatus]]
+    ) -> None:
         """Update the displayed curve data.
 
         Args:

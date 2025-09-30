@@ -5,6 +5,7 @@ Spatial indexing for efficient point lookups in CurveEditor.
 This module provides a simple grid-based spatial index for O(1) point
 lookups instead of O(n) linear search.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 

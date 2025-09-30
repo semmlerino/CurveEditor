@@ -27,7 +27,7 @@ from services.service_protocols import CurveViewProtocol, MainWindowProtocol
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
 
-    from core.commands import CommandManager
+    from core.commands.command_manager import CommandManager
     from services.transform_service import TransformService
     from ui.main_window import MainWindow
 
@@ -93,7 +93,7 @@ class InteractionService:
     def command_manager(self) -> CommandManager:
         """Lazy initialization of CommandManager to avoid circular imports."""
         if self._command_manager is None:
-            from core.commands import CommandManager
+            from core.commands.command_manager import CommandManager
 
             self._command_manager = CommandManager(max_history_size=100)
         return self._command_manager
@@ -267,7 +267,7 @@ class InteractionService:
 
             # Create command if points were actually moved
             if self._drag_original_positions and view.main_window is not None:
-                from core.commands import BatchMoveCommand
+                from core.commands.curve_commands import BatchMoveCommand
 
                 # Collect the moves
                 moves = []
@@ -358,7 +358,7 @@ class InteractionService:
             # Delete selected points using command for undo/redo
             # selected_points is defined in CurveViewProtocol
             if view.selected_points and view.main_window is not None:
-                from core.commands import DeletePointsCommand
+                from core.commands.curve_commands import DeletePointsCommand
 
                 # Collect points to delete
                 indices = list(view.selected_points)
@@ -406,7 +406,7 @@ class InteractionService:
             # Nudge selected points
             # selected_points is defined in CurveViewProtocol
             if view.selected_points and view.main_window is not None:
-                from core.commands import BatchMoveCommand
+                from core.commands.curve_commands import BatchMoveCommand
 
                 nudge_distance = 1.0
                 delta_x = (
@@ -720,7 +720,7 @@ class InteractionService:
     def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
         """Delete selected points using DeletePointsCommand."""
         if view.selected_points and view.curve_data:
-            from core.commands import DeletePointsCommand
+            from core.commands.curve_commands import DeletePointsCommand
 
             # Collect points to delete
             indices = list(view.selected_points)

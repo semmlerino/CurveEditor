@@ -84,10 +84,16 @@ class CurveDataStore(QObject):
         Replace all curve data.
 
         Args:
-            data: New curve data
+            data: New curve data (can be CurveDataList or CurveDataWithMetadata)
         """
         if not self._batch_mode:
             self._add_to_undo()
+
+        # Handle CurveDataWithMetadata wrapper
+        from core.curve_data import CurveDataWithMetadata
+
+        if isinstance(data, CurveDataWithMetadata):
+            data = data.data  # Extract the actual data list
 
         self._data = data.copy()  # Store a copy to prevent external mutation
         self._selection.clear()  # Clear selection when data changes

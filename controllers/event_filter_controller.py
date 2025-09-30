@@ -11,8 +11,6 @@ from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication
 
-from protocols.ui import MainWindowProtocol
-
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
@@ -28,7 +26,7 @@ class EventFilterController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: MainWindowProtocol = main_window
+        self.main_window = main_window  # Type inferred as MainWindow (compatible with MainWindowProtocol)
 
     def filter_event(self, watched: QObject, event: QEvent) -> bool:
         """Filter and handle key events for special processing.

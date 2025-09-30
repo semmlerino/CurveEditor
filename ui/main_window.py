@@ -76,13 +76,12 @@ from .global_event_filter import GlobalEventFilter
 from .keyboard_shortcuts import ShortcutManager
 from .protocols.controller_protocols import (
     ActionHandlerProtocol,
-    BackgroundImageProtocol,
     MultiPointTrackingProtocol,
     PointEditorProtocol,
     SignalConnectionProtocol,
     TimelineControllerProtocol,
     UIInitializationProtocol,
-    ViewOptionsProtocol,
+    ViewManagementProtocol,
 )
 from .shortcut_registry import ShortcutRegistry
 from .state_manager import StateManager
@@ -178,10 +177,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     timeline_controller: TimelineControllerProtocol
     action_controller: ActionHandlerProtocol
     ui_init_controller: UIInitializationProtocol
-    view_management_controller: ViewOptionsProtocol
+    view_management_controller: ViewManagementProtocol
     point_editor_controller: PointEditorProtocol
-    timeline_controller: TimelineControllerProtocol
-    background_controller: BackgroundImageProtocol
+    background_controller: ViewManagementProtocol
     tracking_controller: MultiPointTrackingProtocol
     signal_manager: SignalConnectionProtocol
 
@@ -218,10 +216,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.timeline_controller = TimelineController(self.state_manager, self)
         self.action_controller = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller = UIInitializationController(self)
-        self.view_management_controller = ViewManagementController(self)
-        self.background_controller = self.view_management_controller  # Same controller handles background images
-        self.point_editor_controller = PointEditorController(self, self.state_manager)
-        self.tracking_controller = MultiPointTrackingController(self)
+        self.view_management_controller = ViewManagementController(self)  # pyright: ignore[reportAttributeAccessIssue]
+        self.background_controller = self.view_management_controller
+        self.point_editor_controller = PointEditorController(self, self.state_manager)  # pyright: ignore[reportAttributeAccessIssue]
+        self.tracking_controller = MultiPointTrackingController(self)  # pyright: ignore[reportAttributeAccessIssue]
         self.signal_manager = SignalConnectionManager(self)
 
         # Initialize service facade
@@ -680,7 +678,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update info labels - use curve widget data if available
         if self.curve_widget:
             curve_data = self._curve_store.get_data()
-            analysis = self.services.analyze_curve_bounds(curve_data)
+            analysis = self.services.analyze_curve_bounds(curve_data)  # pyright: ignore[reportArgumentType]
 
             point_count = analysis["count"]
             if self.point_count_label:
@@ -852,7 +850,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
-        return self.action_controller._get_current_curve_data()
+        return self.action_controller._get_current_curve_data()  # pyright: ignore[reportReturnType]
 
     def _verify_connections(self) -> None:
         """

@@ -39,6 +39,7 @@ class SessionManagerProtocol(Protocol):
         pan_offset: tuple[float, float] = (0.0, 0.0),
         window_geometry: tuple[int, int, int, int] | None = None,
         active_points: list[str] | None = None,
+        recent_directories: list[str] | None = None,
     ) -> dict[str, str | int | float | tuple[float, float] | list[str] | None]: ...
 
     def save_session(
@@ -78,6 +79,8 @@ class StateManagerProtocol(Protocol):
     def total_frames(self) -> int: ...
     @total_frames.setter
     def total_frames(self, value: int) -> None: ...
+    @property
+    def recent_directories(self) -> list[str]: ...
     def reset_to_defaults(self) -> None: ...
     def set_track_data(self, data: "CurveDataList | CurveDataWithMetadata", mark_modified: bool) -> None: ...
 
@@ -493,6 +496,11 @@ class FileOperationsManager(QObject):
             except Exception as e:
                 logger.debug(f"Could not get window geometry: {e}")
 
+            # Get recent directories
+            recent_directories = []
+            if hasattr(self.main_window.state_manager, "recent_directories"):
+                recent_directories = self.main_window.state_manager.recent_directories
+
             # Create session data
             session_data = self.main_window.session_manager.create_session_data(
                 tracking_file=current_file,
@@ -502,6 +510,7 @@ class FileOperationsManager(QObject):
                 pan_offset=pan_offset,
                 window_geometry=window_geometry,
                 active_points=active_points,
+                recent_directories=recent_directories,
             )
 
             # Save session data

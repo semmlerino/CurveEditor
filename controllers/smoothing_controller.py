@@ -24,7 +24,7 @@ class SmoothingController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: "MainWindow" = main_window
+        self.main_window: MainWindow = main_window
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation to selected points in the curve using Command pattern.
@@ -64,14 +64,14 @@ class SmoothingController:
                 return  # User cancelled
 
             # Create and execute smooth command
-            from core.commands import SmoothCommand
+            from core.commands.curve_commands import SmoothCommand
             from services import get_interaction_service
 
             smooth_command = SmoothCommand(
-                self.main_window.curve_widget,
-                list(selected_indices),
-                window_size,
-                f"Smooth {len(selected_indices)} points",
+                description=f"Smooth {len(selected_indices)} points",
+                indices=list(selected_indices),
+                filter_type="moving_average",
+                window_size=window_size,
             )
 
             # Execute through command manager for undo/redo support

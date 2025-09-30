@@ -78,6 +78,10 @@ class StateManager(QObject):
         self._image_files: list[str] = []
         self._current_image: str | None = None
 
+        # Recent directories tracking (for quick access)
+        self._recent_directories: list[str] = []
+        self._max_recent_directories: int = 10
+
         # UI state
         self._window_size: tuple[int, int] = (1200, 800)
         self._window_position: tuple[int, int] = (100, 100)
@@ -358,6 +362,40 @@ class StateManager(QObject):
             return self._image_files[self._current_frame - 1]
         return None
 
+    @property
+    def recent_directories(self) -> list[str]:
+        """Get list of recent directories (most recent first)."""
+        return self._recent_directories.copy()
+
+    def add_recent_directory(self, directory: str) -> None:
+        """Add directory to recent list, moving to top if already exists.
+
+        Args:
+            directory: Directory path to add to recent list
+        """
+        directory = str(Path(directory).resolve())  # Normalize path
+
+        # Remove if already exists (will re-add at top)
+        if directory in self._recent_directories:
+            self._recent_directories.remove(directory)
+
+        # Add to beginning
+        self._recent_directories.insert(0, directory)
+
+        # Trim to max size
+        self._recent_directories = self._recent_directories[: self._max_recent_directories]
+
+        logger.debug(f"Added recent directory: {directory}")
+
+    def set_recent_directories(self, directories: list[str]) -> None:
+        """Set recent directories list (for session restoration).
+
+        Args:
+            directories: List of directory paths to set
+        """
+        self._recent_directories = directories[: self._max_recent_directories]
+        logger.debug(f"Set recent directories: {len(self._recent_directories)} entries")
+
     # ==================== UI State Properties ====================
 
     @property
@@ -516,6 +554,9 @@ class StateManager(QObject):
         # Image sequence state
         self._image_directory = None
         self._image_files.clear()
+
+        # Recent directories
+        self._recent_directories.clear()
 
         # Tools state
         self._current_tool = "select"

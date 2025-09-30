@@ -86,7 +86,7 @@ class TestDataAnalysis:
         assert result[1][2] < 100.0
 
     def test_filter_butterworth_with_scipy_available(self):
-        """Test Butterworth filter when scipy is available."""
+        """Test Butterworth filter (now uses simple_lowpass_filter)."""
         service = DataService()
         data: CurveDataList = [
             (1, 10.0, 20.0),
@@ -97,18 +97,14 @@ class TestDataAnalysis:
             (6, 20.0, 30.0),
         ]
 
-        # Mock scipy signal if available
-        with patch("services.data_analysis.signal") as mock_signal:
-            if mock_signal is not None:
-                # Mock successful filtering
-                mock_signal.butter.return_value = ([0.1, 0.2], [1.0, -0.8])
-                mock_signal.filtfilt.side_effect = lambda b, a, x: x  # Pass through
+        result = service.filter_butterworth(data, cutoff=0.1)
 
-                result = service.filter_butterworth(data, cutoff=0.1)
-
-                assert len(result) == len(data)
-                mock_signal.butter.assert_called_once()
-                assert mock_signal.filtfilt.call_count == 2  # x and y coords
+        assert len(result) == len(data)
+        # Verify data is returned (smoothing applied with moving average)
+        # All coordinates should be present
+        assert all(len(point) >= 3 for point in result)
+        assert result[0][0] == 1  # Frame preserved
+        assert result[-1][0] == 6  # Last frame preserved
 
     def test_filter_butterworth_without_scipy(self):
         """Test Butterworth filter when scipy is not available."""
@@ -133,8 +129,9 @@ class TestDataAnalysis:
             (4, 16.0, 26.0),
         ]
 
-        with patch("services.data_analysis.signal") as mock_signal:
-            mock_signal.butter.side_effect = ValueError("Filter design failed")
+        # Mock simple_lowpass_filter to raise exception
+        with patch("services.data_service.simple_lowpass_filter") as mock_filter:
+            mock_filter.side_effect = ValueError("Filter failed")
 
             result = service.filter_butterworth(data)
 
@@ -424,7 +421,7 @@ class TestFileOperations:
         assert result[0] == (1, 10.0, 20.0, "keyframe")
 
     def test_load_2dtrack_data_single_point(self, tmp_path):
-        """Test loading 2DTrackData format (single curve)."""
+        """Test loading 2DTrackData format (single curve) with 3DE metadata."""
         service = DataService()
         test_file = tmp_path / "test.txt"
 
@@ -441,10 +438,22 @@ class TestFileOperations:
 
         result = service._load_2dtrack_data(str(test_file))
 
-        assert len(result) == 3
-        # Y coordinates should be original (no flip during loading)
-        assert result[0] == (1, 100.0, 600.0, "keyframe")  # Original Y coordinate
-        assert result[1] == (2, 102.0, 598.0, "keyframe")  # Original Y coordinate
+        # Result should be CurveDataWithMetadata with 3DE coordinate system
+        from core.coordinate_system import CoordinateOrigin, CoordinateSystem
+        from core.curve_data import CurveDataWithMetadata
+
+        assert isinstance(result, CurveDataWithMetadata)
+        assert result.metadata is not None
+        assert result.metadata.system == CoordinateSystem.THREE_DE_EQUALIZER
+        assert result.metadata.origin == CoordinateOrigin.BOTTOM_LEFT
+
+        # Data should contain raw (unflipped) Y coordinates
+        # Note: _apply_default_statuses marks first point as "keyframe", middle as "tracked"
+        curve_data = result.data
+        assert len(curve_data) == 3
+        assert curve_data[0] == (1, 100.0, 600.0, "keyframe")  # Raw Y coordinate
+        assert curve_data[1] == (2, 102.0, 598.0, "tracked")  # Tracked status
+        assert curve_data[2] == (3, 104.0, 596.0, "keyframe")  # Last frame
 
     def test_load_tracked_data_multiple_points(self, tmp_path):
         """Test loading tracked data with multiple tracking points."""
@@ -473,8 +482,8 @@ Point02
         assert "Point02" in result
         assert len(result["Point1"]) == 2
         assert len(result["Point02"]) == 2
-        # Check original coordinates (no flip during loading)
-        assert result["Point1"][0] == (1, 100.0, 600.0)  # Original Y coordinate
+        # Check Y-flipped coordinates for 3DEqualizer: y = 720 - y
+        assert result["Point1"][0] == (1, 100.0, 120.0, "keyframe")  # Flipped: 720 - 600 = 120
 
 
 class TestImageOperations:
@@ -566,7 +575,7 @@ class TestRecentFiles:
     def test_recent_files_max_limit(self):
         """Test that recent files respects maximum limit."""
         service = DataService()
-        service._file_io_service._max_recent_files = 3
+        service._max_recent_files = 3
 
         # Add more than max
         for i in range(5):
@@ -616,9 +625,13 @@ class TestPointStatusAnalysis:
 
         result = service.get_frame_range_point_status(points)
 
-        assert result[1] == (1, 1, False)  # Frame 1: 1 keyframe, 1 interpolated
-        assert result[2] == (1, 0, False)  # Frame 2: 1 keyframe, 0 interpolated
-        assert result[3] == (0, 1, False)  # Frame 3: 0 keyframe, 1 interpolated
+        # Format: (keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, has_selected)
+        assert result[1][0] == 1  # Frame 1: 1 keyframe
+        assert result[1][1] == 1  # Frame 1: 1 interpolated
+        assert result[2][0] == 1  # Frame 2: 1 keyframe
+        assert result[2][1] == 0  # Frame 2: 0 interpolated
+        assert result[3][0] == 0  # Frame 3: 0 keyframes
+        assert result[3][1] == 1  # Frame 3: 1 interpolated
 
 
 class TestThreadSafety:

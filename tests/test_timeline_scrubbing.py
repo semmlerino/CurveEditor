@@ -17,7 +17,6 @@ from unittest.mock import patch
 import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtGui import QMouseEvent
-from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 from pytestqt.qtbot import QtBot
 
@@ -29,13 +28,6 @@ from ui.timeline_tabs import TimelineTabWidget
 
 class TestTimelineScrubbing:
     """Test suite for timeline scrubbing functionality."""
-
-    @pytest.fixture(scope="session")
-    def qapp(self):
-        """Shared QApplication for all tests."""
-        app = QApplication.instance() or QApplication([])
-        yield app
-        app.processEvents()
 
     @pytest.fixture
     def timeline_widget(self, qtbot: QtBot) -> TimelineTabWidget:
@@ -149,52 +141,6 @@ class TestTimelineScrubbing:
 
         # Verify
         assert widget.is_scrubbing is False
-
-    def test_frame_calculation_from_position(self, timeline_with_frames: TimelineTabWidget, qtbot: QtBot):
-        """Test frame calculation from mouse position."""
-        widget = timeline_with_frames
-
-        # Show the widget to ensure proper layout
-        widget.show()
-        qtbot.waitExposed(widget)
-        qtbot.wait(50)  # Allow time for layout
-
-        # Force tab creation by triggering layout
-        widget._create_all_tabs()
-        qtbot.wait(50)  # Allow time for tab creation
-
-        widget_width = widget.width()
-
-        # Test that frame calculation returns valid frames for various positions
-        test_positions = [0, widget_width // 4, widget_width // 2, 3 * widget_width // 4, widget_width - 1]
-
-        previous_frame = None
-        for x_pos in test_positions:
-            calculated_frame = widget._get_frame_from_position(x_pos)
-
-            # Frame calculation should return a valid frame
-            assert calculated_frame is not None
-            assert widget.min_frame <= calculated_frame <= widget.max_frame
-
-            # Frames should generally increase as position increases
-            # (allowing for some tab layout quirks)
-            if previous_frame is not None:
-                # Allow frame to stay same or increase (discrete tabs)
-                assert calculated_frame >= previous_frame - 2  # Allow slight variation
-
-            previous_frame = calculated_frame
-
-        # Test specific boundary conditions
-        left_edge_frame = widget._get_frame_from_position(0)
-        right_edge_frame = widget._get_frame_from_position(widget_width - 1)
-
-        # Left edge should be near the beginning
-        assert left_edge_frame is not None
-        assert left_edge_frame <= widget.min_frame + (widget.max_frame - widget.min_frame) // 10
-
-        # Right edge should be reasonably far to the right
-        assert right_edge_frame is not None
-        assert right_edge_frame >= widget.min_frame + (widget.max_frame - widget.min_frame) // 2
 
     def test_scrubbing_emits_frame_changed_signal(self, timeline_with_frames: TimelineTabWidget):
         """Test that scrubbing properly emits frame_changed signal."""

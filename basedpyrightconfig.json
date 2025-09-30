@@ -1,6 +1,6 @@
 {
   "typeCheckingMode": "recommended",
-  "pythonVersion": "3.11",
+  "pythonVersion": "3.12",
   "pythonPlatform": "Linux",
   "venvPath": ".",
   "venv": "venv",
@@ -42,6 +42,9 @@
     ".benchmarks",
     ".hypothesis",
     "LogicExamples",
+    "SetTrackingBwd.py",
+    "SetTrackingFwd.py",
+    "SetTrackingFwdBwd.py",
     "test_images_output",
     "test_data",
     "stores",
@@ -49,8 +52,7 @@
     "session",
     "profiling",
     "test_*.py",
-    "performance*.py",
-    "SetTracking*.py"
+    "performance*.py"
   ],
   "reportMissingImports": "warning",
   "reportMissingTypeStubs": "none",

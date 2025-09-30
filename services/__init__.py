@@ -17,6 +17,7 @@ Core Services (4 total):
 3. InteractionService - User interactions, point manipulation, and history (fully integrated)
 4. UIService - UI operations, dialogs, and status updates
 """
+# pyright: reportImportCycles=false
 
 import threading
 from typing import TYPE_CHECKING

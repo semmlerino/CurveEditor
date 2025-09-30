@@ -338,8 +338,15 @@ class TimelineTabWidget(QWidget):
         logger.debug(f"_on_store_data_changed: got {len(curve_data) if curve_data else 0} points from store")
 
         if not curve_data:
-            logger.debug("_on_store_data_changed: No data, setting frame range to 1-1")
-            self.set_frame_range(1, 1)
+            # Check if image sequence is loaded even without tracking data
+            if self._state_manager and self._state_manager.total_frames > 1:
+                logger.debug(
+                    f"_on_store_data_changed: No tracking data, using image sequence range 1-{self._state_manager.total_frames}"
+                )
+                self.set_frame_range(1, self._state_manager.total_frames)
+            else:
+                logger.debug("_on_store_data_changed: No data, setting frame range to 1-1")
+                self.set_frame_range(1, 1)
             return
 
         # Calculate frame range from data
@@ -347,6 +354,12 @@ class TimelineTabWidget(QWidget):
         if frames:
             min_frame = min(frames)
             max_frame = max(frames)
+
+            # Also consider image sequence length from StateManager
+            if self._state_manager:
+                image_sequence_frames = self._state_manager.total_frames
+                # Timeline should show union of tracking data range and image sequence
+                max_frame = max(max_frame, image_sequence_frames)
 
             # Limit to reasonable number for performance
             max_timeline_frames = 200

@@ -6,6 +6,7 @@ Service protocols for CurveEditor.
 This module defines Protocol interfaces for dependency injection and type safety.
 Minimal implementation for startup compatibility.
 """
+# pyright: reportImportCycles=false
 
 import logging
 from collections.abc import Callable
@@ -58,6 +59,10 @@ class LoggingServiceProtocol(Protocol):
 
     def log_warning(self, message: str) -> None:
         """Log a warning message."""
+        ...
+
+    def log_debug(self, message: str) -> None:
+        """Log a debug message."""
         ...
 
 
@@ -131,6 +136,9 @@ class CurveViewProtocol(Protocol):
     show_background: bool
     show_velocity_vectors: bool
     show_all_frame_numbers: bool
+
+    # Parent reference
+    main_window: object  # MainWindowProtocol - avoid circular import
 
     # Qt signals (properly typed for type safety)
     point_selected: SignalProtocol  # Signal[int]
@@ -244,6 +252,7 @@ class MainWindowProtocol(Protocol):
 
     # Service references
     services: object  # Service container
+    file_operations: object  # FileOperations instance
 
     # State management
     state_manager: StateManagerProtocol

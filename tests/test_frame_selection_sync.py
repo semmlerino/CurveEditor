@@ -8,7 +8,6 @@ the current frame indicator should update properly on the selected points.
 """
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from core.models import PointStatus
 from stores import get_store_manager
@@ -17,13 +16,6 @@ from ui.main_window import MainWindow
 
 class TestFrameSelectionSync:
     """Test frame indicator synchronization after point selection."""
-
-    @pytest.fixture(scope="session")
-    def qapp(self):
-        """Shared QApplication for all tests."""
-        app = QApplication.instance() or QApplication([])
-        yield app
-        app.processEvents()
 
     @pytest.fixture
     def main_window(self, qtbot, qapp):

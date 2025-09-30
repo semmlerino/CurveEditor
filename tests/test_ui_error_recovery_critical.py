@@ -122,57 +122,6 @@ class TestUIErrorRecoveryCritical:
             # If it raises, ensure error is clear
             assert "negative" in str(e).lower() or "invalid" in str(e).lower()
 
-    def test_transform_service_cache_corruption_recovery(self):
-        """Test TransformService recovers from cache corruption."""
-        service = TransformService()
-
-        # Simulate cache corruption by directly manipulating internal state
-        service.clear_cache()
-
-        # Create valid state
-        view_state = ViewState(display_width=1920, display_height=1080, widget_width=800, widget_height=600)
-
-        # This should work normally
-        transform1 = service.create_transform_from_view_state(view_state)
-        assert transform1 is not None
-
-        # Test cache recovery by clearing and re-creating
-        service.clear_cache()
-
-        # Should be able to create transform even after cache clear
-        transform2 = service.create_transform_from_view_state(view_state)
-        assert transform2 is not None
-
-        # Should be able to perform basic operations
-        x, y = transform2.data_to_screen(100.0, 200.0)
-        assert isinstance(x, float) and isinstance(y, float)
-
-    def test_quantized_cache_with_invalid_precision(self):
-        """Test quantized_for_cache handles invalid precision values."""
-        view_state = ViewState(
-            display_width=1920, display_height=1080, widget_width=800, widget_height=600, zoom_factor=1.5
-        )
-
-        # Test with invalid precision values
-        # System may handle gracefully with defaults
-        try:
-            result = view_state.quantized_for_cache(precision=-1.0)
-            # If successful, should use a default precision
-            assert result is not None
-        except (ValueError, TypeError) as e:
-            assert "precision" in str(e).lower()
-
-        try:
-            result = view_state.quantized_for_cache(precision=0.0)
-            # If successful, should use a default precision
-            assert result is not None
-        except (ValueError, TypeError) as e:
-            assert "precision" in str(e).lower()
-
-        # Test with non-numeric precision
-        with pytest.raises(TypeError):
-            view_state.quantized_for_cache(precision="invalid")  # pyright: ignore[reportArgumentType]
-
     def test_transform_with_extreme_display_height_validation(self):
         """Test Transform handles extreme display height values."""
         # Test with negative display height

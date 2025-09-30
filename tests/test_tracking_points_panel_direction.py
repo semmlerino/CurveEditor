@@ -10,7 +10,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 import pytest
-from PySide6.QtWidgets import QApplication, QComboBox
+from PySide6.QtWidgets import QComboBox
 from pytestqt.qt_compat import qt_api
 from pytestqt.qtbot import QtBot
 
@@ -21,13 +21,6 @@ from ui.tracking_points_panel import TrackingPointsPanel
 
 class TestTrackingPointsPanelDirection:
     """Test suite for tracking direction functionality in TrackingPointsPanel."""
-
-    @pytest.fixture(scope="session")
-    def qapp(self):
-        """Shared QApplication for all tests."""
-        app = QApplication.instance() or QApplication([])
-        yield app
-        app.processEvents()
 
     @pytest.fixture
     def tracking_panel(self, qtbot: QtBot) -> TrackingPointsPanel:

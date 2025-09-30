@@ -13,7 +13,6 @@ from PySide6.QtCore import QTimer
 
 from .ui_components import UIComponents
 from .ui_constants import MAX_HISTORY_SIZE
-from .ui_scaling import UIScaling
 
 if TYPE_CHECKING:
     from .main_window import MainWindow
@@ -53,9 +52,6 @@ class MainWindowInitializer:
 
         # Initialize service facade
         self.main_window.services = get_service_facade(self.main_window)
-
-        # Initialize UI scaling
-        self.main_window.ui_scaling = UIScaling()
 
         logger.debug("Managers initialized")
 
@@ -135,7 +131,7 @@ class MainWindowInitializer:
         from controllers.tracking_panel_controller import TrackingPanelController
         from controllers.view_update_manager import ViewUpdateManager
         from controllers.zoom_controller import ZoomController
-        from core.commands import CommandManager
+        from core.commands.command_manager import CommandManager
 
         # Initialize original controllers (reverted from Phase 4 consolidation)
         self.main_window.event_filter_controller = EventFilterController(self.main_window)

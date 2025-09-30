@@ -390,8 +390,8 @@ class TestQtThreadingSafety:
     """Test Qt-specific threading safety patterns to prevent fatal crashes."""
 
     def test_thread_safe_image_creation(self):
-        """Test ThreadSafeTestImage can be created safely in worker threads."""
-        from tests.test_utilities import ThreadSafeTestImage
+        """Test QImage can be created safely in worker threads."""
+        from PySide6.QtGui import QImage
 
         results = []
         errors = []
@@ -399,13 +399,13 @@ class TestQtThreadingSafety:
         def create_image_in_thread(thread_id: int):
             """Create and manipulate image in worker thread."""
             try:
-                # ✅ SAFE - Use ThreadSafeTestImage instead of QPixmap
-                image = ThreadSafeTestImage(100, 100)
+                # ✅ SAFE - Use QImage instead of QPixmap (QPixmap requires main thread)
+                image = QImage(100, 100, QImage.Format.Format_RGB32)
 
                 # Thread-safe operations
                 assert not image.isNull()
-                assert image.width == 100
-                assert image.height == 100
+                assert image.width() == 100
+                assert image.height() == 100
                 assert image.sizeInBytes() > 0
 
                 # Fill with color (thread-safe QImage operation)
@@ -440,7 +440,7 @@ class TestQtThreadingSafety:
 
     def test_concurrent_image_processing(self):
         """Test concurrent image operations without Qt threading violations."""
-        from tests.test_utilities import ThreadSafeTestImage
+        from PySide6.QtGui import QImage
 
         results = []
         errors = []
@@ -448,8 +448,8 @@ class TestQtThreadingSafety:
         def process_image(thread_id: int):
             """Process image in worker thread."""
             try:
-                # ✅ SAFE - Use ThreadSafeTestImage instead of QPixmap
-                image = ThreadSafeTestImage(100, 100)
+                # ✅ SAFE - Use QImage instead of QPixmap (QPixmap requires main thread)
+                image = QImage(100, 100, QImage.Format.Format_RGB32)
                 from PySide6.QtGui import QColor
 
                 image.fill(QColor(255, 0, 0))  # Thread-safe operation
@@ -529,37 +529,16 @@ class TestQtThreadingSafety:
         assert len(thread_violations) == 1, f"Expected 1 violation, got: {thread_violations}"
         assert "QPixmap created in Thread-" in thread_violations[0]
 
-    def test_main_thread_qt_operations_allowed(self):
-        """Test that Qt operations in main thread are allowed."""
-        from PySide6.QtGui import QColor, QPixmap
-
-        from tests.test_utilities import ThreadSafeTestImage
-
-        # These should work fine in main thread
-        try:
-            # Real QPixmap creation in main thread (allowed)
-            pixmap = QPixmap(50, 50)
-            assert not pixmap.isNull()
-
-            # ThreadSafeTestImage also works in main thread
-            safe_image = ThreadSafeTestImage(50, 50)
-            safe_image.fill(QColor(0, 255, 0))
-            assert not safe_image.isNull()
-
-        except Exception as e:
-            pytest.fail(f"Main thread Qt operations should work: {e}")
-
     def test_image_size_consistency(self):
-        """Test that ThreadSafeTestImage provides consistent interface."""
+        """Test that QImage provides consistent interface."""
         from PySide6.QtCore import QSize
+        from PySide6.QtGui import QImage
 
-        from tests.test_utilities import ThreadSafeTestImage
-
-        image = ThreadSafeTestImage(200, 150)
+        image = QImage(200, 150, QImage.Format.Format_RGB32)
 
         # Test size methods match
-        assert image.width == 200
-        assert image.height == 150
+        assert image.width() == 200
+        assert image.height() == 150
 
         size = image.size()
         assert isinstance(size, QSize)

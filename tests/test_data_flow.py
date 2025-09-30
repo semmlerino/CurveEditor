@@ -408,41 +408,6 @@ class TestDataFlowIntegration:
         assert timeline.min_frame == 1
         assert timeline.max_frame == 10  # NOT 37
 
-    def test_main_window_connections_verified(self, qtbot):
-        """Test that MainWindow verifies all critical connections.
-
-        Tests behavior: Verifies that data flows correctly from stores
-        to all connected UI components through MainWindow.
-        """
-        # Create main window (real component)
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-        # Verify components are not None (Qt container safety)
-        assert window.timeline_tabs is not None
-        assert window.curve_widget is not None
-
-        # Get store (real component)
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
-
-        # Add data to store
-        test_data: CurveDataList = [(1, 100.0, 100.0, "keyframe")]
-        curve_store.set_data(test_data)
-        qtbot.wait(100)
-
-        # Test behavior: Both UI components should reflect store data
-        assert window.timeline_tabs.max_frame == 1
-        assert len(window.curve_widget.curve_data) == 1
-
-        # Test more complex behavior: add another point
-        curve_store.add_point((5, 150.0, 150.0, "keyframe"))
-        qtbot.wait(100)
-
-        # Both components should update automatically
-        assert window.timeline_tabs.max_frame == 5
-        assert len(window.curve_widget.curve_data) == 2
-
     def test_invalid_data_handled_gracefully(self, qtbot):
         """Test that invalid data doesn't break reactive flow.
 

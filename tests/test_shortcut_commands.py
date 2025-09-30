@@ -12,7 +12,7 @@ from unittest.mock import Mock, patch
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent, QPixmap
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QWidget
 
 from core.commands.shortcut_command import ShortcutContext
 from core.commands.shortcut_commands import (
@@ -28,14 +28,6 @@ from core.commands.shortcut_commands import (
     UndoCommand,
 )
 from core.models import PointStatus, TrackingDirection
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 @pytest.fixture
@@ -180,7 +172,7 @@ class TestSetEndframeCommand:
         assert not cmd.can_execute(basic_context)
 
     @patch("services.get_interaction_service")
-    @patch("core.commands.SetPointStatusCommand")
+    @patch("core.commands.curve_commands.SetPointStatusCommand")
     def test_execute_with_selected_points(self, mock_command_class, mock_service, basic_context):
         """Test execute with selected points."""
         cmd = SetEndframeCommand()

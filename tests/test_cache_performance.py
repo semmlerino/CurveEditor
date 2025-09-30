@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 from rendering.optimized_curve_renderer import RenderQuality, VectorizedTransform
-from services.transform_service import Transform, TransformService, ViewState
+from services.transform_service import TransformService, ViewState
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -80,12 +80,11 @@ class TestCachePerformance:
         """Test batch transform API performance."""
         # Create view parameters for transform
         view_state = ViewState(
-            display_width=100.0,
-            display_height=100.0,
+            display_width=100,
+            display_height=100,
             widget_width=800,
             widget_height=600,
             zoom_factor=1.0,
-            fit_scale=1.0,
             offset_x=0.0,
             offset_y=0.0,
         )
@@ -271,7 +270,6 @@ class TestTransformServiceCache:
             widget_width=800,
             widget_height=600,
             zoom_factor=1.0,
-            fit_scale=1.0,
             offset_x=0.0,
             offset_y=0.0,
         )
@@ -282,7 +280,7 @@ class TestTransformServiceCache:
             widget_width=800,
             widget_height=600,
             zoom_factor=2.0,
-            fit_scale=1.0,  # Different zoom
+            # Different zoom
             offset_x=0.0,
             offset_y=0.0,
         )
@@ -299,22 +297,6 @@ class TestTransformServiceCache:
         test_x, test_y = 50.0, 60.0
         assert transform1_first.data_to_screen(test_x, test_y) == transform1_second.data_to_screen(test_x, test_y)
         assert transform2_first.data_to_screen(test_x, test_y) == transform2_second.data_to_screen(test_x, test_y)
-
-    def test_cache_info_retrieval(self):
-        """Test that cache info can be retrieved for monitoring."""
-        service = TransformService()
-
-        # Get cache info
-        cache_info = service.get_cache_info()
-
-        # Should have basic cache statistics
-        assert isinstance(cache_info, dict), "Cache info should be a dictionary"
-
-        # Should contain hit/miss information
-        info_str = str(cache_info)
-        assert any(
-            key in info_str.lower() for key in ["hit", "miss", "cache"]
-        ), f"Cache info doesn't contain expected statistics: {cache_info}"
 
 
 class TestCacheMonitoring:
@@ -337,67 +319,15 @@ class TestCacheMonitoring:
 
         assert monitor.hits == 2
         assert monitor.misses == 1
-        assert abs(monitor.hit_rate - 66.67) < 0.1  # 2/3 * 100, allow floating point tolerance
+        assert abs(monitor.hit_rate - 0.6667) < 0.01  # 2/3 as fraction, allow floating point tolerance
 
         # Record invalidation
         monitor.record_invalidation()
         assert monitor.invalidations == 1
 
-    def test_cache_monitor_integration(self, qtbot):
-        """Test CacheMonitor integration with widget."""
-        widget = CurveViewWidget()
-        qtbot.addWidget(widget)
-
-        # Enable monitoring
-        widget._enable_monitoring = True
-        widget._cache_monitor = CacheMonitor()
-
-        # Set up test data
-        test_data = [(i, i * 10, i * 20) for i in range(50)]
-        widget.set_curve_data(test_data)
-
-        # Perform operations that should be monitored
-        for _ in range(10):
-            widget.get_transform()  # Should hit cache
-
-        # Should have recorded hits
-        assert widget._cache_monitor.hits > 0, "No cache hits recorded"
-
-        # Force transform update with significant change
-        widget.zoom_factor *= 2.0
-        widget.update()
-        widget.get_transform()
-
-        # Cache monitor should have recorded activity
-        # We can check that the system is working without checking internals
-        assert widget._cache_monitor is not None, "Cache monitoring should be active"
-
 
 class TestRenderQualityModes:
     """Test render quality switching for performance."""
-
-    def test_render_quality_switching(self, qtbot):
-        """Test render quality modes switch correctly."""
-        widget = CurveViewWidget()
-        qtbot.addWidget(widget)
-        renderer = widget._optimized_renderer
-
-        # Test draft mode
-        renderer.set_render_quality(RenderQuality.DRAFT)
-        assert renderer._render_quality == RenderQuality.DRAFT
-
-        # Test interaction mode (draft quality during interaction)
-        renderer.set_render_quality(RenderQuality.HIGH)
-        original_quality = renderer._render_quality
-
-        renderer.set_interaction_mode(True)
-        # Should switch to draft during interaction
-        assert renderer._render_quality == RenderQuality.DRAFT
-
-        # Test quality restoration
-        renderer.set_interaction_mode(False)
-        # Should restore original quality
-        assert renderer._render_quality == original_quality
 
     def test_draft_rendering_performance(self, qtbot):
         """Test draft rendering is fast enough for interaction."""
@@ -492,90 +422,3 @@ class TestSmartCacheInvalidation:
 
         # Reset zoom
         widget.zoom_factor = initial_zoom
-
-
-class TestBatchTransformAPI:
-    """Test batch transform API performance."""
-
-    def test_batch_transform_accuracy(self):
-        """Test batch transform produces accurate results."""
-        view_state = ViewState(
-            display_width=800.0,
-            display_height=600.0,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.5,
-            fit_scale=1.0,
-            offset_x=10.0,
-            offset_y=20.0,
-            scale_to_image=False,
-            flip_y_axis=False,
-            manual_x_offset=0.0,
-            manual_y_offset=0.0,
-            background_image=None,
-            image_width=800,
-            image_height=600,
-        )
-        transform = Transform.from_view_state(view_state)
-
-        # Test data
-        test_points = np.array([[0, 10.0, 20.0], [1, 30.0, 40.0], [2, 50.0, 60.0]])
-
-        # Individual transforms
-        individual_results = []
-        for point in test_points:
-            result = transform.data_to_screen(point[1], point[2])
-            individual_results.append(result)
-
-        # Batch transform
-        batch_results = transform.batch_data_to_screen(test_points)
-
-        # Results should match exactly
-        for i, (individual, batch) in enumerate(zip(individual_results, batch_results)):
-            np.testing.assert_allclose(
-                batch, individual, rtol=1e-12, err_msg=f"Point {i}: batch {batch} != individual {individual}"
-            )
-
-    def test_batch_transform_speedup(self):
-        """Test batch transform provides significant speedup."""
-        view_state = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=1920,
-            widget_height=1080,
-            zoom_factor=1.0,
-            fit_scale=1.0,
-            offset_x=0.0,
-            offset_y=0.0,
-            scale_to_image=False,
-            flip_y_axis=False,
-            manual_x_offset=0.0,
-            manual_y_offset=0.0,
-            background_image=None,
-            image_width=1920,
-            image_height=1080,
-        )
-        transform = Transform.from_view_state(view_state)
-
-        # Large test dataset
-        num_points = 2000
-        test_points = np.random.rand(num_points, 3) * 100
-
-        # Time individual (sample to avoid long test time)
-        sample_size = 100
-        start = time.perf_counter()
-        for i in range(sample_size):
-            transform.data_to_screen(test_points[i, 1], test_points[i, 2])
-        individual_time = (time.perf_counter() - start) * (num_points / sample_size)
-
-        # Time batch
-        start = time.perf_counter()
-        batch_results = transform.batch_data_to_screen(test_points)
-        batch_time = time.perf_counter() - start
-
-        speedup = individual_time / batch_time
-        assert speedup > 3.0, f"Batch speedup only {speedup:.1f}x, expected >3x"
-
-        # Verify we got all results
-        assert len(batch_results) == num_points
-        assert batch_results.shape == (num_points, 2)

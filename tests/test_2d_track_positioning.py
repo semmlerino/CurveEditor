@@ -131,7 +131,7 @@ class TestDataServiceMetadataFlow:
     def test_load_2dtrack_returns_metadata_aware_data(self, real_data_service, temp_3de_file):
         """Test that _load_2dtrack_data returns CurveDataWithMetadata."""
         # Use real DataService to test actual behavior
-        result = real_data_service._file_io_service._load_2dtrack_data(temp_3de_file)
+        result = real_data_service._load_2dtrack_data(temp_3de_file)
 
         # Verify it returns metadata-aware data
         assert isinstance(result, CurveDataWithMetadata)
@@ -143,7 +143,7 @@ class TestDataServiceMetadataFlow:
         """Test that empty/missing files still return metadata-aware data."""
         missing_file = str(tmp_path / "nonexistent.txt")
 
-        result = real_data_service._file_io_service._load_2dtrack_data(missing_file)
+        result = real_data_service._load_2dtrack_data(missing_file)
 
         assert isinstance(result, CurveDataWithMetadata)
         assert result.frame_count == 0
@@ -151,7 +151,7 @@ class TestDataServiceMetadataFlow:
 
     def test_data_coordinates_preserved(self, real_data_service, temp_3de_file):
         """Test that original coordinates are preserved in the data."""
-        result = real_data_service._file_io_service._load_2dtrack_data(temp_3de_file)
+        result = real_data_service._load_2dtrack_data(temp_3de_file)
 
         # Check first point coordinates match original
         if result.data:
@@ -162,7 +162,7 @@ class TestDataServiceMetadataFlow:
 
     def test_metadata_dimensions_set_correctly(self, real_data_service, temp_3de_file):
         """Test that coordinate dimensions are set from metadata."""
-        result = real_data_service._file_io_service._load_2dtrack_data(temp_3de_file)
+        result = real_data_service._load_2dtrack_data(temp_3de_file)
 
         assert result.metadata.width == 1280  # 3DE default
         assert result.metadata.height == 720  # 3DE default

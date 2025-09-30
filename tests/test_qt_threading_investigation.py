@@ -13,13 +13,6 @@ from ui.main_window import MainWindow
 class TestQtThreadingInvestigation:
     """Test Qt threading safety issues."""
 
-    @pytest.fixture(scope="session")
-    def qapp(self):
-        """Shared QApplication for all tests."""
-        app = QApplication.instance() or QApplication([])
-        yield app
-        app.processEvents()
-
     def test_single_main_window_creation(self, qtbot, qapp):
         """Test single MainWindow creation - should always work."""
         window = MainWindow()

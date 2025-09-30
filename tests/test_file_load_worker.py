@@ -16,29 +16,51 @@ def app(qtbot):
 
 
 @pytest.fixture
-def file_load_signals(app):
-    """Create FileLoadSignals instance for testing."""
+def file_load_signals(qtbot, qapp):
+    """Create FileLoadSignals instance for testing.
+
+    CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
+    After 850+ tests, uncleaned QObjects cause segfaults.
+    """
     signals = FileLoadSignals()
+    # Set parent to QApplication for proper Qt ownership/cleanup
+    signals.setParent(qapp)
+
     yield signals
-    # Ensure Qt cleanup
+
+    # Explicit cleanup to prevent memory leaks
     try:
+        signals.setParent(None)
         signals.deleteLater()
+        # Process events to ensure deleteLater() is handled
+        qapp.processEvents()
     except RuntimeError:
         pass  # Qt object may already be deleted
 
 
 @pytest.fixture
 def worker(file_load_signals):
-    """Create FileLoadWorker instance for testing."""
+    """Create FileLoadWorker instance for testing.
+
+    CRITICAL: Background threads must be fully stopped to prevent segfaults.
+    """
     worker = FileLoadWorker(file_load_signals)
     yield worker
+
     # Ensure cleanup happens even if test fails
     try:
         worker.stop()
-        # Give thread time to fully stop
-        time.sleep(0.1)
+        # Wait for thread to fully stop with timeout
+        if worker._thread and worker._thread.is_alive():
+            worker._thread.join(timeout=2.0)
+            if worker._thread.is_alive():
+                # Thread didn't stop - log warning but don't fail test
+                import warnings
+
+                warnings.warn("Worker thread did not stop within timeout")
     except (RuntimeError, AttributeError):
-        pass  # Worker might already be stopped
+        # Worker might already be stopped, that's okay
+        pass
 
 
 class TestFileLoadWorkerLifecycle:

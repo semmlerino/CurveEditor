@@ -424,16 +424,20 @@ class TestFileOperations:
         assert spy.count() == 0  # No errors should be emitted
 
     def test_load_images_placeholder(self, file_ops, monkeypatch):
-        """Test load images placeholder method."""
-        # Mock QMessageBox to avoid actual dialog
-        mock_info = Mock()
-        monkeypatch.setattr(QMessageBox, "information", mock_info)
+        """Test load images cancels when dialog is rejected."""
+        # Mock ImageSequenceBrowserDialog to avoid blocking on exec()
+        mock_dialog = Mock()
+        mock_dialog.exec.return_value = 0  # DialogCode.Rejected
+
+        mock_dialog_class = Mock(return_value=mock_dialog)
+        monkeypatch.setattr("ui.image_sequence_browser.ImageSequenceBrowserDialog", mock_dialog_class)
 
         result = file_ops.load_images()
         assert result is False
 
-        # Verify message box was called
-        mock_info.assert_called_once()
+        # Verify dialog was created and exec was called
+        mock_dialog_class.assert_called_once()
+        mock_dialog.exec.assert_called_once()
 
     def test_export_data_placeholder(self, file_ops, monkeypatch):
         """Test export data placeholder method."""
@@ -525,8 +529,3 @@ class TestFileOperations:
         finally:
             os.unlink(tracking_path)
             file_ops.cleanup_threads()
-
-    def test_worker_background_thread_execution(self, file_ops, qtbot):
-        """Test that worker actually runs in background thread."""
-        # Skip this test for now - seems to have threading issues
-        pytest.skip("Threading test has race condition issues - needs investigation")

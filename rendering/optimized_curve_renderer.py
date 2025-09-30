@@ -7,6 +7,7 @@ This renderer addresses the critical performance issues identified in the analys
 - Paint operations dominate rendering time (254ms for 25K points)
 - Need for viewport culling, level-of-detail, and vectorized operations
 """
+# pyright: reportImportCycles=false
 
 import time
 from collections.abc import Sequence

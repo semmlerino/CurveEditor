@@ -390,7 +390,7 @@ class FileLoadWorker:
 
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""
-        supported_formats = [".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif"]
+        supported_formats = [".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".gif", ".exr"]
         image_files = []
 
         try:

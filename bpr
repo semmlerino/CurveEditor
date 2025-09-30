@@ -126,8 +126,29 @@ to see if any common irrelevant folders should be added to the exclude list.
 
         # Continue with normal execution
 
-    # Build command
-    cmd = [str(basedpyright)] + args
+    # Build command - use include list from config if no paths specified
+    # Always add --pythonpath to ensure basedpyright uses the venv's Python
+    base_cmd = [str(basedpyright), "--pythonpath", str(venv_python)]
+
+    if args and not any(arg.startswith("-") for arg in args):
+        # User specified paths, use them
+        cmd = base_cmd + args
+    else:
+        # No paths specified, use include list from config
+        config_path = script_dir / "basedpyrightconfig.json"
+        paths_to_check = []
+        if config_path.exists():
+            try:
+                with open(config_path) as f:
+                    config = json.load(f)
+                    paths_to_check = config.get("include", [])
+            except (json.JSONDecodeError, FileNotFoundError):
+                pass
+
+        if paths_to_check:
+            cmd = base_cmd + args + paths_to_check
+        else:
+            cmd = base_cmd + args
 
     # Run basedpyright with captured output
     try:

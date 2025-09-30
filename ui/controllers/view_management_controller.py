@@ -220,6 +220,11 @@ class ViewManagementController:
             if self.main_window.state_manager:
                 self.main_window.state_manager.set_image_files(image_files)
 
+            # Update timeline to reflect image sequence range
+            if self.main_window.timeline_tabs:
+                self.main_window.timeline_tabs._on_store_data_changed()
+                logger.info(f"Updated timeline to show {num_images} frames")
+
             # Load the first image as background
             self._load_initial_background(image_dir, image_files)
 
@@ -251,9 +256,16 @@ class ViewManagementController:
             if self.image_directory:
                 image_path = Path(self.image_directory) / self.image_filenames[image_idx]
                 logger.debug(f"[THREAD-DEBUG] Creating QPixmap for frame {frame}")
-                pixmap = QPixmap(str(image_path))
 
-                if not pixmap.isNull():
+                # Check if this is an EXR file (requires special loader)
+                if image_path.suffix.lower() == ".exr":
+                    from io_utils.exr_loader import load_exr_as_qpixmap
+
+                    pixmap = load_exr_as_qpixmap(str(image_path))
+                else:
+                    pixmap = QPixmap(str(image_path))
+
+                if pixmap is not None and not pixmap.isNull():
                     self.main_window.curve_widget.background_image = pixmap
                     self.main_window.curve_widget.update()
                     logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
@@ -338,10 +350,18 @@ class ViewManagementController:
             logger.info(
                 f"[THREAD-DEBUG] Creating QPixmap in thread: {QThread.currentThread()} (main={QThread.currentThread() == main_thread})"
             )
-            pixmap = QPixmap(str(first_image_path))
+
+            # Check if this is an EXR file (requires special loader)
+            if first_image_path.suffix.lower() == ".exr":
+                from io_utils.exr_loader import load_exr_as_qpixmap
+
+                pixmap = load_exr_as_qpixmap(str(first_image_path))
+            else:
+                pixmap = QPixmap(str(first_image_path))
+
             logger.info("[THREAD-DEBUG] QPixmap created successfully")
 
-            if not pixmap.isNull():
+            if pixmap is not None and not pixmap.isNull():
                 self.main_window.curve_widget.background_image = pixmap
                 self.main_window.curve_widget.image_width = pixmap.width()
                 self.main_window.curve_widget.image_height = pixmap.height()

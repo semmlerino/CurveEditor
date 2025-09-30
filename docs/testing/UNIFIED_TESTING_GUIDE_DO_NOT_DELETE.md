@@ -27,6 +27,46 @@ except RuntimeError:
     pass  # Widget was deleted
 ```
 
+### ⚠️ FATAL: QObject Resource Accumulation
+
+**The FileLoadSignals Segfault**: After 850+ tests, a segfault occurred because `FileLoadSignals` QObjects were never cleaned up. Session-scope `QApplication` + uncleaned QObjects = resource exhaustion and crash.
+
+```python
+# ERROR: "Fatal Python error: Segmentation fault" after ~850 tests
+# CAUSE: QObjects without parent accumulate in session-scope QApplication
+# SYMPTOM: Tests pass individually but full suite crashes
+
+# ❌ BAD - No cleanup, QObjects accumulate
+@pytest.fixture
+def file_load_signals(app):
+    signals = FileLoadSignals()  # Orphaned QObject!
+    yield signals
+    # No cleanup - object persists in QApplication
+
+# ✅ GOOD - Explicit parent and cleanup
+@pytest.fixture
+def file_load_signals(qtbot, qapp):
+    """QObject with proper lifecycle management."""
+    signals = FileLoadSignals()
+    # Set parent to QApplication for Qt ownership
+    signals.setParent(qapp)
+
+    yield signals
+
+    # Explicit cleanup
+    try:
+        signals.setParent(None)
+        signals.deleteLater()
+        qapp.processEvents()  # Process deleteLater
+    except RuntimeError:
+        pass  # Already deleted
+```
+
+**Critical Distinction**:
+- `QWidget`: Use `qtbot.addWidget(widget)` for automatic cleanup
+- `QObject` (non-widget): Must set parent OR manually clean up
+- Background threads: Must `join()` before fixture teardown
+
 ### Protocol Testing Rule
 Every method in a Protocol interface MUST have test coverage, even if unused:
 ```python
@@ -59,6 +99,53 @@ from core.models import CurvePoint, PointCollection, PointStatus
 from tests.qt_test_helpers import ThreadSafeTestImage, safe_painter
 ```
 
+### Fixture Scopes
+
+| Scope | Lifetime | Use Case | Example |
+|-------|----------|----------|---------|
+| `function` | Per test (default) | Test isolation, mutable state | Widget instances |
+| `class` | Per test class | Shared setup for test group | Mock services |
+| `module` | Per test file | Expensive setup | Database connection |
+| `session` | Entire test run | Single instance needed | QApplication |
+
+**Critical**: Session-scope QApplication + uncleaned QObjects = resource exhaustion after 850+ tests.
+
+### conftest.py Structure
+
+Shared fixtures belong in `tests/conftest.py` for automatic discovery:
+
+```python
+# tests/conftest.py - Shared fixtures for entire CurveEditor test suite
+import pytest
+from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from ui.curve_view_widget import CurveViewWidget
+from ui.main_window import MainWindow
+
+@pytest.fixture(scope="session")
+def qapp():
+    """Session-wide QApplication - created once for all tests."""
+    app = QApplication.instance() or QApplication([])
+    yield app
+    app.processEvents()
+
+@pytest.fixture
+def curve_widget(qtbot) -> CurveViewWidget:
+    """Function-scope CurveViewWidget - fresh for each test."""
+    widget = CurveViewWidget()
+    qtbot.addWidget(widget)  # CRITICAL: Auto cleanup
+    return widget
+
+@pytest.fixture
+def main_window(qtbot) -> MainWindow:
+    """MainWindow with proper lifecycle management."""
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    qtbot.waitExposed(window)
+    return window
+```
+
 ### Essential Fixtures
 ```python
 @pytest.fixture(scope="session")
@@ -68,7 +155,7 @@ def qapp():
     yield app
     app.processEvents()
 
-@pytest.fixture
+@pytest.fixture  # Default scope="function" for isolation
 def curve_widget(qtbot) -> CurveViewWidget:
     """CurveViewWidget with cleanup."""
     widget = CurveViewWidget()
@@ -110,10 +197,47 @@ def should_use_real_component(component_type: str) -> bool:
 
 ## Complete Test Patterns
 
+### Error Testing Pattern
+```python
+def test_invalid_frame_range():
+    """Test error handling with pytest.raises."""
+    curve = CurveViewWidget()
+
+    # Test with match parameter for message validation
+    with pytest.raises(ValueError, match="Frame must be >= 0"):
+        curve.set_frame(-1)
+
+    with pytest.raises(IndexError, match="Point index .* out of range"):
+        curve.select_point(999)
+
+def test_pep_678_exception_notes():
+    """Test exception context using PEP 678 add_note (Python 3.11+)."""
+    try:
+        curve.load_data("/invalid/path.json")
+    except FileNotFoundError as e:
+        # Verify exception notes added for debugging context
+        assert "Attempted to load curve data" in str(e.__notes__)
+```
+
 ### TestSignal Implementation (Complete)
+
+**When to use:**
+- ✅ Use `TestSignal` for mocked objects (Mock/MagicMock) that need signal behavior
+- ✅ Use `QSignalSpy` for real Qt objects (QObject subclasses) with actual signals
+- ❌ Never use `QSignalSpy` with Mock objects → `TypeError`
+
 ```python
 class TestSignal:
-    """Complete signal test double for non-Qt objects."""
+    """Complete signal test double for non-Qt objects.
+
+    Usage:
+        mock_service = Mock()
+        mock_service.data_changed = TestSignal()
+
+        # Test emission
+        mock_service.data_changed.emit({"key": "value"})
+        assert mock_service.data_changed.was_emitted
+    """
     def __init__(self):
         self.emissions = []
         self.callbacks = []
@@ -238,6 +362,30 @@ def test_timeline_oscillation_bug_fix():
 
 ## Threading Safety Patterns
 
+### Thread Cleanup in Fixtures
+
+**CRITICAL**: Background threads must fully stop before fixture teardown to prevent segfaults.
+
+```python
+@pytest.fixture
+def worker(file_load_signals):
+    """Worker with proper thread cleanup."""
+    worker = FileLoadWorker(file_load_signals)
+    yield worker
+
+    # Ensure cleanup even if test fails
+    try:
+        worker.stop()
+        # Wait for thread to FULLY stop with timeout
+        if worker._thread and worker._thread.is_alive():
+            worker._thread.join(timeout=2.0)
+            if worker._thread.is_alive():
+                import warnings
+                warnings.warn(f"Worker thread did not stop within timeout")
+    except (RuntimeError, AttributeError):
+        pass  # Already stopped
+```
+
 ### Safe Image Operations
 ```python
 def process_curve_thumbnail(curve_data):
@@ -245,9 +393,12 @@ def process_curve_thumbnail(curve_data):
     # Worker thread code
     image = ThreadSafeTestImage(200, 100)  # NOT QPixmap
 
-    # Process with QImage internally
-    painter = safe_painter(image.get_qimage())
-    # ... draw curve ...
+    # safe_painter: Context manager that handles QPainter cleanup
+    # Ensures painter.end() is called even if exception occurs
+    with safe_painter(image.get_qimage()) as painter:
+        # ... draw curve ...
+        painter.drawLine(0, 0, 100, 100)
+    # painter.end() called automatically
 
     # Return QImage for main thread to convert to QPixmap
     return image.get_qimage()
@@ -290,6 +441,69 @@ self.attr = val  # pyright: ignore[reportAssignmentType]
 obj.maybe_none.method()  # pyright: ignore[reportOptionalMemberAccess]
 
 # NEVER: # type: ignore  (too broad, enforced by basedpyrightconfig.json)
+```
+
+## Test Smells - Warning Signs
+
+Patterns that indicate poorly designed tests:
+
+❌ **Test depends on execution order**
+```python
+# BAD: test_02 depends on test_01 running first
+def test_01_create_curve():
+    global curve
+    curve = CurveData()
+
+def test_02_modify_curve():  # Breaks if run alone!
+    curve.add_point(10, 5.0)
+```
+
+❌ **Test modifies global/shared state**
+```python
+# BAD: Modifies class-level state
+class TestCurve:
+    data = []  # Shared across tests!
+
+    def test_add(self):
+        self.data.append(1)  # Leaks to other tests
+```
+
+❌ **Over-mocking - Testing mocks instead of code**
+```python
+# BAD: Everything is mocked, testing nothing
+def test_process_curve():
+    mock_curve = Mock()
+    mock_processor = Mock()
+    mock_result = Mock()
+    # What are we actually testing?
+```
+
+❌ **No assertions - Test that doesn't verify**
+```python
+# BAD: No verification of behavior
+def test_curve_processing():
+    curve.process()  # Did it work? Who knows!
+```
+
+❌ **Multiple concepts - Should be separate tests**
+```python
+# BAD: Testing add, remove, and update together
+def test_curve_operations():
+    curve.add_point(1, 1.0)
+    curve.remove_point(0)
+    curve.update_point(1, 2.0)
+    # Which part failed?
+```
+
+❌ **Unclear names - Doesn't describe behavior**
+```python
+# BAD: What does this test?
+def test_curve_1():
+    ...
+
+# GOOD: Clear expected behavior
+def test_curve_rejects_duplicate_frame_numbers():
+    ...
 ```
 
 ## Anti-Patterns Reference
@@ -384,12 +598,18 @@ qtbot.keyClicks(widget, "text")
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `Fatal Python error: Aborted` | QPixmap in thread | Use ThreadSafeTestImage |
+| `Segmentation fault` after 850+ tests | Uncleaned QObjects | setParent(qapp) + deleteLater() |
 | `RuntimeError: Internal C++ object` | Widget deleted | try/except RuntimeError |
 | `TypeError` with QSignalSpy | Using mock | Use real Qt signal |
 | `AttributeError: _fps_spinbox` | Untested Protocol | Test all Protocol methods |
 | Widget not cleaned | Missing addWidget | qtbot.addWidget(widget) |
-| Test hangs | Worker not quit | worker.quit() in cleanup |
+| Test hangs | Worker not quit | worker.stop() + thread.join(timeout) |
 | `if self.layout` is False | Qt truthiness | Use `is not None` |
+| Resource exhaustion in full suite | QObject accumulation | Explicit parent management in fixtures |
+| `fixture 'qtbot' not found` | Missing pytest-qt | pip install pytest-qt |
+| `AssertionError: assert None` | Missing return value | Add return statement to function |
+| `No tests collected` | Wrong file naming | Use test_*.py pattern |
+| `ModuleNotFoundError` in tests | Wrong import path | Check PYTHONPATH or use relative imports |
 
 ## Coverage Configuration
 
@@ -416,8 +636,14 @@ exclude_lines = [
 
 **Protocol Rule**: Every Protocol method needs coverage to catch typos.
 
-**Cleanup Rule**: Always use qtbot.addWidget() for automatic cleanup.
+**Cleanup Rules**:
+- QWidgets: Use `qtbot.addWidget()` for automatic cleanup
+- QObjects: Set parent to `qapp` OR explicit `deleteLater()` + `processEvents()`
+- Background threads: Call `join(timeout)` before fixture teardown
+
+**Resource Management**: Session-scope QApplication + 850+ tests = must clean up QObjects or segfault.
 
 ---
 *Version 2025.01 - Optimized for Claude Code and LLM consumption*
 *ThreadSafeTestImage available in tests/qt_test_helpers.py*
+*QObject lifecycle patterns discovered via Context7 MCP (pytest-qt documentation)*

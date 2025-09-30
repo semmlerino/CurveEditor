@@ -6,6 +6,7 @@ This module provides an event filter that intercepts keyboard events at the
 application level, enabling global keyboard shortcuts that work regardless
 of which widget has focus.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 

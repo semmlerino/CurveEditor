@@ -132,7 +132,20 @@ def reset_all_services() -> Generator[None, None, None]:
                         }
                     )
 
-        # 5. Let Python handle garbage collection naturally
+        # 5. Process pending Qt events to clean up QObjects
+        try:
+            from PySide6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app is not None:
+                # Process deleteLater() calls
+                app.processEvents()
+                # Additional event processing for nested deletions
+                app.processEvents()
+        except Exception:
+            pass
+
+        # 6. Let Python handle garbage collection naturally
         # Note: Forcing gc.collect() here causes segfaults with Qt objects
 
     except Exception as e:

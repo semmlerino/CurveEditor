@@ -81,7 +81,7 @@ Point2
         assert point2_data[1][:3] == (2, 310.0, 310.0)  # 720 - 410 = 310
 
     def test_load_2dtrack_data_applies_y_flip(self, tmp_path):
-        """Test that _load_2dtrack_data applies Y-flip for single curve."""
+        """Test that _load_2dtrack_data returns data with 3DE metadata for Y-flip."""
         # Create test file
         tracking_file = tmp_path / "test_single.txt"
         tracking_file.write_text("""1
@@ -94,13 +94,23 @@ Point2
 
         # Load data
         data_service = get_data_service()
-        curve_data = data_service._load_2dtrack_data(str(tracking_file))
+        result = data_service._load_2dtrack_data(str(tracking_file))
 
-        # Verify Y-flip applied
+        # Result should be CurveDataWithMetadata with 3DE coordinate system
+        from core.coordinate_system import CoordinateOrigin, CoordinateSystem
+        from core.curve_data import CurveDataWithMetadata
+
+        assert isinstance(result, CurveDataWithMetadata)
+        assert result.metadata is not None
+        assert result.metadata.system == CoordinateSystem.THREE_DE_EQUALIZER
+        assert result.metadata.origin == CoordinateOrigin.BOTTOM_LEFT
+
+        # Data should contain raw (unflipped) coordinates
+        curve_data = result.data
         assert len(curve_data) == 3
-        assert curve_data[0][2] == 620.0  # 720 - 100 = 620
-        assert curve_data[1][2] == 610.0  # 720 - 110 = 610
-        assert curve_data[2][2] == 600.0  # 720 - 120 = 600
+        assert curve_data[0][2] == 100.0  # Raw Y coordinate
+        assert curve_data[1][2] == 110.0
+        assert curve_data[2][2] == 120.0
 
     def test_y_flip_with_actual_3dequalizer_data(self, tmp_path):
         """Test Y-flip with realistic 3DEqualizer data."""

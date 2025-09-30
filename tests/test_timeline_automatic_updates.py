@@ -30,6 +30,23 @@ class TestTimelineAutomaticUpdates:
         """Create MainWindow for testing."""
         window = MainWindow()
         qtbot.addWidget(window)
+
+        # Get store and clear it FIRST
+        from stores import get_store_manager
+
+        store_manager = get_store_manager()
+        curve_store = store_manager.get_curve_store()
+        curve_store.set_data([])
+        qtbot.wait(50)  # Let data_changed signal propagate
+
+        # NOW reset state to clear any image sequence
+        window.state_manager.reset_to_defaults()
+        window.view_management_controller.clear_background_images()
+
+        # Force timeline to update with clean state (after reset)
+        window.timeline_tabs._on_store_data_changed()
+        qtbot.wait(50)
+
         return window
 
     def test_timeline_updates_automatically_on_data_change(self, main_window: MainWindow, qtbot: QtBot) -> None:
@@ -38,14 +55,10 @@ class TestTimelineAutomaticUpdates:
         store_manager = get_store_manager()
         curve_store = store_manager.get_curve_store()
 
-        # Clear any existing data in the store (from previous tests)
-        curve_store.set_data([])
-        qtbot.wait(50)
-
-        # Verify timeline is at default state
+        # Verify timeline starts at default state (fixture already reset it)
         timeline = main_window.timeline_tabs
         assert timeline.min_frame == 1
-        assert timeline.max_frame == 1, f"Expected max_frame=1 after clearing store, got {timeline.max_frame}"
+        assert timeline.max_frame == 1, f"Expected max_frame=1 after reset, got {timeline.max_frame}"
 
         # Create initial test data
         initial_data = [

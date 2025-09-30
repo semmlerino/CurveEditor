@@ -42,7 +42,7 @@ class ImageService:
         self._max_cache_size: int = 100  # Maximum number of cached images
 
         # Common image file extensions
-        self._image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif"}
+        self._image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
 
     # ==================== Image Sequence Operations ====================
 
@@ -132,7 +132,25 @@ class ImageService:
             if cached_image is not None:
                 return cached_image  # type: ignore[return-value]
 
-            # Load image using Qt
+            # Check if this is an EXR file (requires special loader)
+            from pathlib import Path
+
+            if Path(file_path).suffix.lower() == ".exr":
+                from io_utils.exr_loader import load_exr_as_qimage
+
+                image = load_exr_as_qimage(file_path)
+                if image is not None:
+                    # Add to cache
+                    self._add_to_cache(cache_key, image)
+                    if self._logger:
+                        self._logger.log_debug(f"Loaded EXR image: {file_path}")
+                    return image
+                else:
+                    if self._logger:
+                        self._logger.log_error(f"Failed to load EXR image: {file_path}")
+                    return None
+
+            # Load standard image formats using Qt
             from PySide6.QtGui import QImage
 
             image = QImage(file_path)

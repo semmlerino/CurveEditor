@@ -8,6 +8,8 @@ enabling type-safe programming and reducing coupling between MainWindow and cont
 
 from typing import Any, Protocol, runtime_checkable
 
+from core.type_aliases import CurveDataList
+
 
 @runtime_checkable
 class ActionHandlerProtocol(Protocol):
@@ -150,14 +152,6 @@ class ViewOptionsProtocol(Protocol):
         """Set view options from dictionary."""
         ...
 
-    def on_image_sequence_loaded(self) -> None:
-        """Handle image sequence loaded event."""
-        ...
-
-    def update_background_for_frame(self, frame: int) -> None:
-        """Update background image for specific frame."""
-        ...
-
 
 @runtime_checkable
 class TimelineControllerProtocol(Protocol):
@@ -245,14 +239,26 @@ class BackgroundImageProtocol(Protocol):
 
 
 @runtime_checkable
+class ViewManagementProtocol(ViewOptionsProtocol, BackgroundImageProtocol, Protocol):
+    """
+    Combined protocol for view management controller.
+
+    This protocol combines both view options and background image management,
+    representing the unified ViewManagementController that handles both concerns.
+    """
+
+    pass
+
+
+@runtime_checkable
 class MultiPointTrackingProtocol(Protocol):
     """Protocol for multi-point tracking controller."""
 
-    def on_tracking_data_loaded(self, data: list[object]) -> None:
+    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """Handle tracking data loaded."""
         ...
 
-    def on_multi_point_data_loaded(self, multi_data: dict[str, object]) -> None:
+    def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """Handle multi-point data loaded."""
         ...
 

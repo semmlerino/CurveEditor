@@ -78,7 +78,7 @@ from ui.ui_constants import (
 if TYPE_CHECKING:
     from typing import Protocol
 
-    from core.commands import BatchMoveCommand, DeletePointsCommand
+    from core.commands.curve_commands import BatchMoveCommand, DeletePointsCommand
     from services.interaction_service import InteractionService
     from ui.state_manager import StateManager
 
@@ -1900,7 +1900,9 @@ class CurveViewWidget(QWidget):
                 moves.append((idx, old_pos, new_pos))
 
         if moves:
-            # Create and execute move command
+            # Create and execute move command (lazy import to avoid cycle)
+            from core.commands.curve_commands import BatchMoveCommand
+
             command = BatchMoveCommand(
                 description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
                 moves=moves,
@@ -1930,7 +1932,9 @@ class CurveViewWidget(QWidget):
                 deleted_points.append((idx, self.curve_data[idx]))
 
         if deleted_points:
-            # Create and execute delete command
+            # Create and execute delete command (lazy import to avoid cycle)
+            from core.commands.curve_commands import DeletePointsCommand
+
             command = DeletePointsCommand(
                 description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
                 indices=indices,

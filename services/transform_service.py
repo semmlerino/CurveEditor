@@ -110,13 +110,19 @@ class ViewState:
         widget_width = curve_view.width()
         widget_height = curve_view.height()
 
-        # Get original data dimensions
+        # Get original data dimensions with defensive checks
         image_width = getattr(curve_view, "image_width", DEFAULT_IMAGE_WIDTH)
         image_height = getattr(curve_view, "image_height", DEFAULT_IMAGE_HEIGHT)
 
+        # Use defaults if None or invalid type
+        if image_width is None or not isinstance(image_width, int | float):
+            image_width = DEFAULT_IMAGE_WIDTH
+        if image_height is None or not isinstance(image_height, int | float):
+            image_height = DEFAULT_IMAGE_HEIGHT
+
         # Get display dimensions (initially same as image dimensions)
-        display_width = image_width
-        display_height = image_height
+        display_width = int(image_width)
+        display_height = int(image_height)
 
         # Check for background image dimensions
         background_image = getattr(curve_view, "background_image", None)
@@ -124,13 +130,18 @@ class ViewState:
             display_width = background_image.width()
             display_height = background_image.height()
 
+        # Get zoom factor with type validation
+        zoom_factor = getattr(curve_view, "zoom_factor", 1.0)
+        if not isinstance(zoom_factor, int | float):
+            raise TypeError(f"zoom_factor must be real number, not {type(zoom_factor).__name__}")
+
         # Create the ViewState
         return cls(
             display_width=display_width,
             display_height=display_height,
             widget_width=widget_width,
             widget_height=widget_height,
-            zoom_factor=getattr(curve_view, "zoom_factor", 1.0),
+            zoom_factor=float(zoom_factor),
             offset_x=getattr(curve_view, "pan_offset_x", getattr(curve_view, "offset_x", 0.0)),
             offset_y=getattr(curve_view, "pan_offset_y", getattr(curve_view, "offset_y", 0.0)),
             scale_to_image=getattr(curve_view, "scale_to_image", True),
@@ -138,8 +149,8 @@ class ViewState:
             manual_x_offset=getattr(curve_view, "manual_offset_x", getattr(curve_view, "x_offset", 0.0)),
             manual_y_offset=getattr(curve_view, "manual_offset_y", getattr(curve_view, "y_offset", 0.0)),
             background_image=background_image,
-            image_width=image_width,
-            image_height=image_height,
+            image_width=int(image_width),
+            image_height=int(image_height),
         )
 
 
@@ -178,6 +189,13 @@ class Transform:
         scale_to_image: bool = True,
     ):
         """Initialize transformation parameters."""
+        # Validate and clamp display_height
+        height = int(display_height)
+        if height < 0:
+            height = abs(height)  # Use absolute value for negative heights
+        if height > 1_000_000:
+            height = 1_000_000  # Clamp to reasonable maximum
+
         # Store all parameters as immutable private attributes
         self._parameters = {
             "scale": float(scale),
@@ -188,7 +206,7 @@ class Transform:
             "manual_offset_x": float(manual_offset_x),
             "manual_offset_y": float(manual_offset_y),
             "flip_y": bool(flip_y),
-            "display_height": int(display_height),
+            "display_height": height,
             "image_scale_x": float(image_scale_x),
             "image_scale_y": float(image_scale_y),
             "scale_to_image": bool(scale_to_image),

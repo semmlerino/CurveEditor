@@ -289,12 +289,22 @@ class MainWindowProtocol(Protocol):
     ui_components: object
     _point_spinbox_connected: bool
 
-    # Service references
-    services: object
+    # Service references (readonly to allow covariance)
+    @property
+    def services(self) -> object:
+        """Get services facade."""
+        ...
 
-    # State management
-    state_manager: StateManagerProtocol
-    command_manager: "CommandManagerProtocol"
+    # State management (readonly to allow covariance)
+    @property
+    def state_manager(self) -> StateManagerProtocol:
+        """Get state manager."""
+        ...
+
+    @property
+    def command_manager(self) -> "CommandManagerProtocol":
+        """Get command manager."""
+        ...
 
     @property
     def is_modified(self) -> bool:
@@ -396,6 +406,14 @@ class MainWindowProtocol(Protocol):
         """Handle point Y coordinate spinbox change."""
         ...
 
+    def navigate_to_frame(self, frame: int) -> None:
+        """Navigate to specified frame."""
+        ...
+
+    def _get_current_curve_data(self) -> CurveDataList:
+        """Get current curve data (controller friend method)."""
+        ...
+
     # Properties needed by controllers
     @property
     def shortcut_manager(self) -> "ShortcutManagerProtocol | None":
@@ -463,11 +481,6 @@ class MainWindowProtocol(Protocol):
         ...
 
     # File operations manager properties
-    @property
-    def services(self) -> object:  # ServicesProtocol
-        """Get services container."""
-        ...
-
     @property
     def file_load_worker(self) -> object | None:  # FileLoadWorkerProtocol
         """Get file load worker."""
@@ -618,6 +631,10 @@ class CommandManagerProtocol(Protocol):
 
     def execute_command(self, command: str, *args: object) -> None:
         """Execute a command."""
+        ...
+
+    def execute(self, command: object) -> bool:
+        """Execute a command object and add to history."""
         ...
 
     def can_undo(self) -> bool:
