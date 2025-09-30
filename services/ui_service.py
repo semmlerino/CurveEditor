@@ -19,7 +19,7 @@ from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox, QWidget
 from ui.ui_constants import DEFAULT_STATUS_TIMEOUT
 
 if TYPE_CHECKING:
-    from services.service_protocols import MainWindowProtocol
+    from protocols.ui import MainWindowProtocol
 
 from core.logger_utils import get_logger
 

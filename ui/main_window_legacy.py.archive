@@ -1,0 +1,573 @@
+#!/usr/bin/env python
+# pyright: reportUnknownMemberType=false, reportUnknownVariableType=false, reportMissingTypeStubs=false, reportUnknownArgumentType=false, reportUnknownParameterType=false, reportImportCycles=false
+# -*- coding: utf-8 -*-
+
+"""
+Main Window for 3DE4 Curve Editor.
+
+This module contains the MainWindow class which serves as the main entry point
+for the Curve Editor application. It has been refactored to delegate most
+functionality to specialized classes for better maintainability.
+
+Key architecture components:
+1. ApplicationState - Manages all application state variables
+2. UIInitializer - Handles UI component initialization
+3. Direct service access through ServiceRegistryV2
+5. Service classes - Handle specific functionality
+"""
+
+# Standard library imports
+import logging
+import sys
+from typing import TYPE_CHECKING, Any, Optional
+
+if TYPE_CHECKING:
+    from controllers.data_controller import DataController
+    from io_utils.file_load_worker import FileLoadSignals, FileLoadWorker
+    from ui.timeline_tabs import TimelineTabWidget
+
+    from .curve_view_widget import CurveViewWidget
+
+# Import PySide6 modules
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer, Signal, Slot
+from PySide6.QtGui import (
+    QKeyEvent,
+)
+from PySide6.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QDockWidget,
+    QDoubleSpinBox,
+    QLabel,
+    QMainWindow,
+    QPushButton,
+    QSlider,
+    QSpinBox,
+    QWidget,
+)
+
+from core.curve_data import CurveDataWithMetadata
+
+from .curve_view_widget import CurveViewWidget
+from .state_manager import StateManager
+
+# Import refactored components
+
+# Configure logger for this module
+logger = logging.getLogger("main_window")
+
+
+class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typing)
+    """Main application window for the Curve Editor."""
+
+    play_toggled: Signal = Signal(bool)
+    frame_rate_changed: Signal = Signal(int)
+
+    # These are initialized by MainWindowInitializer but need type annotations
+    state_manager: StateManager
+    tracked_data: dict[str, list[tuple[int, float, float]]]
+    active_points: list[str]
+
+    frame_spinbox: QSpinBox | None = None
+    total_frames_label: QLabel | None = None
+    frame_slider: QSlider | None = None
+    timeline_tabs: "TimelineTabWidget | None" = None
+    btn_play_pause: QPushButton | None = None  # Used for playback control (not visible but functional)
+    fps_spinbox: QSpinBox | None = None
+    playback_timer: QTimer | None = None
+    curve_widget: "CurveViewWidget | None" = None
+
+    file_load_worker: Optional["FileLoadWorker"] = None
+    file_load_signals: Optional["FileLoadSignals"] = None
+    data_controller: Optional["DataController"] = None
+
+    tracking_panel_dock: QDockWidget | None = None
+    selected_point_label: QLabel | None = None
+    point_x_spinbox: QDoubleSpinBox | None = None
+    point_y_spinbox: QDoubleSpinBox | None = None
+    show_background_cb: QCheckBox | None = None
+    show_grid_cb: QCheckBox | None = None
+    show_info_cb: QCheckBox | None = None
+    show_tooltips_cb: QCheckBox | None = None
+    point_size_label: QLabel | None = None
+    line_width_label: QLabel | None = None
+    point_size_slider: QSlider | None = None
+    line_width_slider: QSlider | None = None
+
+    def __init__(self, parent: QWidget | None = None, initial_data_file: str | None = None):
+        """Initialize the MainWindow with enhanced UI functionality."""
+        super().__init__(parent)
+
+        # Use streamlined initialization via MainWindowInitializer
+        from .main_window_initializer import MainWindowInitializer
+
+        initializer = MainWindowInitializer(self)
+        initializer.perform_full_initialization(initial_data_file)
+        logger.info("MainWindow initialized successfully")
+
+    @Slot(str)
+    def _on_file_changed(self, file_path: str) -> None:
+        """Handle file path changes."""
+        if self.data_controller:
+            self.data_controller.handle_file_changed(file_path)
+
+    @Slot(bool)
+    def _on_modified_changed(self, modified: bool) -> None:
+        """Handle modification status changes."""
+        self.state_change_controller.handle_modified_changed(modified)
+
+    @Slot(str)
+    def _on_shortcut_activated(self, shortcut_name: str) -> None:
+        """Handle keyboard shortcut activation."""
+        logger.debug(f"Shortcut activated: {shortcut_name}")
+        # Map shortcut names to actions
+        shortcut_map = {
+            "new_file": self.action_new,
+            "open_file": self.action_open,
+            "save_file": self.action_save,
+            "save_as": self.action_save_as,
+            "undo": self.action_undo,
+            "redo": self.action_redo,
+            "zoom_in": self.action_zoom_in,
+            "zoom_out": self.action_zoom_out,
+            "reset_view": self.action_reset_view,
+            "next_frame": lambda: self._on_next_frame(),
+            "prev_frame": lambda: self._on_prev_frame(),
+            "first_frame": lambda: self._on_first_frame(),
+            "last_frame": lambda: self._on_last_frame(),
+        }
+
+        if shortcut_name in shortcut_map:
+            action_or_func = shortcut_map[shortcut_name]
+            if action_or_func is None:
+                logger.warning(f"Action for shortcut '{shortcut_name}' is not initialized")
+            elif callable(action_or_func):
+                action_or_func()
+            else:
+                action_or_func.trigger()
+
+        self.view_controller.update_status(f"Shortcut: {shortcut_name}")
+
+    # Timeline Control Handlers ====================
+
+    @Slot(bool)
+    def _on_play_pause(self, checked: bool) -> None:
+        """Handle play/pause toggle."""
+        self.interaction_controller.handle_play_pause(checked)
+
+    @Slot()
+    def _on_playback_timer(self) -> None:
+        """Handle oscillating playback timer tick."""
+        self.interaction_controller.handle_playback_timer()
+
+    @Slot(int)
+    def _on_fps_changed(self, value: int) -> None:
+        """Handle FPS change."""
+        self.interaction_controller.handle_fps_changed(value)
+
+    # ================ Oscillating Timeline Playback Methods ================
+
+    def _update_playback_bounds(self) -> None:
+        """Update playback frame bounds based on current data."""
+        # Delegate to controller
+        self.interaction_controller._update_bounds()
+
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number.
+
+        Property accessor for better type safety and compatibility.
+        Provides a clean interface for accessing the current frame.
+        """
+        return self.view_controller.get_current_frame()
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set the current frame number.
+
+        Property setter for better type safety and compatibility.
+        Provides a clean interface for setting the current frame.
+        """
+        self.view_controller.navigate_to_frame(value, update_state_manager=True)
+
+    @property
+    def is_modified(self) -> bool:
+        """Get modified state (proxy to state_manager.is_modified)."""
+        return self.state_manager.is_modified if self.state_manager else False
+
+    @property
+    def total_frames(self) -> int:
+        """Get total number of frames."""
+        return self.state_manager.total_frames if self.state_manager else 0
+
+    @total_frames.setter
+    def total_frames(self, value: int) -> None:
+        """Set total number of frames."""
+        if self.state_manager:
+            self.state_manager.total_frames = value
+
+    @property
+    def zoom_level(self) -> float:
+        """Get current zoom level."""
+        return self.state_manager.zoom_level if self.state_manager else 1.0
+
+    @zoom_level.setter
+    def zoom_level(self, value: float) -> None:
+        """Set zoom level."""
+        if self.state_manager:
+            self.state_manager.zoom_level = value
+
+    @Slot(int)
+    def _on_timeline_tab_clicked(self, frame: int) -> None:
+        """Handle timeline tab click to navigate to frame."""
+        self.timeline_controller.handle_timeline_tab_clicked(frame)
+
+    @Slot(int)
+    def _on_timeline_tab_hovered(self, frame: int) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Handle timeline tab hover for preview (optional feature)."""
+        self.timeline_controller.handle_timeline_tab_hovered(frame)
+
+    # Action Handlers ====================
+
+    def _load_session_or_fallback(self) -> None:
+        """Load session data if available, otherwise fallback to burger data."""
+        self.session_manager.load_session_or_fallback(self)
+
+    def _restore_session_state(self, session_data: dict[str, Any]) -> None:
+        """Restore application state from session data."""
+        self.session_manager.restore_session_state(self, session_data)
+
+    def _load_burger_tracking_data(self) -> None:
+        """Auto-load burger footage and tracking data if available using background thread."""
+        self.data_controller.load_burger_tracking_data()
+
+    def _cleanup_file_load_thread(self) -> None:
+        """Clean up file loading thread - stops Python thread if running."""
+        self.data_controller.cleanup_file_load_thread()
+
+    @Slot(object)
+    def _on_tracking_data_loaded(
+        self, data: list[tuple[int, float, float] | tuple[int, float, float, str]] | CurveDataWithMetadata
+    ) -> None:
+        """Handle tracking data loaded in background thread."""
+        if self.data_controller:
+            self.data_controller.handle_tracking_data_loaded(data, "default")
+
+    @Slot(str, list)
+    def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
+        """Handle image sequence loaded in background thread."""
+        if self.data_controller:
+            self.data_controller.handle_image_sequence_loaded(image_dir, image_files)
+
+    def update_status(self, message: str) -> None:
+        """Update the status bar with a message.
+
+        Args:
+            message: Status message to display
+        """
+        self.statusBar().showMessage(message)
+
+    @Slot(int, str)
+    def _on_file_load_progress(self, progress: int, message: str) -> None:
+        """Handle file loading progress updates."""
+        if self.data_controller:
+            self.data_controller.handle_file_load_progress(progress, message)
+
+    @Slot(str)
+    def _on_file_load_error(self, error_message: str) -> None:
+        """Handle file loading errors."""
+        if self.data_controller:
+            self.data_controller.handle_file_load_error(error_message)
+
+    @Slot()
+    def _on_file_load_finished(self) -> None:
+        """Handle file loading completion - worker ready for next load."""
+        if self.data_controller:
+            self.data_controller.handle_file_load_finished()
+
+    def update_background_image_for_frame(self, frame: int) -> None:
+        """Update the background image based on the current frame."""
+        # Delegate to frame navigation controller
+        self.view_controller._update_background_image_for_frame(frame)
+
+    @Slot()
+    def _on_action_undo(self) -> None:
+        """Handle undo action."""
+        self.state_change_controller.handle_action_undo()
+
+    @Slot()
+    def _on_action_redo(self) -> None:
+        """Handle redo action."""
+        self.state_change_controller.handle_action_redo()
+
+    # State Change Handlers ====================
+
+    @Slot(list)
+    def _on_selection_changed(self, indices: list[int]) -> None:
+        """Handle selection change from state manager."""
+        self.state_change_controller.handle_selection_changed(indices)
+
+    @Slot()
+    def _on_view_state_changed(self) -> None:
+        """Handle view state change from state manager."""
+        self.state_change_controller.handle_view_state_changed()
+
+    # UI Update Methods ====================
+
+    def update_ui_state(self) -> None:
+        """Update UI elements based on current state."""
+        # Delegate all UI state updates to ViewUpdateManager
+        self.view_controller.update_ui_state()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        """Event filter to handle key event redirection."""
+        # Delegate to EventFilterController
+        if self.event_filter_controller.filter_event(watched, event):
+            return True
+        return super().eventFilter(watched, event)  # Proper delegation to parent
+
+    def update_cursor_position(self, x: float, y: float) -> None:
+        """Update cursor position in status bar."""
+        self.view_controller.update_cursor_position(x, y)
+
+    # Curve Widget Signal Handlers ====================
+
+    @Slot(int)
+    def _on_point_selected(self, index: int) -> None:
+        """Handle point selection from curve widget."""
+        self.interaction_controller.on_point_selected(index)
+
+    @Slot(int, float, float)
+    def _on_point_moved(self, index: int, x: float, y: float) -> None:
+        """Handle point movement from curve widget."""
+        self.interaction_controller.on_point_moved(index, x, y)
+
+    @Slot(list)
+    def _on_curve_selection_changed(self, indices: list[int]) -> None:
+        """Handle selection change from curve widget."""
+        self.state_change_controller.handle_curve_selection_changed(indices)
+
+    @Slot()
+    def _on_curve_view_changed(self) -> None:
+        """Handle view changes from curve widget."""
+        self.state_change_controller.handle_curve_view_changed()
+
+    @Slot(float)
+    def _on_curve_zoom_changed(self, zoom: float) -> None:
+        """Handle zoom changes from curve widget."""
+        self.state_change_controller.handle_curve_zoom_changed(zoom)
+
+    # Tracking Points Panel Handlers ====================
+
+    def _on_tracking_points_selected(self, point_names: list[str]) -> None:
+        """Handle selection of tracking points from panel."""
+        self.interaction_controller.on_tracking_points_selected(point_names)
+
+    def _on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
+        """Handle visibility change for a tracking point."""
+        self.interaction_controller.on_point_visibility_changed(point_name, visible)
+
+    def _on_point_color_changed(self, point_name: str, color: str) -> None:
+        """Handle color change for a tracking point."""
+        self.interaction_controller.on_point_color_changed(point_name, color)
+
+    def _on_point_deleted(self, point_name: str) -> None:
+        """Handle deletion of a tracking point."""
+        self.interaction_controller.on_point_deleted(point_name)
+
+    def _on_point_renamed(self, old_name: str, new_name: str) -> None:
+        """Handle renaming of a tracking point."""
+        self.interaction_controller.on_point_renamed(old_name, new_name)
+
+    def update_tracking_panel(self) -> None:
+        """Update tracking panel with current tracking data."""
+        self.interaction_controller.update_tracking_panel()
+
+    def update_curve_display(self) -> None:
+        """Update curve display with selected tracking points."""
+        self.interaction_controller.update_curve_display()
+
+    # View Options Handlers ====================
+
+    def update_curve_view_options(self) -> None:
+        """Update curve widget view options based on checkboxes."""
+        self.view_controller.update_curve_view_options()
+
+    @Slot(int)
+    def _update_curve_point_size(self, value: int) -> None:
+        """Update curve widget point size."""
+        self.view_controller.update_curve_point_size(value)
+
+    @Slot(int)
+    def _update_curve_line_width(self, value: int) -> None:
+        """Update curve widget line width."""
+        self.view_controller.update_curve_line_width(value)
+
+    def toggle_tooltips(self) -> None:
+        """Toggle tooltips on/off globally."""
+        self.view_controller.toggle_tooltips()
+
+    # Frame Navigation Handlers ====================
+
+    @Slot(int)
+    def _on_state_frame_changed(self, frame: int) -> None:
+        """Handle frame change from state manager."""
+        self.state_change_controller.handle_state_frame_changed(frame)
+
+    def _on_frame_changed(self, frame: int) -> None:
+        """Handle frame change (delegation for backward compatibility)."""
+        self.view_controller.navigate_to_frame(frame, update_state_manager=True)
+
+    def navigate_to_frame(self, frame: int, update_state_manager: bool = True) -> None:
+        """Navigate to specified frame (delegation for backward compatibility)."""
+        self.view_controller.navigate_to_frame(frame, update_state_manager)
+
+    def _get_current_frame(self) -> int:
+        """Get current frame (protected method for PlaybackController)."""
+        return self.state_manager.current_frame
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Set current frame (protected method for PlaybackController)."""
+        self.view_controller.navigate_to_frame(frame, update_state_manager=True)
+
+    # Utility Methods ====================
+
+    def update_timeline_tabs(
+        self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] | None = None
+    ) -> None:
+        """Update timeline tabs with current curve data and frame range."""
+        self.timeline_controller.update_timeline_tabs(curve_data)
+
+    def _get_current_curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
+        """Get current curve data from curve widget or state manager."""
+        return self.data_controller.get_current_curve_data()  # pyright: ignore[reportReturnType]
+
+    def add_to_history(self) -> None:
+        """Add current state to history (called by curve widget)."""
+        self.services.add_to_history()
+
+    def restore_state(self, state: dict[str, object]) -> None:
+        """Restore state from history.
+
+        Args:
+            state: History state dictionary containing curve data and other state
+        """
+        if self.services:
+            self.services.restore_state(state)
+
+        # Update history-related UI state through ViewUpdateManager
+        self.view_controller.update_undo_redo_state(self.state_manager.can_undo, self.state_manager.can_redo)
+
+    @Slot(float)
+    def _on_point_x_changed(self, value: float) -> None:
+        """Handle X coordinate change in properties panel."""
+        self.interaction_controller.on_point_x_changed(value)
+
+    @Slot(float)
+    def _on_point_y_changed(self, value: float) -> None:
+        """Handle Y coordinate change in properties panel."""
+        self.interaction_controller.on_point_y_changed(value)
+
+    # Public Methods for External Use ====================
+
+    def set_curve_view(self, curve_view: CurveViewWidget | None) -> None:
+        """Set the curve view widget (legacy method - now uses CurveViewWidget)."""
+        self.curve_view = curve_view
+        logger.info("Legacy curve view reference set")
+
+    def get_view_options(self) -> dict[str, object]:
+        """Get current view options."""
+        return {
+            "show_background": self.show_background_cb.isChecked() if self.show_background_cb else False,
+            "show_grid": self.show_grid_cb.isChecked() if self.show_grid_cb else True,
+            "show_info": self.show_info_cb.isChecked() if self.show_info_cb else True,
+            "point_size": self.point_size_slider.value() if self.point_size_slider else 5,
+            "line_width": self.line_width_slider.value() if self.line_width_slider else 2,
+        }
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering on frame change.
+
+        Args:
+            enabled: Whether to enable auto-centering
+        """
+        # Store the centering state
+        self.auto_center_enabled = enabled
+
+        # Update the curve widget if available
+        # curve_widget is Optional
+        if self.curve_widget is not None:
+            if getattr(self.curve_widget, "set_auto_center", None) is not None:
+                self.curve_widget.set_auto_center(enabled)  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Log the state change
+        logger.info(f"Auto-centering {'enabled' if enabled else 'disabled'}")
+
+        # Update status bar
+        # statusBar() is a QMainWindow method, always available
+        self.statusBar().showMessage(f"Auto-center on frame change: {'ON' if enabled else 'OFF'}", 3000)
+
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation to selected points in the curve."""
+        self.interaction_controller.apply_smoothing()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """Handle key press events for custom shortcuts."""
+        # Tab key toggles tracking panel dock visibility
+        if event.key() == Qt.Key.Key_Tab:
+            self.interaction_controller.toggle_panel_visibility()
+            event.accept()
+            return
+
+        # Pass to parent for default handling
+        super().keyPressEvent(event)
+
+    def _load_initial_data_file(self) -> None:
+        """Load the initial data file specified via command line."""
+        self.data_controller.load_initial_data_file(self._initial_data_file)
+
+    def set_tracked_data_atomic(
+        self, tracked_data: dict[str, list[tuple[int, float, float]]], active_points: list[str] | None = None
+    ) -> None:
+        """Thread-safe method to update tracked data and active points atomically."""
+        self.state_manager.set_tracked_data_atomic(tracked_data, active_points)
+        # Also update local references for compatibility
+        self.tracked_data = self.state_manager.tracked_data
+        self.active_points = self.state_manager.active_points
+
+    def set_file_loading_state(self, is_loading: bool) -> None:
+        """Thread-safe method to update file loading state."""
+        self.state_manager.set_file_loading_state(is_loading)
+
+    def get_file_loading_state(self) -> bool:
+        """Thread-safe method to check file loading state."""
+        return self.state_manager.get_file_loading_state()
+
+    def closeEvent(self, event: QEvent) -> None:
+        """Handle window close event with proper thread cleanup."""
+        logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
+
+        # Save session before closing
+        if self.data_controller is not None:
+            self.data_controller.save_current_session()
+
+        # Stop playback timer
+        if self.playback_timer is not None:
+            self.playback_timer.stop()
+
+        # Stop the worker thread
+        if self.file_load_worker is not None:
+            self.file_load_worker.stop()
+
+        logger.info("[KEEP-ALIVE] Worker and thread cleaned up")
+
+        # Accept the close event
+        event.accept()
+        logger.info("MainWindow closed with proper cleanup")
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec())

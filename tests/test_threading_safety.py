@@ -386,5 +386,190 @@ class TestStressTests:
             assert 0 <= value <= 10, f"Invalid list size seen: {value}"
 
 
+class TestQtThreadingSafety:
+    """Test Qt-specific threading safety patterns to prevent fatal crashes."""
+
+    def test_thread_safe_image_creation(self):
+        """Test ThreadSafeTestImage can be created safely in worker threads."""
+        from tests.test_utilities import ThreadSafeTestImage
+
+        results = []
+        errors = []
+
+        def create_image_in_thread(thread_id: int):
+            """Create and manipulate image in worker thread."""
+            try:
+                # ✅ SAFE - Use ThreadSafeTestImage instead of QPixmap
+                image = ThreadSafeTestImage(100, 100)
+
+                # Thread-safe operations
+                assert not image.isNull()
+                assert image.width == 100
+                assert image.height == 100
+                assert image.sizeInBytes() > 0
+
+                # Fill with color (thread-safe QImage operation)
+                from PySide6.QtGui import QColor
+
+                image.fill(QColor(255, 0, 0))
+
+                results.append((thread_id, True))
+
+            except Exception as e:
+                errors.append((thread_id, str(e)))
+
+        # Start multiple worker threads
+        threads = []
+        for i in range(5):
+            t = threading.Thread(target=create_image_in_thread, args=(i,))
+            threads.append(t)
+            t.start()
+
+        # Wait for completion
+        for t in threads:
+            t.join(timeout=5.0)
+            assert not t.is_alive(), "Thread should have completed"
+
+        # Verify no threading violations occurred
+        assert len(errors) == 0, f"Threading errors: {errors}"
+        assert len(results) == 5, f"Expected 5 results, got {len(results)}"
+
+        # All operations should have succeeded
+        for thread_id, success in results:
+            assert success, f"Thread {thread_id} failed"
+
+    def test_concurrent_image_processing(self):
+        """Test concurrent image operations without Qt threading violations."""
+        from tests.test_utilities import ThreadSafeTestImage
+
+        results = []
+        errors = []
+
+        def process_image(thread_id: int):
+            """Process image in worker thread."""
+            try:
+                # ✅ SAFE - Use ThreadSafeTestImage instead of QPixmap
+                image = ThreadSafeTestImage(100, 100)
+                from PySide6.QtGui import QColor
+
+                image.fill(QColor(255, 0, 0))  # Thread-safe operation
+
+                # Simulate cache operation with thread-safe image
+                service = get_data_service()
+                cache_key = f"thread_{thread_id}_image"
+
+                # This simulates what would happen in real code - storing processed images
+                # Use service lock for thread safety when accessing shared cache
+                with service._lock:
+                    # Store the thread-safe image object
+                    service._image_cache[cache_key] = image
+
+                # Verify the image was stored successfully
+                with service._lock:
+                    cached_image = service._image_cache.get(cache_key)
+                    success = cached_image is not None and not cached_image.isNull()
+
+                results.append((thread_id, success))
+
+            except Exception as e:
+                errors.append((thread_id, str(e)))
+
+        # Start multiple worker threads
+        threads = []
+        for i in range(5):
+            t = threading.Thread(target=process_image, args=(i,))
+            threads.append(t)
+            t.start()
+
+        # Wait for completion
+        for t in threads:
+            t.join(timeout=5.0)
+
+        # Verify no threading violations occurred
+        assert len(errors) == 0, f"Threading errors: {errors}"
+        assert len(results) == 5
+
+        # All operations should have succeeded
+        for thread_id, success in results:
+            assert success, f"Thread {thread_id} image processing failed"
+
+    def test_qt_pixmap_detection_in_worker_threads(self):
+        """Test that QPixmap creation in worker threads is properly detected."""
+        import threading
+        from unittest.mock import patch
+
+        thread_violations = []
+
+        def check_thread_safety(*args, **kwargs):
+            """Mock QPixmap constructor to detect thread violations."""
+            current_thread = threading.current_thread()
+            if current_thread.name != "MainThread":
+                thread_violations.append(f"QPixmap created in {current_thread.name}")
+                # Raise exception to prevent actual QPixmap creation which would crash
+                raise RuntimeError(f"QPixmap cannot be created in worker thread: {current_thread.name}")
+
+        def worker_thread_function():
+            """Function that would violate Qt threading rules."""
+            try:
+                # This would normally crash Python with "Fatal Python error: Aborted"
+                from PySide6.QtGui import QPixmap
+
+                _pixmap = QPixmap(100, 100)  # Should be detected and prevented
+            except RuntimeError:
+                # Expected - our detection prevented the crash
+                pass
+
+        # Patch QPixmap to detect threading violations
+        with patch("PySide6.QtGui.QPixmap", side_effect=check_thread_safety):
+            worker_thread = threading.Thread(target=worker_thread_function)
+            worker_thread.start()
+            worker_thread.join()
+
+        # Verify violation was detected
+        assert len(thread_violations) == 1, f"Expected 1 violation, got: {thread_violations}"
+        assert "QPixmap created in Thread-" in thread_violations[0]
+
+    def test_main_thread_qt_operations_allowed(self):
+        """Test that Qt operations in main thread are allowed."""
+        from PySide6.QtGui import QColor, QPixmap
+
+        from tests.test_utilities import ThreadSafeTestImage
+
+        # These should work fine in main thread
+        try:
+            # Real QPixmap creation in main thread (allowed)
+            pixmap = QPixmap(50, 50)
+            assert not pixmap.isNull()
+
+            # ThreadSafeTestImage also works in main thread
+            safe_image = ThreadSafeTestImage(50, 50)
+            safe_image.fill(QColor(0, 255, 0))
+            assert not safe_image.isNull()
+
+        except Exception as e:
+            pytest.fail(f"Main thread Qt operations should work: {e}")
+
+    def test_image_size_consistency(self):
+        """Test that ThreadSafeTestImage provides consistent interface."""
+        from PySide6.QtCore import QSize
+
+        from tests.test_utilities import ThreadSafeTestImage
+
+        image = ThreadSafeTestImage(200, 150)
+
+        # Test size methods match
+        assert image.width == 200
+        assert image.height == 150
+
+        size = image.size()
+        assert isinstance(size, QSize)
+        assert size.width() == 200
+        assert size.height() == 150
+
+        # Test image is properly initialized
+        assert not image.isNull()
+        assert image.sizeInBytes() > 0
+
+
 if __name__ == "__main__":
     pytest.main([__file__, "-v", "--tb=short"])

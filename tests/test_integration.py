@@ -339,7 +339,9 @@ class TestHistoryIntegration(TestServiceIntegration):
         stats = self.interaction_service.get_history_stats()  # pyright: ignore[reportUnknownMemberType]
         if stats:
             # We have history stats, check if undo is available
-            assert stats.can_undo if hasattr(stats, "can_undo") else True
+            # Check undo capability if available - use getattr for optional attribute
+            can_undo = getattr(stats, "can_undo", True)
+            assert can_undo
 
         # Try to undo the change
         self.interaction_service.undo(self.main_window)  # pyright: ignore[reportArgumentType]
@@ -367,8 +369,11 @@ class TestHistoryIntegration(TestServiceIntegration):
         if stats:
             # If we have stats, verify they're reasonable
             # Note: stats is a dict with 'total_states', not an object with 'total_entries'
-            assert "total_states" in stats or hasattr(stats, "total_entries")
-            assert "current_index" in stats or hasattr(stats, "current_position")
+            # Check for expected stats attributes (dict keys or object attributes)
+            has_total = "total_states" in stats or getattr(stats, "total_entries", None) is not None
+            has_index = "current_index" in stats or getattr(stats, "current_position", None) is not None
+            assert has_total
+            assert has_index
 
 
 class TestErrorRecoveryIntegration(TestServiceIntegration):

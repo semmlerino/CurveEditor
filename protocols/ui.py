@@ -1,0 +1,703 @@
+"""
+UI component protocols for CurveEditor.
+
+This module contains Protocol definitions for UI components like MainWindow,
+CurveView, and related widgets. These protocols define the interface contracts
+that UI components must implement.
+"""
+
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Protocol
+
+if TYPE_CHECKING:
+    from PySide6.QtCore import QPoint
+    from PySide6.QtGui import QPixmap
+    from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
+
+from protocols.data import CurveDataList, HistoryState, QtPointF
+
+
+class SignalProtocol(Protocol):
+    """Protocol for Qt signal objects with emit method."""
+
+    def emit(self, *args: object) -> None:
+        """Emit the signal with arguments."""
+        ...
+
+    def connect(self, slot: Callable[..., object]) -> object:
+        """Connect signal to slot."""
+        ...
+
+    def disconnect(self, slot: Callable[..., object] | None = None) -> None:
+        """Disconnect signal from slot."""
+        ...
+
+
+class StateManagerProtocol(Protocol):
+    """Protocol for state manager."""
+
+    is_modified: bool
+    auto_center_enabled: bool
+
+    @property
+    def current_frame(self) -> int:
+        """Get current frame."""
+        ...
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set current frame."""
+        ...
+
+    @property
+    def image_directory(self) -> str | None:
+        """Get image directory."""
+        ...
+
+    # Methods needed by file_operations_manager.py
+    @property
+    def current_file(self) -> str | None:
+        """Get current file path."""
+        ...
+
+    @current_file.setter
+    def current_file(self, value: str | None) -> None:
+        """Set current file path."""
+        ...
+
+    @image_directory.setter
+    def image_directory(self, value: str | None) -> None:
+        """Set image directory."""
+        ...
+
+    @property
+    def track_data(self) -> object | None:  # CurveDataList | CurveDataWithMetadata
+        """Get track data."""
+        ...
+
+    @property
+    def total_frames(self) -> int:
+        """Get total frames."""
+        ...
+
+    @total_frames.setter
+    def total_frames(self, value: int) -> None:
+        """Set total frames."""
+        ...
+
+    def reset_to_defaults(self) -> None:
+        """Reset state to defaults."""
+        ...
+
+    def set_track_data(self, data: object, mark_modified: bool) -> None:
+        """Set track data."""
+        ...
+
+    def set_image_files(self, files: list[str]) -> None:
+        """Set image files."""
+        ...
+
+    def get_window_title(self) -> str:
+        """Get window title."""
+        ...
+
+
+class CurveViewProtocol(Protocol):
+    """Protocol for curve view widgets.
+
+    Unified interface that curve view widgets must implement
+    to work with services and controllers.
+    """
+
+    # Basic attributes
+    selected_point_idx: int
+    curve_data: CurveDataList
+    current_image_idx: int
+
+    # Point management
+    points: CurveDataList
+    selected_points: set[int]
+
+    # Transform and positioning
+    offset_x: float
+    offset_y: float
+    x_offset: float  # Alias for offset_x
+    y_offset: float  # Alias for offset_y
+    zoom_factor: float
+    pan_offset_x: float
+    pan_offset_y: float
+    manual_offset_x: float
+    manual_offset_y: float
+
+    # Interaction state
+    drag_active: bool
+    pan_active: bool
+    last_drag_pos: QtPointF | None
+    last_pan_pos: QtPointF | None
+
+    # Rubber band selection
+    rubber_band: "QRubberBand | None"
+    rubber_band_active: bool
+    rubber_band_origin: QtPointF
+
+    # Visualization settings
+    show_grid: bool
+    show_background: bool
+    show_velocity_vectors: bool
+    show_all_frame_numbers: bool
+
+    # Background image
+    background_image: "QPixmap | None"
+    background_opacity: float
+
+    # Image and display settings
+    image_width: int
+    image_height: int
+    scale_to_image: bool
+    flip_y_axis: bool
+
+    # Parent reference
+    main_window: "MainWindowProtocol"
+
+    # Qt signals
+    point_selected: SignalProtocol
+    point_moved: SignalProtocol
+
+    # Methods
+    def update(self) -> None:
+        """Update the view."""
+        ...
+
+    def repaint(self) -> None:
+        """Repaint the view."""
+        ...
+
+    def width(self) -> int:
+        """Get widget width."""
+        ...
+
+    def height(self) -> int:
+        """Get widget height."""
+        ...
+
+    def setCursor(self, cursor: object) -> None:
+        """Set widget cursor."""
+        ...
+
+    def unsetCursor(self) -> None:
+        """Unset widget cursor."""
+        ...
+
+    def findPointAt(self, pos: QtPointF) -> int:
+        """Find point at the given position."""
+        ...
+
+    def selectPointByIndex(self, idx: int) -> bool:
+        """Select a point by its index."""
+        ...
+
+    def get_current_transform(self) -> object:
+        """Get current transform object."""
+        ...
+
+    def get_transform(self) -> object:
+        """Get transform object (alias for compatibility)."""
+        ...
+
+    def _invalidate_caches(self) -> None:
+        """Invalidate any cached data."""
+        ...
+
+    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
+        """Get point data for the given index."""
+        ...
+
+    def toggleBackgroundVisible(self, visible: bool) -> None:
+        """Toggle background visibility."""
+        ...
+
+    def toggle_point_interpolation(self, idx: int) -> None:
+        """Toggle interpolation status of a point."""
+        ...
+
+    def set_curve_data(self, data: CurveDataList) -> None:
+        """Set the curve data."""
+        ...
+
+    def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
+        """Set points with image dimensions (legacy compatibility)."""
+        ...
+
+    def set_selected_indices(self, indices: list[int]) -> None:
+        """Set the selected point indices."""
+        ...
+
+    def setup_for_3dequalizer_data(self) -> None:
+        """Set up the view for 3DEqualizer coordinate tracking data."""
+        ...
+
+    def setup_for_pixel_tracking(self) -> None:
+        """Set up the view for screen/pixel-coordinate tracking data."""
+        ...
+
+
+class MainWindowProtocol(Protocol):
+    """Protocol for main window widgets.
+
+    Consolidated interface that main window widgets must implement
+    to work with services and controllers. This merges 6+ duplicate
+    definitions into one authoritative protocol.
+    """
+
+    # Basic attributes
+    selected_indices: list[int]
+    curve_view: CurveViewProtocol
+    curve_data: CurveDataList
+    curve_widget: object  # CurveViewWidget
+
+    # Frame management
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number."""
+        ...
+
+    # History management
+    history: list[object]
+    history_index: int
+    max_history_size: int
+
+    # Point attributes
+    point_name: str
+    point_color: str
+
+    # UI component references
+    undo_button: "QPushButton | None"
+    redo_button: "QPushButton | None"
+    save_button: "QPushButton | None"
+    ui_components: object
+
+    # Service references
+    services: object
+
+    # State management
+    state_manager: StateManagerProtocol
+
+    @property
+    def is_modified(self) -> bool:
+        """Get modified state."""
+        ...
+
+    # Methods
+    def add_to_history(self) -> None:
+        """Add current state to history."""
+        ...
+
+    def restore_state(self, state: HistoryState) -> None:
+        """Restore state from history."""
+        ...
+
+    def update_status(self, message: str) -> None:
+        """Update status bar message."""
+        ...
+
+    def setWindowTitle(self, title: str) -> None:
+        """Set window title."""
+        ...
+
+    def statusBar(self) -> "QStatusBar":
+        """Get status bar widget."""
+        ...
+
+    def close(self) -> bool:
+        """Close the window."""
+        ...
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering on frame change."""
+        ...
+
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation to selected points."""
+        ...
+
+    def update_curve_data(self, data: CurveDataList) -> None:
+        """Update curve data."""
+        ...
+
+    # Controller friend methods (Strangler Fig pattern)
+    def _get_current_frame(self) -> int:
+        """Get current frame (controller friend method)."""
+        ...
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Set current frame (controller friend method)."""
+        ...
+
+    # Methods needed by controllers
+    def update_curve_view_options(self) -> None:
+        """Update curve view options."""
+        ...
+
+    def toggle_tooltips(self) -> None:
+        """Toggle tooltips display."""
+        ...
+
+    def update_timeline_tabs(self, curve_data: object | None) -> None:
+        """Update timeline tabs."""
+        ...
+
+    def update_tracking_panel(self) -> None:
+        """Update tracking panel display."""
+        ...
+
+    def update_curve_display(self) -> None:
+        """Update curve display."""
+        ...
+
+    def update_ui_state(self) -> None:
+        """Update UI state."""
+        ...
+
+    # Properties needed by controllers
+    @property
+    def shortcut_manager(self) -> "ShortcutManagerProtocol | None":
+        """Get shortcut manager."""
+        ...
+
+    @property
+    def frame_navigation_controller(self) -> "FrameNavigationProtocol":
+        """Get frame navigation controller."""
+        ...
+
+    # Playback controller properties
+    @property
+    def fps_spinbox(self) -> object:  # QSpinBox | None
+        """Get FPS spinbox."""
+        ...
+
+    @property
+    def playback_timer(self) -> object:  # QTimer | None
+        """Get playback timer."""
+        ...
+
+    @property
+    def btn_play_pause(self) -> object:  # QPushButton | None
+        """Get play/pause button."""
+        ...
+
+    @property
+    def curve_view(self) -> "CurveViewProtocol | None":
+        """Get curve view."""
+        ...
+
+    @property
+    def timeline_tabs(self) -> object:  # QTabWidget | None
+        """Get timeline tabs."""
+        ...
+
+    def get_current_frame(self) -> int:
+        """Get current frame."""
+        ...
+
+    def set_current_frame(self, frame: int) -> None:
+        """Set current frame."""
+        ...
+
+    # Frame navigation controller properties
+    @property
+    def frame_spinbox(self) -> object:  # QSpinBox | None
+        """Get frame spinbox."""
+        ...
+
+    @property
+    def frame_slider(self) -> object:  # QSlider | None
+        """Get frame slider."""
+        ...
+
+    @property
+    def image_filenames(self) -> list[str]:
+        """Get image filenames."""
+        ...
+
+    @image_filenames.setter
+    def image_filenames(self, value: list[str]) -> None:
+        """Set image filenames."""
+        ...
+
+    # File operations manager properties
+    @property
+    def services(self) -> object:  # ServicesProtocol
+        """Get services container."""
+        ...
+
+    @property
+    def file_load_worker(self) -> object | None:  # FileLoadWorkerProtocol
+        """Get file load worker."""
+        ...
+
+    @property
+    def total_frames_label(self) -> object | None:  # QLabel
+        """Get total frames label."""
+        ...
+
+    @property
+    def tracked_data(self) -> dict[str, object]:  # dict[str, CurveDataList]
+        """Get tracked data."""
+        ...
+
+    @tracked_data.setter
+    def tracked_data(self, value: dict[str, object]) -> None:
+        """Set tracked data."""
+        ...
+
+    @property
+    def active_points(self) -> list[str]:
+        """Get active points."""
+        ...
+
+    @active_points.setter
+    def active_points(self, value: list[str]) -> None:
+        """Set active points."""
+        ...
+
+    @property
+    def session_manager(self) -> object:  # SessionManagerProtocol
+        """Get session manager."""
+        ...
+
+    @property
+    def view_update_manager(self) -> object:
+        """Get view update manager."""
+        ...
+
+    @property
+    def current_image_idx(self) -> int:
+        """Get current image index."""
+        ...
+
+    @current_image_idx.setter
+    def current_image_idx(self, value: int) -> None:
+        """Set current image index."""
+        ...
+
+    def geometry(self) -> object:  # QRect
+        """Get window geometry."""
+        ...
+
+    def set_tracked_data_atomic(self, data: dict[str, object]) -> None:
+        """Set tracked data atomically."""
+        ...
+
+    def set_file_loading_state(self, loading: bool) -> None:
+        """Set file loading state."""
+        ...
+
+    # Event coordinator integration
+    def play_toggled(self) -> object:  # Signal
+        """Signal emitted when play is toggled."""
+        ...
+
+    def frame_rate_changed(self) -> object:  # Signal
+        """Signal emitted when frame rate changes."""
+        ...
+
+
+class CurveWidgetProtocol(Protocol):
+    """Protocol for curve widget components."""
+
+    curve_view: CurveViewProtocol
+
+    def update(self) -> None:
+        """Update the widget."""
+        ...
+
+    def repaint(self) -> None:
+        """Repaint the widget."""
+        ...
+
+    # Frame navigation controller methods
+    def on_frame_changed(self, frame: int) -> None:
+        """Handle frame change for centering mode."""
+        ...
+
+    def invalidate_caches(self) -> None:
+        """Invalidate rendering caches."""
+        ...
+
+    @property
+    def background_image(self) -> object:  # QPixmap | None
+        """Get background image."""
+        ...
+
+    @background_image.setter
+    def background_image(self, value: object) -> None:  # QPixmap
+        """Set background image."""
+        ...
+
+    # Methods needed by file_operations_manager.py
+    def set_curve_data(self, data: object) -> None:  # CurveDataList | CurveDataWithMetadata
+        """Set curve data."""
+        ...
+
+    def setup_for_pixel_tracking(self) -> None:
+        """Set up for pixel tracking mode."""
+        ...
+
+    def setup_for_3dequalizer_data(self) -> None:
+        """Set up for 3DEqualizer data mode."""
+        ...
+
+    def fit_to_view(self) -> None:
+        """Fit view to data."""
+        ...
+
+    def set_background_image(self, pixmap: object) -> None:  # QPixmap
+        """Set background image."""
+        ...
+
+    def fit_to_background_image(self) -> None:
+        """Fit view to background image."""
+        ...
+
+    @property
+    def curve_data(self) -> object | None:  # CurveDataList | CurveDataWithMetadata
+        """Get curve data."""
+        ...
+
+    @property
+    def show_background(self) -> bool:
+        """Get show background flag."""
+        ...
+
+    @show_background.setter
+    def show_background(self, value: bool) -> None:
+        """Set show background flag."""
+        ...
+
+
+class CommandManagerProtocol(Protocol):
+    """Protocol for command manager components."""
+
+    def execute_command(self, command: str, *args: object) -> None:
+        """Execute a command."""
+        ...
+
+    def can_undo(self) -> bool:
+        """Check if undo is available."""
+        ...
+
+    def can_redo(self) -> bool:
+        """Check if redo is available."""
+        ...
+
+    def undo(self) -> None:
+        """Undo the last command."""
+        ...
+
+    def redo(self) -> None:
+        """Redo the last undone command."""
+        ...
+
+
+class FrameNavigationProtocol(Protocol):
+    """Protocol for frame navigation components."""
+
+    def navigate_to_frame(self, frame: int) -> None:
+        """Navigate to specific frame."""
+        ...
+
+    def jump_frames(self, delta: int) -> None:
+        """Jump by delta frames."""
+        ...
+
+    def next_frame(self) -> None:
+        """Go to next frame."""
+        ...
+
+    def previous_frame(self) -> None:
+        """Go to previous frame."""
+        ...
+
+    def first_frame(self) -> None:
+        """Go to first frame."""
+        ...
+
+    def last_frame(self) -> None:
+        """Go to last frame."""
+        ...
+
+
+class ShortcutManagerProtocol(Protocol):
+    """Protocol for shortcut manager components."""
+
+    def register_shortcut(self, key: str, action: Callable[[], None]) -> None:
+        """Register a keyboard shortcut."""
+        ...
+
+    def unregister_shortcut(self, key: str) -> None:
+        """Unregister a keyboard shortcut."""
+        ...
+
+    def trigger_shortcut(self, key: str) -> bool:
+        """Trigger shortcut action if registered."""
+        ...
+
+    def show_shortcuts(self) -> None:
+        """Show shortcuts dialog/help."""
+        ...
+
+
+class WidgetProtocol(Protocol):
+    """Protocol for generic Qt widgets."""
+
+    def update(self) -> None:
+        """Update the widget."""
+        ...
+
+    def repaint(self) -> None:
+        """Repaint the widget."""
+        ...
+
+    def width(self) -> int:
+        """Get widget width."""
+        ...
+
+    def height(self) -> int:
+        """Get widget height."""
+        ...
+
+    def setVisible(self, visible: bool) -> None:
+        """Set widget visibility."""
+        ...
+
+    def isVisible(self) -> bool:
+        """Check if widget is visible."""
+        ...
+
+
+class EventProtocol(Protocol):
+    """Protocol for Qt events."""
+
+    def accept(self) -> None:
+        """Accept the event."""
+        ...
+
+    def ignore(self) -> None:
+        """Ignore the event."""
+        ...
+
+    def isAccepted(self) -> bool:
+        """Check if event is accepted."""
+        ...
+
+    def pos(self) -> "QPoint":
+        """Get event position."""
+        ...
+
+    def globalPos(self) -> "QPoint":
+        """Get global event position."""
+        ...
+
+    def modifiers(self) -> object:
+        """Get keyboard modifiers."""
+        ...

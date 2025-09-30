@@ -6,6 +6,13 @@ This module imports fixtures from the organized fixtures package
 to make them available to all tests.
 """
 
+from collections.abc import Generator
+
+import pytest
+
+# import services  # Temporarily disabled to debug import issue
+from core.config import reset_config
+
 # Import all fixtures from the fixtures package
 from tests.fixtures import (
     all_services,
@@ -30,6 +37,110 @@ from tests.fixtures import (
     sample_curve_data,
     sample_points,
 )
+
+
+# Comprehensive service reset fixture
+@pytest.fixture(autouse=True)
+def reset_all_services() -> Generator[None, None, None]:
+    """Reset ALL service state between tests to ensure complete isolation.
+
+    This fixture is auto-used for all tests to prevent state leakage,
+    especially for Y-flip tests that fail due to service singleton persistence.
+    """
+    yield  # Run the test
+
+    # After test completes, reset everything
+    try:
+        # Import services lazily to avoid startup issues
+        import services
+
+        # 1. FIRST clear service caches while they still exist
+        if hasattr(services, "_transform_service") and services._transform_service is not None:
+            clear_cache_method = getattr(services._transform_service, "clear_cache", None)
+            if clear_cache_method is not None:
+                clear_cache_method()
+
+        if hasattr(services, "_data_service") and services._data_service is not None:
+            clear_cache_method = getattr(services._data_service, "clear_cache", None)
+            if clear_cache_method is not None:
+                clear_cache_method()
+
+        if hasattr(services, "_interaction_service") and services._interaction_service is not None:
+            clear_cache_method = getattr(services._interaction_service, "clear_cache", None)
+            if clear_cache_method is not None:
+                clear_cache_method()
+
+        # 2. THEN clear all service singletons
+        if hasattr(services, "_data_service"):
+            services._data_service = None
+        if hasattr(services, "_interaction_service"):
+            services._interaction_service = None
+        if hasattr(services, "_transform_service"):
+            services._transform_service = None
+        if hasattr(services, "_ui_service"):
+            services._ui_service = None
+
+        # 3. Reset global config
+        reset_config()
+
+        # 4. Clear any cached imports for coordinate systems
+        import sys
+
+        modules_to_clear = ["core.coordinate_system", "core.curve_data", "core.coordinate_detector"]
+        for module in modules_to_clear:
+            if module in sys.modules:
+                # Clear module-level caches if they exist
+                mod = sys.modules[module]
+                coordinate_systems = getattr(mod, "COORDINATE_SYSTEMS", None)
+                if coordinate_systems is not None:
+                    # Re-initialize coordinate systems to defaults
+                    from core.coordinate_system import COORDINATE_SYSTEMS
+
+                    COORDINATE_SYSTEMS.clear()
+                    COORDINATE_SYSTEMS.update(
+                        {
+                            "qt": mod.CoordinateMetadata(
+                                system=mod.CoordinateSystem.QT_SCREEN,
+                                origin=mod.CoordinateOrigin.TOP_LEFT,
+                                width=1920,
+                                height=1080,
+                            ),
+                            "3de_720p": mod.CoordinateMetadata(
+                                system=mod.CoordinateSystem.THREE_DE_EQUALIZER,
+                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
+                                width=1280,
+                                height=720,
+                            ),
+                            "3de_1080p": mod.CoordinateMetadata(
+                                system=mod.CoordinateSystem.THREE_DE_EQUALIZER,
+                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
+                                width=1920,
+                                height=1080,
+                            ),
+                            "nuke_hd": mod.CoordinateMetadata(
+                                system=mod.CoordinateSystem.NUKE,
+                                origin=mod.CoordinateOrigin.BOTTOM_LEFT,
+                                width=1920,
+                                height=1080,
+                            ),
+                            "internal": mod.CoordinateMetadata(
+                                system=mod.CoordinateSystem.CURVE_EDITOR_INTERNAL,
+                                origin=mod.CoordinateOrigin.TOP_LEFT,
+                                width=1920,
+                                height=1080,
+                            ),
+                        }
+                    )
+
+        # 5. Let Python handle garbage collection naturally
+        # Note: Forcing gc.collect() here causes segfaults with Qt objects
+
+    except Exception as e:
+        # Log but don't fail test due to cleanup issues
+        import logging
+
+        logging.warning(f"Service reset warning: {e}")
+
 
 # Re-export all fixtures so pytest can find them
 __all__ = [

@@ -1,0 +1,2169 @@
+#!/usr/bin/env python
+"""
+CurveViewWidget - High-performance curve visualization and editing widget.
+
+This module provides a comprehensive curve viewing and editing widget that integrates
+with the CurveEditor's service architecture. It implements efficient painting,
+mouse interaction, zoom/pan operations, and state management.
+
+Key Features:
+    - Custom QPainter-based rendering with optimization
+    - Mouse-based point manipulation with drag & drop
+    - Zoom and pan operations with smooth transitions
+    - Integration with Transform and ViewState services
+    - Efficient update regions for large datasets
+    - Grid and background image support
+    - Multi-point selection with rubber band
+    - Real-time coordinate transformation
+
+Architecture:
+    - Uses Transform service for coordinate mapping
+    - Integrates with CurveService for data operations
+    - Connects to StateManager for application state
+    - Implements caching for performance optimization
+"""
+
+from __future__ import annotations
+
+import logging
+import time
+from enum import Enum
+from typing import TYPE_CHECKING, Any, override
+
+from PySide6.QtCore import (
+    QPointF,
+    QRect,
+    QRectF,
+    QSize,
+    Qt,
+    Signal,
+)
+from PySide6.QtGui import (
+    QColor,
+    QKeyEvent,
+    QMouseEvent,
+    QPainter,
+    QPaintEvent,
+    QPen,
+    QPixmap,
+    QWheelEvent,
+)
+from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
+
+from core.coordinate_system import CoordinateMetadata, CoordinateSystem
+from core.curve_data import CurveDataWithMetadata
+
+# Import core modules
+from core.models import CurvePoint, PointCollection
+from core.point_types import safe_extract_point
+from core.signal_manager import SignalManager
+
+# Import optimized renderer for 47x performance improvement
+from rendering.optimized_curve_renderer import OptimizedCurveRenderer
+
+# Import services
+from services import get_interaction_service
+from services.transform_service import Transform, ViewState
+from ui.ui_constants import (
+    DEFAULT_BACKGROUND_OPACITY,
+    DEFAULT_IMAGE_HEIGHT,
+    DEFAULT_IMAGE_WIDTH,
+    DEFAULT_NUDGE_AMOUNT,
+    DEFAULT_ZOOM_FACTOR,
+)
+
+if TYPE_CHECKING:
+    from typing import Protocol
+
+    class InteractionServiceProtocol(Protocol):
+        """Protocol for InteractionService to avoid circular imports."""
+
+        def find_point_at(self, widget: Any, x: float, y: float) -> int:
+            """Find point at given coordinates."""
+            ...
+
+        def on_point_selected(self, widget: Any, main_window: Any, index: int) -> None:
+            """Handle point selection."""
+            ...
+
+    class MainWindow(Protocol):
+        """Main window protocol for type checking."""
+
+        current_frame: int
+        status_bar: QStatusBar
+
+        def add_to_history(self) -> None: ...
+else:
+    MainWindow = Any  # Runtime fallback to avoid import cycle
+
+logger = logging.getLogger("curve_view_widget")
+
+
+class RenderQuality(Enum):
+    """Rendering quality levels for adaptive performance during interaction."""
+
+    DRAFT = 1  # During interaction - fast rendering
+    NORMAL = 2  # Static display - standard quality
+    HIGH = 3  # Final render - highest quality
+
+
+class CurveViewWidget(QWidget):
+    """
+    High-performance widget for curve visualization and editing.
+
+    This widget provides a complete curve editing interface with optimized
+    rendering, interaction handling, and service integration.
+
+    IMPORTANT ARCHITECTURE NOTE:
+    All rendering is delegated to OptimizedCurveRenderer for performance.
+    This widget does NOT implement its own painting methods - the renderer
+    handles everything including background, grid, lines, points, etc.
+
+    Signals:
+        point_selected: Emitted when a point is selected (index: int)
+        point_moved: Emitted when a point is moved (index: int, x: float, y: float)
+        selection_changed: Emitted when selection changes (indices: list[int])
+        view_changed: Emitted when view transform changes
+        zoom_changed: Emitted when zoom level changes (zoom: float)
+
+    Attributes:
+        curve_data: List of curve points in tuple format
+        selected_indices: Set of selected point indices
+        transform: Current transformation for coordinate mapping
+        view_state: Current view state snapshot
+    """
+
+    # Signals
+    point_selected: Signal = Signal(int)  # index
+    point_moved: Signal = Signal(int, float, float)  # index, x, y
+    selection_changed: Signal = Signal(list)  # list of indices
+    view_changed: Signal = Signal()  # view transform changed
+    zoom_changed: Signal = Signal(float)  # zoom level
+
+    def __init__(self, parent: QWidget | None = None):
+        """
+        Initialize the CurveViewWidget.
+
+        Args:
+            parent: Parent widget (typically MainWindow)
+        """
+        super().__init__(parent)
+
+        # Signal management for proper cleanup
+        self.signal_manager: SignalManager = SignalManager(self)
+
+        # Core data
+        self.curve_data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]] = []
+        self.point_collection: PointCollection | None = None
+        self.selected_indices: set[int] = set()
+        self.hover_index: int = -1
+
+        # Coordinate metadata for unified transformation
+        self._data_metadata: CoordinateMetadata | None = None
+
+        # View transformation
+        self.zoom_factor: float = DEFAULT_ZOOM_FACTOR
+        self.pan_offset_x: float = 0.0
+        self.pan_offset_y: float = 0.0
+        self.manual_offset_x: float = 0.0
+        self.manual_offset_y: float = 0.0
+        # For tracking data from video, Y=0 is at top, Y increases downward
+        # Qt's coordinate system also has Y=0 at top, so we don't need to flip
+        self.flip_y_axis: bool = False
+        self.scale_to_image: bool = True
+
+        # Display settings
+        self.show_grid: bool = False
+        self.show_points: bool = True
+        self.show_lines: bool = True
+        self.show_labels: bool = False
+        self.show_velocity_vectors: bool = False
+        self.show_all_frame_numbers: bool = False
+        self.show_background: bool = True
+        self.background_opacity: float = DEFAULT_BACKGROUND_OPACITY
+
+        # Grid settings
+        self.grid_size: int = 50
+        self.grid_color: QColor = QColor(100, 100, 100, 50)
+        self.grid_line_width: int = 1
+
+        # Point rendering settings
+        self.point_radius: int = 5
+        self.selected_point_radius: int = 7
+        self.point_color: QColor = QColor(255, 100, 100)
+        self.selected_point_color: QColor = QColor(255, 255, 0)
+        self.interpolated_point_color: QColor = QColor(100, 150, 255)
+        self.keyframe_point_color: QColor = QColor(0, 255, 0)
+        self.current_frame_point_color: QColor = QColor(255, 0, 255)  # Magenta for current frame
+
+        # Line rendering settings
+        self.line_color: QColor = QColor(200, 200, 200)
+        self.line_width: int = 2
+        self.selected_line_color: QColor = QColor(255, 255, 100)
+        self.selected_line_width: int = 3
+
+        # Background image
+        self.background_image: QPixmap | None = None
+        self.image_width: int = DEFAULT_IMAGE_WIDTH
+        self.image_height: int = DEFAULT_IMAGE_HEIGHT
+
+        # Coordinate space dimensions (from tracking metadata)
+        # These are separate from image dimensions to handle different coordinate spaces
+        self.coord_width: int = DEFAULT_IMAGE_WIDTH
+        self.coord_height: int = DEFAULT_IMAGE_HEIGHT
+
+        # Centering mode - stays centered on current frame when navigating timeline
+        self.centering_mode: bool = False
+
+        # Track last centered point for zoom-to-center behavior
+        self.last_centered_point: tuple[float, float] | None = None
+
+        # Grid centering - makes grid center on selected point
+        self.grid_centered: bool = False
+        self.grid_center_point: tuple[float, float] | None = None
+
+        # Debug mode for renderer protocol compatibility
+        self.debug_mode: bool = False
+        self.show_all_frame_numbers: bool = False
+
+        # Interaction state
+        self.drag_active: bool = False
+        self.pan_active: bool = False
+        self.rubber_band_active: bool = False
+        self.last_mouse_pos: QPointF | None = None
+        self.drag_start_pos: QPointF | None = None
+        self.dragged_index: int = -1
+
+        # Rubber band selection
+        self.rubber_band: QRubberBand | None = None
+        self.rubber_band_origin: QPointF = QPointF()
+
+        # Performance optimization
+        self._transform_cache: Transform | None = None
+        self._screen_points_cache: dict[int, QPointF] = {}
+        self._visible_indices_cache: set[int] = set()
+        self._update_region: QRectF | None = None
+
+        # Services (will be set by main window)
+        self.main_window: MainWindow | None = None
+        self.interaction_service: InteractionServiceProtocol = (
+            get_interaction_service()
+        )  # Using Protocol to avoid circular import
+
+        # Initialize optimized renderer for 47x performance improvement
+        self._optimized_renderer: OptimizedCurveRenderer = OptimizedCurveRenderer()
+        self._optimized_renderer.background_opacity = self.background_opacity
+
+        # Interaction state for adaptive quality rendering
+        self._is_interacting: bool = False
+        self._interaction_start_time: float = 0.0
+        self._pending_full_redraw: bool = False
+        self._dirty_region: QRect = QRect()
+        self._last_paint_time: float = 0.0
+        self._target_fps: int = 60
+        self._frame_time: float = 1.0 / self._target_fps
+
+        # Store last valid transform for use during interaction
+        self._last_valid_transform: Transform | None = None
+
+        # Performance metrics tracking
+        self._paint_counter: int = 0
+        self._paint_start_time: float = time.perf_counter()
+        self._cache_hit_rate: float = 100.0
+
+        # Widget setup
+        self._setup_widget()
+
+        logger.info("CurveViewWidget initialized with OptimizedCurveRenderer")
+
+    def _setup_widget(self) -> None:
+        """Configure widget properties and settings."""
+        # Enable mouse tracking for hover effects
+        self.setMouseTracking(True)
+
+        # Set focus policy for keyboard events
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+
+        # Set comprehensive accessibility tooltip
+        tooltip_text = (
+            "Curve Editor - Interactive curve visualization and editing\n\n"
+            "VISUAL POINT INDICATORS:\n"
+            "• Circles: Regular points\n"
+            "• Squares: Keyframe points\n"
+            "• Triangles: Interpolated points\n"
+            "• Larger size: Current frame point\n"
+            "• White outline: Selected points\n\n"
+            "MOUSE CONTROLS:\n"
+            "• Left click: Select point\n"
+            "• Ctrl+Left click: Add to selection\n"
+            "• Alt+Left drag: Rubber band selection\n"
+            "• Left drag: Move selected point(s)\n"
+            "• Middle drag: Pan view\n"
+            "• Scroll wheel: Zoom (centered on mouse)\n\n"
+            "KEYBOARD SHORTCUTS:\n"
+            "• C: Center view on selection\n"
+            "• F: Fit background image to view\n"
+            "• Delete: Remove selected points\n"
+            "• Ctrl+A: Select all points\n"
+            "• Escape: Clear selection\n"
+            "• Ctrl+Shift+G: Center grid on selected point\n"
+            "• Numpad 2/4/6/8: Nudge selected points (down/left/right/up)\n"
+            "• Shift+Numpad: Nudge by 10x amount\n"
+            "• Ctrl+Numpad: Nudge by 0.1x amount"
+        )
+        self.setToolTip(tooltip_text)
+
+        # Optimization attributes
+        self.setAttribute(Qt.WidgetAttribute.WA_OpaquePaintEvent, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
+        # Set minimum size
+        self.setMinimumSize(400, 300)
+
+        # Set background
+        self.setAutoFillBackground(False)
+
+        # Create rubber band for selection
+        self.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, self)
+
+    # Data Management
+
+    @property
+    def offset_x(self):
+        """X offset for OptimizedCurveRenderer compatibility."""
+        return self.pan_offset_x + self.manual_offset_x
+
+    @property
+    def offset_y(self):
+        """Y offset for OptimizedCurveRenderer compatibility."""
+        return self.pan_offset_y + self.manual_offset_y
+
+    def set_curve_data(
+        self, data: list[tuple[int, float, float] | tuple[int, float, float, str | bool]] | CurveDataWithMetadata
+    ) -> None:
+        """
+        Set the curve data to display.
+
+        Args:
+            data: Either legacy list of point tuples (frame, x, y, [status])
+                  or CurveDataWithMetadata with coordinate system info
+        """
+        # Check if this is metadata-aware data
+        if isinstance(data, CurveDataWithMetadata):
+            # Store metadata for transformation
+            self._data_metadata = data.metadata
+            # Use the data portion
+            self.curve_data = data.to_legacy_format()
+
+            # Log for debugging
+            if self._data_metadata:
+                logger.info(
+                    f"[COORD] Set curve data with metadata: system={self._data_metadata.system.value}, "
+                    f"origin={self._data_metadata.origin.value}, needs_flip={data.needs_y_flip_for_display}"
+                )
+
+                # CRITICAL FIX: Set image dimensions from metadata for 3DE data
+                # This ensures correct transformation without incorrect scaling
+                if self._data_metadata.system == CoordinateSystem.THREE_DE_EQUALIZER:
+                    self.image_width = self._data_metadata.width
+                    self.image_height = self._data_metadata.height
+                    logger.info(f"[3DE] Set image dimensions from metadata: {self.image_width}x{self.image_height}")
+                    # Auto-configure for 3DE data
+                    self.setup_for_3dequalizer_data()
+
+                # For now, still set flip_y_axis based on metadata
+                # Phase 4 will remove this when transforms fully use metadata
+                if data.needs_y_flip_for_display:
+                    self.flip_y_axis = True
+
+                # Set coordinate space dimensions from metadata
+                # These are separate from image dimensions to handle different coordinate spaces correctly
+                if self._data_metadata:
+                    old_coord_width, old_coord_height = self.coord_width, self.coord_height
+                    self.coord_width = self._data_metadata.width
+                    self.coord_height = self._data_metadata.height
+                    if old_coord_width != self.coord_width or old_coord_height != self.coord_height:
+                        logger.info(
+                            f"[COORD] Updated coordinate dimensions from ({old_coord_width}x{old_coord_height}) "
+                            f"to metadata dimensions ({self.coord_width}x{self.coord_height})"
+                        )
+
+                # Force immediate transform recalculation with new metadata
+                # This ensures correct dimensions are used even if images were loaded first
+                self._invalidate_caches()
+                self._update_transform()
+        else:
+            # Legacy path - no metadata
+            self.curve_data = data
+            self._data_metadata = None
+
+        # Convert union types to expected format for PointCollection
+        if self.curve_data:
+            # PointCollection.from_tuples expects LegacyPointTuple format
+            formatted_data = []
+            for point in self.curve_data:
+                if len(point) >= 3:
+                    # Convert to (frame, x, y) format expected by PointCollection
+                    formatted_data.append((int(point[0]), float(point[1]), float(point[2])))
+            self.point_collection = PointCollection.from_tuples(formatted_data)
+        else:
+            self.point_collection = None
+
+        # Clear caches
+        self._invalidate_caches()
+
+        # Update display
+        self.update()
+
+        logger.debug(f"Set curve data with {len(data)} points")
+
+    def add_point(self, point: tuple[int, float, float] | tuple[int, float, float, str]) -> None:
+        """
+        Add a single point to the curve.
+
+        Args:
+            point: Point tuple (frame, x, y, [status])
+        """
+        self.curve_data.append(point)
+
+        # Update collection
+        if self.point_collection:
+            self.point_collection.points.append(CurvePoint.from_tuple(point))
+        else:
+            self.point_collection = PointCollection([CurvePoint.from_tuple(point)])
+
+        # Invalidate only affected region
+        self._invalidate_point_region(len(self.curve_data) - 1)
+
+        self.update()
+
+    def update_point(self, index: int, x: float, y: float) -> None:
+        """
+        Update coordinates of a point.
+
+        Args:
+            index: Point index
+            x: New X coordinate
+            y: New Y coordinate
+        """
+        if 0 <= index < len(self.curve_data):
+            old_point = self.curve_data[index]
+            frame, _, _, *rest = safe_extract_point(old_point)
+
+            # Create updated point
+            if rest:
+                self.curve_data[index] = (frame, x, y, rest[0])
+            else:
+                self.curve_data[index] = (frame, x, y)
+
+            # Update collection
+            if self.point_collection and index < len(self.point_collection.points):
+                old_cp = self.point_collection.points[index]
+                self.point_collection.points[index] = old_cp.with_coordinates(x, y)
+
+            # Invalidate affected region
+            self._invalidate_point_region(index)
+
+            # Emit signal
+            self.point_moved.emit(index, x, y)
+
+            self.update()
+
+    def remove_point(self, index: int) -> None:
+        """
+        Remove a point from the curve.
+
+        Args:
+            index: Point index to remove
+        """
+        if 0 <= index < len(self.curve_data):
+            # Remove from data
+            del self.curve_data[index]
+
+            # Remove from collection
+            if self.point_collection:
+                del self.point_collection.points[index]
+
+            # Update selection
+            if index in self.selected_indices:
+                self.selected_indices.remove(index)
+
+            # Adjust indices for points after removed one
+            self.selected_indices = {i - 1 if i > index else i for i in self.selected_indices}
+
+            self._invalidate_caches()
+            self.update()
+
+    # Coordinate Transformation
+
+    def get_transform(self) -> Transform:
+        """
+        Get the current transformation object.
+
+        Returns:
+            Transform object for coordinate mapping
+        """
+        if self._transform_cache is None:
+            self._update_transform()
+        assert self._transform_cache is not None
+        return self._transform_cache
+
+    def _update_transform(self) -> None:
+        """Update the cached transformation object using TransformService for LRU caching."""
+        # SPRINT 11.5 FIX: Use TransformService with caching instead of creating Transform directly
+        # This provides the claimed 99.9% cache hit rate for transform operations
+
+        # Qt-specific fix: Ensure widget geometry is up-to-date before using dimensions
+        # This prevents using stale dimensions that could cause coordinate drift
+        # Only process pending geometry events, not user input
+        from PySide6.QtCore import QCoreApplication, QEventLoop
+
+        from services import get_transform_service
+
+        QCoreApplication.processEvents(QEventLoop.ProcessEventsFlag.ExcludeUserInputEvents)
+
+        # Calculate display dimensions - simpler logic without YFlipStrategy
+        if self.image_width and self.image_height:
+            base_display_width = self.image_width
+            base_display_height = self.image_height
+        else:
+            base_display_width = self.width()
+            base_display_height = self.height()
+
+        # Use correct dimensions for coordinate transformation
+        # CRITICAL FIX: For 3DEqualizer data, use the original tracking dimensions from metadata,
+        # NOT the background image dimensions, to ensure correct Y-flip calculation
+        if self._data_metadata and self.flip_y_axis:
+            # Use metadata dimensions for proper Y-flip (e.g., 1280x720 for 3DEqualizer)
+            display_width = self._data_metadata.width
+            display_height = self._data_metadata.height
+            logger.info(f"[TRANSFORM] Using metadata dimensions for Y-flip: {display_width}x{display_height}")
+        elif self.flip_y_axis and self.background_image:
+            # Fallback to background image dimensions only if no metadata
+            display_width = self.background_image.width()
+            display_height = self.background_image.height()
+        else:
+            display_width = base_display_width
+            display_height = base_display_height
+
+        logger.info(
+            f"[TRANSFORM] Display dimensions: {display_width}x{display_height}, zoom_factor: {self.zoom_factor}"
+        )
+
+        # Calculate centering offsets
+        widget_width = self.width()
+        widget_height = self.height()
+        logger.info(f"[TRANSFORM] Widget dimensions: {widget_width}x{widget_height}")
+
+        # Calculate total scale to fit content in widget with zoom
+        scale_x = widget_width / display_width if display_width > 0 else 1.0
+        scale_y = widget_height / display_height if display_height > 0 else 1.0
+        fit_scale = min(scale_x, scale_y) * 0.9  # 90% to leave margin
+
+        # Keep fit_scale and zoom_factor separate to fix zoom bug
+        # The transform will apply them in the correct order
+
+        # Ensure fit_scale never goes below minimum to prevent validation errors
+        min_scale = 1e-9  # Just below the 1e-10 validation limit
+        if fit_scale < min_scale:
+            logger.warning(f"Fit scale {fit_scale:.6f} too small, clamping to {min_scale}")
+            fit_scale = min_scale
+
+        # Calculate center offsets using compound scale
+        compound_scale = fit_scale * self.zoom_factor
+        scaled_width = display_width * compound_scale
+        scaled_height = display_height * compound_scale
+        _ = (widget_width - scaled_width) / 2  # center_offset_x - calculated but not used in current implementation
+        _ = (widget_height - scaled_height) / 2  # center_offset_y - calculated but not used in current implementation
+
+        logger.info(f"[TRANSFORM] Calculated scales: fit={fit_scale:.3f}, user_zoom={self.zoom_factor:.3f}")
+
+        # Image scale factors for data-to-image mapping
+        _ = display_width / self.image_width  # image_scale_x - calculated but not used in current implementation
+        _ = display_height / self.image_height  # image_scale_y - calculated but not used in current implementation
+
+        # Create ViewState for caching
+        view_state = ViewState(
+            display_width=display_width,  # Keep as float for precision
+            display_height=display_height,  # Keep as float for precision
+            widget_width=int(widget_width),
+            widget_height=int(widget_height),
+            zoom_factor=self.zoom_factor,  # User zoom only (not compounded)
+            fit_scale=fit_scale,  # Fit scale separate from zoom
+            offset_x=self.pan_offset_x,
+            offset_y=self.pan_offset_y,
+            scale_to_image=self.scale_to_image,
+            flip_y_axis=self.flip_y_axis,
+            manual_x_offset=self.manual_offset_x,
+            manual_y_offset=self.manual_offset_y,
+            background_image=self.background_image,
+            image_width=self.image_width,
+            image_height=self.image_height,
+        )
+
+        # Use cached transform service - this enables 99.9% cache hits
+        transform_service = get_transform_service()
+
+        # Handle transform validation errors with progressive recovery
+        try:
+            # Check if we have coordinate metadata for automatic Y-flip detection
+            if self._data_metadata is not None:
+                # Use metadata-aware transform creation
+                logger.debug("[COORD] Creating transform with coordinate metadata")
+                self._transform_cache = transform_service.create_transform_from_metadata(
+                    view_state, self._data_metadata
+                )
+            else:
+                # Legacy path - use manual flip_y_axis flag
+                self._transform_cache = transform_service.create_transform_from_view_state(view_state)
+        except ValueError as e:
+            # Log the error
+            logger.error(f"Transform validation error: {e}")
+
+            # Progressive recovery - try minimal changes first to preserve user state
+            recovery_attempts = [
+                # Level 1: Just fix problematic configuration flags
+                # This preserves zoom, pan, and all user positioning
+                (
+                    "Y-flip configuration reset to resolve conflict",
+                    lambda vs: vs.with_updates(flip_y_axis=False, scale_to_image=False),
+                ),
+                # Level 2: Also reset manual offsets (preserve zoom and pan)
+                (
+                    "Manual offsets reset to resolve transform error",
+                    lambda vs: vs.with_updates(
+                        flip_y_axis=False, scale_to_image=False, manual_x_offset=0.0, manual_y_offset=0.0
+                    ),
+                ),
+                # Level 3: Full safe defaults (last resort only)
+                (
+                    "View fully reset due to critical transform error",
+                    lambda vs: ViewState(
+                        display_width=int(display_width),
+                        display_height=int(display_height),
+                        widget_width=int(widget_width),
+                        widget_height=int(widget_height),
+                        zoom_factor=1.0,
+                        offset_x=0.0,
+                        offset_y=0.0,
+                        scale_to_image=False,
+                        flip_y_axis=False,
+                        manual_x_offset=0.0,
+                        manual_y_offset=0.0,
+                        background_image=None,
+                        image_width=self.image_width,
+                        image_height=self.image_height,
+                    ),
+                ),
+            ]
+
+            # Try each recovery level
+            recovery_succeeded = False
+            for level, (message, recovery_func) in enumerate(recovery_attempts, 1):
+                try:
+                    fallback_state = recovery_func(view_state)
+                    self._transform_cache = transform_service.create_transform_from_view_state(fallback_state)
+
+                    # Update only the attributes that were changed
+                    if level >= 1:
+                        self.flip_y_axis = False
+                        self.scale_to_image = False
+                    if level >= 2:
+                        self.manual_offset_x = 0.0
+                        self.manual_offset_y = 0.0
+                    if level >= 3:
+                        self.zoom_factor = 1.0
+                        self.pan_offset_x = 0.0
+                        self.pan_offset_y = 0.0
+
+                    # Show appropriate warning to user
+                    from services import get_ui_service
+
+                    ui_service = get_ui_service()
+                    if ui_service:
+                        ui_service.show_warning(self, f"{message}\n\nOriginal error: {e}", "Transform Recovery")
+
+                    recovery_succeeded = True
+                    logger.info(f"Transform recovery succeeded at level {level}: {message}")
+                    break
+
+                except ValueError:
+                    continue  # Try next recovery level
+
+            if not recovery_succeeded:
+                # This should never happen, but handle it gracefully
+                logger.critical(f"All transform recovery attempts failed for error: {e}")
+                raise RuntimeError(f"Unable to create valid transform: {e}")
+
+            self.update()
+
+        # Log cache stats for verification (simplified to avoid type issues)
+        cache_info = transform_service.get_cache_info()
+        logger.debug(f"[TRANSFORM CACHE] Cache info: {cache_info}")
+
+    def data_to_screen(self, x: float, y: float) -> QPointF:
+        """
+        Convert data coordinates to screen coordinates.
+
+        Args:
+            x: Data X coordinate
+            y: Data Y coordinate
+
+        Returns:
+            Screen position as QPointF
+        """
+        transform = self.get_transform()
+        screen_x, screen_y = transform.data_to_screen(x, y)
+        return QPointF(screen_x, screen_y)
+
+    def screen_to_data(self, pos: QPointF) -> tuple[float, float]:
+        """
+        Convert screen coordinates to data coordinates.
+
+        Args:
+            pos: Screen position
+
+        Returns:
+            Data coordinates as (x, y) tuple
+        """
+        transform = self.get_transform()
+        return transform.screen_to_data(pos.x(), pos.y())
+
+    def screen_to_data_qpoint(self, pos: QPointF) -> QPointF:
+        """
+        Convert screen coordinates to data coordinates as QPointF.
+
+        Args:
+            pos: Screen position
+
+        Returns:
+            Data coordinates as QPointF
+        """
+        transform = self.get_transform()
+        data_x, data_y = transform.screen_to_data(pos.x(), pos.y())
+        return QPointF(data_x, data_y)
+
+    # Painting
+
+    @override
+    def paintEvent(self, event: QPaintEvent) -> None:
+        """
+        Optimized paint with adaptive quality based on interaction state.
+
+        CRITICAL ARCHITECTURE DECISION:
+        This method delegates ALL rendering to OptimizedCurveRenderer.
+        Do NOT implement paint methods directly in this widget - all painting
+        logic should be in the renderer for performance and consistency.
+
+        The renderer handles:
+        - Background image rendering
+        - Grid overlay
+        - Curve lines and segments
+        - Point markers (with shapes, colors, selection, current frame highlight)
+        - Velocity vectors
+        - Labels and overlays
+
+        Args:
+            event: Paint event with exposed region
+        """
+        # Determine render quality based on interaction state
+        if self._is_interacting:
+            quality = RenderQuality.DRAFT
+        elif self._pending_full_redraw:
+            quality = RenderQuality.HIGH
+            self._pending_full_redraw = False
+        else:
+            quality = RenderQuality.NORMAL
+
+        # Frame rate limiting during interaction
+        current_time = time.perf_counter()
+        if self._is_interacting:
+            time_since_last = current_time - self._last_paint_time
+            if time_since_last < self._frame_time:
+                return  # Skip this frame to maintain target FPS
+        self._last_paint_time = current_time
+
+        # Get cached transform without triggering recreation during paint
+        transform = self._get_cached_transform_for_paint()
+
+        painter = QPainter(self)
+        try:
+            # Render with appropriate quality
+            self._render_with_quality(painter, event, transform, quality)
+
+            # Draw overlay elements that aren't handled by the renderer
+            # These are lightweight UI elements that don't impact performance
+
+            # Draw rubber band if active
+            if self.rubber_band_active and self.rubber_band:
+                _ = self.rubber_band.show()  # Suppress unused return value
+
+            # Draw hover indicator
+            if self.hover_index >= 0:
+                self._paint_hover_indicator(painter)
+
+            # Draw centering mode indicator
+            if self.centering_mode:
+                self._paint_centering_indicator(painter)
+
+            # Log performance metrics periodically
+            self._log_paint_performance()
+        finally:
+            painter.end()
+
+    def _paint_hover_indicator(self, painter: QPainter) -> None:
+        """Paint hover indicator for point under mouse."""
+        if self.hover_index >= 0 and self.hover_index in self._screen_points_cache:
+            painter.save()
+
+            pos = self._screen_points_cache[self.hover_index]
+
+            # Draw highlight circle
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.setPen(QPen(QColor(255, 255, 255, 100), 2))
+            painter.drawEllipse(pos, self.point_radius + 5, self.point_radius + 5)
+
+            painter.restore()
+
+    def _paint_centering_indicator(self, painter: QPainter) -> None:
+        """Paint centering mode indicator in the top-right corner."""
+        painter.save()
+
+        # Set up text properties
+        font = painter.font()
+        font.setPointSize(12)
+        font.setBold(True)
+        painter.setFont(font)
+
+        # Draw background rectangle
+        text = "CENTERING ON"
+        rect = QRectF(self.width() - 120, 10, 110, 25)
+        painter.fillRect(rect, QColor(255, 100, 0, 180))  # Orange background
+
+        # Draw border
+        painter.setPen(QPen(QColor(255, 150, 50), 2))
+        _ = painter.drawRect(rect)
+
+        # Draw text
+        painter.setPen(QColor(255, 255, 255))
+        _ = painter.drawText(rect, Qt.AlignmentFlag.AlignCenter, text)
+
+        painter.restore()
+
+    def _get_cached_transform_for_paint(self) -> Transform:
+        """Get transform without triggering recreation during paint."""
+        # If we have a valid cache, use it
+        if self._transform_cache is not None:
+            return self._transform_cache
+
+        # Only create if absolutely necessary (not during interaction)
+        if not self._is_interacting:
+            # Safe to create during static display
+            return self.get_transform()
+
+        # During interaction, use last known valid transform
+        if self._last_valid_transform is None:
+            # First time - must create one
+            self._last_valid_transform = self.get_transform()
+        return self._last_valid_transform
+
+    def _render_with_quality(
+        self, painter: QPainter, event: QPaintEvent, transform: Transform, quality: RenderQuality
+    ) -> None:
+        """Render with specified quality level."""
+        # Get update region
+        update_rect = event.rect()
+
+        # During interaction, only update changed regions
+        if quality == RenderQuality.DRAFT:
+            # Simplified rendering for speed
+            painter.setRenderHint(QPainter.Antialiasing, False)
+
+            # Clear background quickly
+            painter.fillRect(update_rect, QColor(30, 30, 30))
+
+            # Check if renderer supports draft mode
+            if hasattr(self._optimized_renderer, "render_draft"):
+                self._optimized_renderer.render_draft(painter, event, self, transform)
+            else:
+                # Fallback to normal render with clipping
+                painter.setClipRect(update_rect)
+                self._optimized_renderer.render(painter, event, self)  # type: ignore[arg-type]
+
+        elif quality == RenderQuality.HIGH:
+            # Full quality rendering
+            painter.setRenderHint(QPainter.Antialiasing, True)
+            painter.setRenderHint(QPainter.SmoothPixmapTransform, True)
+
+            # Clear background
+            painter.fillRect(event.rect(), QColor(30, 30, 30))
+
+            # Full render
+            self._optimized_renderer.render(painter, event, self)  # type: ignore[arg-type]
+
+        else:  # NORMAL
+            # Standard rendering
+            painter.setRenderHint(QPainter.Antialiasing, True)
+
+            # Clear background
+            painter.fillRect(event.rect(), QColor(30, 30, 30))
+
+            # Standard render
+            self._optimized_renderer.render(painter, event, self)  # type: ignore[arg-type]
+
+        # Clear dirty region after paint
+        self._dirty_region = QRect()
+
+    def _log_paint_performance(self) -> None:
+        """Log paint performance metrics."""
+        self._paint_counter += 1
+
+        # Log every second
+        current_time = time.perf_counter()
+        elapsed = current_time - self._paint_start_time
+        if elapsed >= 1.0:
+            fps = self._paint_counter / elapsed
+            logger.debug(f"Paint FPS: {fps:.1f}, Cache hits: {self._cache_hit_rate:.1f}%")
+            self._paint_counter = 0
+            self._paint_start_time = current_time
+
+    def _mark_dirty_region(self, rect: QRect) -> None:
+        """Mark region for redraw."""
+        if self._dirty_region.isEmpty():
+            self._dirty_region = rect
+        else:
+            self._dirty_region = self._dirty_region.united(rect)
+
+        # Schedule update for dirty region only
+        self.update(self._dirty_region)
+
+    # Mouse Events
+
+    def _get_point_update_rect(self, index: int) -> QRect:
+        """Get minimal update rectangle for a point to optimize repainting.
+
+        Args:
+            index: Point index
+
+        Returns:
+            Rectangle covering the point and its selection/hover indicators
+        """
+        if index < 0 or index >= len(self.curve_data):
+            return QRect()
+
+        # Get screen position of point
+        point = self.curve_data[index]
+        # Extract x, y from the point tuple (frame, x, y, ...)
+        if len(point) >= 3:
+            x, y = point[1], point[2]
+        else:
+            # Fallback for malformed points
+            x, y = float(point[0]), float(point[1])
+        screen_pos = self.data_to_screen(x, y)
+
+        # Calculate radius including hover and selection indicators
+        radius = max(self.point_radius, self.selected_point_radius) + 10  # Extra padding for hover
+
+        # Return rectangle around point
+        return QRect(int(screen_pos.x() - radius), int(screen_pos.y() - radius), int(radius * 2), int(radius * 2))
+
+    @override
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        """
+        Handle mouse press events.
+
+        Args:
+            event: Mouse event
+        """
+        # Mark interaction start for adaptive rendering
+        self._is_interacting = True
+        self._interaction_start_time = time.perf_counter()
+
+        # Ensure this widget has keyboard focus when clicked
+        if not self.hasFocus():
+            logger.info("[FOCUS] CurveViewWidget gaining focus from mouse press")
+        self.setFocus(Qt.FocusReason.MouseFocusReason)
+
+        pos = event.position()
+        button = event.button()
+        modifiers = event.modifiers()
+
+        if button == Qt.MouseButton.LeftButton:
+            if modifiers & Qt.KeyboardModifier.AltModifier:
+                # Start rubber band selection
+                self._start_rubber_band(pos)
+            else:
+                # Check for point selection/drag
+                idx = self._find_point_at(pos)
+                if idx >= 0:
+                    # Select and start dragging point
+                    add_to_selection = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
+                    self._select_point(idx, add_to_selection)
+                    self.drag_active = True
+                    self.dragged_index = idx
+                    self.drag_start_pos = pos
+                    self.last_mouse_pos = pos
+                else:
+                    # Clear selection if not Ctrl-clicking
+                    if not (modifiers & Qt.KeyboardModifier.ControlModifier):
+                        self._clear_selection()
+
+        elif button == Qt.MouseButton.MiddleButton:
+            # Start panning
+            self.pan_active = True
+            self.last_mouse_pos = pos
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
+
+        elif button == Qt.MouseButton.RightButton:
+            # Context menu will be handled by main window
+            pass
+
+        self.update()
+
+    @override
+    def mouseMoveEvent(self, event: QMouseEvent) -> None:
+        """
+        Handle mouse move events.
+
+        Args:
+            event: Mouse event
+        """
+        pos = event.position()
+
+        # Update hover with partial update
+        old_hover = self.hover_index
+        self.hover_index = self._find_point_at(pos)
+        if self.hover_index != old_hover:
+            # Only update areas around affected points for better performance
+            if old_hover >= 0:
+                old_rect = self._get_point_update_rect(old_hover)
+                self.update(old_rect)
+            if self.hover_index >= 0:
+                new_rect = self._get_point_update_rect(self.hover_index)
+                self.update(new_rect)
+
+        # Handle rubber band
+        if self.rubber_band_active and self.rubber_band:
+            self._update_rubber_band(pos)
+
+        # Handle dragging
+        elif self.drag_active and self.last_mouse_pos:
+            delta = pos - self.last_mouse_pos
+            self._drag_point(self.dragged_index, delta)
+            self.last_mouse_pos = pos
+
+        # Handle panning
+        elif self.pan_active and self.last_mouse_pos:
+            delta = pos - self.last_mouse_pos
+            self.pan_offset_x += delta.x()
+            # Simple pan - no special Y handling needed
+            # The Y-flip is already handled in data_to_screen/screen_to_data
+            self.pan_offset_y += delta.y()
+            # Clamp offsets to prevent overflow
+            self._clamp_pan_offsets()
+            self.last_mouse_pos = pos
+
+            # Clear centered point when user pans manually
+            if self.last_centered_point is not None:
+                logger.debug("[PAN] Clearing last centered point due to manual pan")
+                self.last_centered_point = None
+
+            self._invalidate_caches()
+            self.update()
+            self.view_changed.emit()
+
+    @override
+    def mouseReleaseEvent(self, event: QMouseEvent) -> None:
+        """
+        Handle mouse release events.
+
+        Args:
+            event: Mouse event
+        """
+        button = event.button()
+
+        if button == Qt.MouseButton.LeftButton:
+            if self.rubber_band_active:
+                self._finish_rubber_band()
+            elif self.drag_active:
+                self.drag_active = False
+                self.dragged_index = -1
+                self.drag_start_pos = None
+                self.last_mouse_pos = None
+
+                # Notify about changes
+                if self.main_window is not None:
+                    if getattr(self.main_window, "add_to_history", None) is not None:
+                        self.main_window.add_to_history()  # type: ignore[attr-defined]
+
+        elif button == Qt.MouseButton.MiddleButton:
+            self.pan_active = False
+            self.last_mouse_pos = None
+            self.unsetCursor()
+
+        self.update()
+
+    @override
+    def wheelEvent(self, event: QWheelEvent) -> None:
+        """
+        Handle mouse wheel events for zooming.
+
+        Args:
+            event: Wheel event
+        """
+        # Calculate zoom factor
+        delta = event.angleDelta().y()
+        zoom_speed = 1.1
+        zoom_factor = zoom_speed if delta > 0 else 1.0 / zoom_speed
+
+        # Calculate new zoom value
+        new_zoom = max(0.1, min(10.0, self.zoom_factor * zoom_factor))
+
+        if new_zoom == self.zoom_factor:
+            return  # No change needed
+
+        # Determine zoom center: use last centered point if available, otherwise mouse position
+        if self.last_centered_point is not None:
+            # When we have a centered point, keep it at widget center during zoom
+            data_x, data_y = self.last_centered_point
+            # Use widget center as the zoom focal point to keep the centered point there
+            zoom_center_screen = QPointF(self.width() / 2, self.height() / 2)
+            logger.debug(f"[ZOOM] Keeping centered point ({data_x:.2f}, {data_y:.2f}) at widget center during zoom")
+        else:
+            # Use mouse position as zoom center (default behavior)
+            zoom_center_screen = event.position()
+            # Convert screen position to data coordinates BEFORE changing zoom
+            # This ensures we use consistent transform throughout the operation
+            data_x, data_y = self.screen_to_data(zoom_center_screen)
+            logger.debug(
+                f"[ZOOM] Using mouse position ({zoom_center_screen.x():.1f}, {zoom_center_screen.y():.1f}) as zoom center -> data ({data_x:.2f}, {data_y:.2f})"
+            )
+
+        # Store old zoom for calculating pan adjustment
+        old_zoom = self.zoom_factor
+
+        # ATOMIC ZOOM OPERATION:
+        # Capture the old screen position of the zoom center before any changes
+        # This ensures consistent state throughout the operation
+        old_screen_x = zoom_center_screen.x()
+        old_screen_y = zoom_center_screen.y()
+
+        # Apply zoom change
+        self.zoom_factor = new_zoom
+
+        # Invalidate caches once after zoom change
+        self._invalidate_caches()
+
+        # Calculate where the data point appears with new zoom (and new fit_scale calculation)
+        new_screen_pos = self.data_to_screen(data_x, data_y)
+
+        # Calculate required pan adjustment to keep the zoom center fixed
+        # The data point should remain at the same screen position
+        pan_adjust_x = old_screen_x - new_screen_pos.x()
+        pan_adjust_y = old_screen_y - new_screen_pos.y()
+
+        # Apply pan adjustment
+        self.pan_offset_x += pan_adjust_x
+        self.pan_offset_y += pan_adjust_y
+
+        # Clamp offsets to prevent overflow
+        self._clamp_pan_offsets()
+
+        # No second invalidation needed - transform will be recalculated on next use
+
+        # Update display
+        self.update()
+        self.zoom_changed.emit(self.zoom_factor)
+        self.view_changed.emit()
+
+        # Log final state for debugging
+        logger.debug(
+            f"[ZOOM] Applied zoom: {old_zoom:.3f} -> {new_zoom:.3f}, pan adjustment: ({pan_adjust_x:.1f}, {pan_adjust_y:.1f})"
+        )
+
+    @override
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        """
+        Handle keyboard events.
+
+        Keyboard shortcuts:
+            Delete: Delete selected points
+            Ctrl+A: Select all points
+            Escape: Clear selection
+            C: Center view on selected points
+            F: Fit background image to view
+            Numpad 2/4/6/8: Nudge selected points (Shift for 10x, Ctrl for 0.1x)
+
+        Args:
+            event: Key event
+        """
+        key = event.key()
+        modifiers = event.modifiers()
+
+        # Debug logging for all key events
+        logger.info(
+            f"[KEYPRESSEVENT] Key pressed: key={key} (Qt.Key.Key_C={Qt.Key.Key_C}), modifiers={modifiers}, has_focus={self.hasFocus()}"
+        )
+
+        # Debug logging to verify key events are received
+        logger.debug(f"[KEYPRESS] Key: {key}, Modifiers: {modifiers}, HasFocus: {self.hasFocus()}")
+
+        # Check if this is a numpad key
+        is_numpad = bool(modifiers & Qt.KeyboardModifier.KeypadModifier)
+
+        # Delete selected points
+        if key == Qt.Key.Key_Delete and self.selected_indices:
+            self._delete_selected_points()
+            event.accept()
+
+        # Select all
+        elif key == Qt.Key.Key_A and modifiers & Qt.KeyboardModifier.ControlModifier:
+            self._select_all()
+            event.accept()
+
+        # Deselect all
+        elif key == Qt.Key.Key_Escape:
+            self._clear_selection()
+            event.accept()
+
+        # Toggle centering mode - keeps view centered on current frame/selection
+        elif key == Qt.Key.Key_C and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
+            self.centering_mode = not self.centering_mode
+            logger.info(f"[KEY_C] Centering mode {'enabled' if self.centering_mode else 'disabled'}")
+
+            # If enabling centering mode, immediately center on selection or current frame
+            if self.centering_mode:
+                if self.selected_indices:
+                    logger.info(f"[KEY_C] Centering view on {len(self.selected_indices)} selected points...")
+                    self.center_on_selection()
+                    logger.info("[KEY_C] View centering completed")
+                elif self.main_window is not None:
+                    if getattr(self.main_window, "current_frame", None) is not None:
+                        current_frame: int = self.main_window.current_frame  # type: ignore[attr-defined]
+                        logger.info(f"[KEY_C] No points selected, centering on current frame {current_frame}")
+                        self.center_on_frame(current_frame)
+                    logger.info("[KEY_C] View centered on current frame")
+
+            # Update status bar to show centering mode state
+            if self.main_window is not None:
+                if getattr(self.main_window, "status_bar", None) is not None:
+                    status_msg = "Centering: ON" if self.centering_mode else "Centering: OFF"
+                    self.main_window.status_bar.showMessage(status_msg, 2000)  # type: ignore[attr-defined]
+
+            event.accept()
+
+        # Fit background image to view
+        elif key == Qt.Key.Key_F and not (modifiers & ~Qt.KeyboardModifier.KeypadModifier):
+            if self.background_image:
+                self.fit_to_background_image()
+                logger.debug("[VIEW] Fitted background image to view")
+                event.accept()
+            else:
+                event.ignore()
+
+        # Nudge selected points using numpad keys
+        elif self.selected_indices and is_numpad:
+            # Check if it's a numpad number key for nudging
+            handled = False
+
+            # Calculate nudge amount based on modifiers (ignoring KeypadModifier)
+            nudge_amount = DEFAULT_NUDGE_AMOUNT
+            clean_modifiers = modifiers & ~Qt.KeyboardModifier.KeypadModifier
+            if clean_modifiers & Qt.KeyboardModifier.ShiftModifier:
+                nudge_amount = 10.0
+            elif clean_modifiers & Qt.KeyboardModifier.ControlModifier:
+                nudge_amount = 0.1
+
+            if key == Qt.Key.Key_4:  # Numpad 4 - left
+                self._nudge_selected(-nudge_amount, 0)
+                handled = True
+            elif key == Qt.Key.Key_6:  # Numpad 6 - right
+                self._nudge_selected(nudge_amount, 0)
+                handled = True
+            elif key == Qt.Key.Key_8:  # Numpad 8 - up
+                self._nudge_selected(0, -nudge_amount)
+                handled = True
+            elif key == Qt.Key.Key_2:  # Numpad 2 - down
+                self._nudge_selected(0, nudge_amount)
+                handled = True
+
+            if handled:
+                self.update()
+                event.accept()
+            else:
+                event.ignore()
+
+        # For arrow keys, always pass them through to parent for frame navigation
+        elif key in [Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down]:
+            event.ignore()  # Let parent handle arrow keys for frame navigation
+
+        else:
+            event.ignore()  # Let parent handle unrecognized keys
+
+    # View Operations
+
+    def reset_view(self) -> None:
+        """Reset view to default state."""
+        self.zoom_factor = DEFAULT_ZOOM_FACTOR
+        self.pan_offset_x = 0.0
+        self.pan_offset_y = 0.0
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+
+        self._invalidate_caches()
+        self.update()
+        self.view_changed.emit()
+        self.zoom_changed.emit(self.zoom_factor)
+
+    def fit_to_view(self) -> None:
+        """Fit all points in view."""
+        if not self.curve_data:
+            return
+
+        # Get bounds of all points
+        min_x = min_y = float("inf")
+        max_x = max_y = float("-inf")
+
+        for point in self.curve_data:
+            _, x, y, _ = safe_extract_point(point)
+            min_x = min(min_x, x)
+            max_x = max(max_x, x)
+            min_y = min(min_y, y)
+            max_y = max(max_y, y)
+
+        # Calculate required zoom and offset
+        data_width = max_x - min_x
+        data_height = max_y - min_y
+
+        if data_width > 0 and data_height > 0:
+            # Calculate zoom to fit
+            margin = 0.1  # 10% margin
+            widget_width = self.width() * (1 - 2 * margin)
+            widget_height = self.height() * (1 - 2 * margin)
+
+            zoom_x = widget_width / data_width if data_width > 0 else 1.0
+            zoom_y = widget_height / data_height if data_height > 0 else 1.0
+
+            self.zoom_factor = min(zoom_x, zoom_y)
+
+            # Center the data
+            center_x = (min_x + max_x) / 2
+            center_y = (min_y + max_y) / 2
+
+            # Reset offsets
+            self.pan_offset_x = 0
+            self.pan_offset_y = 0
+
+            self._invalidate_caches()
+
+            # Calculate center position
+            screen_center = self.data_to_screen(center_x, center_y)
+            widget_center = QPointF(self.width() / 2, self.height() / 2)
+
+            # Adjust pan to center
+            offset = widget_center - screen_center
+            self.pan_offset_x = offset.x()
+            self.pan_offset_y = offset.y()
+
+            # Invalidate caches again after setting new pan offsets
+            self._invalidate_caches()
+            self.update()
+            self.view_changed.emit()
+            self.zoom_changed.emit(self.zoom_factor)
+
+    def on_frame_changed(self, frame: int) -> None:
+        """Handle frame change event from timeline navigation.
+
+        Centers the view on the current frame if centering mode is enabled.
+        Centers the grid on the current frame if grid centering is enabled.
+
+        Args:
+            frame: The new current frame number
+        """
+        if self.centering_mode:
+            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
+            self.center_on_frame(frame)
+
+        if self.grid_centered:
+            logger.debug(f"[GRID-CENTER] Auto-centering grid on frame {frame} (grid centering enabled)")
+            _ = self.center_grid_on_current_frame(frame)
+
+    def setup_for_pixel_tracking(self) -> None:
+        """Set up the view for screen/pixel-coordinate tracking data.
+
+        Screen tracking data uses screen coordinates (Y=0 at top), same as Qt,
+        so no Y-flip is needed. Data scales with the background image.
+        """
+        # Don't reset zoom if we already have a background image
+        # The zoom should match the background image scale
+        if not self.background_image:
+            # Only reset if no background loaded yet
+            self.zoom_factor = 1.0
+            self.pan_offset_x = 0.0
+            self.pan_offset_y = 0.0
+
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+
+        # Keep scale_to_image TRUE so tracking scales with background
+        self.scale_to_image = True  # Scale tracking with background image
+        self.flip_y_axis = False  # Tracking data uses screen coordinates (Y=0 at top)
+
+        logger.info(f"[COORD] Set up view for tracking data (zoom={self.zoom_factor:.3f}, scales with background)")
+        self._invalidate_caches()
+        self.update()
+
+    def setup_for_3dequalizer_data(self) -> None:
+        """Set up the view for 3DEqualizer coordinate tracking data.
+
+        3DEqualizer data uses image coordinates (Y=0 at bottom), so needs Y-flip
+        to convert to Qt screen coordinates (Y=0 at top).
+        """
+        # Don't reset zoom if we already have a background image
+        # The zoom should match the background image scale
+        if not self.background_image:
+            # Only reset if no background loaded yet
+            self.zoom_factor = 1.0
+            self.pan_offset_x = 0.0
+            self.pan_offset_y = 0.0
+
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+
+        # CRITICAL FIX: 3DE data is already in pixel coordinates
+        # DO NOT scale it - just apply Y-flip and zoom/pan
+        self.scale_to_image = False  # 3DE data is already in pixel space
+        self.flip_y_axis = True  # 3DEqualizer uses image coordinates (Y=0 at bottom)
+
+        logger.info(
+            f"[COORD] Set up view for 3DEqualizer data (zoom={self.zoom_factor:.3f}, Y-flip enabled, NO image scaling)"
+        )
+        self._invalidate_caches()
+        # Force immediate transform update with new flip_y_axis setting
+        # This ensures correct transform even if images were loaded first
+        self._update_transform()
+        self.update()
+
+    def fit_to_background_image(self) -> None:
+        """Fit the background image fully in view."""
+        if not self.background_image:
+            return
+
+        # Get actual image dimensions
+        img_width = self.background_image.width()
+        img_height = self.background_image.height()
+        logger.info(f"[FIT_BG] Image dimensions: {img_width}x{img_height}")
+
+        if img_width <= 0 or img_height <= 0:
+            return
+
+        # Get widget dimensions
+        widget_width = self.width()
+        widget_height = self.height()
+        logger.info(f"[FIT_BG] Widget dimensions: {widget_width}x{widget_height}")
+
+        if widget_width <= 0 or widget_height <= 0:
+            return
+
+        # Calculate the scale needed to fit the image
+        # We want to fit the entire image, so use the smaller scale
+        # Apply 95% margin for visual breathing room
+        margin = 0.95
+        scale_x = (widget_width * margin) / img_width
+        scale_y = (widget_height * margin) / img_height
+        desired_scale = min(scale_x, scale_y)
+        logger.info(
+            f"[FIT_BG] Calculated desired_scale: {desired_scale} (scale_x={scale_x}, scale_y={scale_y}, margin={margin})"
+        )
+
+        # The transform system uses zoom_factor directly as the scale
+        # So we can set zoom_factor to our desired_scale directly
+        old_zoom = self.zoom_factor
+        self.zoom_factor = desired_scale
+        logger.info(f"[FIT_BG] Set zoom_factor: {old_zoom} -> {self.zoom_factor}")
+
+        # Reset manual offsets
+        old_manual_x, old_manual_y = self.manual_offset_x, self.manual_offset_y
+        self.manual_offset_x = 0
+        self.manual_offset_y = 0
+        logger.info(f"[FIT_BG] Reset manual offsets: ({old_manual_x}, {old_manual_y}) -> (0, 0)")
+
+        # Reset pan offsets - let Transform's automatic centering handle positioning
+        old_pan_x, old_pan_y = self.pan_offset_x, self.pan_offset_y
+        self.pan_offset_x = 0
+        self.pan_offset_y = 0
+        logger.info(f"[FIT_BG] Reset pan offsets: ({old_pan_x}, {old_pan_y}) -> (0, 0)")
+
+        # Invalidate caches and update
+        self._invalidate_caches()
+
+        # Debug the transform after setting everything up
+        transform = self.get_transform()
+        params = transform.get_parameters()
+        logger.info(f"[FIT_BG] Final transform scale: {params['scale']}")
+        logger.info(f"[FIT_BG] Final center offsets: ({params['center_offset_x']}, {params['center_offset_y']})")
+        logger.info(f"[FIT_BG] Final pan offsets: ({params['pan_offset_x']}, {params['pan_offset_y']})")
+
+        # Test image positioning - simple logic
+        image_top_x = 0.0
+        image_top_y = float(img_height) if self.flip_y_axis else 0.0
+        top_left_x, top_left_y = transform.data_to_screen(image_top_x, image_top_y)
+        logger.info(f"[FIT_BG] Image top-left will be at: ({top_left_x}, {top_left_y})")
+
+        self.update()
+
+        # Emit signals
+        self.view_changed.emit()
+        self.zoom_changed.emit(self.zoom_factor)
+
+    def center_on_selection(self) -> None:
+        """Center view on selected points."""
+        if not self.selected_indices:
+            return
+
+        logger.debug(f"[CENTER] Centering on {len(self.selected_indices)} selected points")
+
+        # Calculate center of selected points
+        sum_x = sum_y = 0
+        count = 0
+
+        for idx in self.selected_indices:
+            if 0 <= idx < len(self.curve_data):
+                _, x, y, _ = safe_extract_point(self.curve_data[idx])
+                sum_x += x
+                sum_y += y
+                count += 1
+
+        if count > 0:
+            center_x = sum_x / count
+            center_y = sum_y / count
+            logger.debug(f"[CENTER] Data center: ({center_x:.2f}, {center_y:.2f})")
+
+            # Store the centered point for zoom-to-center behavior
+            self.last_centered_point = (center_x, center_y)
+            logger.debug(f"[CENTER] Stored centered point for zoom behavior: ({center_x:.2f}, {center_y:.2f})")
+
+            # Get screen position of center
+            screen_pos = self.data_to_screen(center_x, center_y)
+            widget_center = QPointF(self.width() / 2, self.height() / 2)
+            logger.debug(f"[CENTER] Screen pos: ({screen_pos.x():.2f}, {screen_pos.y():.2f})")
+            logger.debug(f"[CENTER] Widget center: ({widget_center.x():.2f}, {widget_center.y():.2f})")
+
+            # Adjust pan
+            offset = widget_center - screen_pos
+            old_pan_x = self.pan_offset_x
+            old_pan_y = self.pan_offset_y
+            self.pan_offset_x += offset.x()
+            # Simple offset - Y-flip is handled in data_to_screen/screen_to_data
+            self.pan_offset_y += offset.y()
+            logger.debug(
+                f"[CENTER] Pan offset changed from ({old_pan_x:.2f}, {old_pan_y:.2f}) to ({self.pan_offset_x:.2f}, {self.pan_offset_y:.2f})"
+            )
+
+            self._invalidate_caches()
+            self.update()
+            self.repaint()  # Force immediate repaint
+            self.view_changed.emit()
+
+    def center_grid_on_selected_point(self) -> bool:
+        """Center grid on the currently selected point.
+
+        Returns:
+            True if grid was centered successfully, False if no selection
+        """
+        if not self.selected_indices:
+            logger.debug("[GRID-CENTER] No points selected for grid centering")
+            return False
+
+        # Calculate center of selected points (same logic as center_on_selection)
+        sum_x = sum_y = 0
+        count = 0
+
+        for idx in self.selected_indices:
+            if 0 <= idx < len(self.curve_data):
+                _, x, y, _ = safe_extract_point(self.curve_data[idx])
+                sum_x += x
+                sum_y += y
+                count += 1
+
+        if count > 0:
+            center_x = sum_x / count
+            center_y = sum_y / count
+
+            # Store the center point in data coordinates
+            self.grid_center_point = (center_x, center_y)
+            self.grid_centered = True
+
+            # Ensure grid is visible
+            self.show_grid = True
+
+            logger.debug(f"[GRID-CENTER] Grid centered on point ({center_x:.2f}, {center_y:.2f})")
+
+            # Update display
+            self.update()
+            return True
+
+        return False
+
+    def center_grid_on_viewport_center(self) -> None:
+        """Center grid on the current viewport center."""
+        # Get widget center in screen coordinates
+        widget_center = QPointF(self.width() / 2, self.height() / 2)
+
+        # Convert to data coordinates
+        center_data = self.screen_to_data(widget_center)
+
+        # Store the center point
+        self.grid_center_point = center_data
+        self.grid_centered = True
+
+        # Ensure grid is visible
+        self.show_grid = True
+
+        logger.debug(f"[GRID-CENTER] Grid centered on viewport center ({center_data[0]:.2f}, {center_data[1]:.2f})")
+
+        # Update display
+        self.update()
+
+    def toggle_grid_centering(self) -> bool:
+        """Toggle grid centering on/off.
+
+        Returns:
+            True if centering was activated, False if deactivated
+        """
+        if self.grid_centered:
+            # Turn off grid centering
+            self.grid_centered = False
+            self.grid_center_point = None
+            logger.debug("[GRID-CENTER] Grid centering disabled")
+            self.update()
+            return False
+        else:
+            # Try to center on selected point, fallback to viewport center
+            if not self.center_grid_on_selected_point():
+                self.center_grid_on_viewport_center()
+            return True
+
+    def center_grid_on_current_frame(self, frame: int) -> bool:
+        """Center grid on the point at the current frame.
+
+        Args:
+            frame: Frame number to center grid on (1-based)
+
+        Returns:
+            True if grid was centered successfully, False if frame is out of range
+        """
+        # Find the point at the given frame
+        frame_index = frame - 1  # Convert to 0-based index
+
+        if 0 <= frame_index < len(self.curve_data):
+            _, x, y, _ = safe_extract_point(self.curve_data[frame_index])
+
+            # Store the center point in data coordinates
+            self.grid_center_point = (x, y)
+            self.grid_centered = True
+
+            # Ensure grid is visible
+            self.show_grid = True
+
+            logger.debug(f"[GRID-CENTER] Grid centered on current frame {frame} at ({x:.2f}, {y:.2f})")
+
+            # Update display
+            self.update()
+            return True
+        else:
+            logger.warning(f"[GRID-CENTER] Frame {frame} is out of range (data has {len(self.curve_data)} points)")
+            return False
+
+    def center_on_frame(self, frame: int) -> None:
+        """Center view on a specific frame.
+
+        Args:
+            frame: Frame number to center on (1-based)
+        """
+        # Find the point at the given frame
+        frame_index = frame - 1  # Convert to 0-based index
+
+        if 0 <= frame_index < len(self.curve_data):
+            _, x, y, _ = safe_extract_point(self.curve_data[frame_index])
+            logger.debug(f"[CENTER] Centering on frame {frame} at ({x:.2f}, {y:.2f})")
+
+            # Store the centered point for zoom-to-center behavior
+            self.last_centered_point = (x, y)
+            logger.debug(f"[CENTER] Stored frame {frame} point for zoom behavior: ({x:.2f}, {y:.2f})")
+
+            # Get screen position of the point
+            screen_pos = self.data_to_screen(x, y)
+            widget_center = QPointF(self.width() / 2, self.height() / 2)
+
+            # Adjust pan
+            offset = widget_center - screen_pos
+            self.pan_offset_x += offset.x()
+            # Simple offset - Y-flip is handled in data_to_screen/screen_to_data
+            self.pan_offset_y += offset.y()
+
+            # Clamp offsets to prevent overflow
+            self._clamp_pan_offsets()
+
+            logger.debug(f"[CENTER] View centered on frame {frame}")
+
+            self._invalidate_caches()
+            self.update()
+            self.repaint()
+            self.view_changed.emit()
+        else:
+            logger.warning(f"[CENTER] Frame {frame} is out of range (data has {len(self.curve_data)} points)")
+
+    # Selection Operations
+
+    def _find_point_at(self, pos: QPointF) -> int:
+        """
+        Find point at given screen position using spatial indexing for O(1) performance.
+
+        Args:
+            pos: Screen position
+
+        Returns:
+            Point index or -1 if not found
+        """
+        # SPRINT 11.5 FIX: Use spatial indexing service instead of O(n) linear search
+        # This provides the claimed 64.7x speedup for point operations
+
+        # Use the optimized InteractionService with spatial indexing
+        # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
+        result: int = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # type: ignore[arg-type]
+
+        # Log for verification during integration testing
+        logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {result}")
+
+        return result
+
+    def _select_point(self, index: int, add_to_selection: bool = False) -> None:
+        """
+        Select a point.
+
+        Args:
+            index: Point index
+            add_to_selection: Whether to add to existing selection
+        """
+        if not add_to_selection:
+            self.selected_indices.clear()
+
+        # Clear centered point when making a new selection (changes context)
+        if self.last_centered_point is not None:
+            logger.debug("[SELECT] Clearing last centered point due to new selection")
+            self.last_centered_point = None
+
+        self.selected_indices.add(index)
+
+        # Emit signals
+        self.point_selected.emit(index)
+        self.selection_changed.emit(list(self.selected_indices))
+
+        # Update interaction service if available
+        if self.interaction_service and self.main_window:
+            # Note: Protocol mismatch with InteractionService - using type: ignore for service integration
+            self.interaction_service.on_point_selected(self, self.main_window, index)  # type: ignore[arg-type]
+
+    def _clear_selection(self) -> None:
+        """Clear all selection."""
+        self.selected_indices.clear()
+        self.selection_changed.emit([])
+
+    def _select_all(self) -> None:
+        """Select all points."""
+        self.selected_indices = set(range(len(self.curve_data)))
+        self.selection_changed.emit(list(self.selected_indices))
+
+    def _start_rubber_band(self, pos: QPointF) -> None:
+        """Start rubber band selection."""
+        self.rubber_band_active = True
+        self.rubber_band_origin = pos
+
+        if self.rubber_band:
+            self.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))
+            self.rubber_band.show()
+
+    def _update_rubber_band(self, pos: QPointF) -> None:
+        """Update rubber band selection."""
+        if self.rubber_band:
+            rect = QRect(self.rubber_band_origin.toPoint(), pos.toPoint()).normalized()
+            self.rubber_band.setGeometry(rect)
+
+            # Select points in rectangle
+            self._select_points_in_rect(rect)
+
+    def _finish_rubber_band(self) -> None:
+        """Finish rubber band selection."""
+        self.rubber_band_active = False
+
+        if self.rubber_band:
+            self.rubber_band.hide()
+
+        # Emit final selection
+        self.selection_changed.emit(list(self.selected_indices))
+
+    def _select_points_in_rect(self, rect: QRect) -> None:
+        """
+        Select points within rectangle.
+
+        Args:
+            rect: Selection rectangle in screen coordinates
+        """
+        self.selected_indices.clear()
+
+        # Update screen cache
+        self._update_screen_points_cache()
+
+        # Check each point
+        for idx, screen_pos in self._screen_points_cache.items():
+            if rect.contains(screen_pos.toPoint()):
+                self.selected_indices.add(idx)
+
+    # Point Operations
+
+    def _drag_point(self, index: int, delta: QPointF) -> None:
+        """
+        Drag a point by delta.
+
+        Args:
+            index: Point index
+            delta: Screen space delta
+        """
+        if 0 <= index < len(self.curve_data):
+            # Convert delta to data space
+            transform = self.get_transform()
+            params = transform.get_parameters()
+            scale_value = params["scale"]
+            scale: float = float(scale_value) if scale_value is not None else 1.0
+
+            if scale > 0:
+                dx: float = delta.x() / scale
+                dy: float = delta.y() / scale
+
+                # Get current position
+                _, x, y, _ = safe_extract_point(self.curve_data[index])
+
+                # Update position
+                new_x: float = x + dx
+                new_y: float = y + dy
+
+                self.update_point(index, new_x, new_y)
+
+                # Update cache for this point
+                if index in self._screen_points_cache:
+                    self._screen_points_cache[index] = self.data_to_screen(new_x, new_y)
+
+    def _nudge_selected(self, dx: float, dy: float) -> None:
+        """
+        Nudge selected points.
+
+        Args:
+            dx: X offset in data units
+            dy: Y offset in data units
+        """
+        for idx in self.selected_indices:
+            if 0 <= idx < len(self.curve_data):
+                _, x, y, _ = safe_extract_point(self.curve_data[idx])
+                self.update_point(idx, x + dx, y + dy)
+
+        if self.main_window is not None:
+            if getattr(self.main_window, "add_to_history", None) is not None:
+                self.main_window.add_to_history()  # type: ignore[attr-defined]
+
+    def _delete_selected_points(self) -> None:
+        """Delete selected points."""
+        # Sort indices in reverse to delete from end first
+        indices = sorted(self.selected_indices, reverse=True)
+
+        for idx in indices:
+            self.remove_point(idx)
+
+        self.selected_indices.clear()
+        self.selection_changed.emit([])
+
+        if self.main_window is not None:
+            if getattr(self.main_window, "add_to_history", None) is not None:
+                self.main_window.add_to_history()  # type: ignore[attr-defined]
+
+    # Pan Offset Management
+
+    def _clamp_pan_offsets(self) -> None:
+        """Clamp pan offsets to prevent overflow and accumulation errors."""
+        max_offset = 1e8  # Well below the 1e9 validation limit
+        old_x, old_y = self.pan_offset_x, self.pan_offset_y
+
+        self.pan_offset_x = max(-max_offset, min(max_offset, self.pan_offset_x))
+        self.pan_offset_y = max(-max_offset, min(max_offset, self.pan_offset_y))
+
+        # Log if clamping occurred
+        if old_x != self.pan_offset_x or old_y != self.pan_offset_y:
+            logger.warning(
+                f"[CLAMP] Pan offsets clamped: ({old_x:.1f}, {old_y:.1f}) -> ({self.pan_offset_x:.1f}, {self.pan_offset_y:.1f})"
+            )
+
+    # Cache Management
+
+    def _invalidate_caches(self) -> None:
+        """Invalidate all cached data."""
+        self._transform_cache = None
+        self._screen_points_cache.clear()
+        self._visible_indices_cache.clear()
+        self._update_region = None
+
+        # Also clear the TransformService's LRU cache to ensure fresh transforms
+        # This is critical when coordinate dimensions change
+        try:
+            from services import get_transform_service
+
+            transform_service = get_transform_service()
+            if hasattr(transform_service, "clear_cache"):
+                transform_service.clear_cache()
+                logger.debug("[CACHE] Cleared TransformService cache")
+        except Exception as e:
+            logger.debug(f"[CACHE] Could not clear TransformService cache: {e}")
+
+    def _invalidate_point_region(self, index: int) -> None:
+        """
+        Invalidate region around a point.
+
+        Args:
+            index: Point index
+        """
+        if index in self._screen_points_cache:
+            pos = self._screen_points_cache[index]
+
+            # Create update region around point
+            margin = self.point_radius + 10
+            region = QRectF(pos.x() - margin, pos.y() - margin, margin * 2, margin * 2)
+
+            if self._update_region:
+                self._update_region = self._update_region.united(region)
+            else:
+                self._update_region = region
+
+    def _update_screen_points_cache(self) -> None:
+        """Update cached screen positions for all points."""
+        if not self._screen_points_cache or not self._transform_cache:
+            self._screen_points_cache.clear()
+
+            for idx, point in enumerate(self.curve_data):
+                _, x, y, _ = safe_extract_point(point)
+                self._screen_points_cache[idx] = self.data_to_screen(x, y)
+
+    def _update_visible_indices(self, rect: QRect) -> None:
+        """
+        Update cache of visible point indices.
+
+        Args:
+            rect: Visible rectangle
+        """
+        self._visible_indices_cache.clear()
+
+        # Expand rect slightly for points on edges
+        expanded = rect.adjusted(-self.point_radius, -self.point_radius, self.point_radius, self.point_radius)
+
+        for idx, pos in self._screen_points_cache.items():
+            if expanded.contains(pos.toPoint()):
+                self._visible_indices_cache.add(idx)
+
+    # Service Integration
+
+    def set_main_window(self, main_window: MainWindow) -> None:
+        """
+        Set reference to main window.
+
+        Args:
+            main_window: Main window instance
+        """
+        self.main_window = main_window
+        # Services are already initialized in __init__
+
+    def set_background_image(self, pixmap: QPixmap | None) -> None:
+        """
+        Set background image.
+
+        Args:
+            pixmap: Background image pixmap or None
+        """
+        self.background_image = pixmap
+
+        # Update only display image dimensions, NOT coordinate space dimensions
+        # Coordinate space dimensions come from tracking metadata
+        if pixmap:
+            self.image_width = pixmap.width()
+            self.image_height = pixmap.height()
+            logger.info(
+                f"[COORD] Set display image dimensions to {self.image_width}x{self.image_height} from background image"
+            )
+
+            # Only set coordinate dimensions if no metadata exists yet
+            if not self._data_metadata:
+                self.coord_width = self.image_width
+                self.coord_height = self.image_height
+                logger.info("[COORD] No tracking metadata, using image dimensions for coordinate space")
+
+        self._invalidate_caches()
+        self.update()
+
+    def get_view_state(self) -> ViewState:
+        """
+        Get current view state.
+
+        Returns:
+            ViewState object with current parameters
+        """
+        # Calculate display dimensions - simplified logic
+        # Use coordinate dimensions for proper transform calculations
+        if self.flip_y_axis:
+            # For flipped data, use coordinate dimensions
+            base_display_width = self.coord_width
+            base_display_height = self.coord_height
+        else:
+            # For non-flipped data, use widget dimensions
+            base_display_width = self.width()
+            base_display_height = self.height()
+
+        # Use coordinate space dimensions for display calculations
+        # This ensures transforms work correctly regardless of actual image size
+        if self._data_metadata and self.flip_y_axis:
+            # Use metadata dimensions for proper Y-flip (e.g., 1280x720 for 3DEqualizer)
+            display_width = self._data_metadata.width
+            display_height = self._data_metadata.height
+            logger.debug(f"[TRANSFORM] Using metadata dimensions for Y-flip: {display_width}x{display_height}")
+        elif self.flip_y_axis and self.coord_height > 0:
+            # Use coordinate dimensions if no metadata but Y-flip is needed
+            display_width = self.coord_width
+            display_height = self.coord_height
+        else:
+            display_width = base_display_width
+            display_height = base_display_height
+
+        # Calculate base scale to fit content in widget (same logic as _update_transform)
+        widget_width = self.width()
+        widget_height = self.height()
+        scale_x = widget_width / display_width if display_width > 0 else 1.0
+        scale_y = widget_height / display_height if display_height > 0 else 1.0
+        fit_scale = min(scale_x, scale_y) * 0.9  # 90% to leave margin
+
+        return ViewState(
+            display_width=display_width,
+            display_height=display_height,
+            widget_width=widget_width,
+            widget_height=widget_height,
+            zoom_factor=self.zoom_factor,  # User zoom only (not compounded)
+            fit_scale=fit_scale,  # Fit scale separate from zoom
+            offset_x=self.pan_offset_x,
+            offset_y=self.pan_offset_y,
+            scale_to_image=self.scale_to_image,
+            flip_y_axis=self.flip_y_axis,
+            manual_x_offset=self.manual_offset_x,
+            manual_y_offset=self.manual_offset_y,
+            background_image=self.background_image,
+            # CRITICAL: Use coordinate dimensions for transform calculations
+            # NOT the actual image dimensions which may differ
+            image_width=self.coord_width,
+            image_height=self.coord_height,
+        )
+
+    def get_selected_indices(self) -> list[int]:
+        """
+        Get list of selected point indices.
+
+        Returns:
+            List of selected indices
+        """
+        return list(self.selected_indices)
+
+    # Compatibility properties for InteractionService
+    @property
+    def selected_points(self) -> set[int]:
+        """Compatibility property for InteractionService.
+
+        Maps selected_indices to selected_points for backward compatibility.
+        """
+        return self.selected_indices
+
+    @selected_points.setter
+    def selected_points(self, value: set[int]) -> None:
+        """Set selected points (compatibility with InteractionService)."""
+        if self.selected_indices != value:  # Only update if changed
+            self.selected_indices = value
+            self.selection_changed.emit(list(self.selected_indices))
+            # Don't call update() here - InteractionService will call it
+
+    @property
+    def selected_point_idx(self) -> int:
+        """Compatibility property for InteractionService.
+
+        Returns the minimum selected index or -1 if none selected.
+        """
+        if self.selected_indices:
+            return min(self.selected_indices)
+        return -1
+
+    @selected_point_idx.setter
+    def selected_point_idx(self, value: int) -> None:
+        """Set primary selected point (compatibility with InteractionService)."""
+        if value >= 0:
+            if value not in self.selected_indices:
+                self.selected_indices.add(value)
+                self.selection_changed.emit(list(self.selected_indices))
+                self.update()
+
+    @property
+    def points(self) -> list[tuple[int, float, float] | tuple[int, float, float, str | bool]]:
+        """Compatibility property for InteractionService.
+
+        Returns curve_data for backward compatibility.
+        """
+        return self.curve_data
+
+    @points.setter
+    def points(self, value: list[tuple[int, float, float] | tuple[int, float, float, str | bool]]) -> None:
+        """Set points data (compatibility with InteractionService)."""
+        self.set_curve_data(value)
+
+
+# Example usage and testing
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication, QMainWindow
+
+    app = QApplication(sys.argv)
+
+    # Create main window
+    main_window = QMainWindow()
+    main_window.setWindowTitle("CurveViewWidget Test")
+    main_window.resize(1200, 800)
+
+    # Create curve widget
+    curve_widget = CurveViewWidget()
+
+    # Set some test data
+    test_data: list[tuple[int, float, float] | tuple[int, float, float, str]] = [
+        (0, 100.0, 100.0),
+        (10, 200.0, 150.0, "keyframe"),
+        (20, 300.0, 200.0),
+        (30, 400.0, 180.0, "interpolated"),
+        (40, 500.0, 220.0),
+        (50, 600.0, 250.0, "keyframe"),
+    ]
+    curve_widget.set_curve_data(list(test_data))
+
+    # Enable features
+    curve_widget.show_grid = True
+    curve_widget.show_labels = True
+    curve_widget.show_all_frame_numbers = True
+
+    # Set as central widget
+    main_window.setCentralWidget(curve_widget)
+
+    # Connect signals for testing
+    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))
+    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))
+    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))
+
+    main_window.show()
+    sys.exit(app.exec())

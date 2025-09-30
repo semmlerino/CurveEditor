@@ -13,7 +13,7 @@ import threading
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    from services.service_protocols import CurveViewProtocol
+    from protocols.ui import CurveViewProtocol
     from services.transform_service import Transform
 
 from core.logger_utils import get_logger
@@ -34,20 +34,25 @@ class PointIndex:
     grid_height: int
     _lock: threading.RLock
 
-    def __init__(self, grid_width: int = 20, grid_height: int = 20):
+    def __init__(self, screen_width: float = 800.0, screen_height: float = 600.0):
         """
-        Initialize the spatial index.
+        Initialize the spatial index with adaptive grid size.
 
         Args:
-            grid_width: Number of grid cells horizontally
-            grid_height: Number of grid cells vertically
+            screen_width: Screen width in pixels for adaptive grid calculation
+            screen_height: Screen height in pixels for adaptive grid calculation
         """
-        self.grid_width = grid_width
-        self.grid_height = grid_height
+        # Calculate adaptive grid size targeting 40-50 pixels per cell
+        target_cell_size = 45.0  # pixels
+        self.grid_width = max(10, min(50, int(screen_width / target_cell_size)))
+        self.grid_height = max(10, min(50, int(screen_height / target_cell_size)))
         self.cell_width: float = 0.0
         self.cell_height: float = 0.0
-        self.screen_width: float = 0.0
-        self.screen_height: float = 0.0
+        self.screen_width: float = screen_width
+        self.screen_height: float = screen_height
+
+        # Cache the target cell size for recalculation
+        self._target_cell_size: float = 45.0
 
         # Grid structure: dict[tuple[int, int], list[int]]
         # Key is (grid_x, grid_y), value is list of point indices
@@ -82,6 +87,49 @@ class PointIndex:
         grid_y = max(0, grid_y)
 
         return (grid_x, grid_y)
+
+    def update_screen_dimensions(self, screen_width: float, screen_height: float) -> bool:
+        """
+        Update screen dimensions and recalculate adaptive grid size if needed.
+
+        Args:
+            screen_width: New screen width in pixels
+            screen_height: New screen height in pixels
+
+        Returns:
+            True if grid was resized, False if no change needed
+        """
+        with self._lock:
+            # Check if dimensions changed significantly
+            width_change = abs(screen_width - self.screen_width)
+            height_change = abs(screen_height - self.screen_height)
+
+            # Only recalculate if change is significant (>10% or >100 pixels)
+            threshold = max(100.0, min(self.screen_width * 0.1, self.screen_height * 0.1))
+
+            if width_change > threshold or height_change > threshold:
+                # Update dimensions
+                self.screen_width = screen_width
+                self.screen_height = screen_height
+
+                # Recalculate adaptive grid size
+                old_grid_width = self.grid_width
+                old_grid_height = self.grid_height
+
+                self.grid_width = max(10, min(50, int(screen_width / self._target_cell_size)))
+                self.grid_height = max(10, min(50, int(screen_height / self._target_cell_size)))
+
+                # Clear index if grid size changed
+                if self.grid_width != old_grid_width or self.grid_height != old_grid_height:
+                    self._grid.clear()
+                    self._last_transform_hash = None  # Force rebuild
+                    logger.debug(
+                        f"Adaptive grid resized: {old_grid_width}x{old_grid_height} -> "
+                        f"{self.grid_width}x{self.grid_height} for {screen_width}x{screen_height} screen"
+                    )
+                    return True
+
+            return False
 
     def _get_nearby_cells(self, grid_x: int, grid_y: int, radius: int = 1) -> list[tuple[int, int]]:
         """
@@ -130,9 +178,10 @@ class PointIndex:
             # Clear existing index
             self._grid.clear()
 
-            # Get screen dimensions
-            self.screen_width = float(getattr(view, "width", lambda: 800.0)())
-            self.screen_height = float(getattr(view, "height", lambda: 600.0)())
+            # Update screen dimensions and recalculate grid if needed
+            new_width = float(getattr(view, "width", lambda: 800.0)())
+            new_height = float(getattr(view, "height", lambda: 600.0)())
+            self.update_screen_dimensions(new_width, new_height)
 
             # Calculate cell dimensions
             self.cell_width = self.screen_width / self.grid_width

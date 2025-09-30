@@ -12,6 +12,8 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Generic, Protocol, TypeVar
 
+from protocols.data import PointMovedSignalProtocol, VoidSignalProtocol
+
 # Use object instead of Any for better type safety
 SignalSlot = Callable[..., object]
 VoidSlot = Callable[[], object]
@@ -65,43 +67,8 @@ PointSelectedSignal = TypedSignal[int]  # Signal[int] - emits point index
 SelectionChangedSignal = TypedSignal[list[int]]  # Signal[list[int]] - emits selected indices
 
 
-# For multi-parameter signals, we need a more complex protocol
-class PointMovedSignalProtocol(Protocol):
-    """Protocol for point moved signal that emits frame, x, y coordinates."""
-
-    def connect(self, slot: Callable[[int, float, float], object]) -> None:
-        """Connect to a slot that accepts frame, x, y parameters."""
-        ...
-
-    def disconnect(self, slot: Callable[[int, float, float], object] | None = None) -> None:
-        """Disconnect from a slot."""
-        ...
-
-    def emit(self, frame: int, x: float, y: float) -> None:
-        """Emit the signal with frame, x, y coordinates."""
-        ...
-
-
+# Use imported protocols from protocols.data
 PointMovedSignal = PointMovedSignalProtocol  # Signal[int, float, float] - emits frame, x, y
-
-
-# Additional signal types for common use cases
-class VoidSignalProtocol(Protocol):
-    """Protocol for signals that emit no parameters."""
-
-    def connect(self, slot: VoidSlot) -> None:
-        """Connect to a parameterless slot."""
-        ...
-
-    def disconnect(self, slot: VoidSlot | None = None) -> None:
-        """Disconnect from a slot."""
-        ...
-
-    def emit(self) -> None:
-        """Emit the signal with no parameters."""
-        ...
-
-
 VoidSignal = VoidSignalProtocol
 
 

@@ -30,3 +30,6 @@ test_images_output/
 crash_debug*.log
 diagnose_*.py
 FIX_*.sh
+
+# Session data (user-specific, should not be committed)
+session/

@@ -186,6 +186,27 @@ class PointEditUIComponents:
         # Labels
         self.type_label: QLabel | None = None
 
+    # Aliases for backward compatibility with tests
+    @property
+    def point_x_spinbox(self) -> QDoubleSpinBox | None:
+        """Alias for x_edit to maintain backward compatibility."""
+        return self.x_edit
+
+    @point_x_spinbox.setter
+    def point_x_spinbox(self, value: QDoubleSpinBox | None) -> None:
+        """Setter for point_x_spinbox alias."""
+        self.x_edit = value
+
+    @property
+    def point_y_spinbox(self) -> QDoubleSpinBox | None:
+        """Alias for y_edit to maintain backward compatibility."""
+        return self.y_edit
+
+    @point_y_spinbox.setter
+    def point_y_spinbox(self, value: QDoubleSpinBox | None) -> None:
+        """Setter for point_y_spinbox alias."""
+        self.y_edit = value
+
 
 class SmoothingUIComponents:
     """Container for smoothing and filtering UI components."""

@@ -64,11 +64,11 @@ class TestServiceInitialization:
         transform_service = get_transform_service()
         data_service = get_data_service()
 
-        # Verify services exist and have expected attributes/methods
-        assert hasattr(transform_service, "create_transform")
-        assert hasattr(data_service, "smooth_moving_average")
-        assert hasattr(data_service, "load_track_data")
-        assert hasattr(data_service, "load_image_sequence")
+        # Verify services exist and have expected methods - if missing, tests fail with AttributeError
+        assert callable(transform_service.create_transform)
+        assert callable(data_service.smooth_moving_average)
+        assert callable(data_service.load_track_data)
+        assert callable(data_service.load_image_sequence)
 
     def test_service_lifecycle_management(self):
         """Test service lifecycle initialization and cleanup."""
@@ -165,9 +165,9 @@ class TestCrossServiceCommunication:
             assert loaded_data[0] == (1, 100.0, 200.0, "keyframe")
 
             # UI service should be able to handle status updates
-            # Check that UI service has dialog methods (its main functionality)
-            assert hasattr(ui_service, "get_smooth_window_size")
-            assert hasattr(ui_service, "get_filter_params")
+            # Check that UI service has dialog methods - if missing, tests fail with AttributeError
+            assert callable(ui_service.get_smooth_window_size)
+            assert callable(ui_service.get_filter_params)
 
         finally:
             os.unlink(temp_file)

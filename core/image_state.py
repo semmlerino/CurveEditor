@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
     from core.type_aliases import QtPixmap as QPixmap
-    from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+    from protocols.ui import CurveViewProtocol, MainWindowProtocol
 
 # Configure logger for this module
 from core.logger_utils import get_logger

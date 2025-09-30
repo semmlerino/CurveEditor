@@ -15,7 +15,7 @@ try:
     __all__ = ["CurveRenderer"]
 except ImportError:
     # Stub when PySide6 is not available
-    class CurveRenderer:
+    class CurveRenderer:  # type: ignore[no-redef]
         """Stub renderer for startup compatibility."""
 
         def __init__(self) -> None:

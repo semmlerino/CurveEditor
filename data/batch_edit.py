@@ -27,7 +27,7 @@ from core.math_utils import GeometryUtils, ValidationUtils
 from core.type_aliases import CurveDataList, LegacyPointData
 
 # Import protocols and type aliases for proper typing
-from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+from protocols.ui import CurveViewProtocol, MainWindowProtocol
 
 logger = get_logger("batch_edit")
 

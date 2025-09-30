@@ -135,6 +135,7 @@ class TestViewState:
         mock_curve_view.height.return_value = 600
         mock_curve_view.image_width = 1920
         mock_curve_view.image_height = 1080
+        mock_curve_view.zoom_factor = 1.5  # Add proper zoom_factor value
 
         # Create a mock background image
         mock_background = MagicMock()
