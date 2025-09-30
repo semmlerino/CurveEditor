@@ -73,8 +73,8 @@ class InteractionService:
         self.rubber_band: QRubberBand | None = None
         self.rubber_band_origin: tuple[int, int] | None = None
 
-        # Spatial index for efficient point lookups
-        self._point_index: PointIndex = PointIndex(grid_width=20, grid_height=20)
+        # Spatial index for efficient point lookups (uses adaptive grid sizing)
+        self._point_index: PointIndex = PointIndex()
 
         # Command-based history management (lazy initialization to avoid cycles)
         self._command_manager: CommandManager | None = None
