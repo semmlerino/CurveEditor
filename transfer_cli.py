@@ -241,8 +241,6 @@ def main() -> None:
         elif chunks and single_file:
             # Combine all chunks into a single file with separators
             output_content = ""
-            if metadata:
-                output_content += f"METADATA_START\n{json.dumps(metadata, indent=2)}\nMETADATA_END\n"
 
             for i, chunk in enumerate(chunks, 1):
                 if i > 1:
@@ -254,14 +252,20 @@ def main() -> None:
                     f.write(output_content)
                 if verbose:
                     print(f"Saved combined chunks to: {output_file}", file=sys.stderr)
+
+                # Save metadata to separate file
+                if metadata:
+                    metadata_file = output_file.rsplit(".", 1)[0] + "_metadata.json"
+                    with open(metadata_file, "w") as f:
+                        json.dump(metadata, f, indent=2)
+                    if verbose:
+                        print(f"Saved metadata to: {metadata_file}", file=sys.stderr)
             else:
                 print(output_content)
 
         else:
             # Output single encoded string (no chunking or single chunk)
             output_content = ""
-            if metadata:
-                output_content += f"METADATA_START\n{json.dumps(metadata, indent=2)}\nMETADATA_END\n"
 
             if chunks:
                 # Use first chunk if chunking was done but no special output requested
@@ -276,6 +280,14 @@ def main() -> None:
                     f.write(output_content)
                 if verbose:
                     print(f"Saved to: {output_file}", file=sys.stderr)
+
+                # Save metadata to separate file
+                if metadata:
+                    metadata_file = output_file.rsplit(".", 1)[0] + "_metadata.json"
+                    with open(metadata_file, "w") as f:
+                        json.dump(metadata, f, indent=2)
+                    if verbose:
+                        print(f"Saved metadata to: {metadata_file}", file=sys.stderr)
             else:
                 print(output_content)
 

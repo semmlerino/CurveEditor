@@ -185,12 +185,12 @@ class ApplicationBundler:
                 "archive",
                 "archived",
                 "copy",
-                ".shotbot",
+                ".curveeditor",
                 "htmlcov",
                 "test_bundle*",
                 "debug_bundle*",
                 "final_test*",
-                "shotbot_bundle_temp",
+                "curveeditor_bundle_temp",
             ],
             "max_file_size_mb": 10,
             "chunk_size_kb": 5120,  # 5MB chunks
@@ -343,7 +343,7 @@ class ApplicationBundler:
         else:
             # Use a fixed temp directory name to avoid accumulation and race conditions
             # This will be overwritten on each run
-            bundle_dir = os.path.join(tempfile.gettempdir(), "shotbot_bundle_temp")
+            bundle_dir = os.path.join(tempfile.gettempdir(), "curveeditor_bundle_temp")
             # Clean up any existing directory first
             if os.path.exists(bundle_dir):
                 shutil.rmtree(bundle_dir)

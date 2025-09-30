@@ -34,3 +34,4 @@ FIX_*.sh
 # Session data (user-specific, should not be committed)
 session/
 .post-commit-output/
+id_ed25520*
