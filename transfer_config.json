@@ -30,6 +30,7 @@
     "*.bak",
     "*.backup",
     "encoded_app_*.txt",
+    "release_*.txt",
     "encoded_releases/*",
     "analyze_*.py",
     "count_*.py",

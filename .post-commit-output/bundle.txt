@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 188 files to bundle
+Found 189 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -42,6 +42,7 @@ Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QT_ZOOM_ANALYSIS.md
 Bundled: README.md
+Bundled: release_391ecb0_20250930_104407.txt
 Bundled: requirements.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
@@ -192,15 +193,15 @@ Bundled: ui/protocols/controller_protocols.py
 Bundled: ui/protocols/__init__.py
 Bundle created at: /tmp/shotbot_bundle_temp
 Encoding bundle...
-Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_391ecb0_20250930_104407.txt -c 5120 --single-file --metadata -v
-Folder size: 2.08 MB
+Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_3a12bc0_20250930_104509.txt -c 5120 --single-file --metadata -v
+Folder size: 2.69 MB
 Encoding folder: /tmp/shotbot_bundle_temp
-Encoded size: 636844 bytes
+Encoded size: 1282244 bytes
 Creating 1 chunks of 5120KB each
-Saved combined chunks to: release_391ecb0_20250930_104407.txt
+Saved combined chunks to: release_3a12bc0_20250930_104509.txt
 Encoding completed successfully
 
 Cleaned up bundle directory: /tmp/shotbot_bundle_temp
-Encoded bundle saved to: release_391ecb0_20250930_104407.txt
-✓ Bundle created successfully: release_391ecb0_20250930_104407.txt
+Encoded bundle saved to: release_3a12bc0_20250930_104509.txt
+✓ Bundle created successfully: release_3a12bc0_20250930_104509.txt
 Committing to encoded-releases branch...
