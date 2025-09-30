@@ -29,7 +29,7 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast, override
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import (
     QPointF,
@@ -51,6 +51,7 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
+from typing_extensions import override
 
 # Import core modules
 from core.models import CurvePoint, PointCollection, PointStatus

@@ -6,7 +6,8 @@ Tests the different validation strategies and their behavior under various condi
 """
 
 import unittest
-from typing import override
+
+from typing_extensions import override
 
 from core.validation_strategy import (
     AdaptiveValidationStrategy,

@@ -14,7 +14,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum, auto
 from pathlib import Path
-from typing import TYPE_CHECKING, TypeGuard, cast, override
+from typing import TYPE_CHECKING, TypeGuard, cast
+
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from collections.abc import Callable

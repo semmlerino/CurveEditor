@@ -4,6 +4,9 @@
 # Main GUI Framework - pinned for reproducible builds
 PySide6==6.4.0
 
+# Backport of typing features for Python < 3.12
+typing-extensions>=4.0.0
+
 # Optional Dependencies
 # For Excel export functionality (not required for core functionality)
 # xlsxwriter>=3.0.0  # Uncomment if you need Excel export support

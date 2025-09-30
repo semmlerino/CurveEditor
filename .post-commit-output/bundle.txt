@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 189 files to bundle
+Found 188 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -50,7 +50,6 @@ Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
 Bundled: SetTrackingFwdBwd.py
 Bundled: testspline.txt
-Bundled: TEST_HOOK.md
 Bundled: TEST_IMPROVEMENTS_SUMMARY.md
 Bundled: test_normalized_3de.txt
 Bundled: TEST_REMEDIATION_PLAN.md
@@ -191,17 +190,18 @@ Bundled: ui/controllers/view_management_controller.py
 Bundled: ui/controllers/__init__.py
 Bundled: ui/protocols/controller_protocols.py
 Bundled: ui/protocols/__init__.py
-Bundle created at: /tmp/shotbot_bundle_temp
+Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
-Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/shotbot_bundle_temp -o release_ac928a7_20250930_105450.txt -c 5120 --single-file --metadata -v
+Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o release_617f3ea_20250930_110859.txt -c 5120 --single-file --metadata -v
 Folder size: 2.08 MB
-Encoding folder: /tmp/shotbot_bundle_temp
-Encoded size: 637044 bytes
+Encoding folder: /tmp/curveeditor_bundle_temp
+Encoded size: 636808 bytes
 Creating 1 chunks of 5120KB each
-Saved combined chunks to: release_ac928a7_20250930_105450.txt
+Saved combined chunks to: release_617f3ea_20250930_110859.txt
+Saved metadata to: release_617f3ea_20250930_110859_metadata.json
 Encoding completed successfully
 
-Cleaned up bundle directory: /tmp/shotbot_bundle_temp
-Encoded bundle saved to: release_ac928a7_20250930_105450.txt
-✓ Bundle created successfully: release_ac928a7_20250930_105450.txt
+Cleaned up bundle directory: /tmp/curveeditor_bundle_temp
+Encoded bundle saved to: release_617f3ea_20250930_110859.txt
+✓ Bundle created successfully: release_617f3ea_20250930_110859.txt
 Committing to encoded-releases branch...
