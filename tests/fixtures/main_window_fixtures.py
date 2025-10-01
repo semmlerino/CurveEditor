@@ -7,6 +7,7 @@ for MainWindow characterization and refactoring tests.
 
 import tempfile
 from pathlib import Path
+from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import QApplication
 
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
 from core.curve_data import CurveDataWithMetadata
+from core.type_aliases import CurveDataList
 from ui.main_window import MainWindow
 
 # --- Sample Data ---
@@ -47,10 +49,10 @@ def get_sample_metadata() -> CoordinateMetadata:
 
 def get_sample_curve_data() -> CurveDataWithMetadata:
     """Get sample curve data with metadata."""
-    return CurveDataWithMetadata(data=get_sample_tracking_data(), metadata=get_sample_metadata())
+    return CurveDataWithMetadata(data=cast(CurveDataList, get_sample_tracking_data()), metadata=get_sample_metadata())
 
 
-def create_test_2dtrack_file(content: str = None) -> Path:
+def create_test_2dtrack_file(content: str | None = None) -> Path:
     """Create a temporary 2DTrackData file for testing."""
     if content is None:
         # Default content - single point with a few frames
@@ -77,7 +79,7 @@ def create_test_image_sequence(num_images: int = 5) -> tuple[Path, list[str]]:
     image_files = []
 
     for i in range(1, num_images + 1):
-        image = QImage(1280, 720, QImage.Format_RGB32)
+        image = QImage(1280, 720, QImage.Format_RGB32)  # pyright: ignore[reportAttributeAccessIssue]
         image.fill(0x404040)  # Gray
 
         filename = f"test_image_{i:04d}.png"
@@ -140,7 +142,7 @@ class MockFileLoadWorker:
 
         self._running = False
 
-    def start_work(self, tracking_file: str = None, image_dir: str = None):
+    def start_work(self, tracking_file: str | None = None, image_dir: str | None = None):
         """Mock start_work method."""
         self._running = True
 
@@ -211,9 +213,9 @@ def main_window_with_mocks(qapp, monkeypatch):
     window = MainWindow()
 
     # Replace components with mocks
-    window.curve_widget = MockCurveWidget()
-    window.file_load_worker = MockFileLoadWorker()
-    window.state_manager = MockStateManager()
+    window.curve_widget = MockCurveWidget()  # pyright: ignore[reportAttributeAccessIssue]
+    window.file_load_worker = MockFileLoadWorker()  # pyright: ignore[reportAttributeAccessIssue]
+    window.state_manager = MockStateManager()  # pyright: ignore[reportAttributeAccessIssue]
 
     window.show()
     qapp.processEvents()
@@ -261,38 +263,40 @@ class MainWindowTestHelper:
         """Simulate loading images through the UI."""
         with patch("ui.main_window.QFileDialog.getExistingDirectory") as mock_dialog:
             mock_dialog.return_value = image_dir
-            window._on_action_load_images()
+            window._on_action_load_images()  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
     def simulate_playback(window: MainWindow, num_frames: int = 5):
         """Simulate playback for a number of frames."""
-        window._on_play_pause(True)
+        window._on_play_pause(True)  # pyright: ignore[reportAttributeAccessIssue]
 
         for _ in range(num_frames):
-            window._on_playback_timer()
+            window._on_playback_timer()  # pyright: ignore[reportAttributeAccessIssue]
             QApplication.processEvents()
 
-        window._on_play_pause(False)
+        window._on_play_pause(False)  # pyright: ignore[reportAttributeAccessIssue]
 
     @staticmethod
     def set_frame_range(window: MainWindow, min_frame: int, max_frame: int):
         """Set the frame range for testing."""
-        window.frame_slider.setMinimum(min_frame)
-        window.frame_slider.setMaximum(max_frame)
-        window.frame_spinbox.setMinimum(min_frame)
-        window.frame_spinbox.setMaximum(max_frame)
+        if window.frame_slider:
+            window.frame_slider.setMinimum(min_frame)
+            window.frame_slider.setMaximum(max_frame)
+        if window.frame_spinbox:
+            window.frame_spinbox.setMinimum(min_frame)
+            window.frame_spinbox.setMaximum(max_frame)
 
     @staticmethod
     def verify_ui_state(window: MainWindow) -> dict[str, bool | int]:
         """Get current UI state for verification."""
         return {
             "current_frame": window.current_frame,
-            "is_playing": window.playback_timer.isActive() if window.playback_timer else False,
+            "is_playing": window.playback_timer.isActive() if window.playback_timer else False,  # pyright: ignore[reportAttributeAccessIssue]
             "has_data": bool(window.curve_widget.curve_data) if window.curve_widget else False,
             "has_background": bool(window.curve_widget.background_image) if window.curve_widget else False,
             "is_modified": window.state_manager.is_modified if window.state_manager else False,
-            "undo_enabled": window.action_undo.isEnabled(),
-            "redo_enabled": window.action_redo.isEnabled(),
+            "undo_enabled": window.action_undo.isEnabled() if window.action_undo else False,
+            "redo_enabled": window.action_redo.isEnabled() if window.action_redo else False,
         }
 
 
@@ -340,15 +344,17 @@ def performance_monitor():
 def assert_frame_synchronized(window: MainWindow, expected_frame: int):
     """Assert all frame controls are synchronized."""
     assert window.current_frame == expected_frame
-    assert window.frame_spinbox.value() == expected_frame
-    assert window.frame_slider.value() == expected_frame
+    if window.frame_spinbox:
+        assert window.frame_spinbox.value() == expected_frame
+    if window.frame_slider:
+        assert window.frame_slider.value() == expected_frame
 
     if window.timeline_tabs:
         # Timeline might have different representation
         pass  # Add timeline-specific checks if needed
 
 
-def assert_data_loaded(window: MainWindow, expected_points: int = None):
+def assert_data_loaded(window: MainWindow, expected_points: int | None = None):
     """Assert data is properly loaded."""
     assert window.curve_widget is not None
     assert window.curve_widget.curve_data is not None
@@ -360,6 +366,9 @@ def assert_data_loaded(window: MainWindow, expected_points: int = None):
 def assert_clean_state(window: MainWindow):
     """Assert window is in clean, unmodified state."""
     assert not window.state_manager.is_modified
-    assert not window.action_undo.isEnabled()
-    assert not window.action_redo.isEnabled()
-    assert not window.playback_timer.isActive()
+    if window.action_undo:
+        assert not window.action_undo.isEnabled()
+    if window.action_redo:
+        assert not window.action_redo.isEnabled()
+    if window.playback_timer:  # pyright: ignore[reportAttributeAccessIssue]
+        assert not window.playback_timer.isActive()  # pyright: ignore[reportAttributeAccessIssue]

@@ -349,9 +349,9 @@ class FileLoadWorker:
             for point_name, point_data in raw_data.items():
                 # point_data is a list from dict values, compatible with CurveDataList at runtime
                 result[point_name] = CurveDataWithMetadata(
-                    data=point_data,
+                    data=point_data,  # pyright: ignore[reportArgumentType]
                     metadata=metadata,
-                    is_normalized=False,  # pyright: ignore[reportArgumentType]
+                    is_normalized=False,
                 )
 
             total_frames = sum(len(curve.data) for curve in result.values())
