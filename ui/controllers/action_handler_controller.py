@@ -7,12 +7,13 @@ handled directly in MainWindow. It maintains exact compatibility with the
 existing ShortcutManager connections and behavior.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Slot
 
 from core.type_aliases import CurveDataList
 from services import get_data_service
+from services.service_protocols import MainWindowProtocol
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -76,7 +77,7 @@ class ActionHandlerController:
             # Check if it's multi-point data
             if isinstance(data, dict):
                 # Successfully loaded multi-point data - delegate to tracking controller
-                self.main_window.tracking_controller.on_multi_point_data_loaded(data)  # pyright: ignore[reportArgumentType]
+                self.main_window.tracking_controller.on_multi_point_data_loaded(data)
             else:
                 # Single curve data - also delegate to tracking controller for proper merging
                 self.main_window.tracking_controller.on_tracking_data_loaded(data)  # pyright: ignore[reportArgumentType]
@@ -273,29 +274,27 @@ class ActionHandlerController:
         )
 
         interaction_service = get_interaction_service()
-        if interaction_service is not None:
-            logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
-            if interaction_service.command_manager.execute_command(smooth_command, self.main_window):
-                # Mark as modified
-                self.state_manager.is_modified = True
+        logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
+        if interaction_service.command_manager.execute_command(
+            smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
+        ):
+            # Mark as modified
+            self.state_manager.is_modified = True
 
-                # Update status with details
-                filter_display = {
-                    "moving_average": "Moving Average",
-                    "median": "Median",
-                    "butterworth": "Butterworth",
-                }.get(filter_type, filter_type)
+            # Update status with details
+            filter_display = {
+                "moving_average": "Moving Average",
+                "median": "Median",
+                "butterworth": "Butterworth",
+            }.get(filter_type, filter_type)
 
-                self.main_window.statusBar().showMessage(
-                    f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
-                )
-                logger.info(f"{filter_display} smoothing applied successfully via command system")
-                return  # Command succeeded, exit early
-            else:
-                logger.error("Command system failed to execute smooth command")
-                # Fall through to legacy implementation
+            self.main_window.statusBar().showMessage(
+                f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
+            )
+            logger.info(f"{filter_display} smoothing applied successfully via command system")
+            return  # Command succeeded, exit early
         else:
-            logger.info("Interaction service not available, using legacy smoothing implementation")
+            logger.error("Command system failed to execute smooth command")
             # Fall through to legacy implementation
 
         # Fallback to legacy DataService implementation if command system unavailable or failed

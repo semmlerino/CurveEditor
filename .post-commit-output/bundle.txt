@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 189 files to bundle
+Found 190 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -118,6 +118,7 @@ Bundled: data/curve_view_plumbing.py
 Bundled: data/tracking_direction_utils.py
 Bundled: footage/Burger/2DTrackData.txt
 Bundled: footage/Burger/test.json
+Bundled: io_utils/exr_loader.py
 Bundled: io_utils/file_load_worker.py
 Bundled: io_utils/__init__.py
 Bundled: LogicExamples/SetTrackingBwd.py
@@ -194,9 +195,9 @@ Bundled: ui/protocols/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.11 MB
+Folder size: 2.14 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 645352 bytes
+Encoded size: 652408 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

@@ -5,12 +5,14 @@ and command execution for curve smoothing operations.
 """
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtWidgets import QInputDialog, QMessageBox
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
+
+from services.service_protocols import MainWindowProtocol
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +80,9 @@ class SmoothingController:
             interaction_service = get_interaction_service()
             success = False
             if interaction_service and interaction_service.command_manager is not None:
-                success = interaction_service.command_manager.execute_command(smooth_command, self.main_window)
+                success = interaction_service.command_manager.execute_command(
+                    smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
+                )
 
             if success:
                 # Update status

@@ -95,7 +95,7 @@ class DataService:
         """
         return self._load_json(filepath)
 
-    def load_2dtrack_data(self, filepath: str) -> CurveDataList:
+    def load_2dtrack_data(self, filepath: str) -> CurveDataList | CurveDataWithMetadata:
         """
         Public method to load 2D track data file programmatically.
 
@@ -103,7 +103,7 @@ class DataService:
             filepath: Path to 2D track data file
 
         Returns:
-            List of curve data points
+            List of curve data points or metadata-wrapped curve data
         """
         return self._load_2dtrack_data(filepath)
 
@@ -586,7 +586,7 @@ class DataService:
 
     # ==================== File I/O Delegation ====================
 
-    def load_track_data(self, parent_widget: "QWidget") -> CurveDataList | None:
+    def load_track_data(self, parent_widget: "QWidget") -> CurveDataList | CurveDataWithMetadata | None:
         """Load track data from file."""
         from PySide6.QtWidgets import QFileDialog
 

@@ -274,6 +274,9 @@ class FileOperationsManager(QObject):
                 data = data_service._load_2dtrack_data(file_path)
 
         if data:
+            # Import needed for type checking
+            from core.curve_data import CurveDataWithMetadata
+
             # Handle both dictionary (multi-point) and list (single curve) formats
             if isinstance(data, dict):
                 # Dictionary format - extract first point's data
@@ -282,6 +285,9 @@ class FileOperationsManager(QObject):
                     curve_data: CurveDataList = data[first_point_name]
                 else:
                     curve_data = []
+            elif isinstance(data, CurveDataWithMetadata):
+                # Extract data from metadata wrapper
+                curve_data = data.data
             else:
                 # List format (single curve)
                 curve_data = data

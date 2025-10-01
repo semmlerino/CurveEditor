@@ -379,6 +379,8 @@ class FileOperations(QObject):
         Returns:
             Loaded data (single curve or multi-point dict), or None if cancelled
         """
+        from typing import cast
+
         parent = parent_widget or self.parent_widget
 
         # Check for unsaved changes
@@ -421,7 +423,8 @@ class FileOperations(QObject):
                 if self.state_manager:
                     self.state_manager.current_file = file_path
                     self.state_manager.is_modified = False
-                return data
+                # Cast to proper return type
+                return cast(CurveDataList, data)
 
         return None
 
@@ -445,7 +448,8 @@ class FileOperations(QObject):
 
         # Save using services
         if self.services:
-            if self.services.save_track_data_to_file(data, file_path):
+            # ServiceFacade provides save_track_data_to_file method
+            if self.services.save_track_data_to_file(data, file_path):  # pyright: ignore[reportAttributeAccessIssue]
                 self.file_saved.emit(file_path)
                 if self.state_manager:
                     self.state_manager.current_file = file_path
@@ -536,8 +540,9 @@ class FileOperations(QObject):
 
         # Get last used directory from state manager
         last_dir: str | None = None
-        if self.state_manager is not None and hasattr(self.state_manager, "image_directory"):
-            last_dir = self.state_manager.image_directory
+        if self.state_manager is not None:
+            # Use getattr with default to avoid type safety issues
+            last_dir = getattr(self.state_manager, "image_directory", None)
 
         # Show image sequence browser dialog with last directory
         dialog = ImageSequenceBrowserDialog(parent, start_directory=last_dir)
@@ -550,10 +555,14 @@ class FileOperations(QObject):
 
         # Remember the selected directory for next time
         if self.state_manager is not None:
-            if hasattr(self.state_manager, "image_directory"):
-                self.state_manager.image_directory = selected_directory  # type: ignore[misc]
-            if hasattr(self.state_manager, "add_recent_directory"):
-                self.state_manager.add_recent_directory(selected_directory)  # type: ignore[misc]
+            # Use getattr/setattr for dynamic attributes
+            if getattr(self.state_manager, "image_directory", None) is not None or hasattr(
+                self.state_manager, "image_directory"
+            ):
+                self.state_manager.image_directory = selected_directory  # pyright: ignore[reportAttributeAccessIssue]
+            add_recent_dir = getattr(self.state_manager, "add_recent_directory", None)
+            if callable(add_recent_dir):
+                add_recent_dir(selected_directory)
 
         # Start background loading of image sequence
         self.file_load_worker.start_work(tracking_file_path=None, image_dir_path=selected_directory)

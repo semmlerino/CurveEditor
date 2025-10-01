@@ -5,13 +5,14 @@ Command Manager for undo/redo functionality.
 This module provides the CommandManager class that manages the execution,
 undo, and redo of commands throughout the application.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
+    from services.service_protocols import MainWindowProtocol
 
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
@@ -42,7 +43,7 @@ class CommandManager:
 
         logger.info(f"CommandManager initialized with max_history_size={max_history_size}")
 
-    def execute_command(self, command: Command, main_window: MainWindow) -> bool:
+    def execute_command(self, command: Command, main_window: MainWindowProtocol) -> bool:
         """
         Execute a command and add it to the history.
 
@@ -97,7 +98,7 @@ class CommandManager:
             logger.error(f"Error executing command {command}: {e}")
             return False
 
-    def add_executed_command(self, command: Command, main_window: MainWindow) -> bool:
+    def add_executed_command(self, command: Command, main_window: MainWindowProtocol) -> bool:
         """
         Add an already-executed command to history without re-executing it.
 
@@ -141,7 +142,7 @@ class CommandManager:
             logger.error(f"Error adding executed command {command}: {e}")
             return False
 
-    def undo(self, main_window: MainWindow) -> bool:
+    def undo(self, main_window: MainWindowProtocol) -> bool:
         """
         Undo the last command.
 
@@ -175,7 +176,7 @@ class CommandManager:
             logger.error(f"Error undoing command: {e}")
             return False
 
-    def redo(self, main_window: MainWindow) -> bool:
+    def redo(self, main_window: MainWindowProtocol) -> bool:
         """
         Redo the next command.
 
@@ -224,7 +225,7 @@ class CommandManager:
         """
         return self._current_index < len(self._history) - 1
 
-    def clear_history(self, main_window: MainWindow) -> None:
+    def clear_history(self, main_window: MainWindowProtocol) -> None:
         """
         Clear all command history.
 
@@ -298,7 +299,7 @@ class CommandManager:
             self._current_index -= 1
             self._current_index = max(-1, self._current_index)
 
-    def _update_ui_state(self, main_window: MainWindow) -> None:
+    def _update_ui_state(self, main_window: MainWindowProtocol) -> None:
         """
         Update UI state to reflect current undo/redo availability.
 

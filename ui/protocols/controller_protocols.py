@@ -286,6 +286,10 @@ class MultiPointTrackingProtocol(Protocol):
         """Handle tracking direction change."""
         ...
 
+    def on_curve_selection_changed(self, selection: set[int]) -> None:
+        """Handle curve selection change from CurveDataStore."""
+        ...
+
     def update_tracking_panel(self) -> None:
         """Update tracking panel display."""
         ...

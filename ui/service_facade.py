@@ -438,17 +438,17 @@ class ServiceFacade:
     def set_status(self, message: str, timeout: int = 0) -> None:
         """Set status bar message."""
         if self._ui_service and self.main_window:
-            self._ui_service.set_status(self.main_window, message, timeout)
+            self._ui_service.set_status(self.main_window, message, timeout)  # pyright: ignore[reportArgumentType]
 
     def clear_status(self) -> None:
         """Clear status bar message."""
         if self._ui_service and self.main_window:
-            self._ui_service.clear_status(self.main_window)
+            self._ui_service.clear_status(self.main_window)  # pyright: ignore[reportArgumentType]
 
     def update_ui_from_data(self) -> None:
         """Update UI components based on current data state."""
         if self._ui_service and self.main_window:
-            self._ui_service.update_ui_from_data(self.main_window)
+            self._ui_service.update_ui_from_data(self.main_window)  # pyright: ignore[reportArgumentType]
 
     # ==================== Convenience Methods ====================
 

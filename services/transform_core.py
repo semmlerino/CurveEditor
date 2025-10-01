@@ -24,7 +24,6 @@ else:
     np = None
     NDArray = None
 
-from core.validation_utils import is_valid_coordinate
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 
@@ -47,7 +46,11 @@ def validate_scale(
 
 def validate_point(x: float, y: float, context: str) -> tuple[float, float]:
     """Validate coordinate pair."""
-    if not is_valid_coordinate(x, y):
+    # Type guard doesn't properly narrow individual parameters,
+    # so we check manually for type safety
+    if not (isinstance(x, int | float) and isinstance(y, int | float)):
+        return (0.0, 0.0)
+    if not (math.isfinite(x) and math.isfinite(y)):
         return (0.0, 0.0)
     return (x, y)
 
@@ -135,8 +138,8 @@ class ValidationConfig:
 def calculate_center_offset(
     widget_width: int,
     widget_height: int,
-    display_width: int,
-    display_height: int,
+    display_width: int | float,
+    display_height: int | float,
     scale: float,
     flip_y_axis: bool,
     scale_to_image: bool,
@@ -997,7 +1000,7 @@ class Transform:
             manual_offset_x=view_state.manual_x_offset,
             manual_offset_y=view_state.manual_y_offset,
             flip_y=view_state.flip_y_axis,
-            display_height=view_state.display_height,
+            display_height=int(view_state.display_height),
             image_scale_x=image_scale_x,
             image_scale_y=image_scale_y,
             scale_to_image=view_state.scale_to_image,

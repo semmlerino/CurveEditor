@@ -273,7 +273,7 @@ class CurveViewWidget(QWidget):
             # Clear first then add each index
             self._curve_store.clear_selection()
             for idx in value:
-                self._curve_store.select_point(idx)
+                self._curve_store.select(idx, add_to_selection=True)
 
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
@@ -1910,8 +1910,10 @@ class CurveViewWidget(QWidget):
 
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and interaction_service.command_manager is not None:
-                interaction_service.command_manager.execute_command(command, cast(object, self.main_window))
+            if interaction_service and interaction_service.command_manager is not None and self.main_window is not None:
+                # Protocol mismatch between local MainWindow and service's MainWindowProtocol
+                # At runtime, the actual main_window satisfies both protocols
+                interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
 
                 # Convert to keyframes since user manually adjusted them
                 for idx in self.selected_indices:
@@ -1943,8 +1945,10 @@ class CurveViewWidget(QWidget):
 
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and interaction_service.command_manager is not None:
-                interaction_service.command_manager.execute_command(command, cast(object, self.main_window))
+            if interaction_service and interaction_service.command_manager is not None and self.main_window is not None:
+                # Protocol mismatch between local MainWindow and service's MainWindowProtocol
+                # At runtime, the actual main_window satisfies both protocols
+                interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
 
         # Selection is cleared automatically by the command
 

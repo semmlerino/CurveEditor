@@ -18,7 +18,7 @@ from typing import TYPE_CHECKING
 
 # Third-party imports with type stubs handling
 try:
-    from scipy import signal  # type: ignore[import-untyped]
+    from scipy import signal  # pyright: ignore[reportMissingImports]
 except ImportError:
     signal = None  # type: ignore[assignment]
 

@@ -14,6 +14,7 @@ from PySide6.QtCore import QObject, Signal
 from core.config import get_config
 from core.coordinate_detector import detect_coordinate_system
 from core.curve_data import CurveDataWithMetadata
+from core.type_aliases import CurveDataList
 
 logger = logging.getLogger(__name__)
 
@@ -129,7 +130,18 @@ class FileLoadWorker:
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
                     # Direct signal emission (Qt handles thread safety)
-                    msg = f"Loaded {len(data) if data else 0} tracking points"
+                    # Handle different data types for length calculation
+                    if isinstance(data, CurveDataWithMetadata):
+                        data_len = len(data.data)
+                    elif isinstance(data, dict):
+                        data_len = sum(
+                            len(v.data) if isinstance(v, CurveDataWithMetadata) else len(v) for v in data.values()
+                        )
+                    elif isinstance(data, list):
+                        data_len = len(data)
+                    else:
+                        data_len = 0
+                    msg = f"Loaded {data_len if data else 0} tracking points"
                     self.signals.progress_updated.emit(progress, msg)
 
                 except Exception as e:
@@ -209,6 +221,7 @@ class FileLoadWorker:
             line_idx = 0
 
             # Read number of tracking points
+            num_points = 0
             if line_idx < len(lines):
                 try:
                     num_points = int(lines[line_idx].strip())
@@ -332,9 +345,14 @@ class FileLoadWorker:
         # Handle multi-point data
         if isinstance(raw_data, dict):
             # Create metadata-aware wrapper for each point
-            result = {}
+            result: dict[str, CurveDataWithMetadata] = {}
             for point_name, point_data in raw_data.items():
-                result[point_name] = CurveDataWithMetadata(data=point_data, metadata=metadata, is_normalized=False)
+                # point_data is a list from dict values, compatible with CurveDataList at runtime
+                result[point_name] = CurveDataWithMetadata(
+                    data=point_data,
+                    metadata=metadata,
+                    is_normalized=False,  # pyright: ignore[reportArgumentType]
+                )
 
             total_frames = sum(len(curve.data) for curve in result.values())
             logger.info(
@@ -343,9 +361,10 @@ class FileLoadWorker:
                 f"dimensions={metadata.width}x{metadata.height}"
             )
             return result
-        else:
+        elif isinstance(raw_data, list):
             # Single point data - backward compatibility
-            curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)
+            # Type narrowing: raw_data is a list at this point, compatible with CurveDataList
+            curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)  # pyright: ignore[reportArgumentType]
 
             logger.info(
                 f"[COORD] Loaded {len(raw_data)} points with metadata: "
@@ -354,10 +373,15 @@ class FileLoadWorker:
             )
 
             return curve_data
+        else:
+            # Empty data case
+            return CurveDataWithMetadata(data=[], metadata=metadata)
 
     def _load_2dtrack_data_legacy_wrapper(
         self, file_path: str, flip_y: bool = False, image_height: float = 720
-    ) -> list[tuple[int, float, float]]:
+    ) -> (
+        list[tuple[int, float, float]] | list[tuple[int, float, float, str]] | dict[str, list[tuple[int, float, float]]]
+    ):
         """Legacy wrapper that loads data and applies flip_y if needed.
 
         This method exists for backward compatibility with code that expects
@@ -369,7 +393,7 @@ class FileLoadWorker:
             image_height: Height for Y-flip calculation
 
         Returns:
-            List of tracking points with Y optionally flipped
+            List of tracking points with Y optionally flipped, or dict for multi-point
         """
         # Check if we should use metadata-aware loading
         config = get_config()
@@ -378,15 +402,32 @@ class FileLoadWorker:
             # Load with metadata
             curve_data = self._load_2dtrack_data_metadata_aware(file_path)
 
-            # Apply flip if requested (for legacy compatibility)
-            if flip_y and curve_data.needs_y_flip_for_display:
-                # Convert to normalized then back with flip
-                return curve_data.to_normalized().to_legacy_format()
+            # Handle dict case (multi-point data)
+            if isinstance(curve_data, dict):
+                # Return dict of legacy format for each point
+                result_dict: dict[str, CurveDataList] = {}
+                for point_name, point_curve in curve_data.items():
+                    if flip_y and point_curve.needs_y_flip_for_display:
+                        result_dict[point_name] = point_curve.to_normalized().to_legacy_format()
+                    else:
+                        result_dict[point_name] = point_curve.to_legacy_format()
+                # Runtime type is compatible despite variance rules
+                return result_dict  # pyright: ignore[reportReturnType]
+            elif isinstance(curve_data, CurveDataWithMetadata):
+                # Single point data - to_legacy_format returns CurveDataList
+                if flip_y and curve_data.needs_y_flip_for_display:
+                    # Convert to normalized then back with flip
+                    return curve_data.to_normalized().to_legacy_format()  # pyright: ignore[reportReturnType]
+                else:
+                    return curve_data.to_legacy_format()  # pyright: ignore[reportReturnType]
             else:
-                return curve_data.to_legacy_format()
+                # Fallback for unexpected types
+                return []
         else:
             # Use direct loading with flip_y parameter
-            return self._load_2dtrack_data_direct(file_path, flip_y, image_height)
+            result = self._load_2dtrack_data_direct(file_path, flip_y, image_height)
+            # Runtime type is compatible despite variance rules
+            return result  # pyright: ignore[reportReturnType]
 
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""

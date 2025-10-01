@@ -6,7 +6,9 @@ Represents a single frame in the timeline with color coding based on point statu
 Similar to 3DEqualizer frame tabs with visual indicators for tracking status.
 """
 
-from PySide6.QtCore import Qt, Signal
+from typing import ClassVar, override
+
+from PySide6.QtCore import QEvent, Qt, Signal
 from PySide6.QtGui import QBrush, QColor, QContextMenuEvent, QEnterEvent, QMouseEvent, QPainter, QPaintEvent, QPen
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
@@ -15,8 +17,8 @@ class FrameTab(QWidget):
     """Individual frame tab with color coding and click interaction."""
 
     # Signals
-    frame_clicked = Signal(int)  # Emitted when tab is clicked (frame_number)
-    frame_hovered = Signal(int)  # Emitted when tab is hovered (frame_number)
+    frame_clicked: ClassVar[Signal] = Signal(int)  # Emitted when tab is clicked (frame_number)
+    frame_hovered: ClassVar[Signal] = Signal(int)  # Emitted when tab is hovered (frame_number)
 
     # Tab appearance constants - modern 3DE style
     TAB_HEIGHT: int = 38  # Taller tabs for better visibility
@@ -33,7 +35,7 @@ class FrameTab(QWidget):
     def _init_colors(cls) -> None:
         """Initialize colors from centralized theme."""
         if not cls.COLORS:
-            from ui.ui_constants import COLORS_DARK, STATUS_COLORS_TIMELINE
+            from ui.color_manager import COLORS_DARK, STATUS_COLORS_TIMELINE
 
             cls.COLORS = {
                 "no_points": QColor(*STATUS_COLORS_TIMELINE["no_points"]),
@@ -172,7 +174,7 @@ class FrameTab(QWidget):
             self.is_current_frame = is_current
             self.update()  # Trigger repaint
 
-    def _update_tooltip(self):
+    def _update_tooltip(self) -> None:
         """Update tooltip text based on current status."""
         # Always show frame number in tooltip since it's not displayed on tab
         if self.is_inactive:
@@ -180,7 +182,7 @@ class FrameTab(QWidget):
         elif self.point_count == 0:
             tooltip = f"Frame {self.frame_number}: No tracked points"
         else:
-            parts = []
+            parts: list[str] = []
             if self.is_startframe:
                 parts.append("STARTFRAME")
             if self.keyframe_count > 0:
@@ -233,6 +235,7 @@ class FrameTab(QWidget):
         """Get text color - always white in 3DE style."""
         return self.COLORS["text"]  # Always white
 
+    @override
     def paintEvent(self, event: QPaintEvent) -> None:
         """Custom paint for frame tab appearance."""
         painter = QPainter(self)
@@ -267,24 +270,28 @@ class FrameTab(QWidget):
         # No frame numbers on tabs in 3DE style - just colored bars
         # Frame number is shown in tooltip on hover
 
-    def mousePressEvent(self, event: QMouseEvent):
+    @override
+    def mousePressEvent(self, event: QMouseEvent) -> None:
         """Handle mouse press for frame selection."""
         if event.button() == Qt.MouseButton.LeftButton:
             self.frame_clicked.emit(self.frame_number)
         super().mousePressEvent(event)
 
+    @override
     def enterEvent(self, event: QEnterEvent) -> None:
         """Handle mouse enter for hover tracking."""
         self.is_hovered = True
         # frame_hovered signal removed - no action needed on hover
         super().enterEvent(event)
 
-    def leaveEvent(self, event: QEnterEvent) -> None:
+    @override
+    def leaveEvent(self, event: QEvent) -> None:
         """Handle mouse leave."""
         self.is_hovered = False
         # No visual update needed since hover effect is removed
         super().leaveEvent(event)
 
+    @override
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """Handle right-click context menu (future feature)."""
         # TODO: Implement context menu with options like:

@@ -32,7 +32,7 @@ class SignalConnectionManager:
         Args:
             main_window: Reference to the main window for signal connections
         """
-        self.main_window = main_window
+        self.main_window: MainWindow = main_window
         logger.info("SignalConnectionManager initialized")
 
     def connect_all_signals(self) -> None:
@@ -53,18 +53,20 @@ class SignalConnectionManager:
     def _connect_file_operations_signals(self) -> None:
         """Connect signals from file operations manager."""
         # Connect file loading signals
-        self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)
-        self.main_window.file_operations.multi_point_data_loaded.connect(self.main_window.on_multi_point_data_loaded)
-        self.main_window.file_operations.image_sequence_loaded.connect(
+        _ = self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)
+        _ = self.main_window.file_operations.multi_point_data_loaded.connect(
+            self.main_window.on_multi_point_data_loaded
+        )
+        _ = self.main_window.file_operations.image_sequence_loaded.connect(
             self.main_window.view_management_controller.on_image_sequence_loaded
         )
-        self.main_window.file_operations.progress_updated.connect(self.main_window.on_file_load_progress)
-        self.main_window.file_operations.error_occurred.connect(self.main_window.on_file_load_error)
-        self.main_window.file_operations.finished.connect(self.main_window.on_file_load_finished)
+        _ = self.main_window.file_operations.progress_updated.connect(self.main_window.on_file_load_progress)
+        _ = self.main_window.file_operations.error_occurred.connect(self.main_window.on_file_load_error)
+        _ = self.main_window.file_operations.finished.connect(self.main_window.on_file_load_finished)
 
         # Connect file operation status signals
-        self.main_window.file_operations.file_loaded.connect(self.main_window.on_file_loaded)
-        self.main_window.file_operations.file_saved.connect(self.main_window.on_file_saved)
+        _ = self.main_window.file_operations.file_loaded.connect(self.main_window.on_file_loaded)
+        _ = self.main_window.file_operations.file_saved.connect(self.main_window.on_file_saved)
 
         logger.info("Connected file operations signals")
 
@@ -103,11 +105,11 @@ class SignalConnectionManager:
         # This ensures automatic reactive updates without going through the controller
 
         # Only connect selection change which MainWindow needs
-        self.main_window.get_curve_store().selection_changed.connect(self.main_window.on_store_selection_changed)
+        _ = self.main_window.get_curve_store().selection_changed.connect(self.main_window.on_store_selection_changed)
 
         # BIDIRECTIONAL SYNC: Connect CurveDataStore selection changes to tracking controller
         # This ensures point-level selection changes are reflected in the tracking panel
-        self.main_window.get_curve_store().selection_changed.connect(
+        _ = self.main_window.get_curve_store().selection_changed.connect(
             self.main_window.tracking_controller.on_curve_selection_changed
         )
 

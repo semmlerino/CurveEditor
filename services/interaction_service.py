@@ -21,15 +21,12 @@ from PySide6.QtWidgets import QRubberBand
 
 from core.spatial_index import PointIndex
 
-# Import protocols for type annotations (available at runtime)
-from services.service_protocols import CurveViewProtocol, MainWindowProtocol
-
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
 
     from core.commands.command_manager import CommandManager
+    from services.service_protocols import CurveViewProtocol, MainWindowProtocol
     from services.transform_service import TransformService
-    from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
 
@@ -287,9 +284,7 @@ class InteractionService:
                     # The points have already been moved during dragging,
                     # so we mark the command as executed and add it to history
                     command.executed = True
-                    self.command_manager.add_executed_command(
-                        command, cast("MainWindow", cast(object, view.main_window))
-                    )
+                    self.command_manager.add_executed_command(command, cast(MainWindowProtocol, view.main_window))
 
             # Clear the tracked positions
             self._drag_original_positions = None
@@ -331,7 +326,7 @@ class InteractionService:
 
                 # Update history if points were selected
                 if selected_count > 0 and view.main_window is not None:
-                    self.update_history_buttons(view.main_window)
+                    self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
 
         view.update()
 
@@ -376,7 +371,7 @@ class InteractionService:
                     )
 
                     # Execute the command through the command manager
-                    self.command_manager.execute_command(command, cast("MainWindow", cast(object, view.main_window)))
+                    self.command_manager.execute_command(command, cast(MainWindowProtocol, view.main_window))
 
                     # Clear selection
                     view.selected_points.clear()
@@ -392,7 +387,7 @@ class InteractionService:
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
             if view.main_window is not None:
-                self.update_history_buttons(view.main_window)
+                self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
 
         elif key == Qt.Key.Key_Escape:
             # Clear selection
@@ -400,7 +395,7 @@ class InteractionService:
             view.selected_point_idx = -1
             # main_window is defined in CurveViewProtocol
             if view.main_window is not None:
-                self.update_history_buttons(view.main_window)
+                self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
 
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
             # Nudge selected points
@@ -438,7 +433,7 @@ class InteractionService:
                         description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
                         moves=moves,
                     )
-                    self.command_manager.execute_command(command, cast("MainWindow", cast(object, view.main_window)))
+                    self.command_manager.execute_command(command, cast(MainWindowProtocol, view.main_window))
                     # Note: No need to add_to_history - command manager handles it
 
         view.update()
@@ -736,7 +731,7 @@ class InteractionService:
                     indices=indices,
                     deleted_points=deleted_points,
                 )
-                self.command_manager.execute_command(command, cast("MainWindow", cast(object, main_window)))
+                self.command_manager.execute_command(command, main_window)
 
             # Clear selection
             view.selected_points.clear()
@@ -803,7 +798,7 @@ class InteractionService:
         """Legacy undo action - now uses command manager."""
         # Prefer command manager if available and has commands
         if self.command_manager.can_undo():
-            self.command_manager.undo(cast("MainWindow", cast(object, main_window)))
+            self.command_manager.undo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system")
@@ -823,7 +818,7 @@ class InteractionService:
         else:
             # Use command manager even if it has no commands (for consistency)
             logger.info("Using command manager for undo (fallback)")
-            self.command_manager.undo(cast("MainWindow", main_window))
+            self.command_manager.undo(main_window)
 
     def redo_action(self, main_window: MainWindowProtocol) -> None:
         """Legacy redo action - now uses command manager."""
@@ -832,7 +827,7 @@ class InteractionService:
         # Prefer command manager if available and has commands to redo
         if self.command_manager.can_redo():
             logger.info("Using command manager for redo")
-            self.command_manager.redo(cast("MainWindow", cast(object, main_window)))
+            self.command_manager.redo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system for redo")
@@ -852,7 +847,7 @@ class InteractionService:
         else:
             # Use command manager even if it has no commands (for consistency)
             logger.info("Using command manager for redo (fallback)")
-            self.command_manager.redo(cast("MainWindow", main_window))
+            self.command_manager.redo(main_window)
 
     def save_state(self, main_window: MainWindowProtocol) -> None:
         """Legacy save state."""
@@ -910,10 +905,8 @@ class InteractionService:
             # Set on main_window directly if it has the attribute
             # curve_data is defined in MainWindowProtocol
             if main_window.curve_data is not None:
-                # Cast to ensure type safety
-                from core.type_aliases import CurveDataList
-
-                main_window.curve_data = cast(CurveDataList, curve_data)
+                # Use setattr since curve_data may be a property - Protocol compatibility
+                setattr(main_window, "curve_data", curve_data)  # pyright: ignore[reportAttributeAccessIssue]
 
             # Also set on curve_widget if present
             if (

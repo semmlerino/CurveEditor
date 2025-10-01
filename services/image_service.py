@@ -130,7 +130,9 @@ class ImageService:
             cache_key = f"image:{file_path}"
             cached_image = self._get_from_cache(cache_key)
             if cached_image is not None:
-                return cached_image  # type: ignore[return-value]
+                from PySide6.QtGui import QImage
+
+                return cached_image  # pyright: ignore[reportReturnType]
 
             # Check if this is an EXR file (requires special loader)
             from pathlib import Path

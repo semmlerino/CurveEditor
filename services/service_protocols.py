@@ -96,6 +96,10 @@ class StateManagerProtocol(Protocol):
     is_modified: bool
     auto_center_enabled: bool
 
+    def set_history_state(self, can_undo: bool, can_redo: bool, position: int, size: int) -> None:
+        """Update history state information."""
+        ...
+
 
 class CurveViewProtocol(Protocol):
     """Protocol for curve view widgets.
@@ -224,16 +228,8 @@ class MainWindowProtocol(Protocol):
     # Basic attributes commonly used by services
     curve_view: "CurveViewWidget | None"
     curve_widget: "CurveViewWidget | None"
-
-    @property
-    def selected_indices(self) -> list[int]:
-        """Get the currently selected point indices."""
-        ...
-
-    @property
-    def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
-        """Get the current curve data."""
-        ...
+    selected_indices: list[int]
+    curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]]
 
     # History management
     history: list[dict[str, object]]  # Each history entry is a dict with curve data
@@ -249,17 +245,42 @@ class MainWindowProtocol(Protocol):
     redo_button: "QPushButton | None"
     save_button: "QPushButton | None"
     ui_components: object  # UIComponents container
+    ui: object  # UIComponents container (alias)
 
     # Service references
     services: object  # Service container
     file_operations: object  # FileOperations instance
 
+    # Command management
+    command_manager: object  # CommandManager instance
+
     # State management
     state_manager: StateManagerProtocol
+
+    # Frame management
+    _point_spinbox_connected: bool
 
     @property
     def is_modified(self) -> bool:
         """Get modified state (proxy to state_manager.is_modified)."""
+        ...
+
+    @property
+    def current_frame(self) -> int:
+        """Get current frame number."""
+        ...
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set current frame number."""
+        ...
+
+    def _get_current_frame(self) -> int:
+        """Internal method to get current frame."""
+        ...
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Internal method to set current frame."""
         ...
 
     # Methods that services may call
@@ -273,6 +294,18 @@ class MainWindowProtocol(Protocol):
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""
+        ...
+
+    def update_ui_state(self) -> None:
+        """Update UI state (undo/redo buttons, etc.)."""
+        ...
+
+    def update_curve_data(self, data: CurveDataList) -> None:
+        """Update curve data."""
+        ...
+
+    def update_curve_view_options(self) -> None:
+        """Update curve view visualization options."""
         ...
 
     def setWindowTitle(self, title: str) -> None:
@@ -346,6 +379,10 @@ class SimpleLoggingService:
     def log_warning(self, message: str) -> None:
         """Log a warning message."""
         logging.getLogger("app").warning(message)
+
+    def log_debug(self, message: str) -> None:
+        """Log a debug message."""
+        logging.getLogger("app").debug(message)
 
 
 class SimpleStatusService:

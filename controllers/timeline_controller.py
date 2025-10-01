@@ -25,7 +25,7 @@ class TimelineController:
         Args:
             main_window: Reference to the main window
         """
-        self.main_window: "MainWindow" = main_window
+        self.main_window: MainWindow = main_window
 
     def handle_timeline_tab_clicked(self, frame: int) -> None:
         """Handle timeline tab click event.

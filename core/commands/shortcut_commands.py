@@ -8,12 +8,13 @@ keyboard shortcuts in the application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Qt
 
 if TYPE_CHECKING:
     from core.models import TrackingDirection
+    from services.service_protocols import MainWindowProtocol
 
 from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
 from core.logger_utils import get_logger
@@ -107,7 +108,9 @@ class SetEndframeCommand(ShortcutCommand):
                     # Execute through command manager for proper undo/redo
                     interaction_service = get_interaction_service()
                     if interaction_service:
-                        success = interaction_service.command_manager.execute_command(command, context.main_window)
+                        success = interaction_service.command_manager.execute_command(
+                            command, cast("MainWindowProtocol", cast(object, context.main_window))
+                        )
                         if success:
                             # Create informative status message
                             if endframe_count > 0 and keyframe_count > 0:
@@ -157,7 +160,9 @@ class SetEndframeCommand(ShortcutCommand):
                         # Execute through command manager
                         interaction_service = get_interaction_service()
                         if interaction_service:
-                            success = interaction_service.command_manager.execute_command(command, context.main_window)
+                            success = interaction_service.command_manager.execute_command(
+                                command, cast("MainWindowProtocol", cast(object, context.main_window))
+                            )
                             if success:
                                 curve_widget.update_status(msg, 2000)
                                 logger.info(msg)

@@ -276,7 +276,7 @@ class CacheService:
             manual_offset_x=quantized_view_state.manual_x_offset,
             manual_offset_y=quantized_view_state.manual_y_offset,
             flip_y=quantized_view_state.flip_y_axis,
-            display_height=quantized_view_state.display_height,
+            display_height=int(quantized_view_state.display_height),
             image_scale_x=image_scale_x,
             image_scale_y=image_scale_y,
             scale_to_image=quantized_view_state.scale_to_image,
