@@ -827,7 +827,14 @@ class CurveViewWidget(QWidget):
 
         # Use cached transform service - this enables 99.9% cache hits
         transform_service = get_transform_service()
-        self._transform_cache = transform_service.create_transform_from_view_state(view_state)
+        try:
+            self._transform_cache = transform_service.create_transform_from_view_state(view_state)
+        except (ValueError, RuntimeError) as e:
+            # Log transform creation errors but don't crash - use fallback transform
+            logger.warning(f"Transform creation failed: {e}. Using fallback.")
+            # Keep existing transform or use None as fallback
+            if not hasattr(self, "_transform_cache"):
+                self._transform_cache = None
 
     def _get_display_dimensions(self) -> tuple[int, int]:
         """

@@ -5,6 +5,8 @@ Test that timeline reacts to store changes properly.
 This is a simpler test that works with whatever frame range the timeline has.
 """
 
+from unittest.mock import patch
+
 import pytest
 from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
@@ -27,9 +29,11 @@ class TestTimelineStoreReactive:
     @pytest.fixture
     def main_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create MainWindow for testing."""
-        window = MainWindow()
-        qtbot.addWidget(window)
-        return window
+        # Mock file operations to prevent auto-loading burger data
+        with patch("ui.file_operations.FileOperations.load_burger_data_async"):
+            window = MainWindow()
+            qtbot.addWidget(window)
+            return window
 
     def test_timeline_reacts_to_store_changes(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline updates when store changes."""
@@ -53,7 +57,13 @@ class TestTimelineStoreReactive:
             (3, 120.0, 120.0, "keyframe"),
         ]
         curve_store.set_data(test_data)
-        qtbot.wait(100)
+
+        # Process events to allow signals to propagate
+        # Use processEvents instead of qtbot.wait to avoid event loop issues after 1600+ tests
+        app = QApplication.instance()
+        for _ in range(10):
+            if app:
+                app.processEvents()
 
         # Verify timeline has frames 1-3 now
         assert timeline.min_frame == 1
@@ -70,31 +80,44 @@ class TestTimelineStoreReactive:
         store_manager = get_store_manager()
         curve_store = store_manager.get_curve_store()
 
-        # Set initial data
+        # Set initial data - single keyframe at frame 1
         test_data = [
             (1, 100.0, 100.0, "keyframe"),
-            (2, 110.0, 110.0, "keyframe"),
-            (3, 120.0, 120.0, "keyframe"),
         ]
         curve_store.set_data(test_data)
-        qtbot.wait(100)
+
+        # Process events to allow signals to propagate
+        app = QApplication.instance()
+        for _ in range(10):
+            if app:
+                app.processEvents()
 
         # Get timeline
         timeline = main_window.timeline_tabs
 
-        # Check frame 2 initial state
-        if 2 in timeline.frame_tabs:
-            tab2 = timeline.frame_tabs[2]
-            initial_color = tab2._get_background_color()
+        # Check frame 1 initial state (pure keyframe)
+        if 1 in timeline.frame_tabs:
+            tab1 = timeline.frame_tabs[1]
+            initial_color = tab1._get_background_color()
+
+            # Verify it's the keyframe color
+            assert tab1.keyframe_count == 1
+            assert tab1.interpolated_count == 0
 
             # Change status to interpolated
-            curve_store.set_point_status(1, "interpolated")  # Index 1 is frame 2
-            qtbot.wait(100)
+            curve_store.set_point_status(0, "interpolated")  # Index 0 is frame 1
 
-            # Color should have changed
-            updated_color = tab2._get_background_color()
-            assert initial_color.name() != updated_color.name()
-            assert tab2.interpolated_count == 1
+            # Manually trigger the deferred update instead of waiting for timer
+            # This avoids Qt event loop issues after 1600+ tests
+            timeline._perform_deferred_updates()
+
+            # Color should have changed from keyframe to interpolated
+            updated_color = tab1._get_background_color()
+            assert (
+                initial_color.name() != updated_color.name()
+            ), f"Color should change from keyframe to interpolated, got {initial_color.name()} -> {updated_color.name()}"
+            assert tab1.interpolated_count == 1
+            assert tab1.keyframe_count == 0
 
 
 if __name__ == "__main__":

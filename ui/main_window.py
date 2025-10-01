@@ -193,13 +193,21 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.resize(1400, 900)
 
         # Apply dark theme to entire application
+        # CRITICAL: Only apply stylesheet once to prevent timeout after 1580+ tests.
+        # When stylesheet is applied at app level, Qt reprocesses ALL widgets including
+        # accumulated test widgets, causing 30+ second delays (see UNIFIED_TESTING_GUIDE).
         app = QApplication.instance()
         if app and isinstance(app, QApplication):
-            # Use Fusion style for better dark theme support
-            app.setStyle("Fusion")
-            # Apply the dark theme stylesheet
-            app.setStyleSheet(get_dark_theme_stylesheet())
-            logger.info("Applied dark theme to application")
+            # Check if stylesheet already applied (avoid reapplying in tests)
+            if not getattr(app, "_dark_theme_applied", False):
+                # Use Fusion style for better dark theme support
+                app.setStyle("Fusion")
+                # Apply the dark theme stylesheet
+                app.setStyleSheet(get_dark_theme_stylesheet())
+                app._dark_theme_applied = True  # pyright: ignore[reportAttributeAccessIssue]
+                logger.info("Applied dark theme to application")
+            else:
+                logger.debug("Dark theme already applied, skipping")
 
         # Initialize managers
         self.state_manager: StateManager = StateManager(self)
@@ -1135,6 +1143,23 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         super().keyPressEvent(event)
 
     @override
+    def __del__(self) -> None:
+        """Destructor to ensure event filter cleanup even if closeEvent isn't called.
+
+        CRITICAL: Removes global event filter to prevent accumulation across tests.
+        After 1580+ tests, accumulated event filters cause timeouts when
+        setStyleSheet() triggers events through all filters (see UNIFIED_TESTING_GUIDE).
+        """
+        try:
+            app = QApplication.instance()
+            if app and getattr(self, "global_event_filter", None) is not None:
+                try:
+                    app.removeEventFilter(self.global_event_filter)
+                except RuntimeError:
+                    pass  # QApplication may already be destroyed
+        except Exception:
+            pass  # Suppress all exceptions in destructor
+
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
