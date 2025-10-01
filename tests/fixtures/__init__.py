@@ -26,8 +26,12 @@ from tests.fixtures.mock_fixtures import (
 )
 from tests.fixtures.qt_fixtures import (
     curve_view_widget,
+    file_load_signals,
+    file_load_worker,
     qapp,
     qt_cleanup,
+    ui_file_load_signals,
+    ui_file_load_worker,
 )
 from tests.fixtures.service_fixtures import (
     all_services,
@@ -53,6 +57,10 @@ __all__ = [
     "qapp",
     "qt_cleanup",
     "curve_view_widget",
+    "file_load_signals",
+    "file_load_worker",
+    "ui_file_load_signals",
+    "ui_file_load_worker",
     # Service fixtures
     "all_services",
     "isolated_services",

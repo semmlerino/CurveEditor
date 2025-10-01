@@ -17,6 +17,8 @@ from core.config import reset_config
 from tests.fixtures import (
     all_services,
     curve_view_widget,
+    file_load_signals,
+    file_load_worker,
     # Service fixtures
     isolated_services,
     keyframe_curve_data,
@@ -36,6 +38,8 @@ from tests.fixtures import (
     # Data fixtures
     sample_curve_data,
     sample_points,
+    ui_file_load_signals,
+    ui_file_load_worker,
 )
 
 
@@ -174,6 +178,10 @@ __all__ = [
     "qapp",
     "qt_cleanup",
     "curve_view_widget",
+    "file_load_signals",
+    "file_load_worker",
+    "ui_file_load_signals",
+    "ui_file_load_worker",
     # Service fixtures
     "all_services",
     "isolated_services",

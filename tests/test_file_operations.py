@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QApplication, QFileDialog, QMessageBox, QWidget
 from pytestqt.qt_compat import qt_api
 
 from core.type_aliases import CurveDataList
-from ui.file_operations import FileLoadSignals, FileLoadWorker, FileOperations
+from ui.file_operations import FileOperations
 from ui.state_manager import StateManager
 
 
@@ -41,12 +41,12 @@ class MockServiceFacade:
 
 
 class TestFileLoadSignals:
-    """Test FileLoadSignals class."""
+    """Test FileLoadSignals class from ui.file_operations."""
 
-    def test_signal_creation(self, qtbot):
+    def test_signal_creation(self, ui_file_load_signals):
         """Test FileLoadSignals can be created and signals exist."""
-        signals = FileLoadSignals()
-        # FileLoadSignals is QObject, not QWidget, so no addWidget needed
+        signals = ui_file_load_signals
+        # FileLoadSignals fixture already provides proper QObject cleanup
 
         # Verify all signals exist
         assert hasattr(signals, "tracking_data_loaded")
@@ -56,10 +56,10 @@ class TestFileLoadSignals:
         assert hasattr(signals, "error_occurred")
         assert hasattr(signals, "finished")
 
-    def test_signal_emission(self, qtbot):
+    def test_signal_emission(self, ui_file_load_signals):
         """Test signals can be emitted and received."""
-        signals = FileLoadSignals()
-        # FileLoadSignals is QObject, not QWidget, so no addWidget needed
+        signals = ui_file_load_signals
+        # FileLoadSignals fixture already provides proper QObject cleanup
 
         # Test tracking_data_loaded signal
         spy = qt_api.QtTest.QSignalSpy(signals.tracking_data_loaded)
@@ -79,24 +79,22 @@ class TestFileLoadSignals:
 
 
 class TestFileLoadWorker:
-    """Test FileLoadWorker class."""
+    """Test FileLoadWorker class from ui.file_operations."""
 
-    def test_worker_creation(self, qtbot):
+    def test_worker_creation(self, ui_file_load_worker, ui_file_load_signals):
         """Test FileLoadWorker can be created."""
-        signals = FileLoadSignals()
+        worker = ui_file_load_worker
+        signals = ui_file_load_signals
 
-        worker = FileLoadWorker(signals)
         assert worker.signals is signals
         assert worker.tracking_file_path is None
         assert worker.image_dir_path is None
         assert not worker._should_stop
         assert not worker._work_ready
 
-    def test_worker_stop(self, qtbot):
+    def test_worker_stop(self, ui_file_load_worker):
         """Test worker stop functionality."""
-        signals = FileLoadSignals()
-
-        worker = FileLoadWorker(signals)
+        worker = ui_file_load_worker
 
         # Start some dummy work
         worker._should_stop = False
@@ -105,11 +103,9 @@ class TestFileLoadWorker:
         worker.stop()
         assert worker._should_stop
 
-    def test_scan_image_directory(self, qtbot):
+    def test_scan_image_directory(self, ui_file_load_worker):
         """Test image directory scanning."""
-        signals = FileLoadSignals()
-
-        worker = FileLoadWorker(signals)
+        worker = ui_file_load_worker
 
         # Test with empty directory
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -126,11 +122,9 @@ class TestFileLoadWorker:
             expected = ["image1.jpg", "image2.png", "image3.bmp"]
             assert files == expected
 
-    def test_load_2dtrack_data_direct(self, qtbot):
+    def test_load_2dtrack_data_direct(self, ui_file_load_worker):
         """Test direct 2D track data loading."""
-        signals = FileLoadSignals()
-
-        worker = FileLoadWorker(signals)
+        worker = ui_file_load_worker
 
         # Create test tracking data file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
@@ -157,11 +151,9 @@ class TestFileLoadWorker:
         finally:
             os.unlink(temp_file_path)
 
-    def test_load_multi_point_data_direct(self, qtbot):
+    def test_load_multi_point_data_direct(self, ui_file_load_worker):
         """Test multi-point data loading."""
-        signals = FileLoadSignals()
-
-        worker = FileLoadWorker(signals)
+        worker = ui_file_load_worker
 
         # Create test multi-point file
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
@@ -194,11 +186,9 @@ class TestFileLoadWorker:
         finally:
             os.unlink(temp_file_path)
 
-    def test_worker_thread_safety(self, qtbot):
+    def test_worker_thread_safety(self, ui_file_load_worker):
         """Test worker thread safety mechanisms."""
-        signals = FileLoadSignals()
-
-        worker = FileLoadWorker(signals)
+        worker = ui_file_load_worker
 
         # Test stop check method
         assert not worker._check_should_stop()

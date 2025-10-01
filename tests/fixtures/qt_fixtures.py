@@ -183,3 +183,137 @@ def main_window(qapp: QApplication, qtbot):
 
     # qtbot.addWidget handles cleanup automatically
     # No manual cleanup needed
+
+
+@pytest.fixture
+def file_load_signals(qtbot, qapp):
+    """Create FileLoadSignals instance with proper QObject cleanup.
+
+    CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
+    After 850+ tests, uncleaned QObjects cause segfaults (see UNIFIED_TESTING_GUIDE).
+
+    This fixture implements the cleanup pattern from the testing guide:
+    - Set parent to QApplication for proper Qt ownership
+    - Explicit deleteLater() + processEvents() in cleanup
+
+    Args:
+        qtbot: pytest-qt bot fixture
+        qapp: QApplication instance
+
+    Yields:
+        FileLoadSignals: Properly managed QObject for signal emission
+    """
+    from io_utils.file_load_worker import FileLoadSignals
+
+    signals = FileLoadSignals()
+    # Set parent to QApplication for proper Qt ownership/cleanup
+    signals.setParent(qapp)
+
+    yield signals
+
+    # Explicit cleanup to prevent memory leaks and segfaults
+    try:
+        signals.setParent(None)
+        signals.deleteLater()
+        # Process events to ensure deleteLater() is handled
+        qapp.processEvents()
+    except RuntimeError:
+        pass  # Qt object may already be deleted
+
+
+@pytest.fixture
+def file_load_worker(file_load_signals):
+    """Create FileLoadWorker instance with proper thread cleanup.
+
+    CRITICAL: Background threads must be fully stopped to prevent segfaults.
+
+    This fixture ensures:
+    - Worker thread is stopped before fixture teardown
+    - Thread.join() with timeout is called
+    - Cleanup happens even if test fails
+
+    Args:
+        file_load_signals: FileLoadSignals fixture (auto-cleaned)
+
+    Yields:
+        FileLoadWorker: Worker with thread safety guarantees
+    """
+    from io_utils.file_load_worker import FileLoadWorker
+
+    worker = FileLoadWorker(file_load_signals)
+    yield worker
+
+    # Ensure cleanup happens even if test fails
+    try:
+        worker.stop()
+        # Wait for thread to fully stop with timeout
+        if worker._thread and worker._thread.is_alive():
+            worker._thread.join(timeout=2.0)
+            if worker._thread.is_alive():
+                # Thread didn't stop - log warning but don't fail test
+                import warnings
+
+                warnings.warn("Worker thread did not stop within timeout")
+    except (RuntimeError, AttributeError):
+        # Worker might already be stopped, that's okay
+        pass
+
+
+@pytest.fixture
+def ui_file_load_signals(qtbot, qapp):
+    """Create FileLoadSignals from ui.file_operations with proper QObject cleanup.
+
+    NOTE: This is a DIFFERENT class than io_utils.file_load_worker.FileLoadSignals!
+    The ui.file_operations version has multi_point_data_loaded signal.
+
+    CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
+
+    Args:
+        qtbot: pytest-qt bot fixture
+        qapp: QApplication instance
+
+    Yields:
+        FileLoadSignals: Properly managed QObject from ui.file_operations
+    """
+    from ui.file_operations import FileLoadSignals
+
+    signals = FileLoadSignals()
+    signals.setParent(qapp)
+
+    yield signals
+
+    try:
+        signals.setParent(None)
+        signals.deleteLater()
+        qapp.processEvents()
+    except RuntimeError:
+        pass
+
+
+@pytest.fixture
+def ui_file_load_worker(ui_file_load_signals):
+    """Create FileLoadWorker from ui.file_operations with proper thread cleanup.
+
+    NOTE: This is a DIFFERENT class than io_utils.file_load_worker.FileLoadWorker!
+
+    Args:
+        ui_file_load_signals: FileLoadSignals fixture from ui.file_operations
+
+    Yields:
+        FileLoadWorker: Worker from ui.file_operations with thread safety
+    """
+    from ui.file_operations import FileLoadWorker
+
+    worker = FileLoadWorker(ui_file_load_signals)
+    yield worker
+
+    try:
+        worker.stop()
+        if worker._thread and worker._thread.is_alive():
+            worker._thread.join(timeout=2.0)
+            if worker._thread.is_alive():
+                import warnings
+
+                warnings.warn("UI FileLoadWorker thread did not stop within timeout")
+    except (RuntimeError, AttributeError):
+        pass

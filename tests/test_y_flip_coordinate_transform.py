@@ -8,7 +8,6 @@ import pytest
 from PySide6.QtCore import QPointF
 
 from services import get_data_service, get_transform_service
-from ui.file_operations import FileLoadSignals, FileLoadWorker
 
 
 @pytest.fixture(autouse=True)
@@ -144,7 +143,7 @@ Point01
 class TestFileLoadWorkerYFlip:
     """Test FileLoadWorker Y-flip functionality."""
 
-    def test_load_2dtrack_data_direct_with_flip(self, tmp_path):
+    def test_load_2dtrack_data_direct_with_flip(self, tmp_path, file_load_worker):
         """Test _load_2dtrack_data_direct with flip_y=True."""
         # Create test file
         tracking_file = tmp_path / "test_worker.txt"
@@ -155,9 +154,8 @@ class TestFileLoadWorkerYFlip:
 1 500.0 150.0
 2 510.0 160.0""")
 
-        # Create worker
-        signals = FileLoadSignals()
-        worker = FileLoadWorker(signals)
+        # Use properly cleaned fixture
+        worker = file_load_worker
 
         # Test with flip
         data_flip = worker._load_2dtrack_data_direct(str(tracking_file), flip_y=True, image_height=720)
@@ -173,7 +171,7 @@ class TestFileLoadWorkerYFlip:
         assert data_no_flip[0] == (1, 500.0, 150.0)
         assert data_no_flip[1] == (2, 510.0, 160.0)
 
-    def test_worker_respects_image_height_parameter(self, tmp_path):
+    def test_worker_respects_image_height_parameter(self, tmp_path, file_load_worker):
         """Test that worker uses the image_height parameter correctly."""
         tracking_file = tmp_path / "test_height.txt"
         tracking_file.write_text("""1
@@ -182,8 +180,8 @@ class TestFileLoadWorkerYFlip:
 1
 1 100.0 100.0""")
 
-        signals = FileLoadSignals()
-        worker = FileLoadWorker(signals)
+        # Use properly cleaned fixture
+        worker = file_load_worker
 
         # Test with different image heights
         data_720 = worker._load_2dtrack_data_direct(str(tracking_file), flip_y=True, image_height=720)

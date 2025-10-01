@@ -4,63 +4,16 @@ import threading
 import time
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
-from io_utils.file_load_worker import FileLoadSignals, FileLoadWorker
+# Note: file_load_signals and file_load_worker fixtures are now in tests/fixtures/qt_fixtures.py
+# and automatically available via conftest.py
 
 
+# Legacy fixture alias for backward compatibility with existing tests
 @pytest.fixture
-def app(qtbot):
-    """Ensure QApplication exists for signal testing."""
-    return QApplication.instance() or QApplication([])
-
-
-@pytest.fixture
-def file_load_signals(qtbot, qapp):
-    """Create FileLoadSignals instance for testing.
-
-    CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
-    After 850+ tests, uncleaned QObjects cause segfaults.
-    """
-    signals = FileLoadSignals()
-    # Set parent to QApplication for proper Qt ownership/cleanup
-    signals.setParent(qapp)
-
-    yield signals
-
-    # Explicit cleanup to prevent memory leaks
-    try:
-        signals.setParent(None)
-        signals.deleteLater()
-        # Process events to ensure deleteLater() is handled
-        qapp.processEvents()
-    except RuntimeError:
-        pass  # Qt object may already be deleted
-
-
-@pytest.fixture
-def worker(file_load_signals):
-    """Create FileLoadWorker instance for testing.
-
-    CRITICAL: Background threads must be fully stopped to prevent segfaults.
-    """
-    worker = FileLoadWorker(file_load_signals)
-    yield worker
-
-    # Ensure cleanup happens even if test fails
-    try:
-        worker.stop()
-        # Wait for thread to fully stop with timeout
-        if worker._thread and worker._thread.is_alive():
-            worker._thread.join(timeout=2.0)
-            if worker._thread.is_alive():
-                # Thread didn't stop - log warning but don't fail test
-                import warnings
-
-                warnings.warn("Worker thread did not stop within timeout")
-    except (RuntimeError, AttributeError):
-        # Worker might already be stopped, that's okay
-        pass
+def worker(file_load_worker):
+    """Alias for file_load_worker fixture for backward compatibility."""
+    return file_load_worker
 
 
 class TestFileLoadWorkerLifecycle:
