@@ -41,6 +41,34 @@ class MockTarget(QObject):
         self.call_count += 1
 
 
+@pytest.fixture
+def mock_source(qapp):
+    """Create MockSource with proper QObject cleanup."""
+    source = MockSource()
+    source.setParent(qapp)
+    yield source
+    try:
+        source.setParent(None)
+        source.deleteLater()
+        qapp.processEvents()
+    except RuntimeError:
+        pass
+
+
+@pytest.fixture
+def mock_target(qapp):
+    """Create MockTarget with proper QObject cleanup."""
+    target = MockTarget()
+    target.setParent(qapp)
+    yield target
+    try:
+        target.setParent(None)
+        target.deleteLater()
+        qapp.processEvents()
+    except RuntimeError:
+        pass
+
+
 class TestConnectionVerifier:
     """Test the ConnectionVerifier class."""
 
@@ -52,10 +80,10 @@ class TestConnectionVerifier:
         assert all_connected is True
         assert len(reports) == 0
 
-    def test_verify_valid_connection(self):
+    def test_verify_valid_connection(self, mock_source, mock_target):
         """Test verification of a valid connection."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
         verifier.add_required_connection(
@@ -68,9 +96,9 @@ class TestConnectionVerifier:
         assert len(reports) == 1
         assert reports[0].status == ConnectionStatus.CONNECTED
 
-    def test_verify_missing_source(self):
+    def test_verify_missing_source(self, mock_target):
         """Test verification with missing source object."""
-        target = MockTarget()
+        target = mock_target
 
         verifier = ConnectionVerifier()
         verifier.add_required_connection(
@@ -85,9 +113,9 @@ class TestConnectionVerifier:
         assert reports[0].error_message is not None
         assert "Source object 'MockSource' is None" in reports[0].error_message
 
-    def test_verify_missing_target(self):
+    def test_verify_missing_target(self, mock_source):
         """Test verification with missing target object."""
-        source = MockSource()
+        source = mock_source
 
         verifier = ConnectionVerifier()
         verifier.add_required_connection(
@@ -102,10 +130,10 @@ class TestConnectionVerifier:
         assert reports[0].error_message is not None
         assert "Target object 'MockTarget' is None" in reports[0].error_message
 
-    def test_verify_missing_signal(self):
+    def test_verify_missing_signal(self, mock_source, mock_target):
         """Test verification when signal doesn't exist."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
         verifier.add_required_connection(
@@ -126,10 +154,10 @@ class TestConnectionVerifier:
         assert reports[0].error_message is not None
         assert "has no signal 'nonexistent_signal'" in reports[0].error_message
 
-    def test_verify_missing_slot(self):
+    def test_verify_missing_slot(self, mock_source, mock_target):
         """Test verification when slot doesn't exist."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
         verifier.add_required_connection(
@@ -150,10 +178,10 @@ class TestConnectionVerifier:
         assert reports[0].error_message is not None
         assert "has no slot 'nonexistent_slot'" in reports[0].error_message
 
-    def test_non_critical_failure(self):
+    def test_non_critical_failure(self, mock_source, mock_target):
         """Test that non-critical failures don't fail verification."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
 
@@ -181,10 +209,10 @@ class TestConnectionVerifier:
         assert reports[0].status == ConnectionStatus.CONNECTED
         assert reports[1].status == ConnectionStatus.ERROR
 
-    def test_get_failed_connections(self):
+    def test_get_failed_connections(self, mock_source, mock_target):
         """Test getting list of failed connections."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
 
@@ -208,10 +236,10 @@ class TestConnectionVerifier:
         assert len(failed) == 2
         assert all(report.status != ConnectionStatus.CONNECTED for report in failed)
 
-    def test_get_critical_failures(self):
+    def test_get_critical_failures(self, mock_source, mock_target):
         """Test getting list of critical failures only."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
 
@@ -232,9 +260,9 @@ class TestConnectionVerifier:
         assert critical_failures[0].connection.critical is True
         assert critical_failures[0].status == ConnectionStatus.MISSING_SOURCE
 
-    def test_raise_if_failed(self):
+    def test_raise_if_failed(self, mock_target):
         """Test that raise_if_failed raises on critical failures."""
-        target = MockTarget()
+        target = mock_target
 
         verifier = ConnectionVerifier()
 
@@ -252,10 +280,10 @@ class TestConnectionVerifier:
         assert "Critical signal connections missing" in str(excinfo.value)
         assert "MockSource.test_signal -> MockTarget.test_slot" in str(excinfo.value)
 
-    def test_raise_if_failed_no_failures(self):
+    def test_raise_if_failed_no_failures(self, mock_source, mock_target):
         """Test that raise_if_failed doesn't raise when all connections are good."""
-        source = MockSource()
-        target = MockTarget()
+        source = mock_source
+        target = mock_target
 
         verifier = ConnectionVerifier()
 
@@ -268,12 +296,16 @@ class TestConnectionVerifier:
         # Should not raise
         verifier.raise_if_failed()  # No exception expected
 
-    def test_multiple_connections(self):
+    def test_multiple_connections(self, qapp):
         """Test verification of multiple connections."""
         source1 = MockSource()
+        source1.setParent(qapp)
         source2 = MockSource()
+        source2.setParent(qapp)
         target1 = MockTarget()
+        target1.setParent(qapp)
         target2 = MockTarget()
+        target2.setParent(qapp)
 
         verifier = ConnectionVerifier()
 
