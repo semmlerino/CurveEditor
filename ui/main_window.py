@@ -485,6 +485,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get the modification state."""
         return self.state_manager.is_modified
 
+    @property
+    def active_timeline_point(self) -> str | None:
+        """Get the active timeline point (which tracking point's timeline is displayed)."""
+        return self.state_manager.active_timeline_point
+
+    @active_timeline_point.setter
+    def active_timeline_point(self, point_name: str | None) -> None:
+        """Set the active timeline point (which tracking point's timeline to display)."""
+        self.state_manager.active_timeline_point = point_name
+
     def get_curve_store(self) -> CurveDataStore:
         """Get the reactive curve data store."""
         return self._curve_store

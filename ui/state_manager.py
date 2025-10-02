@@ -42,6 +42,7 @@ class StateManager(QObject):
     selection_changed: Signal = Signal(set)  # Emits set of selected indices
     frame_changed: Signal = Signal(int)  # Emits new frame number
     playback_state_changed: Signal = Signal(object)  # Emits PlaybackMode
+    active_timeline_point_changed: Signal = Signal(object)  # Emits str | None - active tracking point name
 
     def __init__(self, parent: QObject | None = None):
         """
@@ -65,6 +66,9 @@ class StateManager(QObject):
         # Selection state - Single source of truth using set for O(1) operations
         self._selected_points: set[int] = set()
         self._hover_point: int | None = None
+
+        # Multi-point tracking state
+        self._active_timeline_point: str | None = None  # Which tracking point's timeline is being viewed
 
         # View state
         self._current_frame: int = 1
@@ -230,8 +234,19 @@ class StateManager(QObject):
         """Add a point to the selection."""
         if index not in self._selected_points:
             self._selected_points.add(index)
-            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
-            logger.debug(f"Added point {index} to selection")
+
+    @property
+    def active_timeline_point(self) -> str | None:
+        """Get the active timeline point name (which tracking point's timeline is displayed)."""
+        return self._active_timeline_point
+
+    @active_timeline_point.setter
+    def active_timeline_point(self, point_name: str | None) -> None:
+        """Set the active timeline point name (which tracking point's timeline to display)."""
+        if self._active_timeline_point != point_name:
+            self._active_timeline_point = point_name
+            self._emit_signal(self.active_timeline_point_changed, point_name)  # pyright: ignore[reportArgumentType]
+            logger.debug(f"Active timeline point changed to: {point_name}")
 
     def remove_from_selection(self, index: int) -> None:
         """Remove a point from the selection."""

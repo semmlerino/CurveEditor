@@ -53,7 +53,8 @@ class MultiPointTrackingController:
 
         # Tracking data storage
         self.tracked_data: dict[str, CurveDataList] = {}  # All tracking points
-        self.active_points: list[str] = []  # Currently selected points
+        # NOTE: active_timeline_point is now managed by StateManager (via main_window.active_timeline_point)
+        # This determines which tracking point's timeline is being displayed
         self.point_tracking_directions: dict[str, TrackingDirection] = {}  # Track previous directions
 
         # Connect to curve store signals to keep tracking data synchronized
@@ -83,11 +84,8 @@ class MultiPointTrackingController:
             index: Point index that changed
             status: New status value
         """
-        if not self.active_points:
-            return
-
-        # Get the currently active curve name
-        active_curve = self.active_points[-1] if self.active_points else None
+        # Get the currently active timeline point
+        active_curve = self.main_window.active_timeline_point
         if not active_curve or active_curve not in self.tracked_data:
             return
 
@@ -129,7 +127,7 @@ class MultiPointTrackingController:
                 base_name = "Track"
                 point_name = self._get_unique_point_name(base_name)
                 self.tracked_data[point_name] = data  # pyright: ignore[reportArgumentType]
-                self.active_points = [point_name]  # Select the newly loaded point
+                self.main_window.active_timeline_point = point_name  # Set as active timeline point
                 # Initialize with default tracking direction
                 self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
                 logger.info(
@@ -141,10 +139,10 @@ class MultiPointTrackingController:
             else:
                 # No existing data - create initial tracked_data with this trajectory
                 self.tracked_data = {"Track1": data}  # pyright: ignore[reportAttributeAccessIssue]
-                self.active_points = ["Track1"]
+                self.main_window.active_timeline_point = "Track1"
                 # Sync table selection for file loading case
                 if self.main_window.tracking_panel:
-                    self.main_window.tracking_panel.set_selected_points(self.active_points)
+                    self.main_window.tracking_panel.set_selected_points(["Track1"])
                 # Initialize with default tracking direction
                 self.point_tracking_directions["Track1"] = TrackingDirection.TRACKING_FW
                 logger.info("Loaded single trajectory as 'Track1'")
@@ -203,21 +201,23 @@ class MultiPointTrackingController:
                     if unique_name != point_name:
                         logger.info(f"Renamed duplicate point '{point_name}' to '{unique_name}'")
 
-                # If no points were selected, select the first new point
-                if not self.active_points and new_point_names:
-                    self.active_points = [new_point_names[0]]
+                # If no timeline point is active, select the first new point
+                if not self.main_window.active_timeline_point and new_point_names:
+                    self.main_window.active_timeline_point = new_point_names[0]
                     # Sync table selection for file loading case
                     if self.main_window.tracking_panel:
-                        self.main_window.tracking_panel.set_selected_points(self.active_points)
+                        self.main_window.tracking_panel.set_selected_points([new_point_names[0]])
 
                 logger.info(f"Total points after merge: {len(self.tracked_data)}")
             else:
                 # No existing data - use the new data directly
                 self.tracked_data = multi_data
-                self.active_points = list(multi_data.keys())[:1]  # Select first point by default
+                # Set first point as active timeline point by default
+                first_point = list(multi_data.keys())[0] if multi_data else None
+                self.main_window.active_timeline_point = first_point
                 # Sync table selection for file loading case
-                if self.main_window.tracking_panel:
-                    self.main_window.tracking_panel.set_selected_points(self.active_points)
+                if self.main_window.tracking_panel and first_point:
+                    self.main_window.tracking_panel.set_selected_points([first_point])
                 # Initialize all points with default tracking direction
                 for point_name in multi_data.keys():
                     self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
@@ -226,13 +226,13 @@ class MultiPointTrackingController:
             # Update the tracking panel with the multi-point data
             self.update_tracking_panel()
 
-            # Display the active trajectory (could be existing or newly loaded)
-            if self.active_points and self.main_window.curve_widget:
-                first_point = self.active_points[0]
-                if first_point in self.tracked_data:
+            # Display the active timeline point's trajectory (could be existing or newly loaded)
+            active_point = self.main_window.active_timeline_point
+            if active_point and self.main_window.curve_widget:
+                if active_point in self.tracked_data:
                     # Set up view for pixel-coordinate tracking data
                     self.main_window.curve_widget.setup_for_pixel_tracking()
-                    trajectory = self.tracked_data[first_point]
+                    trajectory = self.tracked_data[active_point]
                     self.main_window.curve_widget.set_curve_data(trajectory)
                     self.main_window.state_manager.set_track_data(trajectory, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
@@ -337,9 +337,11 @@ class MultiPointTrackingController:
         Handle selection of tracking points from panel.
 
         Args:
-            point_names: List of selected point names
+            point_names: List of selected point names (for multi-selection in panel)
         """
-        self.active_points = point_names
+        # Set the last selected point as the active timeline point (last clicked becomes active)
+        # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
+        self.main_window.active_timeline_point = point_names[-1] if point_names else None
 
         # Update the curve display with MANUAL_SELECTION context to preserve user selection intent
         # This prevents auto-selection from overriding the user's manual selection
@@ -348,9 +350,9 @@ class MultiPointTrackingController:
         # Synchronize selection state to CurveDataStore (fix TrackingPanel→CurveDataStore gap)
         self._sync_tracking_selection_to_curve_store(point_names)
 
-        # Synchronize table selection ONLY when selection actually changes from user interaction
+        # Synchronize table selection to show all selected points (visual selection)
         if self.main_window.tracking_panel:
-            self.main_window.tracking_panel.set_selected_points(self.active_points)
+            self.main_window.tracking_panel.set_selected_points(point_names)
 
         # Center view on selected point at current frame
         # Small delay to ensure curve data and point selection are processed
@@ -384,18 +386,18 @@ class MultiPointTrackingController:
             self.main_window.tracking_panel.set_selected_points([])
             return
 
-        # Find which curve contains the selected points by examining the current active curve
+        # Find which curve contains the selected points by examining the current active timeline point
         # The CurveDataStore selection represents points in the currently displayed single curve
-        active_curve_name = self.active_points[-1] if self.active_points else None
+        active_curve_name = self.main_window.active_timeline_point
 
         if active_curve_name and active_curve_name in self.tracked_data:
             # Update TrackingPanel to highlight the curve that contains the selected points
             # This bridges point-level selection (CurveDataStore) with curve-level selection (TrackingPanel)
             selected_curves = [active_curve_name]
 
-            # Update active_points to ensure consistency
-            if active_curve_name not in self.active_points:
-                self.active_points = [active_curve_name]
+            # Ensure active_timeline_point is set (it should already be, but verify consistency)
+            if not self.main_window.active_timeline_point:
+                self.main_window.active_timeline_point = active_curve_name
 
             # Update TrackingPanel visual state
             self.main_window.tracking_panel.set_selected_points(selected_curves)
@@ -451,8 +453,9 @@ class MultiPointTrackingController:
         """
         if point_name in self.tracked_data:
             del self.tracked_data[point_name]
-            if point_name in self.active_points:
-                self.active_points.remove(point_name)
+            # If this was the active timeline point, clear it
+            if self.main_window.active_timeline_point == point_name:
+                self.main_window.active_timeline_point = None
             # Clean up tracking direction mapping
             if point_name in self.point_tracking_directions:
                 del self.point_tracking_directions[point_name]
@@ -470,9 +473,9 @@ class MultiPointTrackingController:
         """
         if old_name in self.tracked_data:
             self.tracked_data[new_name] = self.tracked_data.pop(old_name)
-            if old_name in self.active_points:
-                idx = self.active_points.index(old_name)
-                self.active_points[idx] = new_name
+            # If this was the active timeline point, update to new name
+            if self.main_window.active_timeline_point == old_name:
+                self.main_window.active_timeline_point = new_name
             # Update tracking direction mapping
             if old_name in self.point_tracking_directions:
                 self.point_tracking_directions[new_name] = self.point_tracking_directions.pop(old_name)
@@ -520,8 +523,8 @@ class MultiPointTrackingController:
         # Store the new direction
         self.point_tracking_directions[point_name] = new_direction
 
-        # Update the curve display if this is the active point
-        if point_name in self.active_points:
+        # Update the curve display if this is the active timeline point
+        if self.main_window.active_timeline_point == point_name:
             self.update_curve_display(SelectionContext.DEFAULT)
 
         # Update the tracking panel to reflect any status changes
@@ -621,13 +624,13 @@ class MultiPointTrackingController:
                         "color": self.main_window.tracking_panel.get_point_color(name),
                     }
 
-            # Set all curves with the active points as selected - UNIFIED APPROACH
-            active_curve = self.active_points[-1] if self.active_points else None  # Last selected is active
+            # Set all curves with the active timeline point - UNIFIED APPROACH
+            active_curve = self.main_window.active_timeline_point
             self.main_window.curve_widget.set_curves_data(
                 self.tracked_data,
                 metadata,
                 active_curve,
-                selected_curves=self.active_points,  # Pass selected curves
+                selected_curves=[active_curve] if active_curve else [],  # Pass active curve as selected
             )
 
             # CONDITIONAL AUTO-SELECT: Only auto-select in appropriate contexts for the active curve
@@ -659,8 +662,9 @@ class MultiPointTrackingController:
                 self._auto_select_point_at_current_frame()
         else:
             # Fallback to single curve display for backward compatibility
-            if self.active_points and self.active_points[0] in self.tracked_data:
-                trajectory = self.tracked_data[self.active_points[0]]
+            active_point = self.main_window.active_timeline_point
+            if active_point and active_point in self.tracked_data:
+                trajectory = self.tracked_data[active_point]
                 self.main_window.curve_widget.set_curve_data(trajectory)
 
                 # CONDITIONAL AUTO-SELECT: Only auto-select in appropriate contexts
@@ -721,7 +725,7 @@ class MultiPointTrackingController:
     def clear_tracking_data(self) -> None:
         """Clear all tracking data."""
         self.tracked_data.clear()
-        self.active_points.clear()
+        self.main_window.active_timeline_point = None
         self.point_tracking_directions.clear()
         self.update_tracking_panel()
         self.update_curve_display(SelectionContext.DEFAULT)
@@ -732,10 +736,11 @@ class MultiPointTrackingController:
         Get the currently active trajectory data.
 
         Returns:
-            Active trajectory data or None if no active points
+            Active trajectory data or None if no active timeline point
         """
-        if self.active_points and self.active_points[0] in self.tracked_data:
-            return self.tracked_data[self.active_points[0]]
+        active_point = self.main_window.active_timeline_point
+        if active_point and active_point in self.tracked_data:
+            return self.tracked_data[active_point]
         return None
 
     def has_tracking_data(self) -> bool:
