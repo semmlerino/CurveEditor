@@ -323,6 +323,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Initialize the global keyboard shortcut system."""
         from core.commands.shortcut_commands import (
             CenterViewCommand,
+            DeleteCurrentFrameKeyframeCommand,
             DeletePointsCommand,
             DeselectAllCommand,
             FitBackgroundCommand,
@@ -346,6 +347,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Editing shortcuts
         self.shortcut_registry.register(SetEndframeCommand())
         self.shortcut_registry.register(DeletePointsCommand())
+        self.shortcut_registry.register(DeleteCurrentFrameKeyframeCommand())
 
         # Tracking direction shortcuts
         self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_BW, "Shift+1"))

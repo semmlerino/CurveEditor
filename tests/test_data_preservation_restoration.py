@@ -83,29 +83,30 @@ class TestDataPreservation:
 
         # Check preservation metadata for segments
         # After conversion:
-        # - Segment 0: frames 1-3 (ending with endframe), active
-        # - Segment 1: frames 4-6 (tracked points ending with endframe), active
-        # - Segment 2: frame 10 (startframe), active
+        # - Segment 0: frames 1-3 (ending with endframe), ACTIVE
+        # - Segment 1: frames 4-6 (in gap between endframe 3 and keyframe 10), INACTIVE
+        # - Segment 2: frame 10 (startframe after gap), ACTIVE
 
         assert len(segmented_curve.segments) == 3
         first_segment = segmented_curve.segments[0]  # frames 1-3 (ending with endframe)
-        second_segment = segmented_curve.segments[1]  # frames 4-6 (tracked points between endframes)
+        second_segment = segmented_curve.segments[1]  # frames 4-6 (in gap, even though ends with endframe)
         third_segment = segmented_curve.segments[2]  # frame 10 (startframe)
 
         # First segment ends with endframe, remains active
         assert first_segment.originally_active is True
-        assert first_segment.is_active is True  # Segment with endframe stays active
+        assert first_segment.is_active is True  # Segment ending with first endframe is active
         assert first_segment.end_frame == 3
         assert first_segment.points[-1].status == PointStatus.ENDFRAME
 
-        # Second segment starts with tracked points but ends with endframe, remains active
+        # Second segment is in the gap (after endframe 3, before keyframe 10), should be INACTIVE
+        # even though it ends with another endframe
         assert second_segment.originally_active is True
-        assert second_segment.is_active is True  # Segment ending with endframe stays active
+        assert second_segment.is_active is False  # Segment in gap is inactive
         assert second_segment.start_frame == 4
         assert second_segment.end_frame == 6
         assert second_segment.points[-1].status == PointStatus.ENDFRAME
 
-        # Third segment starts with keyframe (startframe), remains active
+        # Third segment starts with keyframe (startframe), ends the gap, is ACTIVE
         assert third_segment.is_active is True
         assert third_segment.start_frame == 10
 

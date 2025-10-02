@@ -535,17 +535,13 @@ class SegmentedCurve:
                 continue
             elif deactivating:
                 # We're now in segments after the endframe
-                # Check if this segment contains an endframe (which means it's an active segment that ends)
-                if segment.points and any(p.is_endframe for p in segment.points):
-                    # Stop deactivating - this segment contains an endframe and should remain active
-                    break
-                # Check if this segment starts with a keyframe (which makes it a startframe)
-                elif segment.points and segment.points[0].status == PointStatus.KEYFRAME:
+                # Only stop deactivating when we find a segment that starts with a keyframe (startframe)
+                if segment.points and segment.points[0].status == PointStatus.KEYFRAME:
                     # Stop deactivating - this segment starts with a keyframe/startframe
                     break
                 else:
                     # This segment is after the endframe and doesn't start with a keyframe
-                    # Deactivate it (e.g., segments with only tracked/interpolated points)
+                    # Deactivate it (including segments that contain other endframes in the gap)
                     segment.deactivate_by_endframe(endframe_number)
 
     def update_segment_activity(self, point_index: int, new_status: PointStatus) -> None:

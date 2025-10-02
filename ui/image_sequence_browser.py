@@ -21,7 +21,6 @@ from PySide6.QtWidgets import (
     QDialog,
     QFileSystemModel,
     QGridLayout,
-    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -41,6 +40,14 @@ from core.favorites_manager import FavoritesManager
 from core.logger_utils import get_logger
 from core.metadata_extractor import ImageMetadataExtractor
 from core.workers import DirectoryScanWorker, ThumbnailCache
+from ui.ui_constants import (
+    FONT_SIZE_LARGE,
+    FONT_SIZE_NORMAL,
+    FONT_SIZE_SMALL,
+    SPACING_SM,
+    SPACING_XS,
+)
+from ui.widgets.card import Card
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QModelIndex
@@ -72,21 +79,21 @@ class BreadcrumbBar(QWidget):
         self._layout.addStretch()  # Push breadcrumbs to the left
 
         self.setStyleSheet(
-            """
-            QToolButton {
+            f"""
+            QToolButton {{
                 background: transparent;
                 border: none;
-                padding: 5px 8px;
-                font-size: 10pt;
-            }
-            QToolButton:hover {
+                padding: {SPACING_SM}px {SPACING_SM}px;
+                font-size: {FONT_SIZE_NORMAL}pt;
+            }}
+            QToolButton:hover {{
                 background: rgba(255, 255, 255, 0.1);
                 border-radius: 3px;
-            }
-            QLabel {
+            }}
+            QLabel {{
                 color: #888;
-                padding: 0 3px;
-            }
+                padding: 0 {SPACING_XS}px;
+            }}
         """
         )
 
@@ -124,7 +131,7 @@ class BreadcrumbBar(QWidget):
             # Add chevron separator (except before first segment)
             if i > 0:
                 chevron = QLabel(">")
-                chevron.setStyleSheet("color: #888; padding: 0 3px;")
+                chevron.setStyleSheet(f"color: #888; padding: 0 {SPACING_XS}px;")
                 self._layout.insertWidget(self._layout.count() - 1, chevron)
 
             # Create button for this segment
@@ -496,7 +503,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Top navigation bar - spans full width
         top_nav_bar = QHBoxLayout()
-        top_nav_bar.setContentsMargins(5, 5, 5, 5)
+        top_nav_bar.setContentsMargins(SPACING_SM, SPACING_SM, SPACING_SM, SPACING_SM)
 
         # Back button
         self.back_button = QToolButton()
@@ -589,25 +596,20 @@ class ImageSequenceBrowserDialog(QDialog):
         left_layout.setContentsMargins(0, 0, 0, 0)
         left_layout.setSpacing(0)
 
-        # Favorites section (collapsible)
-        favorites_group = QGroupBox("Favorites")
-        favorites_group.setCheckable(True)
-        favorites_group.setChecked(True)  # Expanded by default
-        favorites_layout = QVBoxLayout()
-        favorites_layout.setContentsMargins(5, 5, 5, 5)
+        # Favorites section (collapsible card)
+        favorites_card = Card("Favorites", collapsible=True, collapsed=False)
 
         self.favorites_list = QListWidget()
         self.favorites_list.setMaximumHeight(150)
         self.favorites_list.setAlternatingRowColors(True)
         self.favorites_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        favorites_layout.addWidget(self.favorites_list)
+        favorites_card.add_widget(self.favorites_list)
 
-        favorites_group.setLayout(favorites_layout)
-        left_layout.addWidget(favorites_group)
+        left_layout.addWidget(favorites_card)
 
         # Directory tree label
         tree_label = QLabel("All Directories:")
-        tree_label.setStyleSheet("font-weight: bold; padding: 5px;")
+        tree_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_LARGE}pt; padding: {SPACING_SM}px;")
         left_layout.addWidget(tree_label)
 
         # Directory tree
@@ -637,10 +639,10 @@ class ImageSequenceBrowserDialog(QDialog):
         # Search/filter bar
         search_container = QWidget()
         search_layout = QHBoxLayout(search_container)
-        search_layout.setContentsMargins(5, 5, 5, 5)
+        search_layout.setContentsMargins(SPACING_SM, SPACING_SM, SPACING_SM, SPACING_SM)
 
         sequence_label = QLabel("Sequences:")
-        sequence_label.setStyleSheet("font-weight: bold;")
+        sequence_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_LARGE}pt;")
         search_layout.addWidget(sequence_label)
 
         self.sequence_filter = QLineEdit()
@@ -680,13 +682,13 @@ class ImageSequenceBrowserDialog(QDialog):
         # Info label
         self.info_label = QLabel("Select a sequence to preview thumbnails")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.info_label.setStyleSheet("font-size: 11pt; padding: 10px;")
+        self.info_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_SM}px;")
         preview_layout.addWidget(self.info_label)
 
         # Progress bar (initially hidden)
         progress_container = QWidget()
         progress_layout = QHBoxLayout(progress_container)
-        progress_layout.setContentsMargins(10, 0, 10, 0)
+        progress_layout.setContentsMargins(SPACING_SM, 0, SPACING_SM, 0)
 
         self.progress_bar = QProgressBar()
         self.progress_bar.setVisible(False)
@@ -709,18 +711,15 @@ class ImageSequenceBrowserDialog(QDialog):
         # Container widget for thumbnail grid
         self.thumbnail_container = QWidget()
         self.thumbnail_layout = QGridLayout(self.thumbnail_container)
-        self.thumbnail_layout.setSpacing(10)
+        self.thumbnail_layout.setSpacing(SPACING_SM)
         self.scroll_area.setWidget(self.thumbnail_container)
 
         preview_layout.addWidget(self.scroll_area)
 
         # Metadata panel (shows technical details of selected sequence)
-        self.metadata_panel = QGroupBox("Sequence Metadata")
-        metadata_layout = QVBoxLayout()
-        metadata_layout.setContentsMargins(10, 10, 10, 10)
-        metadata_layout.setSpacing(5)
+        self.metadata_panel = Card("Sequence Metadata", collapsible=False)
 
-        # Create metadata labels
+        # Create metadata labels with enhanced typography
         self.metadata_labels = {
             "resolution": QLabel("Resolution: -"),
             "bit_depth": QLabel("Bit Depth: -"),
@@ -731,10 +730,9 @@ class ImageSequenceBrowserDialog(QDialog):
         }
 
         for label in self.metadata_labels.values():
-            label.setStyleSheet("font-size: 10pt; padding: 2px;")
-            metadata_layout.addWidget(label)
+            label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_XS}px;")
+            self.metadata_panel.add_widget(label)
 
-        self.metadata_panel.setLayout(metadata_layout)
         self.metadata_panel.setMaximumHeight(200)
         self.metadata_panel.setVisible(False)  # Hidden until sequence selected
         preview_layout.addWidget(self.metadata_panel)
@@ -1558,18 +1556,18 @@ class ImageSequenceBrowserDialog(QDialog):
             thumbnail_label.setPixmap(scaled_pixmap)
             thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             thumbnail_label.setFrameStyle(QLabel.Shape.Box)
-            thumbnail_label.setStyleSheet("QLabel { background-color: #2b2b2b; padding: 5px; }")
+            thumbnail_label.setStyleSheet(f"QLabel {{ background-color: #2b2b2b; padding: {SPACING_SM}px; }}")
 
             # Add frame number below thumbnail
             container = QWidget()
             layout = QVBoxLayout(container)
             layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(2)
+            layout.setSpacing(SPACING_XS)
             layout.addWidget(thumbnail_label)
 
             frame_label = QLabel(f"Frame {frame_number}")
             frame_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            frame_label.setStyleSheet("font-size: 9pt; color: #aaa;")
+            frame_label.setStyleSheet(f"font-size: {FONT_SIZE_SMALL}pt; color: #aaa;")
             layout.addWidget(frame_label)
 
             return container
@@ -1650,10 +1648,14 @@ class ImageSequenceBrowserDialog(QDialog):
             else:
                 missing_str = str(sequence.missing_frames)
             self.metadata_labels["gaps"].setText(f"Missing Frames: {missing_str}")
-            self.metadata_labels["gaps"].setStyleSheet("font-size: 10pt; padding: 2px; color: #ff9900;")
+            self.metadata_labels["gaps"].setStyleSheet(
+                f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_XS}px; color: #ff9900;"
+            )
         else:
             self.metadata_labels["gaps"].setText("Missing Frames: None (Complete)")
-            self.metadata_labels["gaps"].setStyleSheet("font-size: 10pt; padding: 2px; color: #00cc00;")
+            self.metadata_labels["gaps"].setStyleSheet(
+                f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_XS}px; color: #00cc00;"
+            )
 
         # Show metadata panel
         self.metadata_panel.setVisible(True)

@@ -35,15 +35,21 @@ if TYPE_CHECKING:
 # FONT SYSTEM
 # ============================================================================
 
-# Standardized font sizes (in pixels) - will be scaled by DPI
-# Updated to meet WCAG AA standards (minimum 11-12pt)
+# Standardized font sizes (in points) - Modern VFX tool typography
+# Phase 3: Enhanced Typography - larger, more readable fonts
+FONT_SIZE_SMALL = 10  # Less important labels
+FONT_SIZE_NORMAL = 12  # Primary text (up from 10-11pt)
+FONT_SIZE_LARGE = 14  # Section headers (up from 12pt)
+FONT_SIZE_HEADING = 16  # Main headings
+
+# Legacy dict for backward compatibility
 FONT_SIZES = {
-    "tiny": 11,  # For less important labels (WCAG minimum)
-    "small": 12,  # Standard small text
-    "normal": 14,  # Default body text
-    "medium": 16,  # Section headers
-    "large": 18,  # Main headers
-    "xlarge": 24,  # Page titles
+    "tiny": 10,
+    "small": FONT_SIZE_SMALL,
+    "normal": FONT_SIZE_NORMAL,
+    "medium": FONT_SIZE_LARGE,
+    "large": FONT_SIZE_LARGE,
+    "xlarge": FONT_SIZE_HEADING,
 }
 
 # Font weights
@@ -60,32 +66,39 @@ FONT_FAMILIES = {
 }
 
 # ============================================================================
-# SPACING SYSTEM
+# SPACING SYSTEM - 8px Base Grid (Phase 3: Enhanced Spacing)
 # ============================================================================
 
-# Standardized spacing units (in pixels) - will be scaled by DPI
+# 8px base grid system for consistent spacing
+SPACING_XS = 4  # Extra small (0.5 × base)
+SPACING_SM = 8  # Small (1 × base)
+SPACING_MD = 16  # Medium (2 × base)
+SPACING_LG = 24  # Large (3 × base)
+SPACING_XL = 32  # Extra large (4 × base)
+
+# Legacy dict for backward compatibility
 SPACING = {
-    "xs": 4,  # Extra small spacing
-    "s": 8,  # Small spacing
-    "m": 12,  # Medium spacing
-    "l": 16,  # Large spacing
-    "xl": 24,  # Extra large spacing
-    "xxl": 32,  # Double extra large spacing
+    "xs": SPACING_XS,
+    "s": SPACING_SM,
+    "m": SPACING_MD,
+    "l": SPACING_LG,
+    "xl": SPACING_LG,
+    "xxl": SPACING_XL,
 }
 
-# Standard margins and padding
+# Standard margins and padding (using 8px grid)
 MARGINS = {
-    "dialog": SPACING["l"],
-    "group": SPACING["m"],
-    "control": SPACING["s"],
-    "label": SPACING["xs"],
+    "dialog": SPACING_MD,  # 16px
+    "group": SPACING_SM,  # 8px
+    "control": SPACING_SM,  # 8px
+    "label": SPACING_XS,  # 4px
 }
 
 PADDING = {
-    "button": (SPACING["s"], SPACING["m"]),  # (vertical, horizontal)
-    "input": (SPACING["xs"], SPACING["s"]),
-    "panel": SPACING["m"],
-    "toolbar": SPACING["s"],
+    "button": (SPACING_SM, SPACING_MD),  # (8px, 16px)
+    "input": (SPACING_XS, SPACING_SM),  # (4px, 8px)
+    "panel": SPACING_MD,  # 16px
+    "toolbar": SPACING_SM,  # 8px
 }
 
 # ============================================================================

@@ -234,6 +234,78 @@ class DeletePointsCommand(ShortcutCommand):
         return success
 
 
+class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
+    """Command to delete the keyframe at the current frame."""
+
+    def __init__(self) -> None:
+        """Initialize the delete current frame keyframe command."""
+        super().__init__("Ctrl+R", "Delete keyframe at current frame")
+
+    def can_execute(self, context: ShortcutContext) -> bool:
+        """Check if we can delete the keyframe at the current frame.
+
+        Can execute if there's a point at the current frame.
+        """
+        # Can execute if we have a current frame with a point
+        if context.current_frame is not None:
+            curve_widget = context.main_window.curve_widget
+            if curve_widget and curve_widget.curve_data:
+                # Check if any point exists at the current frame
+                for point in curve_widget.curve_data:
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        return True
+
+        return False
+
+    def execute(self, context: ShortcutContext) -> bool:
+        """Execute the delete current frame keyframe command.
+
+        This is a FRAME-BASED operation - it deletes the point at the current frame,
+        NOT selected points.
+        """
+        curve_widget = context.main_window.curve_widget
+        if not curve_widget:
+            return False
+
+        try:
+            from core.commands.curve_commands import DeletePointsCommand as DeleteCmd
+            from services import get_interaction_service
+
+            # FRAME-BASED OPERATION: Find and delete point at current frame
+            if context.current_frame is not None:
+                # Find the point index at the current frame
+                point_index = None
+                for i, point in enumerate(curve_widget.curve_data):
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        point_index = i
+                        break
+
+                if point_index is not None:
+                    # Create delete command
+                    command = DeleteCmd(
+                        description=f"Delete keyframe at frame {context.current_frame}",
+                        indices=[point_index],
+                    )
+
+                    # Execute through command manager for undo support
+                    interaction_service = get_interaction_service()
+                    if interaction_service:
+                        success = interaction_service.command_manager.execute_command(
+                            command, cast("MainWindowProtocol", cast(object, context.main_window))
+                        )
+                        if success:
+                            msg = f"Deleted keyframe at frame {context.current_frame}"
+                            curve_widget.update_status(msg, 2000)
+                            logger.info(msg)
+                            return True
+                    return False
+
+        except Exception as e:
+            logger.error(f"Failed to delete keyframe at current frame: {e}")
+
+        return False
+
+
 class CenterViewCommand(ShortcutCommand):
     """Command to center view on selection or current frame."""
 
