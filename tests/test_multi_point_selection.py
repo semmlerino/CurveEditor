@@ -270,21 +270,22 @@ class TestMultiPointTrackingController:
         # Set active timeline point (simulates selecting multiple points where Track2 is last/active)
         mock_main_window.active_timeline_point = "Track2"
 
-        # Call update_curve_display
+        # Call update_curve_display with DEFAULT context (preserves existing selection)
         controller.update_curve_display()
 
         # Verify toggle_show_all_curves was NOT called
         assert not mock_main_window.curve_widget.toggle_show_all_curves.called
 
-        # Verify set_curves_data was called with selected points
+        # Verify set_curves_data was called
         mock_main_window.curve_widget.set_curves_data.assert_called_once()
         call_args = mock_main_window.curve_widget.set_curves_data.call_args
 
         # Check arguments
         assert len(call_args[0]) >= 3
         assert call_args[0][2] == "Track2"  # active_curve
-        # In new architecture: selected_curves only contains the active timeline point
-        assert call_args[1].get("selected_curves") == ["Track2"]
+        # With DEFAULT context: selected_curves NOT passed to preserve existing selection
+        # This supports Ctrl+click multi-curve selection
+        assert "selected_curves" not in call_args[1]
 
     def test_selection_preserves_visibility_metadata(self, controller, mock_main_window):
         """Test that selection respects visibility metadata."""
@@ -450,7 +451,8 @@ def test_selection_bug_fix_tdd():
     if hasattr(curve_widget, "toggle_show_all_curves"):
         curve_widget.toggle_show_all_curves.assert_not_called()
 
-    # Instead, selected curves should be set properly
+    # With DEFAULT context: selected_curves NOT passed to preserve existing selection
+    # This supports Ctrl+click multi-curve selection
     curve_widget.set_curves_data.assert_called_once()
     call_args = curve_widget.set_curves_data.call_args
-    assert call_args[1]["selected_curves"] == ["Track1"]
+    assert "selected_curves" not in call_args[1]

@@ -672,12 +672,26 @@ class MultiPointTrackingController:
 
             # Set all curves with the active timeline point - UNIFIED APPROACH
             active_curve = self.main_window.active_timeline_point
-            self.main_window.curve_widget.set_curves_data(
-                self.tracked_data,
-                metadata,
-                active_curve,
-                selected_curves=[active_curve] if active_curve else [],  # Pass active curve as selected
-            )
+
+            # Only preserve selection for DEFAULT context (general updates like color/visibility changes)
+            # For explicit actions (MANUAL_SELECTION, DATA_LOADING, CURVE_SWITCHING), reset selection
+            if context == SelectionContext.DEFAULT:
+                # Preserve existing selection by not passing selected_curves parameter
+                # This supports Ctrl+click multi-curve selection in curve view
+                self.main_window.curve_widget.set_curves_data(
+                    self.tracked_data,
+                    metadata,
+                    active_curve,
+                    # selected_curves omitted - preserves existing selection
+                )
+            else:
+                # Reset selection for explicit actions (tracking panel selection, data loading, curve switching)
+                self.main_window.curve_widget.set_curves_data(
+                    self.tracked_data,
+                    metadata,
+                    active_curve,
+                    selected_curves=[active_curve] if active_curve else [],  # Reset to active curve
+                )
 
             # CONDITIONAL AUTO-SELECT: Only auto-select in appropriate contexts for the active curve
             # This provides point-level selection within the multi-curve system
