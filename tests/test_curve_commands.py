@@ -5,6 +5,12 @@ Tests for curve command classes - undo/redo functionality.
 This test module provides comprehensive coverage of all curve manipulation commands,
 testing execute, undo, and redo operations with proper state management.
 Follows the testing guide patterns for Qt components and command testing.
+
+Type Safety Note:
+- Mock objects (MockMainWindow, MockCurveWidget) implement minimal interface needed for testing
+- They don't fully implement MainWindowProtocol/CurveViewProtocol (would bloat test code)
+- Using pyright: ignore[reportArgumentType] where mocks are passed to protocol-expecting methods
+- This is appropriate for unit tests where we control the mock behavior
 """
 
 import copy
@@ -224,7 +230,7 @@ class TestSetCurveDataCommand:
 
         cmd = SetCurveDataCommand("Test set curve data", new_data)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -238,7 +244,7 @@ class TestSetCurveDataCommand:
 
         cmd = SetCurveDataCommand("Test set curve data", new_data)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -254,11 +260,11 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
         # Execute first
-        cmd.execute(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         assert curve_widget.curve_data == new_data
 
         # Then undo
-        result = cmd.undo(main_window)
+        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
@@ -273,7 +279,7 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data)
         # Don't execute first, so old_data remains None
 
-        result = cmd.undo(main_window)
+        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
 
@@ -288,10 +294,10 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
         # Execute, undo, then redo
-        cmd.execute(main_window)
-        cmd.undo(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
-        result = cmd.redo(main_window)
+        result = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -338,11 +344,12 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with moving average", indices, "moving_average", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
         assert cmd.old_points == [initial_data[0], initial_data[1]]
+        assert cmd.new_points is not None
         assert len(cmd.new_points) == 2
 
         # Verify smoothed data was applied (mock adds 0.1 to Y values)
@@ -360,7 +367,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with median", indices, "median", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -379,7 +386,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with butterworth", indices, "butterworth", 4)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -396,7 +403,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with unknown", [0], "unknown_filter", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -407,7 +414,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -424,7 +431,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         # View state should be preserved
@@ -443,10 +450,10 @@ class TestSmoothCommand:
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
         # Execute first
-        cmd.execute(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         # Then undo
-        result = cmd.undo(main_window)
+        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
@@ -463,11 +470,11 @@ class TestSmoothCommand:
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
         # Execute, undo, then redo
-        cmd.execute(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         smoothed_data = copy.deepcopy(curve_widget.curve_data)
-        cmd.undo(main_window)
+        cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
-        result = cmd.redo(main_window)
+        result = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -500,7 +507,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -520,7 +527,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         # Status should be preserved
@@ -537,7 +544,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 5, old_pos, new_pos)  # Index out of range
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -556,11 +563,11 @@ class TestMovePointCommand:
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
         # Execute first
-        cmd.execute(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         assert curve_widget.curve_data[0] == (1, 110.0, 210.0)
 
         # Then undo
-        result = cmd.undo(main_window)
+        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
@@ -592,7 +599,7 @@ class TestDeletePointsCommand:
 
         cmd = DeletePointsCommand("Delete points", indices)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -633,7 +640,7 @@ class TestBatchMoveCommand:
 
         cmd = BatchMoveCommand("Batch move", moves)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -684,7 +691,7 @@ class TestAddPointCommand:
 
         cmd = AddPointCommand("Add point", 1, new_point)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
@@ -705,11 +712,11 @@ class TestAddPointCommand:
         cmd = AddPointCommand("Add point", 1, new_point)
 
         # Execute first
-        cmd.execute(main_window)
+        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         assert len(curve_widget.curve_data) == 3
 
         # Then undo
-        result = cmd.undo(main_window)
+        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
@@ -732,7 +739,7 @@ class TestCommandErrorHandling:
 
         cmd = SetCurveDataCommand("Test error handling", new_data)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -751,7 +758,7 @@ class TestCommandErrorHandling:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)
+        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is False
         assert not cmd.executed
@@ -771,19 +778,19 @@ class TestCommandIntegration:
         cmd = SetCurveDataCommand("Test sequence", new_data)
 
         # Execute
-        result1 = cmd.execute(main_window)
+        result1 = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         assert result1 is True
         assert cmd.executed
         assert curve_widget.curve_data == new_data
 
         # Undo
-        result2 = cmd.undo(main_window)
+        result2 = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
         assert result2 is True
         assert not cmd.executed
         assert curve_widget.curve_data == initial_data
 
         # Redo
-        result3 = cmd.redo(main_window)
+        result3 = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
         assert result3 is True
         assert cmd.executed
         assert curve_widget.curve_data == new_data
@@ -810,5 +817,7 @@ class TestCommandIntegration:
         new_data.append((3, 310.0, 410.0))
 
         # Command data should be unchanged
+        assert cmd.old_data is not None
+        assert cmd.new_data is not None
         assert len(cmd.old_data) == 2
         assert len(cmd.new_data) == 2

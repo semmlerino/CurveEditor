@@ -11,6 +11,9 @@ Following UNIFIED_TESTING_GUIDE best practices:
 - Edge case coverage
 """
 
+from collections.abc import Callable
+from typing import Any
+
 import pytest
 
 from core.type_aliases import CurveDataInput, CurveDataList
@@ -25,27 +28,27 @@ from ui.controllers.multi_point_tracking_controller import MultiPointTrackingCon
 class MockSignal:
     """Lightweight signal test double for non-Qt components."""
 
-    def __init__(self):
-        self.emissions = []
-        self.callbacks = []
+    def __init__(self) -> None:
+        self.emissions: list[tuple[Any, ...]] = []
+        self.callbacks: list[Callable[..., Any]] = []
 
-    def emit(self, *args):
+    def emit(self, *args: Any) -> None:
         self.emissions.append(args)
         for callback in self.callbacks:
             callback(*args)
 
-    def connect(self, callback):
+    def connect(self, callback: Callable[..., Any]) -> None:
         self.callbacks.append(callback)
 
     @property
-    def was_emitted(self):
+    def was_emitted(self) -> bool:
         return len(self.emissions) > 0
 
     @property
-    def emission_count(self):
+    def emission_count(self) -> int:
         return len(self.emissions)
 
-    def reset(self):
+    def reset(self) -> None:
         self.emissions.clear()
 
 
@@ -55,10 +58,12 @@ class MockSignal:
 
 
 @pytest.fixture
-def make_tracking_point():
+def make_tracking_point() -> Callable[[int, float, float, str], tuple[int, float, float, str]]:
     """Factory for creating tracking point tuples."""
 
-    def _make_point(frame: int, x: float = 100.0, y: float = 200.0, status: str = "tracked"):
+    def _make_point(
+        frame: int, x: float = 100.0, y: float = 200.0, status: str = "tracked"
+    ) -> tuple[int, float, float, str]:
         """Create a tracking point tuple.
 
         Args:
@@ -76,10 +81,10 @@ def make_tracking_point():
 
 
 @pytest.fixture
-def make_tracking_data():
+def make_tracking_data() -> Callable[..., CurveDataList]:
     """Factory for creating tracking data lists."""
 
-    def _make_data(points_count: int = 5, start_frame: int = 1):
+    def _make_data(points_count: int = 5, start_frame: int = 1) -> CurveDataList:
         """Create a list of tracking points.
 
         Args:
@@ -89,7 +94,7 @@ def make_tracking_data():
         Returns:
             List of tracking point tuples
         """
-        data = []
+        data: CurveDataList = []
         for i in range(points_count):
             frame = start_frame + i
             x = 100.0 + (i * 10)
@@ -102,10 +107,12 @@ def make_tracking_data():
 
 
 @pytest.fixture
-def make_multi_point_data():
+def make_multi_point_data() -> Callable[..., dict[str, CurveDataList]]:
     """Factory for creating multi-point tracking data."""
 
-    def _make_multi_data(point_names: list[str] = None, points_per_trajectory: int = 3):
+    def _make_multi_data(
+        point_names: list[str] | None = None, points_per_trajectory: int = 3
+    ) -> dict[str, CurveDataList]:
         """Create multi-point tracking data dictionary.
 
         Args:
@@ -118,10 +125,10 @@ def make_multi_point_data():
         if point_names is None:
             point_names = ["Point1", "Point2"]
 
-        multi_data = {}
+        multi_data: dict[str, CurveDataList] = {}
         for idx, name in enumerate(point_names):
             start_frame = idx * 10
-            trajectory = []
+            trajectory: CurveDataList = []
             for i in range(points_per_trajectory):
                 frame = start_frame + i
                 x = 100.0 + (idx * 50) + (i * 5)
@@ -142,23 +149,29 @@ def make_multi_point_data():
 class MockCurveWidget:
     """Mock curve widget for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.data: CurveDataList = []
-        self.curves_data = {}
-        self.setup_called = False
+        self.curves_data: dict[str, CurveDataList] = {}
+        self.setup_called: bool = False
         # Mock curve_data property for auto-selection
         self.curve_data: CurveDataList = []
         # Mock curve store for auto-selection
-        self._curve_store = MockCurveStore()
+        self._curve_store: MockCurveStore = MockCurveStore()
 
-    def setup_for_pixel_tracking(self):
+    def setup_for_pixel_tracking(self) -> None:
         self.setup_called = True
 
-    def set_curve_data(self, data: CurveDataInput):
+    def set_curve_data(self, data: CurveDataInput) -> None:
         self.data = list(data)
         self.curve_data = list(data)  # Update both for compatibility
 
-    def set_curves_data(self, curves: dict[str, CurveDataList], metadata=None, active_curve=None, selected_curves=None):
+    def set_curves_data(
+        self,
+        curves: dict[str, CurveDataList],
+        metadata: Any = None,
+        active_curve: Any = None,
+        selected_curves: Any = None,
+    ) -> None:
         """Mock implementation of set_curves_data."""
         self.curves_data = curves
 
@@ -166,8 +179,8 @@ class MockCurveWidget:
 class MockCurveStore:
     """Mock curve store for testing auto-selection."""
 
-    def __init__(self):
-        self.selection = set()
+    def __init__(self) -> None:
+        self.selection: set[int] = set()
 
     def select(self, index: int) -> None:
         """Mock select method."""
@@ -177,19 +190,19 @@ class MockCurveStore:
 class MockStateManager:
     """Mock state manager for testing."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.track_data: CurveDataList = []
-        self.modified = False
-        self.total_frames = 0
-        self.current_frame = 0
-        self.is_modified = False
-        self.current_file = None
+        self.modified: bool = False
+        self.total_frames: int = 0
+        self.current_frame: int = 0
+        self.is_modified: bool = False
+        self.current_file: str | None = None
 
-    def set_track_data(self, data: CurveDataList, mark_modified: bool = True):
+    def set_track_data(self, data: CurveDataList, mark_modified: bool = True) -> None:
         self.track_data = data
         self.modified = mark_modified
 
-    def reset_to_defaults(self):
+    def reset_to_defaults(self) -> None:
         self.track_data = []
         self.modified = False
         self.total_frames = 0
@@ -199,11 +212,11 @@ class MockStateManager:
 class MockTrackingPanel:
     """Mock tracking panel for testing."""
 
-    def __init__(self):
-        self.tracked_data = {}
-        self.selected_points = []
+    def __init__(self) -> None:
+        self.tracked_data: dict[str, CurveDataList] = {}
+        self.selected_points: list[str] = []
 
-    def set_tracked_data(self, data: dict[str, CurveDataList]):
+    def set_tracked_data(self, data: dict[str, CurveDataList]) -> None:
         self.tracked_data = data
 
     def set_selected_points(self, point_names: list[str]) -> None:
@@ -222,17 +235,17 @@ class MockTrackingPanel:
 class MockFileOperations:
     """Mock file operations for testing."""
 
-    def __init__(self):
-        self.next_data = None
-        self.file_loaded_signal = MockSignal()
+    def __init__(self) -> None:
+        self.next_data: CurveDataList | dict[str, CurveDataList] | None = None
+        self.file_loaded_signal: MockSignal = MockSignal()
 
-    def open_file(self, parent):
+    def open_file(self, parent: Any) -> CurveDataList | dict[str, CurveDataList] | None:
         """Simulate opening a file."""
         if self.next_data is not None:
             self.file_loaded_signal.emit(self.next_data)
         return self.next_data
 
-    def set_next_file_data(self, data):
+    def set_next_file_data(self, data: CurveDataList | dict[str, CurveDataList]) -> None:
         """Set data to return on next open_file call."""
         self.next_data = data
 
@@ -240,30 +253,28 @@ class MockFileOperations:
 class MockMainWindow:
     """Mock main window for testing."""
 
-    def __init__(self):
-        self.curve_widget = MockCurveWidget()
-        self.tracking_panel = MockTrackingPanel()
-        self.state_manager = MockStateManager()
-        self.file_operations = MockFileOperations()
-        self.frame_slider = None
-        self.frame_spinbox = None
-        self.total_frames_label = None
-        self.status_label = None
-        self.tracking_controller: object = None  # MultiPointTrackingController | None - Set after creation
-        self.active_timeline_point: str | None = (
-            None  # Active timeline point (which tracking point's timeline is displayed)
-        )
+    def __init__(self) -> None:
+        self.curve_widget: MockCurveWidget = MockCurveWidget()
+        self.tracking_panel: MockTrackingPanel = MockTrackingPanel()
+        self.state_manager: MockStateManager = MockStateManager()
+        self.file_operations: MockFileOperations = MockFileOperations()
+        self.frame_slider: Any = None
+        self.frame_spinbox: Any = None
+        self.total_frames_label: Any = None
+        self.status_label: Any = None
+        self.tracking_controller: MultiPointTrackingController | None = None
+        self.active_timeline_point: str | None = None
 
-    def update_tracking_panel(self):
+    def update_tracking_panel(self) -> None:
         """Update tracking panel."""
         if self.tracking_controller is not None:
             self.tracking_controller.update_tracking_panel()
 
-    def update_timeline_tabs(self, data):
+    def update_timeline_tabs(self, data: Any) -> None:
         """Mock timeline update."""
         pass
 
-    def update_ui_state(self):
+    def update_ui_state(self) -> None:
         """Mock UI state update."""
         pass
 
@@ -276,19 +287,19 @@ class MockMainWindow:
 class TestUniqueNameGeneration:
     """Test unique name generation for avoiding conflicts."""
 
-    def test_unique_name_when_no_conflict(self):
+    def test_unique_name_when_no_conflict(self) -> None:
         """Should return the same name when there's no conflict."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # No existing data
         unique_name = controller._get_unique_point_name("NewPoint")
         assert unique_name == "NewPoint"
 
-    def test_unique_name_with_conflict(self, make_multi_point_data):
+    def test_unique_name_with_conflict(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Should append suffix when name conflicts."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # Add existing data
         controller.tracked_data = make_multi_point_data(["Point1", "Point2"])
@@ -297,10 +308,12 @@ class TestUniqueNameGeneration:
         unique_name = controller._get_unique_point_name("Point1")
         assert unique_name == "Point1_2"
 
-    def test_unique_name_with_multiple_conflicts(self, make_multi_point_data):
+    def test_unique_name_with_multiple_conflicts(
+        self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]
+    ) -> None:
         """Should increment suffix for multiple conflicts."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # Add existing data with conflicts
         controller.tracked_data = {
@@ -321,10 +334,10 @@ class TestUniqueNameGeneration:
             ("Data", ["Data", "Data_2", "Data_3", "Data_4"], "Data_5"),
         ],
     )
-    def test_unique_name_parametrized(self, base_name, existing_names, expected):
+    def test_unique_name_parametrized(self, base_name: str, existing_names: list[str], expected: str) -> None:
         """Test various conflict scenarios."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # Set up existing names
         controller.tracked_data = {name: [] for name in existing_names}
@@ -341,10 +354,10 @@ class TestUniqueNameGeneration:
 class TestMultiPointDataMerging:
     """Test merging of multi-point tracking data."""
 
-    def test_load_first_multi_point_data(self, make_multi_point_data):
+    def test_load_first_multi_point_data(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Loading first multi-point file should set data directly."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first multi-point data
@@ -357,10 +370,12 @@ class TestMultiPointDataMerging:
         assert "Point2" in controller.tracked_data
         assert main_window.active_timeline_point == "Point1"
 
-    def test_merge_multi_point_data_no_conflicts(self, make_multi_point_data):
+    def test_merge_multi_point_data_no_conflicts(
+        self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]
+    ) -> None:
         """Merging multi-point data without conflicts should preserve all points."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first data
@@ -375,10 +390,12 @@ class TestMultiPointDataMerging:
         assert len(controller.tracked_data) == 4
         assert all(name in controller.tracked_data for name in ["Point1", "Point2", "Point3", "Point4"])
 
-    def test_merge_multi_point_data_with_conflicts(self, make_multi_point_data):
+    def test_merge_multi_point_data_with_conflicts(
+        self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]
+    ) -> None:
         """Merging with conflicting names should rename duplicates."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first data
@@ -396,10 +413,12 @@ class TestMultiPointDataMerging:
         assert "Point2" in controller.tracked_data
         assert "Point3" in controller.tracked_data
 
-    def test_preserve_existing_selection_when_merging(self, make_multi_point_data):
+    def test_preserve_existing_selection_when_merging(
+        self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]
+    ) -> None:
         """Active selection should be preserved when merging new data."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first data and select Point2
@@ -418,10 +437,10 @@ class TestMultiPointDataMerging:
 class TestSingleTrajectoryMerging:
     """Test merging of single trajectory data."""
 
-    def test_load_first_single_trajectory(self, make_tracking_data):
+    def test_load_first_single_trajectory(self, make_tracking_data: Callable[..., CurveDataList]) -> None:
         """First single trajectory should create Track1."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load single trajectory
@@ -433,10 +452,14 @@ class TestSingleTrajectoryMerging:
         assert "Track1" in controller.tracked_data
         assert main_window.active_timeline_point == "Track1"
 
-    def test_add_single_trajectory_to_existing(self, make_tracking_data, make_multi_point_data):
+    def test_add_single_trajectory_to_existing(
+        self,
+        make_tracking_data: Callable[..., CurveDataList],
+        make_multi_point_data: Callable[..., dict[str, CurveDataList]],
+    ) -> None:
         """Single trajectory should be added to existing multi-point data."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load multi-point data first
@@ -453,10 +476,12 @@ class TestSingleTrajectoryMerging:
         assert "Point1" in controller.tracked_data
         assert "Point2" in controller.tracked_data
 
-    def test_multiple_single_trajectories_get_unique_names(self, make_tracking_data):
+    def test_multiple_single_trajectories_get_unique_names(
+        self, make_tracking_data: Callable[..., CurveDataList]
+    ) -> None:
         """Multiple single trajectories should get unique Track names."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first single trajectory
@@ -488,14 +513,16 @@ class TestSingleTrajectoryMerging:
 class TestFileOpenMerging:
     """Test that File > Open properly merges data."""
 
-    def test_open_single_file_routes_through_tracking_controller(self, make_tracking_data):
+    def test_open_single_file_routes_through_tracking_controller(
+        self, make_tracking_data: Callable[..., CurveDataList]
+    ) -> None:
         """Opening single curve file should go through tracking controller."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)
+        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)
+        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
 
         # Simulate opening a single curve file
         single_data = make_tracking_data(5)
@@ -506,14 +533,16 @@ class TestFileOpenMerging:
         assert len(tracking_controller.tracked_data) == 1
         assert "Track1" in tracking_controller.tracked_data
 
-    def test_open_multi_point_file_routes_correctly(self, make_multi_point_data):
+    def test_open_multi_point_file_routes_correctly(
+        self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]
+    ) -> None:
         """Opening multi-point file should go through tracking controller."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)
+        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)
+        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
 
         # Simulate opening a multi-point file
         multi_data = make_multi_point_data(["Point1", "Point2"])
@@ -525,14 +554,18 @@ class TestFileOpenMerging:
         assert "Point1" in tracking_controller.tracked_data
         assert "Point2" in tracking_controller.tracked_data
 
-    def test_sequential_file_opens_merge_data(self, make_tracking_data, make_multi_point_data):
+    def test_sequential_file_opens_merge_data(
+        self,
+        make_tracking_data: Callable[..., CurveDataList],
+        make_multi_point_data: Callable[..., dict[str, CurveDataList]],
+    ) -> None:
         """Opening multiple files sequentially should merge all data."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)
+        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)
+        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
 
         # Open first single file
         single_data1 = make_tracking_data(3)
@@ -570,7 +603,7 @@ class TestEdgeCases:
     def test_empty_data_handled_gracefully(self):
         """Empty data should not cause errors."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load empty multi-point data
@@ -583,7 +616,7 @@ class TestEdgeCases:
     def test_none_data_handled_gracefully(self):
         """None data should not cause errors."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load None data
@@ -592,10 +625,10 @@ class TestEdgeCases:
         # Should handle gracefully
         assert len(controller.tracked_data) == 0
 
-    def test_large_dataset_merging(self, make_multi_point_data):
+    def test_large_dataset_merging(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Large datasets should merge efficiently."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Create large dataset
@@ -617,7 +650,7 @@ class TestEdgeCases:
     def test_deep_conflict_resolution(self):
         """Should handle deep naming conflicts correctly."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Create data with many conflicts
@@ -644,10 +677,10 @@ class TestEdgeCases:
 class TestPanelUpdates:
     """Test that tracking panel is properly updated."""
 
-    def test_panel_updated_on_data_load(self, make_multi_point_data):
+    def test_panel_updated_on_data_load(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Panel should be updated when data is loaded."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load data
@@ -657,10 +690,10 @@ class TestPanelUpdates:
         # Panel should have the data
         assert main_window.tracking_panel.tracked_data == controller.tracked_data
 
-    def test_panel_updated_on_merge(self, make_multi_point_data):
+    def test_panel_updated_on_merge(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Panel should be updated when data is merged."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first data
@@ -698,10 +731,16 @@ class TestParametrizedMerging:
             ({"A": []}, {}, 1, ["A"]),
         ],
     )
-    def test_various_merge_scenarios(self, first_data, second_data, expected_count, expected_names):
+    def test_various_merge_scenarios(
+        self,
+        first_data: dict[str, CurveDataList],
+        second_data: dict[str, CurveDataList],
+        expected_count: int,
+        expected_names: list[str],
+    ) -> None:
         """Test various merge scenarios."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)
+        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
         main_window.tracking_controller = controller
 
         # Load first data if not empty

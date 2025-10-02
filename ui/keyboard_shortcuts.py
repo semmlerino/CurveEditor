@@ -149,7 +149,7 @@ class ShortcutManager(QObject):
         self.action_zoom_fit.setStatusTip("Fit curve to view")
 
         self.action_reset_view = QAction("&Reset View", self.parent_widget)
-        self.action_reset_view.setShortcut("Ctrl+R")
+        self.action_reset_view.setShortcut("Ctrl+Shift+R")
         self.action_reset_view.setStatusTip("Reset the view to default")
 
         self.action_toggle_grid = QAction("Toggle &Grid", self.parent_widget)

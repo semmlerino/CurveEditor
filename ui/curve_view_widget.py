@@ -1007,8 +1007,8 @@ class CurveViewWidget(QWidget):
             # Multi-curve support - CRITICAL FIX for gap visualization
             # Use live curves data that includes current status changes for active curve
             curves_data=self._get_live_curves_data(),
-            show_all_curves=getattr(self, "show_all_curves", False),
-            selected_curve_names=getattr(self, "selected_curve_names", None),
+            show_all_curves=self.show_all_curves,
+            selected_curve_names=self.selected_curve_names,
         )
 
         # Pass explicit state to renderer instead of widget reference
@@ -1127,11 +1127,17 @@ class CurveViewWidget(QWidget):
                 self._start_rubber_band(pos)
             else:
                 # Check for point selection/drag
-                idx = self._find_point_at(pos)
+                # Use multi-curve search if we have multiple curves
+                if self.curves_data:
+                    idx, curve_name = self._find_point_at_multi_curve(pos)
+                else:
+                    idx = self._find_point_at(pos)
+                    curve_name = None
+
                 if idx >= 0:
                     # Select and start dragging point
                     add_to_selection = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
-                    self._select_point(idx, add_to_selection)
+                    self._select_point(idx, add_to_selection, curve_name)
                     self.drag_active = True
                     self.dragged_index = idx
                     self.drag_start_pos = pos
@@ -1680,14 +1686,96 @@ class CurveViewWidget(QWidget):
 
         return result
 
-    def _select_point(self, index: int, add_to_selection: bool = False) -> None:
+    def _find_point_at_multi_curve(self, pos: QPointF) -> tuple[int, str | None]:
+        """
+        Find point at given screen position across ALL visible curves.
+
+        This enables selecting points from any visible curve, not just the active one.
+        When a point is found, returns both the point index and the curve it belongs to.
+
+        Args:
+            pos: Screen position
+
+        Returns:
+            Tuple of (point_index, curve_name) or (-1, None) if not found
+        """
+        if not self.curves_data:
+            # Fall back to single-curve mode
+            idx = self._find_point_at(pos)
+            return (idx, self.active_curve_name if idx >= 0 else None)
+
+        # ALWAYS search all curves to enable cross-curve selection
+        # When a user clicks a point on any curve, that curve gets added to selected_curve_names
+        # and becomes visible in the rendering. This enables the workflow:
+        # 1. User browses with show_all_curves enabled
+        # 2. Clicks point on curve A -> curve A added to selected_curve_names
+        # 3. Ctrl+clicks point on curve B -> curve B added to selected_curve_names
+        # 4. Both curves remain visible because they're both in selected_curve_names
+        curves_to_search = [
+            (name, data)
+            for name, data in self.curves_data.items()
+            if self.curve_metadata.get(name, {}).get("visible", True)
+        ]
+
+        # Search each curve using spatial indexing
+        threshold = 5.0  # Screen pixels
+        best_match: tuple[int, str, float] | None = None  # (index, curve_name, distance)
+
+        for curve_name, curve_data in curves_to_search:
+            if not curve_data:
+                continue
+
+            # Temporarily set this curve as active to use spatial index
+            saved_active = self.active_curve_name
+            saved_data = self.curve_data
+            try:
+                self.active_curve_name = curve_name
+                self._curve_store.set_data(curve_data)
+
+                # Find point in this curve
+                idx = self._find_point_at(pos)
+                if idx >= 0:
+                    # Calculate distance to determine best match if multiple curves have points nearby
+                    point = curve_data[idx]
+                    data_x, data_y = float(point[1]), float(point[2])
+                    screen_point = self.data_to_screen(data_x, data_y)
+                    distance = ((screen_point.x() - pos.x()) ** 2 + (screen_point.y() - pos.y()) ** 2) ** 0.5
+
+                    if distance <= threshold:
+                        if best_match is None or distance < best_match[2]:
+                            best_match = (idx, curve_name, distance)
+            finally:
+                # Restore original active curve and data
+                self.active_curve_name = saved_active
+                self._curve_store.set_data(saved_data)
+
+        if best_match:
+            logger.debug(
+                f"[MULTI-CURVE] Found point at ({pos.x():.1f}, {pos.y():.1f}): idx={best_match[0]}, curve={best_match[1]}"
+            )
+            return (best_match[0], best_match[1])
+
+        return (-1, None)
+
+    def _select_point(self, index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
         """
         Select a point.
 
         Args:
             index: Point index
             add_to_selection: Whether to add to existing selection
+            curve_name: Optional curve name if selecting from multi-curve mode
         """
+        # Handle multi-curve selection
+        if curve_name and curve_name in self.curves_data:
+            # Add this curve to selected curves for visibility
+            self.selected_curve_names.add(curve_name)
+
+            # If selecting from a different curve, switch to it
+            if curve_name != self.active_curve_name:
+                logger.debug(f"[MULTI-CURVE] Switching active curve from {self.active_curve_name} to {curve_name}")
+                self.set_active_curve(curve_name)
+
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.select(index, add_to_selection)
 
@@ -1910,8 +1998,9 @@ class CurveViewWidget(QWidget):
 
         from services import get_interaction_service
 
-        # Collect moves
+        # Collect moves and status changes
         moves = []
+        status_changes = []
         for idx in self.selected_indices:
             if 0 <= idx < len(self.curve_data):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
@@ -1919,25 +2008,50 @@ class CurveViewWidget(QWidget):
                 new_pos = (x + dx, y + dy)
                 moves.append((idx, old_pos, new_pos))
 
-        if moves:
-            # Create and execute move command (lazy import to avoid cycle)
-            from core.commands.curve_commands import BatchMoveCommand
+                # Collect status changes - convert non-keyframes to keyframes
+                point = self.curve_data[idx]
+                if len(point) >= 4:
+                    old_status = point[3]
+                    # Convert bool to string if needed
+                    if isinstance(old_status, bool):
+                        old_status = "interpolated" if old_status else "normal"
+                    # Only add status change if not already a keyframe
+                    if old_status != PointStatus.KEYFRAME.value:
+                        status_changes.append((idx, old_status, PointStatus.KEYFRAME.value))
+                else:
+                    # 3-tuple point has implicit "normal" status
+                    status_changes.append((idx, "normal", PointStatus.KEYFRAME.value))
 
-            command = BatchMoveCommand(
-                description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
-                moves=moves,
+        if moves:
+            # Create composite command with both move and status change (lazy import to avoid cycle)
+            from core.commands.base_command import CompositeCommand
+            from core.commands.curve_commands import BatchMoveCommand, SetPointStatusCommand
+
+            composite = CompositeCommand(
+                description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''} to keyframe"
             )
 
-            # Execute the command through the interaction service's command manager
+            # Add move command
+            move_command = BatchMoveCommand(
+                description=f"Move {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                moves=moves,
+            )
+            composite.add_command(move_command)
+
+            # Add status change command if there are any non-keyframes
+            if status_changes:
+                status_command = SetPointStatusCommand(
+                    description=f"Convert {len(status_changes)} point{'s' if len(status_changes) > 1 else ''} to keyframe",
+                    changes=status_changes,
+                )
+                composite.add_command(status_command)
+
+            # Execute the composite command through the interaction service's command manager
             interaction_service = get_interaction_service()
             if interaction_service and interaction_service.command_manager is not None and self.main_window is not None:
                 # Protocol mismatch between local MainWindow and service's MainWindowProtocol
                 # At runtime, the actual main_window satisfies both protocols
-                interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
-
-                # Convert to keyframes since user manually adjusted them
-                for idx in self.selected_indices:
-                    self._curve_store.set_point_status(idx, PointStatus.KEYFRAME)
+                interaction_service.command_manager.execute_command(composite, self.main_window)  # pyright: ignore[reportArgumentType]
 
     def delete_selected_points(self) -> None:
         """Delete selected points."""

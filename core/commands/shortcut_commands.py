@@ -23,6 +23,85 @@ from core.models import PointStatus, TrackingDirection
 logger = get_logger("shortcut_commands")
 
 
+class InsertTrackShortcutCommand(ShortcutCommand):
+    """Command to execute Insert Track operation (3DEqualizer-style gap filling)."""
+
+    def __init__(self) -> None:
+        """Initialize the Insert Track shortcut command."""
+        super().__init__("Ctrl+Shift+I", "Insert Track - Fill gaps from other tracking points")
+
+    def can_execute(self, context: ShortcutContext) -> bool:
+        """Check if Insert Track can be executed.
+
+        Requires:
+        - At least one tracking curve selected
+        - MultiPointTrackingController available
+        """
+        # Check for Ctrl+Shift+I modifiers
+        modifiers = context.key_event.modifiers()
+        expected = Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier
+        if (modifiers & expected) != expected:
+            return False
+
+        # Check for multi-point controller
+        main_window = context.main_window
+        if not hasattr(main_window, "multi_point_controller"):
+            return False
+
+        # Check for selected curves (via tracking panel)
+        if hasattr(main_window, "tracking_panel"):
+            tracking_panel = main_window.tracking_panel
+            if tracking_panel:
+                selected = tracking_panel.get_selected_points()
+                return len(selected) > 0
+
+        return False
+
+    def execute(self, context: ShortcutContext) -> bool:
+        """Execute Insert Track operation.
+
+        Creates an InsertTrackCommand and executes it through the command manager.
+        """
+        try:
+            from core.commands.insert_track_command import InsertTrackCommand
+            from services import get_interaction_service
+
+            main_window = context.main_window
+
+            # Get selected curves
+            selected_curves = []
+            if hasattr(main_window, "tracking_panel") and main_window.tracking_panel:
+                selected_curves = main_window.tracking_panel.get_selected_points()
+
+            if not selected_curves:
+                logger.warning("No curves selected for Insert Track")
+                return False
+
+            # Get current frame
+            current_frame = context.current_frame
+            if current_frame is None:
+                logger.warning("No current frame for Insert Track")
+                return False
+
+            # Create and execute Insert Track command
+            command = InsertTrackCommand(selected_curves, current_frame)
+
+            # Execute through command manager for undo/redo support
+            interaction_service = get_interaction_service()
+            if interaction_service:
+                success = interaction_service.command_manager.execute_command(command, main_window)
+                if success:
+                    logger.info(f"Insert Track executed for {len(selected_curves)} curves at frame {current_frame}")
+                return success
+            else:
+                # Fallback: execute directly
+                return command.execute(main_window)
+
+        except Exception as e:
+            logger.error(f"Error executing Insert Track shortcut: {e}")
+            return False
+
+
 class SetEndframeCommand(ShortcutCommand):
     """Command to toggle between KEYFRAME and ENDFRAME status for selected points."""
 
@@ -235,11 +314,11 @@ class DeletePointsCommand(ShortcutCommand):
 
 
 class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
-    """Command to delete the keyframe at the current frame."""
+    """Command to convert the keyframe at the current frame to an interpolated point."""
 
     def __init__(self) -> None:
         """Initialize the delete current frame keyframe command."""
-        super().__init__("Ctrl+R", "Delete keyframe at current frame")
+        super().__init__("Ctrl+R", "Convert keyframe to interpolated point")
 
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can delete the keyframe at the current frame.
@@ -258,33 +337,83 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         return False
 
     def execute(self, context: ShortcutContext) -> bool:
-        """Execute the delete current frame keyframe command.
+        """Execute the convert keyframe to interpolated command.
 
-        This is a FRAME-BASED operation - it deletes the point at the current frame,
-        NOT selected points.
+        This is a FRAME-BASED operation - it converts the point at the current frame
+        to an interpolated point with coordinates calculated from surrounding keyframes.
         """
         curve_widget = context.main_window.curve_widget
         if not curve_widget:
             return False
 
         try:
-            from core.commands.curve_commands import DeletePointsCommand as DeleteCmd
+            from core.commands.curve_commands import ConvertToInterpolatedCommand
+            from core.curve_segments import SegmentedCurve
+            from core.models import CurvePoint, PointStatus
             from services import get_interaction_service
 
-            # FRAME-BASED OPERATION: Find and delete point at current frame
+            # FRAME-BASED OPERATION: Find and convert point at current frame
             if context.current_frame is not None:
                 # Find the point index at the current frame
                 point_index = None
+                current_point = None
                 for i, point in enumerate(curve_widget.curve_data):
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         point_index = i
+                        current_point = point
                         break
 
-                if point_index is not None:
-                    # Create delete command
-                    command = DeleteCmd(
-                        description=f"Delete keyframe at frame {context.current_frame}",
-                        indices=[point_index],
+                if point_index is not None and current_point is not None:
+                    # Get the current point data
+                    frame = current_point[0]
+                    old_x = current_point[1]
+                    old_y = current_point[2]
+                    # Ensure status is always a string
+                    if len(current_point) >= 4:
+                        old_status_raw = current_point[3]
+                        if isinstance(old_status_raw, bool):
+                            old_status = "interpolated" if old_status_raw else "normal"
+                        else:
+                            old_status = old_status_raw
+                    else:
+                        old_status = "normal"
+
+                    # Convert curve data tuples to CurvePoint objects for segmented curve
+                    curve_points = [CurvePoint.from_tuple(p) for p in curve_widget.curve_data]
+
+                    # Calculate interpolated position using segmented curve
+                    segmented_curve = SegmentedCurve.from_points(curve_points)
+                    prev_kf, next_kf = segmented_curve.get_interpolation_boundaries(frame)
+
+                    # Calculate interpolated coordinates
+                    if prev_kf and next_kf:
+                        # Linear interpolation between boundaries
+                        frame_ratio = (frame - prev_kf.frame) / (next_kf.frame - prev_kf.frame)
+                        new_x = prev_kf.x + (next_kf.x - prev_kf.x) * frame_ratio
+                        new_y = prev_kf.y + (next_kf.y - prev_kf.y) * frame_ratio
+                    elif prev_kf:
+                        # Only have previous - use its position
+                        new_x = prev_kf.x
+                        new_y = prev_kf.y
+                    elif next_kf:
+                        # Only have next - use its position
+                        new_x = next_kf.x
+                        new_y = next_kf.y
+                    else:
+                        # No boundaries - keep original position
+                        new_x = old_x
+                        new_y = old_y
+
+                    # Create old and new point tuples
+                    old_point = (frame, old_x, old_y, old_status)
+                    new_point = (frame, new_x, new_y, PointStatus.INTERPOLATED.value)
+
+                    # Create convert command
+                    command = ConvertToInterpolatedCommand(
+                        description=f"Convert frame {context.current_frame} to interpolated",
+                        index=point_index,
+                        old_point=old_point,
+                        new_point=new_point,
                     )
 
                     # Execute through command manager for undo support
@@ -294,14 +423,14 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
                             command, cast("MainWindowProtocol", cast(object, context.main_window))
                         )
                         if success:
-                            msg = f"Deleted keyframe at frame {context.current_frame}"
+                            msg = f"Converted frame {context.current_frame} to interpolated"
                             curve_widget.update_status(msg, 2000)
                             logger.info(msg)
                             return True
                     return False
 
         except Exception as e:
-            logger.error(f"Failed to delete keyframe at current frame: {e}")
+            logger.error(f"Failed to convert keyframe to interpolated: {e}")
 
         return False
 

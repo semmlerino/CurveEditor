@@ -348,6 +348,79 @@ class TestInteractionHandling:
         assert new_x == original_x + 10.0
         assert new_y == original_y + 5.0
 
+    def test_nudge_converts_interpolated_to_keyframe(self, curve_view_widget: CurveViewWidget) -> None:
+        """Test that nudging an interpolated point converts it to a keyframe."""
+        from core.models import PointStatus
+
+        # Create test data with an interpolated point
+        test_data = [
+            (1, 100.0, 100.0, "keyframe"),
+            (2, 110.0, 110.0, "interpolated"),  # This will be nudged
+            (3, 120.0, 120.0, "keyframe"),
+        ]
+        curve_view_widget.set_curve_data(test_data)
+
+        # Select the interpolated point (index 1)
+        curve_view_widget._curve_store.select(1)
+
+        # Verify it's interpolated before nudging
+        point_before = curve_view_widget.curve_data[1]
+        assert point_before[3] == "interpolated", "Point should be interpolated before nudge"
+
+        # Nudge the point
+        curve_view_widget.nudge_selected(5.0, 5.0)
+
+        # Verify the point is now a keyframe
+        point_after = curve_view_widget.curve_data[1]
+        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
+
+        # Verify position changed
+        assert point_after[1] == 115.0, "X coordinate should have moved"
+        assert point_after[2] == 115.0, "Y coordinate should have moved"
+
+    def test_nudge_converts_normal_to_keyframe(self, curve_view_widget: CurveViewWidget) -> None:
+        """Test that nudging a normal point converts it to a keyframe."""
+        from core.models import PointStatus
+
+        # Create test data with a normal point (3-tuple, implicit normal status)
+        test_data = [
+            (1, 100.0, 100.0),  # This will be nudged - implicit normal status
+            (2, 110.0, 110.0, "keyframe"),
+        ]
+        curve_view_widget.set_curve_data(test_data)
+
+        # Select the normal point (index 0)
+        curve_view_widget._curve_store.select(0)
+
+        # Nudge the point
+        curve_view_widget.nudge_selected(5.0, 5.0)
+
+        # Verify the point is now a keyframe
+        point_after = curve_view_widget.curve_data[0]
+        assert len(point_after) >= 4, "Point should have status after nudge"
+        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
+
+    def test_nudge_keyframe_stays_keyframe(self, curve_view_widget: CurveViewWidget) -> None:
+        """Test that nudging a keyframe keeps it as a keyframe."""
+        from core.models import PointStatus
+
+        # Create test data with a keyframe
+        test_data = [
+            (1, 100.0, 100.0, "keyframe"),
+            (2, 110.0, 110.0, "keyframe"),
+        ]
+        curve_view_widget.set_curve_data(test_data)
+
+        # Select the keyframe (index 0)
+        curve_view_widget._curve_store.select(0)
+
+        # Nudge the point
+        curve_view_widget.nudge_selected(5.0, 5.0)
+
+        # Verify the point is still a keyframe
+        point_after = curve_view_widget.curve_data[0]
+        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
+
 
 class TestServiceIntegration:
     """Test integration with services."""

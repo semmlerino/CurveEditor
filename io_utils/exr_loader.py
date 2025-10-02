@@ -13,9 +13,10 @@ Note: Pillow must be compiled with OpenEXR support. If not available,
 
 import logging
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+from numpy.typing import NDArray
 
 if TYPE_CHECKING:
     from PySide6.QtGui import QImage, QPixmap
@@ -301,7 +302,7 @@ def load_exr_as_qpixmap(file_path: str) -> "QPixmap | None":
         return None
 
 
-def _tone_map_hdr(img_data: np.ndarray) -> np.ndarray:
+def _tone_map_hdr(img_data: NDArray[np.floating[Any]]) -> NDArray[np.floating[Any]]:
     """
     Apply tone mapping to convert HDR image data to LDR (0-1 range).
 

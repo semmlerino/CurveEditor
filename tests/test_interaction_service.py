@@ -231,11 +231,11 @@ class TestInteractionServiceHistory:
 
         # Set up actual curve data that will be captured by add_to_history
         view.curve_data = [(1, 100, 100)]
-        self.service.add_to_history(main_window, None)  # state param is ignored
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]  # state param is ignored
 
         # Modify data and add another state
         view.curve_data = [(1, 100, 100), (2, 200, 200)]
-        self.service.add_to_history(main_window, None)  # state param is ignored
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]  # state param is ignored
 
         # Now we should have 2 states in history and can undo
         assert self.service.can_undo()
@@ -251,15 +251,15 @@ class TestInteractionServiceHistory:
         main_window.curve_view = view  # Backward compatibility  # pyright: ignore[reportAttributeAccessIssue]
 
         # Add initial state
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Modify and add new state
         view.curve_data = [(1, 150, 150)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Perform undo
         assert self.service.can_undo()
-        self.service.undo(main_window)
+        self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         # After undo, should be able to redo
         assert self.service.can_redo()
@@ -276,21 +276,21 @@ class TestInteractionServiceHistory:
 
         # Add multiple states by modifying curve_data
         view.curve_data = [(1, 100, 100)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         view.curve_data = [(1, 150, 150)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         view.curve_data = [(1, 200, 200)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Undo twice
-        self.service.undo(main_window)
-        self.service.undo(main_window)
+        self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         # Now redo
         assert self.service.can_redo()
-        self.service.redo(main_window)
+        self.service.redo(main_window)  # pyright: ignore[reportArgumentType]
 
         # After redo, should be able to undo again
         assert self.service.can_undo()
@@ -307,20 +307,20 @@ class TestInteractionServiceHistory:
 
         # Add states
         view.curve_data = [(1, 100, 100)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         view.curve_data = [(1, 150, 150)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         view.curve_data = [(1, 200, 200)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Undo once
-        self.service.undo(main_window)
+        self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         # Add new state (should clear redo history)
         view.curve_data = [(1, 175, 175)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Can't redo anymore
         assert not self.service.can_redo()
@@ -338,7 +338,7 @@ class TestInteractionServiceHistory:
         # Add many states
         for i in range(150):  # More than typical max
             view.curve_data = [(1, i, i)]
-            self.service.add_to_history(main_window, None)
+            self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # History size check through public API
         stats = self.service.get_history_stats()
@@ -466,6 +466,7 @@ class TestInteractionServiceSpatialIndex:
         # Get initial stats
         stats1 = self.service.get_spatial_index_stats()
         initial_points = stats1.get("total_points")
+        assert isinstance(initial_points, int), "Expected initial_points to be an int"
 
         # Add more points to the view
         view.curve_data.append((3, 300, 300))
@@ -480,6 +481,7 @@ class TestInteractionServiceSpatialIndex:
         # Verify stats updated
         stats2 = self.service.get_spatial_index_stats()
         new_points = stats2.get("total_points")
+        assert isinstance(new_points, int), "Expected new_points to be an int"
         assert new_points == 3
         assert new_points > initial_points
 
@@ -565,22 +567,22 @@ class TestInteractionServiceKeyboardEvents:
 
         # Add some history by setting actual curve data
         view.curve_data = [(1, 100, 100)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         view.curve_data = [(1, 150, 150)]
-        self.service.add_to_history(main_window, None)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Test that undo/redo capability exists
         assert self.service.can_undo()
 
         # Perform undo
-        self.service.undo(main_window)
+        self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should be able to redo
         assert self.service.can_redo()
 
         # Perform redo
-        self.service.redo(main_window)
+        self.service.redo(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should be able to undo again
         assert self.service.can_undo()

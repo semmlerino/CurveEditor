@@ -230,13 +230,17 @@ class CurveDataStore(QObject):
 
         Args:
             index: Point index
-            add_to_selection: Add to existing selection if True, replace if False
+            add_to_selection: Add to existing selection if True (toggle), replace if False
         """
         if not 0 <= index < len(self._data):
             return
 
         if add_to_selection:
-            self._selection.add(index)
+            # Toggle: add if not selected, remove if already selected
+            if index in self._selection:
+                self._selection.discard(index)
+            else:
+                self._selection.add(index)
         else:
             self._selection = {index}
 

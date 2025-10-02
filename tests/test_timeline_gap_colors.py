@@ -347,6 +347,103 @@ class TestTimelineGapColors:
             assert status in STATUS_COLORS
             assert status in STATUS_COLORS_TIMELINE
 
+    def test_endframe_in_inactive_segment_shows_red(self, main_window: MainWindow, qtbot: QtBot) -> None:
+        """Test that endframes in inactive segments still show as red, not gray.
+
+        Bug: Endframes with no active frames before/after were showing as inactive (gray)
+        instead of red. This test verifies the fix that endframes always show red.
+        """
+        # Create data with endframes in inactive segments:
+        # Frame 1: keyframe (starts active segment)
+        # Frame 5: endframe (ends active segment, starts inactive segment)
+        # Frame 10: endframe (in inactive segment - should still be red!)
+        # Frame 15: keyframe (starts new active segment)
+        data_with_inactive_endframe = [
+            (1, 100.0, 100.0, "keyframe"),
+            (5, 150.0, 150.0, "endframe"),
+            (10, 200.0, 200.0, "endframe"),  # This endframe is in inactive segment
+            (15, 250.0, 250.0, "keyframe"),
+        ]
+
+        assert main_window.curve_widget is not None
+        main_window.curve_widget.set_curve_data(data_with_inactive_endframe)
+        main_window.update_timeline_tabs(data_with_inactive_endframe)
+        qtbot.wait(100)
+
+        timeline = main_window.timeline_tabs
+        assert timeline is not None
+
+        # Check frame 10 (endframe in inactive segment)
+        assert 10 in timeline.frame_tabs, "Frame 10 should exist in timeline"
+        tab_10 = timeline.frame_tabs[10]
+
+        # Verify it's marked as an endframe
+        assert tab_10.endframe_count == 1, "Frame 10 should have 1 endframe"
+
+        # Verify it's in an inactive segment
+        assert tab_10.is_inactive is True, "Frame 10 should be marked as inactive"
+
+        # Most important: verify color is RED (endframe color), not GRAY (inactive color)
+        color = tab_10._get_background_color()
+        endframe_color = tab_10.COLORS["endframe"]
+        inactive_color = tab_10.COLORS["inactive"]
+
+        # Color should match endframe color (red), NOT inactive color (gray)
+        assert (
+            abs(color.red() - endframe_color.red()) <= 30
+        ), "Endframe in inactive segment should use endframe color (red)"
+        assert (
+            abs(color.green() - endframe_color.green()) <= 30
+        ), "Endframe in inactive segment should use endframe color (red)"
+        assert (
+            abs(color.blue() - endframe_color.blue()) <= 30
+        ), "Endframe in inactive segment should use endframe color (red)"
+
+        # Verify it's NOT the inactive color
+        # Endframe color is red (255, 68, 68 darkened to ~153, 41, 41)
+        # Inactive color is gray (30, 30, 30)
+        # Red component should be much higher for endframe than inactive
+        assert (
+            color.red() > inactive_color.red() + 50
+        ), f"Endframe should be red, not gray. Got RGB({color.red()}, {color.green()}, {color.blue()})"
+
+    def test_multiple_endframes_in_inactive_segment_all_show_red(self, main_window: MainWindow, qtbot: QtBot) -> None:
+        """Test that multiple consecutive endframes in inactive segments all show red."""
+        # Create data with multiple endframes in the same inactive segment
+        data_with_multiple_inactive_endframes = [
+            (1, 100.0, 100.0, "keyframe"),
+            (5, 150.0, 150.0, "endframe"),  # Ends active segment
+            (10, 200.0, 200.0, "endframe"),  # In inactive segment
+            (15, 250.0, 250.0, "endframe"),  # Also in inactive segment
+            (20, 300.0, 300.0, "keyframe"),  # Starts new active segment
+        ]
+
+        assert main_window.curve_widget is not None
+        main_window.curve_widget.set_curve_data(data_with_multiple_inactive_endframes)
+        main_window.update_timeline_tabs(data_with_multiple_inactive_endframes)
+        qtbot.wait(100)
+
+        timeline = main_window.timeline_tabs
+        assert timeline is not None
+
+        # Check all endframes show as red
+        endframe_frames = [5, 10, 15]
+        for frame in endframe_frames:
+            assert frame in timeline.frame_tabs, f"Frame {frame} should exist"
+            tab = timeline.frame_tabs[frame]
+
+            assert tab.endframe_count == 1, f"Frame {frame} should be endframe"
+
+            color = tab._get_background_color()
+            endframe_color = tab.COLORS["endframe"]
+            inactive_color = tab.COLORS["inactive"]
+
+            # All endframes should be red
+            assert abs(color.red() - endframe_color.red()) <= 30, f"Frame {frame} endframe should be red"
+
+            # None should be gray
+            assert color.red() > inactive_color.red() + 50, f"Frame {frame} endframe should be red, not gray"
+
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])

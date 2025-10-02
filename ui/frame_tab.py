@@ -205,9 +205,13 @@ class FrameTab(QWidget):
 
     def _get_background_color(self) -> QColor:
         """Get background color based on current status."""
-        # Priority order: selected > inactive > specific states > mixed
+        # Priority order: selected > endframe > inactive > specific states > mixed
         if self.has_selected_points:
             return self.COLORS["selected"]
+
+        # Endframes should always be red, even in inactive segments
+        if self.endframe_count > 0:
+            return self.COLORS["endframe"]
 
         if self.is_inactive:
             return self.COLORS["inactive"]
@@ -217,8 +221,6 @@ class FrameTab(QWidget):
             return self.COLORS["no_points"]
 
         # Specific state priorities
-        if self.endframe_count > 0:
-            return self.COLORS["endframe"]
         elif self.is_startframe:
             return self.COLORS["startframe"]
         elif self.tracked_count > 0 and self.keyframe_count == 0 and self.interpolated_count == 0:

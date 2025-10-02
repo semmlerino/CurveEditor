@@ -25,7 +25,10 @@ from services import get_data_service, get_interaction_service, get_transform_se
 
 ### Command System
 - **CommandManager**: Manages undo/redo history with command pattern
-- **Command Classes**: BatchMoveCommand, DeletePointsCommand, SetPointStatusCommand, SmoothCommand
+- **Command Classes**:
+  - **Curve Commands**: BatchMoveCommand, MovePointCommand, DeletePointsCommand, SetPointStatusCommand, SmoothCommand, AddPointCommand, ConvertToInterpolatedCommand, SetCurveDataCommand
+  - **Shortcut Commands**: InsertTrackShortcutCommand, SetEndframeCommand, DeleteCurrentFrameKeyframeCommand, SetTrackingDirectionCommand, CenterViewCommand, FitBackgroundCommand, NudgePointsCommand, SelectAllCommand, DeselectAllCommand, UndoCommand, RedoCommand
+  - **Utility Commands**: CompositeCommand, NullCommand, InsertTrackCommand
 - **ShortcutRegistry**: Global keyboard shortcut registration and handling
 - **GlobalEventFilter**: Application-level keyboard event interception
 
@@ -44,7 +47,71 @@ class PointCollection:
     # Methods: get_keyframes(), find_at_frame(), sorted_by_frame()
 
 class PointStatus(Enum):
-    NORMAL, INTERPOLATED, KEYFRAME
+    NORMAL, INTERPOLATED, KEYFRAME, TRACKED, ENDFRAME
+```
+
+## Point/Curve Data Architecture
+
+**Critical Distinction**: Understanding the point vs. curve terminology is essential for working with multi-point tracking features.
+
+### Data Hierarchy
+
+1. **Single Point** (`CurvePoint`): Position of a tracking point at ONE specific frame
+   - Contains: `frame: int`, `x: float`, `y: float`, `status: PointStatus`
+   - Example: Frame 100 position of tracking point "pp56_TM_138G"
+
+2. **Single Trajectory/Curve** (`List[CurvePoint]` or `CurveDataList`): ONE tracking point's movement over time
+   - A complete trajectory showing how one tracking point moves across multiple frames
+   - Example: All positions of "pp56_TM_138G" from frame 1 to 100
+
+3. **Multiple Trajectories** (`Dict[str, CurveDataList]`): MULTIPLE independent tracking points
+   - Dictionary mapping tracking point names to their trajectories
+   - Example: `{"pp56_TM_138G": [...], "pp53_TM_134G": [...], "pp50_TM_134G": [...]}`
+
+### Storage Locations
+
+```python
+# Multi-point tracking data (all tracking points)
+MultiPointTrackingController.tracked_data: dict[str, CurveDataList]
+
+# Multi-curve display data
+multi_curve_manager.curves_data: dict[str, CurveDataList]
+multi_curve_manager.selected_curve_names: set[str]  # Which tracking points selected
+multi_curve_manager.active_curve_name: str          # Active curve for editing
+
+# Active timeline point (whose timeline is displayed)
+main_window.active_timeline_point: str
+```
+
+### Terminology Clarification
+
+**IMPORTANT**: In CurveEditor terminology (matching 3DEqualizer):
+- **"Curve"** = One tracking point's complete trajectory over time
+  - Example: "pp56_TM_138G" is ONE curve showing that point's path
+- **"Point"** = Position at a specific frame within a trajectory
+  - Example: Frame 42 position within "pp56_TM_138G" trajectory
+- **"Multiple Curves"** = Multiple independent tracking points
+  - Like having 10 different tracking points in 3DEqualizer
+
+This distinction is **critical** for features like Insert Track that operate on multiple tracking points (curves) to fill gaps by transferring data between trajectories.
+
+### Access Patterns
+
+```python
+# Get all tracking point names
+point_names = main_window.multi_point_controller.tracked_data.keys()
+
+# Get specific tracking point's trajectory
+trajectory = main_window.multi_point_controller.tracked_data["pp56_TM_138G"]
+
+# Get selected tracking points
+selected = main_window.curve_widget.multi_curve_manager.selected_curve_names
+
+# Get current frame number
+frame = main_window.current_frame
+
+# Access active curve (currently edited trajectory)
+active_data = main_window.curve_widget.curve_data
 ```
 
 ## Main UI Components
@@ -64,6 +131,51 @@ class PointStatus(Enum):
 - **Playback**: Oscillating playback with timer
 - **Features**: Background thread loading, keyboard shortcuts
 
+### Card Widget (`ui/widgets/card.py`)
+- **Modern UI Container**: Replaces QGroupBox with professional card design
+- **Features**: Rounded corners (8px), subtle shadows, clean visual hierarchy
+- **Collapsible**: Optional expand/collapse with toggle button
+- **Styling**: Matches VFX tools like Nuke, Houdini, 3DEqualizer
+- **Grid System**: Uses 8px spacing system for consistency
+- **Signals**: `collapsed_changed` emitted on state change
+
+## UI Controllers (`ui/controllers/`)
+
+Specialized controllers for separating UI concerns:
+
+1. **ActionHandlerController**: Menu and toolbar action handling
+2. **MultiPointTrackingController**: Multi-curve tracking and Insert Track operations
+3. **PointEditorController**: Point editing and manipulation logic
+4. **SignalConnectionManager**: Centralized signal/slot connection management
+5. **TimelineController**: Frame navigation, playback, timeline state
+6. **UIInitializationController**: UI component setup and initialization
+7. **ViewCameraController**: Camera movement and viewport navigation
+8. **ViewManagementController**: View state management (zoom, pan, fit)
+
+## Reactive Stores (`stores/`)
+
+Single source of truth for application state with Qt signal-based reactivity:
+
+### CurveDataStore
+- **Purpose**: Centralized curve data management with automatic UI updates
+- **Signals**: `data_changed`, `point_added`, `point_updated`, `point_removed`, `point_status_changed`, `selection_changed`
+- **Features**: Batch operation mode, undo/redo stack integration
+- **Pattern**: All UI components subscribe to signals for automatic synchronization
+
+### FrameStore
+- **Purpose**: Current frame state management
+- **Pattern**: Observable state with change notifications
+- **Integration**: Syncs with timeline, playback, and curve display
+
+### StoreManager
+- **Purpose**: Coordinates multiple stores and ensures consistency
+- **Features**: Cross-store validation and transaction coordination
+
+### ConnectionVerifier
+- **Purpose**: Validates Qt signal/slot connections during development
+- **Features**: Detects orphaned connections and missing slots
+- **Usage**: Development-time debugging tool for signal integrity
+
 ## Key Operations
 
 ### Point Manipulation
@@ -79,11 +191,32 @@ class PointStatus(Enum):
 - **Fit**: F key (to background/curve)
 
 ### Keyboard Shortcuts
-```
-C: Center on selection    Delete: Remove points     Numpad 2/4/6/8: Nudge
-F: Fit to view           Escape: Deselect all      Ctrl+Z/Y: Undo/Redo
-E: Toggle endframe
-```
+
+**Editing**:
+- E: Toggle endframe status (current frame only)
+- D: Delete current frame keyframe
+- Delete: Remove selected points
+- Numpad 2/4/6/8: Nudge points (Shift=10x, Ctrl=0.1x)
+- Ctrl+Shift+I: Insert Track (3DEqualizer-style gap filling)
+
+**Selection**:
+- Ctrl+A: Select all points
+- Escape: Deselect all
+
+**View**:
+- C: Center on selection
+- F: Fit to view (background/curve)
+- Mouse wheel: Zoom (cursor-centered)
+- Middle-click drag: Pan view
+
+**Tracking Direction**:
+- Shift+1 (or !): Backward tracking
+- Shift+2 (or " or @): Forward tracking
+- Shift+F3: Bidirectional tracking
+
+**Undo/Redo**:
+- Ctrl+Z: Undo
+- Ctrl+Y: Redo
 
 ### Undo/Redo System
 - **Command Pattern**: All operations use commands for undo/redo support
@@ -103,16 +236,19 @@ E: Toggle endframe
 
 ```
 CurveEditor/
-├── core/           # Data models (CurvePoint, PointCollection)
+├── core/           # Data models (CurvePoint, PointCollection), commands, algorithms
 ├── data/           # Data operations, batch editing
 ├── rendering/      # Optimized rendering (47x faster)
 ├── services/       # 4 consolidated services
+├── stores/         # Reactive data stores (CurveDataStore, FrameStore)
 ├── ui/             # MainWindow, CurveViewWidget, UIComponents, FileOperations
-├── tests/          # Test suite (549 tests)
+│   ├── controllers/  # UI controllers (Timeline, MultiPoint, ViewManagement, etc.)
+│   └── widgets/      # Custom widgets (Card, etc.)
+├── tests/          # Test suite (106 test files, 1945+ test cases)
 ├── session/        # Session state persistence
 ├── main.py         # Entry point
 ├── bpr             # Python wrapper for basedpyright with enhanced features
-└── venv/           # Python 3.11, PySide6==6.4.0
+└── venv/           # Python 3.12.3, PySide6==6.4.0
 ```
 
 ## Development Environment
@@ -248,8 +384,7 @@ from ui.file_operations import FileOperations
 ## Known Issues
 
 1. **PySide6 Type Stubs**: Not installed (causes expected warnings)
-2. **All tests passing**: 1945 tests fully functional (test suite takes ~2 minutes)
-3. **Legacy Code**: `archive_obsolete/` contains old refactored code
+2. **All tests passing**: 1945+ tests fully functional (test suite takes ~2 minutes)
 
 ## Curve Segmentation & Endframes
 
@@ -274,7 +409,7 @@ from ui.file_operations import FileOperations
 6. Use `pyright: ignore[rule]` not `type: ignore` for suppressions
 
 ---
-*Last Updated: January 2025*
+*Last Updated: October 2025*
 
 # Important Reminders
 - Do what's asked; nothing more, nothing less

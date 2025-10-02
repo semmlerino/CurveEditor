@@ -733,3 +733,81 @@ class AddPointCommand(Command):
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point addition."""
         return self.execute(main_window)
+
+
+class ConvertToInterpolatedCommand(Command):
+    """
+    Command for converting a keyframe to an interpolated point.
+
+    This command:
+    1. Calculates the interpolated position at the keyframe's frame
+    2. Updates the point's coordinates to the interpolated values
+    3. Changes the status to INTERPOLATED
+    """
+
+    def __init__(
+        self,
+        description: str,
+        index: int,
+        old_point: tuple[int, float, float, str],
+        new_point: tuple[int, float, float, str],
+    ) -> None:
+        """
+        Initialize the convert to interpolated command.
+
+        Args:
+            description: Human-readable description
+            index: Index of the point to convert
+            old_point: Original point (frame, x, y, status)
+            new_point: New interpolated point (frame, x, y, status)
+        """
+        super().__init__(description)
+        self.index = index
+        self.old_point = old_point
+        self.new_point = new_point
+
+    def execute(self, main_window: MainWindowProtocol) -> bool:
+        """Execute the conversion to interpolated."""
+        try:
+            if not main_window.curve_widget:
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+            if 0 <= self.index < len(curve_data):
+                # Replace the point with the interpolated version
+                curve_data[self.index] = self.new_point
+
+                main_window.curve_widget.set_curve_data(curve_data)
+                self.executed = True
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error executing ConvertToInterpolatedCommand: {e}")
+            return False
+
+    def undo(self, main_window: MainWindowProtocol) -> bool:
+        """Undo the conversion by restoring the original point."""
+        try:
+            if not main_window.curve_widget:
+                return False
+
+            curve_data = list(main_window.curve_widget.curve_data)
+            if 0 <= self.index < len(curve_data):
+                # Restore the original point
+                curve_data[self.index] = self.old_point
+
+                main_window.curve_widget.set_curve_data(curve_data)
+                self.executed = False
+                return True
+
+            return False
+
+        except Exception as e:
+            logger.error(f"Error undoing ConvertToInterpolatedCommand: {e}")
+            return False
+
+    def redo(self, main_window: MainWindowProtocol) -> bool:
+        """Redo the conversion."""
+        return self.execute(main_window)

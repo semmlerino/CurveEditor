@@ -11,7 +11,7 @@ import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QDir, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
@@ -139,6 +139,10 @@ class BreadcrumbBar(QWidget):
             button.setText(segment_name)
             button.setToolTip(segment_path)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
+
+            # Set accessible properties for screen readers
+            button.setAccessibleName(f"Navigate to {segment_name}")
+            button.setAccessibleDescription(f"Navigate to directory: {segment_path}")
 
             # Use functools.partial to capture segment_path
             from functools import partial
@@ -450,6 +454,9 @@ class ImageSequenceBrowserDialog(QDialog):
             self.nav_history.add(self.start_directory)
             self._update_history_buttons()
 
+        # Set initial focus to tree view for immediate keyboard navigation
+        self.tree_view.setFocus()
+
     def _determine_start_directory(self, parent: QWidget | None, start_directory: str | None) -> str:
         """
         Determine the best starting directory for the browser.
@@ -511,6 +518,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.back_button.setToolTip("Go back (Alt+Left)")
         self.back_button.setFixedSize(32, 32)
         self.back_button.setEnabled(False)
+        self.back_button.setAccessibleName("Go back")
+        self.back_button.setAccessibleDescription("Navigate back to previous directory in history")
         top_nav_bar.addWidget(self.back_button)
 
         # Forward button
@@ -519,6 +528,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.forward_button.setToolTip("Go forward (Alt+Right)")
         self.forward_button.setFixedSize(32, 32)
         self.forward_button.setEnabled(False)
+        self.forward_button.setAccessibleName("Go forward")
+        self.forward_button.setAccessibleDescription("Navigate forward to next directory in history")
         top_nav_bar.addWidget(self.forward_button)
 
         # Up button (go to parent directory)
@@ -526,13 +537,18 @@ class ImageSequenceBrowserDialog(QDialog):
         self.up_button.setText("↑")
         self.up_button.setToolTip("Go to parent directory (Alt+Up)")
         self.up_button.setFixedSize(32, 32)
+        self.up_button.setAccessibleName("Go up")
+        self.up_button.setAccessibleDescription("Navigate to parent directory")
         top_nav_bar.addWidget(self.up_button)
 
         # Home button
         self.home_button = QToolButton()
         self.home_button.setText("🏠")
-        self.home_button.setToolTip("Go to home directory")
+        home_path = str(Path.home())
+        self.home_button.setToolTip(f"Go to home directory ({home_path})")
         self.home_button.setFixedSize(32, 32)
+        self.home_button.setAccessibleName("Go to home")
+        self.home_button.setAccessibleDescription("Navigate to your home directory")
         top_nav_bar.addWidget(self.home_button)
 
         # Windows drive selector (only on Windows)
@@ -541,6 +557,8 @@ class ImageSequenceBrowserDialog(QDialog):
             self.drive_selector.setToolTip("Select drive")
             self.drive_selector.setMinimumWidth(60)
             self.drive_selector.setMaximumWidth(80)
+            self.drive_selector.setAccessibleName("Drive selector")
+            self.drive_selector.setAccessibleDescription("Select drive to browse")
             top_nav_bar.addWidget(self.drive_selector)
             # Note: _populate_drives() will be called after tree_view is created
         else:
@@ -552,6 +570,10 @@ class ImageSequenceBrowserDialog(QDialog):
         self.quick_access_button.setToolTip("Quick access to common locations")
         self.quick_access_button.setFixedSize(32, 32)
         self.quick_access_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
+        self.quick_access_button.setAccessibleName("Quick access")
+        self.quick_access_button.setAccessibleDescription(
+            "Quick access menu to common locations like Desktop, Documents, Downloads"
+        )
         top_nav_bar.addWidget(self.quick_access_button)
 
         # Breadcrumb bar (clickable path segments)
@@ -568,6 +590,10 @@ class ImageSequenceBrowserDialog(QDialog):
         if self.address_bar.lineEdit():
             self.address_bar.lineEdit().setPlaceholderText("Enter directory path...")
         self.address_bar.setToolTip("Type or paste a directory path, or select from recent (Ctrl+L to focus)")
+        self.address_bar.setAccessibleName("Address bar")
+        self.address_bar.setAccessibleDescription(
+            "Type or paste directory path to navigate, or select from recent directories"
+        )
         top_nav_bar.addWidget(self.address_bar, stretch=1)
 
         # Go button for address bar
@@ -575,6 +601,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.go_button.setText("Go")
         self.go_button.setToolTip("Navigate to entered path")
         self.go_button.setFixedSize(50, 32)
+        self.go_button.setAccessibleName("Go to path")
+        self.go_button.setAccessibleDescription("Navigate to the path entered in address bar")
         top_nav_bar.addWidget(self.go_button)
 
         # Add to Favorites button
@@ -583,6 +611,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.favorite_button.setToolTip("Add current directory to favorites")
         self.favorite_button.setFixedSize(32, 32)
         self.favorite_button.setEnabled(False)
+        self.favorite_button.setAccessibleName("Add to favorites")
+        self.favorite_button.setAccessibleDescription("Add current directory to favorites list (Ctrl+D)")
         top_nav_bar.addWidget(self.favorite_button)
 
         main_layout.addLayout(top_nav_bar)
@@ -603,12 +633,16 @@ class ImageSequenceBrowserDialog(QDialog):
         self.favorites_list.setMaximumHeight(150)
         self.favorites_list.setAlternatingRowColors(True)
         self.favorites_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.favorites_list.setAccessibleName("Favorite directories")
+        self.favorites_list.setAccessibleDescription(
+            "List of your favorite directories for quick access. Double-click to navigate."
+        )
         favorites_card.add_widget(self.favorites_list)
 
         left_layout.addWidget(favorites_card)
 
         # Directory tree label
-        tree_label = QLabel("All Directories:")
+        tree_label = QLabel("&All Directories:")
         tree_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_LARGE}pt; padding: {SPACING_SM}px;")
         left_layout.addWidget(tree_label)
 
@@ -619,10 +653,17 @@ class ImageSequenceBrowserDialog(QDialog):
         self.file_model.setFilter(QDir.Filter.Dirs | QDir.Filter.NoDotAndDotDot)
         self.tree_view.setModel(self.file_model)
         self.tree_view.setRootIndex(self.file_model.index(""))
+        self.tree_view.setAccessibleName("Directory tree")
+        self.tree_view.setAccessibleDescription(
+            "Navigate through directories to find image sequences. Use arrow keys to expand and collapse folders."
+        )
 
         # Hide unnecessary columns (size, type, date modified)
         for i in range(1, 4):
             self.tree_view.hideColumn(i)
+
+        # Set label buddy for keyboard shortcut (Alt+A)
+        tree_label.setBuddy(self.tree_view)
 
         left_layout.addWidget(self.tree_view)
 
@@ -641,7 +682,7 @@ class ImageSequenceBrowserDialog(QDialog):
         search_layout = QHBoxLayout(search_container)
         search_layout.setContentsMargins(SPACING_SM, SPACING_SM, SPACING_SM, SPACING_SM)
 
-        sequence_label = QLabel("Sequences:")
+        sequence_label = QLabel("&Sequences:")
         sequence_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_LARGE}pt;")
         search_layout.addWidget(sequence_label)
 
@@ -649,7 +690,12 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sequence_filter.setPlaceholderText("Filter sequences... (Ctrl+F)")
         self.sequence_filter.setClearButtonEnabled(True)
         self.sequence_filter.textChanged.connect(self._filter_sequences)
+        self.sequence_filter.setAccessibleName("Sequence filter")
+        self.sequence_filter.setAccessibleDescription("Type to filter sequences by name or path")
         search_layout.addWidget(self.sequence_filter, stretch=1)
+
+        # Set label buddy for keyboard shortcut (Alt+S)
+        sequence_label.setBuddy(self.sequence_filter)
 
         # Sort dropdown
         self.sort_combo = QComboBox()
@@ -657,6 +703,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sort_combo.setToolTip("Sort sequences by...")
         self.sort_combo.setMaximumWidth(150)
         self.sort_combo.currentTextChanged.connect(self._on_sort_changed)
+        self.sort_combo.setAccessibleName("Sort by")
+        self.sort_combo.setAccessibleDescription("Choose how to sort the image sequences")
         search_layout.addWidget(self.sort_combo)
 
         # Sort order button (ascending/descending)
@@ -665,12 +713,18 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sort_order_button.setToolTip("Sort order: Ascending (click to toggle)")
         self.sort_order_button.setFixedSize(32, 32)
         self.sort_order_button.clicked.connect(self._toggle_sort_order)
+        self.sort_order_button.setAccessibleName("Sort order")
+        self.sort_order_button.setAccessibleDescription("Toggle between ascending and descending sort order")
         search_layout.addWidget(self.sort_order_button)
 
         sequence_list_layout.addWidget(search_container)
 
         self.sequence_list = QListWidget()
         self.sequence_list.setAlternatingRowColors(True)
+        self.sequence_list.setAccessibleName("Image sequences")
+        self.sequence_list.setAccessibleDescription(
+            "List of image sequences found in the selected directory. Select a sequence to preview, double-click or press Enter to load."
+        )
         sequence_list_layout.addWidget(self.sequence_list)
 
         self.splitter.addWidget(sequence_list_widget)
@@ -683,6 +737,8 @@ class ImageSequenceBrowserDialog(QDialog):
         self.info_label = QLabel("Select a sequence to preview thumbnails")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_SM}px;")
+        self.info_label.setAccessibleName("Status message")
+        self.info_label.setAccessibleDescription("Shows current operation status and helpful information")
         preview_layout.addWidget(self.info_label)
 
         # Progress bar (initially hidden)
@@ -694,11 +750,15 @@ class ImageSequenceBrowserDialog(QDialog):
         self.progress_bar.setVisible(False)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
+        self.progress_bar.setAccessibleName("Scan progress")
+        self.progress_bar.setAccessibleDescription("Shows progress of directory scanning operation")
         progress_layout.addWidget(self.progress_bar)
 
         self.cancel_scan_button = QPushButton("Cancel")
         self.cancel_scan_button.setVisible(False)
         self.cancel_scan_button.setMaximumWidth(80)
+        self.cancel_scan_button.setAccessibleName("Cancel scan")
+        self.cancel_scan_button.setAccessibleDescription("Stop the current directory scanning operation")
         progress_layout.addWidget(self.cancel_scan_button)
 
         preview_layout.addWidget(progress_container)
@@ -751,9 +811,13 @@ class ImageSequenceBrowserDialog(QDialog):
         self.load_button = QPushButton("Load Sequence")
         self.load_button.setEnabled(False)
         self.load_button.setDefault(True)
+        self.load_button.setAccessibleName("Load sequence")
+        self.load_button.setAccessibleDescription("Load the selected image sequence")
         button_layout.addWidget(self.load_button)
 
         cancel_button = QPushButton("Cancel")
+        cancel_button.setAccessibleName("Cancel")
+        cancel_button.setAccessibleDescription("Close dialog without loading a sequence")
         button_layout.addWidget(cancel_button)
 
         main_layout.addLayout(button_layout)
@@ -761,6 +825,31 @@ class ImageSequenceBrowserDialog(QDialog):
         # Connect button signals
         self.load_button.clicked.connect(self.accept)
         cancel_button.clicked.connect(self.reject)
+
+        # Configure logical tab order for keyboard navigation
+        self.setTabOrder(self.back_button, self.forward_button)
+        self.setTabOrder(self.forward_button, self.up_button)
+        self.setTabOrder(self.up_button, self.home_button)
+
+        if self.drive_selector is not None:
+            # Windows: include drive selector in tab order
+            self.setTabOrder(self.home_button, self.drive_selector)
+            self.setTabOrder(self.drive_selector, self.quick_access_button)
+        else:
+            # Non-Windows: skip drive selector
+            self.setTabOrder(self.home_button, self.quick_access_button)
+
+        self.setTabOrder(self.quick_access_button, self.address_bar)
+        self.setTabOrder(self.address_bar, self.go_button)
+        self.setTabOrder(self.go_button, self.favorite_button)
+        self.setTabOrder(self.favorite_button, self.favorites_list)
+        self.setTabOrder(self.favorites_list, self.tree_view)
+        self.setTabOrder(self.tree_view, self.sequence_filter)
+        self.setTabOrder(self.sequence_filter, self.sort_combo)
+        self.setTabOrder(self.sort_combo, self.sort_order_button)
+        self.setTabOrder(self.sort_order_button, self.sequence_list)
+        self.setTabOrder(self.sequence_list, self.load_button)
+        self.setTabOrder(self.load_button, cancel_button)
 
     def _connect_signals(self) -> None:
         """Connect internal signals."""
@@ -834,9 +923,9 @@ class ImageSequenceBrowserDialog(QDialog):
         focus_sequences = QShortcut(QKeySequence("Ctrl+2"), self)
         focus_sequences.activated.connect(lambda: self.sequence_list.setFocus())
 
-        # Escape - Clear selection
-        escape_shortcut = QShortcut(QKeySequence("Escape"), self)
-        escape_shortcut.activated.connect(self._clear_selection)
+        # Ctrl+Shift+A - Clear selection (Escape is reserved for closing dialog)
+        clear_selection_shortcut = QShortcut(QKeySequence("Ctrl+Shift+A"), self)
+        clear_selection_shortcut.activated.connect(self._clear_selection)
 
         # Install event filter on sequence list for Enter key handling
         self.sequence_list.installEventFilter(self)
@@ -1031,7 +1120,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.progress_bar.setValue(current)
         self.info_label.setText(f"{message}\n{current}% complete")
 
-    def _on_sequences_found(self, sequence_dicts: list[dict]) -> None:
+    def _on_sequences_found(self, sequence_dicts: list[dict[str, Any]]) -> None:
         """
         Handle sequence detection completion.
 
@@ -1747,9 +1836,20 @@ class ImageSequenceBrowserDialog(QDialog):
                 self._populate_favorites()
 
         elif action == remove_action:
-            self.favorites_manager.remove(path)
-            self._populate_favorites()
-            self._update_favorite_button_state()
+            # Confirm before removing
+            from PySide6.QtWidgets import QMessageBox
+
+            reply = QMessageBox.question(
+                self,
+                "Remove Favorite",
+                f"Remove '{item.text().lstrip('★ ')}' from favorites?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,  # Default to No for safety
+            )
+            if reply == QMessageBox.StandardButton.Yes:
+                self.favorites_manager.remove(path)
+                self._populate_favorites()
+                self._update_favorite_button_state()
 
         elif action == move_up_action:
             self.favorites_manager.move_up(path)
@@ -1774,7 +1874,7 @@ class ImageSequenceBrowserDialog(QDialog):
             self.favorite_button.setToolTip(f"Already in favorites: {current_path}")
             self.favorite_button.setStyleSheet("QToolButton { color: gold; }")
         else:
-            self.favorite_button.setToolTip("Add current directory to favorites")
+            self.favorite_button.setToolTip("Add current directory to favorites (Ctrl+D)")
             self.favorite_button.setStyleSheet("")
 
     def _populate_drives(self) -> None:

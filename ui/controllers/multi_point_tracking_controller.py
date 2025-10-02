@@ -7,7 +7,7 @@ selection, and display of multiple tracking trajectories.
 """
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QThread, QTimer, Slot
 from PySide6.QtWidgets import QApplication
@@ -19,6 +19,7 @@ from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
+from services.service_protocols import MainWindowProtocol
 
 
 class SelectionContext(Enum):
@@ -544,7 +545,9 @@ class MultiPointTrackingController:
 
             interaction_service = get_interaction_service()
             if interaction_service:
-                success = interaction_service.command_manager.execute_command(command, self.main_window)
+                success = interaction_service.command_manager.execute_command(
+                    command, cast(MainWindowProtocol, cast(object, self.main_window))
+                )
 
                 if success:
                     # Sync tracking_data from curve_store after command executes

@@ -314,6 +314,12 @@ def test_context_menu_remove_action(dialog, qtbot: QtBot, monkeypatch):
 
     monkeypatch.setattr("PySide6.QtWidgets.QMenu", lambda parent: mock_menu)
 
+    # Mock confirmation dialog (return Yes)
+    from PySide6.QtWidgets import QMessageBox
+
+    mock_question = Mock(return_value=QMessageBox.StandardButton.Yes)
+    monkeypatch.setattr(QMessageBox, "question", mock_question)
+
     # Mock repopulate and update button
     populate_called = []
     update_button_called = []

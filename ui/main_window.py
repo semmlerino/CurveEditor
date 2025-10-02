@@ -327,6 +327,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             DeletePointsCommand,
             DeselectAllCommand,
             FitBackgroundCommand,
+            InsertTrackShortcutCommand,
             NudgePointsCommand,
             RedoCommand,
             SelectAllCommand,
@@ -348,6 +349,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.shortcut_registry.register(SetEndframeCommand())
         self.shortcut_registry.register(DeletePointsCommand())
         self.shortcut_registry.register(DeleteCurrentFrameKeyframeCommand())
+
+        # Insert Track shortcut (3DEqualizer-style gap filling)
+        self.shortcut_registry.register(InsertTrackShortcutCommand())
 
         # Tracking direction shortcuts
         self.shortcut_registry.register(SetTrackingDirectionCommand(TrackingDirection.TRACKING_BW, "Shift+1"))
