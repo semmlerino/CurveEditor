@@ -8,7 +8,7 @@ the codebase, reducing duplication and improving maintainability.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypeAlias
 
@@ -25,8 +25,14 @@ PointTuple4Bool = tuple[int, float, float, bool]
 # Use union of specific tuple types for type safety
 LegacyPointData = PointTuple3 | PointTuple4
 PointData = LegacyPointData  # Alias for compatibility
+
+# CurveDataList: For mutable data stores (properties, attributes) - invariant
 CurveDataList = list[LegacyPointData]
 PointList = list[PointData]  # Alias for compatibility
+
+# CurveDataInput: For function parameters that accept any compatible sequence - covariant
+# Use this for read-only parameters to accept list[PointTuple3], list[PointTuple4], etc.
+CurveDataInput = Sequence[LegacyPointData]
 
 
 # Path types

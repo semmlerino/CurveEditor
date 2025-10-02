@@ -75,8 +75,8 @@ class TestFrameNavigation:
 
     def test_frame_spinbox_changes_current_frame(self, main_window, qapp):
         """Changing spinbox should update current frame."""
-        # Set maximum to allow frame 5
-        main_window.frame_spinbox.setMaximum(10)
+        # Set maximum to allow frame 5 using proper API
+        main_window.timeline_controller.set_frame_range(1, 10)
         main_window.frame_spinbox.setValue(5)
         qapp.processEvents()
 
@@ -84,9 +84,8 @@ class TestFrameNavigation:
 
     def test_frame_slider_changes_current_frame(self, main_window, qapp):
         """Changing slider should update current frame."""
-        # Set maximum to allow frame 10
-        main_window.frame_slider.setMaximum(20)
-        main_window.frame_spinbox.setMaximum(20)
+        # Set maximum to allow frame 10 using proper API
+        main_window.timeline_controller.set_frame_range(1, 20)
         main_window.frame_slider.setValue(10)
         qapp.processEvents()
 
@@ -94,8 +93,8 @@ class TestFrameNavigation:
 
     def test_next_frame_increments(self, main_window):
         """Next frame should increment current frame."""
-        # Set maximum to allow incrementing
-        main_window.frame_spinbox.setMaximum(10)
+        # Set maximum to allow incrementing using proper API
+        main_window.timeline_controller.set_frame_range(1, 10)
         initial = main_window.current_frame
         main_window.timeline_controller.go_to_frame(initial + 1)
 
@@ -103,8 +102,8 @@ class TestFrameNavigation:
 
     def test_prev_frame_decrements(self, main_window):
         """Previous frame should decrement current frame."""
-        # Set maximum and current frame
-        main_window.frame_spinbox.setMaximum(10)
+        # Set maximum and current frame using proper API
+        main_window.timeline_controller.set_frame_range(1, 10)
         main_window.current_frame = 5
         main_window.timeline_controller.go_to_frame(4)
 
@@ -112,8 +111,8 @@ class TestFrameNavigation:
 
     def test_first_frame_goes_to_one(self, main_window):
         """First frame should set frame to 1."""
-        # Set maximum to allow frame 10
-        main_window.frame_spinbox.setMaximum(20)
+        # Set maximum to allow frame 10 using proper API
+        main_window.timeline_controller.set_frame_range(1, 20)
         main_window.current_frame = 10
         main_window.timeline_controller.go_to_frame(1)
 
@@ -156,8 +155,8 @@ class TestPlaybackControl:
         """Playback should advance frames."""
         from ui.controllers.timeline_controller import PlaybackMode
 
-        # Set maximum to allow advancing
-        main_window.frame_spinbox.setMaximum(10)
+        # Set maximum to allow advancing using proper API
+        main_window.timeline_controller.set_frame_range(1, 10)
         initial = main_window.current_frame
         main_window.timeline_controller.playback_state.mode = PlaybackMode.PLAYING_FORWARD
         main_window.timeline_controller.playback_state.max_frame = 10
@@ -171,9 +170,8 @@ class TestPlaybackControl:
         """Oscillating playback should reverse at bounds."""
         from ui.controllers.timeline_controller import PlaybackMode
 
-        # Set up oscillating playback
-        main_window.frame_spinbox.setMaximum(10)
-        main_window.state_manager.total_frames = 10  # Must set total_frames first!
+        # Set up oscillating playback using proper API
+        main_window.timeline_controller.set_frame_range(1, 10)
         main_window.timeline_controller.playback_state.mode = PlaybackMode.PLAYING_FORWARD
         main_window.timeline_controller.playback_state.min_frame = 1
         main_window.timeline_controller.playback_state.max_frame = 5
@@ -226,8 +224,8 @@ class TestSignalConnections:
 
     def test_frame_spinbox_connected(self, main_window, qapp):
         """Frame spinbox should be connected to frame changes."""
-        # Set maximum to allow value change
-        main_window.frame_spinbox.setMaximum(20)
+        # Set maximum to allow value change using proper API
+        main_window.timeline_controller.set_frame_range(1, 20)
 
         # Verify spinbox value changes update current_frame
         main_window.frame_spinbox.setValue(10)

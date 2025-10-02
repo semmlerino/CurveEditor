@@ -591,6 +591,11 @@ class TimelineTabWidget(QWidget):
         self.max_frame = max_frame
         self.total_frames = max_frame - min_frame + 1
 
+        # Update StateManager's total_frames to match (if connected)
+        # This ensures current_frame clamping works correctly
+        if self._state_manager is not None:
+            self._state_manager.total_frames = max_frame
+
         # Update current frame if out of range
         if self.current_frame < min_frame:
             self.current_frame = min_frame

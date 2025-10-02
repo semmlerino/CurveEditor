@@ -133,7 +133,7 @@ class TrackingPanelController:
     def update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
         if self.main_window.tracking_panel is not None:
-            self.main_window.tracking_panel.set_tracked_data(self.main_window.tracked_data)
+            self.main_window.tracking_panel.set_tracked_data(self.main_window.tracked_data)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Updated tracking panel with {len(self.main_window.tracked_data)} points")
 
     def update_curve_display(self) -> None:

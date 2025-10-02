@@ -17,6 +17,7 @@ from PySide6.QtWidgets import QApplication
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
 from core.curve_data import CurveDataWithMetadata
 from core.type_aliases import CurveDataList
+from tests.fixtures.qt_fixtures import _cleanup_main_window_event_filter
 from ui.main_window import MainWindow
 
 # --- Sample Data ---
@@ -205,12 +206,20 @@ def mock_state_manager():
 
 
 @pytest.fixture
-def main_window_with_mocks(qapp, monkeypatch):
-    """Create MainWindow with mocked components."""
+def main_window_with_mocks(qapp, qtbot, monkeypatch):
+    """Create MainWindow with mocked components.
+
+    CRITICAL: Uses qtbot.addWidget() for automatic cleanup to prevent
+    QObject accumulation and segfaults (see UNIFIED_TESTING_GUIDE).
+    """
     # Prevent auto-loading
     monkeypatch.setattr(MainWindow, "_load_burger_tracking_data", Mock(return_value=None))
 
     window = MainWindow()
+
+    # CRITICAL: Use qtbot.addWidget with before_close_func for automatic cleanup
+    # including event filter removal (prevents accumulation after 1580+ tests)
+    qtbot.addWidget(window, before_close_func=_cleanup_main_window_event_filter)
 
     # Replace components with mocks
     window.curve_widget = MockCurveWidget()  # pyright: ignore[reportAttributeAccessIssue]
@@ -222,7 +231,7 @@ def main_window_with_mocks(qapp, monkeypatch):
 
     yield window
 
-    window.close()
+    # qtbot.addWidget handles cleanup automatically
 
 
 @pytest.fixture

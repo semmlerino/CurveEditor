@@ -25,8 +25,11 @@ class TestFrameTab:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -283,8 +286,11 @@ class TestTimelineTabWidget:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -411,8 +417,11 @@ class TestTimelineColors:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 

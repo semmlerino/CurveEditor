@@ -20,12 +20,12 @@ if TYPE_CHECKING:
 
 from core.logger_utils import get_logger
 from core.models import PointStatus, TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 logger = get_logger("tracking_direction_utils")
 
 
-def has_valid_position(curve_data: CurveDataList, frame_index: int) -> bool:
+def has_valid_position(curve_data: CurveDataInput, frame_index: int) -> bool:
     """Check if a frame has valid position data.
 
     Args:
@@ -45,7 +45,7 @@ def has_valid_position(curve_data: CurveDataList, frame_index: int) -> bool:
     return False
 
 
-def get_point_status(curve_data: CurveDataList, frame_index: int) -> PointStatus:
+def get_point_status(curve_data: CurveDataInput, frame_index: int) -> PointStatus:
     """Get the status of a point from curve data.
 
     Args:
@@ -64,7 +64,7 @@ def get_point_status(curve_data: CurveDataList, frame_index: int) -> PointStatus
     return PointStatus.NORMAL
 
 
-def update_keyframe_status_for_forward_tracking(curve_data: CurveDataList) -> CurveDataList:
+def update_keyframe_status_for_forward_tracking(curve_data: CurveDataInput) -> CurveDataList:
     """Update keyframe statuses for forward tracking direction.
 
     Forward tracking rules (from SetTrackingFwd.py):
@@ -126,7 +126,7 @@ def update_keyframe_status_for_forward_tracking(curve_data: CurveDataList) -> Cu
     return updated_data
 
 
-def update_keyframe_status_for_backward_tracking(curve_data: CurveDataList) -> CurveDataList:
+def update_keyframe_status_for_backward_tracking(curve_data: CurveDataInput) -> CurveDataList:
     """Update keyframe statuses for backward tracking direction.
 
     Backward tracking rules (from SetTrackingBwd.py):
@@ -189,7 +189,7 @@ def update_keyframe_status_for_backward_tracking(curve_data: CurveDataList) -> C
 
 
 def update_keyframe_status_for_bidirectional_tracking(
-    curve_data: CurveDataList, previous_direction: TrackingDirection
+    curve_data: CurveDataInput, previous_direction: TrackingDirection
 ) -> CurveDataList:
     """Update keyframe statuses for bidirectional tracking direction.
 
@@ -261,7 +261,7 @@ def update_keyframe_status_for_bidirectional_tracking(
 
 
 def update_keyframe_status_for_tracking_direction(
-    curve_data: CurveDataList, new_direction: TrackingDirection, previous_direction: TrackingDirection | None = None
+    curve_data: CurveDataInput, new_direction: TrackingDirection, previous_direction: TrackingDirection | None = None
 ) -> CurveDataList:
     """Update keyframe statuses based on new tracking direction.
 

@@ -13,14 +13,14 @@ from stores.store_manager import StoreManager
 class TestFrameStore:
     """Test FrameStore functionality."""
 
-    def setup_method(self):
+    def setup_method(self) -> None:
         """Reset stores before each test."""
         StoreManager.reset()
 
         # Create StateManager for FrameStore delegation
         from ui.state_manager import StateManager
 
-        self.state_manager = StateManager()
+        self.state_manager: StateManager = StateManager()  # pyright: ignore[reportUninitializedInstanceVariable]
 
         # Connect StateManager to StoreManager for frame delegation
         store_manager = get_store_manager()

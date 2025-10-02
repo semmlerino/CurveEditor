@@ -596,7 +596,7 @@ class MultiPointTrackingController:
     def update_tracking_panel(self) -> None:
         """Update tracking panel with current tracking data."""
         if self.main_window.tracking_panel:
-            self.main_window.tracking_panel.set_tracked_data(self.tracked_data)
+            self.main_window.tracking_panel.set_tracked_data(self.tracked_data)  # pyright: ignore[reportArgumentType]
 
     def update_curve_display(self, context: SelectionContext = SelectionContext.DEFAULT) -> None:
         """Update curve display with selected tracking points.

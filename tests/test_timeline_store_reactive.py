@@ -21,8 +21,11 @@ class TestTimelineStoreReactive:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -94,6 +97,7 @@ class TestTimelineStoreReactive:
 
         # Get timeline
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Check frame 1 initial state (pure keyframe)
         if 1 in timeline.frame_tabs:

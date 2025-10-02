@@ -71,6 +71,7 @@ def main_window_with_data(qtbot) -> MainWindow:
         (4, 250.0, 140.0, PointStatus.NORMAL.value),
         (5, 300.0, 150.0, PointStatus.KEYFRAME.value),
     ]
+    assert window.curve_widget is not None
     window.curve_widget.set_curve_data(test_data)
 
     return window

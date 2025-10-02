@@ -94,8 +94,8 @@ class TestViewportCuller:
         culler = ViewportCuller()
 
         # Create large dataset
-        np.random.seed(42)  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
-        points: Any = np.random.rand(10000, 2) * 1000  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        np.random.seed(42)  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType,reportCallIssue,reportArgumentType]
+        points: Any = np.random.rand(10000, 2) * 1000  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType,reportCallIssue,reportArgumentType]
 
         viewport = QRectF(400, 400, 200, 200)
 
@@ -117,7 +117,7 @@ class TestLevelOfDetail:
         lod = LevelOfDetail()
 
         # Create test points
-        points: Any = np.random.rand(5000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        points: Any = np.random.rand(5000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType,reportCallIssue,reportArgumentType,reportOperatorIssue]
 
         # Test different quality levels
         draft_points: Any
@@ -144,7 +144,7 @@ class TestLevelOfDetail:
         """Test LOD with pre-filtered visible indices."""
         lod = LevelOfDetail()
 
-        points: Any = np.random.rand(1000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+        points: Any = np.random.rand(1000, 2) * 500  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType,reportCallIssue,reportArgumentType,reportOperatorIssue]
         visible_indices: Any = np.array([10, 20, 30, 40, 50, 100, 200, 300])  # pyright: ignore[reportUnknownMemberType]
 
         # Apply LOD to visible points only

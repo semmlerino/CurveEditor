@@ -21,8 +21,11 @@ class TestTimelineColorsIntegration:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -44,6 +47,7 @@ class TestTimelineColorsIntegration:
         curve_data = data_service.load_json(str(test_file))
 
         # Load data into the main window
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(curve_data)
 
         # Wait for automatic update from signal connections
@@ -113,18 +117,21 @@ class TestTimelineColorsIntegration:
         ]
 
         # Load data
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(test_data)
         main_window.update_timeline_tabs(test_data)
         qtbot.wait(100)
 
         # Verify initial colors (all keyframe, but frame 1 might be startframe)
         timeline = main_window.timeline_tabs
+        assert timeline is not None
         color2_before = timeline.frame_tabs[2]._get_background_color()
         color3_before = timeline.frame_tabs[3]._get_background_color()
         # Compare frames 2 and 3 which should both be regular keyframes
         assert color2_before.name() == color3_before.name()
 
         # Change status of point at frame 2 to interpolated
+        assert main_window.curve_widget._curve_store is not None
         store = main_window.curve_widget._curve_store
         store.set_point_status(1, "interpolated")  # Index 1 is frame 2
 

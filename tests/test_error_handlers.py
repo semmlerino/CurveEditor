@@ -77,10 +77,10 @@ class TestErrorContext(unittest.TestCase):
 class TestDefaultTransformErrorHandler(unittest.TestCase):
     """Test default error handler."""
 
-    handler: DefaultTransformErrorHandler
-    error: ValueError
+    handler: DefaultTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
+    error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = DefaultTransformErrorHandler(verbose=False)
         self.error = ValueError("Test error")
@@ -217,10 +217,10 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
 class TestSilentTransformErrorHandler(unittest.TestCase):
     """Test silent error handler."""
 
-    handler: SilentTransformErrorHandler
-    error: ValueError
+    handler: SilentTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
+    error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = SilentTransformErrorHandler()
         self.error = ValueError("Test error")
@@ -300,10 +300,10 @@ class TestSilentTransformErrorHandler(unittest.TestCase):
 class TestStrictTransformErrorHandler(unittest.TestCase):
     """Test strict error handler."""
 
-    handler: StrictTransformErrorHandler
-    error: ValueError
+    handler: StrictTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
+    error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = StrictTransformErrorHandler()
         self.error = ValueError("Test error")
@@ -384,9 +384,9 @@ class TestErrorHandlerFactory(unittest.TestCase):
 class TestErrorHandlerMixin(unittest.TestCase):
     """Test ErrorHandlerMixin integration."""
 
-    widget: QWidget
+    widget: QWidget  # pyright: ignore[reportUninitializedInstanceVariable]
 
-    def setUp(self):
+    def setUp(self) -> None:
         """Set up test fixtures."""
 
         class TestWidget(QWidget, ErrorHandlerMixin):

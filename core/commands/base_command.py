@@ -5,6 +5,7 @@ Base Command classes for undo/redo functionality.
 This module provides the foundation for the command pattern implementation
 used throughout the CurveEditor application for undo/redo operations.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 

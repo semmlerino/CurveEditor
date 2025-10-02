@@ -91,7 +91,7 @@ class TestCachePerformance:
 
         # Generate test points (frame, x, y format)
         num_points = 1000  # Reduced from 10000 for faster tests
-        test_points = np.random.rand(num_points, 3) * 100
+        test_points = np.random.default_rng().random((num_points, 3)) * 100  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
         # Time individual transforms using VectorizedTransform (which has batch methods)
         start = time.perf_counter()
@@ -116,7 +116,7 @@ class TestCachePerformance:
         batch_time = time.perf_counter() - start
 
         # Verify results match (within floating point tolerance)
-        np.testing.assert_allclose(
+        np.testing.assert_allclose(  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
             batch_results,
             individual_results,
             rtol=1e-10,

@@ -1,9 +1,9 @@
 """Simple filter implementations to replace scipy dependency."""
 
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 
-def simple_lowpass_filter(data: CurveDataList, window_size: int = 5) -> CurveDataList:
+def simple_lowpass_filter(data: CurveDataInput, window_size: int = 5) -> CurveDataList:
     """
     Simple moving average filter as scipy alternative.
 
@@ -15,7 +15,7 @@ def simple_lowpass_filter(data: CurveDataList, window_size: int = 5) -> CurveDat
         Filtered curve data
     """
     if len(data) < window_size:
-        return data
+        return list(data)  # Convert to list for return type compatibility
 
     # Sort by frame
     sorted_data = sorted(data, key=lambda p: p[0])

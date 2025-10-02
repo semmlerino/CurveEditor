@@ -25,8 +25,11 @@ class TestTimelineFocusBehavior:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -109,6 +112,7 @@ class TestTimelineFocusBehavior:
         timeline_widget.setFocus()
 
         # Use qtbot.waitSignal to test StateManager's signal (Single Source of Truth)
+        assert timeline_widget._state_manager is not None
         with qtbot.waitSignal(timeline_widget._state_manager.frame_changed, timeout=1000) as blocker:
             qtbot.keyClick(timeline_widget, Qt.Key.Key_Right)
 
@@ -215,8 +219,11 @@ class TestTimelineEventPropagation:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 

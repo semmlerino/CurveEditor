@@ -13,6 +13,7 @@ if TYPE_CHECKING:
 
 # Import and re-export type aliases from core.type_aliases
 from core.type_aliases import (
+    CurveDataInput,
     CurveDataList,
     HistoryState,
     LegacyPointData,
@@ -183,6 +184,7 @@ class VoidSignalProtocol(Protocol):
 # Export all type aliases and protocols
 __all__ = [
     # Type aliases
+    "CurveDataInput",
     "CurveDataList",
     "HistoryState",
     "LegacyPointData",

@@ -10,77 +10,109 @@ import sys
 from collections.abc import Generator
 
 import pytest
-from PySide6.QtCore import QCoreApplication
 from PySide6.QtWidgets import QApplication
 
 from tests.test_utils import cleanup_qt_widgets
 from ui.curve_view_widget import CurveViewWidget
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def qapp() -> Generator[QApplication, None, None]:
-    """Create or retrieve the QApplication instance for testing.
+    """Session-wide QApplication - created once for all tests.
 
-    This fixture ensures a QApplication exists for Qt widget testing.
-    It's function-scoped to prevent test interference.
+    CRITICAL: Session-scope QApplication + proper QObject cleanup prevents
+    resource exhaustion segfaults after 850+ tests (see UNIFIED_TESTING_GUIDE).
 
     Yields:
-        QApplication: The application instance
+        QApplication: The shared application instance
     """
     # Set environment for headless testing
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-    # Check if an application already exists
-    app = QCoreApplication.instance()
-
-    if app is None:
-        # Create new application
-        app = QApplication(sys.argv)
-        app.setApplicationName("CurveEditor_Tests")
-        app.setOrganizationName("TestOrg")
-        created = True
-    elif not isinstance(app, QApplication):
-        # If a QCoreApplication exists but not QApplication, we need to recreate
-        app.quit()
-        app.deleteLater()
-        app = QApplication(sys.argv)
-        app.setApplicationName("CurveEditor_Tests")
-        app.setOrganizationName("TestOrg")
-        created = True
+    # Get or create QApplication instance
+    # QApplication.instance() returns QCoreApplication | QApplication, need to cast
+    existing_app = QApplication.instance()
+    if existing_app is not None:
+        # Cast to QApplication since we know it must be QApplication in test context
+        app = existing_app if isinstance(existing_app, QApplication) else QApplication(sys.argv)
     else:
-        created = False
+        app = QApplication(sys.argv)
+
+    app.setApplicationName("CurveEditor_Tests")
+    app.setOrganizationName("TestOrg")
 
     yield app
 
-    # Clean up if we created the app
-    if created:
-        # Process any pending events before cleanup
-        app.processEvents()
-        # Note: We don't quit() the app as it causes issues with pytest-qt
+    # Process pending events to handle deleteLater() calls
+    app.processEvents()
 
 
-@pytest.fixture
+@pytest.fixture(autouse=True)
 def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
     """Ensure proper cleanup after each test.
 
     This fixture runs after each test to clean up Qt resources and
-    prevent test interference.
+    prevent test interference. Made autouse=True to catch ALL tests.
+
+    CRITICAL: Removes accumulated event filters to prevent timeout after 1580+ tests.
+    Without this, event filters accumulate causing setStyleSheet() to timeout.
 
     Args:
         qapp: The QApplication instance
     """
     yield
 
-    # Process all pending events before cleanup
-    for _ in range(10):  # Process events multiple times to clear queue
+    # CRITICAL: Aggressively clean up ALL widgets to prevent accumulation
+    # Get snapshot of top-level widgets before cleanup starts
+    widgets_to_clean = list(qapp.topLevelWidgets())
+
+    for widget in widgets_to_clean:
+        try:
+            # Remove event filters FIRST before destroying widget
+            # Use getattr() to avoid type errors with dynamic attributes
+            if hasattr(widget, "global_event_filter"):
+                try:
+                    global_filter = getattr(widget, "global_event_filter", None)
+                    if global_filter is not None:
+                        qapp.removeEventFilter(global_filter)
+                except (RuntimeError, AttributeError):
+                    pass
+
+            # Remove tracking panel event filters
+            if hasattr(widget, "_table_event_filter") and hasattr(widget, "table"):
+                try:
+                    table = getattr(widget, "table", None)
+                    table_filter = getattr(widget, "_table_event_filter", None)
+                    if table is not None and table_filter is not None:
+                        table.removeEventFilter(table_filter)
+                except (RuntimeError, AttributeError):
+                    pass
+
+            # Close widget to trigger cleanup
+            if hasattr(widget, "close"):
+                try:
+                    widget.close()
+                except RuntimeError:
+                    pass
+
+            # Force immediate deletion
+            try:
+                widget.deleteLater()
+            except RuntimeError:
+                pass  # Widget may already be deleted
+        except Exception:
+            pass  # Don't let cleanup failures break tests
+
+    # Process events to handle deleteLater calls
+    for _ in range(10):
         qapp.processEvents()
-        qapp.sendPostedEvents(None, 0)  # Process all posted events
+        qapp.sendPostedEvents(None, 0)
 
     # Use unified cleanup function
     cleanup_qt_widgets(qapp)
 
-    # Final event processing to ensure deleteLater operations complete
-    for _ in range(5):
+    # Final aggressive event processing
+    for _ in range(10):
         qapp.processEvents()
         qapp.sendPostedEvents(None, 0)
 
@@ -140,6 +172,26 @@ def curve_view_widget(qapp: QApplication, qtbot):
     # No manual cleanup needed
 
 
+def _cleanup_main_window_event_filter(window):
+    """Remove MainWindow's global event filter before window closes.
+
+    CRITICAL: Prevents event filter accumulation causing timeout after 1580+ tests.
+    This callback is executed by qtbot.addWidget(before_close_func=...) before
+    the window is destroyed, ensuring deterministic cleanup without relying on __del__.
+    """
+    try:
+        from PySide6.QtWidgets import QApplication
+
+        app = QApplication.instance()
+        if app and hasattr(window, "global_event_filter"):
+            try:
+                app.removeEventFilter(window.global_event_filter)
+            except RuntimeError:
+                pass  # App or filter already deleted
+    except Exception:
+        pass  # Suppress all exceptions in cleanup
+
+
 @pytest.fixture
 def main_window(qapp: QApplication, qtbot):
     """Create a fully initialized MainWindow with all UI components.
@@ -162,26 +214,37 @@ def main_window(qapp: QApplication, qtbot):
 
     window = MainWindow()
 
-    # CRITICAL: Use qtbot.addWidget for automatic cleanup (required per testing guide)
-    qtbot.addWidget(window)
+    # CRITICAL: Use qtbot.addWidget with before_close_func for deterministic event filter cleanup
+    # This prevents accumulation of event filters across 1580+ tests causing timeout
+    qtbot.addWidget(window, before_close_func=_cleanup_main_window_event_filter)
 
     # Initialize commonly needed UI components that tests expect
     # These would normally be created by UIInitializationController
     if window.timeline_tabs is None:
         window.timeline_tabs = TimelineTabWidget()
 
-    # Initialize frame spinbox if not present
+    # Use frame spinbox from timeline_controller if available, otherwise create one
     if not hasattr(window, "frame_spinbox") or window.frame_spinbox is None:
-        window.frame_spinbox = QSpinBox()
-        window.frame_spinbox.setMinimum(1)
-        window.frame_spinbox.setMaximum(9999)
+        # Use the frame_spinbox from timeline_controller if it exists (has signals connected)
+        if hasattr(window, "timeline_controller") and window.timeline_controller is not None:
+            window.frame_spinbox = window.timeline_controller.frame_spinbox
+        else:
+            # Fallback: create a new one (shouldn't happen in normal flow)
+            window.frame_spinbox = QSpinBox()
+            window.frame_spinbox.setMinimum(1)
+            window.frame_spinbox.setMaximum(9999)
+
+    # Use frame slider from timeline_controller if available
+    if not hasattr(window, "frame_slider") or window.frame_slider is None:
+        if hasattr(window, "timeline_controller") and window.timeline_controller is not None:
+            window.frame_slider = window.timeline_controller.frame_slider
 
     # Process events to ensure widgets are ready
     qapp.processEvents()
 
     yield window
 
-    # qtbot.addWidget handles cleanup automatically
+    # qtbot.addWidget handles cleanup automatically including before_close_func
     # No manual cleanup needed
 
 

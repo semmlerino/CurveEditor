@@ -20,8 +20,11 @@ class TestTimelineAutomaticUpdates:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -44,6 +47,7 @@ class TestTimelineAutomaticUpdates:
         window.view_management_controller.clear_background_images()
 
         # Force timeline to update with clean state (after reset)
+        assert window.timeline_tabs is not None
         window.timeline_tabs._on_store_data_changed()
         qtbot.wait(50)
 
@@ -57,6 +61,7 @@ class TestTimelineAutomaticUpdates:
 
         # Verify timeline starts at default state (fixture already reset it)
         timeline = main_window.timeline_tabs
+        assert timeline is not None
         assert timeline.min_frame == 1
         assert timeline.max_frame == 1, f"Expected max_frame=1 after reset, got {timeline.max_frame}"
 
@@ -139,6 +144,7 @@ class TestTimelineAutomaticUpdates:
 
         # Get timeline and verify initial state
         timeline = main_window.timeline_tabs
+        assert timeline is not None
         tab2 = timeline.frame_tabs[2]
         initial_color = tab2._get_background_color()
 
@@ -177,6 +183,7 @@ class TestTimelineAutomaticUpdates:
 
         # Verify initial state
         timeline = main_window.timeline_tabs
+        assert timeline is not None
         assert timeline.min_frame == 1
         assert timeline.max_frame == 3
 
@@ -209,6 +216,7 @@ class TestTimelineAutomaticUpdates:
 
         # Verify initial state
         timeline = main_window.timeline_tabs
+        assert timeline is not None
         tab2 = timeline.frame_tabs[2]
         assert tab2.interpolated_count == 1
 

@@ -16,7 +16,11 @@ from core.spatial_index import PointIndex
 
 
 class MockTransform:
-    """Mock Transform class for testing spatial index."""
+    """Mock Transform class for testing spatial index.
+
+    Note: This is a test mock that doesn't fully implement Transform.
+    Use pyright: ignore[reportArgumentType] at call sites.
+    """
 
     def __init__(self, stability_hash: str = "test_hash"):
         self.stability_hash = stability_hash
@@ -182,7 +186,7 @@ class TestIndexBuilding:
         """Test rebuilding index with empty curve data."""
         index = PointIndex()
         view = MockCurveView([])
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
 
@@ -204,7 +208,7 @@ class TestIndexBuilding:
             (3, 700.0, 550.0),  # Will be at screen (700, 550)
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
 
@@ -249,7 +253,7 @@ class TestIndexBuilding:
             (3, 300.0, 250.0),  # Valid point
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Should not crash with malformed data
         index.rebuild_index(view, transform)
@@ -264,7 +268,7 @@ class TestIndexBuilding:
         index = PointIndex(screen_width=600.0, screen_height=400.0)  # int(600/45)=13, int(400/45)=8->10
         curve_data = [(1, 50.0, 25.0)]
         view = MockCurveView(curve_data, width=1000.0, height=500.0)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
 
@@ -284,7 +288,7 @@ class TestPointLookup:
         """Test finding point when no data exists."""
         index = PointIndex()
         view = MockCurveView([])
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         result = index.find_point_at_position(view, transform, 100.0, 100.0)
 
@@ -299,7 +303,7 @@ class TestPointLookup:
             (2, 300.0, 250.0),  # Point at screen (300, 250)
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Look for point at exact position
         result = index.find_point_at_position(view, transform, 100.0, 150.0, threshold=1.0)
@@ -312,7 +316,7 @@ class TestPointLookup:
         index = PointIndex(screen_width=180.0, screen_height=180.0)
         curve_data = [(1, 100.0, 150.0)]  # Point at screen (100, 150)
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Look near the point (within threshold)
         result = index.find_point_at_position(view, transform, 103.0, 147.0, threshold=5.0)
@@ -325,7 +329,7 @@ class TestPointLookup:
         index = PointIndex(screen_width=180.0, screen_height=180.0)
         curve_data = [(1, 100.0, 150.0)]  # Point at screen (100, 150)
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Look far from the point (outside threshold)
         result = index.find_point_at_position(view, transform, 200.0, 300.0, threshold=5.0)
@@ -342,7 +346,7 @@ class TestPointLookup:
             (3, 300.0, 250.0),  # Far away
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Search at (112, 153) - closer to second point
         result = index.find_point_at_position(view, transform, 112.0, 153.0, threshold=10.0)
@@ -354,7 +358,7 @@ class TestPointLookup:
         index = PointIndex()
         curve_data = [(1, 100.0, 150.0)]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Index should be empty initially
         assert index._grid == {}
@@ -373,7 +377,7 @@ class TestRectangleSelection:
         """Test rectangle selection with no data."""
         index = PointIndex()
         view = MockCurveView([])
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         result = index.get_points_in_rect(view, transform, 0.0, 0.0, 100.0, 100.0)
 
@@ -389,7 +393,7 @@ class TestRectangleSelection:
             (3, 25.0, 25.0),  # Inside rectangle
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         result = index.get_points_in_rect(view, transform, 0.0, 0.0, 100.0, 100.0)
 
@@ -407,7 +411,7 @@ class TestRectangleSelection:
             (4, 25.0, 25.0),  # Inside rectangle
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         result = index.get_points_in_rect(view, transform, 0.0, 0.0, 100.0, 100.0)
 
@@ -423,7 +427,7 @@ class TestRectangleSelection:
             (2, 300.0, 300.0),  # Outside rectangle
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         result = index.get_points_in_rect(view, transform, 0.0, 0.0, 100.0, 100.0)
 
@@ -435,7 +439,7 @@ class TestRectangleSelection:
         index = PointIndex(screen_width=180.0, screen_height=180.0)
         curve_data = [(1, 50.0, 50.0)]  # Inside normalized rectangle
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Pass swapped coordinates (x2 < x1, y2 < y1)
         result = index.get_points_in_rect(view, transform, 100.0, 100.0, 0.0, 0.0)
@@ -448,7 +452,7 @@ class TestRectangleSelection:
         index = PointIndex()
         curve_data = [(1, 50.0, 50.0)]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Index should be empty initially
         assert index._grid == {}
@@ -516,7 +520,7 @@ class TestStatistics:
             (3, 30.0, 30.0),  # May be in same or adjacent cell
         ]
         view = MockCurveView(curve_data, width=200.0, height=200.0)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
         stats = index.get_stats()
@@ -594,7 +598,7 @@ class TestThreadSafety:
         index = PointIndex()
         curve_data = [(i, float(i * 10), float(i * 15)) for i in range(100)]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         results = []
         errors = []
@@ -628,7 +632,7 @@ class TestThreadSafety:
         index = PointIndex()
         curve_data = [(i, float(i * 10), float(i * 15)) for i in range(50)]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Build index once
         index.rebuild_index(view, transform)
@@ -666,7 +670,7 @@ class TestThreadSafety:
         index = PointIndex()
         curve_data = [(i, float(i * 10), float(i * 15)) for i in range(20)]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
 
@@ -713,7 +717,7 @@ class TestPerformanceOptimizations:
             large_dataset.append((i, x, y))
 
         view = MockCurveView(large_dataset)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Should handle large dataset without issues
         index.rebuild_index(view, transform)
@@ -740,7 +744,7 @@ class TestPerformanceOptimizations:
         ]
 
         view = MockCurveView(sparse_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
         stats = index.get_stats()
@@ -763,7 +767,7 @@ class TestPerformanceOptimizations:
             dense_data.append((i, x, y))
 
         view = MockCurveView(dense_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
         stats = index.get_stats()
@@ -786,7 +790,7 @@ class TestEdgeCases:
         assert index.grid_height == 10  # Minimum grid size
 
         view = MockCurveView([(1, 100.0, 150.0)])
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Rebuild should work fine with minimum grid dimensions
         index.rebuild_index(view, transform)
@@ -802,7 +806,7 @@ class TestEdgeCases:
             (2, 100.0, 150.0),  # Positive coordinates
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         index.rebuild_index(view, transform)
 
@@ -819,7 +823,7 @@ class TestEdgeCases:
             (2, 100.0, 150.0),  # Normal coordinates
         ]
         view = MockCurveView(curve_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Should handle large coordinates without crashing
         index.rebuild_index(view, transform)
@@ -832,7 +836,7 @@ class TestEdgeCases:
         view = Mock(spec=[])  # Mock with empty spec - no attributes
         view.width = Mock(return_value=800.0)  # Add required methods
         view.height = Mock(return_value=600.0)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Should handle missing attribute gracefully (getattr returns [])
         index.rebuild_index(view, transform)
@@ -870,7 +874,7 @@ class TestIntegration:
         # Start with some initial data
         initial_data = [(i, float(i * 50), float(i * 30)) for i in range(10)]
         view = MockCurveView(initial_data)
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # First lookup - should build index
         result1 = index.find_point_at_position(view, transform, 0.0, 0.0, threshold=10.0)
@@ -891,7 +895,7 @@ class TestIntegration:
     def test_dynamic_data_updates(self):
         """Test spatial index with dynamic data updates."""
         index = PointIndex()
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # Start with small dataset
         small_data = [(1, 100.0, 150.0), (2, 200.0, 250.0)]
@@ -964,7 +968,7 @@ class TestPublicAPI:
         """Test that methods return expected types."""
         index = PointIndex()
         view = MockCurveView([(1, 100.0, 150.0)])
-        transform = MockTransform()
+        transform = MockTransform()  # pyright: ignore[reportArgumentType]
 
         # find_point_at_position returns int
         result1 = index.find_point_at_position(view, transform, 100.0, 150.0)

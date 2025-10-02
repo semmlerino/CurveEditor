@@ -24,7 +24,7 @@ from core.logger_utils import get_logger
 from core.math_utils import GeometryUtils, ValidationUtils
 
 # Import PointsList type from models
-from core.type_aliases import CurveDataList, LegacyPointData
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 # Import protocols and type aliases for proper typing
 from protocols.ui import CurveViewProtocol, MainWindowProtocol
@@ -38,7 +38,7 @@ class BatchEditParentWidgetProtocol(MainWindowProtocol, Protocol):
     # Extend MainWindowProtocol for proper typing
     # Additional attributes specific to batch editing
     def setPoints(self, points: CurveDataList) -> None: ...
-    def set_curve_data(self, data: CurveDataList) -> None: ...
+    def set_curve_data(self, data: CurveDataInput) -> None: ...
     def showMessage(self, message: str) -> None: ...
 
     image_width: int

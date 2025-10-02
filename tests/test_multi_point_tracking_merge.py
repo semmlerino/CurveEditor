@@ -13,7 +13,7 @@ Following UNIFIED_TESTING_GUIDE best practices:
 
 import pytest
 
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from ui.controllers.action_handler_controller import ActionHandlerController
 from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 
@@ -154,9 +154,9 @@ class MockCurveWidget:
     def setup_for_pixel_tracking(self):
         self.setup_called = True
 
-    def set_curve_data(self, data: CurveDataList):
-        self.data = data
-        self.curve_data = data  # Update both for compatibility
+    def set_curve_data(self, data: CurveDataInput):
+        self.data = list(data)
+        self.curve_data = list(data)  # Update both for compatibility
 
     def set_curves_data(self, curves: dict[str, CurveDataList], metadata=None, active_curve=None, selected_curves=None):
         """Mock implementation of set_curves_data."""
@@ -249,11 +249,11 @@ class MockMainWindow:
         self.frame_spinbox = None
         self.total_frames_label = None
         self.status_label = None
-        self.tracking_controller = None  # Set after creation
+        self.tracking_controller: object = None  # MultiPointTrackingController | None - Set after creation
 
     def update_tracking_panel(self):
         """Update tracking panel."""
-        if self.tracking_controller:
+        if self.tracking_controller is not None:
             self.tracking_controller.update_tracking_panel()
 
     def update_timeline_tabs(self, data):

@@ -15,11 +15,11 @@ from typing import TYPE_CHECKING, Protocol
 if TYPE_CHECKING:
     from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
 
-    from ui.curve_view_widget import CurveViewWidget
     # Note: Transform import moved to avoid circular dependency
     # Transform will be imported as needed in individual methods
 
 from core.type_aliases import (
+    CurveDataInput,
     CurveDataList,
     HistoryState,
     QtPointF,
@@ -205,7 +205,7 @@ class CurveViewProtocol(Protocol):
         """Toggle interpolation status of a point."""
         ...
 
-    def set_curve_data(self, data: CurveDataList) -> None:
+    def set_curve_data(self, data: CurveDataInput) -> None:
         """Set the curve data."""
         ...
 
@@ -226,8 +226,8 @@ class MainWindowProtocol(Protocol):
     """
 
     # Basic attributes commonly used by services
-    curve_view: "CurveViewWidget | None"
-    curve_widget: "CurveViewWidget | None"
+    curve_view: CurveViewProtocol | None
+    curve_widget: CurveViewProtocol | None
     selected_indices: list[int]
     curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]]
 

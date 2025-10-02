@@ -9,7 +9,7 @@ from PySide6.QtCore import QObject, Signal
 
 from core.logger_utils import get_logger
 from core.models import PointStatus
-from core.type_aliases import CurveDataList, LegacyPointData
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 logger = get_logger("curve_data_store")
 
@@ -79,7 +79,7 @@ class CurveDataStore(QObject):
 
     # ==================== Data Modification ====================
 
-    def set_data(self, data: CurveDataList) -> None:
+    def set_data(self, data: CurveDataInput) -> None:
         """
         Replace all curve data.
 
@@ -95,7 +95,7 @@ class CurveDataStore(QObject):
         if isinstance(data, CurveDataWithMetadata):
             data = data.data  # Extract the actual data list
 
-        self._data = data.copy()  # Store a copy to prevent external mutation
+        self._data = list(data)  # Store a copy to prevent external mutation
         self._selection.clear()  # Clear selection when data changes
 
         if not self._batch_mode:

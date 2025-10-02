@@ -453,6 +453,9 @@ class TimelineController(QObject):
         self.frame_slider.setMinimum(min_frame)
         self.frame_slider.setMaximum(max_frame)
 
+        # Update state manager total_frames to match maximum
+        self.state_manager.total_frames = max_frame
+
         # Update playback bounds
         self.playback_state.min_frame = min_frame
         self.playback_state.max_frame = max_frame
@@ -463,9 +466,6 @@ class TimelineController(QObject):
             self.set_frame(min_frame)
         elif current > max_frame:
             self.set_frame(max_frame)
-
-        # Update state manager's total frames
-        self.state_manager.total_frames = max_frame
 
         logger.debug(f"Frame range set to {min_frame}-{max_frame}")
 

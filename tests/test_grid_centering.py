@@ -10,12 +10,13 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 import pytest
-from PySide6.QtGui import QImage, QPainter
+from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QApplication
 
 from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from rendering.render_state import RenderState
+from tests.qt_test_helpers import safe_painter
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -76,9 +77,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, render_state)
-        painter.end()
+        with safe_painter(test_image) as painter:
+            renderer._render_grid_optimized(painter, render_state)
 
         # Verify: Grid should be centered on the selected point
         # The grid lines should align with the selected point's screen position
@@ -128,9 +128,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, render_state)
-        painter.end()
+        with safe_painter(test_image) as painter:
+            renderer._render_grid_optimized(painter, render_state)
 
         # Verify: Grid centers on average position
         assert curve_widget.selected_indices == {0, 1, 2}
@@ -168,9 +167,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, render_state)
-        painter.end()
+        with safe_painter(test_image) as painter:
+            renderer._render_grid_optimized(painter, render_state)
 
         # Verify: Grid should center on widget center (400, 300 for 800x600 widget)
         assert curve_widget.selected_indices == set()
@@ -213,9 +211,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter1 = QPainter(test_image)
-        renderer._render_grid_optimized(painter1, render_state1)
-        painter1.end()
+        with safe_painter(test_image) as painter1:
+            renderer._render_grid_optimized(painter1, render_state1)
 
         # Change selection
         curve_widget._select_point(1, add_to_selection=False)  # Select different point
@@ -243,9 +240,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter2 = QPainter(test_image)
-        renderer._render_grid_optimized(painter2, render_state2)
-        painter2.end()
+        with safe_painter(test_image) as painter2:
+            renderer._render_grid_optimized(painter2, render_state2)
 
         # Grid center should have moved from (100, 200) to (500, 600)
         assert curve_widget.selected_indices == {1}
@@ -277,9 +273,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter = QPainter(test_image)
-        renderer._render_grid_optimized(painter, render_state1)
-        painter.end()
+        with safe_painter(test_image) as painter:
+            renderer._render_grid_optimized(painter, render_state1)
 
         # Should not crash, grid defaults to widget center
         assert len(curve_widget.curve_data) == 0
@@ -308,9 +303,8 @@ class TestGridCentering:
             show_grid=True,
             point_radius=5,
         )
-        painter2 = QPainter(test_image)
-        renderer._render_grid_optimized(painter2, render_state2)
-        painter2.end()
+        with safe_painter(test_image) as painter2:
+            renderer._render_grid_optimized(painter2, render_state2)
 
         # Should handle gracefully
 
@@ -348,9 +342,8 @@ class TestGridCentering:
                 show_grid=True,
                 point_radius=5,
             )
-            painter = QPainter(test_image)
-            renderer._render_grid_optimized(painter, render_state)
-            painter.end()
+            with safe_painter(test_image) as painter:
+                renderer._render_grid_optimized(painter, render_state)
 
             # Grid density should adapt based on zoom
             # At higher zoom, grid lines should be closer together

@@ -25,8 +25,11 @@ class TestEventFilterNavigation:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -118,6 +121,7 @@ class TestEventFilterNavigation:
         window = main_window_with_data
 
         # Give focus to curve widget
+        assert window.curve_widget is not None
         window.curve_widget.setFocus()
         qtbot.wait(10)
         # Note: hasFocus() may return False in test environment
@@ -226,6 +230,7 @@ class TestEventFilterNavigation:
             (10, 200.0, 200.0, "keyframe"),  # Navigation point
         ]
 
+        assert main_window_with_data.curve_widget is not None
         main_window_with_data.curve_widget.set_curve_data(mixed_data)
         main_window_with_data.update_timeline_tabs(mixed_data)
         qtbot.wait(50)

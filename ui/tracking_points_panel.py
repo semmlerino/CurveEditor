@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 
 class TrackingTableEventFilter(QObject):
@@ -145,7 +145,9 @@ class TrackingPointsPanel(QWidget):
         self._init_ui()
 
         # Install event filter for tracking direction shortcuts
+        # Set self as parent for proper Qt ownership and automatic cleanup
         self._table_event_filter = TrackingTableEventFilter(self)
+        self._table_event_filter.setParent(self)
         self.table.installEventFilter(self._table_event_filter)
 
     def _init_ui(self) -> None:
@@ -198,7 +200,7 @@ class TrackingPointsPanel(QWidget):
 
         layout.addWidget(self.table)
 
-    def set_tracked_data(self, tracked_data: dict[str, CurveDataList]) -> None:
+    def set_tracked_data(self, tracked_data: dict[str, CurveDataInput]) -> None:
         """Update the displayed tracking data.
 
         Args:
@@ -208,7 +210,8 @@ class TrackingPointsPanel(QWidget):
             return
 
         self._updating = True
-        self._tracked_data = tracked_data
+        # Convert to CurveDataList for storage
+        self._tracked_data = {name: list(data) for name, data in tracked_data.items()}
 
         # Initialize metadata for new points
         colors = [
@@ -539,3 +542,22 @@ class TrackingPointsPanel(QWidget):
         """
         # Let the event propagate to the global event filter
         super().keyPressEvent(event)
+
+    def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+        """Clean up event filters to prevent accumulation across tests.
+
+        CRITICAL: Properly removes event filter to prevent resource exhaustion
+        after 1580+ tests (see UNIFIED_TESTING_GUIDE). Without this cleanup,
+        event filters accumulate in QApplication causing timeouts when
+        setStyleSheet() triggers events through all accumulated filters.
+        """
+        # Remove event filter from table
+        if hasattr(self, "_table_event_filter") and hasattr(self, "table"):
+            try:
+                self.table.removeEventFilter(self._table_event_filter)
+                self._table_event_filter.deleteLater()
+            except RuntimeError:
+                pass  # QObject may already be deleted
+
+        # Call parent cleanup
+        super().closeEvent(event)

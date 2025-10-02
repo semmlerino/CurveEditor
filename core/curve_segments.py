@@ -20,7 +20,7 @@ from typing import TYPE_CHECKING
 from core.models import CurvePoint, PointStatus
 
 if TYPE_CHECKING:
-    from core.type_aliases import CurveDataList
+    from core.type_aliases import CurveDataInput
 
 
 @dataclass
@@ -658,7 +658,7 @@ class SegmentedCurve:
             self.segments[segment_idx : segment_idx + 1] = [inactive_segment, active_segment]
 
     @classmethod
-    def from_curve_data(cls, curve_data: CurveDataList) -> SegmentedCurve:
+    def from_curve_data(cls, curve_data: CurveDataInput) -> SegmentedCurve:
         """Create SegmentedCurve from legacy curve data format.
 
         Args:

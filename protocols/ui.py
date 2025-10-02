@@ -14,7 +14,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QPixmap
     from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
 
-from protocols.data import CurveDataList, HistoryState, QtPointF
+from protocols.data import CurveDataInput, CurveDataList, HistoryState, QtPointF
 
 
 class SignalProtocol(Protocol):
@@ -232,7 +232,7 @@ class CurveViewProtocol(Protocol):
         """Toggle interpolation status of a point."""
         ...
 
-    def set_curve_data(self, data: CurveDataList) -> None:
+    def set_curve_data(self, data: CurveDataInput) -> None:
         """Set the curve data."""
         ...
 

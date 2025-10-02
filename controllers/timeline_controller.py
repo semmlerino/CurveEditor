@@ -8,7 +8,7 @@ reducing MainWindow complexity.
 import logging
 from typing import TYPE_CHECKING
 
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -46,7 +46,7 @@ class TimelineController:
         # Could be extended to show preview or tooltip
         logger.debug(f"Timeline tab hovered: frame {frame}")
 
-    def update_timeline_tabs(self, curve_data: CurveDataList | None = None) -> None:
+    def update_timeline_tabs(self, curve_data: CurveDataInput | None = None) -> None:
         """Update timeline tabs with current curve data and frame range.
 
         Args:

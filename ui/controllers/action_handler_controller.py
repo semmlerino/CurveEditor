@@ -274,27 +274,31 @@ class ActionHandlerController:
         )
 
         interaction_service = get_interaction_service()
-        logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
-        if interaction_service.command_manager.execute_command(
-            smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
-        ):
-            # Mark as modified
-            self.state_manager.is_modified = True
+        if interaction_service is not None:
+            logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
+            if interaction_service.command_manager.execute_command(
+                smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
+            ):
+                # Mark as modified
+                self.state_manager.is_modified = True
 
-            # Update status with details
-            filter_display = {
-                "moving_average": "Moving Average",
-                "median": "Median",
-                "butterworth": "Butterworth",
-            }.get(filter_type, filter_type)
+                # Update status with details
+                filter_display = {
+                    "moving_average": "Moving Average",
+                    "median": "Median",
+                    "butterworth": "Butterworth",
+                }.get(filter_type, filter_type)
 
-            self.main_window.statusBar().showMessage(
-                f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
-            )
-            logger.info(f"{filter_display} smoothing applied successfully via command system")
-            return  # Command succeeded, exit early
+                self.main_window.statusBar().showMessage(
+                    f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
+                )
+                logger.info(f"{filter_display} smoothing applied successfully via command system")
+                return  # Command succeeded, exit early
+            else:
+                logger.error("Command system failed to execute smooth command")
+                # Fall through to legacy implementation
         else:
-            logger.error("Command system failed to execute smooth command")
+            logger.info("Interaction service not available, using legacy smoothing implementation")
             # Fall through to legacy implementation
 
         # Fallback to legacy DataService implementation if command system unavailable or failed

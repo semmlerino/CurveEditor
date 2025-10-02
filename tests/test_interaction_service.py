@@ -14,7 +14,7 @@ Following the testing guide principles:
 - Mock only at system boundaries
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 import pytest
@@ -349,10 +349,12 @@ class TestInteractionServiceHistory:
 class TestInteractionServicePointManipulation:
     """Test point manipulation operations."""
 
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
+
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
-        self.service: InteractionService = get_interaction_service()
+        self.service = get_interaction_service()
 
     # Note: move_selected_points method doesn't exist in actual implementation
     # Point movement is handled through mouse events and internal methods
@@ -389,6 +391,9 @@ class TestInteractionServicePointManipulation:
 
 class TestInteractionServiceSpatialIndex:
     """Test spatial indexing functionality."""
+
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -482,10 +487,12 @@ class TestInteractionServiceSpatialIndex:
 class TestInteractionServiceMouseEvents:
     """Test mouse event handling."""
 
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
+
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
-        self.service: InteractionService = get_interaction_service()
+        self.service = get_interaction_service()
 
     def test_handle_mouse_press(self) -> None:
         """Test mouse press event handling."""
@@ -533,10 +540,12 @@ class TestInteractionServiceMouseEvents:
 class TestInteractionServiceKeyboardEvents:
     """Test keyboard event handling."""
 
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
+
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
         """Setup test environment."""
-        self.service: InteractionService = get_interaction_service()
+        self.service = get_interaction_service()
 
     # Note: handle_key_press may not directly delete points
     # Key handling implementation may differ

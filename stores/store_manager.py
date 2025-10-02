@@ -77,12 +77,23 @@ class StoreManager(QObject):
         Reset the singleton (mainly for testing).
 
         Warning: This clears all application state!
+
+        CRITICAL: Properly cleans up QObjects to prevent accumulation
+        and segfaults in long test runs (see UNIFIED_TESTING_GUIDE).
         """
         if cls._instance:
             # Clear all store data
             cls._instance.curve_store.clear()
             cls._instance.frame_store.clear()
             logger.warning("StoreManager reset - all data cleared")
+
+            # CRITICAL: Properly delete QObjects to prevent accumulation
+            try:
+                cls._instance.curve_store.deleteLater()
+                cls._instance.frame_store.deleteLater()
+                cls._instance.deleteLater()
+            except RuntimeError:
+                pass  # QObjects may already be deleted
 
         cls._instance = None
 

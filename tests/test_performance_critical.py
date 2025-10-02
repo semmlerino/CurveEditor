@@ -17,6 +17,7 @@ import json
 import os
 import tempfile
 import time
+from typing import Any
 
 import psutil
 import pytest
@@ -37,7 +38,9 @@ from tests.test_helpers import ProtocolCompliantMockCurveView
 class TestDataProcessingPerformance:
     """Test performance of data processing operations."""
 
-    def setup_method(self):
+    data_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    def setup_method(self) -> None:
         """Set up services for performance testing."""
         self.data_service = get_data_service()
 
@@ -131,7 +134,9 @@ class TestDataProcessingPerformance:
 class TestTransformPerformance:
     """Test performance of coordinate transformation operations."""
 
-    def setup_method(self):
+    transform_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    def setup_method(self) -> None:
         """Set up services for transform testing."""
         self.transform_service = get_transform_service()
 
@@ -328,7 +333,10 @@ class TestMemoryUsagePatterns:
 class TestRealisticWorkflowPerformance:
     """Test performance of complete realistic workflows."""
 
-    def setup_method(self):
+    data_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    def setup_method(self) -> None:
         """Set up services."""
         self.data_service = get_data_service()
         self.transform_service = get_transform_service()

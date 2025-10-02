@@ -31,10 +31,18 @@ except RuntimeError:
 
 **The FileLoadSignals Segfault**: After 850+ tests, a segfault occurred because `FileLoadSignals` QObjects were never cleaned up. Session-scope `QApplication` + uncleaned QObjects = resource exhaustion and crash.
 
+**The Event Filter Timeout**: After 1580+ tests, `MainWindow()` construction timed out in `setStyleSheet()` because accumulated global event filters caused events to propagate through 1580+ filters! This required 30+ seconds.
+
+**The Application Stylesheet Timeout**: The REAL cause was `QApplication.setStyleSheet()` being called on EVERY MainWindow creation. When applied at app level, Qt reprocesses styles for ALL widgets in the application, including 1580+ accumulated test widgets. Solution: Apply stylesheet only ONCE using a flag check.
+
 ```python
 # ERROR: "Fatal Python error: Segmentation fault" after ~850 tests
 # CAUSE: QObjects without parent accumulate in session-scope QApplication
 # SYMPTOM: Tests pass individually but full suite crashes
+
+# ERROR: "Timeout" after ~1580 tests during MainWindow.__init__
+# CAUSE: QApplication.installEventFilter() accumulates without cleanup
+# SYMPTOM: setStyleSheet() triggers events through ALL accumulated filters
 
 # ❌ BAD - No cleanup, QObjects accumulate
 @pytest.fixture
@@ -42,6 +50,14 @@ def file_load_signals(app):
     signals = FileLoadSignals()  # Orphaned QObject!
     yield signals
     # No cleanup - object persists in QApplication
+
+# ❌ BAD - Event filter without cleanup
+@pytest.fixture
+def main_window(qtbot):
+    window = MainWindow()  # Installs global event filter
+    qtbot.addWidget(window)
+    yield window
+    # Event filter NOT removed - accumulates in QApplication!
 
 # ✅ GOOD - Explicit parent and cleanup
 @pytest.fixture
@@ -60,12 +76,45 @@ def file_load_signals(qtbot, qapp):
         qapp.processEvents()  # Process deleteLater
     except RuntimeError:
         pass  # Already deleted
+
+# ✅ GOOD - Event filter cleanup with before_close_func
+@pytest.fixture
+def main_window(qtbot, qapp):
+    """MainWindow with deterministic event filter cleanup."""
+    def cleanup_event_filter(window):
+        """Remove global event filter before window closes."""
+        app = QApplication.instance()
+        if app and hasattr(window, 'global_event_filter'):
+            try:
+                app.removeEventFilter(window.global_event_filter)
+            except RuntimeError:
+                pass
+
+    window = MainWindow()
+    # CRITICAL: before_close_func runs BEFORE widget destruction
+    qtbot.addWidget(window, before_close_func=cleanup_event_filter)
+    yield window
+    # qtbot handles cleanup including before_close_func
+
+# ✅ GOOD - Application-level stylesheet applied only ONCE
+class MainWindow(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        app = QApplication.instance()
+        if app and isinstance(app, QApplication):
+            # Check if stylesheet already applied (avoid reapplying in tests)
+            if not getattr(app, '_dark_theme_applied', False):
+                app.setStyleSheet(get_dark_theme_stylesheet())
+                app._dark_theme_applied = True  # Mark as applied
+            # Subsequent MainWindow creations skip expensive reprocessing
 ```
 
 **Critical Distinction**:
 - `QWidget`: Use `qtbot.addWidget(widget)` for automatic cleanup
+- `QWidget` with event filters: Use `qtbot.addWidget(widget, before_close_func=cleanup)`
 - `QObject` (non-widget): Must set parent OR manually clean up
 - Background threads: Must `join()` before fixture teardown
+- **Never** rely on `__del__` or `gc.collect()` for Qt cleanup - use `before_close_func`
 
 ### Protocol Testing Rule
 Every method in a Protocol interface MUST have test coverage, even if unused:
@@ -599,6 +648,7 @@ qtbot.keyClicks(widget, "text")
 |-------|-------|----------|
 | `Fatal Python error: Aborted` | QPixmap in thread | Use ThreadSafeTestImage |
 | `Segmentation fault` after 850+ tests | Uncleaned QObjects | setParent(qapp) + deleteLater() |
+| `Timeout` after 1580+ tests in MainWindow | QApplication.setStyleSheet() reprocessing ALL widgets | Apply stylesheet once with flag check |
 | `RuntimeError: Internal C++ object` | Widget deleted | try/except RuntimeError |
 | `TypeError` with QSignalSpy | Using mock | Use real Qt signal |
 | `AttributeError: _fps_spinbox` | Untested Protocol | Test all Protocol methods |
@@ -606,6 +656,7 @@ qtbot.keyClicks(widget, "text")
 | Test hangs | Worker not quit | worker.stop() + thread.join(timeout) |
 | `if self.layout` is False | Qt truthiness | Use `is not None` |
 | Resource exhaustion in full suite | QObject accumulation | Explicit parent management in fixtures |
+| Event filters not removed | Missing cleanup callback | Use before_close_func parameter |
 | `fixture 'qtbot' not found` | Missing pytest-qt | pip install pytest-qt |
 | `AssertionError: assert None` | Missing return value | Add return statement to function |
 | `No tests collected` | Wrong file naming | Use test_*.py pattern |

@@ -130,6 +130,7 @@ class TestEndToEndSmoothing:
             (9, 95.0, 205.0),
             (10, 100.0, 200.0),
         ]
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(test_data)
         original_data = list(window.curve_widget.curve_data)
 
@@ -172,6 +173,7 @@ class TestSmoothingUndoRedo:
             (4, 250.0, 350.0),
             (5, 300.0, 400.0),
         ]
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(test_data)
 
         # Ensure interaction service uses command manager
@@ -284,6 +286,7 @@ class TestSmoothingFileIO:
             (4, 105.0, 195.0),
             (5, 95.0, 205.0),
         ]
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(test_data)
 
         return window
@@ -370,6 +373,7 @@ class TestSmoothingWithOtherFeatures:
             y = 200.0 + 50 * (1 if frame % 2 == 0 else -1)  # Zigzag pattern
             test_data.append((frame, x, y))
 
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(test_data)
 
         return window
@@ -496,6 +500,7 @@ class TestSmoothingPerformance:
             y = 200.0 + 50.0 * math.sin(frame * 0.1) + 5.0 * random.random()
             large_data.append((frame, x, y))
 
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(large_data)
 
         # Select all points

@@ -99,7 +99,7 @@ def benchmark_batch_transform():
     transform = Transform.from_view_state(view_state)
 
     for num_points in [100, 1000, 5000, 10000]:
-        test_points = np.random.rand(num_points, 3) * 1000
+        test_points = np.random.default_rng().random((num_points, 3)) * 1000  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
 
         # Individual transforms (sample)
         sample_size = min(100, num_points)

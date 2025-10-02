@@ -46,6 +46,8 @@ else:
     UIService = None
 
 # Sprint 8 services have been removed in favor of the consolidated 4-service architecture
+# Note: cache_service.py and coordinate_service.py are internal implementation details
+# of TransformService and are NOT part of the public service API.
 
 # Service instances (singleton pattern) - use Any to avoid forward reference issues
 _data_service: object | None = None

@@ -7,10 +7,13 @@ testing validation logic, field assignments, defaults, and data integrity.
 Follows the testing guide patterns for dataclass and validation testing.
 """
 
+from typing import Any
+
 import pytest
 from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
 
+from core.type_aliases import CurveDataList
 from rendering.render_state import RenderState
 
 
@@ -27,8 +30,8 @@ class TestRenderStateCreation:
 
     def test_minimal_valid_creation(self):
         """Test RenderState can be created with minimal valid parameters."""
-        points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        selected_points = {0, 1}
+        points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
+        selected_points: set[int] = {0, 1}
 
         state = RenderState(
             points=points,
@@ -74,12 +77,12 @@ class TestRenderStateCreation:
 
     def test_full_creation_with_all_fields(self):
         """Test RenderState creation with all fields specified."""
-        points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        selected_points = {0}
+        points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
+        selected_points: set[int] = {0}
         background_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        curves_data = {"curve1": [(1, 10.0, 20.0)], "curve2": [(2, 30.0, 40.0)]}
-        selected_curve_names = {"curve1"}
-        curve_metadata = {"curve1": {"color": "red"}, "curve2": {"color": "blue"}}
+        curves_data: dict[str, CurveDataList] = {"curve1": [(1, 10.0, 20.0)], "curve2": [(2, 30.0, 40.0)]}
+        selected_curve_names: set[str] = {"curve1"}
+        curve_metadata: dict[str, dict[str, Any]] = {"curve1": {"color": "red"}, "curve2": {"color": "blue"}}
 
         state = RenderState(
             points=points,
@@ -132,10 +135,10 @@ class TestRenderStateCreation:
         assert state.curve_metadata == curve_metadata
         assert state.active_curve_name == "curve1"
 
-    def test_creation_with_qpixmap_background(self, qapp):
+    def test_creation_with_qpixmap_background(self, qapp: Any) -> None:
         """Test RenderState creation with QPixmap background."""
-        points = [(1, 100.0, 200.0)]
-        selected_points = set()
+        points: CurveDataList = [(1, 100.0, 200.0)]
+        selected_points: set[int] = set()
         background_image = QPixmap(100, 100)
 
         state = RenderState(
@@ -161,12 +164,14 @@ class TestRenderStateCreation:
 class TestRenderStateValidation:
     """Test RenderState validation logic."""
 
-    def get_valid_base_params(self) -> dict:
+    def get_valid_base_params(self) -> dict[str, Any]:
         """Get base parameters for valid RenderState creation."""
+        points: CurveDataList = [(1, 100.0, 200.0)]
+        selected_points: set[int] = set()
         return {
-            "points": [(1, 100.0, 200.0)],
+            "points": points,
             "current_frame": 1,
-            "selected_points": set(),
+            "selected_points": selected_points,
             "widget_width": 800,
             "widget_height": 600,
             "zoom_factor": 1.0,
@@ -353,7 +358,7 @@ class TestRenderStateDataTypes:
 
     def test_various_point_formats(self):
         """Test RenderState with different point tuple formats."""
-        points = [
+        points: CurveDataList = [
             (1, 100.0, 200.0),  # 3-tuple
             (2, 150.0, 250.0, "KEYFRAME"),  # 4-tuple with status
             (3, 200.0, 300.0, True),  # 4-tuple with boolean
@@ -408,8 +413,8 @@ class TestRenderStateReferenceSharing:
 
     def test_points_reference_sharing(self):
         """Test that RenderState shares references with input data (current behavior)."""
-        original_points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        points_list = list(original_points)
+        original_points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
+        points_list: CurveDataList = list(original_points)
 
         state = RenderState(
             points=points_list,
@@ -500,10 +505,12 @@ class TestRenderStateEquality:
 
     def test_equality_same_values(self):
         """Test that RenderStates with same values are equal."""
-        params = {
-            "points": [(1, 100.0, 200.0)],
+        points: CurveDataList = [(1, 100.0, 200.0)]
+        selected_points: set[int] = {0}
+        params: dict[str, Any] = {
+            "points": points,
             "current_frame": 1,
-            "selected_points": {0},
+            "selected_points": selected_points,
             "widget_width": 800,
             "widget_height": 600,
             "zoom_factor": 1.0,
@@ -522,10 +529,12 @@ class TestRenderStateEquality:
 
     def test_inequality_different_values(self):
         """Test that RenderStates with different values are not equal."""
-        base_params = {
-            "points": [(1, 100.0, 200.0)],
+        points: CurveDataList = [(1, 100.0, 200.0)]
+        selected_points: set[int] = {0}
+        base_params: dict[str, Any] = {
+            "points": points,
             "current_frame": 1,
-            "selected_points": {0},
+            "selected_points": selected_points,
             "widget_width": 800,
             "widget_height": 600,
             "zoom_factor": 1.0,
@@ -540,7 +549,7 @@ class TestRenderStateEquality:
         state1 = RenderState(**base_params)
 
         # Different zoom factor
-        different_params = dict(base_params)
+        different_params = base_params.copy()
         different_params["zoom_factor"] = 2.0
         state2 = RenderState(**different_params)
 

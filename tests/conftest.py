@@ -84,6 +84,16 @@ def reset_all_services() -> Generator[None, None, None]:
         if hasattr(services, "_ui_service"):
             services._ui_service = None
 
+        # 2.5. CRITICAL: Reset StoreManager singleton to prevent QObject accumulation
+        # StoreManager creates orphaned QObjects (CurveDataStore, FrameStore) that
+        # accumulate in session-scope QApplication causing segfaults after 850+ tests
+        try:
+            from stores.store_manager import StoreManager
+
+            StoreManager.reset()
+        except Exception:
+            pass  # Store manager might not be initialized
+
         # 3. Reset global config
         reset_config()
 
@@ -149,8 +159,21 @@ def reset_all_services() -> Generator[None, None, None]:
         except Exception:
             pass
 
-        # 6. Let Python handle garbage collection naturally
-        # Note: Forcing gc.collect() here causes segfaults with Qt objects
+        # 6. Force Python garbage collection to trigger __del__ for MainWindow cleanup
+        # CRITICAL: MainWindow.__del__ removes global event filters.
+        # Without gc.collect(), event filters accumulate causing timeout after 1580+ tests.
+        import gc
+
+        gc.collect()  # Force garbage collection to call __del__
+        # Process events again after gc to handle any Qt cleanup from __del__
+        try:
+            from PySide6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app is not None:
+                app.processEvents()
+        except Exception:
+            pass
 
     except Exception as e:
         # Log but don't fail test due to cleanup issues

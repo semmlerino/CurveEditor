@@ -53,7 +53,7 @@ from PySide6.QtWidgets import (
 
 # Configure logger for this module
 from core.logger_utils import get_logger
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
 from stores import get_store_manager
 from stores.curve_data_store import CurveDataStore
@@ -679,7 +679,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update frame controls via controller
         total_frames = self.state_manager.total_frames
         # Use controller's set_frame_range instead of direct manipulation
-        self.timeline_controller.set_frame_range(1, max(total_frames, 1000))
+        self.timeline_controller.set_frame_range(1, total_frames)
         if self.total_frames_label:
             self.total_frames_label.setText(str(total_frames))
 
@@ -850,11 +850,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== Utility Methods ====================
 
-    def update_timeline_tabs(
-        self, curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] | None = None
-    ) -> None:
+    def update_timeline_tabs(self, curve_data: CurveDataInput | None = None) -> None:
         """Update timeline tabs (delegated to TimelineController)."""
-        self.timeline_controller.update_timeline_tabs(curve_data)  # pyright: ignore[reportArgumentType]
+        self.timeline_controller.update_timeline_tabs(curve_data)
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
@@ -1142,7 +1140,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Pass to parent for default handling
         super().keyPressEvent(event)
 
-    @override
     def __del__(self) -> None:
         """Destructor to ensure event filter cleanup even if closeEvent isn't called.
 

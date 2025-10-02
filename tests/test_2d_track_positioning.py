@@ -202,6 +202,7 @@ class TestWrapLegacyData:
 
         result = wrap_legacy_data(legacy_data, temp_3de_file, width=1920, height=1080)
 
+        assert result.metadata is not None
         assert result.metadata.width == 1920
         assert result.metadata.height == 1080
         # But system should still be detected as 3DE

@@ -20,7 +20,7 @@ from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import PointStatus
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
@@ -124,10 +124,10 @@ class DataService:
 
     # ==================== Core Analysis Methods ====================
 
-    def smooth_moving_average(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
+    def smooth_moving_average(self, data: CurveDataInput, window_size: int = 5) -> CurveDataList:
         """Apply moving average smoothing to curve data."""
         if len(data) < window_size:
-            return data
+            return list(data)
 
         result: CurveDataList = []
         for i in range(len(data)):
@@ -148,10 +148,10 @@ class DataService:
             self._status.set_status(f"Applied moving average (window={window_size})")
         return result
 
-    def filter_median(self, data: CurveDataList, window_size: int = 5) -> CurveDataList:
+    def filter_median(self, data: CurveDataInput, window_size: int = 5) -> CurveDataList:
         """Apply median filter to curve data."""
         if len(data) < window_size:
-            return data
+            return list(data)
 
         result: CurveDataList = []
         for i in range(len(data)):
@@ -228,7 +228,7 @@ class DataService:
             logger.info(f"Filled {filled_count} gap points")
         return result
 
-    def detect_outliers(self, data: CurveDataList, threshold: float = 2.0) -> list[int]:
+    def detect_outliers(self, data: CurveDataInput, threshold: float = 2.0) -> list[int]:
         """Detect outliers based on velocity deviation."""
         if len(data) < 3:
             return []
@@ -265,7 +265,7 @@ class DataService:
             self._logger.log_info(f"Detected {len(outliers)} outliers")
         return outliers
 
-    def analyze_points(self, points: CurveDataList) -> dict[str, object]:
+    def analyze_points(self, points: CurveDataInput) -> dict[str, object]:
         """Analyze curve points and return statistics."""
         if not points:
             return {

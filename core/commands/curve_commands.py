@@ -5,6 +5,7 @@ Curve-specific commands for undo/redo functionality.
 This module contains command implementations for all curve editing operations
 including point manipulation, smoothing, filtering, and data modifications.
 """
+# pyright: reportImportCycles=false
 
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ if TYPE_CHECKING:
 
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput
 
 logger = get_logger("curve_commands")
 
@@ -30,7 +31,7 @@ class SetCurveDataCommand(Command):
     of the curve.
     """
 
-    def __init__(self, description: str, new_data: CurveDataList, old_data: CurveDataList | None = None) -> None:
+    def __init__(self, description: str, new_data: CurveDataInput, old_data: CurveDataInput | None = None) -> None:
         """
         Initialize the set curve data command.
 

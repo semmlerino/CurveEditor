@@ -25,8 +25,11 @@ class TestNavigationIntegration:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -63,6 +66,7 @@ class TestNavigationIntegration:
         ]
 
         # Set up the window with data
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(test_data)
         window.update_timeline_tabs(test_data)
 
@@ -77,7 +81,9 @@ class TestNavigationIntegration:
         # Set the frame range to match our test data (frames 1-30)
         # Do this AFTER show() to avoid it being overridden during initialization
         window.timeline_controller.set_frame_range(1, 30)
+        assert window.frame_spinbox is not None
         window.frame_spinbox.setMaximum(30)
+        assert window.frame_slider is not None
         window.frame_slider.setMaximum(30)
         window.state_manager.total_frames = 30
         if window.timeline_tabs:
@@ -91,6 +97,7 @@ class TestNavigationIntegration:
 
         # Start at frame 1
         window.state_manager.current_frame = 1
+        assert window.frame_spinbox is not None
         assert window.frame_spinbox.value() == 1
 
         # 1. Test basic arrow navigation with timeline focused
@@ -137,6 +144,7 @@ class TestNavigationIntegration:
             assert window.state_manager.current_frame == 1  # First frame
 
         # 6. Test navigation with curve widget focused
+        assert window.curve_widget is not None
         window.curve_widget.setFocus()
         qtbot.wait(10)
 
@@ -239,11 +247,13 @@ class TestNavigationIntegration:
         assert state_spy.count() > 0, "StateManager frame_changed signal should be emitted"
 
         # Test direct timeline_tabs interaction (should emit timeline_tabs signal)
+        assert window.timeline_tabs is not None
         timeline_spy = QSignalSpy(window.timeline_tabs.frame_changed)
         window.timeline_tabs.set_current_frame(5)
         assert timeline_spy.count() > 0, "timeline_tabs.frame_changed should be emitted for direct calls"
 
         # Check UI elements updated
+        assert window.frame_spinbox is not None
         assert window.frame_spinbox.value() == window.state_manager.current_frame
         if window.timeline_tabs:
             assert window.timeline_tabs.current_frame == window.state_manager.current_frame
@@ -321,6 +331,7 @@ class TestNavigationIntegration:
             (20, 400.0, 400.0, "keyframe"),
         ]
 
+        assert window.curve_widget is not None
         window.curve_widget.set_curve_data(new_data)
         window.update_timeline_tabs(new_data)
         qtbot.wait(100)

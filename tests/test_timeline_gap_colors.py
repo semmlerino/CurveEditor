@@ -18,8 +18,11 @@ class TestTimelineGapColors:
     @pytest.fixture
     def app(self) -> QApplication:
         """Create QApplication for widget tests."""
-        app = QApplication.instance()
-        if app is None:
+        existing_app = QApplication.instance()
+        if existing_app is not None:
+            # Type narrowing: ensure we have QApplication, not just QCoreApplication
+            app = existing_app if isinstance(existing_app, QApplication) else QApplication([])
+        else:
             app = QApplication([])
         return app
 
@@ -44,6 +47,7 @@ class TestTimelineGapColors:
         ]
 
         # Load data
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(sparse_data)
         main_window.update_timeline_tabs(sparse_data)
         qtbot.wait(100)
@@ -101,11 +105,13 @@ class TestTimelineGapColors:
         ]
 
         # Load data
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(mixed_data)
         main_window.update_timeline_tabs(mixed_data)
         qtbot.wait(100)
 
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Check interpolated frames
         for frame in [2, 3, 8]:
@@ -136,6 +142,7 @@ class TestTimelineGapColors:
             (100, 300.0, 300.0, "keyframe"),
         ]
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(sparse_data)
         main_window.update_timeline_tabs(sparse_data)
         qtbot.wait(100)
@@ -172,11 +179,13 @@ class TestTimelineGapColors:
             (3, 120.0, 120.0, "keyframe"),
         ]
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(initial_data)
         main_window.update_timeline_tabs(initial_data)
         qtbot.wait(100)
 
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Verify initial state - frame 4 should be gap
         if 4 in timeline.frame_tabs:
@@ -219,11 +228,13 @@ class TestTimelineGapColors:
             (10, 180.0, 180.0, "keyframe"),
         ]
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(diverse_data)
         main_window.update_timeline_tabs(diverse_data)
         qtbot.wait(100)
 
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Check each frame has correct color
         status_frames = {
@@ -271,11 +282,13 @@ class TestTimelineGapColors:
         """Test timeline with only a single frame of data."""
         single_frame = [(5, 100.0, 100.0, "keyframe")]
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(single_frame)
         main_window.update_timeline_tabs(single_frame)
         qtbot.wait(100)
 
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Frame 5 should have keyframe color
         if 5 in timeline.frame_tabs:
@@ -295,6 +308,7 @@ class TestTimelineGapColors:
             (i * 10, float(i * 100), float(i * 100), "keyframe") for i in range(1, 11)
         ]  # Frames 10, 20, 30...100
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(sparse_data)
 
         # Measure update time
@@ -310,6 +324,7 @@ class TestTimelineGapColors:
         qtbot.wait(100)
 
         timeline = main_window.timeline_tabs
+        assert timeline is not None
 
         # Spot check some frames
         if 10 in timeline.frame_tabs:

@@ -8,7 +8,7 @@ without relying on scattered flip_y flags.
 from dataclasses import dataclass
 
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
-from core.type_aliases import CurveDataList, LegacyPointData
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 
 @dataclass
@@ -29,12 +29,18 @@ class CurveDataWithMetadata:
     metadata: CoordinateMetadata | None = None
     is_normalized: bool = False
 
-    def __post_init__(self):
-        """Validate data structure after initialization."""
-        if not isinstance(self.data, list):
-            self.data = list(self.data)
+    def __init__(
+        self,
+        data: CurveDataInput,
+        metadata: CoordinateMetadata | None = None,
+        is_normalized: bool = False,
+    ):
+        """Initialize with covariant input type, store as invariant list."""
+        self.data = list(data) if not isinstance(data, list) else data
+        self.metadata = metadata
+        self.is_normalized = is_normalized
 
-        # Ensure we have valid data format
+        # Validate data structure
         if self.data and len(self.data[0]) < 3:
             raise ValueError(f"Invalid curve data format: {self.data[0]}")
 
@@ -270,7 +276,7 @@ def create_metadata_from_file_type(
 
 
 def wrap_legacy_data(
-    data: CurveDataList, file_path: str | None = None, width: int | None = None, height: int | None = None
+    data: CurveDataInput, file_path: str | None = None, width: int | None = None, height: int | None = None
 ) -> CurveDataWithMetadata:
     """Wrap legacy curve data with metadata for compatibility.
 
@@ -303,14 +309,16 @@ def wrap_legacy_data(
             height=height or 1080,
         )
 
-    return CurveDataWithMetadata(data=data, metadata=metadata)
+    return CurveDataWithMetadata(data=list(data), metadata=metadata)
 
 
 # Type alias for functions that can accept either format
 CurveDataUnion = CurveDataList | CurveDataWithMetadata
 
 
-def ensure_metadata_aware(data: CurveDataUnion, file_path: str | None = None) -> CurveDataWithMetadata:
+def ensure_metadata_aware(
+    data: CurveDataInput | CurveDataWithMetadata, file_path: str | None = None
+) -> CurveDataWithMetadata:
     """Ensure data is metadata-aware, wrapping if necessary.
 
     Args:

@@ -100,6 +100,7 @@ class TestTimelineScrubbing:
         initial_frame = widget.current_frame
 
         # Create signal spy for StateManager's frame_changed (Single Source of Truth)
+        assert widget._state_manager is not None
         frame_spy = qt_api.QtTest.QSignalSpy(widget._state_manager.frame_changed)
 
         # Simulate mouse move to different position
@@ -254,6 +255,7 @@ class TestTimelineScrubbing:
         widget = timeline_with_frames
 
         # Create signal spy for StateManager's frame_changed (Single Source of Truth)
+        assert widget._state_manager is not None
         frame_spy = qt_api.QtTest.QSignalSpy(widget._state_manager.frame_changed)
 
         # Rapid sequence of events
@@ -298,10 +300,26 @@ class TestTimelineScrubbing:
 
     def test_scrubbing_updates_main_window_frame(self, qtbot: QtBot):
         """Test that scrubbing integrates with main window frame updates."""
+
+        def cleanup_event_filter(window):
+            """Remove event filter before window closes."""
+            try:
+                from PySide6.QtWidgets import QApplication
+
+                app = QApplication.instance()
+                if app and hasattr(window, "global_event_filter"):
+                    try:
+                        app.removeEventFilter(window.global_event_filter)
+                    except RuntimeError:
+                        pass
+            except Exception:
+                pass
+
         # Mock file operations to prevent auto-loading
         with patch("ui.file_operations.FileOperations.load_burger_data_async"):
             window = MainWindow()
-            qtbot.addWidget(window)
+            # CRITICAL: Use before_close_func to prevent event filter accumulation
+            qtbot.addWidget(window, before_close_func=cleanup_event_filter)
 
             # Setup timeline if available
             if hasattr(window, "timeline_tabs") and window.timeline_tabs:

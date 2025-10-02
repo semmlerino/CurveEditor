@@ -75,7 +75,7 @@ class TestValidationResult(unittest.TestCase):
 class TestMinimalValidationStrategy(unittest.TestCase):
     """Test minimal validation strategy."""
 
-    strategy: MinimalValidationStrategy
+    strategy: MinimalValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @override
     def setUp(self) -> None:
@@ -133,17 +133,11 @@ class TestMinimalValidationStrategy(unittest.TestCase):
         self.assertTrue(result.is_valid)
         self.assertEqual(result.validated_value, (800, 600))
 
-    def test_validate_array(self):
-        """Test array validation - SKIPPED as validate_array not implemented."""
-        # Note: validate_array method is not part of the ValidationStrategy protocol
-        # and is not implemented in the current version
-        self.skipTest("validate_array method not implemented")
-
 
 class TestComprehensiveValidationStrategy(unittest.TestCase):
     """Test comprehensive validation strategy."""
 
-    strategy: ComprehensiveValidationStrategy
+    strategy: ComprehensiveValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @override
     def setUp(self) -> None:
@@ -170,12 +164,6 @@ class TestComprehensiveValidationStrategy(unittest.TestCase):
         self.assertGreater(len(result.issues), 0)
         self.assertIn("exceeds maximum", result.issues[0].message)
 
-    def test_validate_precision(self):
-        """Test precision validation - SKIPPED as validate_precision not implemented."""
-        # Note: validate_precision method is not part of the ValidationStrategy protocol
-        # and is not implemented in the current version
-        self.skipTest("Method not implemented")
-
     def test_validate_transform_params(self):
         """Test transform parameter validation."""
         # Valid params
@@ -194,23 +182,14 @@ class TestComprehensiveValidationStrategy(unittest.TestCase):
         result = self.strategy.validate_transform_params(params)
         self.assertFalse(result.is_valid)
 
-    def test_validate_type(self):
-        """Test type validation - SKIPPED as validate_type not implemented."""
-        # Note: validate_type method is not part of the ValidationStrategy protocol
-        # and is not implemented in the current version
-        self.skipTest("Method not implemented")
-
-    def test_cross_validate(self):
-        """Test cross-parameter validation - SKIPPED as cross_validate not implemented."""
-        # Note: cross_validate method is not part of the ValidationStrategy protocol
-        # and is not implemented in the current version
-        self.skipTest("Method not implemented")
-
 
 class TestAdaptiveValidationStrategy(unittest.TestCase):
     """Test adaptive validation strategy."""
 
-    def setUp(self):
+    strategy: AdaptiveValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    @override
+    def setUp(self) -> None:
         """Set up test fixtures."""
         self.strategy = AdaptiveValidationStrategy()
 
@@ -357,6 +336,7 @@ class TestValidationIntegration(unittest.TestCase):
     def test_performance_sensitive_validation(self):
         """Test validation in performance-sensitive context."""
         strategy = get_validation_strategy("adaptive")
+        assert isinstance(strategy, AdaptiveValidationStrategy)
 
         # Simulate render loop
         strategy.set_context(is_render_loop=True)

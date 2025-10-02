@@ -21,7 +21,7 @@ from core.commands.curve_commands import (
     SetPointStatusCommand,
     SmoothCommand,
 )
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 
 class MockDataService:
@@ -74,24 +74,118 @@ class MockDataService:
 class MockCurveWidget:
     """Mock curve widget for testing commands."""
 
-    def __init__(self, initial_data: CurveDataList | None = None):
-        self.curve_data = initial_data or []
+    def __init__(self, initial_data: CurveDataInput | None = None):
+        self.curve_data: CurveDataList = list(initial_data) if initial_data else []
         self.zoom_factor = 1.0
         self.pan_offset_x = 0.0
         self.pan_offset_y = 0.0
         self.set_curve_data_calls = []
 
-    def set_curve_data(self, data: CurveDataList) -> None:
+    def set_curve_data(self, data: CurveDataInput) -> None:
         """Set curve data and track calls."""
-        self.curve_data = copy.deepcopy(data)
-        self.set_curve_data_calls.append(copy.deepcopy(data))
+        self.curve_data = list(data)  # Convert to list and copy
+        self.set_curve_data_calls.append(list(data))
 
 
 class MockMainWindow:
     """Mock main window for testing commands."""
 
     def __init__(self, curve_widget: MockCurveWidget | None = None):
+        from unittest.mock import MagicMock
+
         self.curve_widget = curve_widget
+        self.curve_view = curve_widget  # Alias for protocol compatibility
+
+        # MainWindowProtocol required attributes
+        self.history: list[dict[str, object]] = []
+        self.history_index: int = -1
+        self.max_history_size: int = 50
+        self.selected_indices: list[int] = []
+        self.curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]] = []
+        self.point_name: str = "Point"
+        self.point_color: str = "#FF0000"
+
+        # UI components (required by protocol)
+        self.undo_button: object = None
+        self.redo_button: object = None
+        self.save_button: object = None
+        self.ui_components: object = MagicMock()
+        self.ui: object = self.ui_components  # Alias
+        self.services: object = MagicMock()
+        self.file_operations: object = MagicMock()
+        self.command_manager: object = MagicMock()
+        self.state_manager: object = MagicMock()
+        self._point_spinbox_connected: bool = False
+        self._current_frame: int = 1
+
+    @property
+    def is_modified(self) -> bool:
+        """Get modified state."""
+        return False
+
+    @property
+    def current_frame(self) -> int:
+        """Get current frame."""
+        return self._current_frame
+
+    @current_frame.setter
+    def current_frame(self, value: int) -> None:
+        """Set current frame."""
+        self._current_frame = value
+
+    def _get_current_frame(self) -> int:
+        """Internal method to get current frame."""
+        return self._current_frame
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Internal method to set current frame."""
+        self._current_frame = frame
+
+    def add_to_history(self) -> None:
+        """Add current state to history."""
+        pass
+
+    def restore_state(self, state: object) -> None:
+        """Restore state from history."""
+        pass
+
+    def update_status(self, message: str) -> None:
+        """Update status bar message."""
+        pass
+
+    def update_ui_state(self) -> None:
+        """Update UI state."""
+        pass
+
+    def update_curve_data(self, data: object) -> None:
+        """Update curve data."""
+        pass
+
+    def update_curve_view_options(self) -> None:
+        """Update curve view options."""
+        pass
+
+    def setWindowTitle(self, title: str) -> None:
+        """Set window title."""
+        pass
+
+    def statusBar(self) -> object:
+        """Get status bar."""
+        from unittest.mock import MagicMock
+
+        return MagicMock()
+
+    def close(self) -> bool:
+        """Close the window."""
+        return True
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering."""
+        pass
+
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation."""
+        pass
 
 
 class TestSetCurveDataCommand:

@@ -306,6 +306,14 @@ class MockCurveView:
         self.image_filenames: list[str] = []
         self.current_image_idx: int = 0
 
+        # Transform (for spatial index tests)
+        self.transform: object = None  # Transform object - set by tests
+
+        # Protocol required attributes
+        self.main_window: object = None  # MainWindowProtocol | None
+        self.point_selected: TestSignal = TestSignal()
+        self.point_moved: TestSignal = TestSignal()
+
         # Interaction tracking
         self._update_called: bool = False
 
@@ -493,6 +501,24 @@ class MockCurveView:
         """Set the selected point indices."""
         self.selected_points = set(indices)
 
+    def selectPointByIndex(self, idx: int) -> bool:
+        """Select a point by its index."""
+        if 0 <= idx < len(self.curve_data):
+            self.selected_points.add(idx)
+            self.selected_point_idx = idx
+            return True
+        return False
+
+    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
+        """Get point data for the given index."""
+        if 0 <= idx < len(self.curve_data):
+            point = self.curve_data[idx]
+            if len(point) >= 4:
+                return (point[0], point[1], point[2], str(point[3]))
+            else:
+                return (point[0], point[1], point[2], None)
+        return (0, 0.0, 0.0, None)
+
 
 class MockMainWindow:
     """Lightweight real MainWindow implementation for testing."""
@@ -527,8 +553,9 @@ class MockMainWindow:
         self.status_bar = QStatusBar()
 
         # History management (for MainWindowProtocol compatibility)
-        self.history: list[object] = []
-        self.history_index: int = -1
+        # Note: These are nullable to allow tests to force internal history usage
+        self.history: list[object] | None = []
+        self.history_index: int | None = -1
         self.max_history_size: int = 50
 
         # Protocol required attributes
@@ -647,6 +674,8 @@ class MockMainWindow:
 
     def add_to_history(self, action: object) -> None:
         """Add action to history."""
+        if self.history is None:
+            self.history = []
         self.history.append(action)
         if len(self.history) > self.max_history_size:
             self.history.pop(0)
@@ -855,6 +884,7 @@ class PerformanceTimer:
     def __init__(self, name: str = "operation"):
         self.name = name
         self.elapsed = 0
+        self.start: float = 0.0
 
     def __enter__(self):
         import time
