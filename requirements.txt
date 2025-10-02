@@ -7,6 +7,15 @@ PySide6==6.4.0
 # Backport of typing features for Python < 3.12
 typing-extensions>=4.0.0
 
+# Image Processing (Required for thumbnails and background images)
+Pillow>=10.0.0  # Primary image loader for standard formats
+numpy>=1.24.0   # Required for image processing and tone mapping
+imageio>=2.31.0 # Alternative image loader for various formats
+
+# EXR Support (Required for loading OpenEXR files)
+OpenEXR>=3.0.0  # Official OpenEXR library - best quality and reliability
+# Note: opencv-python is also installed but has EXR disabled by default
+
 # Optional Dependencies
 # For Excel export functionality (not required for core functionality)
 # xlsxwriter>=3.0.0  # Uncomment if you need Excel export support

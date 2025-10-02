@@ -84,7 +84,7 @@ class TestDataPreservation:
         # Check preservation metadata for segments
         # After conversion:
         # - Segment 0: frames 1-3 (ending with endframe), active
-        # - Segment 1: frames 4-6 (tracked between endframes), inactive
+        # - Segment 1: frames 4-6 (tracked points ending with endframe), active
         # - Segment 2: frame 10 (startframe), active
 
         assert len(segmented_curve.segments) == 3
@@ -98,11 +98,12 @@ class TestDataPreservation:
         assert first_segment.end_frame == 3
         assert first_segment.points[-1].status == PointStatus.ENDFRAME
 
-        # Second segment has only tracked points between endframes, becomes inactive
+        # Second segment starts with tracked points but ends with endframe, remains active
         assert second_segment.originally_active is True
-        assert second_segment.is_active is False  # Tracked points after endframe are inactive
+        assert second_segment.is_active is True  # Segment ending with endframe stays active
         assert second_segment.start_frame == 4
         assert second_segment.end_frame == 6
+        assert second_segment.points[-1].status == PointStatus.ENDFRAME
 
         # Third segment starts with keyframe (startframe), remains active
         assert third_segment.is_active is True

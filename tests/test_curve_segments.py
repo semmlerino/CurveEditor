@@ -561,3 +561,107 @@ class TestPositionHolding:
         # Test gap after endframe (frame 8+ should hold endframe position)
         assert curve.get_position_at_frame(8) == (250.0, 250.0)
         assert curve.get_position_at_frame(10) == (250.0, 250.0)
+
+    def test_multiple_endframes_remain_active(self):
+        """Test that multiple endframes can coexist without being marked inactive.
+
+        Regression test for bug where segments containing the second (or later)
+        endframes were incorrectly marked as inactive.
+        """
+        # Create curve with two endframes
+        points = [
+            CurvePoint(frame=100, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=150, x=150.0, y=150.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=200, x=200.0, y=200.0, status=PointStatus.ENDFRAME),  # First endframe
+            CurvePoint(frame=250, x=250.0, y=250.0, status=PointStatus.TRACKED),
+            CurvePoint(frame=300, x=300.0, y=300.0, status=PointStatus.ENDFRAME),  # Second endframe
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # Find segments containing each endframe
+        segment_200 = curve.get_segment_at_frame(200)
+        segment_300 = curve.get_segment_at_frame(300)
+
+        # Both segments should exist
+        assert segment_200 is not None, "Segment containing first endframe should exist"
+        assert segment_300 is not None, "Segment containing second endframe should exist"
+
+        # Both segments containing endframes should be ACTIVE
+        assert segment_200.is_active, "First endframe segment should be active"
+        assert segment_300.is_active, "Second endframe segment should be active"
+
+        # Verify the endframes are in their respective segments
+        assert any(p.frame == 200 and p.is_endframe for p in segment_200.points)
+        assert any(p.frame == 300 and p.is_endframe for p in segment_300.points)
+
+    def test_three_endframes_remain_active(self):
+        """Test that three or more endframes can coexist as active."""
+        # Create curve with three endframes
+        points = [
+            CurvePoint(frame=100, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=200, x=200.0, y=200.0, status=PointStatus.ENDFRAME),  # First
+            CurvePoint(frame=250, x=250.0, y=250.0, status=PointStatus.TRACKED),
+            CurvePoint(frame=300, x=300.0, y=300.0, status=PointStatus.ENDFRAME),  # Second
+            CurvePoint(frame=350, x=350.0, y=350.0, status=PointStatus.TRACKED),
+            CurvePoint(frame=400, x=400.0, y=400.0, status=PointStatus.ENDFRAME),  # Third
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # All endframe segments should be active
+        for endframe_number in [200, 300, 400]:
+            segment = curve.get_segment_at_frame(endframe_number)
+            assert segment is not None, f"Segment at frame {endframe_number} should exist"
+            assert segment.is_active, f"Endframe segment at {endframe_number} should be active"
+
+    def test_endframes_correctly_segment_curve(self):
+        """Test that multiple endframes correctly create separate curve segments."""
+        points = [
+            CurvePoint(frame=100, x=100.0, y=100.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=150, x=150.0, y=150.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=200, x=200.0, y=200.0, status=PointStatus.ENDFRAME),  # End segment 1
+            CurvePoint(frame=250, x=250.0, y=250.0, status=PointStatus.TRACKED),  # Gap (inactive)
+            CurvePoint(frame=300, x=300.0, y=300.0, status=PointStatus.KEYFRAME),  # Start segment 2
+            CurvePoint(frame=350, x=350.0, y=350.0, status=PointStatus.KEYFRAME),
+            CurvePoint(frame=400, x=400.0, y=400.0, status=PointStatus.ENDFRAME),  # End segment 2
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # Should have at least 3 segments: [100-200], [250], [300-400]
+        assert len(curve.segments) >= 3
+
+        # First segment (100-200) should be active and end with endframe
+        segment_1 = curve.get_segment_at_frame(100)
+        assert segment_1 is not None
+        assert segment_1.is_active
+        assert any(p.frame == 200 and p.is_endframe for p in segment_1.points)
+
+        # Tracked points after first endframe should be inactive
+        segment_tracked = curve.get_segment_at_frame(250)
+        assert segment_tracked is not None
+        assert not segment_tracked.is_active, "TRACKED points after endframe should be inactive"
+
+        # Second active segment (300-400) should be active and end with endframe
+        segment_2 = curve.get_segment_at_frame(300)
+        assert segment_2 is not None
+        assert segment_2.is_active
+        assert any(p.frame == 400 and p.is_endframe for p in segment_2.points)
+
+    def test_endframe_not_split_when_preceded_by_tracked(self):
+        """Test that segments containing endframes are not incorrectly split."""
+        # This reproduces the original bug scenario
+        points = [
+            CurvePoint(frame=200, x=200.0, y=200.0, status=PointStatus.ENDFRAME),
+            CurvePoint(frame=250, x=250.0, y=250.0, status=PointStatus.TRACKED),
+            CurvePoint(frame=300, x=300.0, y=300.0, status=PointStatus.ENDFRAME),
+        ]
+        curve = SegmentedCurve.from_points(points)
+
+        # The segment containing frame 300 should NOT be split
+        segment_300 = curve.get_segment_at_frame(300)
+        assert segment_300 is not None
+
+        # This segment should be active (not split into inactive parts)
+        assert segment_300.is_active, "Segment with endframe should remain active"
+
+        # The endframe should be in this segment
+        assert any(p.frame == 300 and p.is_endframe for p in segment_300.points)

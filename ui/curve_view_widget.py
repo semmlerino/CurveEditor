@@ -1565,23 +1565,36 @@ class CurveViewWidget(QWidget):
     def _center_view_on_point(self, x: float, y: float) -> None:
         """Center the view on a specific data coordinate point.
 
+        This uses absolute pan offset calculation to avoid accumulation issues.
+        The approach: temporarily zero pan_offset, calculate base screen position,
+        then compute the absolute pan_offset needed to center the point.
+
         Args:
             x: Data x-coordinate to center on
             y: Data y-coordinate to center on
         """
-        # Convert data coordinates to screen position
-        screen_pos = self.data_to_screen(x, y)
-        widget_center = QPointF(self.width() / 2, self.height() / 2)
+        # Calculate target position (widget center)
+        target_screen_x = self.width() / 2
+        target_screen_y = self.height() / 2
 
-        # Calculate and apply pan offset
-        offset = widget_center - screen_pos
-        self.pan_offset_x += offset.x()
-        self._apply_pan_offset_y(offset.y())  # Y-flip aware
+        # Temporarily zero out pan_offset to get base position
+        # (this eliminates any influence from previous pan_offset values)
+        self.pan_offset_x = 0.0
+        self.pan_offset_y = 0.0
 
-        # Trigger view updates
+        # Invalidate caches so transform is rebuilt with pan_offset=0
+        self.invalidate_caches()
+
+        # Get base screen position WITHOUT any pan offset
+        base_screen_pos = self.data_to_screen(x, y)
+
+        # Calculate absolute pan offset needed to center the point
+        self.pan_offset_x = target_screen_x - base_screen_pos.x()
+        self.pan_offset_y = target_screen_y - base_screen_pos.y()
+
+        # Invalidate caches and trigger view updates
         self.invalidate_caches()
         self.update()
-        self.repaint()
         self.view_changed.emit()
 
     def center_on_selection(self) -> None:

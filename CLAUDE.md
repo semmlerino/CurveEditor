@@ -248,8 +248,12 @@ from ui.file_operations import FileOperations
 ## Known Issues
 
 1. **PySide6 Type Stubs**: Not installed (causes expected warnings)
-2. **All tests passing**: 549 tests fully functional
+2. **All tests passing**: 1945 tests fully functional (test suite takes ~2 minutes)
 3. **Legacy Code**: `archive_obsolete/` contains old refactored code
+
+## Curve Segmentation & Endframes
+
+**Multiple Endframes**: Segments containing ENDFRAME points must remain active. When deactivating/splitting segments after endframes, check `any(p.is_endframe for p in segment.points)` before marking inactive - prevents second/subsequent endframes from being incorrectly deactivated (bug fixed in `core/curve_segments.py:536-549, 607-637`).
 
 ## Key Design Patterns
 

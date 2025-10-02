@@ -601,6 +601,10 @@ class SetPointStatusCommand(Command):
                     logger.warning(f"Failed to set status for point {index}")
 
             self.executed = True
+
+            # Force repaint after status changes to update colors immediately
+            main_window.curve_widget.update()
+
             return True
 
         except Exception as e:
@@ -627,6 +631,10 @@ class SetPointStatusCommand(Command):
                     logger.warning(f"Failed to restore status for point {index}")
 
             self.executed = False
+
+            # Force repaint after status changes to update colors immediately
+            main_window.curve_widget.update()
+
             return True
 
         except Exception as e:

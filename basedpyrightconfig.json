@@ -80,7 +80,7 @@
   "reportIncompatibleMethodOverride": "error",
   "reportIncompatibleVariableOverride": "error",
   "reportOverlappingOverload": "warning",
-  "reportUninitializedInstanceVariable": "none",
+  "reportUninitializedInstanceVariable": "warning",
   "reportIgnoreCommentWithoutRule": "error",
   "reportPrivateImportUsage": "warning"
 }

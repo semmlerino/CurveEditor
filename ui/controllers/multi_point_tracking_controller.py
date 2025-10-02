@@ -100,6 +100,10 @@ class MultiPointTrackingController:
 
                 logger.debug(f"Synchronized tracking data: point {index} in '{active_curve}' status -> {status}")
 
+                # Force repaint to update colors immediately
+                if self.main_window.curve_widget:
+                    self.main_window.curve_widget.update()
+
     @Slot(list)
     def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """
@@ -488,7 +492,8 @@ class MultiPointTrackingController:
         Handle tracking direction change for a point.
 
         Updates keyframe statuses based on the new tracking direction,
-        mirroring 3DEqualizer's behavior patterns.
+        mirroring 3DEqualizer's behavior patterns. Creates an undoable
+        command for status changes.
 
         Args:
             point_name: Name of the tracking point
@@ -513,19 +518,57 @@ class MultiPointTrackingController:
 
         logger.info(f"Tracking direction changed for {point_name}: {previous_direction.value} -> {new_direction.value}")
 
-        # Update keyframe statuses based on new direction
+        # Get curve data and calculate what will change
         curve_data = self.tracked_data[point_name]
         updated_data = update_keyframe_status_for_tracking_direction(curve_data, new_direction, previous_direction)
 
-        # Update the stored data
-        self.tracked_data[point_name] = updated_data
+        # Detect status changes - build list of (index, old_status, new_status)
+        status_changes = []
+        for i, (old_point, new_point) in enumerate(zip(curve_data, updated_data)):
+            old_status = old_point[3] if len(old_point) > 3 else "keyframe"
+            new_status = new_point[3] if len(new_point) > 3 else "keyframe"
+            if old_status != new_status:
+                status_changes.append((i, old_status, new_status))
+
+        logger.debug(f"Detected {len(status_changes)} status changes for direction change")
+
+        # Create and execute command for undo support (only for active curve)
+        if status_changes and self.main_window.active_timeline_point == point_name:
+            from core.commands.curve_commands import SetPointStatusCommand
+            from services import get_interaction_service
+
+            command = SetPointStatusCommand(
+                description=f"Change tracking direction to {new_direction.value}",
+                changes=status_changes,
+            )
+
+            interaction_service = get_interaction_service()
+            if interaction_service:
+                success = interaction_service.command_manager.execute_command(command, self.main_window)
+
+                if success:
+                    # Sync tracking_data from curve_store after command executes
+                    if self.main_window.curve_widget and hasattr(self.main_window.curve_widget, "_curve_store"):
+                        self.tracked_data[point_name] = self.main_window.curve_widget._curve_store.get_data()
+                        logger.info("Synced tracking data from curve store after direction change")
+                else:
+                    logger.error("Failed to execute direction change command")
+                    return
+            else:
+                logger.warning("InteractionService not available, updating data directly")
+                self.tracked_data[point_name] = updated_data
+        else:
+            # Not active curve or no changes - just update local data
+            self.tracked_data[point_name] = updated_data
 
         # Store the new direction
         self.point_tracking_directions[point_name] = new_direction
 
         # Update the curve display if this is the active timeline point
         if self.main_window.active_timeline_point == point_name:
-            self.update_curve_display(SelectionContext.DEFAULT)
+            # Force repaint to update colors immediately
+            if self.main_window.curve_widget:
+                self.main_window.curve_widget.update()
 
         # Update the tracking panel to reflect any status changes
         self.update_tracking_panel()

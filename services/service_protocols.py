@@ -122,6 +122,8 @@ class CurveViewProtocol(Protocol):
     offset_y: float
     x_offset: float  # Alias for offset_x
     y_offset: float  # Alias for offset_y
+    pan_offset_x: float
+    pan_offset_y: float
     zoom_factor: float
 
     # Interaction state attributes
