@@ -14,7 +14,6 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 
 from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
@@ -97,13 +96,18 @@ def tracking_panel_with_data(qtbot):
 class TestEndframeKeyboardShortcut:
     """Test E key for converting points to ENDFRAME status."""
 
-    def test_e_key_converts_selected_points_to_endframe(self, curve_widget_with_data, qtbot):
-        """Test that E key converts selected points to ENDFRAME status."""
+    def test_e_key_toggles_point_at_current_frame(self, curve_widget_with_data, qtbot):
+        """Test that E key toggles the point at current frame (frame-based operation).
+
+        This is a FRAME-BASED operation - it operates on the point at current_frame,
+        not on selected points. This allows navigating to a frame and toggling its
+        status regardless of selection.
+        """
         widget = curve_widget_with_data
 
-        # Select some points using the proper method
-        widget._select_point(0, add_to_selection=False)
-        widget._select_point(2, add_to_selection=True)
+        # Get the data to know what frames exist
+        # curve_widget_with_data has points at frames 1, 2, 3, 4
+        # Let's navigate to frame 1 and toggle it
 
         # Create mock main window
         mock_window = Mock()
@@ -116,25 +120,24 @@ class TestEndframeKeyboardShortcut:
             main_window=mock_window,
             focused_widget=widget,
             key_event=event,
-            selected_curve_points=widget.selected_indices,
+            selected_curve_points=set(),  # No selection needed for frame-based operation
             selected_tracking_points=[],
-            current_frame=None,
+            current_frame=1,  # Operating on frame 1
         )
 
         # Execute the command
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
-        # Verify points were converted to ENDFRAME
-        point0 = widget._curve_store.get_point(0)
-        assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
-        point2 = widget._curve_store.get_point(2)
-        assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
+        # Verify point at frame 1 was toggled to ENDFRAME
+        point0_after = widget._curve_store.get_point(0)
+        assert point0_after and len(point0_after) >= 4
+        # Should toggle to ENDFRAME
+        assert point0_after[3] == PointStatus.ENDFRAME.value
+
         # Other points should remain unchanged
         point1 = widget._curve_store.get_point(1)
         assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
-        point3 = widget._curve_store.get_point(3)
-        assert point3 and len(point3) >= 4 and point3[3] == PointStatus.NORMAL.value
 
     def test_e_key_converts_current_frame_point_when_none_selected(self, curve_widget_with_data, qtbot):
         """Test that E key converts point at current frame when no points are selected."""
@@ -470,35 +473,43 @@ class TestRealComponentIntegration:
         """Test E key with real MainWindow and real Qt signals."""
         window = main_window_with_data
 
-        # Set up signal spy for real Qt signal
-        spy = QSignalSpy(window.curve_widget.selection_changed)
+        # Frame-based operation: Set current frame to 1 (index 0)
+        window.state_manager.current_frame = 1
 
-        # Select points using real widget methods
-        window.curve_widget._select_point(0, add_to_selection=False)
-        window.curve_widget._select_point(2, add_to_selection=True)
-
-        # Verify signal was emitted
-        assert spy.count() > 0
-
-        # Create real context with real widgets
+        # Create real context with real widgets (frame-based operation)
         cmd = SetEndframeCommand()
         event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
         context = ShortcutContext(
             main_window=window,
             focused_widget=window.curve_widget,
             key_event=event,
-            selected_curve_points=window.curve_widget.selected_indices,
+            selected_curve_points=set(),  # Selection not used for frame-based ops
             selected_tracking_points=[],
-            current_frame=None,
+            current_frame=1,  # Frame-based: operate on current frame
         )
 
         # Execute with real components
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
-        # Verify points were converted using real widget state
+        # Verify point at frame 1 (index 0) was toggled to ENDFRAME
         point0 = window.curve_widget._curve_store.get_point(0)
         assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
+
+        # Now test frame 3 (index 2)
+        window.state_manager.current_frame = 3
+        context2 = ShortcutContext(
+            main_window=window,
+            focused_widget=window.curve_widget,
+            key_event=event,
+            selected_curve_points=set(),
+            selected_tracking_points=[],
+            current_frame=3,
+        )
+        assert cmd.can_execute(context2)
+        assert cmd.execute(context2)
+
+        # Verify point at frame 3 (index 2) was toggled to ENDFRAME
         point2 = window.curve_widget._curve_store.get_point(2)
         assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
 

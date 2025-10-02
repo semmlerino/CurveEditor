@@ -149,12 +149,15 @@ class TestSetEndframeCommand:
         basic_context.key_event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
         assert not cmd.can_execute(basic_context)
 
-    def test_can_execute_with_curve_selection(self, basic_context):
-        """Test can_execute with curve selection."""
+    def test_can_execute_requires_current_frame(self, basic_context):
+        """Test can_execute requires current frame (frame-based operation)."""
         cmd = SetEndframeCommand()
+        # Selection is ignored for frame-based operations
         basic_context.selected_curve_points = {1, 2}
+        basic_context.current_frame = None
 
-        assert cmd.can_execute(basic_context)
+        # Should fail without current_frame, even with selection
+        assert not cmd.can_execute(basic_context)
 
     def test_can_execute_with_current_frame(self, basic_context):
         """Test can_execute with current frame and point."""
@@ -173,17 +176,17 @@ class TestSetEndframeCommand:
 
     @patch("services.get_interaction_service")
     @patch("core.commands.curve_commands.SetPointStatusCommand")
-    def test_execute_with_selected_points(self, mock_command_class, mock_service, basic_context):
-        """Test execute with selected points."""
+    def test_execute_with_current_frame(self, mock_command_class, mock_service, basic_context):
+        """Test execute with current frame (frame-based operation)."""
         cmd = SetEndframeCommand()
-        basic_context.selected_curve_points = {0, 1}
+        # Set current frame to 1
+        basic_context.current_frame = 1
+        # Set curve data with point at frame 1 (index 0)
+        basic_context.main_window.curve_widget.curve_data = [(1, 100, 100, PointStatus.NORMAL.value)]
 
-        # Set up mock curve store
+        # Set up mock curve store to return the point at current frame
         mock_store = basic_context.main_window.curve_widget._curve_store
-        mock_store.get_point.side_effect = [
-            (1, 100, 100, PointStatus.NORMAL.value),
-            (2, 150, 120, PointStatus.ENDFRAME.value),
-        ]
+        mock_store.get_point.return_value = (1, 100, 100, PointStatus.NORMAL.value)
 
         # Set up mock interaction service
         mock_interaction = Mock()
@@ -197,6 +200,7 @@ class TestSetEndframeCommand:
         result = cmd.execute(basic_context)
 
         assert result is True
+        # Verify command was created with the point at current frame
         mock_command_class.assert_called_once()
         mock_interaction.command_manager.execute_command.assert_called_once()
 

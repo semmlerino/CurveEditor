@@ -55,13 +55,18 @@ class TestGlobalShortcuts:
     """Test that shortcuts work globally regardless of focus."""
 
     def test_e_key_works_when_timeline_has_focus(self, main_window_with_shortcuts, qtbot):
-        """Test that E key works even when timeline has focus."""
+        """Test that E key works even when timeline has focus (frame-based operation).
+
+        The E key is a FRAME-BASED operation - it toggles the point at current_frame,
+        not selected points. This allows working with the timeline scrubber.
+        """
         window = main_window_with_shortcuts
 
-        # Select some points in curve widget
-        if window.curve_widget:
-            window.curve_widget._select_point(0, add_to_selection=False)
-            window.curve_widget._select_point(2, add_to_selection=True)
+        if not window.curve_widget:
+            pytest.skip("Curve widget not available")
+
+        # Set current frame to frame 1 (index 0 in curve data)
+        window.state_manager.current_frame = 1
 
         # Set focus to timeline tabs
         if hasattr(window, "timeline_tabs") and window.timeline_tabs:
@@ -69,12 +74,18 @@ class TestGlobalShortcuts:
             # Note: hasFocus() may return False in test environment per UNIFIED_TESTING_GUIDE
             # assert window.timeline_tabs.hasFocus()
 
-            # Press E key
+            # Press E key - should toggle point at current frame (frame 1, index 0)
             QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
 
-            # Verify points were converted to ENDFRAME
+            # Verify point at frame 1 (index 0) was toggled to ENDFRAME
             point0 = window.curve_widget._curve_store.get_point(0)
             assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
+
+            # Now test with frame 3 (index 2)
+            window.state_manager.current_frame = 3
+            QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
+
+            # Verify point at frame 3 (index 2) was toggled to ENDFRAME
             point2 = window.curve_widget._curve_store.get_point(2)
             assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
 

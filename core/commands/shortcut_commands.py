@@ -33,9 +33,8 @@ class SetEndframeCommand(ShortcutCommand):
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can toggle endframe status.
 
-        Can execute if:
-        - There are selected curve points, OR
-        - There's a current frame with a point at that position
+        This is a FRAME-BASED operation - can execute if there's a point at the current frame.
+        Selection is ignored.
         """
         # No modifiers should be pressed
         modifiers = context.key_event.modifiers()
@@ -43,11 +42,7 @@ class SetEndframeCommand(ShortcutCommand):
         if clean_modifiers != Qt.KeyboardModifier.NoModifier:
             return False
 
-        # Can execute if we have selected points
-        if context.has_curve_selection:
-            return True
-
-        # Or if we have a current frame with a point
+        # Can execute if we have a current frame with a point
         if context.current_frame is not None:
             curve_widget = context.main_window.curve_widget
             if curve_widget and curve_widget.curve_data:
@@ -59,7 +54,12 @@ class SetEndframeCommand(ShortcutCommand):
         return False
 
     def execute(self, context: ShortcutContext) -> bool:
-        """Execute the endframe toggle command."""
+        """Execute the endframe toggle command.
+
+        This is a FRAME-BASED operation - it operates on the point at the current frame,
+        NOT on selected points. This allows navigating to a frame and toggling its status
+        regardless of what's selected.
+        """
         curve_widget = context.main_window.curve_widget
         if not curve_widget:
             return False
@@ -68,65 +68,8 @@ class SetEndframeCommand(ShortcutCommand):
             from core.commands.curve_commands import SetPointStatusCommand
             from services import get_interaction_service
 
-            changes = []
-            endframe_count = 0
-            keyframe_count = 0
-
-            if context.has_curve_selection:
-                # Collect changes for selected points
-                for idx in context.selected_curve_points:
-                    # Get current point status
-                    point = curve_widget._curve_store.get_point(idx)
-                    if point and len(point) >= 4:
-                        current_status = point[3]
-
-                        # Determine new status (toggle logic)
-                        if current_status == PointStatus.ENDFRAME.value:
-                            new_status = PointStatus.KEYFRAME.value
-                            keyframe_count += 1
-                        else:
-                            new_status = PointStatus.ENDFRAME.value
-                            endframe_count += 1
-
-                        changes.append((idx, current_status, new_status))
-
-                if changes:
-                    # Build description
-                    if endframe_count > 0 and keyframe_count > 0:
-                        desc = f"Toggle {len(changes)} points"
-                    elif endframe_count > 0:
-                        desc = f"Set {endframe_count} points to ENDFRAME"
-                    else:
-                        desc = f"Set {keyframe_count} points to KEYFRAME"
-
-                    # Create command and execute it properly
-                    command = SetPointStatusCommand(
-                        description=desc,
-                        changes=changes,
-                    )
-
-                    # Execute through command manager for proper undo/redo
-                    interaction_service = get_interaction_service()
-                    if interaction_service:
-                        success = interaction_service.command_manager.execute_command(
-                            command, cast("MainWindowProtocol", cast(object, context.main_window))
-                        )
-                        if success:
-                            # Create informative status message
-                            if endframe_count > 0 and keyframe_count > 0:
-                                msg = f"Toggled {len(changes)} points ({endframe_count} to ENDFRAME, {keyframe_count} to KEYFRAME)"
-                            elif endframe_count > 0:
-                                msg = f"Set {endframe_count} points to ENDFRAME"
-                            else:
-                                msg = f"Set {keyframe_count} points to KEYFRAME"
-
-                            curve_widget.update_status(msg, 2000)
-                            logger.info(msg)
-                            return True
-                    return False
-
-            elif context.current_frame is not None:
-                # Toggle point at current frame
+            # FRAME-BASED OPERATION: Always operate on current frame, ignore selection
+            if context.current_frame is not None:
                 # Find the point at the current frame
                 point_index = None
                 for i, point in enumerate(curve_widget.curve_data):
