@@ -176,6 +176,76 @@ class TestEndframeKeyboardShortcut:
         point1 = widget._curve_store.get_point(1)
         assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
 
+    def test_e_key_ignores_selection_and_uses_current_frame(self, curve_widget_with_data, qtbot):
+        """Test that E key ignores selection and only uses current_frame.
+
+        This is the critical regression test for the frame-based operation.
+        Scenario: Point at frame 4 is selected, but current_frame is 1.
+        Expected: Point at frame 1 gets toggled, NOT frame 4.
+        """
+        widget = curve_widget_with_data
+
+        # Select point at frame 4 (index 3)
+        widget._select_point(3, add_to_selection=False)
+        assert 3 in widget.selected_indices, "Precondition: point at frame 4 should be selected"
+
+        # Create mock main window with current_frame = 1
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        # Create command with current_frame = 1 (NOT the selected point's frame)
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=widget,
+            key_event=event,
+            selected_curve_points=widget.selected_indices,  # Has point 3 (frame 4)
+            selected_tracking_points=[],
+            current_frame=1,  # But current frame is 1
+        )
+
+        # Get initial state of selected point
+        point3_before = widget._curve_store.get_point(3)  # Frame 4 (selected)
+
+        # Execute command
+        assert cmd.can_execute(context)
+        assert cmd.execute(context)
+
+        # CRITICAL: Point at current_frame (1) should be toggled to ENDFRAME
+        point0_after = widget._curve_store.get_point(0)
+        assert point0_after and len(point0_after) >= 4
+        assert point0_after[3] == PointStatus.ENDFRAME.value, "Point at frame 1 should be toggled"
+
+        # CRITICAL: Selected point at frame 4 should be UNCHANGED
+        point3_after = widget._curve_store.get_point(3)
+        assert point3_after and len(point3_after) >= 4
+        assert point3_after[3] == point3_before[3], "Selected point at frame 4 should remain unchanged"
+        assert point3_after[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
+
+    def test_e_key_fails_when_no_point_at_current_frame(self, curve_widget_with_data, qtbot):
+        """Test that E key fails can_execute when no point exists at current_frame."""
+        widget = curve_widget_with_data
+
+        # curve_widget_with_data has points at frames 1, 2, 3, 4, 5
+        # Set current_frame to 10 (where no point exists)
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=widget,
+            key_event=event,
+            selected_curve_points=set(),
+            selected_tracking_points=[],
+            current_frame=10,  # No point at frame 10
+        )
+
+        # Should fail can_execute because no point exists at current_frame
+        assert not cmd.can_execute(context), "Should fail when no point at current frame"
+
     def test_e_key_with_modifiers_does_nothing(self, curve_widget_with_data, qtbot):
         """Test that E key with modifiers doesn't trigger ENDFRAME conversion."""
         widget = curve_widget_with_data
