@@ -3,7 +3,7 @@
 from typing import TypedDict
 
 from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
-from PySide6.QtGui import QAction, QColor, QKeyEvent
+from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -142,6 +142,7 @@ class TrackingPointsPanel(QWidget):
         self._tracked_data: dict[str, CurveDataList] = {}
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
+        self._active_point: str | None = None  # Active timeline point (whose timeline is displayed)
         self._init_ui()
 
         # Install event filter for tracking direction shortcuts
@@ -286,6 +287,10 @@ class TrackingPointsPanel(QWidget):
             _ = color_button.clicked.connect(lambda checked, name=point_name: self._on_color_button_clicked(name))
             self.table.setCellWidget(i, 4, color_button)
 
+        # Reapply active point styling if an active point is set
+        if self._active_point is not None:
+            self._update_point_styling(self._active_point, is_active=True)
+
         self._updating = False
 
     def get_selected_points(self) -> list[str]:
@@ -339,6 +344,54 @@ class TrackingPointsPanel(QWidget):
                     )
         finally:
             self._updating = False
+
+    def set_active_point(self, point_name: str | None) -> None:
+        """Set the active timeline point with visual differentiation.
+
+        The active point is visually distinct from selected points:
+        - Active point: Bold text, highlighted background (timeline being displayed)
+        - Selected points: Normal table selection highlighting
+
+        Args:
+            point_name: Name of the active point, or None to clear active state
+        """
+        # Clear old active point styling
+        if self._active_point is not None:
+            self._update_point_styling(self._active_point, is_active=False)
+
+        # Update active point
+        self._active_point = point_name
+
+        # Apply new active point styling
+        if self._active_point is not None:
+            self._update_point_styling(self._active_point, is_active=True)
+
+    def _update_point_styling(self, point_name: str, is_active: bool) -> None:
+        """Update the visual styling of a point row.
+
+        Args:
+            point_name: Name of the point to update
+            is_active: Whether the point is the active timeline point
+        """
+        # Find the row for this point
+        for row in range(self.table.rowCount()):
+            name_item = self.table.item(row, 1)  # Name column
+            if name_item and name_item.text() == point_name:
+                if is_active:
+                    # Active point: bold font and distinct background
+                    font = QFont()
+                    font.setBold(True)
+                    name_item.setFont(font)
+                    # Light blue background to indicate active timeline
+                    name_item.setBackground(QBrush(QColor("#2b5278")))
+                else:
+                    # Normal point: regular font and no special background
+                    font = QFont()
+                    font.setBold(False)
+                    name_item.setFont(font)
+                    # Clear background (use default)
+                    name_item.setBackground(QBrush())
+                break
 
     def get_visible_points(self) -> list[str]:
         """Get list of visible tracking point names."""

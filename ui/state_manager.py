@@ -234,6 +234,8 @@ class StateManager(QObject):
         """Add a point to the selection."""
         if index not in self._selected_points:
             self._selected_points.add(index)
+            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
+            logger.debug(f"Added point {index} to selection: {len(self._selected_points)} points selected")
 
     @property
     def active_timeline_point(self) -> str | None:

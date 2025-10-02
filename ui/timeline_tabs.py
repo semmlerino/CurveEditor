@@ -168,6 +168,7 @@ class TimelineTabWidget(QWidget):
     prev_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     next_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     last_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
+    active_point_label: QLabel  # pyright: ignore[reportUninitializedInstanceVariable]
     frame_info: QLabel  # pyright: ignore[reportUninitializedInstanceVariable]
     scroll_area: TimelineScrollArea  # pyright: ignore[reportUninitializedInstanceVariable]
     tabs_container: QWidget  # pyright: ignore[reportUninitializedInstanceVariable]
@@ -266,10 +267,14 @@ class TimelineTabWidget(QWidget):
         self._state_manager = state_manager
         # Connect to frame changes
         state_manager.frame_changed.connect(self._on_state_frame_changed)
+        # Connect to active timeline point changes
+        state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
 
         # Sync initial state
         if self._state_manager.current_frame != self._current_frame:
             self._on_state_frame_changed(self._state_manager.current_frame)
+        # Sync initial active timeline point
+        self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
 
     def _on_state_frame_changed(self, frame: int) -> None:
         """React to StateManager frame changes (visual updates only)."""
@@ -292,6 +297,17 @@ class TimelineTabWidget(QWidget):
         self._update_frame_info()
 
         # Do NOT emit frame_changed here (would create loop)
+
+    def _on_active_timeline_point_changed(self, point_name: str | None) -> None:
+        """React to StateManager active timeline point changes.
+
+        Args:
+            point_name: Name of the active tracking point, or None if no point is active
+        """
+        if point_name:
+            self.active_point_label.setText(f"Timeline: {point_name}")
+        else:
+            self.active_point_label.setText("No point")
 
     def _setup_ui(self) -> None:
         """Setup the timeline UI components."""
@@ -536,6 +552,13 @@ class TimelineTabWidget(QWidget):
         self.last_btn.setToolTip("Go to last frame")
         self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
 
+        # Active point label - shows which tracking point's timeline is displayed
+        self.active_point_label = QLabel("No point")
+        self.active_point_label.setStyleSheet(
+            "QLabel { color: #74c0fc; font-size: 10px; font-weight: bold; font-family: monospace; }"
+        )
+        self.active_point_label.setToolTip("Currently displayed tracking point")
+
         # Frame info label - accent color for better visibility
         self.frame_info = QLabel()
         self.frame_info.setStyleSheet(
@@ -546,6 +569,7 @@ class TimelineTabWidget(QWidget):
         # Layout navigation
         nav_layout.addWidget(self.first_btn)
         nav_layout.addWidget(self.prev_group_btn)
+        nav_layout.addWidget(self.active_point_label)
         nav_layout.addStretch()
         nav_layout.addWidget(self.frame_info)
         nav_layout.addStretch()

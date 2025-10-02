@@ -209,8 +209,8 @@ class TestMultiPointTrackingController:
         # Select single point
         controller.on_tracking_points_selected(["Track1"])
 
-        # Verify active points updated
-        assert controller.active_points == ["Track1"]
+        # Verify active timeline point updated (moved from controller.active_points to main_window.active_timeline_point)
+        assert mock_main_window.active_timeline_point == "Track1"
 
         # Verify set_curves_data was called with correct selection
         mock_main_window.curve_widget.set_curves_data.assert_called_once()
@@ -239,8 +239,8 @@ class TestMultiPointTrackingController:
         # Select multiple points
         controller.on_tracking_points_selected(["Track1", "Track2", "Track3"])
 
-        # Verify active points updated
-        assert controller.active_points == ["Track1", "Track2", "Track3"]
+        # Verify active timeline point updated (last selected point becomes active)
+        assert mock_main_window.active_timeline_point == "Track3"
 
         # Verify set_curves_data was called with all selected
         mock_main_window.curve_widget.set_curves_data.assert_called_once()
@@ -249,7 +249,8 @@ class TestMultiPointTrackingController:
         # Check arguments
         assert len(call_args[0]) >= 3
         assert call_args[0][2] == "Track3"  # active_curve is last selected
-        assert call_args[1].get("selected_curves") == ["Track1", "Track2", "Track3"]
+        # In new architecture: selected_curves only contains the active timeline point
+        assert call_args[1].get("selected_curves") == ["Track3"]
 
         # Verify centering was scheduled with QTimer.singleShot
         # Check that singleShot was called with 10ms delay (function is now wrapped for safety)
@@ -266,8 +267,8 @@ class TestMultiPointTrackingController:
             "Track3": {"visible": False, "color": "#0000FF"},
         }
 
-        # Select multiple points
-        controller.active_points = ["Track1", "Track2"]
+        # Set active timeline point (simulates selecting multiple points where Track2 is last/active)
+        mock_main_window.active_timeline_point = "Track2"
 
         # Call update_curve_display
         controller.update_curve_display()
@@ -282,7 +283,8 @@ class TestMultiPointTrackingController:
         # Check arguments
         assert len(call_args[0]) >= 3
         assert call_args[0][2] == "Track2"  # active_curve
-        assert call_args[1].get("selected_curves") == ["Track1", "Track2"]
+        # In new architecture: selected_curves only contains the active timeline point
+        assert call_args[1].get("selected_curves") == ["Track2"]
 
     def test_selection_preserves_visibility_metadata(self, controller, mock_main_window):
         """Test that selection respects visibility metadata."""
@@ -438,7 +440,7 @@ def test_selection_bug_fix_tdd():
         "Track1": [(0, 100.0, 100.0)],
         "Track2": [(0, 200.0, 150.0)],
     }
-    controller.active_points = ["Track1"]
+    main_window.active_timeline_point = "Track1"
 
     # The bug: update_curve_display was calling toggle_show_all_curves(True)
     # This test ensures it doesn't

@@ -250,6 +250,9 @@ class MockMainWindow:
         self.total_frames_label = None
         self.status_label = None
         self.tracking_controller: object = None  # MultiPointTrackingController | None - Set after creation
+        self.active_timeline_point: str | None = (
+            None  # Active timeline point (which tracking point's timeline is displayed)
+        )
 
     def update_tracking_panel(self):
         """Update tracking panel."""
@@ -352,7 +355,7 @@ class TestMultiPointDataMerging:
         assert len(controller.tracked_data) == 2
         assert "Point1" in controller.tracked_data
         assert "Point2" in controller.tracked_data
-        assert controller.active_points == ["Point1"]
+        assert main_window.active_timeline_point == "Point1"
 
     def test_merge_multi_point_data_no_conflicts(self, make_multi_point_data):
         """Merging multi-point data without conflicts should preserve all points."""
@@ -402,14 +405,14 @@ class TestMultiPointDataMerging:
         # Load first data and select Point2
         first_data = make_multi_point_data(["Point1", "Point2"])
         controller.on_multi_point_data_loaded(first_data)
-        controller.active_points = ["Point2"]
+        main_window.active_timeline_point = "Point2"
 
         # Load second data
         second_data = make_multi_point_data(["Point3"])
         controller.on_multi_point_data_loaded(second_data)
 
         # Selection should remain Point2
-        assert controller.active_points == ["Point2"]
+        assert main_window.active_timeline_point == "Point2"
 
 
 class TestSingleTrajectoryMerging:
@@ -428,7 +431,7 @@ class TestSingleTrajectoryMerging:
         # Should create Track1
         assert len(controller.tracked_data) == 1
         assert "Track1" in controller.tracked_data
-        assert controller.active_points == ["Track1"]
+        assert main_window.active_timeline_point == "Track1"
 
     def test_add_single_trajectory_to_existing(self, make_tracking_data, make_multi_point_data):
         """Single trajectory should be added to existing multi-point data."""
@@ -575,7 +578,7 @@ class TestEdgeCases:
 
         # Should handle gracefully
         assert len(controller.tracked_data) == 0
-        assert controller.active_points == []
+        assert main_window.active_timeline_point is None
 
     def test_none_data_handled_gracefully(self):
         """None data should not cause errors."""

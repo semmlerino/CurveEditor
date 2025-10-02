@@ -227,6 +227,9 @@ class MainWindowInitializer:
             mw.state_manager.frame_changed.connect(mw._on_state_frame_changed)
             mw.state_manager.selection_changed.connect(mw._on_selection_changed)
             mw.state_manager.view_state_changed.connect(mw._on_view_state_changed)
+            # Connect active timeline point to tracking panel for visual differentiation
+            if mw.tracking_panel:
+                mw.state_manager.active_timeline_point_changed.connect(mw.tracking_panel.set_active_point)
 
         # Connect shortcut signals
         if mw.shortcut_manager:
