@@ -8,7 +8,6 @@
   "useLibraryCodeForTypes": true,
   "allowedUntypedLibraries": ["numpy", "pytest"],
   "include": [
-    "controllers",
     "core",
     "data",
     "io_utils",
@@ -32,6 +31,7 @@
     "footage",
     "docs/archive",
     "archive_obsolete",
+    "archive_legacy",
     "archive",
     "archive_diagnostics",
     ".git",

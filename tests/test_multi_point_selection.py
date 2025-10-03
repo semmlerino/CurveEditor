@@ -460,3 +460,167 @@ def test_selection_bug_fix_tdd():
     curve_widget.set_curves_data.assert_called_once()
     call_args = curve_widget.set_curves_data.call_args
     assert "selected_curves" not in call_args[1]
+
+
+class TestCurveModificationPreservation:
+    """Test that curve modifications are preserved when switching between curves."""
+
+    @pytest.fixture
+    def mock_main_window(self):
+        """Create a mock main window with necessary attributes."""
+        mock = Mock(spec=MainWindow)
+        mock.curve_widget = Mock(spec=CurveViewWidget)
+        mock.curve_widget.curve_data = []  # Set as empty list to support iteration
+
+        # Add mock _curve_store for data persistence
+        mock_curve_store = Mock()
+        mock_curve_store.get_data.return_value = []
+        mock.curve_widget._curve_store = mock_curve_store
+
+        mock.tracking_panel = Mock(spec=TrackingPointsPanel)
+        mock.state_manager = Mock()
+        mock.state_manager.current_frame = 1
+        return mock
+
+    def test_modifications_preserved_on_curve_switch(self, mock_main_window):
+        """Test that modifications to a curve are saved when switching to another curve."""
+        # Setup controller with initial data
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {
+            "Track1": [
+                (0, 100.0, 100.0, "NORMAL"),
+                (10, 110.0, 105.0, "NORMAL"),
+            ],
+            "Track2": [
+                (0, 200.0, 150.0, "NORMAL"),
+                (10, 210.0, 155.0, "NORMAL"),
+            ],
+        }
+        mock_main_window.active_timeline_point = "Track1"
+
+        # Initialize previous active curve by calling once
+        controller.update_curve_display()
+
+        # Simulate modifications to Track1 (e.g., adding ENDFRAME status)
+        modified_data = [
+            (0, 100.0, 100.0, "ENDFRAME"),  # Modified status
+            (10, 110.0, 105.0, "NORMAL"),
+        ]
+        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_data
+
+        # Switch to Track2
+        mock_main_window.active_timeline_point = "Track2"
+        controller.update_curve_display()
+
+        # Verify that Track1's modifications were saved back to tracked_data
+        assert controller.tracked_data["Track1"] == modified_data
+        assert controller.tracked_data["Track1"][0][3] == "ENDFRAME"
+
+    def test_modifications_preserved_with_nudge(self, mock_main_window):
+        """Test that coordinate changes (nudges) are preserved when switching curves."""
+        # Setup
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {
+            "Track1": [(0, 100.0, 100.0, "NORMAL")],
+            "Track2": [(0, 200.0, 150.0, "NORMAL")],
+        }
+        mock_main_window.active_timeline_point = "Track1"
+
+        # Initialize previous active curve
+        controller.update_curve_display()
+
+        # Simulate nudging Track1 point
+        nudged_data = [(0, 105.0, 103.0, "NORMAL")]  # Nudged +5, +3
+        mock_main_window.curve_widget._curve_store.get_data.return_value = nudged_data
+
+        # Switch to Track2
+        mock_main_window.active_timeline_point = "Track2"
+        controller.update_curve_display()
+
+        # Verify nudge was preserved
+        assert controller.tracked_data["Track1"] == nudged_data
+        assert controller.tracked_data["Track1"][0][1] == 105.0
+        assert controller.tracked_data["Track1"][0][2] == 103.0
+
+    def test_no_save_when_no_curve_store(self, mock_main_window):
+        """Test graceful handling when curve_store is not available."""
+        # Setup without _curve_store attribute
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {"Track1": [(0, 100.0, 100.0, "NORMAL")]}
+        mock_main_window.active_timeline_point = "Track1"
+        del mock_main_window.curve_widget._curve_store  # Remove _curve_store
+
+        # Should not crash when switching
+        mock_main_window.active_timeline_point = "Track2"
+        controller.update_curve_display()
+
+        # Original data unchanged
+        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]
+
+    def test_no_save_when_curve_not_in_tracked_data(self, mock_main_window):
+        """Test that save is skipped if active curve is not in tracked_data."""
+        # Setup
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {"Track1": [(0, 100.0, 100.0, "NORMAL")]}
+        mock_main_window.active_timeline_point = "NonexistentTrack"
+
+        # Should not crash
+        controller.update_curve_display()
+
+        # Original data unchanged
+        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]
+
+    def test_multiple_switches_preserve_all_modifications(self, mock_main_window):
+        """Test that switching between multiple curves preserves all modifications."""
+        # Setup
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {
+            "Track1": [(0, 100.0, 100.0, "NORMAL")],
+            "Track2": [(0, 200.0, 150.0, "NORMAL")],
+            "Track3": [(0, 300.0, 200.0, "NORMAL")],
+        }
+
+        # Modify Track1
+        mock_main_window.active_timeline_point = "Track1"
+        controller.update_curve_display()  # Initialize
+        modified_track1 = [(0, 101.0, 101.0, "ENDFRAME")]
+        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track1
+        mock_main_window.active_timeline_point = "Track2"
+        controller.update_curve_display()
+
+        # Modify Track2
+        modified_track2 = [(0, 202.0, 152.0, "KEYFRAME")]
+        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track2
+        mock_main_window.active_timeline_point = "Track3"
+        controller.update_curve_display()
+
+        # Modify Track3
+        modified_track3 = [(0, 303.0, 203.0, "NORMAL")]
+        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track3
+        mock_main_window.active_timeline_point = "Track1"
+        controller.update_curve_display()
+
+        # Verify all modifications were preserved
+        assert controller.tracked_data["Track1"] == modified_track1
+        assert controller.tracked_data["Track2"] == modified_track2
+        assert controller.tracked_data["Track3"] == modified_track3
+
+    def test_empty_curve_data_handled_gracefully(self, mock_main_window):
+        """Test that empty curve data is handled without errors."""
+        # Setup
+        controller = MultiPointTrackingController(mock_main_window)
+        controller.tracked_data = {
+            "Track1": [(0, 100.0, 100.0, "NORMAL")],
+            "Track2": [(0, 200.0, 150.0, "NORMAL")],
+        }
+        mock_main_window.active_timeline_point = "Track1"
+
+        # Simulate empty curve data
+        mock_main_window.curve_widget._curve_store.get_data.return_value = []
+
+        # Switch curves - should not save empty data
+        mock_main_window.active_timeline_point = "Track2"
+        controller.update_curve_display()
+
+        # Original data should be preserved (empty data not saved)
+        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]

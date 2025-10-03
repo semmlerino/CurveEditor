@@ -57,6 +57,7 @@ class MultiPointTrackingController:
         # NOTE: active_timeline_point is now managed by StateManager (via main_window.active_timeline_point)
         # This determines which tracking point's timeline is being displayed
         self.point_tracking_directions: dict[str, TrackingDirection] = {}  # Track previous directions
+        self._previous_active_curve: str | None = None  # Track previous active curve for data persistence
 
         # Connect to curve store signals to keep tracking data synchronized
         self._connect_to_curve_store_signals()
@@ -656,16 +657,18 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
-        # CRITICAL: Save current curve data back to tracked_data before switching
+        # CRITICAL: Save PREVIOUS curve data back to tracked_data before switching
         # This ensures modifications (endframes, nudges, etc.) are preserved
-        current_active = self.main_window.active_timeline_point
-        if current_active and current_active in self.tracked_data:
-            # Get current data from curve widget's store
+        if self._previous_active_curve and self._previous_active_curve in self.tracked_data:
+            # Get current data from curve widget's store (contains previous curve's data)
             if hasattr(self.main_window.curve_widget, "_curve_store"):
                 current_data = self.main_window.curve_widget._curve_store.get_data()
                 if current_data:
-                    self.tracked_data[current_active] = current_data
-                    logger.debug(f"Saved modifications for '{current_active}' back to tracked_data")
+                    self.tracked_data[self._previous_active_curve] = current_data
+                    logger.debug(f"Saved modifications for '{self._previous_active_curve}' back to tracked_data")
+
+        # Update previous active curve for next switch
+        self._previous_active_curve = self.main_window.active_timeline_point
 
         # Check if curve widget supports multi-curve display
         if self.main_window.curve_widget is not None and callable(
