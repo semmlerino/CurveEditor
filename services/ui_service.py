@@ -22,6 +22,7 @@ if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
 from core.logger_utils import get_logger
+from stores.application_state import get_application_state
 
 logger = get_logger("ui_service")
 
@@ -360,9 +361,10 @@ class UIService:
             main_window.redo_button.setEnabled(main_window.history_index < len(main_window.history) - 1)
 
         # Update save button
-        # save_button is Optional, curve_data is defined in MainWindowProtocol
+        # save_button is Optional
         if main_window.save_button is not None:
-            main_window.save_button.setEnabled(len(main_window.curve_data) > 0)
+            app_state = get_application_state()
+            main_window.save_button.setEnabled(len(app_state.get_curve_data()) > 0)
 
         # Update selection-dependent buttons
         has_selection = False
@@ -423,8 +425,8 @@ class UIService:
         self.update_button_states(main_window)
 
         # Update status bar with data info
-        # curve_data is defined in MainWindowProtocol
-        point_count = len(main_window.curve_data)
+        app_state = get_application_state()
+        point_count = len(app_state.get_curve_data())
         self.set_status(main_window, f"{point_count} points loaded")
 
         # Update window title if modified
