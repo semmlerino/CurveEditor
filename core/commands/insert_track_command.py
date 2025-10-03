@@ -289,9 +289,9 @@ class InsertTrackCommand(Command):
                 all_points.sort(key=lambda p: p.frame)
                 new_curve_data = [p.to_tuple4() for p in all_points]
 
-            # Update tracked data
-            self.new_data[target_name] = new_curve_data
-            tracked_data[target_name] = new_curve_data
+            # Update tracked data (ensure proper type with list() conversion)
+            self.new_data[target_name] = list(new_curve_data)
+            tracked_data[target_name] = list(new_curve_data)
 
             # Update UI
             self._update_ui(main_window, target_name)

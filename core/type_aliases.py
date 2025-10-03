@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Protocol, TypeAlias
 
 if TYPE_CHECKING:
-    from PySide6.QtCore import QPointF
+    from PySide6.QtCore import QPoint, QPointF
     from PySide6.QtGui import QImage, QPixmap
     from PySide6.QtWidgets import QWidget
 
@@ -40,7 +40,7 @@ PathLike = str | Path
 
 # Qt types (with better type handling)
 if TYPE_CHECKING:
-    QtPointF: TypeAlias = QPointF
+    QtPointF: TypeAlias = QPoint | QPointF  # Accept both QPoint and QPointF
     QtPixmap: TypeAlias = QPixmap
     QtImage: TypeAlias = QImage
     QtWidget: TypeAlias = QWidget
