@@ -100,6 +100,7 @@ from core.logger_utils import get_logger
 
 # Import stores
 from stores import get_store_manager
+from stores.application_state import get_application_state
 
 logger = get_logger("curve_view_widget")
 
@@ -158,8 +159,14 @@ class CurveViewWidget(QWidget):
         self._store_manager = get_store_manager()
         self._curve_store = self._store_manager.get_curve_store()
 
+        # Get centralized ApplicationState (Week 3 migration)
+        self._app_state = get_application_state()
+
         # Connect to store signals for reactive updates
         self._connect_store_signals()
+
+        # Connect to ApplicationState signals (Week 3 migration)
+        self._connect_app_state_signals()
 
         # Connect state manager signals if available
         if self._state_manager is not None:
@@ -170,10 +177,8 @@ class CurveViewWidget(QWidget):
         self.point_collection: PointCollection | None = None
         self.hover_index: int = -1
 
-        # Multi-curve support
-        self.curves_data: dict[str, CurveDataList] = {}  # All curves with names
-        self.curve_metadata: dict[str, dict[str, Any]] = {}  # Per-curve visibility/color settings
-        self.active_curve_name: str | None = None  # Currently selected curve for editing
+        # Multi-curve support (VIEW state - stays in widget)
+        # NOTE: DATA state (curves_data, curve_metadata, active_curve_name) migrated to ApplicationState
         self.show_all_curves: bool = False  # Toggle for showing all curves
         self.selected_curve_names: set[str] = set()  # Currently selected curves to display
         self.selected_curves_ordered: list[str] = []  # Ordered list for visual differentiation
@@ -290,6 +295,15 @@ class CurveViewWidget(QWidget):
         _ = self._curve_store.data_changed.connect(self._sync_data_service)
 
         logger.debug("Connected to reactive store signals")
+
+    def _connect_app_state_signals(self) -> None:
+        """Connect to ApplicationState signals for multi-curve reactive updates."""
+        self._app_state.curves_changed.connect(self._on_app_state_curves_changed)
+        self._app_state.selection_changed.connect(self._on_app_state_selection_changed)
+        self._app_state.active_curve_changed.connect(self._on_app_state_active_curve_changed)
+        self._app_state.curve_visibility_changed.connect(self._on_app_state_visibility_changed)
+
+        logger.debug("Connected to ApplicationState signals")
 
     def _connect_state_manager_signals(self) -> None:
         """Connect to state manager signals for frame updates."""
@@ -408,6 +422,35 @@ class CurveViewWidget(QWidget):
             logger.debug(f"Synchronized DataService with {len(current_data)} points")
         except Exception as e:
             logger.error(f"Failed to synchronize DataService: {e}")
+
+    # ==================== ApplicationState Signal Handlers ====================
+
+    def _on_app_state_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
+        """Handle ApplicationState curves_changed signal."""
+        # Invalidate caches and request repaint
+        self.invalidate_caches()
+        self.update()
+        logger.debug(f"ApplicationState curves changed: {len(curves)} curves")
+
+    def _on_app_state_selection_changed(self, indices: set[int], curve_name: str) -> None:
+        """Handle ApplicationState selection_changed signal."""
+        # Update display if this is the active curve
+        if curve_name == self._app_state.active_curve:
+            self.update()
+            logger.debug(f"ApplicationState selection changed for '{curve_name}': {len(indices)} selected")
+
+    def _on_app_state_active_curve_changed(self, curve_name: str) -> None:
+        """Handle ApplicationState active_curve_changed signal."""
+        # Update display to show new active curve
+        self.invalidate_caches()
+        self.update()
+        logger.debug(f"ApplicationState active curve changed to: '{curve_name}'")
+
+    def _on_app_state_visibility_changed(self, curve_name: str, visible: bool) -> None:
+        """Handle ApplicationState curve_visibility_changed signal."""
+        # Update display
+        self.update()
+        logger.debug(f"ApplicationState visibility changed for '{curve_name}': {visible}")
 
     def _setup_widget(self) -> None:
         """Configure widget properties and settings."""
@@ -532,38 +575,42 @@ class CurveViewWidget(QWidget):
             active_curve: Name of the currently active curve for editing
             selected_curves: Optional list of curves to select for display
         """
-        self.curves_data = curves.copy()
-        if metadata:
-            self.curve_metadata = metadata.copy()
-        else:
-            # Initialize default metadata for each curve
-            self.curve_metadata = {name: {"visible": True, "color": "#FFFFFF"} for name in curves.keys()}
+        # Use ApplicationState for multi-curve data (Week 3 migration)
+        self._app_state.begin_batch()
+        try:
+            # Set each curve in ApplicationState
+            for name, data in curves.items():
+                curve_metadata = metadata.get(name) if metadata else None
+                self._app_state.set_curve_data(name, data, curve_metadata)
 
-        # Update selected curves if specified
-        if selected_curves is not None:
-            self.selected_curve_names = set(selected_curves)
-            self.selected_curves_ordered = list(selected_curves)  # Maintain order for visual differentiation
-        elif not self.selected_curve_names:
-            # If no selection specified and no existing selection, default to active curve
-            self.selected_curve_names = {active_curve} if active_curve else set()
-            self.selected_curves_ordered = [active_curve] if active_curve else []
+            # Update selected curves if specified (VIEW state - stays in widget)
+            if selected_curves is not None:
+                self.selected_curve_names = set(selected_curves)
+                self.selected_curves_ordered = list(selected_curves)
+            elif not self.selected_curve_names:
+                # Default to active curve
+                self.selected_curve_names = {active_curve} if active_curve else set()
+                self.selected_curves_ordered = [active_curve] if active_curve else []
 
-        # Set the active curve
-        if active_curve and active_curve in curves:
-            self.active_curve_name = active_curve
-            # Update the single curve data for backward compatibility
-            self.set_curve_data(curves[active_curve])
-        elif curves:
-            # Default to first curve if no active curve specified
-            self.active_curve_name = next(iter(curves.keys()))
-            self.set_curve_data(curves[self.active_curve_name])
-        else:
-            self.active_curve_name = None
-            self.set_curve_data([])
+            # Set the active curve in ApplicationState
+            if active_curve and active_curve in curves:
+                self._app_state.set_active_curve(active_curve)
+                # Update single curve store for backward compatibility
+                self.set_curve_data(curves[active_curve])
+            elif curves:
+                # Default to first curve
+                first_curve = next(iter(curves.keys()))
+                self._app_state.set_active_curve(first_curve)
+                self.set_curve_data(curves[first_curve])
+            else:
+                self._app_state.set_active_curve(None)
+                self.set_curve_data([])
+        finally:
+            self._app_state.end_batch()
 
-        # Trigger repaint to show all curves
+        # Trigger repaint
         self.update()
-        logger.debug(f"Set {len(curves)} curves, active: {self.active_curve_name}")
+        logger.debug(f"Set {len(curves)} curves in ApplicationState, active: {self._app_state.active_curve}")
 
     def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
         """
@@ -574,19 +621,16 @@ class CurveViewWidget(QWidget):
             data: Curve data points
             metadata: Optional metadata for the curve
         """
-        self.curves_data[name] = data
-        if metadata:
-            self.curve_metadata[name] = metadata
-        else:
-            self.curve_metadata[name] = {"visible": True, "color": "#FFFFFF"}
+        # Add to ApplicationState
+        self._app_state.set_curve_data(name, data, metadata)
 
         # If this is the first curve, make it active
-        if not self.active_curve_name:
-            self.active_curve_name = name
+        if not self._app_state.active_curve:
+            self._app_state.set_active_curve(name)
             self.set_curve_data(data)
 
         self.update()
-        logger.debug(f"Added curve '{name}' with {len(data)} points")
+        logger.debug(f"Added curve '{name}' with {len(data)} points to ApplicationState")
 
     def remove_curve(self, name: str) -> None:
         """
@@ -595,24 +639,27 @@ class CurveViewWidget(QWidget):
         Args:
             name: Name of the curve to remove
         """
-        if name not in self.curves_data:
+        # Check if curve exists in ApplicationState
+        all_curves = self._app_state.get_all_curve_names()
+        if name not in all_curves:
             return
 
-        del self.curves_data[name]
-        if name in self.curve_metadata:
-            del self.curve_metadata[name]
+        # Remove from ApplicationState
+        self._app_state.delete_curve(name)
 
         # If this was the active curve, select another
-        if self.active_curve_name == name:
-            if self.curves_data:
-                self.active_curve_name = next(iter(self.curves_data.keys()))
-                self.set_curve_data(self.curves_data[self.active_curve_name])
+        if self._app_state.active_curve == name:
+            remaining_curves = self._app_state.get_all_curve_names()
+            if remaining_curves:
+                new_active = remaining_curves[0]
+                self._app_state.set_active_curve(new_active)
+                self.set_curve_data(self._app_state.get_curve_data(new_active))
             else:
-                self.active_curve_name = None
+                self._app_state.set_active_curve(None)
                 self.set_curve_data([])
 
         self.update()
-        logger.debug(f"Removed curve '{name}'")
+        logger.debug(f"Removed curve '{name}' from ApplicationState")
 
     def update_curve_visibility(self, name: str, visible: bool) -> None:
         """
@@ -622,10 +669,10 @@ class CurveViewWidget(QWidget):
             name: Name of the curve
             visible: Whether the curve should be visible
         """
-        if name in self.curve_metadata:
-            self.curve_metadata[name]["visible"] = visible
-            self.update()
-            logger.debug(f"Set curve '{name}' visibility to {visible}")
+        # Update in ApplicationState
+        self._app_state.set_curve_visibility(name, visible)
+        self.update()
+        logger.debug(f"Set curve '{name}' visibility to {visible} in ApplicationState")
 
     def update_curve_color(self, name: str, color: str) -> None:
         """
@@ -635,10 +682,12 @@ class CurveViewWidget(QWidget):
             name: Name of the curve
             color: Color in hex format (e.g., "#FF0000")
         """
-        if name in self.curve_metadata:
-            self.curve_metadata[name]["color"] = color
-            self.update()
-            logger.debug(f"Set curve '{name}' color to {color}")
+        # Update metadata in ApplicationState
+        metadata = self._app_state.get_curve_metadata(name)
+        metadata["color"] = color
+        self._app_state.set_curve_data(name, self._app_state.get_curve_data(name), metadata)
+        self.update()
+        logger.debug(f"Set curve '{name}' color to {color} in ApplicationState")
 
     def set_active_curve(self, name: str) -> None:
         """
@@ -647,14 +696,16 @@ class CurveViewWidget(QWidget):
         Args:
             name: Name of the curve to make active
         """
-        if name in self.curves_data:
-            self.active_curve_name = name
-            # Update the single curve data for editing operations
-            # This is needed for backward compatibility with editing tools
-            self._curve_store.set_data(self.curves_data[name])
-            # Trigger display update to show the new active curve
+        # Check if curve exists in ApplicationState
+        all_curves = self._app_state.get_all_curve_names()
+        if name in all_curves:
+            self._app_state.set_active_curve(name)
+            # Update the single curve store for backward compatibility
+            curve_data = self._app_state.get_curve_data(name)
+            self._curve_store.set_data(curve_data)
+            # Trigger display update
             self.update()
-            logger.debug(f"Set active curve to '{name}'")
+            logger.debug(f"Set active curve to '{name}' in ApplicationState")
 
             # Auto-center on the current frame if centering mode is active
             if self.centering_mode:
@@ -690,11 +741,12 @@ class CurveViewWidget(QWidget):
         self.selected_curves_ordered = list(curve_names)  # Maintain order for visual differentiation
 
         # Set the last selected as the active curve for editing
-        if curve_names and curve_names[-1] in self.curves_data:
+        all_curve_names = self._app_state.get_all_curve_names()
+        if curve_names and curve_names[-1] in all_curve_names:
             self.set_active_curve(curve_names[-1])
 
         self.update()
-        logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self.active_curve_name}")
+        logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self._app_state.active_curve}")
 
     def center_on_selected_curves(self) -> None:
         """
@@ -702,18 +754,20 @@ class CurveViewWidget(QWidget):
 
         Calculates the bounding box of all selected curves and centers the view on it.
         """
+        # Get all curve names from ApplicationState
+        all_curve_names = self._app_state.get_all_curve_names()
         logger.debug(
-            f"center_on_selected_curves called with selected: {self.selected_curve_names}, curves_data keys: {self.curves_data.keys() if self.curves_data else 'None'}"
+            f"center_on_selected_curves called with selected: {self.selected_curve_names}, ApplicationState curves: {all_curve_names}"
         )
-        if not self.selected_curve_names or not self.curves_data:
+        if not self.selected_curve_names or not all_curve_names:
             logger.debug("Early return - no selected curves or no data")
             return
 
         # Collect all points from selected curves
         all_points: list[tuple[float, float]] = []
         for curve_name in self.selected_curve_names:
-            if curve_name in self.curves_data:
-                curve_data = self.curves_data[curve_name]
+            if curve_name in all_curve_names:
+                curve_data = self._app_state.get_curve_data(curve_name)
                 logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
                 for point in curve_data:
                     if len(point) >= 3:
@@ -1132,8 +1186,9 @@ class CurveViewWidget(QWidget):
                 self._start_rubber_band(pos)
             else:
                 # Check for point selection/drag
-                # Use multi-curve search if we have multiple curves
-                if self.curves_data:
+                # Use multi-curve search if we have multiple curves in ApplicationState
+                all_curve_names = self._app_state.get_all_curve_names()
+                if all_curve_names:
                     idx, curve_name = self._find_point_at_multi_curve(pos)
                 else:
                     idx = self._find_point_at(pos)
@@ -1704,10 +1759,11 @@ class CurveViewWidget(QWidget):
         Returns:
             Tuple of (point_index, curve_name) or (-1, None) if not found
         """
-        if not self.curves_data:
+        all_curve_names = self._app_state.get_all_curve_names()
+        if not all_curve_names:
             # Fall back to single-curve mode
             idx = self._find_point_at(pos)
-            return (idx, self.active_curve_name if idx >= 0 else None)
+            return (idx, self._app_state.active_curve if idx >= 0 else None)
 
         # ALWAYS search all curves to enable cross-curve selection
         # When a user clicks a point on any curve, that curve gets added to selected_curve_names
@@ -1717,9 +1773,9 @@ class CurveViewWidget(QWidget):
         # 3. Ctrl+clicks point on curve B -> curve B added to selected_curve_names
         # 4. Both curves remain visible because they're both in selected_curve_names
         curves_to_search = [
-            (name, data)
-            for name, data in self.curves_data.items()
-            if self.curve_metadata.get(name, {}).get("visible", True)
+            (name, self._app_state.get_curve_data(name))
+            for name in all_curve_names
+            if self._app_state.get_curve_metadata(name).get("visible", True)
         ]
 
         # Search each curve using spatial indexing
@@ -1731,10 +1787,9 @@ class CurveViewWidget(QWidget):
                 continue
 
             # Temporarily set this curve as active to use spatial index
-            saved_active = self.active_curve_name
             saved_data = self.curve_data
             try:
-                self.active_curve_name = curve_name
+                # Temporarily update to search this curve
                 self._curve_store.set_data(curve_data)
 
                 # Find point in this curve
@@ -1750,8 +1805,7 @@ class CurveViewWidget(QWidget):
                         if best_match is None or distance < best_match[2]:
                             best_match = (idx, curve_name, distance)
             finally:
-                # Restore original active curve and data
-                self.active_curve_name = saved_active
+                # Restore original curve store data
                 self._curve_store.set_data(saved_data)
 
         if best_match:
@@ -1772,13 +1826,16 @@ class CurveViewWidget(QWidget):
             curve_name: Optional curve name if selecting from multi-curve mode
         """
         # Handle multi-curve selection
-        if curve_name and curve_name in self.curves_data:
+        all_curve_names = self._app_state.get_all_curve_names()
+        if curve_name and curve_name in all_curve_names:
             # Add this curve to selected curves for visibility
             self.selected_curve_names.add(curve_name)
 
             # If selecting from a different curve, switch to it
-            if curve_name != self.active_curve_name:
-                logger.debug(f"[MULTI-CURVE] Switching active curve from {self.active_curve_name} to {curve_name}")
+            if curve_name != self._app_state.active_curve:
+                logger.debug(
+                    f"[MULTI-CURVE] Switching active curve from {self._app_state.active_curve} to {curve_name}"
+                )
                 self.set_active_curve(curve_name)
 
         # Delegate to store - it will emit signals that trigger our updates

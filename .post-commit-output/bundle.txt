@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 187 files to bundle
+Found 191 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -43,6 +43,7 @@ Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QT_ZOOM_ANALYSIS.md
 Bundled: README.md
+Bundled: REFACTORING_PRIORITY_ANALYSIS_DO_NOT_DELETE.md
 Bundled: requirements.txt
 Bundled: ROADMAP_FUTURE_PHASES.md
 Bundled: run_tests.sh
@@ -58,6 +59,7 @@ Bundled: TEST_REMEDIATION_PLAN.md
 Bundled: test_results.txt
 Bundled: transfer_config.json
 Bundled: TYPE_SAFETY_SPRINT_REPORT.md
+Bundled: UNIFIED_REFACTORING_STRATEGY_DO_NOT_DELETE.md
 Bundled: ZOOM_BUG_FIX_SUMMARY.md
 Bundled: ZOOM_CACHE_PERFORMANCE_REPORT.md
 Bundled: ZOOM_FIX_SUMMARY.md
@@ -143,9 +145,11 @@ Bundled: services/transform_core.py
 Bundled: services/transform_service.py
 Bundled: services/ui_service.py
 Bundled: services/__init__.py
+Bundled: stores/application_state.py
 Bundled: stores/connection_verifier.py
 Bundled: stores/curve_data_store.py
 Bundled: stores/frame_store.py
+Bundled: stores/state_migration.py
 Bundled: stores/store_manager.py
 Bundled: stores/__init__.py
 Bundled: test_data/timeline_test_statuses.json
@@ -192,9 +196,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.18 MB
+Folder size: 2.30 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 683572 bytes
+Encoded size: 726948 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

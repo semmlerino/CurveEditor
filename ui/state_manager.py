@@ -53,6 +53,15 @@ class StateManager(QObject):
         """
         super().__init__(parent)
 
+        # Get centralized ApplicationState (Week 5 migration)
+        from stores.application_state import ApplicationState, get_application_state
+
+        self._app_state: ApplicationState = get_application_state()
+
+        # Forward ApplicationState signals
+        _ = self._app_state.frame_changed.connect(self.frame_changed.emit)
+        _ = self._app_state.selection_changed.connect(self._on_app_state_selection_changed)
+
         # File state
         self._current_file: str | None = None
         self._is_modified: bool = False
@@ -63,15 +72,15 @@ class StateManager(QObject):
         self._original_data: list[tuple[float, float]] = []
         self._has_data: bool = False
 
-        # Selection state - Single source of truth using set for O(1) operations
-        self._selected_points: set[int] = set()
+        # Selection state - MIGRATED to ApplicationState (Week 5)
+        # Removed: self._selected_points (now delegated to ApplicationState per-curve selection)
         self._hover_point: int | None = None
 
         # Multi-point tracking state
         self._active_timeline_point: str | None = None  # Which tracking point's timeline is being viewed
 
         # View state
-        self._current_frame: int = 1
+        # Removed: self._current_frame (now delegated to ApplicationState)
         self._total_frames: int = 1
         self._zoom_level: float = 1.0
         self._pan_offset: tuple[float, float] = (0.0, 0.0)
@@ -114,6 +123,23 @@ class StateManager(QObject):
         self._pending_signals: list[tuple[Signal, object]] = []
 
         logger.info("StateManager initialized")
+
+    # ==================== Signal Forwarding Adapters ====================
+
+    def _on_app_state_selection_changed(self, indices: set[int], curve_name: str) -> None:
+        """
+        Adapter to forward ApplicationState selection_changed signal.
+
+        ApplicationState emits (indices, curve_name), StateManager emits just indices.
+        Only forward if selection is for the active timeline point.
+
+        Args:
+            indices: Selected point indices
+            curve_name: Curve name the selection belongs to
+        """
+        # Only forward if it's for the active timeline point
+        if curve_name == self._active_timeline_point:
+            self.selection_changed.emit(indices)
 
     # ==================== File State Properties ====================
 
@@ -219,23 +245,25 @@ class StateManager(QObject):
 
     @property
     def selected_points(self) -> list[int]:
-        """Get the list of selected point indices (returns sorted list for compatibility)."""
-        return sorted(self._selected_points)
+        """Get the list of selected point indices (delegated to ApplicationState)."""
+        if self._active_timeline_point:
+            return sorted(self._app_state.get_selection(self._active_timeline_point))
+        return []
 
     def set_selected_points(self, indices: list[int] | set[int]) -> None:
-        """Set the selected point indices (accepts list or set)."""
-        new_selection = set(indices) if not isinstance(indices, set) else indices
-        if self._selected_points != new_selection:
-            self._selected_points = new_selection
-            self._emit_signal(self.selection_changed, new_selection)  # pyright: ignore[reportArgumentType]
+        """Set the selected point indices (delegated to ApplicationState)."""
+        if self._active_timeline_point:
+            new_selection = set(indices) if not isinstance(indices, set) else indices
+            self._app_state.set_selection(self._active_timeline_point, new_selection)
+            # Signal already forwarded in __init__
             logger.debug(f"Selection changed: {len(new_selection)} points selected")
 
     def add_to_selection(self, index: int) -> None:
-        """Add a point to the selection."""
-        if index not in self._selected_points:
-            self._selected_points.add(index)
-            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
-            logger.debug(f"Added point {index} to selection: {len(self._selected_points)} points selected")
+        """Add a point to the selection (delegated to ApplicationState)."""
+        if self._active_timeline_point:
+            self._app_state.add_to_selection(self._active_timeline_point, index)
+            # Signal already forwarded in __init__
+            logger.debug(f"Added point {index} to selection")
 
     @property
     def active_timeline_point(self) -> str | None:
@@ -251,17 +279,17 @@ class StateManager(QObject):
             logger.debug(f"Active timeline point changed to: {point_name}")
 
     def remove_from_selection(self, index: int) -> None:
-        """Remove a point from the selection."""
-        if index in self._selected_points:
-            self._selected_points.discard(index)
-            self._emit_signal(self.selection_changed, self._selected_points)  # pyright: ignore[reportArgumentType]
+        """Remove a point from the selection (delegated to ApplicationState)."""
+        if self._active_timeline_point:
+            self._app_state.remove_from_selection(self._active_timeline_point, index)
+            # Signal already forwarded in __init__
             logger.debug(f"Removed point {index} from selection")
 
     def clear_selection(self) -> None:
-        """Clear the current selection."""
-        if self._selected_points:
-            self._selected_points.clear()
-            self._emit_signal(self.selection_changed, set())  # pyright: ignore[reportArgumentType]
+        """Clear the current selection (delegated to ApplicationState)."""
+        if self._active_timeline_point:
+            self._app_state.clear_selection(self._active_timeline_point)
+            # Signal already forwarded in __init__
             logger.debug("Selection cleared")
 
     @property
@@ -280,17 +308,18 @@ class StateManager(QObject):
 
     @property
     def current_frame(self) -> int:
-        """Get the current frame number."""
-        return self._current_frame
+        """Get the current frame number (delegated to ApplicationState)."""
+        return self._app_state.current_frame
 
     @current_frame.setter
     def current_frame(self, frame: int) -> None:
-        """Set the current frame number."""
+        """Set the current frame number (delegated to ApplicationState)."""
+        # Validation with total_frames clamping (StateManager responsibility)
         frame = max(1, min(frame, self._total_frames))
-        if self._current_frame != frame:
-            self._current_frame = frame
-            self._emit_signal(self.frame_changed, frame)  # pyright: ignore[reportArgumentType]
-            logger.debug(f"Current frame changed to: {frame}")
+        # Delegate to ApplicationState for storage
+        self._app_state.set_frame(frame)
+        # Signal already forwarded in __init__
+        logger.debug(f"Current frame changed to: {frame}")
 
     @property
     def total_frames(self) -> int:
@@ -303,7 +332,7 @@ class StateManager(QObject):
         if self._total_frames != count:
             self._total_frames = max(1, count)
             # Ensure current frame is within bounds
-            if self._current_frame > self._total_frames:
+            if self.current_frame > self._total_frames:
                 self.current_frame = self._total_frames
             logger.debug(f"Total frames changed to: {self._total_frames}")
 
@@ -375,8 +404,9 @@ class StateManager(QObject):
     @property
     def current_image(self) -> str | None:
         """Get the current image file path."""
-        if self._image_files and 1 <= self._current_frame <= len(self._image_files):
-            return self._image_files[self._current_frame - 1]
+        current_frame = self.current_frame  # Use property (delegated to ApplicationState)
+        if self._image_files and 1 <= current_frame <= len(self._image_files):
+            return self._image_files[current_frame - 1]
         return None
 
     @property
@@ -558,12 +588,13 @@ class StateManager(QObject):
         self._original_data.clear()
         self._has_data = False
 
-        # Selection state
-        self._selected_points.clear()
+        # Selection state (delegated to ApplicationState)
+        if self._active_timeline_point:
+            self._app_state.clear_selection(self._active_timeline_point)
         self._hover_point = None
 
-        # View state
-        self._current_frame = 1
+        # View state (delegated to ApplicationState for frame)
+        self._app_state.set_frame(1)
         self._total_frames = 1
         self._zoom_level = 1.0
         self._pan_offset = (0.0, 0.0)
@@ -592,11 +623,9 @@ class StateManager(QObject):
         # Reset playback mode
         self._playback_mode = PlaybackMode.STOPPED
 
-        # Emit relevant signals
+        # Emit relevant signals (frame_changed and selection_changed forwarded from ApplicationState)
         self.file_changed.emit("")
         self.modified_changed.emit(False)
-        self.selection_changed.emit(set())
-        self.frame_changed.emit(1)
         self.view_state_changed.emit()
         self.playback_state_changed.emit(PlaybackMode.STOPPED)
 
@@ -616,11 +645,11 @@ class StateManager(QObject):
                 "data_bounds": self.data_bounds if self._has_data else None,
             },
             "selection": {
-                "selected_count": len(self._selected_points),
+                "selected_count": len(self.selected_points),  # Use property (delegated to ApplicationState)
                 "hover_point": self._hover_point,
             },
             "view": {
-                "current_frame": self._current_frame,
+                "current_frame": self.current_frame,  # Use property (delegated to ApplicationState)
                 "total_frames": self._total_frames,
                 "zoom_level": self._zoom_level,
                 "pan_offset": self._pan_offset,
