@@ -20,6 +20,7 @@ from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QRubberBand
 
 from core.spatial_index import PointIndex
+from stores.application_state import get_application_state
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
@@ -60,6 +61,9 @@ class InteractionService:
 
     def __init__(self) -> None:
         """Initialize the interaction service."""
+        # ApplicationState integration (Week 6)
+        self._app_state = get_application_state()
+
         # State for compatibility
         self.drag_mode: str | None = None
         self.drag_point_idx: int | None = None
@@ -84,7 +88,7 @@ class InteractionService:
         # Track original positions for drag operations
         self._drag_original_positions: dict[int, tuple[float, float]] | None = None
 
-        logger.info("InteractionService initialized with command manager and spatial indexing")
+        logger.info("InteractionService initialized with ApplicationState, command manager and spatial indexing")
 
     @property
     def command_manager(self) -> CommandManager:
@@ -161,9 +165,11 @@ class InteractionService:
             # Capture original positions of all selected points
             self._drag_original_positions = {}
             if view.selected_points:
+                # Use ApplicationState for active curve data (Week 6)
+                active_curve_data = self._app_state.get_curve_data()  # No param = active curve
                 for idx in view.selected_points:
-                    if 0 <= idx < len(view.curve_data):
-                        point = view.curve_data[idx]
+                    if 0 <= idx < len(active_curve_data):
+                        point = active_curve_data[idx]
                         self._drag_original_positions[idx] = (point[1], point[2])
 
         elif event.button() == Qt.MouseButton.LeftButton:
@@ -216,17 +222,23 @@ class InteractionService:
                 curve_delta_x = delta_x / transform.scale
                 curve_delta_y = -delta_y / transform.scale  # Invert Y for curve coordinates
 
-                # Move all selected points
-                for idx in view.selected_points:
-                    # curve_data is defined in CurveViewProtocol
-                    if 0 <= idx < len(view.curve_data):
-                        point = view.curve_data[idx]
-                        new_x = point[1] + curve_delta_x
-                        new_y = point[2] + curve_delta_y
-                        if len(point) >= 4:
-                            view.curve_data[idx] = (point[0], new_x, new_y, point[3])
-                        else:
-                            view.curve_data[idx] = (point[0], new_x, new_y)
+                # Use ApplicationState with batch mode for performance (Week 6)
+                active_curve_name = self._app_state.active_curve
+                if active_curve_name:
+                    active_curve_data = self._app_state.get_curve_data()
+
+                    # Move all selected points
+                    for idx in view.selected_points:
+                        if 0 <= idx < len(active_curve_data):
+                            point = active_curve_data[idx]
+                            new_x = point[1] + curve_delta_x
+                            new_y = point[2] + curve_delta_y
+                            # Update via view.curve_data for real-time display during drag
+                            # (ApplicationState will be updated via command on release)
+                            if len(point) >= 4:
+                                view.curve_data[idx] = (point[0], new_x, new_y, point[3])
+                            else:
+                                view.curve_data[idx] = (point[0], new_x, new_y)
 
             view.last_drag_pos = pos
 
@@ -266,11 +278,12 @@ class InteractionService:
             if self._drag_original_positions and view.main_window is not None:
                 from core.commands.curve_commands import BatchMoveCommand
 
-                # Collect the moves
+                # Collect the moves using ApplicationState (Week 6)
+                active_curve_data = self._app_state.get_curve_data()
                 moves = []
                 for idx, old_pos in self._drag_original_positions.items():
-                    if 0 <= idx < len(view.curve_data):
-                        point = view.curve_data[idx]
+                    if 0 <= idx < len(active_curve_data):
+                        point = active_curve_data[idx]
                         new_pos = (point[1], point[2])
                         if old_pos != new_pos:  # Only add if actually moved
                             moves.append((idx, old_pos, new_pos))
@@ -303,10 +316,10 @@ class InteractionService:
             if view.rubber_band is not None:
                 rect = view.rubber_band.geometry()
 
-                # Find points in rectangle
+                # Find points in rectangle using ApplicationState (Week 6)
                 selected_count = 0
-                # curve_data is defined in CurveViewProtocol
-                if view.curve_data:
+                active_curve_data = self._app_state.get_curve_data()
+                if active_curve_data:
                     transform_service = _get_transform_service()
                     view_state = transform_service.create_view_state(view)
                     transform = transform_service.create_transform_from_view_state(view_state)
@@ -314,7 +327,7 @@ class InteractionService:
                     if not view.selected_points:
                         view.selected_points = set()
 
-                    for i, point in enumerate(view.curve_data):
+                    for i, point in enumerate(active_curve_data):
                         screen_x, screen_y = transform.data_to_screen(point[1], point[2])
                         if rect.contains(int(screen_x), int(screen_y)):
                             view.selected_points.add(i)
@@ -355,12 +368,13 @@ class InteractionService:
             if view.selected_points and view.main_window is not None:
                 from core.commands.curve_commands import DeletePointsCommand
 
-                # Collect points to delete
+                # Collect points to delete using ApplicationState (Week 6)
+                active_curve_data = self._app_state.get_curve_data()
                 indices = list(view.selected_points)
                 deleted_points = []
                 for idx in sorted(indices):
-                    if 0 <= idx < len(view.curve_data):
-                        deleted_points.append((idx, view.curve_data[idx]))
+                    if 0 <= idx < len(active_curve_data):
+                        deleted_points.append((idx, active_curve_data[idx]))
 
                 if deleted_points:
                     # Create and execute delete command
@@ -380,10 +394,10 @@ class InteractionService:
                 # Note: No need to add_to_history - command manager handles it
 
         elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Select all points
-            # curve_data is defined in CurveViewProtocol
-            if view.curve_data:
-                view.selected_points = set(range(len(view.curve_data)))
+            # Select all points using ApplicationState (Week 6)
+            active_curve_data = self._app_state.get_curve_data()
+            if active_curve_data:
+                view.selected_points = set(range(len(active_curve_data)))
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
             if view.main_window is not None:
@@ -417,12 +431,12 @@ class InteractionService:
                 curve_delta_x = delta_x / transform.scale
                 curve_delta_y = -delta_y / transform.scale  # Invert Y
 
-                # Collect moves for command
+                # Collect moves for command using ApplicationState (Week 6)
+                active_curve_data = self._app_state.get_curve_data()
                 moves = []
                 for idx in view.selected_points:
-                    # curve_data is defined in CurveViewProtocol
-                    if 0 <= idx < len(view.curve_data):
-                        point = view.curve_data[idx]
+                    if 0 <= idx < len(active_curve_data):
+                        point = active_curve_data[idx]
                         old_pos = (point[1], point[2])
                         new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
                         moves.append((idx, old_pos, new_pos))
@@ -495,16 +509,21 @@ class InteractionService:
         # Extract the state to save
         history_state = {}
 
-        # Get curve_data - try multiple possible attributes
-        # curve_data is defined in MainWindowProtocol
-        if main_window.curve_data is not None:
+        # Get curve_data - prioritize ApplicationState (Week 6), then fall back to legacy locations
+        active_curve_data = self._app_state.get_curve_data()
+        if active_curve_data:
             # Convert lists to tuples for compression (as expected by tests)
+            if active_curve_data and isinstance(active_curve_data[0], list):
+                history_state["curve_data"] = [tuple(point) for point in active_curve_data]
+            else:
+                history_state["curve_data"] = copy.deepcopy(active_curve_data)
+        # Legacy fallback - try multiple possible attributes
+        elif main_window.curve_data is not None:
             curve_data = main_window.curve_data
             if curve_data and isinstance(curve_data[0], list):
                 history_state["curve_data"] = [tuple(point) for point in curve_data]
             else:
                 history_state["curve_data"] = copy.deepcopy(curve_data)
-        # curve_widget is defined in MainWindowProtocol
         elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
             widget_curve_data = getattr(main_window.curve_widget, "curve_data")
             if (
@@ -516,7 +535,6 @@ class InteractionService:
                 history_state["curve_data"] = [tuple(point) for point in widget_curve_data]
             else:
                 history_state["curve_data"] = copy.deepcopy(widget_curve_data)
-        # curve_view is defined in MainWindowProtocol
         elif main_window.curve_view is not None and getattr(main_window.curve_view, "curve_data", None) is not None:
             view_curve_data = getattr(main_window.curve_view, "curve_data")
             if (
@@ -529,7 +547,7 @@ class InteractionService:
             else:
                 history_state["curve_data"] = copy.deepcopy(view_curve_data)
         else:
-            logger.warning("Cannot extract curve data from main_window")
+            logger.warning("Cannot extract curve data from main_window or ApplicationState")
             return
 
         # Get point_name
@@ -640,7 +658,9 @@ class InteractionService:
 
     def find_point_at(self, view: CurveViewProtocol, x: float, y: float) -> int:
         """Find point at given coordinates using spatial indexing for O(1) performance."""
-        if not view.curve_data:
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if not active_curve_data:
             return -1
 
         transform_service = _get_transform_service()
@@ -655,7 +675,9 @@ class InteractionService:
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
-        if not view.curve_data:
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if not active_curve_data:
             return -1
 
         transform_service = _get_transform_service()
@@ -671,8 +693,9 @@ class InteractionService:
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, add_to_selection: bool = False
     ) -> bool:
         """Select point by index."""
-        # curve_data is defined in CurveViewProtocol
-        if 0 <= idx < len(view.curve_data):
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if 0 <= idx < len(active_curve_data):
             if not add_to_selection:
                 view.selected_points.clear()
             view.selected_points.add(idx)
@@ -689,9 +712,11 @@ class InteractionService:
 
     def select_all_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> int:
         """Select all points."""
-        if view.curve_data:
-            view.selected_points = set(range(len(view.curve_data)))
-            view.selected_point_idx = 0 if view.curve_data else -1
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if active_curve_data:
+            view.selected_points = set(range(len(active_curve_data)))
+            view.selected_point_idx = 0 if active_curve_data else -1
             view.update()
             return len(view.selected_points)
         return 0
@@ -700,9 +725,10 @@ class InteractionService:
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, x: float, y: float
     ) -> bool:
         """Update point position."""
-        # curve_data is defined in CurveViewProtocol
-        if 0 <= idx < len(view.curve_data):
-            point = view.curve_data[idx]
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if 0 <= idx < len(active_curve_data):
+            point = active_curve_data[idx]
             # Preserve frame and status, update x and y
             if len(point) >= 4:
                 view.curve_data[idx] = (point[0], x, y, point[3])
@@ -714,15 +740,17 @@ class InteractionService:
 
     def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
         """Delete selected points using DeletePointsCommand."""
-        if view.selected_points and view.curve_data:
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if view.selected_points and active_curve_data:
             from core.commands.curve_commands import DeletePointsCommand
 
             # Collect points to delete
             indices = list(view.selected_points)
             deleted_points = []
             for idx in sorted(indices):
-                if 0 <= idx < len(view.curve_data):
-                    deleted_points.append((idx, view.curve_data[idx]))
+                if 0 <= idx < len(active_curve_data):
+                    deleted_points.append((idx, active_curve_data[idx]))
 
             if deleted_points:
                 # Create and execute delete command
@@ -855,7 +883,9 @@ class InteractionService:
 
     def select_points_in_rect(self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect) -> int:
         """Select points in rectangle using spatial indexing for O(1) performance."""
-        if not view.curve_data:
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if not active_curve_data:
             return 0
 
         transform_service = _get_transform_service()
@@ -902,8 +932,16 @@ class InteractionService:
             if curve_data and isinstance(curve_data, list) and len(curve_data) > 0 and isinstance(curve_data[0], tuple):
                 curve_data = [list(point) for point in curve_data]
 
+            # Update ApplicationState first (Week 6)
+            active_curve_name = self._app_state.active_curve
+            if active_curve_name and curve_data:
+                # Update ApplicationState with the restored curve data
+                from core.type_aliases import CurveDataList
+
+                self._app_state.set_curve_data(active_curve_name, cast(CurveDataList, curve_data))
+
+            # Legacy compatibility: also set on old storage locations
             # Set on main_window directly if it has the attribute
-            # curve_data is defined in MainWindowProtocol
             if main_window.curve_data is not None:
                 # Use setattr since curve_data may be a property - Protocol compatibility
                 setattr(main_window, "curve_data", curve_data)  # pyright: ignore[reportAttributeAccessIssue]
@@ -995,13 +1033,15 @@ class InteractionService:
         if not view.selected_points:
             return False
 
-        if not view.curve_data:
+        # Use ApplicationState for active curve data (Week 6)
+        active_curve_data = self._app_state.get_curve_data()
+        if not active_curve_data:
             return False
 
         success = False
         for idx in view.selected_points:
-            if 0 <= idx < len(view.curve_data):
-                point = view.curve_data[idx]
+            if 0 <= idx < len(active_curve_data):
+                point = active_curve_data[idx]
                 # Preserve frame and status, update x and y
                 if len(point) >= 4:
                     new_x = point[1] + dx
