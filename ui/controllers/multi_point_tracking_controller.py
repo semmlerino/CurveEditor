@@ -73,12 +73,14 @@ class MultiPointTrackingController:
         """
         Backward-compatible property for accessing tracked data during migration.
 
-        Returns all curves from ApplicationState as a dict.
+        Returns all curves from ApplicationState as a dict, excluding "__default__".
         This property exists for backward compatibility during the Week 4 migration.
         """
         result = {}
         for curve_name in self._app_state.get_all_curve_names():
-            result[curve_name] = self._app_state.get_curve_data(curve_name)
+            # Filter out internal "__default__" curve used for single-curve mode
+            if curve_name != "__default__":
+                result[curve_name] = self._app_state.get_curve_data(curve_name)
         return result
 
     @tracked_data.setter

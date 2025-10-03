@@ -567,11 +567,15 @@ class StateManager(QObject):
         """
         self._batch_mode = True
         self._pending_signals = []
+        # Also enable ApplicationState batch mode for delegated operations
+        self._app_state.begin_batch()
         try:
             yield
         finally:
+            # End ApplicationState batch first (emits its signals)
+            self._app_state.end_batch()
+            # Then emit StateManager's own signals
             self._batch_mode = False
-            # Emit all pending signals
             for signal, value in self._pending_signals:
                 signal.emit(value)  # pyright: ignore[reportAttributeAccessIssue]
             self._pending_signals.clear()

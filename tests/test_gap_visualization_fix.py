@@ -36,10 +36,14 @@ class TestGetLiveCurvesDataMethod:
     """Unit tests for _get_live_curves_data method - the core fix."""
 
     def test_get_live_curves_data_no_curves_data(self, curve_widget):
-        """Test with no curves_data attribute - should return empty dict."""
-        # Ensure no curves_data attribute exists
-        if hasattr(curve_widget, "curves_data"):
-            delattr(curve_widget, "curves_data")
+        """Test with no curves in ApplicationState - should return empty dict."""
+        from stores.application_state import reset_application_state
+
+        # Ensure ApplicationState has no curves
+        reset_application_state()
+
+        # curves_data property should return empty dict when no curves exist
+        assert curve_widget.curves_data == {}
 
         result = curve_widget._get_live_curves_data()
 
@@ -47,7 +51,10 @@ class TestGetLiveCurvesDataMethod:
 
     def test_get_live_curves_data_empty_curves_data(self, curve_widget):
         """Test with empty curves_data - should return empty dict."""
-        curve_widget.curves_data = {}
+        from stores.application_state import reset_application_state
+
+        # Ensure ApplicationState is empty
+        reset_application_state()
 
         result = curve_widget._get_live_curves_data()
 
@@ -55,12 +62,19 @@ class TestGetLiveCurvesDataMethod:
 
     def test_get_live_curves_data_no_active_curve(self, curve_widget):
         """Test with curves but no active curve - should return original data."""
+        from stores.application_state import get_application_state
+
         test_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe"), (2, 30.0, 40.0, "normal")],
             "Track2": [(1, 50.0, 60.0, "normal"), (3, 70.0, 80.0, "endframe")],
         }
-        curve_widget.curves_data = test_curves_data
-        # No active_curve_name attribute
+
+        # Set curves via set_curves_data method
+        curve_widget.set_curves_data(test_curves_data)
+
+        # Ensure no active curve
+        app_state = get_application_state()
+        app_state.set_active_curve(None)
 
         result = curve_widget._get_live_curves_data()
 
@@ -70,9 +84,16 @@ class TestGetLiveCurvesDataMethod:
 
     def test_get_live_curves_data_active_curve_not_in_data(self, curve_widget):
         """Test with active curve that doesn't exist in curves_data."""
+        from stores.application_state import get_application_state
+
         test_curves_data = {"Track1": [(1, 10.0, 20.0, "keyframe")], "Track2": [(2, 30.0, 40.0, "normal")]}
-        curve_widget.curves_data = test_curves_data
-        curve_widget.active_curve_name = "NonexistentTrack"
+
+        # Set curves via set_curves_data method
+        curve_widget.set_curves_data(test_curves_data)
+
+        # Set active curve to nonexistent track
+        app_state = get_application_state()
+        app_state.set_active_curve("NonexistentTrack")
 
         result = curve_widget._get_live_curves_data()
 
@@ -80,13 +101,15 @@ class TestGetLiveCurvesDataMethod:
 
     def test_get_live_curves_data_replaces_active_curve_with_live_data(self, curve_widget):
         """Test the core fix - active curve data replaced with live store data."""
+
         # Setup static curves data (stale)
         static_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe"), (2, 30.0, 40.0, "normal")],
             "Track2": [(1, 50.0, 60.0, "normal")],
         }
-        curve_widget.curves_data = static_curves_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
 
         # Setup live store data (current with status changes)
         live_store_data = [(1, 10.0, 20.0, "keyframe"), (2, 30.0, 40.0, "endframe")]  # Status changed!
@@ -107,24 +130,32 @@ class TestGetLiveCurvesDataMethod:
 
     def test_get_live_curves_data_no_curve_store(self, curve_widget):
         """Test when curve store doesn't exist - should return original data."""
+
         test_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe")],
         }
-        curve_widget.curves_data = test_curves_data
-        curve_widget.active_curve_name = "Track1"
-        # No _curve_store attribute
 
-        result = curve_widget._get_live_curves_data()
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(test_curves_data, active_curve="Track1")
 
-        assert result == test_curves_data
+        # Temporarily remove _curve_store to test fallback (restore after test)
+        original_store = curve_widget._curve_store
+        try:
+            delattr(curve_widget, "_curve_store")
+            result = curve_widget._get_live_curves_data()
+            assert result == test_curves_data
+        finally:
+            # Restore _curve_store for cleanup
+            curve_widget._curve_store = original_store
 
     def test_get_live_curves_data_empty_live_store(self, curve_widget):
         """Test when curve store returns empty data - should keep static data."""
         static_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe")],
         }
-        curve_widget.curves_data = static_curves_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
 
         # Store returns empty data
         curve_widget._curve_store = Mock()
@@ -170,8 +201,9 @@ class TestGapVisualizationBehavior:
             "Track1": [(1, 10.0, 20.0, "keyframe"), (5, 30.0, 40.0, "normal")],  # Original
             "Track2": [(2, 50.0, 60.0, "normal")],
         }
-        curve_widget.curves_data = static_curves_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
         curve_widget.show_all_curves = True
 
         # Live store has status change for Track1
@@ -190,8 +222,8 @@ class TestGapVisualizationBehavior:
     @patch("ui.curve_view_widget.logger")
     def test_live_data_logging(self, mock_logger, curve_widget):
         """Test that live data replacement is properly logged."""
-        curve_widget.curves_data = {"Track1": [(1, 10.0, 20.0)]}
-        curve_widget.active_curve_name = "Track1"
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe")]
         curve_widget._curve_store = Mock()
@@ -205,8 +237,8 @@ class TestGapVisualizationBehavior:
     @patch("ui.curve_view_widget.logger")
     def test_empty_live_data_logging(self, mock_logger, curve_widget):
         """Test logging when no live data is available."""
-        curve_widget.curves_data = {"Track1": [(1, 10.0, 20.0)]}
-        curve_widget.active_curve_name = "Track1"
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
 
         curve_widget._curve_store = Mock()
         curve_widget._curve_store.get_data.return_value = []  # Empty
@@ -232,10 +264,10 @@ class TestOriginalBugReproduction:
             "Track1": [(1, 100.0, 100.0, "keyframe"), (10, 200.0, 150.0, "normal")],
             "Track2": [(5, 150.0, 120.0, "normal"), (15, 250.0, 180.0, "keyframe")],
         }
-        curve_widget.curves_data = multi_curve_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve and selected curves
+        curve_widget.set_curves_data(multi_curve_data, active_curve="Track1", selected_curves=["Track1"])
         curve_widget.show_all_curves = False  # Only show selected curves
-        curve_widget.selected_curve_names = {"Track1"}
 
         # Step 2: Simulate user setting point to endframe (superior implementation works)
         # This updates the curve store but NOT the static curves_data
@@ -262,8 +294,9 @@ class TestOriginalBugReproduction:
         This was the core symptom: timeline showed gaps but curve didn't.
         """
         # Setup scenario with endframe creating a gap
-        curve_widget.curves_data = {"ActiveTrack": [(1, 10.0, 10.0, "keyframe"), (5, 20.0, 20.0, "normal")]}
-        curve_widget.active_curve_name = "ActiveTrack"
+        curve_widget.set_curves_data(
+            {"ActiveTrack": [(1, 10.0, 10.0, "keyframe"), (5, 20.0, 20.0, "normal")]}, active_curve="ActiveTrack"
+        )
 
         # Simulate status change that creates gap (would update timeline)
         live_data_with_gap = [(1, 10.0, 10.0, "keyframe"), (5, 20.0, 20.0, "endframe")]
@@ -289,8 +322,9 @@ class TestEdgeCasesAndRobustness:
             "Track1": [(1, 10.0, 20.0), (2, 30.0, 40.0, "keyframe")],  # Mixed formats
             "Track2": [(3, 50.0, 60.0, "normal")],
         }
-        curve_widget.curves_data = mixed_curves_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(mixed_curves_data, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe"), (2, 30.0, 40.0, "keyframe")]
         curve_widget._curve_store = Mock()
@@ -304,9 +338,12 @@ class TestEdgeCasesAndRobustness:
 
     def test_memory_efficiency_creates_copy(self, curve_widget):
         """Test that original curves_data is not modified."""
+        from stores.application_state import get_application_state
+
         original_data = {"Track1": [(1, 10.0, 20.0, "keyframe")]}
-        curve_widget.curves_data = original_data
-        curve_widget.active_curve_name = "Track1"
+
+        # Set curves via set_curves_data method with active curve
+        curve_widget.set_curves_data(original_data, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe")]  # Different status
         curve_widget._curve_store = Mock()
@@ -314,8 +351,10 @@ class TestEdgeCasesAndRobustness:
 
         result = curve_widget._get_live_curves_data()
 
-        # Original should be unchanged
-        assert original_data["Track1"][0][3] == "keyframe"  # Original preserved
+        # ApplicationState should be unchanged
+        app_state = get_application_state()
+        stored_data = app_state.get_curve_data("Track1")
+        assert stored_data[0][3] == "keyframe"  # ApplicationState data preserved
         assert result["Track1"][0][3] == "endframe"  # Result has live data
         assert result is not original_data  # Different objects
 
@@ -334,8 +373,9 @@ def test_gap_visualization_tdd_style(qtbot):
 
     # Act: Simulate the exact bug scenario
     # 1. Multi-curve data loaded
-    widget.curves_data = {"MainTrack": [(1, 100, 100, "keyframe"), (10, 200, 150, "normal")]}
-    widget.active_curve_name = "MainTrack"
+    widget.set_curves_data(
+        {"MainTrack": [(1, 100, 100, "keyframe"), (10, 200, 150, "normal")]}, active_curve="MainTrack"
+    )
 
     # 2. User changes point status (updates curve store)
     widget._curve_store = Mock()

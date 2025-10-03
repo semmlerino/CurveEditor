@@ -55,6 +55,9 @@ class TestTrackingDirectionUndo:
         # Set curve data to match
         main_window.curve_widget.set_curve_data(tracking_data["Point1"])
 
+        # CRITICAL: Set active curve to Point1 (not __default__) for command execution
+        app_state.set_active_curve("Point1")
+
         # Update UI to reflect data
         main_window.tracking_controller.update_tracking_panel()
         main_window.tracking_controller.update_curve_display(SelectionContext.DATA_LOADING)
@@ -90,15 +93,18 @@ class TestTrackingDirectionUndo:
         """Test that undo reverses the status changes from direction change."""
         main_window = main_window_with_tracking_data
 
-        # Get initial curve data
-        initial_data = list(main_window.curve_widget.curve_data)
+        # Get initial curve data from ApplicationState (where tracking direction changes occur)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        initial_data = list(app_state.get_curve_data("Point1"))
 
         # Change direction from forward to backward
         # This should change some keyframes to endframes or vice versa
         main_window.tracking_controller.on_tracking_direction_changed("Point1", TrackingDirection.TRACKING_BW)
 
-        # Get curve data after direction change
-        changed_data = list(main_window.curve_widget.curve_data)
+        # Get curve data after direction change from ApplicationState
+        changed_data = list(app_state.get_curve_data("Point1"))
 
         # Verify data changed
         assert changed_data != initial_data, "Data should have changed after direction change"
@@ -118,8 +124,8 @@ class TestTrackingDirectionUndo:
         success = interaction_service.command_manager.undo(main_window)
         assert success, "Undo should succeed"
 
-        # Get curve data after undo
-        undone_data = list(main_window.curve_widget.curve_data)
+        # Get curve data after undo from ApplicationState
+        undone_data = list(app_state.get_curve_data("Point1"))
 
         # Verify data is back to initial state
         assert len(undone_data) == len(initial_data), "Should have same number of points after undo"
@@ -135,11 +141,16 @@ class TestTrackingDirectionUndo:
         """Test that redo reapplies the status changes."""
         main_window = main_window_with_tracking_data
 
+        # Get ApplicationState to read curve data
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
         # Change direction
         main_window.tracking_controller.on_tracking_direction_changed("Point1", TrackingDirection.TRACKING_BW)
 
-        # Get data after change
-        changed_data = list(main_window.curve_widget.curve_data)
+        # Get data after change from ApplicationState
+        changed_data = list(app_state.get_curve_data("Point1"))
 
         # Undo
         interaction_service = get_interaction_service()
@@ -149,8 +160,8 @@ class TestTrackingDirectionUndo:
         success = interaction_service.command_manager.redo(main_window)
         assert success, "Redo should succeed"
 
-        # Get data after redo
-        redone_data = list(main_window.curve_widget.curve_data)
+        # Get data after redo from ApplicationState
+        redone_data = list(app_state.get_curve_data("Point1"))
 
         # Verify data matches the changed state
         assert len(redone_data) == len(changed_data), "Should have same number of points after redo"

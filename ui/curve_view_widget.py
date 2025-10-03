@@ -488,7 +488,8 @@ class CurveViewWidget(QWidget):
 
             # Only update if data differs (avoid unnecessary signal emissions)
             if default_data != current_data:
-                self._curve_store.set_data(default_data)
+                # Preserve selection during sync to avoid clearing it on status-only changes
+                self._curve_store.set_data(default_data, preserve_selection_on_sync=True)
                 logger.debug(f"Synced ApplicationState '__default__' ({len(default_data)} points) to CurveDataStore")
 
         # Invalidate caches and request repaint

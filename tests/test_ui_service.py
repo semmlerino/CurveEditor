@@ -386,6 +386,13 @@ class TestUIStateManagement:
         main_window.curve_data = [(1, 2.0, 3.0)]
         main_window.selected_indices = [0]
 
+        # Update ApplicationState as well (UIService reads from ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", [(1, 2.0, 3.0)])
+        app_state.set_active_curve("__default__")
+
         ui_service.update_button_states(main_window)
 
         # Verify behavior based on state
@@ -442,6 +449,13 @@ class TestUIStateManagement:
         """Test updating UI from data state."""
         main_window.curve_data = [(1, 2.0, 3.0), (2, 3.0, 4.0)]
         main_window.is_modified = True
+
+        # Update ApplicationState as well (UIService reads from ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", [(1, 2.0, 3.0), (2, 3.0, 4.0)])
+        app_state.set_active_curve("__default__")
 
         ui_service.update_ui_from_data(main_window)
 

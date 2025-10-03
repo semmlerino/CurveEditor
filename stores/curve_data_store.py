@@ -79,12 +79,14 @@ class CurveDataStore(QObject):
 
     # ==================== Data Modification ====================
 
-    def set_data(self, data: CurveDataInput) -> None:
+    def set_data(self, data: CurveDataInput, preserve_selection_on_sync: bool = False) -> None:
         """
         Replace all curve data.
 
         Args:
             data: New curve data (can be CurveDataList or CurveDataWithMetadata)
+            preserve_selection_on_sync: If True, preserve selection when data is structurally
+                equivalent (for syncing status changes from ApplicationState)
         """
         if not self._batch_mode:
             self._add_to_undo()
@@ -95,12 +97,37 @@ class CurveDataStore(QObject):
         if isinstance(data, CurveDataWithMetadata):
             data = data.data  # Extract the actual data list
 
-        self._data = list(data)  # Store a copy to prevent external mutation
-        self._selection.clear()  # Clear selection when data changes
+        old_data = self._data
+        old_selection = self._selection.copy()
+        new_data = list(data)  # Store a copy to prevent external mutation
+
+        # Only preserve selection if explicitly requested AND data is structurally equivalent
+        preserve_selection = False
+        if preserve_selection_on_sync and len(old_data) == len(new_data) and len(old_selection) > 0:
+            # Check if frames AND x,y coords match (only status may differ)
+            frames_and_coords_match = all(
+                old_data[i][0] == new_data[i][0]  # Same frame
+                and old_data[i][1] == new_data[i][1]  # Same x
+                and old_data[i][2] == new_data[i][2]  # Same y
+                for i in range(len(old_data))
+            )
+            if frames_and_coords_match:
+                preserve_selection = True
+                logger.debug("Preserving selection across set_data (status-only sync)")
+
+        self._data = new_data
+
+        if preserve_selection:
+            # Keep valid selection indices
+            self._selection = {i for i in old_selection if i < len(self._data)}
+        else:
+            self._selection.clear()  # Clear selection when data structure changes
 
         if not self._batch_mode:
             self.data_changed.emit()
-            self.selection_changed.emit(set())
+            if not preserve_selection:
+                self.selection_changed.emit(set())
+            # If preserving selection, don't emit selection_changed since it didn't change
 
         logger.debug(f"Set {len(data)} points")
 

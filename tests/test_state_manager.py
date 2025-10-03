@@ -17,6 +17,10 @@ from ui.state_manager import StateManager
 @pytest.fixture
 def state_manager():
     """Create a StateManager instance for testing."""
+    # Ensure clean ApplicationState for this StateManager
+    from stores.application_state import reset_application_state
+
+    reset_application_state()
     sm = StateManager()
     # StateManager is a QObject, doesn't need qtbot registration
     return sm
@@ -528,7 +532,8 @@ class TestStateManagerReset:
         state_manager.total_frames = 100  # Set total_frames BEFORE current_frame
         state_manager.current_frame = 50
         state_manager.zoom_level = 2.0
-        state_manager.set_image_files(["img1.png"])
+        # Use enough image files to not clamp current_frame (50 requires at least 50 images)
+        state_manager.set_image_files([f"img{i}.png" for i in range(1, 51)])
         state_manager.current_tool = "pen"
 
         # Setup spies
