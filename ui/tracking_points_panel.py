@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataInput, CurveDataList
+from core.type_aliases import CurveDataInput
 
 
 class TrackingTableEventFilter(QObject):
@@ -139,7 +139,6 @@ class TrackingPointsPanel(QWidget):
     def __init__(self, parent: QWidget | None = None):
         """Initialize the tracking points panel."""
         super().__init__(parent)
-        self._tracked_data: dict[str, CurveDataList] = {}
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
         self._active_point: str | None = None  # Active timeline point (whose timeline is displayed)
@@ -211,8 +210,6 @@ class TrackingPointsPanel(QWidget):
             return
 
         self._updating = True
-        # Convert to CurveDataList for storage
-        self._tracked_data = {name: list(data) for name, data in tracked_data.items()}
 
         # Initialize metadata for new points
         colors = [
@@ -262,6 +259,8 @@ class TrackingPointsPanel(QWidget):
             # Point name
             name_item = QTableWidgetItem(point_name)
             name_item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsSelectable | Qt.ItemFlag.ItemIsEditable)
+            # Store original point name in UserRole for rename detection
+            name_item.setData(Qt.ItemDataRole.UserRole, point_name)
             self.table.setItem(i, 1, name_item)
 
             # Frame count
@@ -442,11 +441,12 @@ class TrackingPointsPanel(QWidget):
 
         if item.column() == 1:  # Name column
             new_name = item.text()
-            # Find the old name
-            row = item.row()
-            old_name = list(self._tracked_data.keys())[row] if row < len(self._tracked_data) else ""
+            # Get the old name from UserRole data (stored when item was created)
+            old_name = item.data(Qt.ItemDataRole.UserRole)
 
             if old_name and new_name != old_name:
+                # Update UserRole data with new name for future edits
+                item.setData(Qt.ItemDataRole.UserRole, new_name)
                 self.point_renamed.emit(old_name, new_name)
 
     def _on_visibility_changed(self, point_name: str, visible: bool) -> None:

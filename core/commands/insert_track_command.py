@@ -391,9 +391,11 @@ class InsertTrackCommand(Command):
         if hasattr(main_window, "active_timeline_point"):
             main_window.active_timeline_point = curve_name
 
+        # Get curve data (needed for both curve widget and timeline updates)
+        curve_data = main_window.multi_point_controller.tracked_data[curve_name]
+
         # Update curve display
         if main_window.curve_widget:
-            curve_data = main_window.multi_point_controller.tracked_data[curve_name]
             main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline

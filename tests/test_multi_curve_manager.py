@@ -9,6 +9,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 import pytest
 
 from core.type_aliases import CurveDataList
+from stores.application_state import reset_application_state
 from ui.curve_view_widget import CurveViewWidget
 from ui.multi_curve_manager import MultiCurveManager
 
@@ -26,6 +27,9 @@ class TestMultiCurveManager:
     @pytest.fixture
     def manager(self, widget):
         """Create a MultiCurveManager for testing."""
+        # Reset ApplicationState to ensure clean state for each test
+        # (widget initialization may have added curves)
+        reset_application_state()
         return MultiCurveManager(widget)
 
     def test_initial_state(self, manager):
@@ -225,6 +229,9 @@ class TestMultiCurveManagerIntegration:
     @pytest.fixture
     def manager(self, widget):
         """Create a MultiCurveManager for testing."""
+        # Reset ApplicationState to ensure clean state for each test
+        # (widget initialization may have added curves)
+        reset_application_state()
         return MultiCurveManager(widget)
 
     def test_adding_curve_updates_widget_data(self, manager, widget):

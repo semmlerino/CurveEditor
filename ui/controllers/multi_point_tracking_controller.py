@@ -63,9 +63,6 @@ class MultiPointTrackingController:
         self.point_tracking_directions: dict[str, TrackingDirection] = {}  # Track previous directions
         self._previous_active_curve: str | None = None  # Track previous active curve for data persistence
 
-        # Connect to curve store signals to keep tracking data synchronized
-        self._connect_to_curve_store_signals()
-
         logger.info("MultiPointTrackingController initialized")
 
     @property
@@ -99,51 +96,6 @@ class MultiPointTrackingController:
         # Add all curves from the input dict
         for curve_name, curve_data in value.items():
             self._app_state.set_curve_data(curve_name, curve_data)
-
-    def _connect_to_curve_store_signals(self) -> None:
-        """Connect to curve store signals to keep tracking data synchronized with status changes."""
-        try:
-            if self.main_window.curve_widget and hasattr(self.main_window.curve_widget, "_curve_store"):
-                curve_store = self.main_window.curve_widget._curve_store
-
-                # Connect to status change signal to sync our tracking data
-                _ = curve_store.point_status_changed.connect(self._on_curve_store_status_changed)
-
-                logger.debug("Connected tracking controller to curve store status change signals")
-        except AttributeError as e:
-            logger.warning(f"Could not connect to curve store signals: {e}")
-
-    @Slot(int, str)
-    def _on_curve_store_status_changed(self, index: int, status: str) -> None:
-        """
-        Handle status changes from curve store to keep tracking data synchronized.
-
-        Args:
-            index: Point index that changed
-            status: New status value
-        """
-        # Get the currently active timeline point
-        active_curve = self.main_window.active_timeline_point
-        if not active_curve or active_curve not in self._app_state.get_all_curve_names():
-            return
-
-        # Update the corresponding point in ApplicationState
-        tracking_curve_data = self._app_state.get_curve_data(active_curve)
-        if 0 <= index < len(tracking_curve_data):
-            old_point = tracking_curve_data[index]
-            if len(old_point) >= 3:
-                # Update with new status, preserving frame, x, y
-                new_point = (old_point[0], old_point[1], old_point[2], status)
-                # Update the full curve data with the modified point
-                updated_data = list(tracking_curve_data)
-                updated_data[index] = new_point
-                self._app_state.set_curve_data(active_curve, updated_data)
-
-                logger.debug(f"Synchronized tracking data: point {index} in '{active_curve}' status -> {status}")
-
-                # Force repaint to update colors immediately
-                if self.main_window.curve_widget:
-                    self.main_window.curve_widget.update()
 
     @Slot(list)
     def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:

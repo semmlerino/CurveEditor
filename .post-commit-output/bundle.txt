@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 193 files to bundle
+Found 194 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -10,6 +10,7 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
+Bundled: APPLICATIONSTATE_MIGRATION_RELEASE_NOTES.md
 Bundled: ARCHITECTURE.md
 Bundled: basedpyrightconfig.json
 Bundled: baseline_lines.txt
@@ -137,6 +138,7 @@ Bundled: rendering/optimized_curve_renderer.py
 Bundled: rendering/rendering_protocols.py
 Bundled: rendering/render_state.py
 Bundled: rendering/__init__.py
+Bundled: scripts/measure_memory.py
 Bundled: services/cache_service.py
 Bundled: services/coordinate_service.py
 Bundled: services/data_analysis.py
@@ -151,7 +153,6 @@ Bundled: stores/application_state.py
 Bundled: stores/connection_verifier.py
 Bundled: stores/curve_data_store.py
 Bundled: stores/frame_store.py
-Bundled: stores/state_migration.py
 Bundled: stores/store_manager.py
 Bundled: stores/__init__.py
 Bundled: test_data/timeline_test_statuses.json
@@ -198,9 +199,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.35 MB
+Folder size: 2.36 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 742448 bytes
+Encoded size: 751432 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json
