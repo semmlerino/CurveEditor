@@ -1,10 +1,10 @@
 {
-  "timestamp": "2025-10-03T10:40:29.366660",
+  "timestamp": "2025-10-03T10:54:00.733405",
   "folder_name": "curveeditor_bundle_temp",
   "folder_path": "/tmp/curveeditor_bundle_temp",
-  "original_size_bytes": 2401550,
-  "encoded_size_bytes": 725140,
+  "original_size_bytes": 2406813,
+  "encoded_size_bytes": 726948,
   "chunk_size_kb": 5120,
   "total_chunks": 1,
-  "compression_ratio": 3.3118432302727747
+  "compression_ratio": 3.3108461678139287
 }
