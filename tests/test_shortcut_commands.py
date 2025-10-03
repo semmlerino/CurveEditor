@@ -28,6 +28,7 @@ from core.commands.shortcut_commands import (
     UndoCommand,
 )
 from core.models import PointStatus, TrackingDirection
+from stores.application_state import get_application_state
 
 
 @pytest.fixture
@@ -163,7 +164,13 @@ class TestSetEndframeCommand:
         """Test can_execute with current frame and point."""
         cmd = SetEndframeCommand()
         basic_context.current_frame = 1  # Frame 1 -> index 0
-        basic_context.main_window.curve_widget.curve_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        test_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        basic_context.main_window.curve_widget.curve_data = test_data
+
+        # Set up ApplicationState (commands read from here)
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", test_data)
+        app_state.set_active_curve("__default__")
 
         assert cmd.can_execute(basic_context)
 
@@ -182,7 +189,13 @@ class TestSetEndframeCommand:
         # Set current frame to 1
         basic_context.current_frame = 1
         # Set curve data with point at frame 1 (index 0)
-        basic_context.main_window.curve_widget.curve_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        test_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        basic_context.main_window.curve_widget.curve_data = test_data
+
+        # Set up ApplicationState (commands read from here)
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", test_data)
+        app_state.set_active_curve("__default__")
 
         # Set up mock curve store to return the point at current frame
         mock_store = basic_context.main_window.curve_widget._curve_store
@@ -558,7 +571,13 @@ class TestNudgePointsCommand:
         """Test can_execute with current frame and point."""
         cmd = NudgePointsCommand("4", -1.0, 0.0)
         basic_context.current_frame = 1
-        basic_context.main_window.curve_widget.curve_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        test_data = [(1, 100, 100, PointStatus.NORMAL.value)]
+        basic_context.main_window.curve_widget.curve_data = test_data
+
+        # Set up ApplicationState (commands read from here)
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", test_data)
+        app_state.set_active_curve("__default__")
 
         assert cmd.can_execute(basic_context)
 

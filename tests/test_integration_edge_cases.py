@@ -206,9 +206,7 @@ class TestConvertToInterpolatedEdgeCases:
 
         # Single point
         initial_data = [(5, 100.0, 200.0, "keyframe")]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -244,9 +242,7 @@ class TestConvertToInterpolatedEdgeCases:
             (1, 100.0, 100.0, "keyframe"),
             (5, 200.0, 200.0, "keyframe"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 1
 
@@ -282,9 +278,7 @@ class TestConvertToInterpolatedEdgeCases:
             (1, 100.0, 100.0, "keyframe"),
             (5, 200.0, 200.0, "keyframe"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -321,9 +315,7 @@ class TestConvertToInterpolatedEdgeCases:
             (5, 150.0, 150.0, "keyframe"),  # Will convert this
             (10, 200.0, 200.0, "keyframe"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -383,9 +375,7 @@ class TestShortcutConflictResolution:
 
         # Setup data
         initial_data = [(5, 100.0, 100.0, "keyframe")]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -430,9 +420,7 @@ class TestMixedStatusNudgeUndo:
             (2, 110.0, 110.0, "interpolated"),  # Will convert
             (3, 120.0, 120.0, "normal"),  # Will convert
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
 
         # Select all points
@@ -503,9 +491,7 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),  # Will convert this
             (10, 200.0, 200.0, "keyframe"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -566,9 +552,7 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),
             (10, 200.0, 200.0, "keyframe"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
