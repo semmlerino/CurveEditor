@@ -62,6 +62,7 @@ class RenderState:
     curves_data: dict[str, CurveDataList] | None = None
     show_all_curves: bool = False
     selected_curve_names: set[str] | None = None
+    selected_curves_ordered: list[str] | None = None  # Ordered list for visual differentiation
     curve_metadata: dict[str, dict[str, Any]] | None = None
     active_curve_name: str | None = None
 

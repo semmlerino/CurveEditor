@@ -9,6 +9,7 @@ CurveEditor.concat
 venv/
 
 # Ignore obsolete and archive directories that contain historical/outdated code
+archive_legacy/
 docs/ObsoleteArchive/
 docs/archive_2025_01_28/
 docs/archive/

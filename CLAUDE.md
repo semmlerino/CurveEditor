@@ -224,6 +224,29 @@ Single source of truth for application state with Qt signal-based reactivity:
 - **Command Merging**: Continuous operations (e.g., dragging) merge into single undo step
 - **Full Coverage**: Move, delete, status changes, smoothing all undoable
 
+## Insert Track Feature (3DEqualizer-style Gap Filling)
+
+**Purpose**: Fill gaps in tracking trajectories by interpolating or copying data from other curves.
+
+**Shortcut**: Ctrl+Shift+I
+
+**Implementation**:
+- **Algorithm** (`core/insert_track_algorithm.py`): Core gap detection and filling logic
+- **Command** (`core/commands/insert_track_command.py`): Undoable insert track operation
+- **Controller**: MultiPointTrackingController handles multi-curve operations
+
+**Usage Scenarios**:
+1. **Single Curve Interpolation**: When only one curve selected, fills gaps by linear interpolation
+2. **Multi-Curve Copy**: When multiple curves selected, copies data from source curves with offset correction
+3. **Averaged Curves**: Can create averaged trajectories from multiple sources
+
+**Gap Detection**:
+- `find_gap_around_frame()`: Identifies continuous frame ranges without tracking data
+- Works on current frame to find surrounding gap boundaries
+- Respects ENDFRAME status to preserve intentional segment breaks
+
+**3DEqualizer Compatibility**: Based on 3DEqualizer's Insert Track functionality for seamless workflow integration.
+
 ## Rendering Pipeline (`rendering/optimized_curve_renderer.py`)
 
 **47x Performance Improvement**:

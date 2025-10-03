@@ -206,6 +206,8 @@ class TestMultiPointTrackingController:
     @patch("ui.controllers.multi_point_tracking_controller.QTimer")
     def test_on_tracking_points_selected_single(self, mock_qtimer, controller, mock_main_window):
         """Test selecting a single tracking point."""
+        # Configure tracking_panel.get_selected_points() to return the selected point
+        mock_main_window.tracking_panel.get_selected_points.return_value = ["Track1"]
         # Select single point
         controller.on_tracking_points_selected(["Track1"])
 
@@ -235,6 +237,8 @@ class TestMultiPointTrackingController:
         # Mock the necessary methods
         mock_main_window.curve_widget.set_curves_data = Mock()
         mock_main_window.curve_widget.center_on_selection = Mock()
+        # Configure tracking_panel.get_selected_points() to return the selected points
+        mock_main_window.tracking_panel.get_selected_points.return_value = ["Track1", "Track2", "Track3"]
 
         # Select multiple points
         controller.on_tracking_points_selected(["Track1", "Track2", "Track3"])
@@ -249,8 +253,8 @@ class TestMultiPointTrackingController:
         # Check arguments
         assert len(call_args[0]) >= 3
         assert call_args[0][2] == "Track3"  # active_curve is last selected
-        # In new architecture: selected_curves only contains the active timeline point
-        assert call_args[1].get("selected_curves") == ["Track3"]
+        # MANUAL_SELECTION context: selected_curves contains all selected points from panel
+        assert call_args[1].get("selected_curves") == ["Track1", "Track2", "Track3"]
 
         # Verify centering was scheduled with QTimer.singleShot
         # Check that singleShot was called with 10ms delay (function is now wrapped for safety)

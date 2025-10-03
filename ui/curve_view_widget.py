@@ -176,6 +176,7 @@ class CurveViewWidget(QWidget):
         self.active_curve_name: str | None = None  # Currently selected curve for editing
         self.show_all_curves: bool = False  # Toggle for showing all curves
         self.selected_curve_names: set[str] = set()  # Currently selected curves to display
+        self.selected_curves_ordered: list[str] = []  # Ordered list for visual differentiation
 
         # View transformation
         self.zoom_factor: float = DEFAULT_ZOOM_FACTOR
@@ -541,9 +542,11 @@ class CurveViewWidget(QWidget):
         # Update selected curves if specified
         if selected_curves is not None:
             self.selected_curve_names = set(selected_curves)
+            self.selected_curves_ordered = list(selected_curves)  # Maintain order for visual differentiation
         elif not self.selected_curve_names:
             # If no selection specified and no existing selection, default to active curve
             self.selected_curve_names = {active_curve} if active_curve else set()
+            self.selected_curves_ordered = [active_curve] if active_curve else []
 
         # Set the active curve
         if active_curve and active_curve in curves:
@@ -684,6 +687,7 @@ class CurveViewWidget(QWidget):
             curve_names: List of curve names to select and display
         """
         self.selected_curve_names = set(curve_names)
+        self.selected_curves_ordered = list(curve_names)  # Maintain order for visual differentiation
 
         # Set the last selected as the active curve for editing
         if curve_names and curve_names[-1] in self.curves_data:
@@ -1009,6 +1013,7 @@ class CurveViewWidget(QWidget):
             curves_data=self._get_live_curves_data(),
             show_all_curves=self.show_all_curves,
             selected_curve_names=self.selected_curve_names,
+            selected_curves_ordered=self.selected_curves_ordered,  # For visual differentiation
         )
 
         # Pass explicit state to renderer instead of widget reference

@@ -70,8 +70,8 @@ class TestToneMapping:
 
         result = load_exr_as_qimage("test.exr")
 
-        # Verify imread was called
-        mock_imread.assert_called_once_with("test.exr")
+        # Verify imread was called with plugin parameter
+        mock_imread.assert_called_once_with("test.exr", plugin="ffmpeg")
 
         # Result should not be None
         assert result is not None
@@ -114,7 +114,7 @@ class TestLoadExrAsQImage:
         result = load_exr_as_qimage("test.exr")
 
         assert result is not None
-        mock_imread.assert_called_once_with("test.exr")
+        mock_imread.assert_called_once_with("test.exr", plugin="ffmpeg")
 
     @patch("imageio.v3.imread")
     @patch("PySide6.QtGui.QImage")

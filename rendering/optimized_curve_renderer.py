@@ -1073,6 +1073,7 @@ class OptimizedCurveRenderer:
         active_curve = render_state.active_curve_name
         show_all_curves = render_state.show_all_curves
         selected_curve_names = render_state.selected_curve_names or set()
+        selected_curves_ordered = render_state.selected_curves_ordered or []
 
         # Get transform once for all curves
         transform = self._create_transform_from_render_state(render_state)
@@ -1092,12 +1093,26 @@ class OptimizedCurveRenderer:
 
             # Determine curve styling
             is_active = curve_name == active_curve
-            color_str = metadata.get("color", "#FFFFFF")
-            curve_color = QColor(color_str)
 
-            # Adjust opacity for inactive curves
-            if not is_active:
-                curve_color.setAlpha(128)  # 50% opacity for inactive curves
+            # Determine if this is the second selected curve for visual differentiation
+            is_second_selected = (
+                len(selected_curves_ordered) >= 2
+                and curve_name == selected_curves_ordered[-2]  # Second-to-last (first non-active)
+            )
+
+            # Choose color based on selection order
+            if is_second_selected:
+                # Second selected curve gets cyan color for differentiation
+                curve_color = QColor("#00FFFF")  # Cyan
+            else:
+                color_str = metadata.get("color", "#FFFFFF")
+                curve_color = QColor(color_str)
+
+            # Adjust opacity for inactive curves (but keep second selected more visible)
+            if not is_active and not is_second_selected:
+                curve_color.setAlpha(128)  # 50% opacity for other inactive curves
+            elif is_second_selected:
+                curve_color.setAlpha(200)  # 78% opacity for second selected (still highlighted)
 
             # Convert points to NumPy array
             try:

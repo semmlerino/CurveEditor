@@ -656,6 +656,17 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
+        # CRITICAL: Save current curve data back to tracked_data before switching
+        # This ensures modifications (endframes, nudges, etc.) are preserved
+        current_active = self.main_window.active_timeline_point
+        if current_active and current_active in self.tracked_data:
+            # Get current data from curve widget's store
+            if hasattr(self.main_window.curve_widget, "_curve_store"):
+                current_data = self.main_window.curve_widget._curve_store.get_data()
+                if current_data:
+                    self.tracked_data[current_active] = current_data
+                    logger.debug(f"Saved modifications for '{current_active}' back to tracked_data")
+
         # Check if curve widget supports multi-curve display
         if self.main_window.curve_widget is not None and callable(
             getattr(self.main_window.curve_widget, "set_curves_data", None)
@@ -684,8 +695,25 @@ class MultiPointTrackingController:
                     active_curve,
                     # selected_curves omitted - preserves existing selection
                 )
+            elif context == SelectionContext.MANUAL_SELECTION:
+                # For tracking panel selection, use ALL selected curves from panel
+                # This fixes the bug where only one curve displays when selecting multiple
+                selected_curves_list = []
+                if self.main_window.tracking_panel:
+                    selected_curves_list = self.main_window.tracking_panel.get_selected_points()
+
+                # Fallback to active curve if no selection available
+                if not selected_curves_list and active_curve:
+                    selected_curves_list = [active_curve]
+
+                self.main_window.curve_widget.set_curves_data(
+                    self.tracked_data,
+                    metadata,
+                    active_curve,
+                    selected_curves=selected_curves_list,
+                )
             else:
-                # Reset selection for explicit actions (tracking panel selection, data loading, curve switching)
+                # Reset selection for other explicit actions (DATA_LOADING, CURVE_SWITCHING)
                 self.main_window.curve_widget.set_curves_data(
                     self.tracked_data,
                     metadata,

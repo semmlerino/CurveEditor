@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 197 files to bundle
+Found 187 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -70,17 +70,6 @@ Bundled: commands/base.py
 Bundled: commands/smooth_command.py
 Bundled: commands/TestRules.md
 Bundled: commands/__init__.py
-Bundled: controllers/event_filter_controller.py
-Bundled: controllers/file_operations_manager.py
-Bundled: controllers/frame_navigation_controller.py
-Bundled: controllers/playback_controller.py
-Bundled: controllers/point_edit_controller.py
-Bundled: controllers/smoothing_controller.py
-Bundled: controllers/state_change_controller.py
-Bundled: controllers/timeline_controller.py
-Bundled: controllers/tracking_panel_controller.py
-Bundled: controllers/view_update_manager.py
-Bundled: controllers/zoom_controller.py
 Bundled: core/config.py
 Bundled: core/coordinate_detector.py
 Bundled: core/coordinate_system.py
@@ -91,6 +80,7 @@ Bundled: core/error_handlers.py
 Bundled: core/error_messages.py
 Bundled: core/favorites_manager.py
 Bundled: core/image_state.py
+Bundled: core/insert_track_algorithm.py
 Bundled: core/logger_utils.py
 Bundled: core/math_utils.py
 Bundled: core/metadata_extractor.py
@@ -111,6 +101,7 @@ Bundled: core/__init__.py
 Bundled: core/commands/base_command.py
 Bundled: core/commands/command_manager.py
 Bundled: core/commands/curve_commands.py
+Bundled: core/commands/insert_track_command.py
 Bundled: core/commands/shortcut_command.py
 Bundled: core/commands/shortcut_commands.py
 Bundled: core/commands/__init__.py
@@ -173,7 +164,6 @@ Bundled: ui/image_sequence_browser.py
 Bundled: ui/keyboard_shortcuts.py
 Bundled: ui/main_window.py
 Bundled: ui/main_window_builder.py
-Bundled: ui/main_window_initializer.py
 Bundled: ui/menu_bar.py
 Bundled: ui/multi_curve_manager.py
 Bundled: ui/point_list_widget.py
@@ -202,9 +192,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.24 MB
+Folder size: 2.18 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 697444 bytes
+Encoded size: 683156 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json
