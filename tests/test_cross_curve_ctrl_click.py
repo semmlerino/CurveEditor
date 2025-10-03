@@ -9,6 +9,7 @@ all curves with selected points become visible without requiring "Show all curve
 import pytest
 from PySide6.QtTest import QTest
 
+from stores.application_state import get_application_state
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -57,12 +58,14 @@ class TestCrossCurveCtrlClick:
         3. Ctrl+click a point on curve_b -> both curve_a and curve_b should be in selected_curve_names
         4. Both curves should be visible without show_all_curves enabled
         """
+        app_state = get_application_state()
+
         # Verify initial state
-        assert curve_widget.active_curve_name == "curve_a"
+        assert app_state.active_curve == "curve_a"
         assert curve_widget.show_all_curves is False
 
         # Get screen position of first point on curve_a
-        point_a = curve_widget.curves_data["curve_a"][0]
+        point_a = app_state.get_curve_data("curve_a")[0]
         screen_pos_a = curve_widget.data_to_screen(float(point_a[1]), float(point_a[2]))
 
         # Click point on curve_a
@@ -77,7 +80,7 @@ class TestCrossCurveCtrlClick:
         assert "curve_a" in curve_widget.selected_curve_names
 
         # Get screen position of first point on curve_b
-        point_b = curve_widget.curves_data["curve_b"][0]
+        point_b = app_state.get_curve_data("curve_b")[0]
         screen_pos_b = curve_widget.data_to_screen(float(point_b[1]), float(point_b[2]))
 
         # Ctrl+click point on curve_b
@@ -93,7 +96,7 @@ class TestCrossCurveCtrlClick:
         assert "curve_b" in curve_widget.selected_curve_names, "curve_b should now be selected"
 
         # Verify active curve switched to curve_b (last selected)
-        assert curve_widget.active_curve_name == "curve_b"
+        assert app_state.active_curve == "curve_b"
 
         # Verify show_all_curves is still False
         assert curve_widget.show_all_curves is False
@@ -103,9 +106,11 @@ class TestCrossCurveCtrlClick:
 
     def test_find_point_at_multi_curve_searches_all_curves(self, curve_widget):
         """Test that _find_point_at_multi_curve can find points on any visible curve."""
+        app_state = get_application_state()
+
         # Get points from different curves
-        point_a = curve_widget.curves_data["curve_a"][1]
-        point_b = curve_widget.curves_data["curve_b"][1]
+        point_a = app_state.get_curve_data("curve_a")[1]
+        point_b = app_state.get_curve_data("curve_b")[1]
 
         # Get screen positions
         screen_a = curve_widget.data_to_screen(float(point_a[1]), float(point_a[2]))
@@ -120,22 +125,26 @@ class TestCrossCurveCtrlClick:
 
     def test_selecting_from_different_curve_switches_active(self, curve_widget):
         """Test that selecting a point on a different curve makes it active."""
-        assert curve_widget.active_curve_name == "curve_a"
+        app_state = get_application_state()
+
+        assert app_state.active_curve == "curve_a"
 
         # Select a point on curve_b
-        point_b = curve_widget.curves_data["curve_b"][0]
+        point_b = app_state.get_curve_data("curve_b")[0]
         screen_pos = curve_widget.data_to_screen(float(point_b[1]), float(point_b[2]))
         idx, curve_name = curve_widget._find_point_at_multi_curve(screen_pos)
 
         curve_widget._select_point(idx, add_to_selection=False, curve_name=curve_name)
 
         # Active curve should switch to curve_b
-        assert curve_widget.active_curve_name == "curve_b"
+        assert app_state.active_curve == "curve_b"
 
     def test_ctrl_click_on_same_curve_does_not_duplicate(self, curve_widget):
         """Test that Ctrl+clicking another point on the same curve doesn't duplicate in selected_curve_names."""
+        app_state = get_application_state()
+
         # Select first point on curve_a
-        point_a1 = curve_widget.curves_data["curve_a"][0]
+        point_a1 = app_state.get_curve_data("curve_a")[0]
         screen_pos_1 = curve_widget.data_to_screen(float(point_a1[1]), float(point_a1[2]))
         idx_1, curve_name_1 = curve_widget._find_point_at_multi_curve(screen_pos_1)
         curve_widget._select_point(idx_1, add_to_selection=False, curve_name=curve_name_1)
@@ -144,7 +153,7 @@ class TestCrossCurveCtrlClick:
         initial_count = len([c for c in curve_widget.selected_curve_names if c == "curve_a"])
 
         # Ctrl+click second point on curve_a
-        point_a2 = curve_widget.curves_data["curve_a"][1]
+        point_a2 = app_state.get_curve_data("curve_a")[1]
         screen_pos_2 = curve_widget.data_to_screen(float(point_a2[1]), float(point_a2[2]))
         idx_2, curve_name_2 = curve_widget._find_point_at_multi_curve(screen_pos_2)
         curve_widget._select_point(idx_2, add_to_selection=True, curve_name=curve_name_2)

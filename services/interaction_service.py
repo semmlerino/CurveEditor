@@ -125,10 +125,12 @@ class InteractionService:
 
     def _handle_mouse_press_consolidated(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Consolidated mouse press handling for default mode."""
-        from PySide6.QtCore import QRect, QSize, Qt
+        from PySide6.QtCore import QPoint, QRect, QSize, Qt
         from PySide6.QtWidgets import QRubberBand
 
-        pos = event.position()
+        pos_f = event.position()
+        # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
+        pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
         # Check for point selection first
         point_idx = self.find_point_at(view, pos.x(), pos.y())
@@ -182,7 +184,7 @@ class InteractionService:
                     view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)
                 view.rubber_band_origin = pos
                 view.rubber_band_active = True
-                view.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))
+                view.rubber_band.setGeometry(QRect(pos, QSize()))
                 view.rubber_band.show()
             else:
                 # Clear selection and start pan
@@ -201,9 +203,11 @@ class InteractionService:
 
     def _handle_mouse_move_consolidated(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Consolidated mouse move handling for default mode."""
-        from PySide6.QtCore import QRect
+        from PySide6.QtCore import QPoint, QRect
 
-        pos = event.position()
+        pos_f = event.position()
+        # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
+        pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
         # drag_active is bool, last_drag_pos is Optional in CurveViewProtocol
         if view.drag_active and view.last_drag_pos is not None:
@@ -254,12 +258,15 @@ class InteractionService:
                 pan_method(delta_x, delta_y)
             view.last_pan_pos = pos
 
-        # rubber_band_active is bool, rubber_band_origin is QtPointF in CurveViewProtocol
+        # rubber_band_active is bool, rubber_band_origin is QPoint in CurveViewProtocol
         elif view.rubber_band_active:
             # Update rubber band rectangle
             # rubber_band is Optional in CurveViewProtocol
             if view.rubber_band is not None:
-                rect = QRect(view.rubber_band_origin.toPoint(), pos.toPoint()).normalized()
+                # rubber_band_origin was set as QPoint in mouse press, pos is also QPoint
+                origin = view.rubber_band_origin
+                origin_pt = origin if isinstance(origin, QPoint) else origin.toPoint()
+                rect = QRect(origin_pt, pos).normalized()
                 view.rubber_band.setGeometry(rect)
 
         view.update()

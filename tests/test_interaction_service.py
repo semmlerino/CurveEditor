@@ -71,6 +71,8 @@ class TestInteractionServiceCore:
 
     def test_find_point_at_direct_hit(self) -> None:
         """Test finding point at exact position."""
+        from stores.application_state import get_application_state
+
         # Create view with test points - these are in data coordinates
         view = MockCurveView(
             [
@@ -79,6 +81,11 @@ class TestInteractionServiceCore:
                 (3, 300, 300),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # The InteractionService creates its own transform from view attributes
         # Since scale_to_image=True and zoom_factor=1.0, points map 1:1 to screen
@@ -95,12 +102,19 @@ class TestInteractionServiceCore:
 
     def test_find_point_at_with_threshold(self) -> None:
         """Test finding point within threshold distance."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
                 (2, 200, 200),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # Clear spatial index to ensure a rebuild
         self.service.clear_spatial_index()
@@ -136,6 +150,8 @@ class TestInteractionServiceSelection:
 
     def test_select_all_points(self) -> None:
         """Test selecting all points."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
@@ -143,6 +159,12 @@ class TestInteractionServiceSelection:
                 (3, 300, 300),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
+
         main_window = MockMainWindow()
         main_window.curve_widget = view  # Real MainWindow interface  # pyright: ignore[reportAttributeAccessIssue]
         main_window.curve_view = view  # Backward compatibility  # pyright: ignore[reportAttributeAccessIssue]
@@ -177,6 +199,8 @@ class TestInteractionServiceSelection:
 
     def test_select_points_in_rect(self) -> None:
         """Test rectangle selection."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
@@ -185,6 +209,11 @@ class TestInteractionServiceSelection:
                 (4, 350, 350),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # Clear spatial index to ensure a rebuild
         self.service.clear_spatial_index()
@@ -361,6 +390,8 @@ class TestInteractionServicePointManipulation:
 
     def test_delete_selected_points(self) -> None:
         """Test deleting selected points."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
@@ -370,16 +401,23 @@ class TestInteractionServicePointManipulation:
             ]
         )
         view.selected_points = {1, 2}  # Select middle points
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
+
         main_window = MockMainWindow()
         main_window.curve_widget = view  # Real MainWindow interface  # pyright: ignore[reportAttributeAccessIssue]
         main_window.curve_view = view  # Backward compatibility  # pyright: ignore[reportAttributeAccessIssue]
 
         self.service.delete_selected_points(view, main_window)  # pyright: ignore[reportArgumentType]
 
-        # Should have only first and last points
-        assert len(view.curve_data) == 2
-        assert view.curve_data[0] == (1, 100, 100)
-        assert view.curve_data[1] == (4, 400, 400)
+        # Verify deletion in ApplicationState
+        updated_data = app_state.get_curve_data("test_curve")
+        assert len(updated_data) == 2
+        assert updated_data[0] == (1, 100, 100)
+        assert updated_data[1] == (4, 400, 400)
 
         # Selection should be cleared
         assert len(view.selected_points) == 0
@@ -403,12 +441,19 @@ class TestInteractionServiceSpatialIndex:
 
     def test_spatial_index_rebuild(self) -> None:
         """Test spatial index rebuilds with new data."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (i, i * 10, i * 10)
                 for i in range(1000)  # Large dataset
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         view.transform = self.transform_service.create_transform(scale=1.0, center_offset=(400, 300))
 
@@ -449,12 +494,19 @@ class TestInteractionServiceSpatialIndex:
 
     def test_spatial_index_invalidation(self) -> None:
         """Test spatial index rebuilds when data or transform changes."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
                 (2, 200, 200),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # Clear spatial index
         self.service.clear_spatial_index()
@@ -470,6 +522,8 @@ class TestInteractionServiceSpatialIndex:
 
         # Add more points to the view
         view.curve_data.append((3, 300, 300))
+        # Update ApplicationState with new data
+        app_state.set_curve_data("test_curve", view.curve_data)
 
         # Clear the spatial index to force rebuild
         self.service.clear_spatial_index()
@@ -518,12 +572,19 @@ class TestInteractionServiceMouseEvents:
 
     def test_handle_mouse_with_modifiers(self) -> None:
         """Test mouse events with keyboard modifiers."""
+        from stores.application_state import get_application_state
+
         view = MockCurveView(
             [
                 (1, 100, 100),
                 (2, 200, 200),
             ]
         )
+
+        # Set up ApplicationState with curve data
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # Ctrl+Click for multi-selection
         event = Mock()

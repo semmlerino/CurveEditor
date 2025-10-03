@@ -222,11 +222,18 @@ class TestSetCurveDataCommand:
 
     def test_execute_success(self):
         """Test successful command execution."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         new_data = [(1, 110.0, 210.0), (2, 160.0, 260.0)]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SetCurveDataCommand("Test set curve data", new_data)
 
@@ -235,7 +242,8 @@ class TestSetCurveDataCommand:
         assert result is True
         assert cmd.executed
         assert cmd.old_data == initial_data  # Should capture old data
-        assert curve_widget.curve_data == new_data
+        # Verify data in ApplicationState
+        assert app_state.get_curve_data("test_curve") == new_data
 
     def test_execute_no_curve_widget(self):
         """Test execution failure when no curve widget."""
@@ -251,24 +259,31 @@ class TestSetCurveDataCommand:
 
     def test_undo_success(self):
         """Test successful command undo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         new_data = [(1, 110.0, 210.0), (2, 160.0, 260.0)]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
         # Execute first
         cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
-        assert curve_widget.curve_data == new_data
+        assert app_state.get_curve_data("test_curve") == new_data
 
         # Then undo
         result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
-        assert curve_widget.curve_data == initial_data
+        assert app_state.get_curve_data("test_curve") == initial_data
 
     def test_undo_no_old_data(self):
         """Test undo failure when no old data."""
@@ -285,11 +300,18 @@ class TestSetCurveDataCommand:
 
     def test_redo_success(self):
         """Test successful command redo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0)]
         new_data = [(1, 110.0, 210.0)]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
@@ -301,7 +323,7 @@ class TestSetCurveDataCommand:
 
         assert result is True
         assert cmd.executed
-        assert curve_widget.curve_data == new_data
+        assert app_state.get_curve_data("test_curve") == new_data
 
 
 class TestSmoothCommand:
@@ -336,11 +358,18 @@ class TestSmoothCommand:
 
     def test_execute_moving_average(self, mock_data_service):
         """Test smooth command execution with moving average."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
         indices = [0, 1]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SmoothCommand("Smooth with moving average", indices, "moving_average", 3)
 
@@ -352,18 +381,26 @@ class TestSmoothCommand:
         assert cmd.new_points is not None
         assert len(cmd.new_points) == 2
 
-        # Verify smoothed data was applied (mock adds 0.1 to Y values)
-        assert curve_widget.curve_data[0][2] == 200.1  # 200.0 + 0.1
-        assert curve_widget.curve_data[1][2] == 250.1  # 250.0 + 0.1
-        assert curve_widget.curve_data[2] == initial_data[2]  # Unchanged
+        # Verify smoothed data was applied in ApplicationState (mock adds 0.1 to Y values)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0][2] == 200.1  # 200.0 + 0.1
+        assert curve_data[1][2] == 250.1  # 250.0 + 0.1
+        assert curve_data[2] == initial_data[2]  # Unchanged
 
     def test_execute_median_filter(self, mock_data_service):
         """Test smooth command execution with median filter."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         indices = [0, 1]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SmoothCommand("Smooth with median", indices, "median", 3)
 
@@ -372,17 +409,25 @@ class TestSmoothCommand:
         assert result is True
         assert cmd.executed
 
-        # Verify median filtered data was applied (mock adds 0.2 to Y values)
-        assert curve_widget.curve_data[0][2] == 200.2  # 200.0 + 0.2
-        assert curve_widget.curve_data[1][2] == 250.2  # 250.0 + 0.2
+        # Verify median filtered data was applied in ApplicationState (mock adds 0.2 to Y values)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0][2] == 200.2  # 200.0 + 0.2
+        assert curve_data[1][2] == 250.2  # 250.0 + 0.2
 
     def test_execute_butterworth_filter(self, mock_data_service):
         """Test smooth command execution with butterworth filter."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         indices = [0, 1]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SmoothCommand("Smooth with butterworth", indices, "butterworth", 4)
 
@@ -391,9 +436,10 @@ class TestSmoothCommand:
         assert result is True
         assert cmd.executed
 
-        # Verify butterworth filtered data was applied (mock adds 0.3 to Y values)
-        assert curve_widget.curve_data[0][2] == 200.3  # 200.0 + 0.3
-        assert curve_widget.curve_data[1][2] == 250.3  # 250.0 + 0.3
+        # Verify butterworth filtered data was applied in ApplicationState (mock adds 0.3 to Y values)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0][2] == 200.3  # 200.0 + 0.3
+        assert curve_data[1][2] == 250.3  # 250.0 + 0.3
 
     def test_execute_unknown_filter(self, mock_data_service):
         """Test smooth command execution with unknown filter type."""
@@ -421,6 +467,8 @@ class TestSmoothCommand:
 
     def test_execute_preserves_view_state(self, mock_data_service):
         """Test that execution preserves view state."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0)]
         curve_widget = MockCurveWidget(initial_data)
         curve_widget.zoom_factor = 2.0
@@ -428,6 +476,11 @@ class TestSmoothCommand:
         curve_widget.pan_offset_y = 75.0
 
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
@@ -441,11 +494,18 @@ class TestSmoothCommand:
 
     def test_undo_success(self, mock_data_service):
         """Test successful smooth command undo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         indices = [0, 1]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
@@ -457,28 +517,35 @@ class TestSmoothCommand:
 
         assert result is True
         assert not cmd.executed
-        assert curve_widget.curve_data == initial_data
+        assert app_state.get_curve_data("test_curve") == initial_data
 
     def test_redo_success(self, mock_data_service):
         """Test successful smooth command redo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         indices = [0, 1]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
         # Execute, undo, then redo
         cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
-        smoothed_data = copy.deepcopy(curve_widget.curve_data)
+        smoothed_data = copy.deepcopy(app_state.get_curve_data("test_curve"))
         cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         result = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
-        assert curve_widget.curve_data == smoothed_data
+        assert app_state.get_curve_data("test_curve") == smoothed_data
 
 
 class TestMovePointCommand:
@@ -498,6 +565,8 @@ class TestMovePointCommand:
 
     def test_execute_success(self):
         """Test successful point movement."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         old_pos = (100.0, 200.0)
         new_pos = (110.0, 210.0)
@@ -505,19 +574,27 @@ class TestMovePointCommand:
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
         result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
-        # First point should be updated with new position
-        assert curve_widget.curve_data[0] == (1, 110.0, 210.0)
+        # First point should be updated with new position in ApplicationState
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0] == (1, 110.0, 210.0)
         # Second point unchanged
-        assert curve_widget.curve_data[1] == (2, 150.0, 250.0)
+        assert curve_data[1] == (2, 150.0, 250.0)
 
     def test_execute_with_status(self):
         """Test point movement preserves status."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0, "KEYFRAME"), (2, 150.0, 250.0)]
         old_pos = (100.0, 200.0)
         new_pos = (110.0, 210.0)
@@ -525,13 +602,19 @@ class TestMovePointCommand:
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
         result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
-        # Status should be preserved
-        assert curve_widget.curve_data[0] == (1, 110.0, 210.0, "KEYFRAME")
+        # Status should be preserved in ApplicationState
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0] == (1, 110.0, 210.0, "KEYFRAME")
 
     def test_execute_invalid_index(self):
         """Test execution with invalid index."""
@@ -553,6 +636,8 @@ class TestMovePointCommand:
 
     def test_undo_success(self):
         """Test successful point movement undo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         old_pos = (100.0, 200.0)
         new_pos = (110.0, 210.0)
@@ -560,18 +645,25 @@ class TestMovePointCommand:
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
         # Execute first
         cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
-        assert curve_widget.curve_data[0] == (1, 110.0, 210.0)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0] == (1, 110.0, 210.0)
 
         # Then undo
         result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
-        assert curve_widget.curve_data[0] == (1, 100.0, 200.0)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0] == (1, 100.0, 200.0)
 
 
 class TestDeletePointsCommand:
@@ -591,11 +683,18 @@ class TestDeletePointsCommand:
 
     def test_execute_success(self):
         """Test successful point deletion."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
         indices = [0, 2]  # Delete first and third points
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = DeletePointsCommand("Delete points", indices)
 
@@ -606,9 +705,10 @@ class TestDeletePointsCommand:
         # Should have captured deleted points
         assert cmd.deleted_points is not None
         assert len(cmd.deleted_points) == 2
-        # Only middle point should remain
-        assert len(curve_widget.curve_data) == 1
-        assert curve_widget.curve_data[0] == (2, 150.0, 250.0)
+        # Only middle point should remain in ApplicationState
+        curve_data = app_state.get_curve_data("test_curve")
+        assert len(curve_data) == 1
+        assert curve_data[0] == (2, 150.0, 250.0)
 
 
 class TestBatchMoveCommand:
@@ -629,6 +729,8 @@ class TestBatchMoveCommand:
 
     def test_execute_success(self):
         """Test successful batch movement."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
         moves = [
             (0, (100.0, 200.0), (110.0, 210.0)),
@@ -638,16 +740,22 @@ class TestBatchMoveCommand:
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = BatchMoveCommand("Batch move", moves)
 
         result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert cmd.executed
-        # First and third points should be moved
-        assert curve_widget.curve_data[0] == (1, 110.0, 210.0)
-        assert curve_widget.curve_data[1] == (2, 150.0, 250.0)  # Unchanged
-        assert curve_widget.curve_data[2] == (3, 220.0, 320.0)
+        # First and third points should be moved in ApplicationState
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0] == (1, 110.0, 210.0)
+        assert curve_data[1] == (2, 150.0, 250.0)  # Unchanged
+        assert curve_data[2] == (3, 220.0, 320.0)
 
 
 class TestSetPointStatusCommand:
@@ -683,11 +791,18 @@ class TestAddPointCommand:
 
     def test_execute_success(self):
         """Test successful point addition."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (3, 200.0, 300.0)]
         new_point = (2, 150.0, 250.0)
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = AddPointCommand("Add point", 1, new_point)
 
@@ -695,32 +810,41 @@ class TestAddPointCommand:
 
         assert result is True
         assert cmd.executed
-        # Point should be inserted at index 1
-        assert len(curve_widget.curve_data) == 3
-        assert curve_widget.curve_data[0] == (1, 100.0, 200.0)
-        assert curve_widget.curve_data[1] == (2, 150.0, 250.0)  # New point
-        assert curve_widget.curve_data[2] == (3, 200.0, 300.0)
+        # Point should be inserted at index 1 in ApplicationState
+        curve_data = app_state.get_curve_data("test_curve")
+        assert len(curve_data) == 3
+        assert curve_data[0] == (1, 100.0, 200.0)
+        assert curve_data[1] == (2, 150.0, 250.0)  # New point
+        assert curve_data[2] == (3, 200.0, 300.0)
 
     def test_undo_success(self):
         """Test successful point addition undo."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (3, 200.0, 300.0)]
         new_point = (2, 150.0, 250.0)
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
 
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
+
         cmd = AddPointCommand("Add point", 1, new_point)
 
         # Execute first
         cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
-        assert len(curve_widget.curve_data) == 3
+        curve_data = app_state.get_curve_data("test_curve")
+        assert len(curve_data) == 3
 
         # Then undo
         result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         assert result is True
         assert not cmd.executed
-        assert curve_widget.curve_data == initial_data
+        assert app_state.get_curve_data("test_curve") == initial_data
 
 
 class TestCommandErrorHandling:
@@ -769,11 +893,18 @@ class TestCommandIntegration:
 
     def test_command_sequence_execute_undo_redo(self):
         """Test a sequence of command operations."""
+        from stores.application_state import get_application_state
+
         initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
         new_data = [(1, 110.0, 210.0), (2, 160.0, 260.0)]
 
         curve_widget = MockCurveWidget(initial_data)
         main_window = MockMainWindow(curve_widget)
+
+        # Set up ApplicationState with initial data and active curve
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
 
         cmd = SetCurveDataCommand("Test sequence", new_data)
 
@@ -781,19 +912,19 @@ class TestCommandIntegration:
         result1 = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
         assert result1 is True
         assert cmd.executed
-        assert curve_widget.curve_data == new_data
+        assert app_state.get_curve_data("test_curve") == new_data
 
         # Undo
         result2 = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
         assert result2 is True
         assert not cmd.executed
-        assert curve_widget.curve_data == initial_data
+        assert app_state.get_curve_data("test_curve") == initial_data
 
         # Redo
         result3 = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
         assert result3 is True
         assert cmd.executed
-        assert curve_widget.curve_data == new_data
+        assert app_state.get_curve_data("test_curve") == new_data
 
     def test_command_data_immutability(self):
         """Test that commands don't modify input data."""

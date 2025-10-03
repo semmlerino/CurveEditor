@@ -84,6 +84,15 @@ def reset_all_services() -> Generator[None, None, None]:
         if hasattr(services, "_ui_service"):
             services._ui_service = None
 
+        # 2.3. CRITICAL: Reset ApplicationState singleton before StoreManager
+        # ApplicationState must be reset before StoreManager to ensure clean state
+        try:
+            from stores.application_state import reset_application_state
+
+            reset_application_state()
+        except Exception:
+            pass  # ApplicationState might not be initialized
+
         # 2.5. CRITICAL: Reset StoreManager singleton to prevent QObject accumulation
         # StoreManager creates orphaned QObjects (CurveDataStore, FrameStore) that
         # accumulate in session-scope QApplication causing segfaults after 850+ tests

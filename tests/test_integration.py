@@ -18,6 +18,7 @@ from PySide6.QtCore import QRect
 
 from core.type_aliases import CurveDataList
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
+from stores.application_state import get_application_state
 from tests.test_helpers import MockCurveView, MockMainWindow
 
 if TYPE_CHECKING:
@@ -67,6 +68,11 @@ class TestServiceIntegration:
             ],
         )
 
+        # Set initial data in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", self.test_data.copy())
+        app_state.set_active_curve("test_curve")
+
         # Set initial data - MockCurveView expects Point4 but service expects CurveDataList
         self.curve_view.curve_data = self.test_data.copy()  # pyright: ignore[reportAttributeAccessIssue]
         self.curve_view.points = self.test_data.copy()  # pyright: ignore[reportAttributeAccessIssue]
@@ -109,7 +115,10 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         loaded_data = self.data_service._load_json(initial_file)  # pyright: ignore[reportPrivateUsage]
         assert len(loaded_data) == 5
 
-        # 3. Set data in view
+        # 3. Set data in ApplicationState and view
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", loaded_data)
+        app_state.set_active_curve("test_curve")
         self.curve_view.curve_data = loaded_data  # pyright: ignore[reportAttributeAccessIssue]
         self.curve_view.points = loaded_data  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -137,10 +146,12 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         new_x, new_y = 160.0, 260.0
         success = self.interaction_service.update_point_position(self.curve_view, self.main_window, 1, new_x, new_y)  # pyright: ignore[reportArgumentType]
         assert success
+        # Note: update_point_position updates view.curve_data, not ApplicationState directly
+        # Verify in view
         assert self.curve_view.curve_data[1][1] == new_x
         assert self.curve_view.curve_data[1][2] == new_y
 
-        # 9. Save modified data
+        # 9. Save modified data from view
         output_file = self.create_temp_file(".json")
         success = self.data_service._save_json(output_file, self.curve_view.curve_data, "TestLabel", "#FF0000")  # pyright: ignore[reportPrivateUsage]
         assert success
@@ -165,7 +176,10 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         loaded_data = self.data_service._load_csv(initial_file)  # pyright: ignore[reportPrivateUsage]
         assert len(loaded_data) == 5
 
-        # 3. Set data in view
+        # 3. Set data in ApplicationState and view
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", loaded_data)
+        app_state.set_active_curve("test_curve")
         self.curve_view.curve_data = loaded_data  # pyright: ignore[reportAttributeAccessIssue]
         self.curve_view.points = loaded_data  # pyright: ignore[reportAttributeAccessIssue]
 
@@ -176,7 +190,7 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
 
         # 5. Save selected data
         output_file = self.create_temp_file(".csv")
-        success = self.data_service._save_csv(output_file, self.curve_view.curve_data, include_header=True)  # pyright: ignore[reportPrivateUsage]
+        success = self.data_service._save_csv(output_file, app_state.get_curve_data("test_curve"), include_header=True)  # pyright: ignore[reportPrivateUsage]
         assert success
 
         # 6. Verify saved data
@@ -189,6 +203,11 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
     def test_screen_to_data_point_selection(self):
         """Test selecting points using screen coordinates."""
+        # Set up ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", self.test_data.copy())
+        app_state.set_active_curve("test_curve")
+
         # Set up zoom and pan
         self.curve_view.zoom_factor = 2.0
         self.curve_view.offset_x = 50
@@ -213,6 +232,11 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
     def test_rectangle_selection_with_transform(self):
         """Test selecting multiple points in a rectangle."""
+        # Set up ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", self.test_data.copy())
+        app_state.set_active_curve("test_curve")
+
         # Create transform
         view_state = self.transform_service.create_view_state(self.curve_view)  # pyright: ignore[reportArgumentType]
         transform = self.transform_service.create_transform_from_view_state(view_state)  # pyright: ignore[reportArgumentType]
@@ -239,6 +263,12 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
     def test_view_reset_integration(self):
         """Test resetting view affects transformations correctly."""
+        # Set up ApplicationState
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0, "keyframe")]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
         # Modify view state
         self.curve_view.zoom_factor = 3.0
         self.curve_view.offset_x = 100
@@ -261,7 +291,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
         screen_x, screen_y = transform.data_to_screen(test_x, test_y)
 
         # After reset, verify point can be found at transformed location
-        self.curve_view.curve_data = [(1, test_x, test_y, "keyframe")]
+        self.curve_view.curve_data = test_data
         self.curve_view.points = self.curve_view.curve_data
 
         # Should be able to find the point at screen coordinates
@@ -318,17 +348,22 @@ class TestHistoryIntegration(TestServiceIntegration):
 
     def test_undo_redo_with_interaction(self):
         """Test undo/redo after point modifications."""
+        # Set up ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", self.test_data.copy())
+        app_state.set_active_curve("test_curve")
+
         # Add initial state to history
         self.interaction_service.add_to_history(self.main_window)  # pyright: ignore[reportArgumentType]
 
         # Store original position
-        self.curve_view.curve_data[0][1]
-        self.curve_view.curve_data[0][2]
+        original_data = app_state.get_curve_data("test_curve")
+        self.curve_view.curve_data = list(original_data)
 
         # Modify a point
         self.interaction_service.update_point_position(self.curve_view, self.main_window, 0, 110.0, 210.0)  # pyright: ignore[reportArgumentType]
 
-        # Verify point was modified
+        # Verify point was modified in view (update_point_position updates view, not app_state)
         assert self.curve_view.curve_data[0][1] == 110.0
         assert self.curve_view.curve_data[0][2] == 210.0
 
@@ -416,6 +451,11 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
 
     def test_service_state_consistency(self):
         """Test services maintain consistent state after errors."""
+        # Set up ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", self.test_data.copy())
+        app_state.set_active_curve("test_curve")
+
         # Cause an error by selecting invalid point
         self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)
 
@@ -449,7 +489,10 @@ class TestPerformanceIntegration(TestServiceIntegration):
         loaded = self.data_service._load_json(temp_file)  # pyright: ignore[reportPrivateUsage]
         assert len(loaded) == 1000
 
-        # Set in view
+        # Set in ApplicationState and view
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", loaded)
+        app_state.set_active_curve("test_curve")
         self.curve_view.curve_data = loaded
         self.curve_view.points = loaded
 

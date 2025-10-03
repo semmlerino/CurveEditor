@@ -194,13 +194,14 @@ class TestMultiPointTrackingController:
     @pytest.fixture
     def controller(self, mock_main_window) -> MultiPointTrackingController:
         """Create a multi-point tracking controller."""
+        from stores.application_state import get_application_state
+
         controller = MultiPointTrackingController(mock_main_window)
-        # Add some test data
-        controller.tracked_data = {
-            "Track1": [(0, 100.0, 100.0), (10, 110.0, 105.0)],
-            "Track2": [(0, 200.0, 150.0), (10, 210.0, 155.0)],
-            "Track3": [(0, 300.0, 200.0), (10, 310.0, 205.0)],
-        }
+        # Add some test data to ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data("Track1", [(0, 100.0, 100.0), (10, 110.0, 105.0)])
+        app_state.set_curve_data("Track2", [(0, 200.0, 150.0), (10, 210.0, 155.0)])
+        app_state.set_curve_data("Track3", [(0, 300.0, 200.0), (10, 310.0, 205.0)])
         return controller
 
     @patch("ui.controllers.multi_point_tracking_controller.QTimer")

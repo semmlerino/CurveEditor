@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QApplication
 from core.models import CurvePoint
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
+from stores.application_state import get_application_state
 from tests.qt_test_helpers import create_test_image, safe_painter
 
 
@@ -98,6 +99,11 @@ class TestServiceIntegration:
                 return 600
 
         view = MockView()
+
+        # Setup ApplicationState for interaction service
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", view.curve_data)
+        app_state.set_active_curve("test_curve")
 
         # Create transform using the same method as the interaction service
         view_state = transform_service.create_view_state(view)

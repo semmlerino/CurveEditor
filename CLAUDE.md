@@ -300,6 +300,32 @@ python -m pytest tests/ -x        # Stop on first failure
 python3 -m py_compile <file.py>  # Syntax check
 ```
 
+## Agent-Assisted Development
+
+**Proactive Agent Usage**: Claude Code provides specialized agents for complex tasks. Use them proactively to improve code quality, catch issues early, and accelerate development.
+
+**When to Use Agents**:
+- **After implementing features**: python-code-reviewer, type-system-expert
+- **Before committing**: python-code-reviewer in parallel with type-system-expert
+- **For complex bugs**: deep-debugger, threading-debugger, qt-concurrency-architect
+- **Performance issues**: performance-profiler
+- **Test coverage**: test-development-master
+- **Refactoring**: code-refactoring-expert → python-code-reviewer verification
+
+**Quick Examples**:
+```bash
+# After implementing a feature
+"Use python-code-reviewer and type-system-expert in parallel to review ui/main_window.py"
+
+# For threading issues
+"Use qt-concurrency-architect to analyze signal/slot threading in ui/controllers/"
+
+# Performance optimization
+"Use performance-profiler to find bottlenecks in rendering/optimized_curve_renderer.py"
+```
+
+**See QUICK-REFERENCE.md for complete agent workflows and decision matrix.**
+
 ## Type Safety Best Practices
 
 ### Avoid hasattr() - Destroys Type Information

@@ -589,26 +589,41 @@ class SetPointStatusCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute status changes."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
+                logger.error("No active curve")
                 return False
 
-            # Get the curve store to update individual point statuses
-            # This preserves selections and emits appropriate signals
-            from stores import get_store_manager
+            # Get current curve data from ApplicationState
+            curve_data = list(app_state.get_curve_data())
 
-            store_manager = get_store_manager()
-            curve_store = store_manager.get_curve_store()
-
-            # Apply all status changes using store method
+            # Apply all status changes
             for index, _, new_status in self.changes:
-                success = curve_store.set_point_status(index, new_status)
-                if not success:
-                    logger.warning(f"Failed to set status for point {index}")
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Update status while preserving frame, x, y
+                    if len(point) >= 3:
+                        curve_data[index] = (point[0], point[1], point[2], new_status)
+                    else:
+                        logger.warning(f"Point {index} has invalid format")
+                else:
+                    logger.warning(f"Point index {index} out of range")
 
+            # Update ApplicationState with modified data
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = True
 
-            # Force repaint after status changes to update colors immediately
-            main_window.curve_widget.update()
+            # Update CurveDataStore for backward compatibility
+            if main_window.curve_widget:
+                from stores import get_store_manager
+
+                store_manager = get_store_manager()
+                curve_store = store_manager.get_curve_store()
+                for index, _, new_status in self.changes:
+                    curve_store.set_point_status(index, new_status)
+                main_window.curve_widget.update()
 
             return True
 
@@ -619,26 +634,41 @@ class SetPointStatusCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo status changes."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
+                logger.error("No active curve for undo")
                 return False
 
-            # Get the curve store to restore individual point statuses
-            # This preserves selections and emits appropriate signals
-            from stores import get_store_manager
+            # Get current curve data from ApplicationState
+            curve_data = list(app_state.get_curve_data())
 
-            store_manager = get_store_manager()
-            curve_store = store_manager.get_curve_store()
-
-            # Restore all original statuses using store method
+            # Restore all original statuses
             for index, old_status, _ in self.changes:
-                success = curve_store.set_point_status(index, old_status)
-                if not success:
-                    logger.warning(f"Failed to restore status for point {index}")
+                if 0 <= index < len(curve_data):
+                    point = curve_data[index]
+                    # Restore old status while preserving frame, x, y
+                    if len(point) >= 3:
+                        curve_data[index] = (point[0], point[1], point[2], old_status)
+                    else:
+                        logger.warning(f"Point {index} has invalid format")
+                else:
+                    logger.warning(f"Point index {index} out of range")
 
+            # Update ApplicationState with restored data
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = False
 
-            # Force repaint after status changes to update colors immediately
-            main_window.curve_widget.update()
+            # Update CurveDataStore for backward compatibility
+            if main_window.curve_widget:
+                from stores import get_store_manager
+
+                store_manager = get_store_manager()
+                curve_store = store_manager.get_curve_store()
+                for index, old_status, _ in self.changes:
+                    curve_store.set_point_status(index, old_status)
+                main_window.curve_widget.update()
 
             return True
 

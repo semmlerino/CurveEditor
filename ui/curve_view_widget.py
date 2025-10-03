@@ -268,18 +268,36 @@ class CurveViewWidget(QWidget):
     @property
     def selected_indices(self) -> set[int]:
         """Get selected indices from the store."""
-        return self._curve_store.get_selection()
+        selection = self._curve_store.get_selection()
+
+        # BACKWARD COMPATIBILITY: Also sync to ApplicationState default curve
+        default_curve = "__default__"
+        if default_curve in self._app_state.get_all_curve_names():
+            app_state_selection = self._app_state.get_selection(default_curve)
+            # Sync if they differ (prefer CurveDataStore as source of truth for single-curve)
+            if selection != app_state_selection:
+                self._app_state.set_selection(default_curve, selection)
+
+        return selection
 
     @selected_indices.setter
     def selected_indices(self, value: set[int]) -> None:
         """Set selected indices in the store."""
         if not value:
             self._curve_store.clear_selection()
+            # BACKWARD COMPATIBILITY: Also clear in ApplicationState
+            default_curve = "__default__"
+            if default_curve in self._app_state.get_all_curve_names():
+                self._app_state.clear_selection(default_curve)
         else:
             # Clear first then add each index
             self._curve_store.clear_selection()
             for idx in value:
                 self._curve_store.select(idx, add_to_selection=True)
+            # BACKWARD COMPATIBILITY: Also update in ApplicationState
+            default_curve = "__default__"
+            if default_curve in self._app_state.get_all_curve_names():
+                self._app_state.set_selection(default_curve, value)
 
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
@@ -523,6 +541,14 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.set_data(data)
         logger.debug(f"Set curve data with {len(data)} points via store")
+
+        # BACKWARD COMPATIBILITY: Also update ApplicationState with default curve name
+        # This ensures single-curve tests/code work with ApplicationState-based features
+        default_curve_name = "__default__"
+        self._app_state.set_curve_data(default_curve_name, data)
+        if not self._app_state.active_curve:
+            self._app_state.set_active_curve(default_curve_name)
+        logger.debug(f"Synced single-curve data to ApplicationState as '{default_curve_name}'")
 
     def add_point(self, point: tuple[int, float, float] | tuple[int, float, float, str]) -> None:
         """
@@ -1787,7 +1813,9 @@ class CurveViewWidget(QWidget):
                 continue
 
             # Temporarily set this curve as active to use spatial index
+            # IMPORTANT: Save both data AND selection since set_data() clears selection
             saved_data = self.curve_data
+            saved_selection = self._curve_store.get_selection().copy()
             try:
                 # Temporarily update to search this curve
                 self._curve_store.set_data(curve_data)
@@ -1805,8 +1833,11 @@ class CurveViewWidget(QWidget):
                         if best_match is None or distance < best_match[2]:
                             best_match = (idx, curve_name, distance)
             finally:
-                # Restore original curve store data
+                # Restore original curve store data and selection
                 self._curve_store.set_data(saved_data)
+                # Restore selection (set_data cleared it)
+                for idx in saved_selection:
+                    self._curve_store.select(idx, add_to_selection=True)
 
         if best_match:
             logger.debug(
@@ -1841,6 +1872,21 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.select(index, add_to_selection)
 
+        # BACKWARD COMPATIBILITY: Also update ApplicationState for single-curve default
+        default_curve = "__default__"
+        if curve_name == default_curve or (not curve_name and default_curve in all_curve_names):
+            # Single-curve mode - sync to ApplicationState
+            # Match CurveDataStore's toggle behavior when add_to_selection=True
+            if add_to_selection:
+                # Toggle: add if not selected, remove if already selected
+                current_selection = self._app_state.get_selection(default_curve)
+                if index in current_selection:
+                    self._app_state.remove_from_selection(default_curve, index)
+                else:
+                    self._app_state.add_to_selection(default_curve, index)
+            else:
+                self._app_state.set_selection(default_curve, {index})
+
         # Emit our own signal for compatibility
         self.point_selected.emit(index)
 
@@ -1853,9 +1899,21 @@ class CurveViewWidget(QWidget):
         """Clear all selection."""
         self._curve_store.clear_selection()
 
+        # BACKWARD COMPATIBILITY: Also clear in ApplicationState
+        default_curve = "__default__"
+        if default_curve in self._app_state.get_all_curve_names():
+            self._app_state.clear_selection(default_curve)
+
     def select_all(self) -> None:
         """Select all points."""
         self._curve_store.select_all()
+
+        # BACKWARD COMPATIBILITY: Also sync to ApplicationState
+        default_curve = "__default__"
+        if default_curve in self._app_state.get_all_curve_names():
+            # Get all indices from curve data
+            all_indices = set(range(len(self._curve_store.get_data())))
+            self._app_state.set_selection(default_curve, all_indices)
 
     def select_point_at_frame(self, frame: int) -> int | None:
         """

@@ -241,10 +241,16 @@ class ApplicationState(QObject):
             curve_name: Curve to set selection for
             indices: New selection (copied internally)
         """
-        self._selection[curve_name] = indices.copy()
-        self._emit(self.selection_changed, (indices.copy(), curve_name))
+        new_selection = indices.copy()
+        old_selection = self._selection.get(curve_name, set())
 
-        logger.debug(f"Set selection for '{curve_name}': {len(indices)} points")
+        # Only update and emit if selection actually changed
+        if new_selection != old_selection:
+            self._selection[curve_name] = new_selection
+            self._emit(self.selection_changed, (new_selection.copy(), curve_name))
+            logger.debug(f"Set selection for '{curve_name}': {len(indices)} points")
+        else:
+            logger.debug(f"Selection for '{curve_name}' unchanged, no signal emitted")
 
     def add_to_selection(self, curve_name: str, index: int) -> None:
         """
@@ -256,10 +262,14 @@ class ApplicationState(QObject):
         """
         if curve_name not in self._selection:
             self._selection[curve_name] = set()
-        self._selection[curve_name].add(index)
-        self._emit(self.selection_changed, (self._selection[curve_name].copy(), curve_name))
 
-        logger.debug(f"Added point {index} to selection in '{curve_name}'")
+        # Only add and emit if not already in selection
+        if index not in self._selection[curve_name]:
+            self._selection[curve_name].add(index)
+            self._emit(self.selection_changed, (self._selection[curve_name].copy(), curve_name))
+            logger.debug(f"Added point {index} to selection in '{curve_name}'")
+        else:
+            logger.debug(f"Point {index} already in selection for '{curve_name}', no signal emitted")
 
     def remove_from_selection(self, curve_name: str, index: int) -> None:
         """
@@ -269,11 +279,13 @@ class ApplicationState(QObject):
             curve_name: Curve containing point
             index: Point index to deselect
         """
-        if curve_name in self._selection:
+        if curve_name in self._selection and index in self._selection[curve_name]:
+            # Only remove and emit if index was actually in selection
             self._selection[curve_name].discard(index)
             self._emit(self.selection_changed, (self._selection[curve_name].copy(), curve_name))
-
             logger.debug(f"Removed point {index} from selection in '{curve_name}'")
+        else:
+            logger.debug(f"Point {index} not in selection for '{curve_name}', no signal emitted")
 
     def clear_selection(self, curve_name: str | None = None) -> None:
         """
@@ -283,16 +295,21 @@ class ApplicationState(QObject):
             curve_name: Curve to clear, or None to clear all curves
         """
         if curve_name is None:
-            # Clear all
-            self._selection.clear()
-            self._emit(self.selection_changed, (set(), ""))
-            logger.debug("Cleared all selections")
+            # Clear all - only emit if there were selections
+            if self._selection:
+                self._selection.clear()
+                self._emit(self.selection_changed, (set(), ""))
+                logger.debug("Cleared all selections")
+            else:
+                logger.debug("No selections to clear, no signal emitted")
         else:
-            # Clear specific curve
-            if curve_name in self._selection:
+            # Clear specific curve - only emit if it had a non-empty selection
+            if curve_name in self._selection and self._selection[curve_name]:
                 self._selection[curve_name] = set()
                 self._emit(self.selection_changed, (set(), curve_name))
                 logger.debug(f"Cleared selection for '{curve_name}'")
+            else:
+                logger.debug(f"No selection to clear for '{curve_name}', no signal emitted")
 
     # ==================== Active Curve ====================
 

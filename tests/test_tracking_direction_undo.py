@@ -44,8 +44,11 @@ class TestTrackingDirectionUndo:
             ]
         }
 
-        # Load the tracking data
-        main_window.tracking_controller.tracked_data = tracking_data
+        # Load the tracking data into ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_curve_data("Point1", tracking_data["Point1"])
         main_window.tracking_controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
         main_window.active_timeline_point = "Point1"
 

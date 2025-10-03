@@ -25,6 +25,7 @@ from core.commands.shortcut_command import ShortcutContext
 from core.commands.shortcut_commands import DeleteCurrentFrameKeyframeCommand
 from core.models import PointStatus
 from services import get_interaction_service
+from stores.application_state import get_application_state
 
 
 class TestCompositeCommandRollback:
@@ -40,6 +41,9 @@ class TestCompositeCommandRollback:
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Create a composite command with a failing second command
@@ -83,6 +87,9 @@ class TestCompositeCommandRollback:
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Create composite command
@@ -129,6 +136,9 @@ class TestCompositeCommandUndo:
             (2, 110.0, 110.0, "interpolated"),  # Will be nudged
             (3, 120.0, 120.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Select the interpolated point
@@ -137,8 +147,8 @@ class TestCompositeCommandUndo:
         # Nudge the point (should move AND change status to keyframe)
         curve_widget.nudge_selected(5.0, 5.0)
 
-        # Verify changes
-        after_nudge = list(curve_widget.curve_data)
+        # Verify changes in ApplicationState (commands update app_state)
+        after_nudge = list(app_state.get_curve_data("test_curve"))
         assert after_nudge[1][1] == 115.0, "X should be moved"
         assert after_nudge[1][2] == 115.0, "Y should be moved"
         assert after_nudge[1][3] == PointStatus.KEYFRAME.value, "Status should be keyframe"
@@ -147,8 +157,8 @@ class TestCompositeCommandUndo:
         undo_success = interaction_service.command_manager.undo(main_window)
         assert undo_success, "Undo should succeed"
 
-        # Verify BOTH position and status restored
-        after_undo = list(curve_widget.curve_data)
+        # Verify BOTH position and status restored in ApplicationState
+        after_undo = list(app_state.get_curve_data("test_curve"))
         assert after_undo[1][1] == 110.0, "X should be restored"
         assert after_undo[1][2] == 110.0, "Y should be restored"
         assert after_undo[1][3] == "interpolated", "Status should be restored to interpolated"
@@ -164,6 +174,9 @@ class TestCompositeCommandUndo:
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "interpolated"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Select and nudge
@@ -194,6 +207,9 @@ class TestConvertToInterpolatedEdgeCases:
 
         # Single point
         initial_data = [(5, 100.0, 200.0, "keyframe")]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -229,6 +245,9 @@ class TestConvertToInterpolatedEdgeCases:
             (1, 100.0, 100.0, "keyframe"),
             (5, 200.0, 200.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 1
 
@@ -264,6 +283,9 @@ class TestConvertToInterpolatedEdgeCases:
             (1, 100.0, 100.0, "keyframe"),
             (5, 200.0, 200.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -300,6 +322,9 @@ class TestConvertToInterpolatedEdgeCases:
             (5, 150.0, 150.0, "keyframe"),  # Will convert this
             (10, 200.0, 200.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -359,6 +384,9 @@ class TestShortcutConflictResolution:
 
         # Setup data
         initial_data = [(5, 100.0, 100.0, "keyframe")]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -403,6 +431,9 @@ class TestMixedStatusNudgeUndo:
             (2, 110.0, 110.0, "interpolated"),  # Will convert
             (3, 120.0, 120.0, "normal"),  # Will convert
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Select all points
@@ -436,6 +467,9 @@ class TestMixedStatusNudgeUndo:
             (2, 110.0, 110.0, "interpolated"),
             (3, 120.0, 120.0, "normal"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
 
         # Select and nudge all
@@ -470,6 +504,9 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),  # Will convert this
             (10, 200.0, 200.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
@@ -530,6 +567,9 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),
             (10, 200.0, 200.0, "keyframe"),
         ]
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", initial_data)
+        app_state.set_active_curve("test_curve")
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
 
