@@ -13,15 +13,21 @@ Single source of truth for all application state:
 Key Design Principles:
 - Immutable external interface (returns copies)
 - Qt Signal-based reactivity (no polling needed)
-- Batch operations (prevent signal storms)
-- Thread-safe (main thread only, enforced by Qt)
+- Batch operations (prevent signal storms, QMutex-protected)
+- Main thread only (enforced by runtime assertions)
+
+Thread Safety:
+- All methods MUST be called from main thread
+- Batch operations protected by QMutex for thread safety
+- Worker threads should emit signals, handlers then update state
+- _assert_main_thread() validates correct thread usage
 
 Usage:
     from stores.application_state import get_application_state
 
     state = get_application_state()
     state.set_curve_data("pp56_TM_138G", curve_data)
-    data = state.get_curve_data("pp56_TM_138G")
+    data = state.get_application_state("pp56_TM_138G")
 """
 
 from __future__ import annotations
@@ -30,10 +36,10 @@ import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QObject, Signal, SignalInstance
+from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal, SignalInstance
 
 from core.models import CurvePoint
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 if TYPE_CHECKING:
     pass
@@ -77,8 +83,24 @@ class ApplicationState(QObject):
     All components read from here via getters and subscribe
     to signals for updates. No component maintains local copies.
 
-    Thread Safety: Not thread-safe. All access must be from main thread.
-    This is enforced by Qt's signal/slot mechanism.
+    Thread Safety Contract:
+    - All data access methods MUST be called from main thread only
+    - _assert_main_thread() enforces this at runtime for all modifications
+    - Batch operations are thread-safe (protected by internal QMutex)
+    - Signal emission is thread-safe (Qt handles cross-thread automatically)
+    - DO NOT access _private attributes directly (no synchronization guarantee)
+
+    Correct Usage:
+        # ✅ Call from main thread slot
+        @Slot()
+        def on_data_loaded(self, data):
+            state = get_application_state()
+            state.set_curve_data("curve1", data)
+
+        # ❌ Wrong: Direct call from worker thread
+        def worker_thread():
+            state = get_application_state()
+            state.set_curve_data("curve1", data)  # Will raise AssertionError!
     """
 
     # State change signals
@@ -101,11 +123,31 @@ class ApplicationState(QObject):
         self._current_frame: int = 1
         self._view_state: ViewState = ViewState()
 
-        # Batch operation support
+        # Batch operation support (thread-safe with mutex)
+        self._mutex = QMutex()  # Protects batch mode flag and pending signals
         self._batch_mode: bool = False
         self._pending_signals: list[tuple[SignalInstance, tuple[Any, ...]]] = []
 
         logger.info("ApplicationState initialized")
+
+    def _assert_main_thread(self) -> None:
+        """
+        Verify we're on the main thread.
+
+        ApplicationState is not thread-safe and must only be accessed from
+        the main thread. This assertion catches threading violations early.
+
+        Raises:
+            AssertionError: If called from non-main thread
+        """
+        app = QCoreApplication.instance()
+        if app is not None:  # Only check if QApplication exists
+            current_thread = QThread.currentThread()
+            main_thread = app.thread()
+            assert current_thread == main_thread, (
+                f"ApplicationState must be accessed from main thread only. "
+                f"Current thread: {current_thread}, Main thread: {main_thread}"
+            )
 
     # ==================== Curve Data Operations ====================
 
@@ -122,13 +164,14 @@ class ApplicationState(QObject):
         Returns:
             Copy of curve data, or empty list if curve doesn't exist
         """
+        self._assert_main_thread()  # Prevent read tearing from wrong thread
         if curve_name is None:
             curve_name = self._active_curve
         if curve_name is None or curve_name not in self._curves_data:
             return []
         return self._curves_data[curve_name].copy()
 
-    def set_curve_data(self, curve_name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
+    def set_curve_data(self, curve_name: str, data: CurveDataInput, metadata: dict[str, Any] | None = None) -> None:
         """
         Replace entire curve data.
 
@@ -136,11 +179,12 @@ class ApplicationState(QObject):
 
         Args:
             curve_name: Name of curve to set
-            data: New curve data
+            data: New curve data (accepts any sequence of point data)
             metadata: Optional metadata (visibility, color, etc.)
         """
-        # Store copy (immutability)
-        self._curves_data[curve_name] = data.copy()
+        self._assert_main_thread()
+        # Store copy (immutability) - convert Sequence to list
+        self._curves_data[curve_name] = list(data)
 
         # Update metadata
         if metadata is not None:
@@ -166,6 +210,7 @@ class ApplicationState(QObject):
             index: Point index to update
             point: New point data
         """
+        self._assert_main_thread()
         if curve_name not in self._curves_data:
             logger.warning(f"Cannot update point: curve '{curve_name}' not found")
             return
@@ -193,6 +238,7 @@ class ApplicationState(QObject):
         Args:
             curve_name: Curve to delete
         """
+        self._assert_main_thread()
         if curve_name in self._curves_data:
             del self._curves_data[curve_name]
         if curve_name in self._curve_metadata:
@@ -227,6 +273,7 @@ class ApplicationState(QObject):
         Returns:
             Copy of selected indices set
         """
+        self._assert_main_thread()  # Prevent inconsistent reads from wrong thread
         if curve_name is None:
             curve_name = self._active_curve
         if curve_name is None or curve_name not in self._selection:
@@ -241,6 +288,7 @@ class ApplicationState(QObject):
             curve_name: Curve to set selection for
             indices: New selection (copied internally)
         """
+        self._assert_main_thread()
         new_selection = indices.copy()
         old_selection = self._selection.get(curve_name, set())
 
@@ -260,6 +308,7 @@ class ApplicationState(QObject):
             curve_name: Curve containing point
             index: Point index to select
         """
+        self._assert_main_thread()
         if curve_name not in self._selection:
             self._selection[curve_name] = set()
 
@@ -279,6 +328,7 @@ class ApplicationState(QObject):
             curve_name: Curve containing point
             index: Point index to deselect
         """
+        self._assert_main_thread()
         if curve_name in self._selection and index in self._selection[curve_name]:
             # Only remove and emit if index was actually in selection
             self._selection[curve_name].discard(index)
@@ -294,6 +344,7 @@ class ApplicationState(QObject):
         Args:
             curve_name: Curve to clear, or None to clear all curves
         """
+        self._assert_main_thread()
         if curve_name is None:
             # Clear all - only emit if there were selections
             if self._selection:
@@ -327,6 +378,7 @@ class ApplicationState(QObject):
         Args:
             curve_name: Curve to make active, or None to clear
         """
+        self._assert_main_thread()
         if self._active_curve != curve_name:
             old_curve = self._active_curve
             self._active_curve = curve_name
@@ -348,6 +400,7 @@ class ApplicationState(QObject):
         Args:
             frame: Frame number (1-based)
         """
+        self._assert_main_thread()
         if frame < 1:
             logger.warning(f"Invalid frame {frame}, using 1")
             frame = 1
@@ -373,6 +426,7 @@ class ApplicationState(QObject):
         Args:
             view_state: New view state
         """
+        self._assert_main_thread()
         self._view_state = view_state
         self._emit(self.view_changed, (view_state,))
 
@@ -414,6 +468,7 @@ class ApplicationState(QObject):
             curve_name: Curve to modify
             visible: True to show, False to hide
         """
+        self._assert_main_thread()
         if curve_name not in self._curve_metadata:
             self._curve_metadata[curve_name] = {}
         self._curve_metadata[curve_name]["visible"] = visible
@@ -430,6 +485,8 @@ class ApplicationState(QObject):
         In batch mode, signals are deferred until end_batch() is called.
         This prevents signal storms when making multiple related changes.
 
+        Thread-safe: Protected by internal mutex for concurrent access safety.
+
         Example:
             state.begin_batch()
             try:
@@ -438,12 +495,17 @@ class ApplicationState(QObject):
             finally:
                 state.end_batch()
         """
-        if self._batch_mode:
-            logger.warning("Already in batch mode")
-            return
+        self._assert_main_thread()
 
-        self._batch_mode = True
-        self._pending_signals.clear()
+        # Critical section: protected by mutex
+        with QMutexLocker(self._mutex):
+            if self._batch_mode:
+                logger.warning("Already in batch mode")
+                return
+
+            self._batch_mode = True
+            self._pending_signals.clear()
+
         logger.debug("Batch mode started")
 
     def end_batch(self) -> None:
@@ -452,16 +514,26 @@ class ApplicationState(QObject):
 
         Signals are emitted in order they were triggered.
         Duplicate signals are eliminated.
+
+        Thread-safe: Protected by internal mutex for concurrent access safety.
+        Signals are emitted outside the lock to prevent deadlock.
         """
-        if not self._batch_mode:
-            logger.warning("Not in batch mode")
-            return
+        self._assert_main_thread()
 
-        self._batch_mode = False
+        # Critical section: copy pending signals while holding lock
+        with QMutexLocker(self._mutex):
+            if not self._batch_mode:
+                logger.warning("Not in batch mode")
+                return
 
-        # Emit unique signals (eliminate duplicates by signal ID)
+            self._batch_mode = False
+            # Copy pending signals to emit outside lock (prevents deadlock)
+            signals_to_emit = self._pending_signals.copy()
+            self._pending_signals.clear()
+
+        # Emit signals outside lock to prevent deadlock
         seen_signals: set[int] = set()
-        for signal, args in self._pending_signals:
+        for signal, args in signals_to_emit:
             signal_id = id(signal)
             if signal_id not in seen_signals:
                 signal.emit(*args)
@@ -471,7 +543,6 @@ class ApplicationState(QObject):
         self.state_changed.emit()
 
         logger.debug(f"Batch mode ended: {len(seen_signals)} unique signals emitted")
-        self._pending_signals.clear()
 
     def _emit(self, signal: SignalInstance, args: tuple[Any, ...]) -> None:
         """
@@ -479,17 +550,22 @@ class ApplicationState(QObject):
 
         Internal method used by all state modification methods.
 
+        Thread-safe: Protected by internal mutex when checking/modifying batch state.
+
         Args:
             signal: Qt signal to emit
             args: Signal arguments as tuple
         """
-        if self._batch_mode:
-            # Defer signal
-            self._pending_signals.append((signal, args))
-        else:
-            # Emit immediately
-            signal.emit(*args)
-            self.state_changed.emit()
+        # Critical section: check batch mode and append if needed
+        with QMutexLocker(self._mutex):
+            if self._batch_mode:
+                # Defer signal (append while holding lock)
+                self._pending_signals.append((signal, args))
+                return
+
+        # Emit immediately (outside lock to prevent deadlock)
+        signal.emit(*args)
+        self.state_changed.emit()
 
     # ==================== State Inspection ====================
 
