@@ -276,9 +276,28 @@ class MainWindowProtocol(Protocol):
     """
 
     # Basic attributes
-    selected_indices: list[int]
+    @property
+    def selected_indices(self) -> list[int]:
+        """Get list of selected point indices."""
+        ...
+
+    @selected_indices.setter
+    def selected_indices(self, value: list[int]) -> None:
+        """Set list of selected point indices."""
+        ...
+
     curve_view: CurveViewProtocol
-    curve_data: CurveDataList
+
+    @property
+    def curve_data(self) -> CurveDataList:
+        """Get curve data."""
+        ...
+
+    @curve_data.setter
+    def curve_data(self, value: CurveDataList) -> None:
+        """Set curve data."""
+        ...
+
     curve_widget: CurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
 
     # Frame management
@@ -302,6 +321,7 @@ class MainWindowProtocol(Protocol):
     save_button: "QPushButton | None"
     ui_components: object
     _point_spinbox_connected: bool
+    file_operations: object  # FileOperations instance
 
     # Service references (readonly to allow covariance)
     @property

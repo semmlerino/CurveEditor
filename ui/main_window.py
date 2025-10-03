@@ -480,11 +480,21 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get the currently selected point indices."""
         return self.state_manager.selected_points
 
+    @selected_indices.setter
+    def selected_indices(self, value: list[int]) -> None:
+        """Set the selected point indices."""
+        self.state_manager.set_selected_points(value)
+
     @property
     def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
         """Get the current curve data from the store."""
         # Always get data from the store (single source of truth)
         return self._curve_store.get_data()  # pyright: ignore[reportReturnType]
+
+    @curve_data.setter
+    def curve_data(self, value: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+        """Set the curve data."""
+        self._curve_store.set_data(value)  # pyright: ignore[reportArgumentType]
 
     @property
     def is_modified(self) -> bool:
@@ -557,6 +567,34 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # This method is required by MainWindowProtocol but actual implementation
         # is handled by the state manager and services
         pass
+
+    def set_tracked_data_atomic(self, data: dict[str, object]) -> None:
+        """Set tracked data atomically using ApplicationState batch operations.
+
+        Args:
+            data: Dictionary mapping curve names to curve data
+        """
+        from stores.application_state import get_application_state
+
+        state = get_application_state()
+
+        # Use batch mode to set all curves atomically
+        state.begin_batch()
+        try:
+            for curve_name, curve_data in data.items():
+                # Convert generic object to CurveDataList if needed
+                if isinstance(curve_data, list):
+                    state.set_curve_data(curve_name, curve_data)  # pyright: ignore[reportArgumentType]
+        finally:
+            state.end_batch()
+
+    def set_file_loading_state(self, loading: bool) -> None:
+        """Set file loading state flag.
+
+        Args:
+            loading: True if file loading is in progress, False otherwise
+        """
+        self._file_loading = loading
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""

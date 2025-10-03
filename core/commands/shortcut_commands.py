@@ -90,13 +90,19 @@ class InsertTrackShortcutCommand(ShortcutCommand):
             # Execute through command manager for undo/redo support
             interaction_service = get_interaction_service()
             if interaction_service:
-                success = interaction_service.command_manager.execute_command(command, main_window)
+                from services.service_protocols import MainWindowProtocol
+
+                success = interaction_service.command_manager.execute_command(
+                    command, cast(MainWindowProtocol, cast(object, main_window))
+                )
                 if success:
                     logger.info(f"Insert Track executed for {len(selected_curves)} curves at frame {current_frame}")
                 return success
             else:
                 # Fallback: execute directly
-                return command.execute(main_window)
+                from services.service_protocols import MainWindowProtocol
+
+                return command.execute(cast(MainWindowProtocol, cast(object, main_window)))
 
         except Exception as e:
             logger.error(f"Error executing Insert Track shortcut: {e}")
