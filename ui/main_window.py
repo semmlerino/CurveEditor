@@ -506,6 +506,47 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get multi-point tracking controller (alias for tracking_controller)."""
         return self.tracking_controller
 
+    # Additional MainWindowProtocol required properties (for protocol conformance)
+    @property
+    def image_filenames(self) -> list[str]:
+        """Get list of loaded image filenames."""
+        # Access view controller's image state directly
+        return getattr(self.view_management_controller, "image_filenames", [])
+
+    @property
+    def current_image_idx(self) -> int:
+        """Get current image index."""
+        # Access view controller's current image index
+        return getattr(self.view_management_controller, "current_image_idx", 0)
+
+    @property
+    def file_load_worker(self) -> object | None:
+        """Get file load worker instance (if active)."""
+        # Access file operations worker if it exists
+        return getattr(self.file_operations, "file_load_worker", None)
+
+    @property
+    def tracked_data(self) -> dict[str, CurveDataList]:
+        """Get tracked data from multi-point controller."""
+        return self.tracking_controller.tracked_data
+
+    @property
+    def active_points(self) -> list[str]:
+        """Get list of active tracking point names."""
+        return list(self.tracking_controller.tracked_data.keys())
+
+    @property
+    def session_manager(self) -> object:
+        """Get session manager instance."""
+        # Return session manager if it exists (may be added in future)
+        return getattr(self, "_session_manager", None)
+
+    @property
+    def view_update_manager(self) -> object:
+        """Get view update manager instance."""
+        # Return view update manager if it exists (may be added in future)
+        return getattr(self, "_view_update_manager", None)
+
     def get_curve_store(self) -> CurveDataStore:
         """Get the reactive curve data store."""
         return self._curve_store
