@@ -19,6 +19,7 @@ if TYPE_CHECKING:
 from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
 from core.logger_utils import get_logger
 from core.models import PointStatus, TrackingDirection
+from stores.application_state import get_application_state
 
 logger = get_logger("shortcut_commands")
 
@@ -123,10 +124,11 @@ class SetEndframeCommand(ShortcutCommand):
 
         # Can execute if we have a current frame with a point
         if context.current_frame is not None:
-            curve_widget = context.main_window.curve_widget
-            if curve_widget and curve_widget.curve_data:
+            app_state = get_application_state()
+            curve_data = app_state.get_curve_data()
+            if curve_data:
                 # Check if any point exists at the current frame
-                for point in curve_widget.curve_data:
+                for point in curve_data:
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         return True
 
@@ -149,9 +151,11 @@ class SetEndframeCommand(ShortcutCommand):
 
             # FRAME-BASED OPERATION: Always operate on current frame, ignore selection
             if context.current_frame is not None:
-                # Find the point at the current frame
+                # Find the point at the current frame using ApplicationState
+                app_state = get_application_state()
+                curve_data = app_state.get_curve_data()
                 point_index = None
-                for i, point in enumerate(curve_widget.curve_data):
+                for i, point in enumerate(curve_data):
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         point_index = i
                         break
@@ -327,10 +331,11 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         """
         # Can execute if we have a current frame with a point
         if context.current_frame is not None:
-            curve_widget = context.main_window.curve_widget
-            if curve_widget and curve_widget.curve_data:
+            app_state = get_application_state()
+            curve_data = app_state.get_curve_data()
+            if curve_data:
                 # Check if any point exists at the current frame
-                for point in curve_widget.curve_data:
+                for point in curve_data:
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         return True
 
@@ -354,10 +359,12 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
 
             # FRAME-BASED OPERATION: Find and convert point at current frame
             if context.current_frame is not None:
-                # Find the point index at the current frame
+                # Find the point index at the current frame using ApplicationState
+                app_state = get_application_state()
+                curve_data = app_state.get_curve_data()
                 point_index = None
                 current_point = None
-                for i, point in enumerate(curve_widget.curve_data):
+                for i, point in enumerate(curve_data):
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         point_index = i
                         current_point = point
@@ -379,7 +386,7 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
                         old_status = "normal"
 
                     # Convert curve data tuples to CurvePoint objects for segmented curve
-                    curve_points = [CurvePoint.from_tuple(p) for p in curve_widget.curve_data]
+                    curve_points = [CurvePoint.from_tuple(p) for p in curve_data]
 
                     # Calculate interpolated position using segmented curve
                     segmented_curve = SegmentedCurve.from_points(curve_points)
@@ -618,10 +625,11 @@ class NudgePointsCommand(ShortcutCommand):
 
         # Or if we have a current frame with a point
         if context.current_frame is not None:
-            curve_widget = context.main_window.curve_widget
-            if curve_widget and curve_widget.curve_data:
+            app_state = get_application_state()
+            curve_data = app_state.get_curve_data()
+            if curve_data:
                 # Check if any point exists at the current frame
-                for point in curve_widget.curve_data:
+                for point in curve_data:
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         return True
 
@@ -654,9 +662,11 @@ class NudgePointsCommand(ShortcutCommand):
                 logger.info(f"Nudging {len(context.selected_curve_points)} selected points by ({dx}, {dy})")
                 curve_widget.nudge_selected(dx, dy)
             elif context.current_frame is not None:
-                # Find the point at the current frame
+                # Find the point at the current frame using ApplicationState
+                app_state = get_application_state()
+                curve_data = app_state.get_curve_data()
                 point_index = None
-                for i, point in enumerate(curve_widget.curve_data):
+                for i, point in enumerate(curve_data):
                     if point[0] == context.current_frame:  # point[0] is the frame number
                         point_index = i
                         break
