@@ -18,6 +18,7 @@ if TYPE_CHECKING:
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput
+from stores.application_state import get_application_state
 
 logger = get_logger("curve_commands")
 
@@ -47,21 +48,21 @@ class SetCurveDataCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute the command by setting new curve data."""
         try:
-            # Capture old data if not provided
-            if self.old_data is None:
-                if main_window.curve_widget is not None:
-                    self.old_data = copy.deepcopy(main_window.curve_widget.curve_data)
-                else:
-                    self.old_data = []
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
 
-            # Set new data
-            if main_window.curve_widget:
-                main_window.curve_widget.set_curve_data(self.new_data)
-                self.executed = True
-                return True
-            else:
-                logger.error("No curve widget available")
+            if not active_curve:
+                logger.error("No active curve")
                 return False
+
+            # Capture old data if not provided (from ApplicationState)
+            if self.old_data is None:
+                self.old_data = copy.deepcopy(app_state.get_curve_data())
+
+            # Set new data in ApplicationState (signals update view)
+            app_state.set_curve_data(active_curve, list(self.new_data))
+            self.executed = True
+            return True
 
         except Exception as e:
             logger.error(f"Error executing SetCurveDataCommand: {e}")
@@ -70,13 +71,17 @@ class SetCurveDataCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo by restoring the old curve data."""
         try:
-            if self.old_data is not None and main_window.curve_widget:
-                main_window.curve_widget.set_curve_data(self.old_data)
-                self.executed = False
-                return True
-            else:
-                logger.error("No old data or curve widget for undo")
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if self.old_data is None or not active_curve:
+                logger.error("No old data or active curve for undo")
                 return False
+
+            # Restore old data in ApplicationState (signals update view)
+            app_state.set_curve_data(active_curve, list(self.old_data))
+            self.executed = False
+            return True
 
         except Exception as e:
             logger.error(f"Error undoing SetCurveDataCommand: {e}")
@@ -125,11 +130,14 @@ class SmoothCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute smoothing operation."""
         try:
-            if main_window.curve_widget is None:
-                logger.error("No curve widget or curve data available")
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
+                logger.error("No active curve")
                 return False
 
-            curve_data = main_window.curve_widget.curve_data
+            curve_data = app_state.get_curve_data()
 
             # Capture old points if not provided
             if self.old_points is None:
@@ -166,23 +174,14 @@ class SmoothCommand(Command):
                     logger.error(f"Unknown filter type: {self.filter_type}")
                     return False
 
-            # Apply the smoothed points
+            # Apply smoothed points using ApplicationState batch mode
             new_curve_data = list(curve_data)
             for i, idx in enumerate(self.indices):
                 if i < len(self.new_points) and 0 <= idx < len(new_curve_data):
                     new_curve_data[idx] = self.new_points[i]
 
-            # Preserve view state when updating data
-            old_zoom = main_window.curve_widget.zoom_factor
-            old_pan_x = main_window.curve_widget.pan_offset_x
-            old_pan_y = main_window.curve_widget.pan_offset_y
-
-            main_window.curve_widget.set_curve_data(new_curve_data)
-
-            # Restore view state
-            main_window.curve_widget.zoom_factor = old_zoom
-            main_window.curve_widget.pan_offset_x = old_pan_x
-            main_window.curve_widget.pan_offset_y = old_pan_y
+            # Update ApplicationState (signals update view, preserves view state)
+            app_state.set_curve_data(active_curve, new_curve_data)
             self.executed = True
             return True
 
@@ -193,26 +192,20 @@ class SmoothCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo smoothing by restoring original points."""
         try:
-            if not self.old_points or not main_window.curve_widget:
-                logger.error("No old points or curve widget for undo")
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not self.old_points or not active_curve:
+                logger.error("No old points or active curve for undo")
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             for i, idx in enumerate(self.indices):
                 if i < len(self.old_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.old_points[i]
 
-            # Preserve view state when updating data
-            old_zoom = main_window.curve_widget.zoom_factor
-            old_pan_x = main_window.curve_widget.pan_offset_x
-            old_pan_y = main_window.curve_widget.pan_offset_y
-
-            main_window.curve_widget.set_curve_data(curve_data)
-
-            # Restore view state
-            main_window.curve_widget.zoom_factor = old_zoom
-            main_window.curve_widget.pan_offset_x = old_pan_x
-            main_window.curve_widget.pan_offset_y = old_pan_y
+            # Update ApplicationState (signals update view, preserves view state)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = False
             return True
 
@@ -223,26 +216,20 @@ class SmoothCommand(Command):
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo smoothing by applying smoothed points."""
         try:
-            if not self.new_points or not main_window.curve_widget:
-                logger.error("No new points or curve widget for redo")
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not self.new_points or not active_curve:
+                logger.error("No new points or active curve for redo")
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             for i, idx in enumerate(self.indices):
                 if i < len(self.new_points) and 0 <= idx < len(curve_data):
                     curve_data[idx] = self.new_points[i]
 
-            # Preserve view state when updating data
-            old_zoom = main_window.curve_widget.zoom_factor
-            old_pan_x = main_window.curve_widget.pan_offset_x
-            old_pan_y = main_window.curve_widget.pan_offset_y
-
-            main_window.curve_widget.set_curve_data(curve_data)
-
-            # Restore view state
-            main_window.curve_widget.zoom_factor = old_zoom
-            main_window.curve_widget.pan_offset_x = old_pan_x
-            main_window.curve_widget.pan_offset_y = old_pan_y
+            # Update ApplicationState (signals update view, preserves view state)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = True
             return True
 
@@ -307,10 +294,13 @@ class MovePointCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point movement."""
         try:
-            if main_window.curve_widget is None:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index < len(curve_data):
                 point = curve_data[self.index]
                 # Preserve frame and status, update x and y
@@ -319,7 +309,7 @@ class MovePointCommand(Command):
                 elif len(point) == 3:
                     curve_data[self.index] = (point[0], self.new_pos[0], self.new_pos[1])
 
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = True
                 return True
 
@@ -332,10 +322,13 @@ class MovePointCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point movement."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index < len(curve_data):
                 point = curve_data[self.index]
                 # Restore original position
@@ -344,7 +337,7 @@ class MovePointCommand(Command):
                 elif len(point) == 3:
                     curve_data[self.index] = (point[0], self.old_pos[0], self.old_pos[1])
 
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = False
                 return True
 
@@ -399,10 +392,13 @@ class DeletePointsCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point deletion."""
         try:
-            if main_window.curve_widget is None:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
 
             # Capture points being deleted if not provided
             if self.deleted_points is None:
@@ -416,7 +412,7 @@ class DeletePointsCommand(Command):
                 if 0 <= idx < len(curve_data):
                     del curve_data[idx]
 
-            main_window.curve_widget.set_curve_data(curve_data)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = True
             return True
 
@@ -427,17 +423,20 @@ class DeletePointsCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point deletion by restoring deleted points."""
         try:
-            if not self.deleted_points or not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not self.deleted_points or not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
 
             # Insert points back in their original positions
             for idx, point in self.deleted_points:
                 if 0 <= idx <= len(curve_data):
                     curve_data.insert(idx, point)
 
-            main_window.curve_widget.set_curve_data(curve_data)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = False
             return True
 
@@ -476,10 +475,13 @@ class BatchMoveCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute batch point movement."""
         try:
-            if main_window.curve_widget is None:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
 
             # Apply all moves
             for index, _, new_pos in self.moves:
@@ -491,7 +493,7 @@ class BatchMoveCommand(Command):
                     elif len(point) == 3:
                         curve_data[index] = (point[0], new_pos[0], new_pos[1])
 
-            main_window.curve_widget.set_curve_data(curve_data)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = True
             return True
 
@@ -502,10 +504,13 @@ class BatchMoveCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo batch point movement."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
 
             # Restore all original positions
             for index, old_pos, _ in self.moves:
@@ -517,7 +522,7 @@ class BatchMoveCommand(Command):
                     elif len(point) == 3:
                         curve_data[index] = (point[0], old_pos[0], old_pos[1])
 
-            main_window.curve_widget.set_curve_data(curve_data)
+            app_state.set_curve_data(active_curve, curve_data)
             self.executed = False
             return True
 
@@ -695,13 +700,16 @@ class AddPointCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point addition."""
         try:
-            if main_window.curve_widget is None:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index <= len(curve_data):
                 curve_data.insert(self.index, self.point)
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = True
                 return True
 
@@ -714,13 +722,16 @@ class AddPointCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point addition by removing the added point."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index < len(curve_data):
                 del curve_data[self.index]
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = False
                 return True
 
@@ -769,15 +780,18 @@ class ConvertToInterpolatedCommand(Command):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute the conversion to interpolated."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index < len(curve_data):
                 # Replace the point with the interpolated version
                 curve_data[self.index] = self.new_point
 
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = True
                 return True
 
@@ -790,15 +804,18 @@ class ConvertToInterpolatedCommand(Command):
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo the conversion by restoring the original point."""
         try:
-            if not main_window.curve_widget:
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if not active_curve:
                 return False
 
-            curve_data = list(main_window.curve_widget.curve_data)
+            curve_data = list(app_state.get_curve_data())
             if 0 <= self.index < len(curve_data):
                 # Restore the original point
                 curve_data[self.index] = self.old_point
 
-                main_window.curve_widget.set_curve_data(curve_data)
+                app_state.set_curve_data(active_curve, curve_data)
                 self.executed = False
                 return True
 
