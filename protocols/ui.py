@@ -123,6 +123,10 @@ class StateManagerProtocol(Protocol):
         """Redo the last undone operation."""
         ...
 
+    def set_history_state(self, can_undo: bool, can_redo: bool, position: int, size: int) -> None:
+        """Update history state information for UI indicators."""
+        ...
+
 
 class CurveViewProtocol(Protocol):
     """Protocol for curve view widgets.
@@ -275,7 +279,7 @@ class MainWindowProtocol(Protocol):
     selected_indices: list[int]
     curve_view: CurveViewProtocol
     curve_data: CurveDataList
-    curve_widget: object  # CurveViewWidget
+    curve_widget: CurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
 
     # Frame management
     @property
@@ -309,11 +313,6 @@ class MainWindowProtocol(Protocol):
     @property
     def state_manager(self) -> StateManagerProtocol:
         """Get state manager."""
-        ...
-
-    @property
-    def command_manager(self) -> "CommandManagerProtocol":
-        """Get command manager."""
         ...
 
     @property
@@ -354,10 +353,6 @@ class MainWindowProtocol(Protocol):
         """Apply smoothing operation to selected points."""
         ...
 
-    def update_curve_data(self, data: CurveDataList) -> None:
-        """Update curve data."""
-        ...
-
     # Controller friend methods (Strangler Fig pattern)
     def _get_current_frame(self) -> int:
         """Get current frame (controller friend method)."""
@@ -368,14 +363,6 @@ class MainWindowProtocol(Protocol):
         ...
 
     # Methods needed by controllers
-    def update_curve_view_options(self) -> None:
-        """Update curve view options."""
-        ...
-
-    def toggle_tooltips(self) -> None:
-        """Toggle tooltips display."""
-        ...
-
     def update_timeline_tabs(self, curve_data: object | None) -> None:
         """Update timeline tabs."""
         ...
@@ -384,40 +371,12 @@ class MainWindowProtocol(Protocol):
         """Update tracking panel display."""
         ...
 
-    def update_curve_display(self) -> None:
-        """Update curve display."""
-        ...
-
     def update_ui_state(self) -> None:
         """Update UI state."""
         ...
 
-    def update_selection_labels(self) -> None:
-        """Update selection labels in UI."""
-        ...
-
-    def update_point_spinboxes(self) -> None:
-        """Update point coordinate spinboxes."""
-        ...
-
-    def connect_point_spinbox_handlers(self) -> None:
-        """Connect point spinbox signal handlers."""
-        ...
-
     def update_zoom_label(self) -> None:
         """Update zoom level label."""
-        ...
-
-    def _on_point_x_changed(self) -> None:
-        """Handle point X coordinate spinbox change."""
-        ...
-
-    def _on_point_y_changed(self) -> None:
-        """Handle point Y coordinate spinbox change."""
-        ...
-
-    def navigate_to_frame(self, frame: int) -> None:
-        """Navigate to specified frame."""
         ...
 
     def _get_current_curve_data(self) -> CurveDataList:
@@ -431,54 +390,23 @@ class MainWindowProtocol(Protocol):
         ...
 
     @property
-    def frame_navigation_controller(self) -> "FrameNavigationProtocol":
-        """Get frame navigation controller."""
+    def multi_point_controller(self) -> "MultiPointTrackingProtocol":
+        """Get multi-point tracking controller (alias for tracking_controller)."""
         ...
 
-    # Playback controller properties
-    @property
-    def fps_spinbox(self) -> object:  # QSpinBox | None
-        """Get FPS spinbox."""
-        ...
-
-    @property
-    def playback_timer(self) -> object:  # QTimer | None
-        """Get playback timer."""
-        ...
-
-    @property
-    def btn_play_pause(self) -> object:  # QPushButton | None
-        """Get play/pause button."""
-        ...
+    # UI widget attributes (initialized by UIInitializationController)
+    fps_spinbox: object | None  # QSpinBox
+    btn_play_pause: object | None  # QPushButton
+    timeline_tabs: object | None  # QTabWidget
 
     @property
     def curve_view(self) -> "CurveViewProtocol | None":
-        """Get curve view."""
+        """Get curve view (deprecated, use curve_widget)."""
         ...
 
-    @property
-    def timeline_tabs(self) -> object:  # QTabWidget | None
-        """Get timeline tabs."""
-        ...
-
-    def get_current_frame(self) -> int:
-        """Get current frame."""
-        ...
-
-    def set_current_frame(self, frame: int) -> None:
-        """Set current frame."""
-        ...
-
-    # Frame navigation controller properties
-    @property
-    def frame_spinbox(self) -> object:  # QSpinBox | None
-        """Get frame spinbox."""
-        ...
-
-    @property
-    def frame_slider(self) -> object:  # QSlider | None
-        """Get frame slider."""
-        ...
+    # Frame navigation widget attributes
+    frame_spinbox: object | None  # QSpinBox
+    frame_slider: object | None  # QSlider
 
     @property
     def image_filenames(self) -> list[str]:
@@ -699,6 +627,16 @@ class FrameNavigationProtocol(Protocol):
 
     def last_frame(self) -> None:
         """Go to last frame."""
+        ...
+
+
+class MultiPointTrackingProtocol(Protocol):
+    """Protocol for multi-point tracking controller."""
+
+    tracked_data: dict[str, CurveDataList]
+
+    def update_tracking_panel(self) -> None:
+        """Update the tracking panel display."""
         ...
 
 

@@ -501,6 +501,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Set the active timeline point (which tracking point's timeline to display)."""
         self.state_manager.active_timeline_point = point_name
 
+    @property
+    def multi_point_controller(self) -> object:  # MultiPointTrackingProtocol
+        """Get multi-point tracking controller (alias for tracking_controller)."""
+        return self.tracking_controller
+
     def get_curve_store(self) -> CurveDataStore:
         """Get the reactive curve data store."""
         return self._curve_store

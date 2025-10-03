@@ -13,7 +13,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
+    from PySide6.QtWidgets import QRubberBand, QStatusBar
 
     # Note: Transform import moved to avoid circular dependency
     # Transform will be imported as needed in individual methods
@@ -21,9 +21,10 @@ if TYPE_CHECKING:
 from core.type_aliases import (
     CurveDataInput,
     CurveDataList,
-    HistoryState,
     QtPointF,
 )
+
+# Import consolidated protocol definitions from protocols.ui
 
 
 class SignalProtocol(Protocol):
@@ -90,15 +91,7 @@ class StatusServiceProtocol(Protocol):
         ...
 
 
-class StateManagerProtocol(Protocol):
-    """Protocol for state manager."""
-
-    is_modified: bool
-    auto_center_enabled: bool
-
-    def set_history_state(self, can_undo: bool, can_redo: bool, position: int, size: int) -> None:
-        """Update history state information."""
-        ...
+# StateManagerProtocol imported from protocols.ui (see line 29)
 
 
 class CurveViewProtocol(Protocol):
@@ -220,115 +213,7 @@ class CurveViewProtocol(Protocol):
         ...
 
 
-class MainWindowProtocol(Protocol):
-    """Protocol for main window widgets.
-
-    Defines the interface that main window widgets must implement
-    to work with the services layer.
-    """
-
-    # Basic attributes commonly used by services
-    curve_view: CurveViewProtocol | None
-    curve_widget: CurveViewProtocol | None
-    selected_indices: list[int]
-    curve_data: list[tuple[int, float, float] | tuple[int, float, float, str]]
-
-    # History management
-    history: list[dict[str, object]]  # Each history entry is a dict with curve data
-    history_index: int
-    max_history_size: int
-
-    # Point attributes
-    point_name: str
-    point_color: str
-
-    # UI component references
-    undo_button: "QPushButton | None"
-    redo_button: "QPushButton | None"
-    save_button: "QPushButton | None"
-    ui_components: object  # UIComponents container
-    ui: object  # UIComponents container (alias)
-
-    # Service references
-    services: object  # Service container
-    file_operations: object  # FileOperations instance
-
-    # Command management
-    command_manager: object  # CommandManager instance
-
-    # State management
-    state_manager: StateManagerProtocol
-
-    # Frame management
-    _point_spinbox_connected: bool
-
-    @property
-    def is_modified(self) -> bool:
-        """Get modified state (proxy to state_manager.is_modified)."""
-        ...
-
-    @property
-    def current_frame(self) -> int:
-        """Get current frame number."""
-        ...
-
-    @current_frame.setter
-    def current_frame(self, value: int) -> None:
-        """Set current frame number."""
-        ...
-
-    def _get_current_frame(self) -> int:
-        """Internal method to get current frame."""
-        ...
-
-    def _set_current_frame(self, frame: int) -> None:
-        """Internal method to set current frame."""
-        ...
-
-    # Methods that services may call
-    def add_to_history(self) -> None:
-        """Add current state to history."""
-        ...
-
-    def restore_state(self, state: HistoryState) -> None:
-        """Restore state from history."""
-        ...
-
-    def update_status(self, message: str) -> None:
-        """Update status bar message."""
-        ...
-
-    def update_ui_state(self) -> None:
-        """Update UI state (undo/redo buttons, etc.)."""
-        ...
-
-    def update_curve_data(self, data: CurveDataList) -> None:
-        """Update curve data."""
-        ...
-
-    def update_curve_view_options(self) -> None:
-        """Update curve view visualization options."""
-        ...
-
-    def setWindowTitle(self, title: str) -> None:
-        """Set window title."""
-        ...
-
-    def statusBar(self) -> "QStatusBar":
-        """Get status bar widget."""
-        ...
-
-    def close(self) -> bool:
-        """Close the window."""
-        ...
-
-    def set_centering_enabled(self, enabled: bool) -> None:
-        """Enable or disable auto-centering on frame change."""
-        ...
-
-    def apply_smooth_operation(self) -> None:
-        """Apply smoothing operation to selected points."""
-        ...
+# MainWindowProtocol imported from protocols.ui (see line 29)
 
 
 class BatchEditableProtocol(Protocol):
