@@ -299,6 +299,37 @@ class CurveViewWidget(QWidget):
             if default_curve in self._app_state.get_all_curve_names():
                 self._app_state.set_selection(default_curve, value)
 
+    @property
+    def active_curve_name(self) -> str | None:
+        """
+        Get active curve name from ApplicationState.
+
+        Backward-compatible property for accessing active_curve during migration.
+        Delegates to ApplicationState.active_curve.
+        """
+        from stores.application_state import get_application_state
+
+        return get_application_state().active_curve
+
+    @property
+    def curves_data(self) -> dict[str, list[tuple[int, float, float] | tuple[int, float, float, str | bool]]]:
+        """
+        Get all curves data from ApplicationState.
+
+        Backward-compatible property for accessing multi-curve data during migration.
+        Returns dict mapping curve names to their data.
+        Filters out "__default__" which is internal for single-curve backward compatibility.
+        """
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        result = {}
+        for curve_name in app_state.get_all_curve_names():
+            # Filter out "__default__" - it's for internal single-curve compatibility
+            if curve_name != "__default__":
+                result[curve_name] = app_state.get_curve_data(curve_name)
+        return result
+
     def _connect_store_signals(self) -> None:
         """Connect to reactive store signals for automatic updates."""
         # Connect store signals to widget updates

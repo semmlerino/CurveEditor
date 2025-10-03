@@ -525,8 +525,8 @@ class TestStateManagerReset:
         state_manager.is_modified = True
         state_manager.set_track_data([(1.0, 2.0)], mark_modified=False)
         state_manager.set_selected_points([1, 2, 3])
+        state_manager.total_frames = 100  # Set total_frames BEFORE current_frame
         state_manager.current_frame = 50
-        state_manager.total_frames = 100
         state_manager.zoom_level = 2.0
         state_manager.set_image_files(["img1.png"])
         state_manager.current_tool = "pen"

@@ -606,8 +606,8 @@ class StateManager(QObject):
         self._has_data = False
 
         # Selection state (delegated to ApplicationState)
-        if self._active_timeline_point:
-            self._app_state.clear_selection(self._active_timeline_point)
+        curve_name = self._get_curve_name_for_selection()
+        self._app_state.clear_selection(curve_name)
         self._hover_point = None
 
         # View state (delegated to ApplicationState for frame)

@@ -181,10 +181,15 @@ class MockCurveStore:
 
     def __init__(self) -> None:
         self.selection: set[int] = set()
+        self.data: CurveDataList = []
 
     def select(self, index: int) -> None:
         """Mock select method."""
         self.selection = {index}
+
+    def get_data(self) -> CurveDataList:
+        """Mock get_data method for ApplicationState migration."""
+        return self.data
 
 
 class MockStateManager:

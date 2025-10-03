@@ -81,6 +81,23 @@ class MultiPointTrackingController:
             result[curve_name] = self._app_state.get_curve_data(curve_name)
         return result
 
+    @tracked_data.setter
+    def tracked_data(self, value: dict[str, CurveDataList]) -> None:
+        """
+        Backward-compatible setter for tracked data during migration.
+
+        Writes all curves to ApplicationState.
+        This setter exists for backward compatibility during the Week 4 migration.
+        """
+        # Clear existing curves (except "__default__" which is for single-curve mode)
+        for curve_name in list(self._app_state.get_all_curve_names()):
+            if curve_name != "__default__":
+                self._app_state.delete_curve(curve_name)
+
+        # Add all curves from the input dict
+        for curve_name, curve_data in value.items():
+            self._app_state.set_curve_data(curve_name, curve_data)
+
     def _connect_to_curve_store_signals(self) -> None:
         """Connect to curve store signals to keep tracking data synchronized with status changes."""
         try:
