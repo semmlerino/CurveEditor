@@ -445,6 +445,21 @@ class CurveViewWidget(QWidget):
 
     def _on_app_state_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
         """Handle ApplicationState curves_changed signal."""
+        # CRITICAL: Sync ApplicationState "__default__" curve back to CurveDataStore
+        # This ensures widget.curve_data (which reads from CurveDataStore) reflects
+        # changes made through ApplicationState (e.g., by DeletePointsCommand)
+        default_curve = "__default__"
+        if default_curve in curves:
+            # Update CurveDataStore to match ApplicationState
+            # Use _curve_store.set_data() to avoid circular signal emissions
+            default_data = curves[default_curve]
+            current_data = self._curve_store.get_data()
+
+            # Only update if data differs (avoid unnecessary signal emissions)
+            if default_data != current_data:
+                self._curve_store.set_data(default_data)
+                logger.debug(f"Synced ApplicationState '__default__' ({len(default_data)} points) to CurveDataStore")
+
         # Invalidate caches and request repaint
         self.invalidate_caches()
         self.update()

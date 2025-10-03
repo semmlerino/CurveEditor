@@ -1,7 +1,7 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 191 files to bundle
+Found 193 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -27,6 +27,7 @@ Bundled: KeyFrameTest.txt
 Bundled: KNOWN_ISSUES.md
 Bundled: main.py
 Bundled: mainwindow_diff.txt
+Bundled: ORCHESTRATION.md
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
 Bundled: performance_bottleneck_analysis.txt
 Bundled: PHASE2_STATUS.md
@@ -42,6 +43,7 @@ Bundled: PRODUCTION_DEPLOYMENT_CHECKLIST.md
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QT_ZOOM_ANALYSIS.md
+Bundled: QUICK-REFERENCE.md
 Bundled: README.md
 Bundled: REFACTORING_PRIORITY_ANALYSIS_DO_NOT_DELETE.md
 Bundled: requirements.txt
@@ -196,9 +198,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.30 MB
+Folder size: 2.34 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 726948 bytes
+Encoded size: 740940 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

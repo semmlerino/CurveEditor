@@ -174,9 +174,8 @@ class TestCompositeCommandUndo:
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "interpolated"),
         ]
-        app_state = get_application_state()
-        app_state.set_curve_data("test_curve", initial_data)
-        app_state.set_active_curve("test_curve")
+        # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
+        # This ensures commands operate on the same curve that the widget reads from
         curve_widget.set_curve_data(initial_data)
 
         # Select and nudge
