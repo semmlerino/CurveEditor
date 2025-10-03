@@ -304,27 +304,83 @@ python3 -m py_compile <file.py>  # Syntax check
 
 **Proactive Agent Usage**: Claude Code provides specialized agents for complex tasks. Use them proactively to improve code quality, catch issues early, and accelerate development.
 
+### Quick Decision Guide
+
+**Ask yourself:**
+1. **Simple file operation?** → Use Read/Glob/Grep tools directly
+2. **Complex multi-step task?** → Use agents
+3. **Multiple independent analyses?** → Use agents **in parallel** (60% faster!)
+
 **When to Use Agents**:
-- **After implementing features**: python-code-reviewer, type-system-expert
-- **Before committing**: python-code-reviewer in parallel with type-system-expert
-- **For complex bugs**: deep-debugger, threading-debugger, qt-concurrency-architect
-- **Performance issues**: performance-profiler
-- **Test coverage**: test-development-master
-- **Refactoring**: code-refactoring-expert → python-code-reviewer verification
+- ✅ **After implementing features**: python-code-reviewer, type-system-expert
+- ✅ **Before committing**: python-code-reviewer + type-system-expert in parallel
+- ✅ **For complex bugs**: deep-debugger, threading-debugger, qt-concurrency-architect
+- ✅ **Performance issues**: performance-profiler
+- ✅ **Test coverage**: test-development-master
+- ✅ **Refactoring**: code-refactoring-expert → python-code-reviewer verification
 
-**Quick Examples**:
-```bash
-# After implementing a feature
-"Use python-code-reviewer and type-system-expert in parallel to review ui/main_window.py"
+**When NOT to Use Agents**:
+- ⛔ Reading specific files → Use Read tool
+- ⛔ Finding files by name → Use Glob tool
+- ⛔ Searching 1-3 files → Use Read/Grep tools
 
-# For threading issues
-"Use qt-concurrency-architect to analyze signal/slot threading in ui/controllers/"
+### CurveEditor-Specific Agent Workflows
 
-# Performance optimization
-"Use performance-profiler to find bottlenecks in rendering/optimized_curve_renderer.py"
+**User Prompts** (copy to chat):
+
+```text
+# After refactoring CurveViewWidget (Week 3 migration)
+"Use python-code-reviewer and type-system-expert in parallel to analyze ui/curve_view_widget.py after ApplicationState migration"
+
+# Qt threading safety in controllers
+"Use qt-concurrency-architect to verify signal/slot threading safety in ui/controllers/multi_point_tracking_controller.py"
+
+# Performance validation after optimization
+"Use performance-profiler to verify 47x rendering speedup is maintained in rendering/optimized_curve_renderer.py"
+
+# Test migration to ApplicationState
+"Use test-development-master to update test fixtures in tests/conftest.py for ApplicationState migration"
+
+# Verify data duplication eliminated
+"Use code-refactoring-expert to verify no duplicate curve storage remains in ui/ and services/"
+
+# Multi-curve Insert Track feature review
+"Use python-code-reviewer to analyze Insert Track implementation in core/commands/insert_track_command.py and core/insert_track_algorithm.py"
+
+# Command system review
+"Use python-code-reviewer to verify all commands properly use ApplicationState in core/commands/"
+
+# Full pre-commit review (parallel = 60% faster!)
+"Use python-code-reviewer, type-system-expert, and performance-profiler in parallel to audit changes before commit"
 ```
 
+### Understanding Agent Results
+
+**How results are presented:**
+- Agents return findings to Claude (not shown directly to you)
+- Claude summarizes results in clear, actionable format
+- You receive: analysis reports, code changes, or recommendations
+
+**What to expect from each agent:**
+
+| Agent | What You Get |
+|-------|--------------|
+| python-code-reviewer | List of bugs, style issues, design problems |
+| type-system-expert | Type annotations added + basedpyright errors fixed |
+| test-development-master | Test suite with coverage report |
+| deep-debugger | Root cause analysis + fix strategy |
+| performance-profiler | Bottleneck analysis with metrics |
+| code-refactoring-expert | Improved code structure |
+| qt-concurrency-architect | Qt-safe threading fixes |
+
+**Acting on results:**
+1. Review agent findings
+2. Ask clarifying questions if needed
+3. Request implementation of fixes
+4. Verify changes with tests
+
 **See QUICK-REFERENCE.md for complete agent workflows and decision matrix.**
+**See ORCHESTRATION.md for detailed recipes and troubleshooting.**
 
 ## Type Safety Best Practices
 

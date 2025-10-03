@@ -1113,6 +1113,15 @@ grep -n "self.curves_data\s*=" ui/curve_view_widget.py
 - ✅ Memory reduced (no local curves_data)
 - ✅ Type checking passes
 
+**Recommended Agents (Week 3):**
+```text
+# After refactoring CurveViewWidget
+"Use python-code-reviewer and type-system-expert in parallel to analyze ui/curve_view_widget.py after ApplicationState migration"
+
+# Verify performance maintained
+"Use performance-profiler to verify rendering performance maintained after CurveViewWidget refactor"
+```
+
 **Week 4: MultiPointTrackingController**
 
 **Task 4.1: Eliminate tracked_data Duplication**
@@ -1149,6 +1158,15 @@ class MultiPointTrackingController:
 - ✅ No local tracked_data storage
 - ✅ Multi-point tracking tests pass
 - ✅ Insert Track functionality works
+
+**Recommended Agents (Week 4):**
+```text
+# Review multi-point controller after migration
+"Use python-code-reviewer to analyze ui/controllers/multi_point_tracking_controller.py after removing tracked_data duplication"
+
+# Verify Insert Track still works
+"Use test-development-master to verify Insert Track functionality after migration"
+```
 
 **Week 5: StateManager Integration**
 
@@ -1188,6 +1206,12 @@ class StateManager:
 - ✅ Frame navigation works
 - ✅ StateManager becomes thin wrapper
 - ✅ Signals still work correctly
+
+**Recommended Agents (Week 5):**
+```text
+# Review StateManager delegation
+"Use code-refactoring-expert to verify StateManager is a clean wrapper around ApplicationState"
+```
 
 ---
 
@@ -1238,6 +1262,15 @@ class InteractionService:
 - ✅ Interaction tests pass
 - ✅ Batch operations working
 
+**Recommended Agents (Week 6):**
+```text
+# Review InteractionService after migration (most complex service)
+"Use python-code-reviewer and performance-profiler in parallel to analyze services/interaction_service.py after ApplicationState migration"
+
+# Verify batch operations
+"Use test-development-master to verify batch operations work correctly with ApplicationState"
+```
+
 **Week 7: Command System**
 
 **Task 7.1: Migrate Commands**
@@ -1280,6 +1313,15 @@ class BatchMoveCommand(BaseCommand):
 - ✅ Command merging still works
 - ✅ No regressions
 
+**Recommended Agents (Week 7):**
+```text
+# Review command system after migration
+"Use python-code-reviewer to verify all commands in core/commands/ use ApplicationState correctly"
+
+# Verify undo/redo integrity
+"Use test-development-master to verify undo/redo functionality with ApplicationState"
+```
+
 **Week 8: DataService & Remaining Services**
 
 **Task 8.1: Complete Service Migration**
@@ -1291,6 +1333,12 @@ Files:
 **Success Criteria:**
 - ✅ All services migrated
 - ✅ Service integration tests pass
+
+**Recommended Agents (Week 8):**
+```text
+# Final service review
+"Use python-code-reviewer and type-system-expert in parallel to audit all services/ after migration"
+```
 
 ---
 
@@ -1337,6 +1385,15 @@ def test_point_update(app_state):
 - ✅ All tests pass
 - ✅ Test code ~30% shorter
 - ✅ Execution time reduced
+
+**Recommended Agents (Week 9):**
+```text
+# Update test fixtures for ApplicationState
+"Use test-development-master to update tests/conftest.py fixtures for ApplicationState pattern"
+
+# Ensure test coverage maintained
+"Use test-development-master to verify >90% coverage maintained after test migration"
+```
 
 ---
 
@@ -1386,6 +1443,15 @@ python scripts/benchmark_state_performance.py
 - ✅ Compatibility layer removed
 - ✅ Performance improved (measured)
 - ✅ Memory reduced (verified)
+
+**Recommended Agents (Week 10):**
+```text
+# Performance optimization review
+"Use performance-profiler to identify any performance regressions after migration"
+
+# Code cleanup review
+"Use code-refactoring-expert to ensure no dead code or duplication remains"
+```
 
 ---
 
@@ -1468,6 +1534,18 @@ Document:
 - ✅ Linting passes
 - ✅ Documentation complete
 - ✅ Metrics validated
+
+**Recommended Agents (Week 11 - Final Validation):**
+```text
+# Comprehensive final audit (parallel = fastest!)
+"Use python-code-reviewer, type-system-expert, performance-profiler, and test-development-master in parallel for final audit of entire codebase"
+
+# Qt-specific final checks
+"Use qt-concurrency-architect to verify all Qt threading patterns are safe after migration"
+
+# Best practices verification
+"Use best-practices-checker to verify modern Python/Qt patterns used throughout"
+```
 
 ---
 

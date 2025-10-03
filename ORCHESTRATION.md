@@ -4,11 +4,29 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 
 ---
 
+## ⚠️ Important Notes
+
+**These are USER PROMPTS** - Copy them to your chat with Claude.
+
+**Agent Basics:**
+- Agents work on complex, multi-step tasks
+- Each agent is stateless (no memory between runs)
+- Results are summarized by Claude (not raw output shown to user)
+- Parallel execution is 50-70% faster when tasks are independent
+
+**For simple tasks, use direct tools:**
+- Reading files → Read tool
+- Finding files → Glob tool
+- Searching code → Grep tool
+
+---
+
 ## 📋 Quick Reference - Common Workflows
 
 ### Single Agent Tasks
 
-```
+**User Prompts:**
+```text
 # Code Review
 "Use python-code-reviewer to analyze [file/module]"
 
@@ -36,7 +54,8 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 
 ### Two-Agent Workflows
 
-```
+**User Prompts:**
+```text
 # Implement + Review
 "Use python-implementation-specialist to implement [feature], then python-code-reviewer to review"
 
@@ -53,9 +72,10 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 "Use code-refactoring-expert to improve [code], then test-development-master to ensure coverage"
 ```
 
-### Parallel Execution (Faster!)
+### Parallel Execution (60% Faster!)
 
-```
+**User Prompts:**
+```text
 # Comprehensive Code Analysis
 "Use python-code-reviewer and type-system-expert agents in parallel to analyze [file]"
 
@@ -112,9 +132,21 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 2. Implement minimal code (GREEN)
 3. Review and refactor (REFACTOR)
 
+**Expected Deliverables:**
+- Step 1: Complete test suite with clear test cases (failing initially)
+- Step 2: Working implementation that passes all tests
+- Step 3: Code review report with refactoring suggestions
+
+**What You'll Get:**
+- ✅ Fully tested feature with >90% coverage
+- ✅ Clean, reviewable implementation
+- ✅ Documented behavior via tests
+- ✅ Confidence in correctness
+
 #### Copy-Paste Prompts:
 
-```bash
+**User Prompts:**
+```text
 # Step 1: Write Tests (RED)
 "I want to implement [feature description] using TDD. Use test-development-master to write failing tests that specify the behavior."
 
@@ -143,9 +175,21 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 2. Implement fix
 3. Add regression tests
 
+**Expected Deliverables:**
+- Step 1: Root cause analysis report with reproduction steps
+- Step 2: Code fix with explanation
+- Step 3: Regression test suite
+
+**What You'll Get:**
+- ✅ Clear understanding of bug root cause
+- ✅ Targeted fix (not a band-aid)
+- ✅ Protection against regression
+- ✅ Documentation of the issue
+
 #### Copy-Paste Prompts:
 
-```bash
+**User Prompts:**
+```text
 # Step 1: Investigate
 "Use deep-debugger to investigate this bug: [description, steps to reproduce, error messages]"
 
@@ -210,14 +254,27 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 **Agents**: python-code-reviewer + type-system-expert (parallel) → code-refactoring-expert → test-development-master
 
 **Workflow**:
-1. Parallel analysis (review + types)
+1. Parallel analysis (review + types) - 60% faster!
 2. Refactor based on findings
 3. Ensure test coverage
 
+**Expected Deliverables:**
+- Step 1: Bug report + type error report (in parallel)
+- Step 2: Refactored code with improved structure
+- Step 3: Comprehensive test suite with >90% coverage
+
+**What You'll Get:**
+- ✅ Multi-perspective code analysis (bugs, types, design)
+- ✅ Actionable improvement list
+- ✅ Cleaner, maintainable code
+- ✅ Full test coverage
+- ⚡ 60% faster than sequential review
+
 #### Copy-Paste Prompts:
 
-```bash
-# Step 1: Parallel Analysis (FASTER!)
+**User Prompts:**
+```text
+# Step 1: Parallel Analysis (60% FASTER!)
 "Use python-code-reviewer and type-system-expert agents in parallel to comprehensively analyze [file/module]"
 
 # Step 2: Refactor
@@ -226,7 +283,7 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 # Step 3: Test Coverage
 "Use test-development-master to ensure >90% test coverage after refactoring"
 
-# Alternative: Add performance check
+# Alternative: Add performance check (3x faster than sequential!)
 "Use python-code-reviewer, type-system-expert, and performance-profiler agents in parallel to audit [module]"
 ```
 
@@ -438,49 +495,76 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 
 ---
 
+## ⚠️ Agent Limitations & Expectations
+
+**What agents CAN'T do:**
+- ❌ Agents can't interact with each other directly
+- ❌ Each invocation is stateless (no memory between runs)
+- ❌ Can't ask follow-up questions during execution
+- ❌ Can't see intermediate work from other agents
+
+**What you GET from agents:**
+- ✅ Results are summarized by Claude (not raw agent output)
+- ✅ Actionable findings and recommendations
+- ✅ Code changes, analysis reports, or test suites
+- ✅ Clear explanation of what was done
+
+**Best practice:** Provide complete context in your prompt. Include:
+- Specific file/module paths
+- What you want analyzed/changed
+- Any constraints or requirements
+- Context from previous agent runs (if chaining)
+
+---
+
 ## 💡 Best Practices
 
 ### 1. Start Specific, Expand as Needed
-```bash
+**User Prompts:**
+```text
 # Good: Specific agent for specific task
-"Use type-system-expert to fix type errors in authentication.py"
+"Use type-system-expert to fix type errors in ui/authentication.py"
 
 # Less optimal: Too vague
 "Fix the types" (which agent? which file?)
 ```
 
-### 2. Use Parallel When Possible
-```bash
-# Faster
-"Use python-code-reviewer and type-system-expert agents in parallel"
+### 2. Default to Parallel (60% Faster!)
+**User Prompts:**
+```text
+# Faster - saves 50-70% time
+"Use python-code-reviewer and type-system-expert agents in parallel to analyze ui/main_window.py"
 
-# Slower (sequential)
+# Slower (sequential) - only use when agent2 needs agent1 output
 "Use python-code-reviewer, then type-system-expert"
 ```
 
-### 3. Chain Outputs Logically
-```bash
-# Good: Output feeds next step
-"Use deep-debugger to find root cause, then python-implementation-specialist to fix based on findings"
+### 3. Chain Outputs Explicitly
+**User Prompts:**
+```text
+# Good: Output feeds next step with context
+"Use deep-debugger to find root cause of [bug], then python-implementation-specialist to fix based on the findings"
 
 # Less optimal: Disconnected steps
 "Use deep-debugger" (then forget to fix)
 ```
 
-### 4. Know When to Delegate
-```bash
+### 4. Choose the Right Specialist
+**User Prompts:**
+```text
 # Threading issues in Qt
-"Use qt-concurrency-architect" (not threading-debugger)
+"Use qt-concurrency-architect to fix signal threading in ui/controllers/timeline_controller.py"
 
 # General Python threading
-"Use threading-debugger" (not qt-concurrency-architect)
+"Use threading-debugger to analyze race condition in data/batch_edit.py"
 
 # Complex async architecture
-"Use python-expert-architect" (not python-implementation-specialist)
+"Use python-expert-architect to design async architecture for services/"
 ```
 
 ### 5. Always Verify After Changes
-```bash
+**User Prompts:**
+```text
 # Good: Verification step
 "Use python-implementation-specialist to implement feature, then test-development-master to verify with tests"
 
@@ -489,12 +573,23 @@ A comprehensive guide to orchestrating multiple agents for maximum efficiency.
 ```
 
 ### 6. Use TDD for Critical Code
-```bash
+**User Prompts:**
+```text
 # High-quality approach
 "Use test-development-master to write tests first, then python-implementation-specialist to implement"
 
 # Faster but riskier
 "Use python-implementation-specialist to implement quickly"
+```
+
+### 7. Provide File Paths
+**User Prompts:**
+```text
+# Good: Specific path
+"Use python-code-reviewer to analyze ui/curve_view_widget.py"
+
+# Less optimal: Vague reference
+"Use python-code-reviewer to analyze the main widget" (which widget?)
 ```
 
 ---
