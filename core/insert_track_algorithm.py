@@ -224,11 +224,23 @@ def fill_gap_with_source(
 
     logger.info(f"Filled {gap_frames_filled} frames in gap [{gap_start}, {gap_end}]")
 
-    # Mark gap boundaries as keyframes (if they exist)
+    # Mark overlap frames (frames OUTSIDE gap boundaries) as keyframes
+    # Find the ACTUAL existing frames before and after the gap
+    # (not just gap_start-1 and gap_end+1, which might not exist)
+    target_frames = {p.frame for p in target_points}
+    overlap_before = max((f for f in target_frames if f < gap_start), default=None)
+    overlap_after = min((f for f in target_frames if f > gap_end), default=None)
+
     final_points: list[CurvePoint] = []
     for point in result_points:
-        if point.frame == gap_start or point.frame == gap_end:
-            # Mark boundary as keyframe
+        should_mark_keyframe = False
+        if overlap_before is not None and point.frame == overlap_before:
+            should_mark_keyframe = True
+        if overlap_after is not None and point.frame == overlap_after:
+            should_mark_keyframe = True
+
+        if should_mark_keyframe:
+            # Mark overlap frame as keyframe (original data connecting to fill)
             final_points.append(point.with_status(PointStatus.KEYFRAME))
         else:
             final_points.append(point)
@@ -254,8 +266,11 @@ def average_multiple_sources(
         List of CurvePoint objects with averaged positions
 
     Note:
-        Only includes frames where at least one source has data
-        Average is computed from all sources that have data at each frame
+        Per 3DEqualizer spec: "averaged result will only cover the frameranges where
+        ALL input points have tracking information. This behaviour also applies when
+        multiple tracks are used to fill the gap of another track."
+
+        Only includes frames where ALL sources have data (not just any available sources)
     """
     if len(source_data_list) != len(offset_list):
         raise ValueError("source_data_list and offset_list must have same length")
@@ -267,31 +282,43 @@ def average_multiple_sources(
         points_dict = {p.frame: p for p in points_list}
         source_points_list.append(points_dict)
 
+    # Find frames where ALL sources have data (within gap range)
+    # This matches 3DEqualizer's behavior
+    gap_frames_set = set(gap_frames)
+    all_source_frames: list[set[int]] = [set(points.keys()) & gap_frames_set for points in source_points_list]
+
+    if all_source_frames:
+        common_frames: set[int] = all_source_frames[0].intersection(*all_source_frames[1:])
+    else:
+        common_frames = set()
+
     averaged_points: list[CurvePoint] = []
 
-    for frame in gap_frames:
+    # Only average frames where ALL sources have data
+    for frame in sorted(common_frames):
         positions_x: list[float] = []
         positions_y: list[float] = []
 
-        # Collect positions from all sources that have data at this frame
+        # Collect positions from ALL sources (we know all have data at this frame)
         for i, source_points in enumerate(source_points_list):
-            if frame in source_points:
-                source_point = source_points[frame]
-                offset_x, offset_y = offset_list[i]
+            source_point = source_points[frame]
+            offset_x, offset_y = offset_list[i]
 
-                # Apply offset
-                positions_x.append(source_point.x + offset_x)
-                positions_y.append(source_point.y + offset_y)
+            # Apply offset
+            positions_x.append(source_point.x + offset_x)
+            positions_y.append(source_point.y + offset_y)
 
-        # Average if we have data
-        if positions_x:
-            avg_x = sum(positions_x) / len(positions_x)
-            avg_y = sum(positions_y) / len(positions_y)
+        # Average all sources
+        avg_x = sum(positions_x) / len(positions_x)
+        avg_y = sum(positions_y) / len(positions_y)
 
-            avg_point = CurvePoint(frame=frame, x=avg_x, y=avg_y, status=PointStatus.TRACKED)
-            averaged_points.append(avg_point)
+        avg_point = CurvePoint(frame=frame, x=avg_x, y=avg_y, status=PointStatus.TRACKED)
+        averaged_points.append(avg_point)
 
-    logger.info(f"Averaged {len(averaged_points)} points from {len(source_data_list)} sources")
+    logger.info(
+        f"Averaged {len(averaged_points)} points from {len(source_data_list)} sources "
+        f"(only frames where ALL sources have data)"
+    )
 
     return averaged_points
 
@@ -350,10 +377,12 @@ def interpolate_gap(curve_data: CurveDataList, gap_start: int, gap_end: int) -> 
         interp_point = CurvePoint(frame=frame, x=interp_x, y=interp_y, status=PointStatus.INTERPOLATED)
         result_points.append(interp_point)
 
-    # Mark gap boundaries as keyframes
+    # Mark overlap frames (frames OUTSIDE gap boundaries) as keyframes
+    # These are the before_point and after_point frames where original data exists
     final_points: list[CurvePoint] = []
     for point in result_points:
-        if point.frame == gap_start or point.frame == gap_end:
+        if point.frame == before_point.frame or point.frame == after_point.frame:
+            # Mark overlap frame as keyframe (original data connecting to interpolation)
             final_points.append(point.with_status(PointStatus.KEYFRAME))
         else:
             final_points.append(point)

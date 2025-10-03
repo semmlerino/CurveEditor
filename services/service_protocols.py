@@ -25,6 +25,7 @@ from core.type_aliases import (
 )
 
 # Import consolidated protocol definitions from protocols.ui
+from protocols.ui import MainWindowProtocol, StateManagerProtocol  # noqa: F401 - re-exported for backward compat
 
 
 class SignalProtocol(Protocol):

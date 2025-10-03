@@ -207,7 +207,7 @@ class TestFillGapWithSource:
         assert frame_3_point[2] == pytest.approx(201.0)  # 101 + 100
 
     def test_gap_boundaries_marked_as_keyframes(self):
-        """Test that gap boundaries are marked as keyframes."""
+        """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
         target = [(1, 100.0, 200.0), (10, 110.0, 210.0)]
         source = [(3, 51.0, 101.0), (4, 52.0, 102.0)]
 
@@ -216,12 +216,22 @@ class TestFillGapWithSource:
 
         result = fill_gap_with_source(target, source, gap_start, gap_end, offset)
 
-        # Find gap boundary points
+        # Find overlap frames (frames OUTSIDE gap boundaries where original data exists)
+        # overlap_before = gap_start - 1 = 2, but frame 1 is the actual existing frame
+        # overlap_after = gap_end + 1 = 10
+        frame_1_point = [p for p in result if p[0] == 1][0]
+        frame_10_point = [p for p in result if p[0] == 10][0]
         frame_3_point = [p for p in result if p[0] == 3][0]
 
-        # Gap boundaries should be keyframes
+        # Overlap frames (1, 10) should be marked as keyframes (original data)
+        assert len(frame_1_point) >= 4
+        assert frame_1_point[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
+        assert len(frame_10_point) >= 4
+        assert frame_10_point[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+
+        # Filled frames (3) should be marked as tracked, NOT keyframe
         assert len(frame_3_point) >= 4
-        assert frame_3_point[3] == "keyframe"
+        assert frame_3_point[3] == "tracked", "Frame 3 (filled) should be tracked, not keyframe"
 
     def test_partial_gap_coverage(self):
         """Test filling gap when source doesn't cover all gap frames."""
@@ -277,7 +287,7 @@ class TestAverageMultipleSources:
         assert result[0].y == pytest.approx(220.0)
 
     def test_average_partial_coverage(self):
-        """Test averaging when sources don't all have data at all frames."""
+        """Test averaging only fills frames where ALL sources have data (3DE spec compliance)."""
         source1 = [(3, 100.0, 200.0), (4, 101.0, 201.0)]
         source2 = [(3, 110.0, 210.0)]  # Missing frame 4
 
@@ -286,15 +296,19 @@ class TestAverageMultipleSources:
 
         result = average_multiple_sources([source1, source2], gap_frames, offsets)
 
-        assert len(result) == 2
+        # Per 3DE spec: "averaged result will only cover the frameranges where
+        # ALL input points have tracking information"
+        # Only frame 3 has data from ALL sources, so only frame 3 should be in result
+        assert len(result) == 1, "Should only include frames where ALL sources have data"
 
-        # Frame 3: both sources
+        # Frame 3: both sources present, should be averaged
         point_3 = [p for p in result if p.frame == 3][0]
-        assert point_3.x == pytest.approx(105.0)
+        assert point_3.x == pytest.approx(105.0), "Should average both sources: (100+110)/2 = 105"
+        assert point_3.y == pytest.approx(205.0), "Should average both sources: (200+210)/2 = 205"
 
-        # Frame 4: only source1
-        point_4 = [p for p in result if p.frame == 4][0]
-        assert point_4.x == pytest.approx(101.0)
+        # Frame 4: only source1 has data, should NOT be in result
+        points_at_frame_4 = [p for p in result if p.frame == 4]
+        assert len(points_at_frame_4) == 0, "Frame 4 should not be included (missing from source2)"
 
 
 class TestInterpolateGap:
@@ -319,19 +333,24 @@ class TestInterpolateGap:
         assert frame_5_point[2] == pytest.approx(240.0)
 
     def test_interpolation_boundaries_keyframes(self):
-        """Test that interpolated gap boundaries are marked as keyframes."""
+        """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
         curve = [(1, 100.0, 200.0), (10, 190.0, 290.0)]
 
         gap_start, gap_end = 2, 9
 
         result = interpolate_gap(curve, gap_start, gap_end)
 
-        # Gap boundaries should be keyframes
+        # Overlap frames (before and after gap) should be marked as keyframes
+        frame_1_point = [p for p in result if p[0] == 1][0]
+        frame_10_point = [p for p in result if p[0] == 10][0]
+        # Interpolated frames should NOT be keyframes
         frame_2_point = [p for p in result if p[0] == 2][0]
         frame_9_point = [p for p in result if p[0] == 9][0]
 
-        assert frame_2_point[3] == "keyframe"
-        assert frame_9_point[3] == "keyframe"
+        assert frame_1_point[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
+        assert frame_10_point[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+        assert frame_2_point[3] == "interpolated", "Frame 2 (in gap) should be interpolated"
+        assert frame_9_point[3] == "interpolated", "Frame 9 (in gap) should be interpolated"
 
     def test_interpolation_missing_boundaries(self):
         """Test interpolation fails gracefully without boundary points."""

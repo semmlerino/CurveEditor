@@ -154,6 +154,19 @@ class InsertTrackCommand(Command):
 
         gap_start, gap_end = gap
 
+        # Find actual overlap frames (existing frames immediately outside gap boundaries)
+        curve_frames = {p[0] for p in curve_data}
+        overlap_before = max((f for f in curve_frames if f < gap_start), default=gap_start - 1)
+        overlap_after = min((f for f in curve_frames if f > gap_end), default=gap_end + 1)
+
+        # 3DEqualizer-style console output
+        logger.info("--------------- insert track v1.0 ---------------")
+        logger.info("one point selected")
+        logger.info(f"target: {target_curve}")
+        logger.info("source: reeling in target")
+        logger.info(f"section: [{gap_start}, {gap_end}]")
+        logger.info(f"overlap: [{overlap_before}, {overlap_after}]")
+
         # Interpolate gap
         new_curve_data = interpolate_gap(curve_data, gap_start, gap_end)
 
@@ -169,7 +182,7 @@ class InsertTrackCommand(Command):
         # Update UI
         self._update_ui(main_window, target_curve)
 
-        logger.info(f"Interpolated gap [{gap_start}, {gap_end}] in '{target_curve}'")
+        logger.info("done.")
         return True
 
     def _execute_scenario_2(
@@ -229,6 +242,32 @@ class InsertTrackCommand(Command):
                 logger.error(f"No valid source curves found for '{target_name}'")
                 continue
 
+            # Find actual overlap frames for logging (existing frames immediately outside gap boundaries)
+            target_frames = {p[0] for p in target_data}
+            overlap_before = max((f for f in target_frames if f < gap_start), default=gap_start - 1)
+            overlap_after = min((f for f in target_frames if f > gap_end), default=gap_end + 1)
+
+            # 3DEqualizer-style console output
+            total_selected = len(target_curves) + len(source_curves)
+            logger.info("--------------- insert track v1.0 ---------------")
+            if total_selected == 2:
+                logger.info("2 points selected")
+            else:
+                logger.info("multiple points selected")
+
+            logger.info(f"target: {target_name}")
+
+            if len(source_data_list) == 1:
+                logger.info(f"source: {source_curves[0]}")
+            else:
+                logger.info(f"averaging {len(source_data_list)} source points:")
+                for source_name in source_curves:
+                    if source_name in [src for src in source_curves if tracked_data[src] in source_data_list]:
+                        logger.info(source_name)
+
+            logger.info(f"section: [{gap_start}, {gap_end}]")
+            logger.info(f"overlap: [{overlap_before}, {overlap_after}]")
+
             # Fill gap
             if len(source_data_list) == 1:
                 # Single source
@@ -257,8 +296,7 @@ class InsertTrackCommand(Command):
             # Update UI
             self._update_ui(main_window, target_name)
 
-            source_names = ", ".join(source_curves)
-            logger.info(f"Filled gap [{gap_start}, {gap_end}] in '{target_name}' using {source_names}")
+            logger.info("done.")
 
             # Mark success
             any_success = True
@@ -277,6 +315,13 @@ class InsertTrackCommand(Command):
         """
         controller = main_window.multi_point_controller
         tracked_data = controller.tracked_data
+
+        # 3DEqualizer-style console output
+        logger.info("--------------- insert track v1.0 ---------------")
+        logger.info("multiple points selected")
+        logger.info(f"averaging {len(source_curves)} source points:")
+        for source_name in source_curves:
+            logger.info(source_name)
 
         # Collect source curves
         source_curves_dict = {name: tracked_data[name] for name in source_curves}
@@ -304,8 +349,8 @@ class InsertTrackCommand(Command):
         # Update UI - add to tracking panel and select new curve
         self._update_ui_new_curve(main_window, new_curve_name)
 
-        source_names = ", ".join(source_curves)
-        logger.info(f"Created averaged curve '{new_curve_name}' from {source_names}")
+        logger.info(f"Created averaged curve: {new_curve_name}")
+        logger.info("done.")
         return True
 
     def _update_ui(self, main_window: MainWindowProtocol, curve_name: str) -> None:
