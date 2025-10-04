@@ -159,18 +159,18 @@
   - Verified: History methods use ApplicationState via CommandManager
   - Validation: ✅ 56/56 tests, ✅ committed (321e44f)
 
-- [ ] **Increment 10:** Cleanup & Documentation (90-120 min)
-  - Files: Multiple
+- [x] **Increment 10:** Cleanup & Documentation (90-120 min) ✅ COMPLETE
+  - Files: ui/curve_view_widget.py, services/interaction_service.py, tests/test_cross_curve_ctrl_click.py, CLAUDE.md
   - Goal: Remove dead code, update docs, final validation
-  - Status: Not started
+  - Status: Complete (see changes below)
 
 ---
 
 ## 🔨 CURRENT WORK
 
-**Active Phase:** Implementation - Increment 9 Complete
-**Status:** 🟢 IN PROGRESS - 90% complete (9/10 increments), all tests passing
-**Goal:** Proceed to Increment 10 (Cleanup & Documentation)
+**Active Phase:** PHASE 8 COMPLETE ✅
+**Status:** 🟢 COMPLETE - 100% (10/10 increments), all tests passing
+**Goal:** Phase 8 InteractionService refactor successfully completed
 
 **Implementation Documents:**
 - `PHASE_8_FINAL_IMPLEMENTATION_PLAN.md` - Complete implementation plan with ROI
@@ -281,6 +281,37 @@ def __bool__(self) -> bool:
 ---
 
 ## 📝 CHANGE LOG
+
+### 2025-10-04 - Increment 10 Complete ✅ - PHASE 8 COMPLETE
+
+**Increment 10: Cleanup & Documentation**
+- ✅ Removed deprecated code:
+  - Removed `_add_to_history()` stub method from CurveViewWidget (-7 lines)
+  - Fixed 4 test files using removed `_find_point_at_multi_curve()` method
+- ✅ Updated docstrings with multi-curve examples:
+  - `find_point_at()` - mode parameter examples
+  - `clear_selection()`, `select_all_points()`, `select_points_in_rect()` - curve_name examples
+  - `delete_selected_points()`, `nudge_selected_points()` - curve_name examples
+- ✅ Updated CLAUDE.md with comprehensive InteractionService multi-curve API section
+- ✅ **CRITICAL BUG FIX**: Ctrl+click toggle selection
+  - **Issue**: Ctrl+clicking selected point didn't deselect it
+  - **Root cause**: In-place modification of `selected_points` set didn't trigger property setter
+  - **Fix**: Use set operations and assignment to trigger setter properly
+  - **Impact**: Fixed toggle selection behavior, all ctrl-click tests passing
+- ✅ **CRITICAL BUG FIX**: Drag prevention for Ctrl/Shift clicks
+  - **Issue**: Ctrl+click and Shift+click were starting drag operations
+  - **Fix**: Only set `drag_active = True` for normal clicks (no modifiers)
+  - **Impact**: Selection modifiers now work correctly without unintended drags
+- ✅ Performance validation: All 26 performance tests passing
+- ✅ ui/curve_view_widget.py: -7 lines (1770 total, down from 1777)
+- ✅ services/interaction_service.py: +50 lines (docstrings), bug fixes
+- ✅ tests/test_cross_curve_ctrl_click.py: Fixed to use InteractionService API
+- ✅ CLAUDE.md: +55 lines (InteractionService multi-curve API documentation)
+- ✅ Validation: All tests passing, 26/26 performance tests passing
+
+**Status:** ✅ PHASE 8 COMPLETE - All 10 increments finished, InteractionService multi-curve ready
+
+---
 
 ### 2025-10-04 - Increment 9 Complete ✅
 

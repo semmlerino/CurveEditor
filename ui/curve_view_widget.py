@@ -1077,9 +1077,6 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.set_point_status(idx, status.value)
 
-        # History is now handled by commands
-        # self._add_to_history()  # Legacy - removed in favor of command system
-
         point = self._curve_store.get_point(idx)
         if point:
             frame = point[0]
@@ -1384,12 +1381,6 @@ class CurveViewWidget(QWidget):
     def has_main_window(self) -> bool:
         """Check if main window is available."""
         return self.main_window is not None
-
-    def _add_to_history(self) -> None:
-        """Legacy method - history is now handled by command system."""
-        # This method is kept for backward compatibility but should not be used
-        # All history operations should go through the command system
-        pass
 
     def update_status(self, message: str, timeout: int = 2000) -> None:
         """Update status bar if main window available.

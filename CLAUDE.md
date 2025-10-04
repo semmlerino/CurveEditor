@@ -23,6 +23,62 @@ Comprehensive reference for the CurveEditor codebase - a Python/PySide6 applicat
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
 ```
 
+### InteractionService Multi-Curve API
+
+**Phase 8 Complete (October 2025)**: InteractionService now supports multi-curve operations with backward compatibility.
+
+**Key Methods with Multi-Curve Support:**
+
+```python
+from services import get_interaction_service
+
+service = get_interaction_service()
+
+# find_point_at - Search with mode parameter
+result = service.find_point_at(view, x, y, mode="active")      # Single curve (default)
+result = service.find_point_at(view, x, y, mode="all_visible") # All visible curves
+if result.found:
+    print(f"Point {result.index} in {result.curve_name}")
+
+# Selection methods - Optional curve_name parameter
+service.clear_selection(view, main_window)                     # Active curve
+service.clear_selection(view, main_window, curve_name="pp56_TM_138G")
+
+service.select_all_points(view, main_window)                   # Active curve
+service.select_all_points(view, main_window, curve_name="pp56_TM_138G")
+
+service.select_points_in_rect(view, main_window, rect)         # Active curve
+service.select_points_in_rect(view, main_window, rect, curve_name="pp56_TM_138G")
+
+# Manipulation methods - Optional curve_name parameter
+service.delete_selected_points(view, main_window)              # Active curve
+service.delete_selected_points(view, main_window, curve_name="pp56_TM_138G")
+
+service.nudge_selected_points(view, main_window, 1.0, 0.0)     # Active curve
+service.nudge_selected_points(view, main_window, 1.0, 0.0, curve_name="pp56_TM_138G")
+
+# State callbacks - Curve-aware signals
+service.on_data_changed(curve_name)
+service.on_selection_changed(indices, curve_name=None)
+service.on_frame_changed(frame, curve_name=None)
+```
+
+**PointSearchResult** (returned by `find_point_at`):
+- `.index`: Point index (-1 if not found)
+- `.curve_name`: Curve name (None if not found)
+- `.found`: Boolean property (True if index >= 0)
+- `.distance`: Distance from click (for all_visible mode)
+- Comparison operators: `result >= 0`, `result == -1` work for backward compatibility
+
+**SearchMode** options:
+- `"active"`: Search active curve only (default, backward compatible)
+- `"all_visible"`: Search all visible curves (multi-curve mode)
+
+**Backward Compatibility:**
+- All methods default to active curve when `curve_name=None`
+- Existing code continues to work without modifications
+- PointSearchResult acts like int for comparisons
+
 ### Command System
 - **CommandManager**: Manages undo/redo history with command pattern
 - **Command Classes**:

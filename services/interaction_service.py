@@ -164,41 +164,46 @@ class InteractionService:
             # Point clicked
             point_idx = point_result.index
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                # Toggle selection
-                # selected_points is defined in CurveViewProtocol
-                if not view.selected_points:
-                    view.selected_points = set()
-                if point_idx in view.selected_points:
-                    view.selected_points.remove(point_idx)
+                # Toggle selection (no drag for Ctrl+click)
+                # Get current selection
+                current_selection = view.selected_points if view.selected_points else set()
+                # Toggle the point
+                if point_idx in current_selection:
+                    # Deselecting
+                    current_selection = current_selection - {point_idx}
+                    view.selected_points = current_selection
+                    # Set selected_point_idx to first remaining, or -1 if none
+                    view.selected_point_idx = min(current_selection) if current_selection else -1
                 else:
-                    view.selected_points.add(point_idx)
-                view.selected_point_idx = point_idx
+                    # Selecting
+                    current_selection = current_selection | {point_idx}
+                    view.selected_points = current_selection
+                    view.selected_point_idx = point_idx
             elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                # Range selection (simplified - just add to selection)
-                # selected_points is defined in CurveViewProtocol
-                if not view.selected_points:
-                    view.selected_points = set()
-                view.selected_points.add(point_idx)
+                # Range selection (simplified - just add to selection, no drag)
+                current_selection = view.selected_points if view.selected_points else set()
+                # Add point to selection
+                view.selected_points = current_selection | {point_idx}
                 view.selected_point_idx = point_idx
             else:
-                # Single selection
+                # Single selection - start drag for normal click
                 view.selected_points = {point_idx}
                 view.selected_point_idx = point_idx
 
-            # Start drag - capture original positions for undo
-            view.drag_active = True
-            view.last_drag_pos = pos
-            self.drag_point_idx = point_idx
+                # Start drag - capture original positions for undo
+                view.drag_active = True
+                view.last_drag_pos = pos
+                self.drag_point_idx = point_idx
 
-            # Capture original positions of all selected points
-            self._drag_original_positions = {}
-            if view.selected_points:
-                # Use ApplicationState for active curve data (Week 6)
-                active_curve_data = self._app_state.get_curve_data()  # No param = active curve
-                for idx in view.selected_points:
-                    if 0 <= idx < len(active_curve_data):
-                        point = active_curve_data[idx]
-                        self._drag_original_positions[idx] = (point[1], point[2])
+                # Capture original positions of all selected points
+                self._drag_original_positions = {}
+                if view.selected_points:
+                    # Use ApplicationState for active curve data (Week 6)
+                    active_curve_data = self._app_state.get_curve_data()  # No param = active curve
+                    for idx in view.selected_points:
+                        if 0 <= idx < len(active_curve_data):
+                            point = active_curve_data[idx]
+                            self._drag_original_positions[idx] = (point[1], point[2])
 
         elif event.button() == Qt.MouseButton.LeftButton:
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -846,6 +851,13 @@ class InteractionService:
             view: Curve view
             main_window: Main window instance
             curve_name: Curve to clear selection for. None = active curve.
+
+        Examples:
+            # Single-curve (backward compatible):
+            service.clear_selection(view, main_window)
+
+            # Multi-curve - clear specific curve:
+            service.clear_selection(view, main_window, curve_name="pp56_TM_138G")
         """
         self._assert_main_thread()
 
@@ -874,6 +886,13 @@ class InteractionService:
 
         Returns:
             Number of points selected
+
+        Examples:
+            # Single-curve (backward compatible):
+            count = service.select_all_points(view, main_window)
+
+            # Multi-curve - select all in specific curve:
+            count = service.select_all_points(view, main_window, curve_name="pp56_TM_138G")
         """
         self._assert_main_thread()
 
@@ -959,6 +978,13 @@ class InteractionService:
             view: Curve view
             main_window: Main window instance
             curve_name: Curve containing points to delete. None = active curve.
+
+        Examples:
+            # Single-curve (backward compatible):
+            service.delete_selected_points(view, main_window)
+
+            # Multi-curve - delete from specific curve:
+            service.delete_selected_points(view, main_window, curve_name="pp56_TM_138G")
         """
         self._assert_main_thread()
 
@@ -1202,6 +1228,13 @@ class InteractionService:
 
         Returns:
             Number of points selected
+
+        Examples:
+            # Single-curve (backward compatible):
+            count = service.select_points_in_rect(view, main_window, selection_rect)
+
+            # Multi-curve - select in specific curve:
+            count = service.select_points_in_rect(view, main_window, selection_rect, curve_name="pp56_TM_138G")
         """
         self._assert_main_thread()
 
@@ -1369,6 +1402,13 @@ class InteractionService:
 
         Returns:
             True if points were successfully nudged, False otherwise
+
+        Examples:
+            # Single-curve (backward compatible):
+            success = service.nudge_selected_points(view, main_window, 1.0, 0.0)
+
+            # Multi-curve - nudge specific curve:
+            success = service.nudge_selected_points(view, main_window, 1.0, 0.0, curve_name="pp56_TM_138G")
         """
         self._assert_main_thread()
 
