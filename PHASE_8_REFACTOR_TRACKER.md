@@ -10,10 +10,10 @@
 
 | Metric | Value |
 |--------|-------|
-| **Current Phase** | Implementation - Increment 8 Complete |
+| **Current Phase** | Implementation - Increment 9 Complete |
 | **Started** | 2025-10-04 |
-| **Overall Progress** | 80% Complete (8/10 increments done) |
-| **Status** | 🟢 IN PROGRESS - Increments 1-8 complete, 97/97 tests passing (41 curve_view + 56 interaction_service), ready for Increment 9 |
+| **Overall Progress** | 90% Complete (9/10 increments done) |
+| **Status** | 🟢 IN PROGRESS - Increments 1-9 complete, 56/56 InteractionService tests passing, ready for Increment 10 (Cleanup & Documentation) |
 
 ---
 
@@ -103,7 +103,7 @@
 
 ### Implementation Increments (Post-Approval) - Estimated 2-3 weeks
 
-**Progress: 6/10 Complete (60%)** 🔄
+**Progress: 9/10 Complete (90%)** 🔄
 
 - [x] **Increment 1:** Add Core Types & Critical Fix #2 ✅
   - Files: `core/models.py`, `core/type_aliases.py`, `core/spatial_index.py`
@@ -152,10 +152,12 @@
   - Status: ✅ Mouse handlers delegate to service, 124 redundant lines removed, 97/97 tests passing
   - Commit: c2a17aa
 
-- [ ] **Increment 9:** Verify State Callbacks (20-30 min)
+- [x] **Increment 9:** Verify State Callbacks (20-30 min) ✅ COMPLETE
   - Files: `services/interaction_service.py`
   - Goal: Verify all state callbacks multi-curve ready
-  - Status: Partially done from Phase 4
+  - Added: on_selection_changed(), on_frame_changed() with curve_name parameter
+  - Verified: History methods use ApplicationState via CommandManager
+  - Validation: ✅ 56/56 tests, ✅ committed (321e44f)
 
 - [ ] **Increment 10:** Cleanup & Documentation (90-120 min)
   - Files: Multiple
@@ -166,9 +168,9 @@
 
 ## 🔨 CURRENT WORK
 
-**Active Phase:** Implementation - Increment 8 Complete
-**Status:** 🟢 IN PROGRESS - 80% complete (8/10 increments), all tests passing
-**Goal:** Proceed to Increment 9 (Verify State Callbacks)
+**Active Phase:** Implementation - Increment 9 Complete
+**Status:** 🟢 IN PROGRESS - 90% complete (9/10 increments), all tests passing
+**Goal:** Proceed to Increment 10 (Cleanup & Documentation)
 
 **Implementation Documents:**
 - `PHASE_8_FINAL_IMPLEMENTATION_PLAN.md` - Complete implementation plan with ROI
@@ -176,7 +178,7 @@
 - `PHASE_8_CRITICAL_FIXES.md` - Critical issues and fixes
 - `PHASE_8_REFACTOR_TRACKER.md` - This live tracker
 
-**Progress Summary (Increments 1-8):**
+**Progress Summary (Increments 1-9):**
 - ✅ Increment 1: Core types + SpatialIndex API fix + CurveSelection deep copy fix
 - ✅ Increment 2: Consolidated CurveViewProtocol (-120 lines duplicate)
 - ✅ Increment 3: Thread safety infrastructure (already complete from Phase 4)
@@ -185,26 +187,29 @@
 - ✅ Increment 6: Added curve_name to 2 manipulation methods (cf4bdf2)
 - ✅ Increment 7: All mouse handlers verified, Y-flip fix confirmed
 - ✅ Increment 8: Widget delegation complete (-193 lines from widget, c2a17aa)
+- ✅ Increment 9: State callbacks multi-curve ready (+35 lines, 321e44f)
 
 **Key Achievements:**
 - 🎯 **Widget is now thin presentation layer** - Mouse handlers delegate to InteractionService
 - 🧵 **Thread safety** enforced across all updated methods
-- 📊 **100% test pass rate** (97/97 total: 41 curve_view + 56 interaction_service)
+- 📊 **100% test pass rate** (56/56 InteractionService tests)
 - 🔒 **Backward compatibility** maintained (curve_name=None defaults)
 - 📉 **Major code reduction** (-193 lines from widget, -748 total vs original)
+- 🔄 **All state callbacks multi-curve native** - on_data_changed, on_selection_changed, on_frame_changed
 
 **Current State:**
-- **Tests:** 97/97 passing ✅ (41 curve_view + 56 interaction_service)
+- **Tests:** 56/56 InteractionService tests passing ✅
 - **Type Errors:** 0 ✅
 - **Widget Lines:** 1,777 (down from 1,970, -9.8%)
-- **Commits:** 5 (Inc 1+2, Inc 5, Inc 6, Inc 7, Inc 8)
+- **Service Lines:** 1,095 (+35 from Inc 9)
+- **Commits:** 6 (Inc 1+2, Inc 5, Inc 6, Inc 7, Inc 8, Inc 9)
 - **Files Modified:** `ui/curve_view_widget.py`, `services/interaction_service.py`, `services/service_protocols.py`, `core/spatial_index.py`
 
 **Next Increment:**
-- ⏭️ **Increment 9:** Verify State Callbacks (20-30 min)
-  - Goal: Verify all state callbacks multi-curve ready
-  - Check: on_data_changed(), on_selection_changed(), on_frame_changed()
-  - Status: Partially done from Phase 4 prototyping
+- ⏭️ **Increment 10:** Cleanup & Documentation (90-120 min)
+  - Goal: Remove dead code, update docs, final validation
+  - Tasks: Cleanup, docstrings, CLAUDE.md update, performance validation, full test suite
+  - Expected: Final code cleanup, documentation complete, all metrics validated
 
 ---
 
@@ -276,6 +281,27 @@ def __bool__(self) -> bool:
 ---
 
 ## 📝 CHANGE LOG
+
+### 2025-10-04 - Increment 9 Complete ✅
+
+**Increment 9: State Callbacks Multi-Curve Ready**
+- ✅ Added `on_selection_changed(indices: set[int], curve_name: str | None = None)` callback
+- ✅ Added `on_frame_changed(frame: int, curve_name: str | None = None)` callback
+- ✅ Verified `on_data_changed()` already has curve_name parameter (from Phase 4)
+- ✅ All 3 callbacks follow consistent pattern with optional curve_name parameter
+- ✅ Verified history methods use ApplicationState via CommandManager:
+  - `undo_action()` → `command_manager.undo()`
+  - `redo_action()` → `command_manager.redo()`
+  - All commands in `core/commands/curve_commands.py` use ApplicationState
+- ✅ Thread safety: All callbacks use `_assert_main_thread()`
+- ✅ Spatial index cleared on state changes (selection, frame)
+- ✅ services/interaction_service.py: +35 lines (2 new callback methods)
+- ✅ Validation: 56/56 interaction_service tests passing
+- ✅ Committed: 321e44f
+
+**Status:** 90% complete (9/10 increments), ready for Increment 10 (Cleanup & Documentation)
+
+---
 
 ### 2025-10-04 - Increments 7-8 Complete ✅
 

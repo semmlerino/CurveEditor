@@ -551,18 +551,22 @@ Updated 2 methods with `curve_name: str | None = None` parameter:
 
 ---
 
-#### Increment 9: State Callbacks (45-60 min) - LOW RISK
-**Files:** services/interaction_service.py, tests/test_interaction_history.py
-**Changes:** ~40 lines (3 methods updated), 2-3 test updates
+#### Increment 9: State Callbacks (20-30 min) - LOW RISK ✅ COMPLETE
+**Files:** services/interaction_service.py
+**Changes:** +35 lines (2 methods added), 0 test updates needed
+**Commit:** feat(phase8-inc9): Add on_selection_changed and on_frame_changed callbacks (321e44f)
 
-Update 3 callbacks with `curve_name: str | None = None` parameter:
-- on_data_changed()
-- on_selection_changed()
-- on_frame_changed()
+Updated 3 callbacks with `curve_name: str | None = None` parameter:
+- ✅ on_data_changed() - Already had curve_name parameter from Phase 4
+- ✅ on_selection_changed() - **ADDED** (lines 1026-1042)
+- ✅ on_frame_changed() - **ADDED** (lines 1044-1059)
 
-Verify history methods already multi-curve via ApplicationState (no changes).
+Verified history methods already multi-curve via ApplicationState:
+- ✅ undo_action() uses command_manager.undo()
+- ✅ redo_action() uses command_manager.redo()
+- ✅ All commands use ApplicationState (verified in core/commands/curve_commands.py)
 
-**Success:** Callbacks support curve_name, history works, tests pass
+**Success:** ✅ All callbacks support curve_name, history uses ApplicationState, 56/56 tests passing
 
 ---
 
