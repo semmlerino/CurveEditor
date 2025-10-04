@@ -949,19 +949,35 @@ class InteractionService:
             return True
         return False
 
-    def delete_selected_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
-        """Delete selected points using DeletePointsCommand."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if view.selected_points and active_curve_data:
+    def delete_selected_points(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+    ) -> None:
+        """
+        Delete selected points using DeletePointsCommand.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            curve_name: Curve containing points to delete. None = active curve.
+        """
+        self._assert_main_thread()
+
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return
+
+        # Get curve data for specified curve
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if view.selected_points and curve_data:
             from core.commands.curve_commands import DeletePointsCommand
 
             # Collect points to delete
             indices = list(view.selected_points)
             deleted_points = []
             for idx in sorted(indices):
-                if 0 <= idx < len(active_curve_data):
-                    deleted_points.append((idx, active_curve_data[idx]))
+                if 0 <= idx < len(curve_data):
+                    deleted_points.append((idx, curve_data[idx]))
 
             if deleted_points:
                 # Create and execute delete command
@@ -1299,7 +1315,12 @@ class InteractionService:
         self._point_index._last_point_count = 0
 
     def nudge_selected_points(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, dx: float, dy: float
+        self,
+        view: CurveViewProtocol,
+        main_window: MainWindowProtocol,
+        dx: float,
+        dy: float,
+        curve_name: str | None = None,
     ) -> bool:
         """
         Nudge selected points by a given delta.
@@ -1309,22 +1330,30 @@ class InteractionService:
             main_window: The main window instance
             dx: Delta x to move points
             dy: Delta y to move points
+            curve_name: Curve containing points to nudge. None = active curve.
 
         Returns:
             True if points were successfully nudged, False otherwise
         """
+        self._assert_main_thread()
+
         if not view.selected_points:
             return False
 
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if not active_curve_data:
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return False
+
+        # Get curve data for specified curve
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if not curve_data:
             return False
 
         success = False
         for idx in view.selected_points:
-            if 0 <= idx < len(active_curve_data):
-                point = active_curve_data[idx]
+            if 0 <= idx < len(curve_data):
+                point = curve_data[idx]
                 # Preserve frame and status, update x and y
                 if len(point) >= 4:
                     new_x = point[1] + dx
