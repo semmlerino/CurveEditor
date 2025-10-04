@@ -836,22 +836,69 @@ class InteractionService:
             return True
         return False
 
-    def clear_selection(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> None:
-        """Clear selection."""
+    def clear_selection(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+    ) -> None:
+        """
+        Clear selection for specified curve.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            curve_name: Curve to clear selection for. None = active curve.
+        """
+        self._assert_main_thread()
+
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+
+        # Update ApplicationState if we have a curve
+        if curve_name is not None:
+            self._app_state.clear_selection(curve_name)
+
+        # Always update view for backward compatibility (even if no active curve)
         view.selected_points.clear()
         view.selected_point_idx = -1
         view.update()
 
-    def select_all_points(self, view: CurveViewProtocol, main_window: MainWindowProtocol) -> int:
-        """Select all points."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if active_curve_data:
-            view.selected_points = set(range(len(active_curve_data)))
-            view.selected_point_idx = 0 if active_curve_data else -1
-            view.update()
-            return len(view.selected_points)
-        return 0
+    def select_all_points(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+    ) -> int:
+        """
+        Select all points in specified curve.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            curve_name: Curve to select all points in. None = active curve.
+
+        Returns:
+            Number of points selected
+        """
+        self._assert_main_thread()
+
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return 0
+
+        # Get curve data for specified curve
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if not curve_data:
+            return 0
+
+        # Create selection of all indices
+        all_indices = set(range(len(curve_data)))
+
+        # Update ApplicationState
+        self._app_state.set_selection(curve_name, all_indices)
+
+        # Update view for backward compatibility
+        view.selected_points = all_indices
+        view.selected_point_idx = 0
+        view.update()
+
+        return len(all_indices)
 
     def update_point_position(
         self,
@@ -1090,11 +1137,31 @@ class InteractionService:
         """Legacy save state."""
         self.add_to_history(main_window)
 
-    def select_points_in_rect(self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect) -> int:
-        """Select points in rectangle using spatial indexing for O(1) performance."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if not active_curve_data:
+    def select_points_in_rect(
+        self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect, curve_name: str | None = None
+    ) -> int:
+        """
+        Select points in rectangle using spatial indexing for O(1) performance.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            rect: Rectangle to select points within
+            curve_name: Curve to select points in. None = active curve.
+
+        Returns:
+            Number of points selected
+        """
+        self._assert_main_thread()
+
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return 0
+
+        # Get curve data for specified curve
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if not curve_data:
             return 0
 
         transform_service = _get_transform_service()
@@ -1105,9 +1172,16 @@ class InteractionService:
 
         # Use spatial index for O(1) rectangular selection (updated API - Critical Fix #2)
         point_indices = self._point_index.get_points_in_rect(
-            active_curve_data, transform, rect.left(), rect.top(), rect.right(), rect.bottom(), view
+            curve_data, transform, rect.left(), rect.top(), rect.right(), rect.bottom(), view
         )
 
+        # Convert to set for ApplicationState
+        selected_set = set(point_indices)
+
+        # Update ApplicationState
+        self._app_state.set_selection(curve_name, selected_set)
+
+        # Update view for backward compatibility
         view.selected_points.clear()
         for idx in point_indices:
             view.selected_points.add(idx)
