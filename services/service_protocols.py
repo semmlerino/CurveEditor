@@ -22,10 +22,10 @@ from core.type_aliases import (
     CurveDataList,
     QtPointF,
 )
+from protocols.services import SignalProtocol  # noqa: F401 - re-exported from authoritative source
 
 # Import consolidated protocol definitions from protocols.ui and protocols.services
-from protocols.ui import MainWindowProtocol, StateManagerProtocol  # noqa: F401 - re-exported for backward compat
-from protocols.services import SignalProtocol  # noqa: F401 - re-exported from authoritative source
+from protocols.ui import CurveViewProtocol, MainWindowProtocol, StateManagerProtocol  # noqa: F401 - re-exported for backward compat
 
 
 class LoggingServiceProtocol(Protocol):
@@ -76,130 +76,7 @@ class StatusServiceProtocol(Protocol):
         ...
 
 
-# StateManagerProtocol imported from protocols.ui (see line 29)
-
-
-class CurveViewProtocol(Protocol):
-    """Protocol for curve view widgets.
-
-    Defines the interface that curve view widgets must implement
-    to work with the services layer.
-    """
-
-    # Basic attributes commonly used by services
-    selected_point_idx: int
-    curve_data: CurveDataList
-    current_image_idx: int
-
-    # Point management attributes
-    points: CurveDataList
-    selected_points: set[int]
-
-    # Transform and positioning attributes
-    offset_x: float
-    offset_y: float
-    x_offset: float  # Alias for offset_x
-    y_offset: float  # Alias for offset_y
-    pan_offset_x: float
-    pan_offset_y: float
-    zoom_factor: float
-    flip_y_axis: bool  # Y-axis flip for coordinate system (default True)
-
-    # Interaction state attributes
-    drag_active: bool
-    pan_active: bool
-    last_drag_pos: QtPointF | None
-    last_pan_pos: QtPointF | None
-
-    # Rubber band selection attributes
-    rubber_band: "QRubberBand | None"
-    rubber_band_active: bool
-    rubber_band_origin: QtPointF
-
-    # Visualization settings
-    show_grid: bool
-    show_background: bool
-    show_velocity_vectors: bool
-    show_all_frame_numbers: bool
-
-    # Parent reference
-    main_window: object  # MainWindowProtocol - avoid circular import
-
-    # Qt signals (properly typed for type safety)
-    point_selected: SignalProtocol  # Signal[int]
-    point_moved: SignalProtocol  # Signal[int, float, float]
-
-    # Methods that services may call
-    def update(self) -> None:
-        """Update the view."""
-        ...
-
-    def repaint(self) -> None:
-        """Repaint the view."""
-        ...
-
-    def width(self) -> int:
-        """Get widget width."""
-        ...
-
-    def height(self) -> int:
-        """Get widget height."""
-        ...
-
-    def setCursor(self, cursor: object) -> None:
-        """Set widget cursor."""
-        ...
-
-    def unsetCursor(self) -> None:
-        """Unset widget cursor."""
-        ...
-
-    def findPointAt(self, pos: QtPointF) -> int:
-        """Find point at the given position."""
-        ...
-
-    def selectPointByIndex(self, idx: int) -> bool:
-        """Select a point by its index."""
-        ...
-
-    def get_current_transform(self) -> object:  # Transform - avoid circular import
-        """Get current transform object."""
-        ...
-
-    def get_transform(self) -> object:  # Transform - avoid circular import
-        """Get transform object (alias for compatibility)."""
-        ...
-
-    def _invalidate_caches(self) -> None:
-        """Invalidate any cached data."""
-        ...
-
-    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
-        """Get point data for the given index."""
-        ...
-
-    def toggleBackgroundVisible(self, visible: bool) -> None:
-        """Toggle background visibility."""
-        ...
-
-    def toggle_point_interpolation(self, idx: int) -> None:
-        """Toggle interpolation status of a point."""
-        ...
-
-    def set_curve_data(self, data: CurveDataInput) -> None:
-        """Set the curve data."""
-        ...
-
-    def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
-        """Set points with image dimensions (legacy compatibility)."""
-        ...
-
-    def set_selected_indices(self, indices: list[int]) -> None:
-        """Set the selected point indices."""
-        ...
-
-
-# MainWindowProtocol imported from protocols.ui (see line 29)
+# StateManagerProtocol, CurveViewProtocol, MainWindowProtocol imported from protocols.ui (see line 28)
 
 
 class BatchEditableProtocol(Protocol):
