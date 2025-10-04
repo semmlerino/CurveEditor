@@ -6,9 +6,12 @@ This test verifies that when a user selects points on different curves using Ctr
 all curves with selected points become visible without requiring "Show all curves" to be enabled.
 """
 
+from typing import cast
+
 import pytest
 from PySide6.QtTest import QTest
 
+from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
 from ui.curve_view_widget import CurveViewWidget
 
@@ -20,23 +23,23 @@ def curve_widget(qtbot):
     qtbot.addWidget(widget)
 
     # Set up multiple curves
-    curves_data = {
+    curves_data = cast(dict[str, CurveDataList], {
         "curve_a": [
-            (1, 10.0, 20.0, 0),  # frame, x, y, status
-            (2, 15.0, 25.0, 0),
-            (3, 20.0, 30.0, 0),
+            (1, 10.0, 20.0, "normal"),  # frame, x, y, status
+            (2, 15.0, 25.0, "normal"),
+            (3, 20.0, 30.0, "normal"),
         ],
         "curve_b": [
-            (1, 50.0, 60.0, 0),
-            (2, 55.0, 65.0, 0),
-            (3, 60.0, 70.0, 0),
+            (1, 50.0, 60.0, "normal"),
+            (2, 55.0, 65.0, "normal"),
+            (3, 60.0, 70.0, "normal"),
         ],
         "curve_c": [
-            (1, 100.0, 110.0, 0),
-            (2, 105.0, 115.0, 0),
-            (3, 110.0, 120.0, 0),
+            (1, 100.0, 110.0, "normal"),
+            (2, 105.0, 115.0, "normal"),
+            (3, 110.0, 120.0, "normal"),
         ],
-    }
+    })
 
     widget.set_curves_data(curves_data, active_curve="curve_a")
     widget.show()

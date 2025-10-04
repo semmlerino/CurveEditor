@@ -9,7 +9,6 @@ Minimal implementation for startup compatibility.
 # pyright: reportImportCycles=false
 
 import logging
-from collections.abc import Callable
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -24,24 +23,9 @@ from core.type_aliases import (
     QtPointF,
 )
 
-# Import consolidated protocol definitions from protocols.ui
+# Import consolidated protocol definitions from protocols.ui and protocols.services
 from protocols.ui import MainWindowProtocol, StateManagerProtocol  # noqa: F401 - re-exported for backward compat
-
-
-class SignalProtocol(Protocol):
-    """Protocol for Qt signal objects with emit method."""
-
-    def emit(self, *args: object) -> None:
-        """Emit the signal with arguments."""
-        ...
-
-    def connect(self, slot: Callable[..., object]) -> object:
-        """Connect signal to slot."""
-        ...
-
-    def disconnect(self, slot: Callable[..., object] | None = None) -> None:
-        """Disconnect signal from slot."""
-        ...
+from protocols.services import SignalProtocol  # noqa: F401 - re-exported from authoritative source
 
 
 class LoggingServiceProtocol(Protocol):
@@ -119,6 +103,7 @@ class CurveViewProtocol(Protocol):
     pan_offset_x: float
     pan_offset_y: float
     zoom_factor: float
+    flip_y_axis: bool  # Y-axis flip for coordinate system (default True)
 
     # Interaction state attributes
     drag_active: bool

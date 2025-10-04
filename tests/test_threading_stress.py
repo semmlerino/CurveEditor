@@ -6,12 +6,17 @@ Tests concurrent access to ApplicationState batch operations to verify
 QMutex protection works correctly and prevents race conditions.
 
 These tests use Python's threading module to simulate concurrent access
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 from multiple threads, validating that the internal mutex properly protects
 the batch mode flag and pending signals list.
 """
 
 import threading
 import time
+from collections.abc import Generator
 from typing import Any
 
 import pytest
@@ -24,7 +29,7 @@ class TestApplicationStateThreadSafety:
     """Thread safety stress tests for ApplicationState batch operations."""
 
     @pytest.fixture(autouse=True)
-    def reset_state(self, qapp: QCoreApplication) -> None:
+    def reset_state(self, qapp: QCoreApplication) -> Generator[None, None, None]:
         """Reset ApplicationState before each test."""
         reset_application_state()
         yield

@@ -9,6 +9,10 @@ Tests all concurrent access patterns and verifies thread safety of:
 - Transform caching
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 import concurrent.futures
 import threading
 import time
@@ -449,8 +453,8 @@ class TestQtThreadingSafety:
             """Process image in worker thread."""
             try:
                 # ✅ SAFE - Use QImage instead of QPixmap (QPixmap requires main thread)
+                from PySide6.QtGui import QImage, QColor
                 image = QImage(100, 100, QImage.Format.Format_RGB32)
-                from PySide6.QtGui import QColor
 
                 image.fill(QColor(255, 0, 0))  # Thread-safe operation
 
@@ -466,8 +470,9 @@ class TestQtThreadingSafety:
 
                 # Verify the image was stored successfully
                 with service._lock:
+                    from PySide6.QtGui import QImage
                     cached_image = service._image_cache.get(cache_key)
-                    success = cached_image is not None and not cached_image.isNull()
+                    success = cached_image is not None and not cast(QImage, cached_image).isNull()
 
                 results.append((thread_id, success))
 

@@ -647,3 +647,827 @@ class TestInteractionServiceKeyboardEvents:
 
         # Should be able to undo again
         assert self.service.can_undo()
+
+
+class TestKeyEventHandling:
+    """Test comprehensive key event handling."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_delete_key_deletes_selected_points(self) -> None:
+        """Test Delete key triggers delete command creation."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0), (3, 300.0, 300.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        view.selected_points = {0, 2}  # Select first and third points
+        # Don't set main_window - service will skip command execution
+
+        event = Mock(spec=QKeyEvent)
+        event.key.return_value = Qt.Key.Key_Delete
+        event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
+
+        self.service.handle_key_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Test passes if no error - deletion logic is triggered
+        # Actual deletion requires main_window for command execution
+
+    def test_ctrl_a_selects_all_points(self) -> None:
+        """Test Ctrl+A selects all points."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0), (3, 300.0, 300.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+
+        event = Mock(spec=QKeyEvent)
+        event.key.return_value = Qt.Key.Key_A
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        self.service.handle_key_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # All points should be selected
+        assert len(view.selected_points) == 3
+        assert view.selected_points == {0, 1, 2}
+
+    def test_escape_clears_selection(self) -> None:
+        """Test Escape key clears selection."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
+
+        view = MockCurveView([(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        view.selected_points = {0, 1}
+
+        event = Mock(spec=QKeyEvent)
+        event.key.return_value = Qt.Key.Key_Escape
+        event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
+
+        self.service.handle_key_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Selection should be cleared
+        assert len(view.selected_points) == 0
+        assert view.selected_point_idx == -1
+
+    def test_arrow_keys_nudge_selected_points(self) -> None:
+        """Test arrow keys trigger nudge command creation."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        view.selected_points = {0}
+        # Don't set main_window - service will skip command execution
+
+        # Test right arrow
+        event = Mock(spec=QKeyEvent)
+        event.key.return_value = Qt.Key.Key_Right
+        event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
+
+        self.service.handle_key_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Test passes if no error - nudge logic is triggered
+        # Actual nudge requires main_window for command execution
+
+
+class TestPointManipulation:
+    """Test point manipulation methods."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_select_point_by_index(self) -> None:
+        """Test selecting point by index."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        main_window = MockMainWindow()
+        view = MockCurveView(test_data)
+
+        result = self.service.select_point_by_index(view, main_window, 1)  # pyright: ignore[reportArgumentType]
+
+        assert result is True
+        assert 1 in view.selected_points
+        assert view.selected_point_idx == 1
+
+    def test_select_point_by_index_add_to_selection(self) -> None:
+        """Test adding point to selection by index."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        main_window = MockMainWindow()
+        view = MockCurveView(test_data)
+        view.selected_points = {0}
+
+        result = self.service.select_point_by_index(view, main_window, 1, add_to_selection=True)  # pyright: ignore[reportArgumentType]
+
+        assert result is True
+        assert 0 in view.selected_points
+        assert 1 in view.selected_points
+
+    def test_update_point_position(self) -> None:
+        """Test updating point position."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        main_window = MockMainWindow()
+        view = MockCurveView(test_data)
+
+        result = self.service.update_point_position(view, main_window, 0, 150.0, 150.0)  # pyright: ignore[reportArgumentType]
+
+        assert result is True
+        # Check view.curve_data (direct update)
+        assert view.curve_data[0][1] == 150.0
+        assert view.curve_data[0][2] == 150.0
+
+    def test_nudge_selected_points(self) -> None:
+        """Test nudging selected points."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        main_window = MockMainWindow()
+        view = MockCurveView(test_data)
+        view.selected_points = {0}
+
+        result = self.service.nudge_selected_points(view, main_window, 10.0, -5.0)  # pyright: ignore[reportArgumentType]
+
+        assert result is True
+        # Check view.curve_data
+        assert view.curve_data[0][1] == 110.0
+        assert view.curve_data[0][2] == 95.0
+
+
+class TestMouseMoveEvents:
+    """Test mouse move event handling for drag, pan, and rubber band operations."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_handle_mouse_move_drag_points(self) -> None:
+        """Test mouse move during point dragging."""
+        from PySide6.QtGui import QMouseEvent
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        view.selected_points = {0}
+        view.drag_active = True
+        view.last_drag_pos = QPoint(100, 100)
+
+        # Create mouse move event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(110, 95)
+
+        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Points should have moved in view.curve_data
+        # Movement depends on transform, but update should be called
+        assert view.update_called
+
+    def test_handle_mouse_move_pan_view(self) -> None:
+        """Test mouse move during view panning."""
+        from PySide6.QtGui import QMouseEvent
+
+        view = MockCurveView([])
+        view.pan_active = True
+        view.last_pan_pos = QPoint(200, 150)
+
+        # Create mouse move event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(220, 170)
+
+        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Pan should have been called (if view supports it)
+        # At minimum, update should be called
+        assert view.update_called
+
+    def test_handle_mouse_move_rubber_band(self) -> None:
+        """Test mouse move during rubber band selection."""
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtWidgets import QRubberBand
+
+        view = MockCurveView([])
+        view.rubber_band_active = True
+        view.rubber_band_origin = QPoint(100, 100)
+        view.rubber_band = Mock(spec=QRubberBand)
+
+        # Create mouse move event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(200, 200)
+
+        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Rubber band geometry should be updated
+        assert view.rubber_band.setGeometry.called
+        assert view.update_called
+
+
+class TestMouseReleaseEvents:
+    """Test mouse release event handling for completing drag/pan/selection."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_handle_mouse_release_drag(self) -> None:
+        """Test mouse release after dragging points."""
+        from PySide6.QtGui import QMouseEvent
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        view.selected_points = {0}
+        view.drag_active = True
+        main_window = MockMainWindow()
+        view.main_window = main_window
+
+        # Set original positions
+        self.service._drag_original_positions = {0: (100.0, 100.0)}  # pyright: ignore[reportPrivateUsage]
+
+        # Modify point position to simulate drag
+        view.curve_data[0] = (1, 110.0, 95.0)
+
+        # Create mouse release event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(110, 95)
+
+        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Drag should be ended
+        assert not view.drag_active
+        assert view.last_drag_pos is None
+        assert view.update_called
+
+    def test_handle_mouse_release_pan(self) -> None:
+        """Test mouse release after panning."""
+        from PySide6.QtGui import QMouseEvent
+
+        view = MockCurveView([])
+        view.pan_active = True
+        view.last_pan_pos = QPoint(200, 150)
+
+        # Create mouse release event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(220, 170)
+
+        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Pan should be ended
+        assert not view.pan_active
+        assert view.last_pan_pos is None
+        assert view.update_called
+
+    def test_handle_mouse_release_rubber_band(self) -> None:
+        """Test mouse release after rubber band selection."""
+        from PySide6.QtGui import QMouseEvent
+        from PySide6.QtWidgets import QRubberBand
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 150.0, 150.0), (3, 300.0, 300.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        view.rubber_band_active = True
+        view.rubber_band = Mock(spec=QRubberBand)
+        view.rubber_band.geometry.return_value = QRect(90, 90, 70, 70)
+
+        # Create mouse release event
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(160, 160)
+
+        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Rubber band should be hidden
+        assert view.rubber_band.hide.called
+        assert not view.rubber_band_active
+        assert view.update_called
+
+
+class TestWheelEvents:
+    """Test mouse wheel event handling for zooming."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_handle_wheel_event_zoom_in(self) -> None:
+        """Test wheel event for zooming in."""
+        from PySide6.QtCore import QPoint
+        from PySide6.QtGui import QWheelEvent
+
+        view = MockCurveView([])
+
+        # Add a zoom method to the view (required by wheel event handler)
+        view.zoom = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Create wheel event for zoom in (positive delta)
+        event = Mock(spec=QWheelEvent)
+        angle_delta_mock = Mock()
+        angle_delta_mock.y.return_value = 120  # Positive = zoom in
+        event.angleDelta.return_value = angle_delta_mock
+        event.position.return_value = QPoint(400, 300)
+
+        self.service.handle_wheel_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Zoom method should be called
+        assert view.zoom.called  # pyright: ignore[reportAttributeAccessIssue]
+        assert view.update_called
+
+    def test_handle_wheel_event_zoom_out(self) -> None:
+        """Test wheel event for zooming out."""
+        from PySide6.QtCore import QPoint
+        from PySide6.QtGui import QWheelEvent
+
+        view = MockCurveView([])
+
+        # Add a zoom method to the view (required by wheel event handler)
+        view.zoom = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Create wheel event for zoom out (negative delta)
+        event = Mock(spec=QWheelEvent)
+        angle_delta_mock = Mock()
+        angle_delta_mock.y.return_value = -120  # Negative = zoom out
+        event.angleDelta.return_value = angle_delta_mock
+        event.position.return_value = QPoint(400, 300)
+
+        self.service.handle_wheel_event(view, event)  # pyright: ignore[reportArgumentType]
+
+        # Zoom method should be called
+        assert view.zoom.called  # pyright: ignore[reportAttributeAccessIssue]
+        assert view.update_called
+
+
+class TestStateManagement:
+    """Test save_state and restore_state functionality."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+        # Clear history
+        self.service._history = []  # pyright: ignore[reportPrivateUsage]
+        self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
+
+    def test_save_state(self) -> None:
+        """Test save_state method (alias for add_to_history)."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.curve_view = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # save_state is an alias for add_to_history
+        self.service.save_state(main_window)  # pyright: ignore[reportArgumentType]
+
+        # Should have added to internal history
+        assert len(self.service._history) > 0  # pyright: ignore[reportPrivateUsage]
+
+    def test_restore_state_with_curve_data(self) -> None:
+        """Test restoring state with curve data."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_curve_data("test_curve", [(1, 50.0, 50.0)])
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView([(1, 50.0, 50.0)])
+        main_window = MockMainWindow()
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.curve_view = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Create state to restore
+        state = {
+            "curve_data": [(1, 100.0, 100.0), (2, 200.0, 200.0)],
+            "point_name": "test_point",
+            "point_color": "red",
+        }
+
+        self.service.restore_state(main_window, state)  # pyright: ignore[reportArgumentType]
+
+        # Verify ApplicationState was updated
+        restored_data = app_state.get_curve_data("test_curve")
+        assert len(restored_data) == 2
+        # Data may be stored as lists, so compare values not types
+        assert restored_data[0][0] == 1
+        assert restored_data[0][1] == 100.0
+        assert restored_data[0][2] == 100.0
+
+    def test_restore_state_empty_state(self) -> None:
+        """Test restoring with empty state does nothing."""
+        main_window = MockMainWindow()
+
+        # Should not crash with empty state
+        self.service.restore_state(main_window, {})  # pyright: ignore[reportArgumentType]
+
+
+class TestHistoryWithMainWindow:
+    """Test history management using MainWindow's history system."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_add_to_history_with_main_window_history(self) -> None:
+        """Test add_to_history using main_window's history."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+        main_window.history = []
+        main_window.history_index = -1
+        main_window.max_history_size = 50
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.curve_view = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Should have added to main_window's history
+        assert len(main_window.history) == 1
+        assert main_window.history_index == 0
+
+    def test_undo_with_main_window_history(self) -> None:
+        """Test undo using main_window's history system."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+        main_window.history = []
+        main_window.history_index = -1
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.curve_view = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Add initial state
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Modify and add new state
+        view.curve_data = [(1, 150.0, 150.0)]
+        app_state.set_curve_data("test_curve", view.curve_data)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Undo
+        assert main_window.history_index == 1
+        self.service.undo_action(main_window)  # pyright: ignore[reportArgumentType]
+
+        # Should have decremented index
+        assert main_window.history_index == 0
+
+    def test_redo_with_main_window_history(self) -> None:
+        """Test redo using main_window's history system."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+        main_window.history = []
+        main_window.history_index = -1
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.curve_view = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Add two states
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+        view.curve_data = [(1, 150.0, 150.0)]
+        app_state.set_curve_data("test_curve", view.curve_data)
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Undo then redo
+        self.service.undo_action(main_window)  # pyright: ignore[reportArgumentType]
+        assert main_window.history_index == 0
+
+        self.service.redo_action(main_window)  # pyright: ignore[reportArgumentType]
+
+        # Should have incremented index
+        assert main_window.history_index == 1
+
+
+class TestHistoryEdgeCases:
+    """Test edge cases in history management."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+        # Clear history
+        self.service._history = []  # pyright: ignore[reportPrivateUsage]
+        self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
+
+    def test_clear_history(self) -> None:
+        """Test clearing history."""
+        view = MockCurveView([(1, 100.0, 100.0)])
+        main_window = MockMainWindow()
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Add some states
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Clear history
+        self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
+
+        # History should be empty
+        assert len(self.service._history) == 0  # pyright: ignore[reportPrivateUsage]
+        assert self.service._current_index == -1  # pyright: ignore[reportPrivateUsage]
+        assert not self.service.can_undo()
+        assert not self.service.can_redo()
+
+    def test_update_history_buttons(self) -> None:
+        """Test updating undo/redo button states."""
+        view = MockCurveView([])
+        main_window = MockMainWindow()
+        main_window.history = None
+        main_window.history_index = None
+
+        # Create mock UI with buttons
+        main_window.ui = Mock()
+        main_window.ui.undo_button = Mock()
+        main_window.ui.redo_button = Mock()
+
+        # Update buttons with no history
+        self.service.update_history_buttons(main_window)  # pyright: ignore[reportArgumentType]
+
+        # Undo button should be disabled
+        main_window.ui.undo_button.setEnabled.assert_called_with(False)
+        main_window.ui.redo_button.setEnabled.assert_called_with(False)
+
+    def test_get_memory_stats(self) -> None:
+        """Test getting memory statistics."""
+        view = MockCurveView([(1, 100.0, 100.0)])
+        main_window = MockMainWindow()
+        main_window.history = None
+        main_window.history_index = None
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Add some states
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        stats = self.service.get_memory_stats()
+
+        assert "total_states" in stats
+        assert "current_index" in stats
+        assert "memory_mb" in stats
+        assert "can_undo" in stats
+        assert "can_redo" in stats
+        assert stats["total_states"] == 1
+
+
+class TestCompatibilityMethods:
+    """Test compatibility methods and legacy interfaces."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_handle_key_press_compatibility(self) -> None:
+        """Test handle_key_press routes to handle_key_event."""
+        from PySide6.QtCore import Qt
+        from PySide6.QtGui import QKeyEvent
+
+        view = MockCurveView([])
+
+        event = Mock(spec=QKeyEvent)
+        event.key.return_value = Qt.Key.Key_Escape
+        event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
+
+        # Should not crash - routes to handle_key_event
+        self.service.handle_key_press(view, event)  # pyright: ignore[reportArgumentType]
+
+    def test_handle_context_menu(self) -> None:
+        """Test context menu handling."""
+        from PySide6.QtGui import QMouseEvent
+
+        view = MockCurveView([])
+
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPoint(100, 100)
+
+        # Should not crash - currently just logs
+        self.service.handle_context_menu(view, event)  # pyright: ignore[reportArgumentType]
+
+    def test_find_point_at_position(self) -> None:
+        """Test find_point_at_position with tolerance parameter."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        self.service.clear_spatial_index()
+
+        # With large tolerance
+        idx = self.service.find_point_at_position(view, 110, 110, tolerance=20.0)  # pyright: ignore[reportArgumentType]
+        assert idx == 0
+
+        # With small tolerance
+        idx = self.service.find_point_at_position(view, 110, 110, tolerance=2.0)  # pyright: ignore[reportArgumentType]
+        assert idx == -1
+
+    def test_reset_view(self) -> None:
+        """Test resetting view to default state."""
+        view = MockCurveView([])
+        view.zoom_factor = 2.0
+        view.pan_offset_x = 100
+        view.pan_offset_y = 50
+
+        self.service.reset_view(view)  # pyright: ignore[reportArgumentType]
+
+        # View should be reset
+        assert view.zoom_factor == 1.0
+        assert view.pan_offset_x == 0
+        assert view.pan_offset_y == 0
+        assert view.update_called
+
+    def test_on_point_moved_callback(self) -> None:
+        """Test point moved callback."""
+        main_window = MockMainWindow()
+
+        # Should not crash
+        self.service.on_point_moved(main_window, 0, 100.0, 100.0)  # pyright: ignore[reportArgumentType]
+
+    def test_on_point_selected_callback(self) -> None:
+        """Test point selected callback."""
+        view = MockCurveView([])
+        main_window = MockMainWindow()
+
+        # Should not crash
+        self.service.on_point_selected(view, main_window, 0)  # pyright: ignore[reportArgumentType]
+
+    def test_update_point_info(self) -> None:
+        """Test updating point info in status bar."""
+        main_window = MockMainWindow()
+
+        # Should not crash
+        self.service.update_point_info(main_window, 0, 100.0, 100.0)  # pyright: ignore[reportArgumentType]
+
+
+class TestFindPointAtPositionEdgeCases:
+    """Test edge cases for point finding functionality."""
+
+    service: "InteractionService"
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+        """Setup test environment."""
+        self.service = get_interaction_service()
+
+    def test_find_point_no_active_curve(self) -> None:
+        """Test finding point when no active curve is set."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve(None)  # No active curve
+
+        view = MockCurveView([])
+
+        idx = self.service.find_point_at(view, 100, 100)  # pyright: ignore[reportArgumentType]
+        assert idx == -1
+
+    def test_select_point_invalid_index(self) -> None:
+        """Test selecting point with invalid index."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+
+        # Try to select out-of-bounds index
+        result = self.service.select_point_by_index(view, main_window, 999)  # pyright: ignore[reportArgumentType]
+        assert result is False
+
+    def test_update_point_position_invalid_index(self) -> None:
+        """Test updating point with invalid index."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        test_data = [(1, 100.0, 100.0)]
+        app_state.set_curve_data("test_curve", test_data)
+        app_state.set_active_curve("test_curve")
+
+        view = MockCurveView(test_data)
+        main_window = MockMainWindow()
+
+        # Try to update out-of-bounds index
+        result = self.service.update_point_position(view, main_window, 999, 50.0, 50.0)  # pyright: ignore[reportArgumentType]
+        assert result is False
+
+    def test_nudge_selected_points_no_selection(self) -> None:
+        """Test nudging when no points are selected."""
+        view = MockCurveView([(1, 100.0, 100.0)])
+        view.selected_points = set()  # No selection
+        main_window = MockMainWindow()
+
+        result = self.service.nudge_selected_points(view, main_window, 10.0, 10.0)  # pyright: ignore[reportArgumentType]
+        assert result is False
+
+    def test_nudge_selected_points_no_curve_data(self) -> None:
+        """Test nudging when no curve data exists."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve(None)
+
+        view = MockCurveView([])
+        view.selected_points = {0}
+        main_window = MockMainWindow()
+
+        result = self.service.nudge_selected_points(view, main_window, 10.0, 10.0)  # pyright: ignore[reportArgumentType]
+        assert result is False

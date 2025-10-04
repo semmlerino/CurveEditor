@@ -6,6 +6,8 @@ These tests verify that the dialog can be constructed without AttributeErrors,
 catching initialization order issues that static analysis might miss.
 """
 
+from typing import cast
+
 import pytest
 from PySide6.QtWidgets import QApplication
 
@@ -21,7 +23,7 @@ class TestImageSequenceBrowserInitialization:
         app = QApplication.instance()
         if app is None:
             app = QApplication([])
-        return app
+        return cast(QApplication, app)
 
     def test_dialog_initializes_without_errors(self, qapp: QApplication):
         """Test that dialog can be created without AttributeError.

@@ -237,7 +237,9 @@ def main_window(qapp: QApplication, qtbot):
     # Use frame slider from timeline_controller if available
     if not hasattr(window, "frame_slider") or window.frame_slider is None:
         if hasattr(window, "timeline_controller") and window.timeline_controller is not None:
-            window.frame_slider = window.timeline_controller.frame_slider
+            # Access frame_slider attribute from concrete implementation
+            if hasattr(window.timeline_controller, "frame_slider"):
+                window.frame_slider = getattr(window.timeline_controller, "frame_slider")  # pyright: ignore[reportAttributeAccessIssue]
 
     # Process events to ensure widgets are ready
     qapp.processEvents()

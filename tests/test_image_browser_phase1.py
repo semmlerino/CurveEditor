@@ -7,6 +7,7 @@ Tests async loading, metadata extraction, gap detection, and caching.
 
 import tempfile
 from pathlib import Path
+from typing import cast
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -139,7 +140,7 @@ class TestImageBrowserDialog:
         app = QApplication.instance()
         if app is None:
             app = QApplication([])
-        return app
+        return cast(QApplication, app)
 
     def test_dialog_initializes(self, qapp: QApplication):
         """Test dialog initializes with new features."""

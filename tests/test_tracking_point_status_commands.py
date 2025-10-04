@@ -13,6 +13,10 @@ Following UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md:
 - Use real components where possible
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -157,6 +161,7 @@ class TestTrackingPointStatusCommands:
             assert len(actual_data) == len(expected_data), f"Data length should match for {point_name}"
 
             # Test status change works for each point
+            error_msg = ""
             try:
                 data_service.handle_point_status_change(0, "endframe")
                 success = True
@@ -265,6 +270,7 @@ class TestTrackingPointStatusCommands:
 
         # This operation was generating the warning before the fix
         # "Cannot handle status change: no current curve data"
+        error_msg = ""
         try:
             data_service.handle_point_status_change(0, "endframe")
             # Should succeed without warning

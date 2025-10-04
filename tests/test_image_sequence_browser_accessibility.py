@@ -294,90 +294,117 @@ class TestKeyboardShortcuts:
 class TestTabOrder:
     """Test that tab order follows logical flow."""
 
+    @staticmethod
+    def _find_next_user_widget(widget, max_steps: int = 10):
+        """Find the next user-visible widget in focus chain, skipping Qt internal widgets.
+
+        Qt widgets like QListWidget and QTreeView have internal viewport widgets
+        (qt_scrollarea_viewport, qt_scrollarea_hcontainer) that are part of the focus chain
+        but not directly user-visible. This helper traverses past these to find the next
+        user-facing widget.
+
+        Args:
+            widget: Starting widget
+            max_steps: Maximum number of steps to traverse (prevents infinite loops)
+
+        Returns:
+            The next user-visible widget, or the immediate next widget if no user widget found
+        """
+        current = widget.nextInFocusChain()
+        for _ in range(max_steps):
+            # Qt internal widgets typically have "qt_" prefix in object name
+            obj_name = current.objectName()
+            if not obj_name.startswith("qt_"):
+                return current
+            current = current.nextInFocusChain()
+        # Fallback: return whatever we found
+        return widget.nextInFocusChain()
+
+    @staticmethod
+    def _find_prev_user_widget(widget, max_steps: int = 10):
+        """Find the previous user-visible widget in focus chain, skipping Qt internal widgets."""
+        current = widget.previousInFocusChain()
+        for _ in range(max_steps):
+            obj_name = current.objectName()
+            if not obj_name.startswith("qt_"):
+                return current
+            current = current.previousInFocusChain()
+        return widget.previousInFocusChain()
+
     def test_tab_order_starts_with_navigation(self, qtbot: QtBot):
-        """Test that tab order begins with navigation buttons."""
+        """Test that tab order begins with navigation buttons.
+
+        Uses nextInFocusChain() to verify tab order configuration
+        without requiring focus management (which is unreliable in headless environments).
+        """
         dialog = ImageSequenceBrowserDialog()
         qtbot.addWidget(dialog)
         dialog.show()
         qtbot.waitExposed(dialog)
         qtbot.wait(100)  # Wait for dialog to be fully initialized
 
-        # Set focus to back button explicitly
-        dialog.back_button.setFocus(Qt.FocusReason.OtherFocusReason)
-        qtbot.wait(50)
+        # Verify tab order using focus chain introspection
+        # back_button -> forward_button
+        assert dialog.back_button.nextInFocusChain() is dialog.forward_button, \
+            "Tab from back should go to forward"
 
-        # Verify focus was set
-        if not dialog.back_button.hasFocus():
-            pytest.skip("Unable to set focus on back button (platform limitation)")
+        # forward_button -> up_button
+        assert dialog.forward_button.nextInFocusChain() is dialog.up_button, \
+            "Tab from forward should go to up"
 
-        # Press Tab
-        qtbot.keyClick(dialog.back_button, Qt.Key.Key_Tab)
-        qtbot.wait(50)
-
-        # Should move to forward button
-        assert dialog.forward_button.hasFocus(), "Tab from back should go to forward"
-
-        # Press Tab again
-        qtbot.keyClick(dialog.forward_button, Qt.Key.Key_Tab)
-        qtbot.wait(50)
-
-        # Should move to up button
-        assert dialog.up_button.hasFocus(), "Tab from forward should go to up"
+        # Verify reverse direction
+        assert dialog.forward_button.previousInFocusChain() is dialog.back_button, \
+            "Shift+Tab from forward should go to back"
 
     def test_tab_order_includes_main_panels(self, qtbot: QtBot):
-        """Test that tab order includes favorites, tree, and sequence list."""
+        """Test that tab order includes favorites, tree, and sequence list.
+
+        Uses nextInFocusChain() to verify tab order configuration,
+        skipping Qt internal viewport widgets.
+        """
         dialog = ImageSequenceBrowserDialog()
         qtbot.addWidget(dialog)
         dialog.show()
         qtbot.waitExposed(dialog)
         qtbot.wait(100)
 
-        # Start from favorite button and tab through
-        dialog.favorite_button.setFocus(Qt.FocusReason.OtherFocusReason)
-        qtbot.wait(50)
+        # Verify tab order using focus chain introspection
+        # favorite_button -> favorites_list
+        assert dialog.favorite_button.nextInFocusChain() is dialog.favorites_list, \
+            "Tab from favorite button should go to favorites list"
 
-        if not dialog.favorite_button.hasFocus():
-            pytest.skip("Unable to set focus on favorite button (platform limitation)")
+        # favorites_list -> tree_view (may have viewport widgets in between)
+        next_widget = self._find_next_user_widget(dialog.favorites_list)
+        assert next_widget is dialog.tree_view, \
+            "Tab from favorites list should eventually reach tree view"
 
-        # Tab should go to favorites_list
-        qtbot.keyClick(dialog.favorite_button, Qt.Key.Key_Tab)
-        qtbot.wait(50)
-        assert dialog.favorites_list.hasFocus(), "Tab from favorite button should go to favorites list"
-
-        # Tab should go to tree_view
-        qtbot.keyClick(dialog.favorites_list, Qt.Key.Key_Tab)
-        qtbot.wait(50)
-        assert dialog.tree_view.hasFocus(), "Tab from favorites list should go to tree view"
-
-        # Tab should go to sequence_filter
-        qtbot.keyClick(dialog.tree_view, Qt.Key.Key_Tab)
-        qtbot.wait(50)
-        assert dialog.sequence_filter.hasFocus(), "Tab from tree view should go to sequence filter"
+        # tree_view -> sequence_filter (may have viewport widgets in between)
+        next_widget = self._find_next_user_widget(dialog.tree_view)
+        assert next_widget is dialog.sequence_filter, \
+            "Tab from tree view should eventually reach sequence filter"
 
     def test_tab_order_ends_with_action_buttons(self, qtbot: QtBot):
-        """Test that tab order ends with Load and Cancel buttons."""
+        """Test that tab order ends with Load button.
+
+        Uses nextInFocusChain() to verify tab order configuration,
+        skipping Qt internal viewport widgets.
+        """
         dialog = ImageSequenceBrowserDialog()
         qtbot.addWidget(dialog)
         dialog.show()
         qtbot.waitExposed(dialog)
         qtbot.wait(100)
 
-        # Navigate to sequence_list and tab forward
-        dialog.sequence_list.setFocus(Qt.FocusReason.OtherFocusReason)
-        qtbot.wait(100)  # Longer wait for focus to settle
+        # Verify tab order using focus chain introspection
+        # sequence_list -> load_button (may have viewport widgets in between)
+        next_widget = self._find_next_user_widget(dialog.sequence_list)
+        assert next_widget is dialog.load_button, \
+            "Tab from sequence list should eventually reach load button"
 
-        if not dialog.sequence_list.hasFocus():
-            pytest.skip("Unable to set focus on sequence list (platform limitation)")
-
-        # Tab should go to load_button
-        qtbot.keyClick(dialog.sequence_list, Qt.Key.Key_Tab)
-        qtbot.wait(100)  # Longer wait for tab to process
-
-        # Load button should have focus now
-        if not dialog.load_button.hasFocus():
-            # In case there are other widgets in the tab chain, this is acceptable
-            # The important thing is that load_button IS in the tab order
-            pytest.skip("Tab order includes intermediate widgets (platform/Qt version dependent)")
+        # Verify reverse direction (may have viewport widgets in between)
+        prev_widget = self._find_prev_user_widget(dialog.load_button)
+        assert prev_widget is dialog.sequence_list, \
+            "Shift+Tab from load button should eventually reach sequence list"
 
 
 class TestBreadcrumbAccessibility:

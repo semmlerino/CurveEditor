@@ -153,18 +153,19 @@ class PointIndex:
                     cells.append((nx, ny))
         return cells
 
-    def rebuild_index(self, view: CurveViewProtocol, transform: Transform) -> None:
+    def rebuild_index(self, curve_data: CurveDataList, view: CurveViewProtocol, transform: Transform) -> None:
         """
-        Rebuild the spatial index from current curve data.
+        Rebuild the spatial index from curve data.
 
         Args:
-            view: The curve view containing the data
+            curve_data: The curve data to index
+            view: The curve view (for screen dimensions)
             transform: Transform for coordinate conversion
         """
         with self._lock:
             # Check if rebuild is needed
             current_transform_hash = transform.stability_hash
-            current_point_count = len(getattr(view, "curve_data", []))
+            current_point_count = len(curve_data)
 
             if (
                 self._last_transform_hash == current_transform_hash
@@ -189,11 +190,8 @@ class PointIndex:
             self.cell_height = self.screen_height / self.grid_height
 
             # Build index from curve data
-            curve_data = getattr(view, "curve_data", None)
             if curve_data:
-                # Type-safe curve data access
-                typed_curve_data = cast(CurveDataList, curve_data)
-                for idx, point in enumerate(typed_curve_data):
+                for idx, point in enumerate(curve_data):
                     if len(point) >= 3:
                         # Convert data point to screen coordinates
                         screen_x, screen_y = transform.data_to_screen(point[1], point[2])
@@ -214,30 +212,39 @@ class PointIndex:
             logger.debug(f"Spatial index built with {len(self._grid)} occupied cells")
 
     def find_point_at_position(
-        self, view: CurveViewProtocol, transform: Transform, x: float, y: float, threshold: float = 5.0
+        self, curve_data: CurveDataList, transform: Transform, x: float, y: float, threshold: float = 5.0, view: CurveViewProtocol | None = None
     ) -> int:
         """
         Find point at given screen position using spatial indexing.
 
         Args:
-            view: The curve view containing the data
+            curve_data: The curve data to search
             transform: Transform for coordinate conversion
             x: Screen X coordinate
             y: Screen Y coordinate
             threshold: Selection threshold in screen pixels
+            view: Optional curve view (for screen dimensions, uses defaults if None)
 
         Returns:
             Point index or -1 if no point found
         """
-        # Rebuild index if needed
-        self.rebuild_index(view, transform)
-
-        curve_data = getattr(view, "curve_data", None)
         if not curve_data:
             return -1
 
+        # Rebuild index if needed (use view for screen dimensions, or create dummy)
+        if view is None:
+            # Create a minimal view object for dimensions
+            class DummyView:
+                def width(self) -> int:
+                    return 800
+                def height(self) -> int:
+                    return 600
+            view = DummyView()  # type: ignore
+
+        self.rebuild_index(curve_data, view, transform)
+
         # Type-safe curve data access
-        typed_curve_data = cast(CurveDataList, curve_data)
+        typed_curve_data = curve_data
 
         # Get grid cell for position
         grid_x, grid_y = self._get_cell_coords(x, y)
@@ -278,29 +285,38 @@ class PointIndex:
         return closest_idx
 
     def get_points_in_rect(
-        self, view: CurveViewProtocol, transform: Transform, x1: float, y1: float, x2: float, y2: float
+        self, curve_data: CurveDataList, transform: Transform, x1: float, y1: float, x2: float, y2: float, view: CurveViewProtocol | None = None
     ) -> list[int]:
         """
         Find all points within a rectangular region using spatial indexing.
 
         Args:
-            view: The curve view containing the data
+            curve_data: The curve data to search
             transform: Transform for coordinate conversion
             x1, y1: Top-left corner of rectangle (screen coordinates)
             x2, y2: Bottom-right corner of rectangle (screen coordinates)
+            view: Optional curve view (for screen dimensions, uses defaults if None)
 
         Returns:
             List of point indices within the rectangle
         """
-        # Rebuild index if needed
-        self.rebuild_index(view, transform)
-
-        curve_data = getattr(view, "curve_data", None)
         if not curve_data:
             return []
 
+        # Rebuild index if needed
+        if view is None:
+            # Create a minimal view object for dimensions
+            class DummyView:
+                def width(self) -> int:
+                    return 800
+                def height(self) -> int:
+                    return 600
+            view = DummyView()  # type: ignore
+
+        self.rebuild_index(curve_data, view, transform)
+
         # Type-safe curve data access
-        typed_curve_data = cast(CurveDataList, curve_data)
+        typed_curve_data = curve_data
 
         # Ensure proper bounds
         left = min(x1, x2)

@@ -56,6 +56,13 @@ class MultiPointTrackingController:
         # Get centralized ApplicationState (Week 4 migration)
         self._app_state = get_application_state()
 
+        # Connect to ApplicationState signals for reactive updates
+        self._app_state.curves_changed.connect(self._on_curves_changed)
+        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+
+        # Recursion protection for signal handlers
+        self._handling_signal = False
+
         # Tracking data storage
         # REMOVED: self.tracked_data - migrated to ApplicationState (Week 4)
         # NOTE: active_timeline_point is now managed by StateManager (via main_window.active_timeline_point)
@@ -868,3 +875,166 @@ class MultiPointTrackingController:
             List of tracking point names
         """
         return list(self._app_state.get_all_curve_names())
+
+    # ==================== Multi-Curve Display Methods (Phase 6) ====================
+
+    def toggle_show_all_curves(self, show_all: bool) -> None:
+        """
+        Toggle whether to show all curves or just the active one.
+
+        Args:
+            show_all: If True, show all visible curves; if False, show only active curve
+        """
+        if not self.main_window.curve_widget:
+            return
+
+        self.main_window.curve_widget.show_all_curves = show_all
+        self.main_window.curve_widget.update()
+        logger.debug(f"Show all curves: {show_all}")
+
+    def set_selected_curves(self, curve_names: list[str]) -> None:
+        """
+        Set which curves are currently selected for display.
+
+        When show_all_curves is False, only these selected curves will be displayed.
+        The last curve in the list becomes the active curve for editing.
+
+        Args:
+            curve_names: List of curve names to select and display
+        """
+        if not self.main_window.curve_widget:
+            return
+
+        widget = self.main_window.curve_widget
+        widget.selected_curve_names = set(curve_names)
+        widget.selected_curves_ordered = list(curve_names)
+
+        # Set the last selected as the active curve for editing
+        all_curve_names = self._app_state.get_all_curve_names()
+        if curve_names and curve_names[-1] in all_curve_names:
+            widget.set_active_curve(curve_names[-1])
+
+        widget.update()
+        logger.debug(f"Selected curves: {widget.selected_curve_names}, Active: {self._app_state.active_curve}")
+
+    def center_on_selected_curves(self) -> None:
+        """
+        Center the view on all selected curves.
+
+        Calculates the bounding box of all selected curves and centers the view on it.
+        """
+        if not self.main_window.curve_widget:
+            return
+
+        widget = self.main_window.curve_widget
+
+        # Get all curve names from ApplicationState
+        all_curve_names = self._app_state.get_all_curve_names()
+        logger.debug(
+            f"center_on_selected_curves called with selected: {widget.selected_curve_names}, ApplicationState curves: {all_curve_names}"
+        )
+        if not widget.selected_curve_names or not all_curve_names:
+            logger.debug("Early return - no selected curves or no data")
+            return
+
+        # Collect all points from selected curves
+        all_points: list[tuple[float, float]] = []
+        for curve_name in widget.selected_curve_names:
+            if curve_name in all_curve_names:
+                curve_data = self._app_state.get_curve_data(curve_name)
+                logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
+                for point in curve_data:
+                    if len(point) >= 3:
+                        all_points.append((float(point[1]), float(point[2])))
+
+        if not all_points:
+            logger.debug("No points found in selected curves")
+            return
+        logger.debug(f"Collected {len(all_points)} points for centering")
+
+        # Calculate bounding box
+        x_coords = [p[0] for p in all_points]
+        y_coords = [p[1] for p in all_points]
+
+        min_x, max_x = min(x_coords), max(x_coords)
+        min_y, max_y = min(y_coords), max(y_coords)
+
+        # Calculate center point
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+
+        # Calculate required zoom to fit all points with some padding
+        from ui.ui_constants import MAX_ZOOM_FACTOR, MIN_ZOOM_FACTOR
+
+        padding_factor = 1.2
+        width_needed = (max_x - min_x) * padding_factor
+        height_needed = (max_y - min_y) * padding_factor
+
+        if width_needed > 0 and height_needed > 0:
+            zoom_x = widget.width() / width_needed
+            zoom_y = widget.height() / height_needed
+            optimal_zoom = min(zoom_x, zoom_y, MAX_ZOOM_FACTOR)
+
+            # Apply zoom
+            widget.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
+
+        # Use the proper centering method that handles coordinate transformation and Y-flip
+        widget._center_view_on_point(center_x, center_y)
+
+        widget.invalidate_caches()
+        widget.update()
+        widget.view_changed.emit()
+
+    # ==================== ApplicationState Signal Handlers ====================
+
+    def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
+        """
+        React to curve data changes from ApplicationState.
+
+        This handler is called when any curve data is modified through ApplicationState,
+        ensuring the tracking panel and curve display stay synchronized.
+
+        Args:
+            curves: Dictionary of all curves in ApplicationState
+        """
+        # Prevent recursion: If we're already handling a signal, don't process nested signals
+        if self._handling_signal:
+            return
+
+        try:
+            self._handling_signal = True
+
+            # Update tracking panel to reflect data changes
+            self.update_tracking_panel()
+
+            # NOTE: Do NOT call update_curve_display() here as it can trigger more
+            # set_curve_data() calls, creating a signal loop. The tracking panel
+            # update is sufficient for reactive updates.
+
+        finally:
+            self._handling_signal = False
+
+    def _on_active_curve_changed(self, curve_name: str) -> None:
+        """
+        React to active curve changes from ApplicationState.
+
+        This handler is called when the active curve is changed through ApplicationState,
+        ensuring the UI reflects the new active state.
+
+        Args:
+            curve_name: Name of the newly active curve (empty string if None)
+        """
+        # Prevent recursion: If we're already handling a signal, don't process nested signals
+        if self._handling_signal:
+            return
+
+        try:
+            self._handling_signal = True
+
+            # Update active timeline point to match ApplicationState
+            if curve_name and curve_name != "__default__":
+                self.main_window.active_timeline_point = curve_name
+                # NOTE: Do NOT call update_curve_display() here to avoid signal loops
+
+        finally:
+            self._handling_signal = False

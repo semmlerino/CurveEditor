@@ -183,12 +183,13 @@ class TestUIErrorRecoveryCritical:
         def worker_with_operations():
             try:
                 # Create view state for this thread
+                thread_ident = threading.current_thread().ident or 0
                 view_state = ViewState(
                     display_width=1920,
                     display_height=1080,
                     widget_width=800,
                     widget_height=600,
-                    zoom_factor=1.0 + threading.current_thread().ident % 100 * 0.001,  # pyright: ignore[reportOperatorIssue]
+                    zoom_factor=1.0 + thread_ident % 100 * 0.001,
                 )
 
                 # Perform multiple operations

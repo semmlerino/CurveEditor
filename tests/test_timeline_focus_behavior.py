@@ -9,6 +9,10 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Avoid implementation testing
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -118,7 +122,7 @@ class TestTimelineFocusBehavior:
 
         # Verify signal was emitted with correct frame
         assert blocker.signal_triggered
-        assert blocker.args[0] == timeline_widget.current_frame
+        assert blocker.args is not None and blocker.args[0] == timeline_widget.current_frame
 
     def test_mouse_click_tab_navigation(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
         """Test clicking on timeline tabs navigates to that frame."""

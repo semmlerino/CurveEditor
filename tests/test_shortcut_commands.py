@@ -733,29 +733,23 @@ class TestShortcutCommandAbstractMethods:
 
     def test_all_commands_implement_abstract_methods(self):
         """Test that all command classes implement required abstract methods."""
-        command_classes = [
-            SetEndframeCommand,
-            SetTrackingDirectionCommand,
-            DeletePointsCommand,
-            CenterViewCommand,
-            SelectAllCommand,
-            DeselectAllCommand,
-            FitBackgroundCommand,
-            NudgePointsCommand,
-            UndoCommand,
-            RedoCommand,
+        from core.commands.shortcut_command import ShortcutCommand
+
+        # Test each command individually with proper type safety
+        commands_to_test: list[ShortcutCommand] = [
+            SetEndframeCommand(),
+            SetTrackingDirectionCommand(TrackingDirection.TRACKING_FW, "Shift+1"),
+            DeletePointsCommand(),
+            CenterViewCommand(),
+            SelectAllCommand(),
+            DeselectAllCommand(),
+            FitBackgroundCommand(),
+            NudgePointsCommand("2", 0.0, 1.0),
+            UndoCommand(),
+            RedoCommand(),
         ]
 
-        for cls in command_classes:
-            # Test that we can instantiate the class (abstract methods are implemented)
-            if cls == SetTrackingDirectionCommand:
-                # Requires special arguments
-                cmd = cls(TrackingDirection.TRACKING_FW, "Shift+1")
-            elif cls == NudgePointsCommand:
-                # Requires special arguments
-                cmd = cls("2", 0.0, 1.0)
-            else:
-                cmd = cls()
+        for cmd in commands_to_test:
 
             # Verify abstract methods exist and are callable
             assert hasattr(cmd, "can_execute")

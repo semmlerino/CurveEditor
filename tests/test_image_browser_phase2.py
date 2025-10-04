@@ -343,10 +343,10 @@ class TestImageBrowserStatePersistence:
         qtbot.addWidget(parent)
 
         # Add mock state manager to parent
-        parent.state_manager = Mock()
-        parent.state_manager.get_value = Mock(return_value=None)
-        parent.state_manager.set_value = Mock()
-        parent.state_manager.recent_directories = []
+        parent.state_manager = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+        parent.state_manager.get_value = Mock(return_value=None)  # pyright: ignore[reportAttributeAccessIssue]
+        parent.state_manager.set_value = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+        parent.state_manager.recent_directories = []  # pyright: ignore[reportAttributeAccessIssue]
 
         dialog = ImageSequenceBrowserDialog(parent, str(tmp_path))
         qtbot.addWidget(dialog)
@@ -365,7 +365,7 @@ class TestImageBrowserStatePersistence:
         try:
             parent = dialog_with_state.parent()
             if parent:
-                state_manager = parent.state_manager
+                state_manager = parent.state_manager  # type: ignore[attr-defined]
                 # Should have called get_value for geometry, splitter, sort
                 assert state_manager.get_value.called
         except RuntimeError:
@@ -377,7 +377,7 @@ class TestImageBrowserStatePersistence:
         # Get state manager from parent
         parent = dialog_with_state.parent()
         if parent and hasattr(parent, "state_manager"):
-            state_manager = parent.state_manager
+            state_manager = parent.state_manager  # type: ignore[attr-defined]
             # Reset mock to check calls
             state_manager.set_value.reset_mock()
 
@@ -400,14 +400,14 @@ class TestImageBrowserStatePersistence:
         qtbot.addWidget(parent)
 
         # Set up mock state manager with saved state
-        parent.state_manager = Mock()
-        parent.state_manager.get_value = Mock(
+        parent.state_manager = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+        parent.state_manager.get_value = Mock(  # pyright: ignore[reportAttributeAccessIssue]
             side_effect=lambda key: {
                 "image_browser_sort": "frame_count",
                 "image_browser_sort_ascending": False,
             }.get(key)
         )
-        parent.state_manager.recent_directories = []
+        parent.state_manager.recent_directories = []  # pyright: ignore[reportAttributeAccessIssue]
 
         dialog = ImageSequenceBrowserDialog(parent, str(tmp_path))
         qtbot.addWidget(dialog)

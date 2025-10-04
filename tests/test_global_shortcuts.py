@@ -5,6 +5,8 @@ Tests for the global keyboard shortcut system.
 Verifies that shortcuts work regardless of which widget has focus.
 """
 
+from typing import cast
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -18,7 +20,7 @@ from core.commands.shortcut_commands import (
     SetTrackingDirectionCommand,
 )
 from core.models import PointStatus, TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from ui.main_window import MainWindow
 from ui.shortcut_registry import ShortcutRegistry
 
@@ -42,10 +44,10 @@ def main_window_with_shortcuts(qtbot):
 
     # Add test tracking data
     if window.tracking_panel:
-        tracked_data: dict[str, CurveDataList] = {
+        tracked_data = cast(dict[str, CurveDataInput], {
             "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
             "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
-        }
+        })
         window.tracking_panel.set_tracked_data(tracked_data)
 
     return window

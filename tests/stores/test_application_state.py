@@ -77,9 +77,13 @@ class TestApplicationState:
         state.update_point("test", 0, new_point)
 
         result = state.get_curve_data("test")
-        assert result[0][1] == 15.0
-        assert result[0][2] == 25.0
-        assert result[0][3] == "keyframe"
+        assert len(result[0]) == 4  # PointTuple4
+        point = result[0]
+        assert point[1] == 15.0
+        assert point[2] == 25.0
+        # Access index 3 safely for PointTuple4
+        if len(point) == 4:
+            assert point[3] == "keyframe"
 
     def test_multi_curve_support(self) -> None:
         """Test native multi-curve handling."""
@@ -174,6 +178,59 @@ class TestApplicationState:
 
         # Should emit only once
         assert spy.count() == 1
+
+    def test_batch_mode_exception_handling(self) -> None:
+        """Test batch mode is properly cleaned up when exceptions occur."""
+        state = get_application_state()
+        spy = QSignalSpy(state.curves_changed)
+
+        # Verify batch mode cleanup with try/finally pattern
+        try:
+            state.begin_batch()
+            try:
+                state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
+                state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
+                # Simulate an exception during batch operation
+                raise ValueError("Test exception during batch operation")
+            finally:
+                # end_batch() MUST be called even when exception occurs
+                state.end_batch()
+        except ValueError:
+            pass  # Expected exception
+
+        # Verify signals were emitted despite the exception
+        assert spy.count() > 0, "Signals should be emitted even when exception occurs"
+
+        # Verify batch mode was properly exited (not stuck in batch mode)
+        # If batch mode cleanup failed, this would defer signals incorrectly
+        previous_count = spy.count()
+        state.set_curve_data("curve3", [(1, 50.0, 60.0, "normal")])
+        assert spy.count() > previous_count, "Should emit signals immediately after batch mode exit"
+
+    def test_batch_mode_nested_exception_safety(self) -> None:
+        """Test that batch mode state is correctly restored after exception."""
+        state = get_application_state()
+
+        # Start batch mode
+        state.begin_batch()
+        try:
+            state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
+
+            # Simulate exception mid-batch
+            try:
+                state.set_curve_data("invalid_curve", [])  # Edge case
+                raise RuntimeError("Simulated error")
+            except RuntimeError:
+                pass  # Handle error but continue batch
+
+            # Should still be in batch mode
+            state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
+        finally:
+            state.end_batch()
+
+        # Verify all operations completed successfully
+        assert "curve1" in state.get_all_curve_names()
+        assert "curve2" in state.get_all_curve_names()
 
     # ==================== Performance Tests ====================
 

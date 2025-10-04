@@ -7,6 +7,7 @@ similar to 3DEqualizer or Nuke's sequence view.
 """
 
 import os
+import warnings
 import re
 import sys
 from dataclasses import dataclass
@@ -1194,11 +1195,11 @@ class ImageSequenceBrowserDialog(QDialog):
         self.progress_bar.setVisible(False)
         self.cancel_scan_button.setVisible(False)
 
-        # Disconnect cancel button
-        try:
+        # Disconnect cancel button (suppress warning if not connected)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning, message="Failed to disconnect.*")
             self.cancel_scan_button.clicked.disconnect(self._on_cancel_scan)
-        except TypeError:
-            pass  # Already disconnected
+
 
     def _on_cancel_scan(self) -> None:
         """Handle scan cancellation request."""

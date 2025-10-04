@@ -9,12 +9,14 @@ sophisticated rendering logic for point status, selection, and current frame hig
 Following the UNIFIED_TESTING_GUIDE to avoid Qt threading violations.
 """
 
+from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from PySide6.QtGui import QColor
 
 from core.models import PointStatus
+from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 
 
@@ -102,7 +104,7 @@ class TestUnifiedCurveRendering:
 
         # Create RenderState object with test data (avoiding current frame conflicts)
         render_state = RenderState(
-            points=points_data,
+            points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
             widget_width=800,
@@ -239,7 +241,7 @@ class TestUnifiedCurveRendering:
 
         # Create RenderState with selected points
         render_state = RenderState(
-            points=points_data,
+            points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data to avoid current frame highlighting
             selected_points={0, 2},  # First and third points selected
             widget_width=800,
@@ -303,7 +305,7 @@ class TestUnifiedCurveRendering:
 
         # Create RenderState avoiding current frame and selection conflicts
         render_state = RenderState(
-            points=points_data,
+            points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
             widget_width=800,
@@ -512,7 +514,7 @@ class TestUnifiedRenderingLogic:
 
         # Create RenderState avoiding current frame and selection conflicts
         render_state = RenderState(
-            points=points_data,
+            points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
             widget_width=800,
@@ -716,7 +718,7 @@ class TestGapRenderingConsistency:
 
         # Create RenderState for simple data test
         render_state = RenderState(
-            points=simple_curve_data,
+            points=cast(CurveDataList, simple_curve_data),
             current_frame=5,
             selected_points=set(),
             widget_width=800,

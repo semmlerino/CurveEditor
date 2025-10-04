@@ -6,6 +6,8 @@ Tests all core functions used in the Insert Track feature for gap detection,
 offset calculation, data merging, and averaging.
 """
 
+from typing import cast
+
 import pytest
 
 from core.insert_track_algorithm import (
@@ -17,6 +19,7 @@ from core.insert_track_algorithm import (
     find_overlap_frames,
     interpolate_gap,
 )
+from core.type_aliases import CurveDataList, PointTuple4Str
 
 
 class TestFindGapAroundFrame:
@@ -24,12 +27,12 @@ class TestFindGapAroundFrame:
 
     def test_gap_in_middle(self):
         """Test finding a gap in the middle of trajectory."""
-        curve_data = [
+        curve_data = cast(CurveDataList, [
             (1, 10.0, 10.0),
             (2, 11.0, 11.0),
             (10, 20.0, 20.0),
             (11, 21.0, 21.0),
-        ]
+        ])
 
         result = find_gap_around_frame(curve_data, 5)
 
@@ -38,7 +41,7 @@ class TestFindGapAroundFrame:
 
     def test_no_gap_at_frame(self):
         """Test that None is returned when frame has data."""
-        curve_data = [(1, 10.0, 10.0), (2, 11.0, 11.0), (3, 12.0, 12.0)]
+        curve_data = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0), (3, 12.0, 12.0)])
 
         result = find_gap_around_frame(curve_data, 2)
 
@@ -46,7 +49,7 @@ class TestFindGapAroundFrame:
 
     def test_gap_at_start(self):
         """Test gap at the beginning of trajectory."""
-        curve_data = [(10, 20.0, 20.0), (11, 21.0, 21.0)]
+        curve_data = cast(CurveDataList, [(10, 20.0, 20.0), (11, 21.0, 21.0)])
 
         result = find_gap_around_frame(curve_data, 5)
 
@@ -56,7 +59,7 @@ class TestFindGapAroundFrame:
 
     def test_gap_at_end(self):
         """Test gap at the end (open-ended) returns None."""
-        curve_data = [(1, 10.0, 10.0), (2, 11.0, 11.0)]
+        curve_data = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0)])
 
         result = find_gap_around_frame(curve_data, 10)
 
@@ -70,7 +73,7 @@ class TestFindGapAroundFrame:
 
     def test_single_point_curve(self):
         """Test curve with single point."""
-        curve_data = [(5, 10.0, 10.0)]
+        curve_data = cast(CurveDataList, [(5, 10.0, 10.0)])
 
         # Before the point
         result = find_gap_around_frame(curve_data, 3)
@@ -86,8 +89,8 @@ class TestFindOverlapFrames:
 
     def test_overlap_before_and_after_gap(self):
         """Test finding overlap on both sides of gap."""
-        target = [(1, 10.0, 10.0), (2, 11.0, 11.0), (10, 20.0, 20.0), (11, 21.0, 21.0)]
-        source = [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)]
+        target = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0), (10, 20.0, 20.0), (11, 21.0, 21.0)])
+        source = cast(CurveDataList, [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)])
 
         gap_start, gap_end = 3, 9
 
@@ -98,8 +101,8 @@ class TestFindOverlapFrames:
 
     def test_overlap_before_only(self):
         """Test overlap only before gap."""
-        target = [(1, 10.0, 10.0), (2, 11.0, 11.0), (10, 20.0, 20.0)]
-        source = [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0)]
+        target = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0), (10, 20.0, 20.0)])
+        source = cast(CurveDataList, [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0)])
 
         gap_start, gap_end = 3, 9
 
@@ -110,8 +113,8 @@ class TestFindOverlapFrames:
 
     def test_overlap_after_only(self):
         """Test overlap only after gap."""
-        target = [(1, 10.0, 10.0), (10, 20.0, 20.0), (11, 21.0, 21.0)]
-        source = [(5, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)]
+        target = cast(CurveDataList, [(1, 10.0, 10.0), (10, 20.0, 20.0), (11, 21.0, 21.0)])
+        source = cast(CurveDataList, [(5, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)])
 
         gap_start, gap_end = 2, 9
 
@@ -122,8 +125,8 @@ class TestFindOverlapFrames:
 
     def test_no_overlap(self):
         """Test no overlap between curves."""
-        target = [(1, 10.0, 10.0), (2, 11.0, 11.0)]
-        source = [(10, 25.0, 25.0), (11, 26.0, 26.0)]
+        target = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0)])
+        source = cast(CurveDataList, [(10, 25.0, 25.0), (11, 26.0, 26.0)])
 
         gap_start, gap_end = 3, 9
 
@@ -138,8 +141,8 @@ class TestCalculateOffset:
 
     def test_simple_offset(self):
         """Test calculating offset with constant difference."""
-        target = [(1, 100.0, 200.0), (2, 101.0, 201.0)]
-        source = [(1, 50.0, 100.0), (2, 51.0, 101.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0), (2, 101.0, 201.0)])
+        source = cast(CurveDataList, [(1, 50.0, 100.0), (2, 51.0, 101.0)])
 
         offset_x, offset_y = calculate_offset(target, source, [1, 2])
 
@@ -148,8 +151,8 @@ class TestCalculateOffset:
 
     def test_averaged_offset(self):
         """Test offset is averaged across multiple frames."""
-        target = [(1, 100.0, 200.0), (2, 110.0, 210.0)]
-        source = [(1, 50.0, 100.0), (2, 55.0, 105.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0), (2, 110.0, 210.0)])
+        source = cast(CurveDataList, [(1, 50.0, 100.0), (2, 55.0, 105.0)])
 
         offset_x, offset_y = calculate_offset(target, source, [1, 2])
 
@@ -161,8 +164,8 @@ class TestCalculateOffset:
 
     def test_single_overlap_frame(self):
         """Test offset with single overlap frame."""
-        target = [(1, 100.0, 200.0)]
-        source = [(1, 50.0, 100.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0)])
+        source = cast(CurveDataList, [(1, 50.0, 100.0)])
 
         offset_x, offset_y = calculate_offset(target, source, [1])
 
@@ -171,8 +174,8 @@ class TestCalculateOffset:
 
     def test_no_overlap_frames(self):
         """Test offset returns (0, 0) with no overlap."""
-        target = [(1, 100.0, 200.0)]
-        source = [(2, 50.0, 100.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0)])
+        source = cast(CurveDataList, [(2, 50.0, 100.0)])
 
         offset_x, offset_y = calculate_offset(target, source, [])
 
@@ -185,8 +188,8 @@ class TestFillGapWithSource:
 
     def test_basic_gap_filling(self):
         """Test filling a simple gap with offset."""
-        target = [(1, 100.0, 200.0), (2, 101.0, 201.0), (10, 110.0, 210.0)]
-        source = [(1, 50.0, 100.0), (3, 51.0, 101.0), (4, 52.0, 102.0), (10, 55.0, 105.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0), (2, 101.0, 201.0), (10, 110.0, 210.0)])
+        source = cast(CurveDataList, [(1, 50.0, 100.0), (3, 51.0, 101.0), (4, 52.0, 102.0), (10, 55.0, 105.0)])
 
         gap_start, gap_end = 3, 9
         offset = (50.0, 100.0)
@@ -208,8 +211,8 @@ class TestFillGapWithSource:
 
     def test_gap_boundaries_marked_as_keyframes(self):
         """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
-        target = [(1, 100.0, 200.0), (10, 110.0, 210.0)]
-        source = [(3, 51.0, 101.0), (4, 52.0, 102.0)]
+        target = cast(CurveDataList, [(1, 100.0, 200.0), (10, 110.0, 210.0)])
+        source = cast(CurveDataList, [(3, 51.0, 101.0), (4, 52.0, 102.0)])
 
         gap_start, gap_end = 3, 9
         offset = (0.0, 0.0)
@@ -225,18 +228,18 @@ class TestFillGapWithSource:
 
         # Overlap frames (1, 10) should be marked as keyframes (original data)
         assert len(frame_1_point) >= 4
-        assert frame_1_point[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
+        assert cast(PointTuple4Str, frame_1_point)[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
         assert len(frame_10_point) >= 4
-        assert frame_10_point[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+        assert cast(PointTuple4Str, frame_10_point)[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
 
         # Filled frames (3) should be marked as tracked, NOT keyframe
         assert len(frame_3_point) >= 4
-        assert frame_3_point[3] == "tracked", "Frame 3 (filled) should be tracked, not keyframe"
+        assert cast(PointTuple4Str, frame_3_point)[3] == "tracked", "Frame 3 (filled) should be tracked, not keyframe"
 
     def test_partial_gap_coverage(self):
         """Test filling gap when source doesn't cover all gap frames."""
-        target = [(1, 100.0, 200.0), (10, 110.0, 210.0)]
-        source = [(3, 51.0, 101.0)]  # Only one frame in gap
+        target = cast(CurveDataList, [(1, 100.0, 200.0), (10, 110.0, 210.0)])
+        source = cast(CurveDataList, [(3, 51.0, 101.0)])  # Only one frame in gap
 
         gap_start, gap_end = 2, 9
         offset = (50.0, 100.0)
@@ -253,8 +256,8 @@ class TestAverageMultipleSources:
 
     def test_average_two_sources(self):
         """Test averaging positions from two sources."""
-        source1 = [(3, 100.0, 200.0), (4, 101.0, 201.0)]
-        source2 = [(3, 110.0, 210.0), (4, 111.0, 211.0)]
+        source1 = cast(CurveDataList, [(3, 100.0, 200.0), (4, 101.0, 201.0)])
+        source2 = cast(CurveDataList, [(3, 110.0, 210.0), (4, 111.0, 211.0)])
 
         offsets = [(0.0, 0.0), (0.0, 0.0)]
         gap_frames = [3, 4]
@@ -271,8 +274,8 @@ class TestAverageMultipleSources:
 
     def test_average_with_offsets(self):
         """Test averaging with offset correction."""
-        source1 = [(3, 100.0, 200.0)]
-        source2 = [(3, 50.0, 100.0)]
+        source1 = cast(CurveDataList, [(3, 100.0, 200.0)])
+        source2 = cast(CurveDataList, [(3, 50.0, 100.0)])
 
         offsets = [(10.0, 20.0), (60.0, 120.0)]  # Different offsets
         gap_frames = [3]
@@ -288,8 +291,8 @@ class TestAverageMultipleSources:
 
     def test_average_partial_coverage(self):
         """Test averaging only fills frames where ALL sources have data (3DE spec compliance)."""
-        source1 = [(3, 100.0, 200.0), (4, 101.0, 201.0)]
-        source2 = [(3, 110.0, 210.0)]  # Missing frame 4
+        source1 = cast(CurveDataList, [(3, 100.0, 200.0), (4, 101.0, 201.0)])
+        source2 = cast(CurveDataList, [(3, 110.0, 210.0)])  # Missing frame 4
 
         offsets = [(0.0, 0.0), (0.0, 0.0)]
         gap_frames = [3, 4]
@@ -316,7 +319,7 @@ class TestInterpolateGap:
 
     def test_linear_interpolation(self):
         """Test simple linear interpolation across gap."""
-        curve = [(1, 100.0, 200.0), (10, 190.0, 290.0)]
+        curve = cast(CurveDataList, [(1, 100.0, 200.0), (10, 190.0, 290.0)])
 
         gap_start, gap_end = 2, 9
 
@@ -334,7 +337,7 @@ class TestInterpolateGap:
 
     def test_interpolation_boundaries_keyframes(self):
         """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
-        curve = [(1, 100.0, 200.0), (10, 190.0, 290.0)]
+        curve = cast(CurveDataList, [(1, 100.0, 200.0), (10, 190.0, 290.0)])
 
         gap_start, gap_end = 2, 9
 
@@ -347,15 +350,15 @@ class TestInterpolateGap:
         frame_2_point = [p for p in result if p[0] == 2][0]
         frame_9_point = [p for p in result if p[0] == 9][0]
 
-        assert frame_1_point[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
-        assert frame_10_point[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
-        assert frame_2_point[3] == "interpolated", "Frame 2 (in gap) should be interpolated"
-        assert frame_9_point[3] == "interpolated", "Frame 9 (in gap) should be interpolated"
+        assert cast(PointTuple4Str, frame_1_point)[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
+        assert cast(PointTuple4Str, frame_10_point)[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+        assert cast(PointTuple4Str, frame_2_point)[3] == "interpolated", "Frame 2 (in gap) should be interpolated"
+        assert cast(PointTuple4Str, frame_9_point)[3] == "interpolated", "Frame 9 (in gap) should be interpolated"
 
     def test_interpolation_missing_boundaries(self):
         """Test interpolation fails gracefully without boundary points."""
         # Gap from 2-9 but no point before frame 2
-        curve = [(10, 190.0, 290.0)]
+        curve = cast(CurveDataList, [(10, 190.0, 290.0)])
 
         gap_start, gap_end = 2, 9
 
@@ -371,10 +374,10 @@ class TestCreateAveragedCurve:
 
     def test_create_averaged_curve_simple(self):
         """Test creating averaged curve from two sources."""
-        sources = {
+        sources = cast(dict[str, CurveDataList], {
             "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
             "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0), (3, 112.0, 212.0)],
-        }
+        })
 
         name, curve = create_averaged_curve(sources)
 
@@ -389,10 +392,10 @@ class TestCreateAveragedCurve:
 
     def test_only_common_frames(self):
         """Test that only frames common to all sources are included."""
-        sources = {
+        sources = cast(dict[str, CurveDataList], {
             "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
             "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0)],  # Missing frame 3
-        }
+        })
 
         name, curve = create_averaged_curve(sources)
 
@@ -403,11 +406,11 @@ class TestCreateAveragedCurve:
 
     def test_three_sources(self):
         """Test averaging three sources."""
-        sources = {
+        sources = cast(dict[str, CurveDataList], {
             "curve1": [(1, 100.0, 200.0)],
             "curve2": [(1, 110.0, 210.0)],
             "curve3": [(1, 120.0, 220.0)],
-        }
+        })
 
         name, curve = create_averaged_curve(sources)
 
@@ -418,10 +421,10 @@ class TestCreateAveragedCurve:
 
     def test_no_common_frames(self):
         """Test behavior when sources have no common frames."""
-        sources = {
+        sources = cast(dict[str, CurveDataList], {
             "curve1": [(1, 100.0, 200.0)],
             "curve2": [(2, 110.0, 210.0)],
-        }
+        })
 
         name, curve = create_averaged_curve(sources)
 

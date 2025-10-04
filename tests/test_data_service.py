@@ -51,11 +51,12 @@ class TestDataAnalysis:
         result = service.smooth_moving_average(data, window_size=3)
 
         assert result[0][0] == 10  # Frame preserved
-        assert result[0][3] == "keyframe"  # Status preserved
+        # Safe access for PointTuple4
+        assert len(result[0]) == 4 and result[0][3] == "keyframe"  # Status preserved
         assert result[1][0] == 11
-        assert result[1][3] == "interpolated"
+        assert len(result[1]) == 4 and result[1][3] == "interpolated"
         assert result[2][0] == 12
-        assert result[2][3] is True
+        assert len(result[2]) == 4 and result[2][3] is True
 
     def test_smooth_moving_average_insufficient_data(self):
         """Test smoothing with insufficient data points."""
@@ -219,10 +220,13 @@ class TestDataAnalysis:
         assert result["count"] == 3
         assert result["min_frame"] == 1
         assert result["max_frame"] == 5
-        assert result["bounds"]["min_x"] == 10.0
-        assert result["bounds"]["max_x"] == 50.0
-        assert result["bounds"]["min_y"] == 20.0
-        assert result["bounds"]["max_y"] == 80.0
+        # Type narrow before indexing
+        bounds = result["bounds"]
+        assert isinstance(bounds, dict)
+        assert bounds["min_x"] == 10.0
+        assert bounds["max_x"] == 50.0
+        assert bounds["min_y"] == 20.0
+        assert bounds["max_y"] == 80.0
 
     def test_analyze_points_with_curve_point_objects(self):
         """Test point analysis with CurvePoint objects."""
@@ -256,7 +260,10 @@ class TestDataAnalysis:
         assert result["count"] == 0
         assert result["min_frame"] == 0
         assert result["max_frame"] == 0
-        assert result["bounds"]["min_x"] == 0
+        # Type narrow before indexing
+        bounds = result["bounds"]
+        assert isinstance(bounds, dict)
+        assert bounds["min_x"] == 0
 
 
 class TestFileOperations:

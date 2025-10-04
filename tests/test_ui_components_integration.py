@@ -207,12 +207,15 @@ class TestArchitecturalIntegrationMethodology:
 
         # Validate compatibility
         for group_name, expected_attrs in expected_mappings.items():
+            component: object
             if group_name == "timeline":
                 component = timeline
             elif group_name == "visualization":
                 component = viz
             elif group_name == "point_edit":
                 component = point_edit
+            else:
+                continue  # Skip unknown groups
 
             component_attrs = set(dir(component))
 

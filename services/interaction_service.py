@@ -16,10 +16,13 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, cast
 
+from PySide6.QtCore import QCoreApplication, QThread
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QRubberBand
 
+from core.models import PointSearchResult
 from core.spatial_index import PointIndex
+from core.type_aliases import SearchMode
 from stores.application_state import get_application_state
 
 if TYPE_CHECKING:
@@ -90,6 +93,28 @@ class InteractionService:
 
         logger.info("InteractionService initialized with ApplicationState, command manager and spatial indexing")
 
+    def _assert_main_thread(self) -> None:
+        """
+        Verify method called from main thread (matches ApplicationState pattern).
+
+        Thread Safety Contract:
+        - ALL InteractionService methods must be called from main Qt thread
+        - Worker threads should emit signals, handlers update state
+        - Matches ApplicationState threading pattern
+
+        Raises:
+            RuntimeError: If called from non-main thread
+        """
+        current = QThread.currentThread()
+        app = QCoreApplication.instance()
+        if app is not None:
+            main = app.thread()
+            if current != main:
+                raise RuntimeError(
+                    f"InteractionService must be called from main thread only "
+                    f"(called from {current}, main is {main})"
+                )
+
     @property
     def command_manager(self) -> CommandManager:
         """Lazy initialization of CommandManager to avoid circular imports."""
@@ -133,10 +158,11 @@ class InteractionService:
         pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
         # Check for point selection first
-        point_idx = self.find_point_at(view, pos.x(), pos.y())
+        point_result = self.find_point_at(view, pos.x(), pos.y())
 
-        if point_idx != -1:
+        if point_result.found:
             # Point clicked
+            point_idx = point_result.index
             if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 # Toggle selection
                 # selected_points is defined in CurveViewProtocol
@@ -203,6 +229,8 @@ class InteractionService:
 
     def _handle_mouse_move_consolidated(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Consolidated mouse move handling for default mode."""
+        self._assert_main_thread()
+
         from PySide6.QtCore import QPoint, QRect
 
         pos_f = event.position()
@@ -224,7 +252,9 @@ class InteractionService:
 
                 # Transform has a single scale, not scale_x/scale_y
                 curve_delta_x = delta_x / transform.scale
-                curve_delta_y = -delta_y / transform.scale  # Invert Y for curve coordinates
+                # Y-FLIP BUG FIX: Respect view.flip_y_axis
+                y_multiplier = -1.0 if view.flip_y_axis else 1.0
+                curve_delta_y = (delta_y * y_multiplier) / transform.scale
 
                 # Use ApplicationState with batch mode for performance (Week 6)
                 active_curve_name = self._app_state.active_curve
@@ -663,22 +693,91 @@ class InteractionService:
             if redo_btn is not None:
                 redo_btn.setEnabled(can_redo_val)
 
-    def find_point_at(self, view: CurveViewProtocol, x: float, y: float) -> int:
-        """Find point at given coordinates using spatial indexing for O(1) performance."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if not active_curve_data:
-            return -1
+    def find_point_at(
+        self, view: CurveViewProtocol, x: float, y: float, mode: SearchMode = "active"
+    ) -> PointSearchResult:
+        """
+        Find point at screen coordinates with spatial indexing (64.7x speedup).
 
-        transform_service = _get_transform_service()
+        Args:
+            view: Curve view to search in
+            x, y: Screen coordinates in pixels
+            mode: Search behavior:
+                - "active": Search active curve only (default, backward compatible)
+                - "all_visible": Search all visible curves
 
-        # Create transform for coordinate conversion
-        view_state = transform_service.create_view_state(view)
-        transform = transform_service.create_transform_from_view_state(view_state)
+        Returns:
+            PointSearchResult with index and curve name
 
-        # Use spatial index for O(1) lookup instead of O(n) linear search
-        threshold = 5.0  # Threshold in screen pixels
-        return self._point_index.find_point_at_position(view, transform, x, y, threshold)
+        Examples:
+            # Single-curve (backward compatible):
+            result = service.find_point_at(view, 100, 200)
+            if result.found:
+                print(f"Point {result.index}")
+
+            # Multi-curve:
+            result = service.find_point_at(view, 100, 200, mode="all_visible")
+            if result.found:
+                print(f"Point {result.index} in {result.curve_name}")
+        """
+        self._assert_main_thread()
+
+        if mode == "active":
+            # Single-curve mode (backward compatible)
+            active_curve = self._app_state.active_curve
+            if active_curve is None:
+                return PointSearchResult(index=-1, curve_name=None)
+
+            # Use spatial index for O(1) lookup
+            active_curve_data = self._app_state.get_curve_data(active_curve)
+            if not active_curve_data:
+                return PointSearchResult(index=-1, curve_name=None)
+
+            transform_service = _get_transform_service()
+            view_state = transform_service.create_view_state(view)
+            transform = transform_service.create_transform_from_view_state(view_state)
+
+            threshold = 5.0
+            # Updated API: curve_data is now first parameter (Critical Fix #2)
+            idx = self._point_index.find_point_at_position(active_curve_data, transform, x, y, threshold, view)
+            return PointSearchResult(index=idx, curve_name=active_curve if idx >= 0 else None, distance=0.0)
+
+        elif mode == "all_visible":
+            # Multi-curve mode - search all visible curves
+            all_curve_names = self._app_state.get_all_curve_names()
+            visible_curves = [
+                name for name in all_curve_names if self._app_state.get_curve_metadata(name).get("visible", True)
+            ]
+
+            best_match: PointSearchResult | None = None
+            threshold = 5.0
+
+            transform_service = _get_transform_service()
+            view_state = transform_service.create_view_state(view)
+            transform = transform_service.create_transform_from_view_state(view_state)
+
+            for curve_name in visible_curves:
+                curve_data = self._app_state.get_curve_data(curve_name)
+                if not curve_data:
+                    continue
+
+                # Search this curve with clean API (no mutation - Critical Fix #2)
+                idx = self._point_index.find_point_at_position(curve_data, transform, x, y, threshold, view)
+
+                if idx >= 0:
+                    # Calculate distance to find best match
+                    point = curve_data[idx]
+                    data_x, data_y = float(point[1]), float(point[2])
+                    screen_x, screen_y = transform.data_to_screen(data_x, data_y)
+                    distance = ((screen_x - x) ** 2 + (screen_y - y) ** 2) ** 0.5
+
+                    if best_match is None or distance < best_match.distance:
+                        best_match = PointSearchResult(idx, curve_name, distance)
+
+            return best_match or PointSearchResult(index=-1, curve_name=None)
+
+        else:
+            raise ValueError(f"Invalid search mode: {mode}")
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
@@ -693,18 +792,44 @@ class InteractionService:
         view_state = transform_service.create_view_state(view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
-        # Use spatial index with specified tolerance
-        return self._point_index.find_point_at_position(view, transform, x, y, tolerance)
+        # Use spatial index with specified tolerance (updated API - Critical Fix #2)
+        return self._point_index.find_point_at_position(active_curve_data, transform, x, y, tolerance, view)
 
     def select_point_by_index(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, add_to_selection: bool = False
+        self,
+        view: CurveViewProtocol,
+        main_window: MainWindowProtocol,
+        idx: int,
+        add_to_selection: bool = False,
+        curve_name: str | None = None,
     ) -> bool:
-        """Select point by index."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if 0 <= idx < len(active_curve_data):
-            if not add_to_selection:
-                view.selected_points.clear()
+        """
+        Select point by index in specified curve.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            idx: Point index to select
+            add_to_selection: If True, add to existing selection. If False, replace.
+            curve_name: Curve to select point in. None = active curve.
+
+        Returns:
+            True if point was selected, False if invalid index
+        """
+        self._assert_main_thread()
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return False
+
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if 0 <= idx < len(curve_data):
+            if add_to_selection:
+                self._app_state.add_to_selection(curve_name, idx)
+            else:
+                self._app_state.set_selection(curve_name, {idx})
+
+            # Update view for backward compatibility
             view.selected_points.add(idx)
             view.selected_point_idx = idx
             view.update()
@@ -729,14 +854,46 @@ class InteractionService:
         return 0
 
     def update_point_position(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int, x: float, y: float
+        self,
+        view: CurveViewProtocol,
+        main_window: MainWindowProtocol,
+        idx: int,
+        x: float,
+        y: float,
+        curve_name: str | None = None,
     ) -> bool:
-        """Update point position."""
-        # Use ApplicationState for active curve data (Week 6)
-        active_curve_data = self._app_state.get_curve_data()
-        if 0 <= idx < len(active_curve_data):
-            point = active_curve_data[idx]
-            # Preserve frame and status, update x and y
+        """
+        Update point position in curve.
+
+        Args:
+            view: Curve view
+            main_window: Main window instance
+            idx: Point index
+            x: New X coordinate
+            y: New Y coordinate
+            curve_name: Curve containing point. None = active curve.
+
+        Returns:
+            True if point was updated, False if invalid index
+        """
+        self._assert_main_thread()
+        if curve_name is None:
+            curve_name = self._app_state.active_curve
+        if curve_name is None:
+            return False
+
+        curve_data = self._app_state.get_curve_data(curve_name)
+        if 0 <= idx < len(curve_data):
+            point = curve_data[idx]
+            # Update via ApplicationState (signals emitted automatically)
+            from core.models import CurvePoint, PointStatus
+
+            status_value = point[3] if len(point) >= 4 else "normal"
+            status = PointStatus.from_legacy(status_value)
+            updated_point = CurvePoint(frame=point[0], x=x, y=y, status=status)
+            self._app_state.update_point(curve_name, idx, updated_point)
+
+            # Update view for backward compatibility
             if len(point) >= 4:
                 view.curve_data[idx] = (point[0], x, y, point[3])
             elif len(point) == 3:
@@ -782,6 +939,27 @@ class InteractionService:
 
     # ==================== UI Update Methods ====================
 
+    def on_data_changed(self, view: CurveViewProtocol, curve_name: str | None = None) -> None:
+        """
+        Handle curve data change notifications.
+
+        Args:
+            view: Curve view that changed
+            curve_name: Curve that changed. None = all curves changed.
+        """
+        self._assert_main_thread()
+        if curve_name is None:
+            logger.debug("All curve data changed")
+        else:
+            logger.debug(f"Curve '{curve_name}' data changed")
+
+        # Clear spatial index since data changed
+        self.clear_spatial_index()
+
+        # Update view
+        if hasattr(view, "update"):
+            view.update()
+
     def on_point_moved(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Handle point movement notifications."""
         logger.debug(f"Point {idx} moved to ({x}, {y})")
@@ -803,6 +981,30 @@ class InteractionService:
         """Enable point manipulation controls."""
         # This would enable UI controls when points are selected
         pass
+
+    def apply_pan_offset_y(self, view: CurveViewProtocol, delta_y: float) -> None:
+        """
+        Apply Y pan offset with Y-flip awareness.
+
+        Args:
+            view: Curve view to pan
+            delta_y: Delta Y in screen pixels
+        """
+        self._assert_main_thread()
+
+        # Get current pan offset or initialize
+        current_pan_y = getattr(view, "pan_offset_y", 0.0)
+
+        # Apply Y-flip multiplier based on view setting
+        y_multiplier = -1.0 if view.flip_y_axis else 1.0
+        adjusted_delta = delta_y * y_multiplier
+
+        # Update pan offset
+        if hasattr(view, "pan_offset_y"):
+            view.pan_offset_y = current_pan_y + adjusted_delta  # pyright: ignore[reportAttributeAccessIssue]
+            view.update()
+
+        logger.debug(f"Applied pan offset Y: {delta_y} -> {adjusted_delta} (flip={view.flip_y_axis})")
 
     def reset_view(self, view: CurveViewProtocol) -> None:
         """Reset view to default state."""
@@ -901,9 +1103,9 @@ class InteractionService:
         view_state = transform_service.create_view_state(view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
-        # Use spatial index for O(1) rectangular selection
+        # Use spatial index for O(1) rectangular selection (updated API - Critical Fix #2)
         point_indices = self._point_index.get_points_in_rect(
-            view, transform, rect.left(), rect.top(), rect.right(), rect.bottom()
+            active_curve_data, transform, rect.left(), rect.top(), rect.right(), rect.bottom(), view
         )
 
         view.selected_points.clear()

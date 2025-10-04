@@ -16,21 +16,9 @@ if TYPE_CHECKING:
 
 from protocols.data import CurveDataInput, CurveDataList, HistoryState, QtPointF
 
-
-class SignalProtocol(Protocol):
-    """Protocol for Qt signal objects with emit method."""
-
-    def emit(self, *args: object) -> None:
-        """Emit the signal with arguments."""
-        ...
-
-    def connect(self, slot: Callable[..., object]) -> object:
-        """Connect signal to slot."""
-        ...
-
-    def disconnect(self, slot: Callable[..., object] | None = None) -> None:
-        """Disconnect signal from slot."""
-        ...
+# Import authoritative SignalProtocol from protocols.services
+# to avoid duplicate incompatible definitions
+from protocols.services import SignalProtocol  # noqa: F401 - re-exported for convenience
 
 
 class StateManagerProtocol(Protocol):

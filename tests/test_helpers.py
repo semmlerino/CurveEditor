@@ -10,33 +10,49 @@ Following best practices from UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md:
 """
 
 from collections.abc import Callable
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
 
 from core.models import CurvePoint
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData, QtPointF
 from tests.qt_test_helpers import ThreadSafeTestImage
 from tests.test_utils import safe_cleanup_widget as safe_qt_cleanup
 
+if TYPE_CHECKING:
+    from PySide6.QtWidgets import QRubberBand as QtRubberBand
+else:
+    QtRubberBand = None  # Runtime placeholder
+
 # Qt imports with fallback for non-GUI environments
 try:
-    from PySide6.QtCore import QObject, QSize  # pyright: ignore[reportUnusedImport]
-    from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportUnusedImport]
-    from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget
+    from PySide6.QtCore import QObject, QSize  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime  # pyright: ignore[reportAssignmentType]
 
-    HAS_QT = True
+    HAS_QT = True  # pyright: ignore[reportConstantRedefinition]
+    if not TYPE_CHECKING:
+        QtRubberBand = _QRubberBandRuntime  # Use real class at runtime  # pyright: ignore[reportConstantRedefinition]
 except ImportError:
-    HAS_QT = False
+    HAS_QT = False  # pyright: ignore[reportConstantRedefinition]
 
     # Stub classes for non-Qt test environments
-    class QObject:
+    class QObject:  # type: ignore[no-redef]
         pass
 
-    class QSize:
+    class QRubberBand:  # type: ignore[no-redef]
+        def __init__(self, *args: Any) -> None:
+            pass
+
+    if not TYPE_CHECKING:
+        QtRubberBand = QRubberBand  # Use stub in non-Qt environment  # pyright: ignore[reportConstantRedefinition]
+
+    class QSize:  # type: ignore[no-redef]
         def __init__(self, w: int, h: int) -> None:
             self.w = w
             self.h = h
 
-    class QImage:
+    class QImage:  # type: ignore[no-redef]
         Format_RGB32 = None
 
         def __init__(self, *args: Any) -> None:
@@ -51,11 +67,11 @@ except ImportError:
         def sizeInBytes(self) -> int:
             return 0
 
-    class QColor:
+    class QColor:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
-    class QWidget:
+    class QWidget:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -77,15 +93,15 @@ except ImportError:
         def showMessage(self, message: str, timeout: int = 0) -> None:
             pass
 
-    class QPushButton:
+    class QPushButton:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
-    class QAction:
+    class QAction:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
-    QLabel = QSlider = QSpinBox = QStatusBar = QWidget
+    QLabel = QSlider = QSpinBox = QStatusBar = QWidget  # type: ignore[assignment,misc]
 
 
 # ==================== Type Aliases ====================
@@ -131,30 +147,42 @@ class TestSignal:
 
     Use this instead of Mock for signal testing in test doubles.
     For real Qt widgets, use QSignalSpy instead.
+
+    Implements SignalProtocol for type-safe testing.
+    Signature must exactly match protocols.services.SignalProtocol.
     """
 
-    def __init__(self):
-        self.emissions = []
-        self.callbacks = []
+    def __init__(self) -> None:
+        self.emissions: list[tuple[object, ...]] = []
+        self.callbacks: list[object] = []
 
-    def emit(self, *args):
-        """Emit signal with arguments."""
+    def emit(self, *args: object) -> None:
+        """Emit signal with arguments (implements SignalProtocol)."""
         self.emissions.append(args)
         for callback in self.callbacks:
             try:
-                callback(*args)
+                # Runtime: we know callback is callable, but static type is object
+                # to match SignalProtocol signature (slot: object)
+                callback(*args)  # pyright: ignore[reportCallIssue]
             except Exception as e:
                 # Log but don't fail on callback errors
                 print(f"TestSignal callback error: {e}")
 
-    def connect(self, callback: Callable):
-        """Connect callback to signal."""
-        self.callbacks.append(callback)
+    def connect(self, slot: object) -> object:
+        """Connect signal to slot (implements SignalProtocol).
 
-    def disconnect(self, callback: Callable):
-        """Disconnect callback from signal."""
-        if callback in self.callbacks:
-            self.callbacks.remove(callback)
+        Note: Signature matches protocols.services.SignalProtocol exactly (slot: object).
+        """
+        self.callbacks.append(slot)
+        return slot  # Return connection object (slot itself)
+
+    def disconnect(self, slot: object | None = None) -> None:
+        """Disconnect signal from slot (implements SignalProtocol).
+
+        Note: Signature matches protocols.services.SignalProtocol exactly (slot: object | None).
+        """
+        if slot is not None and slot in self.callbacks:
+            self.callbacks.remove(slot)
 
     @property
     def was_emitted(self) -> bool:
@@ -167,11 +195,11 @@ class TestSignal:
         return len(self.emissions)
 
     @property
-    def last_emission(self):
+    def last_emission(self) -> tuple[object, ...] | None:
         """Get last emission arguments."""
         return self.emissions[-1] if self.emissions else None
 
-    def reset(self):
+    def reset(self) -> None:
         """Clear all emissions for reuse."""
         self.emissions.clear()
 
@@ -246,13 +274,13 @@ class MockCurveView:
     actual behavior instead of mocked behavior.
     """
 
-    def __init__(self, curve_data: list[Point3 | Point4] | None = None, **kwargs) -> None:
+    def __init__(self, curve_data: CurveDataList | None = None, **kwargs: Any) -> None:
         # Real data structures - preserve original format
         if curve_data is not None:
-            self.curve_data: list[Point3 | Point4] = list(curve_data)  # pyright: ignore[reportAssignmentType]
+            self.curve_data: CurveDataList = list(curve_data)
         else:
-            self.curve_data: list[Point3 | Point4] = []  # pyright: ignore[reportAssignmentType]
-        self.points: list[Point3 | Point4] = self.curve_data  # Alias for service compatibility
+            self.curve_data: CurveDataList = []
+        self.points: CurveDataList = self.curve_data  # Alias for service compatibility
         self.selected_points: set[int] = set()
         self.selected_point_idx: int = -1
         self.current_image_idx: int = 0
@@ -271,13 +299,22 @@ class MockCurveView:
         # Interaction state attributes (required by CurveViewProtocol)
         self.drag_active: bool = False
         self.pan_active: bool = False
-        self.last_drag_pos: object = None  # QtPointF | None
-        self.last_pan_pos: object = None  # QtPointF | None
+        self.last_drag_pos: QtPointF | None = None
+        self.last_pan_pos: QtPointF | None = None
 
         # Rubber band selection attributes (required by CurveViewProtocol)
-        self.rubber_band: object = None  # QRubberBand | None
+        self.rubber_band: QtRubberBand | None = None  # pyright: ignore[reportAssignmentType]
         self.rubber_band_active: bool = False
-        self.rubber_band_origin: object = None  # QtPointF
+        # Create a dummy origin point - protocol requires non-None QtPointF
+        if TYPE_CHECKING:
+            self.rubber_band_origin: QtPointF
+        else:
+            try:
+                from PySide6.QtCore import QPointF
+                self.rubber_band_origin = QPointF(0.0, 0.0)  # type: ignore
+            except ImportError:
+                # Fallback for non-Qt environments - use object
+                self.rubber_band_origin = object()  # type: ignore
 
         # Display settings
         self.show_background: bool = True
@@ -311,8 +348,12 @@ class MockCurveView:
 
         # Protocol required attributes
         self.main_window: object = None  # MainWindowProtocol | None
-        self.point_selected: TestSignal = TestSignal()
-        self.point_moved: TestSignal = TestSignal()
+        # TestSignal now properly implements SignalProtocol
+        # Cast needed because instance attributes are invariant in Python's type system
+        from typing import cast
+        from protocols.services import SignalProtocol
+        self.point_selected: SignalProtocol = cast(SignalProtocol, TestSignal())
+        self.point_moved: SignalProtocol = cast(SignalProtocol, TestSignal())
 
         # Interaction tracking
         self._update_called: bool = False
@@ -342,12 +383,12 @@ class MockCurveView:
             self.pan_offset_y = kwargs["offset_y"]
             self.y_offset = kwargs["offset_y"]
 
-    def set_curve_data(self, data: list[Point4]) -> None:
+    def set_curve_data(self, data: CurveDataInput) -> None:
         """Set the curve data."""
-        self.curve_data = data[:]
-        self.points = self.curve_data[:]  # Keep in sync
+        self.curve_data = list(data)
+        self.points = self.curve_data  # Keep in sync
 
-    def add_point(self, point: Point4) -> None:
+    def add_point(self, point: LegacyPointData) -> None:
         """Add a point to the curve."""
         self.curve_data.append(point)
         # self.points is an alias to self.curve_data, no need to add twice
@@ -419,8 +460,17 @@ class MockCurveView:
         data_y = (y - self.offset_y) / self.zoom_factor
         return data_x, data_y
 
-    def findPointAt(self, x: float, y: float, tolerance: float = 5.0) -> int:
+    def findPointAt(self, pos: QtPointF) -> int:
         """Find point near given coordinates."""
+        # Extract x, y from QtPointF (supports both QPoint and QPointF)
+        if hasattr(pos, 'x') and hasattr(pos, 'y'):
+            x = pos.x() if callable(pos.x) else pos.x
+            y = pos.y() if callable(pos.y) else pos.y
+        else:
+            # Fallback for tuple-like objects
+            x, y = float(pos[0]), float(pos[1])  # pyright: ignore[reportIndexIssue]
+
+        tolerance = 5.0
         for i, point in enumerate(self.curve_data):
             px, py = self.data_to_screen(point[1], point[2])
             distance = ((px - x) ** 2 + (py - y) ** 2) ** 0.5
@@ -491,7 +541,7 @@ class MockCurveView:
         """Toggle interpolation status of a point."""
         pass
 
-    def setPoints(self, data: list[Point4], width: int, height: int) -> None:
+    def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
         """Set points with image dimensions (legacy compatibility)."""
         self.set_curve_data(data)
         self.image_width = width
@@ -576,12 +626,12 @@ class MockMainWindow:
         self.state_manager.auto_center_enabled = True
 
     @property
-    def curve_data(self) -> list[Point4]:
+    def curve_data(self) -> CurveDataList:
         """Delegate to curve_view's curve_data for MainWindowProtocol compatibility."""
         return self.curve_view.curve_data
 
     @curve_data.setter
-    def curve_data(self, value: list[Point4]) -> None:
+    def curve_data(self, value: CurveDataList) -> None:
         """Set curve_data on curve_view for MainWindowProtocol compatibility."""
         self.curve_view.curve_data = value
         self.curve_view.points = value  # Keep in sync
@@ -683,18 +733,22 @@ class MockMainWindow:
 
     def can_undo(self) -> bool:
         """Check if undo is available."""
-        return self.history_index >= 0
+        return self.history_index is not None and self.history_index >= 0
 
     def can_redo(self) -> bool:
         """Check if redo is available."""
-        return self.history_index < len(self.history) - 1
+        return (
+            self.history_index is not None
+            and self.history is not None
+            and self.history_index < len(self.history) - 1
+        )
 
 
 class MockDataBuilder:
     """Builder for creating test data with various configurations."""
 
     def __init__(self) -> None:
-        self.points: list[Point4] = []
+        self.points: CurveDataList = []
         self.frame_start: int = 1
         self.frame_step: int = 1
 
@@ -721,7 +775,7 @@ class MockDataBuilder:
         self.frame_step = step
         return self
 
-    def build(self) -> list[Point4]:
+    def build(self) -> CurveDataList:
         """Build the final point list."""
         return self.points[:]
 
@@ -729,31 +783,31 @@ class MockDataBuilder:
 class BaseMockCurveView:
     """Basic mock for CurveView with minimal behavior."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         from unittest.mock import MagicMock
 
         # Use MagicMock for most functionality
         self._mock = MagicMock()
-        self.curve_data = kwargs.get("curve_data", [])
-        self.selected_points = kwargs.get("selected_points", set())
+        self.curve_data: CurveDataList = kwargs.get("curve_data", [])
+        self.selected_points: set[int] = kwargs.get("selected_points", set())
 
 
 class BaseMockMainWindow:
     """Basic mock for MainWindow with minimal behavior."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         from unittest.mock import MagicMock
 
         # Use MagicMock for most functionality
         self._mock = MagicMock()
-        self.curve_data = kwargs.get("curve_data", [])
-        self.selected_indices = kwargs.get("selected_indices", [])
+        self.curve_data: CurveDataList = kwargs.get("curve_data", [])
+        self.selected_indices: list[int] = kwargs.get("selected_indices", [])
 
 
 class ProtocolCompliantMockCurveView(MockCurveView):
     """Protocol-compliant mock CurveView for service testing."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # Additional protocol compliance if needed
 
@@ -761,7 +815,7 @@ class ProtocolCompliantMockCurveView(MockCurveView):
 class ProtocolCompliantMockMainWindow(MockMainWindow):
     """Protocol-compliant mock MainWindow for service testing."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # Additional protocol compliance if needed
 
@@ -769,7 +823,7 @@ class ProtocolCompliantMockMainWindow(MockMainWindow):
 class LazyUIMockMainWindow(MockMainWindow):
     """MainWindow mock with lazy UI component creation."""
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # UI components created on demand
         self._ui_created = False
@@ -797,7 +851,7 @@ class LazyUIMockMainWindow(MockMainWindow):
 # ==================== Factory Fixtures ====================
 
 
-def make_curve_point(frame: int = 1, x: float = 0.0, y: float = 0.0, point_type: str = "keyframe") -> CurvePoint:
+def make_curve_point(frame: int = 1, x: float = 0.0, y: float = 0.0, status: str = "keyframe") -> CurvePoint:
     """
     Factory for creating CurvePoint objects.
 
@@ -805,15 +859,27 @@ def make_curve_point(frame: int = 1, x: float = 0.0, y: float = 0.0, point_type:
         frame: Frame number
         x: X coordinate
         y: Y coordinate
-        point_type: Point type (keyframe/interpolated)
+        status: Point status (keyframe/interpolated/normal)
 
     Returns:
         CurvePoint instance
     """
-    return CurvePoint(frame=frame, x=x, y=y, point_type=point_type)
+    from core.models import PointStatus
+
+    # Convert string status to PointStatus enum
+    status_map = {
+        "keyframe": PointStatus.KEYFRAME,
+        "interpolated": PointStatus.INTERPOLATED,
+        "normal": PointStatus.NORMAL,
+        "tracked": PointStatus.TRACKED,
+        "endframe": PointStatus.ENDFRAME,
+    }
+    point_status = status_map.get(status.lower(), PointStatus.NORMAL)
+
+    return CurvePoint(frame=frame, x=x, y=y, status=point_status)
 
 
-def make_curve_data(num_points: int = 10) -> list:
+def make_curve_data(num_points: int = 10) -> list[CurvePoint]:
     """
     Factory for creating test curve data.
 
@@ -901,7 +967,9 @@ class PerformanceTimer:
 # ==================== Assertion Helpers ====================
 
 
-def assert_behavior_changed(obj, attribute: str, operation: Callable, expected_before=None, expected_after=None):
+def assert_behavior_changed(
+    obj: object, attribute: str, operation: Callable[..., Any], expected_before: object = None, expected_after: object = None
+) -> None:
     """
     Assert that behavior changes after an operation.
 

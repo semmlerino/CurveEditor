@@ -47,8 +47,8 @@ class TestCtrlClickToggleSelection:
         curve_widget._update_screen_points_cache()
 
         # Get screen positions of first two points
-        screen_pos_0 = curve_widget._screen_points_cache.get(0)
-        screen_pos_1 = curve_widget._screen_points_cache.get(1)
+        screen_pos_0 = curve_widget.render_cache.screen_points_cache.get(0)
+        screen_pos_1 = curve_widget.render_cache.screen_points_cache.get(1)
 
         assert screen_pos_0 is not None, "Point 0 should have screen position"
         assert screen_pos_1 is not None, "Point 1 should have screen position"
@@ -79,8 +79,8 @@ class TestCtrlClickToggleSelection:
         curve_widget._update_screen_points_cache()
 
         # Get screen positions
-        screen_pos_0 = curve_widget._screen_points_cache.get(0)
-        screen_pos_1 = curve_widget._screen_points_cache.get(1)
+        screen_pos_0 = curve_widget.render_cache.screen_points_cache.get(0)
+        screen_pos_1 = curve_widget.render_cache.screen_points_cache.get(1)
 
         # Select both points
         QTest.mouseClick(
@@ -111,8 +111,8 @@ class TestCtrlClickToggleSelection:
         # Update screen points cache
         curve_widget._update_screen_points_cache()
 
-        screen_pos_0 = curve_widget._screen_points_cache.get(0)
-        screen_pos_1 = curve_widget._screen_points_cache.get(1)
+        screen_pos_0 = curve_widget.render_cache.screen_points_cache.get(0)
+        screen_pos_1 = curve_widget.render_cache.screen_points_cache.get(1)
 
         # Select first point
         QTest.mouseClick(

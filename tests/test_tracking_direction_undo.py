@@ -10,13 +10,17 @@ Tests verify that:
 5. Colors update immediately after status changes
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 from unittest.mock import patch
 
 import pytest
 
 from core.models import TrackingDirection
 from services import get_interaction_service
-from ui.controllers.multi_point_tracking_controller import SelectionContext
+from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController, SelectionContext
 from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
 
@@ -49,18 +53,27 @@ class TestTrackingDirectionUndo:
 
         app_state = get_application_state()
         app_state.set_curve_data("Point1", tracking_data["Point1"])
-        main_window.tracking_controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
+
+        # Ensure tracking_controller exists before accessing (cast to concrete type for implementation details)
+        if main_window.tracking_controller is not None:
+            # Cast through object to avoid protocol overlap check
+            controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
+            controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
         main_window.active_timeline_point = "Point1"
 
         # Set curve data to match
-        main_window.curve_widget.set_curve_data(tracking_data["Point1"])
+        if main_window.curve_widget is not None:
+            main_window.curve_widget.set_curve_data(tracking_data["Point1"])
 
         # CRITICAL: Set active curve to Point1 (not __default__) for command execution
         app_state.set_active_curve("Point1")
 
         # Update UI to reflect data
-        main_window.tracking_controller.update_tracking_panel()
-        main_window.tracking_controller.update_curve_display(SelectionContext.DATA_LOADING)
+        if main_window.tracking_controller is not None:
+            main_window.tracking_controller.update_tracking_panel()
+            # Cast through object to avoid protocol overlap check
+            controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
+            controller.update_curve_display(SelectionContext.DATA_LOADING)
 
         yield main_window
 
@@ -87,7 +100,7 @@ class TestTrackingDirectionUndo:
 
         # Verify command description
         command_desc = command_manager.get_undo_description()
-        assert "backward" in command_desc.lower(), f"Command description should mention direction: {command_desc}"
+        assert command_desc is not None and "backward" in command_desc.lower(), f"Command description should mention direction: {command_desc}"
 
     def test_tracking_direction_undo_reverses_status_changes(self, main_window_with_tracking_data):
         """Test that undo reverses the status changes from direction change."""
@@ -286,7 +299,8 @@ class TestStatusColorUpdates:
             (3, 120.0, 220.0, "endframe"),
         ]
 
-        main_window.curve_widget.set_curve_data(test_data)
+        if main_window.curve_widget is not None:
+            main_window.curve_widget.set_curve_data(test_data)
 
         yield main_window
 

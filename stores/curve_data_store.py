@@ -1,9 +1,23 @@
-"""
-Reactive data store for curve data.
+from __future__ import annotations
 
-This store is the single source of truth for all curve data in the application.
-All UI components subscribe to its signals for automatic updates.
 """
+COMPATIBILITY LAYER - Gradual Migration Support
+
+This store provides backward compatibility during ApplicationState migration.
+New code should use ApplicationState directly via get_application_state().
+
+DEPRECATED: This module will be removed in a future major version (v2.0).
+
+For new code, use:
+    from stores.application_state import get_application_state
+    state = get_application_state()
+    state.set_curve_data("curve_name", data)
+
+See: ApplicationState (stores/application_state.py) for the modern API with
+native multi-curve support, batch operations, and better type safety.
+"""
+
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Signal
 
@@ -11,15 +25,29 @@ from core.logger_utils import get_logger
 from core.models import PointStatus
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
+if TYPE_CHECKING:
+    from core.curve_data import CurveDataWithMetadata
+
 logger = get_logger("curve_data_store")
 
 
 class CurveDataStore(QObject):
     """
-    Centralized store for curve data with reactive signals.
+    DEPRECATED: Legacy single-curve data store (compatibility layer).
 
-    This solves the "orphaned UI component" problem by ensuring all
-    components automatically update when data changes.
+    This class is maintained for backward compatibility during the ApplicationState
+    migration. It provides reactive signal-based updates for single-curve editing.
+
+    LIMITATIONS:
+    - Single-curve only (not designed for multi-curve workflows)
+    - No batch operations (can cause signal storms)
+    - Limited type safety compared to ApplicationState
+
+    For new code, use ApplicationState instead:
+        from stores.application_state import get_application_state
+        state = get_application_state()
+
+    This class will be removed in v2.0.
     """
 
     # Comprehensive signals for all data changes
@@ -79,7 +107,7 @@ class CurveDataStore(QObject):
 
     # ==================== Data Modification ====================
 
-    def set_data(self, data: CurveDataInput, preserve_selection_on_sync: bool = False) -> None:
+    def set_data(self, data: CurveDataInput | "CurveDataWithMetadata", preserve_selection_on_sync: bool = False) -> None:
         """
         Replace all curve data.
 

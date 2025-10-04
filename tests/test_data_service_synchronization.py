@@ -131,6 +131,7 @@ class TestDataServiceSynchronization:
         assert data_service._current_curve_data is not None
 
         # Test status change operation - this should NOT fail anymore
+        error_msg = ""
         try:
             data_service.handle_point_status_change(0, PointStatus.ENDFRAME.value)
             success = True

@@ -12,6 +12,10 @@ Performance targets:
 - Memory usage: < 100MB growth for typical operations
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 import gc
 import json
 import os

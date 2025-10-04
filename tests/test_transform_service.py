@@ -53,8 +53,11 @@ class TestViewState:
         # Apply defaults and overrides
         config = {**defaults, **overrides}
 
-        # Set widget size
-        curve_view.resize(config["width"], config["height"])
+        # Set widget size - ensure values are not None
+        width = config["width"]
+        height = config["height"]
+        if width is not None and height is not None:
+            curve_view.resize(int(width), int(height))
 
         # Set properties
         for key, value in config.items():
@@ -184,7 +187,7 @@ class TestViewState:
             background_image=None,
         )
 
-        view_state = ViewState.from_curve_view(curve_view)
+        view_state = ViewState.from_curve_view(curve_view)  # pyright: ignore[reportArgumentType]
 
         assert view_state.widget_width == 800
         assert view_state.widget_height == 600
@@ -212,7 +215,7 @@ class TestViewState:
             qtbot, width=800, height=600, image_width=1920, image_height=1080, background_image=background_image
         )
 
-        view_state = ViewState.from_curve_view(curve_view)
+        view_state = ViewState.from_curve_view(curve_view)  # pyright: ignore[reportArgumentType]
 
         # Display dimensions should match background image
         assert view_state.display_width == 2560
@@ -519,7 +522,7 @@ class TestTransform:
         data_point = QPointF(100.0, 200.0)
 
         # Transform to screen coordinates
-        screen_point = basic_transform.data_to_screen_qpoint(data_point)
+        screen_point = basic_transform.data_to_screen_qpoint(data_point)  # pyright: ignore[reportArgumentType]
         assert isinstance(screen_point, QPointF)
         assert screen_point.x() == 100.0
         assert screen_point.y() == 200.0
@@ -609,7 +612,7 @@ class TestTransformService:
         return service
 
     @pytest.fixture
-    def real_curve_view(self, qtbot: QtBot) -> None:
+    def real_curve_view(self, qtbot: QtBot):
         """Create a real CurveViewWidget for testing transformations."""
         return self._create_curve_view(qtbot)
 
@@ -639,8 +642,11 @@ class TestTransformService:
         # Apply defaults and overrides
         config = {**defaults, **overrides}
 
-        # Set widget size
-        curve_view.resize(config["width"], config["height"])
+        # Set widget size - ensure values are not None
+        width = config["width"]
+        height = config["height"]
+        if width is not None and height is not None:
+            curve_view.resize(int(width), int(height))
 
         # Set properties
         for key, value in config.items():
@@ -749,8 +755,11 @@ class TestTransformServiceIntegration:
         # Apply defaults and overrides
         config = {**defaults, **overrides}
 
-        # Set widget size
-        curve_view.resize(config["width"], config["height"])
+        # Set widget size - ensure values are not None
+        width = config["width"]
+        height = config["height"]
+        if width is not None and height is not None:
+            curve_view.resize(int(width), int(height))
 
         # Set properties
         for key, value in config.items():
@@ -785,7 +794,7 @@ class TestTransformServiceIntegration:
         )
 
         # Create ViewState from real CurveView
-        view_state = service.create_view_state(curve_view)
+        view_state = service.create_view_state(curve_view)  # pyright: ignore[reportArgumentType]
         assert view_state.widget_width == 1200
         assert view_state.zoom_factor == 1.5
 
@@ -828,7 +837,7 @@ class TestTransformServiceIntegration:
         )
 
         # Create transform and test with real components
-        view_state = service.create_view_state(curve_view)
+        view_state = service.create_view_state(curve_view)  # pyright: ignore[reportArgumentType]
         transform = service.create_transform_from_view_state(view_state)
 
         # Display dimensions should match background image

@@ -34,7 +34,7 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from typing import TypeGuard, overload
 
@@ -118,6 +118,111 @@ class PointStatus(Enum):
     def to_legacy_bool(self) -> bool:
         """Convert to legacy boolean format."""
         return self == PointStatus.INTERPOLATED
+
+
+@dataclass(frozen=True)
+class PointSearchResult:
+    """
+    Result of searching for a point in curve view.
+
+    Replaces bare int return type with structured result that includes
+    curve context for multi-curve operations.
+
+    Attributes:
+        index: Point index in curve, -1 if not found
+        curve_name: Curve containing point, None if not found
+        distance: Distance to point (for debugging/logging)
+
+    Examples:
+        >>> result = service.find_point_at(view, 100, 200)
+        >>> if result.found:
+        ...     print(f"Point {result.index} in {result.curve_name}")
+    """
+
+    index: int
+    curve_name: str | None
+    distance: float = 0.0
+
+    @property
+    def found(self) -> bool:
+        """True if point was found."""
+        return self.index >= 0
+
+    # Comparison operators for backward compatibility with int comparisons
+    def __eq__(self, other: object) -> bool:
+        """Allow comparison with int (compares index)."""
+        if isinstance(other, int):
+            return self.index == other
+        if isinstance(other, PointSearchResult):
+            return self.index == other.index and self.curve_name == other.curve_name
+        return False
+
+    def __lt__(self, other: int) -> bool:
+        """Allow comparison with int (compares index)."""
+        return self.index < other
+
+    def __le__(self, other: int) -> bool:
+        """Allow comparison with int (compares index)."""
+        return self.index <= other
+
+    def __gt__(self, other: int) -> bool:
+        """Allow comparison with int (compares index)."""
+        return self.index > other
+
+    def __ge__(self, other: int) -> bool:
+        """Allow comparison with int (compares index)."""
+        return self.index >= other
+
+    def __bool__(self) -> bool:
+        """Allow truthiness check (True if found)."""
+        return self.found
+
+
+@dataclass(frozen=True)
+class CurveSelection:
+    """
+    Multi-curve selection state.
+
+    Mirrors ApplicationState's _selection structure for type-safe access.
+    Immutable for safety - create new instance to modify.
+
+    Attributes:
+        selections: Dict mapping curve_name -> selected indices
+        active_curve: Currently active curve name
+
+    Examples:
+        >>> selection = CurveSelection({"curve1": {0, 1, 2}}, "curve1")
+        >>> selection.total_selected
+        3
+        >>> selection.active_selection
+        {0, 1, 2}
+    """
+
+    selections: dict[str, set[int]] = field(default_factory=dict)
+    active_curve: str | None = None
+
+    @property
+    def total_selected(self) -> int:
+        """Total number of selected points across all curves."""
+        return sum(len(s) for s in self.selections.values())
+
+    @property
+    def active_selection(self) -> set[int]:
+        """Get selection for active curve only (backward compat)."""
+        if self.active_curve is None:
+            return set()
+        return self.selections.get(self.active_curve, set()).copy()
+
+    def get_selected_curves(self) -> list[str]:
+        """Get list of curves that have selections."""
+        return [name for name, sel in self.selections.items() if sel]
+
+    def with_curve_selection(self, curve_name: str, indices: set[int]) -> CurveSelection:
+        """Create new selection with updated curve (deep copy for safety)."""
+        # Deep copy all sets to prevent aliasing (frozen=True only prevents field reassignment)
+        new_selections = {k: v.copy() for k, v in self.selections.items()}
+        new_selections[curve_name] = indices.copy()
+        return CurveSelection(new_selections, self.active_curve)
 
 
 class TrackingDirection(Enum):

@@ -356,7 +356,7 @@ class TestQPointFIntegration:
         data_point = QPointF(100.5, 200.5)
 
         # Transform to screen
-        screen_point = transform.data_to_screen_qpoint(data_point)
+        screen_point = transform.data_to_screen_qpoint(data_point)  # pyright: ignore[reportArgumentType]
 
         assert isinstance(screen_point, QPointF)
         assert screen_point.x() == 251.0  # (100.5 * 2) + 50

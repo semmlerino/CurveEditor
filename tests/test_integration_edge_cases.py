@@ -11,6 +11,7 @@ Tests critical scenarios:
 6. Workflow: convert→nudge→undo
 """
 
+from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -24,6 +25,7 @@ from core.commands.curve_commands import (
 from core.commands.shortcut_command import ShortcutContext
 from core.commands.shortcut_commands import DeleteCurrentFrameKeyframeCommand
 from core.models import PointStatus
+from core.type_aliases import PointTuple4Str
 from services import get_interaction_service
 from stores.application_state import get_application_state
 
@@ -151,7 +153,7 @@ class TestCompositeCommandUndo:
         after_nudge = list(app_state.get_curve_data("test_curve"))
         assert after_nudge[1][1] == 115.0, "X should be moved"
         assert after_nudge[1][2] == 115.0, "Y should be moved"
-        assert after_nudge[1][3] == PointStatus.KEYFRAME.value, "Status should be keyframe"
+        assert cast(PointTuple4Str, after_nudge[1])[3] == PointStatus.KEYFRAME.value, "Status should be keyframe"
 
         # Undo
         undo_success = interaction_service.command_manager.undo(main_window)
@@ -161,7 +163,7 @@ class TestCompositeCommandUndo:
         after_undo = list(app_state.get_curve_data("test_curve"))
         assert after_undo[1][1] == 110.0, "X should be restored"
         assert after_undo[1][2] == 110.0, "Y should be restored"
-        assert after_undo[1][3] == "interpolated", "Status should be restored to interpolated"
+        assert cast(PointTuple4Str, after_undo[1])[3] == "interpolated", "Status should be restored to interpolated"
 
     def test_redo_after_undo(self, main_window_with_data, qtbot):
         """Redo after undo should restore both move and status change."""

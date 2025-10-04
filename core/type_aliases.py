@@ -96,3 +96,14 @@ HistoryState = dict[str, CurveDataList | str | int | float | bool]  # State snap
 # Multi-point tracking types
 TrackingPointData = dict[str, CurveDataList | str | bool]  # Single tracking point with metadata
 TrackedData = dict[str, TrackingPointData]  # All tracking points keyed by name
+
+# Search mode for multi-curve operations (Phase 8)
+from typing import Literal
+
+SearchMode: TypeAlias = Literal["active", "all_visible"]
+"""
+Search mode for point finding operations.
+
+- "active": Search active curve only (default, backward compatible)
+- "all_visible": Search all visible curves (multi-curve mode)
+"""

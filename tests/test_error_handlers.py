@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
+# pyright: reportAttributeAccessIssue=false, reportUnsafeMultipleInheritance=false
 """
 Test suite for error handling strategies.
 
 Tests the different error handlers and recovery strategies.
+This file uses test-only monkey-patching which is safe but triggers type errors.
 """
 
 import logging

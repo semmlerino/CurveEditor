@@ -112,3 +112,61 @@ def memory_monitor():
 
     # Force cleanup after test
     gc.collect()
+
+
+@pytest.fixture
+def app_state():
+    """Provide clean ApplicationState for each test.
+
+    This fixture ensures ApplicationState is reset between tests to prevent
+    state leakage. It's the recommended way to access ApplicationState in tests.
+
+    Yields:
+        ApplicationState: Fresh application state instance
+
+    Example:
+        def test_curve_data(app_state):
+            app_state.set_curve_data("test", test_data)
+            assert app_state.get_curve_data("test") == test_data
+    """
+    from stores.application_state import get_application_state, reset_application_state
+
+    # Reset to ensure clean state
+    reset_application_state()
+    state = get_application_state()
+
+    yield state
+
+    # Cleanup after test
+    reset_application_state()
+
+
+@pytest.fixture
+def curve_with_data(app_state):
+    """Provide ApplicationState with test curve data pre-loaded.
+
+    Convenience fixture that sets up a test curve with sample data and
+    sets it as the active curve. Useful for tests that need data to work with.
+
+    Args:
+        app_state: ApplicationState fixture (automatically injected)
+
+    Yields:
+        ApplicationState: State with "test_curve" loaded and active
+
+    Example:
+        def test_point_manipulation(curve_with_data):
+            # Test curve already loaded with 10 points
+            data = curve_with_data.get_curve_data()
+            assert len(data) == 10
+    """
+    # Create test data: 10 points with frame, x, y, status
+    test_data = [(i, float(i), float(i * 2), "normal") for i in range(10)]
+
+    # Load into ApplicationState
+    app_state.set_curve_data("test_curve", test_data)
+    app_state.set_active_curve("test_curve")
+
+    yield app_state
+
+    # Cleanup happens in app_state fixture

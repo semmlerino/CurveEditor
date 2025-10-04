@@ -220,12 +220,13 @@ class TestCachePerformance:
         widget._update_screen_points_cache()
 
         # Cache should contain screen positions for all points
-        assert len(widget._screen_points_cache) == len(
+        cache_items = widget.render_cache.get_screen_points_items()
+        assert len(cache_items) == len(
             test_data
-        ), f"Screen cache has {len(widget._screen_points_cache)} points, expected {len(test_data)}"
+        ), f"Screen cache has {len(cache_items)} points, expected {len(test_data)}"
 
         # Check that cached positions are valid QPointF objects
-        for idx, pos in widget._screen_points_cache.items():
+        for idx, pos in cache_items:
             assert pos.x is not None and pos.y is not None, f"Cached position for index {idx} is not a valid point"
 
     def test_performance_during_large_dataset(self, qtbot):
@@ -265,8 +266,8 @@ class TestTransformServiceCache:
 
         # Create distinct view states
         view_state1 = ViewState(
-            display_width=100.0,
-            display_height=100.0,
+            display_width=100,
+            display_height=100,
             widget_width=800,
             widget_height=600,
             zoom_factor=1.0,
@@ -275,8 +276,8 @@ class TestTransformServiceCache:
         )
 
         view_state2 = ViewState(
-            display_width=100.0,
-            display_height=100.0,
+            display_width=100,
+            display_height=100,
             widget_width=800,
             widget_height=600,
             zoom_factor=2.0,
@@ -359,9 +360,9 @@ class TestSmartCacheInvalidation:
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
 
-        # Enable monitoring
-        widget._enable_monitoring = True
-        widget._cache_monitor = CacheMonitor()
+        # Enable monitoring (test-only monkey-patching)
+        setattr(widget, '_enable_monitoring', True)  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, '_cache_monitor', CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)
@@ -395,8 +396,9 @@ class TestSmartCacheInvalidation:
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
 
-        widget._enable_monitoring = True
-        widget._cache_monitor = CacheMonitor()
+        # Test-only monkey-patching
+        setattr(widget, '_enable_monitoring', True)  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, '_cache_monitor', CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)
@@ -416,7 +418,8 @@ class TestSmartCacheInvalidation:
             widget.get_transform()
 
         # Check that we got some cache hits (not 0%)
-        hit_rate = widget._cache_monitor.hit_rate
+        cache_monitor = getattr(widget, '_cache_monitor', None)  # pyright: ignore[reportAttributeAccessIssue]
+        hit_rate = cache_monitor.hit_rate if cache_monitor else 0.0
         # More lenient assertion since cache behavior depends on implementation details
         assert hit_rate >= 0.0, f"Hit rate {hit_rate:.1f}% is negative"
 

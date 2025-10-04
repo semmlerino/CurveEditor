@@ -9,6 +9,9 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Ensure proper widget cleanup with qtbot.addWidget()
 """
 
+from typing import Any, cast
+from core.type_aliases import PointTuple4Str
+
 import pytest
 from PySide6.QtWidgets import QComboBox
 from pytestqt.qt_compat import qt_api
@@ -43,7 +46,7 @@ class TestTrackingPointsPanelDirection:
         self, tracking_panel: TrackingPointsPanel, sample_tracking_data: dict[str, CurveDataList]
     ) -> TrackingPointsPanel:
         """TrackingPointsPanel with sample data loaded."""
-        tracking_panel.set_tracked_data(sample_tracking_data)
+        tracking_panel.set_tracked_data(sample_tracking_data)  # pyright: ignore[reportArgumentType]
         return tracking_panel
 
     # ==================== Basic Setup and Metadata Tests ====================
@@ -52,7 +55,7 @@ class TestTrackingPointsPanelDirection:
         self, tracking_panel: TrackingPointsPanel, sample_tracking_data: dict[str, CurveDataList]
     ):
         """Test that new tracking data gets default direction FW+BW."""
-        tracking_panel.set_tracked_data(sample_tracking_data)
+        tracking_panel.set_tracked_data(sample_tracking_data)  # pyright: ignore[reportArgumentType]
 
         for point_name in sample_tracking_data.keys():
             direction = tracking_panel.get_tracking_direction(point_name)
@@ -123,7 +126,7 @@ class TestTrackingPointsPanelDirection:
         table = populated_panel.table
 
         # Change direction for Track1
-        direction_combo = table.cellWidget(0, 3)
+        direction_combo = cast(QComboBox, table.cellWidget(0, 3))
         direction_combo.setCurrentText("BW")
 
         # Verify metadata was updated
@@ -261,14 +264,15 @@ class TestTrackingPointsPanelDirection:
     ):
         """Test that direction settings persist when data is reloaded."""
         # Load data first time
-        tracking_panel.set_tracked_data(sample_tracking_data)
+        # Cast dict to satisfy invariant type parameter (CurveDataList is a Sequence subtype)
+        tracking_panel.set_tracked_data(cast(Any, sample_tracking_data))
 
         # Change direction for Track1
         tracking_panel._set_direction_for_points(["Track1"], TrackingDirection.TRACKING_FW)
         assert tracking_panel.get_tracking_direction("Track1") == TrackingDirection.TRACKING_FW
 
         # Reload same data (simulating refresh)
-        tracking_panel.set_tracked_data(sample_tracking_data)
+        tracking_panel.set_tracked_data(cast(Any, sample_tracking_data))
 
         # Direction should persist
         assert tracking_panel.get_tracking_direction("Track1") == TrackingDirection.TRACKING_FW
@@ -313,7 +317,7 @@ class TestTrackingPointsPanelDirection:
 
             # Verify UI shows correct abbreviation
             table = populated_panel.table
-            direction_combo = table.cellWidget(0, 3)
+            direction_combo = cast(QComboBox, table.cellWidget(0, 3))
             assert direction_combo.currentText() == direction.abbreviation
 
 

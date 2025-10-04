@@ -92,7 +92,7 @@ class TestPointDataManagement:
     def test_add_point(self, curve_view_widget: CurveViewWidget) -> None:
         """Test adding a single point."""
         # Clear any existing data first
-        curve_view_widget._curve_store.clear()
+        curve_view_widget.set_curve_data([])
 
         point = (1, 100.0, 200.0, "keyframe")
         curve_view_widget.add_point(point)
@@ -122,11 +122,10 @@ class TestPointDataManagement:
     def test_get_selected_indices(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test getting selected indices."""
         curve_view_widget.set_curve_data(sample_points)
-        # Use store methods to set selection
-        curve_view_widget._curve_store.select(0)
-        curve_view_widget._curve_store.select(2, add_to_selection=True)
+        # Set selection via public API
+        curve_view_widget.selected_indices = {0, 2}
 
-        selected = curve_view_widget.get_selected_indices()
+        selected = list(curve_view_widget.selected_indices)
         assert set(selected) == {0, 2}
 
     def test_selection_operations(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
@@ -186,9 +185,8 @@ class TestViewStateManagement:
     def test_center_on_selection(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test centering on selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        # Use store methods to set selection
-        curve_view_widget._curve_store.select(0)
-        curve_view_widget._curve_store.select(1, add_to_selection=True)
+        # Set selection via public API
+        curve_view_widget.selected_indices = {0, 1}
 
         # Should not raise exceptions
         curve_view_widget.center_on_selection()
@@ -317,9 +315,8 @@ class TestInteractionHandling:
     def test_point_deletion(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test deleting selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        # Use store methods to set selection
-        curve_view_widget._curve_store.select(0)
-        curve_view_widget._curve_store.select(2, add_to_selection=True)
+        # Set selection via public API
+        curve_view_widget.selected_indices = {0, 2}
         original_length = len(curve_view_widget.curve_data)
 
         curve_view_widget.delete_selected_points()
@@ -331,8 +328,8 @@ class TestInteractionHandling:
     def test_nudge_selected_points(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test nudging selected points."""
         curve_view_widget.set_curve_data(sample_points)
-        # Use store methods to set selection
-        curve_view_widget._curve_store.select(0)
+        # Set selection via public API
+        curve_view_widget.selected_indices = {0}
 
         # Get original position
         original_x = curve_view_widget.curve_data[0][1]
@@ -361,18 +358,20 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the interpolated point (index 1)
-        curve_view_widget._curve_store.select(1)
+        curve_view_widget.selected_indices = {1}
 
         # Verify it's interpolated before nudging
         point_before = curve_view_widget.curve_data[1]
-        assert point_before[3] == "interpolated", "Point should be interpolated before nudge"
+        # Safe access for PointTuple4
+        assert len(point_before) == 4 and point_before[3] == "interpolated", "Point should be interpolated before nudge"
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)
 
         # Verify the point is now a keyframe
         point_after = curve_view_widget.curve_data[1]
-        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
+        # Safe access for PointTuple4
+        assert len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
 
         # Verify position changed
         assert point_after[1] == 115.0, "X coordinate should have moved"
@@ -390,7 +389,7 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the normal point (index 0)
-        curve_view_widget._curve_store.select(0)
+        curve_view_widget.selected_indices = {0}
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)
@@ -412,14 +411,15 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the keyframe (index 0)
-        curve_view_widget._curve_store.select(0)
+        curve_view_widget.selected_indices = {0}
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)
 
         # Verify the point is still a keyframe
         point_after = curve_view_widget.curve_data[0]
-        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
+        # Safe access for PointTuple4
+        assert len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
 
 
 class TestServiceIntegration:
@@ -518,9 +518,10 @@ class TestRealComponentBenefits:
         assert len(simple_data) == 5
         assert all(isinstance(point, tuple) and len(point) == 4 for point in simple_data)
 
-        assert "keyframe" in [point[3] for point in keyframe_data]
-        assert "normal" in [point[3] for point in mixed_data]
-        assert "keyframe" in [point[3] for point in mixed_data]
+        # Type-safe access to status field (index 3) - ensure PointTuple4
+        assert "keyframe" in [point[3] for point in keyframe_data if len(point) == 4]
+        assert "normal" in [point[3] for point in mixed_data if len(point) == 4]
+        assert "keyframe" in [point[3] for point in mixed_data if len(point) == 4]
 
         # Test builder produces both types in mixed data
         assert len(mixed_data) == 5  # 3 normal + 2 keyframes

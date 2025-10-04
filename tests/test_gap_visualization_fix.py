@@ -7,12 +7,14 @@ show gaps correctly when points have endframe status, fixing the issue where
 manual selection would break gap visualization.
 """
 
+from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtWidgets import QApplication
 
 # CurveEditor specific imports
+from core.type_aliases import PointTuple4Str
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -354,8 +356,8 @@ class TestEdgeCasesAndRobustness:
         # ApplicationState should be unchanged
         app_state = get_application_state()
         stored_data = app_state.get_curve_data("Track1")
-        assert stored_data[0][3] == "keyframe"  # ApplicationState data preserved
-        assert result["Track1"][0][3] == "endframe"  # Result has live data
+        assert cast(PointTuple4Str, stored_data[0])[3] == "keyframe"  # ApplicationState data preserved
+        assert cast(PointTuple4Str, result["Track1"][0])[3] == "endframe"  # Result has live data
         assert result is not original_data  # Different objects
 
 
@@ -391,7 +393,7 @@ def test_gap_visualization_tdd_style(qtbot):
     # Before fix: This would have failed - static data wouldn't have endframe
     # After fix: This passes - live data has endframe for gap visualization
     assert (
-        live_data["MainTrack"][1][3] == "endframe"
+        cast(PointTuple4Str, live_data["MainTrack"][1])[3] == "endframe"
     ), "Multi-curve rendering must use live data with status changes for gap visualization"
 
 

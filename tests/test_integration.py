@@ -464,7 +464,7 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
         assert self.curve_view.selected_point_idx >= -1
 
         # Normal operations should still work
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 0)
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 0)  # pyright: ignore[reportArgumentType]
         assert success
         assert 0 in self.curve_view.selected_points
 

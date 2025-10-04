@@ -18,13 +18,14 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any, Protocol
 
 from PySide6.QtCore import QPointF
-from PySide6.QtGui import QWheelEvent
+from PySide6.QtGui import QPixmap, QWheelEvent
 
 from core.logger_utils import get_logger
 from core.point_types import safe_extract_point
+from core.type_aliases import CurveDataList
 from services import get_data_service, get_transform_service
 from services.transform_service import Transform, ViewState
 from ui.ui_constants import (
@@ -33,10 +34,36 @@ from ui.ui_constants import (
     MIN_ZOOM_FACTOR,
 )
 
-if TYPE_CHECKING:
-    from ui.curve_view_widget import CurveViewWidget
-
 logger = get_logger("view_camera_controller")
+
+
+class CurveViewProtocol(Protocol):
+    """Protocol defining the interface needed by ViewCameraController.
+
+    This avoids importing CurveViewWidget and prevents import cycles.
+    """
+
+    # Properties
+    curve_data: CurveDataList
+    selected_indices: set[int]
+    background_image: QPixmap | None
+    image_width: int
+    image_height: int
+    scale_to_image: bool
+    flip_y_axis: bool
+    manual_offset_x: float
+    manual_offset_y: float
+
+    # Signals (use Any because Qt Signals are descriptors that can't be properly typed in Protocols)
+    zoom_changed: Any  # Signal
+    view_changed: Any  # Signal
+
+    # Methods
+    def width(self) -> int: ...
+    def height(self) -> int: ...
+    def update(self) -> None: ...
+    def repaint(self) -> None: ...
+    def _get_display_dimensions(self) -> tuple[int, int]: ...
 
 
 class ViewCameraController:
@@ -55,14 +82,14 @@ class ViewCameraController:
     and modifies view state (zoom, pan) then triggers widget updates.
     """
 
-    def __init__(self, widget: CurveViewWidget):
+    def __init__(self, widget: CurveViewProtocol):
         """
         Initialize ViewCameraController.
 
         Args:
             widget: The CurveViewWidget this controller manages
         """
-        self.widget = widget
+        self.widget: CurveViewProtocol = widget
 
         # View transformation state
         self.zoom_factor: float = DEFAULT_ZOOM_FACTOR
@@ -219,7 +246,7 @@ class ViewCameraController:
             self.pan_offset_x += offset.x()
 
             # Apply Y pan offset adjustment for zoom centering
-            self.widget._apply_pan_offset_y(offset.y())
+            self.apply_pan_offset_y(offset.y())
 
             # Invalidate caches again after pan adjustment
             self.invalidate_caches()
@@ -245,7 +272,7 @@ class ViewCameraController:
         # Calculate and apply pan offset
         offset = widget_center - screen_pos
         self.pan_offset_x += offset.x()
-        self.widget._apply_pan_offset_y(offset.y())  # Y-flip aware
+        self.apply_pan_offset_y(offset.y())  # Y-flip aware
 
         # Trigger view updates
         self.invalidate_caches()
@@ -376,7 +403,7 @@ class ViewCameraController:
         logger.info(f"[FIT_BG] Final pan offsets: ({params['pan_offset_x']}, {params['pan_offset_y']})")
 
         # Test image positioning using helper method
-        top_left_x, top_left_y = self.widget._get_image_top_coordinates(img_height, transform)
+        top_left_x, top_left_y = self._get_image_top_coordinates(img_height, transform)
         logger.info(f"[FIT_BG] Image top-left will be at: ({top_left_x}, {top_left_y})")
 
         self.widget.update()
@@ -452,3 +479,67 @@ class ViewCameraController:
         self.widget.update()
         self.widget.view_changed.emit()
         self.widget.zoom_changed.emit(self.zoom_factor)
+
+    # View State
+
+    def get_view_state(self) -> ViewState:
+        """
+        Get current view state.
+
+        Returns:
+            ViewState object with current parameters
+        """
+        # Calculate display dimensions using widget helper method
+        display_width, display_height = self.widget._get_display_dimensions()
+
+        return ViewState(
+            display_width=display_width,
+            display_height=display_height,
+            widget_width=self.widget.width(),
+            widget_height=self.widget.height(),
+            zoom_factor=self.zoom_factor,
+            offset_x=self.pan_offset_x,
+            offset_y=self.pan_offset_y,
+            scale_to_image=self.widget.scale_to_image,
+            flip_y_axis=self.widget.flip_y_axis,
+            manual_x_offset=self.widget.manual_offset_x,
+            manual_y_offset=self.widget.manual_offset_y,
+            background_image=self.widget.background_image,
+            image_width=self.widget.image_width,
+            image_height=self.widget.image_height,
+        )
+
+    # Helper Methods
+
+    def apply_pan_offset_y(self, delta_y: float) -> None:
+        """
+        Apply Y pan offset with conditional inversion for Y-axis flip mode.
+
+        When Y-axis is flipped, invert the pan direction for Y to ensure
+        the curve follows the expected mouse drag direction.
+
+        Args:
+            delta_y: The Y offset to apply
+        """
+        if self.widget.flip_y_axis:
+            self.pan_offset_y -= delta_y
+        else:
+            self.pan_offset_y += delta_y
+
+    def _get_image_top_coordinates(self, img_height: float, transform: Transform) -> tuple[float, float]:
+        """
+        Get image top-left coordinates accounting for Y-axis flip mode.
+
+        Args:
+            img_height: Height of the image
+            transform: Transform object for coordinate conversion
+
+        Returns:
+            Tuple of (x, y) screen coordinates for image top-left
+        """
+        if self.widget.flip_y_axis:
+            # With Y-flip, image top is at Y=image_height in data space
+            return transform.data_to_screen(0, img_height)
+        else:
+            # Without Y-flip, image top is at Y=0 in data space
+            return transform.data_to_screen(0, 0)

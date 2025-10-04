@@ -4,6 +4,10 @@ Real integration tests for the complete CurveEditor system.
 Tests actual component interactions without mocking.
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 import pytest
 from PySide6.QtCore import QPoint, QPointF, Qt
 from PySide6.QtGui import QImage, QMouseEvent, QWheelEvent
@@ -52,7 +56,7 @@ class TestServiceIntegration:
         ]
 
         # Test point operations
-        result = data_service.analyze_points(points)
+        result = data_service.analyze_points([p.to_tuple4() for p in points])
 
         assert result["count"] == 3
         assert result["min_frame"] == 1
@@ -106,14 +110,14 @@ class TestServiceIntegration:
         app_state.set_active_curve("test_curve")
 
         # Create transform using the same method as the interaction service
-        view_state = transform_service.create_view_state(view)
+        view_state = transform_service.create_view_state(view)  # pyright: ignore[reportArgumentType]
         transform = transform_service.create_transform_from_view_state(view_state)
 
         # Test finding point at screen position
         screen_x, screen_y = transform.data_to_screen(100, 100)
 
         # Find point at this position
-        idx = interaction_service.find_point_at_position(view, screen_x, screen_y, tolerance=10)
+        idx = interaction_service.find_point_at_position(view, screen_x, screen_y, tolerance=10)  # pyright: ignore[reportArgumentType]
 
         # Should find the first point
         assert idx == 0
@@ -221,7 +225,7 @@ class TestRenderingPipeline:
         renderer = OptimizedCurveRenderer()
 
         # Create 1000 points (enough to test viewport culling without memory issues)
-        large_points = [(i, i * 10, i * 5) for i in range(1000)]
+        large_points = cast(CurveDataList, [(i, i * 10, i * 5) for i in range(1000)])
 
         # Create RenderState with large dataset
         from rendering.render_state import RenderState
@@ -257,7 +261,7 @@ class TestRenderingPipeline:
         # Should have culled most points (only visible ones rendered)
         # Renderer should complete quickly even with 1000 points
         stats = renderer.get_performance_stats()
-        assert stats["render_count"] > 0
+        assert int(stats["render_count"]) > 0  # Cast to int for comparison
 
         # Verify the large dataset was handled without crash
         assert len(large_points) == 1000

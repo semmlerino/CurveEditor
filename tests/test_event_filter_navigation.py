@@ -108,6 +108,7 @@ class TestEventFilterNavigation:
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
 
         # Send event through application
+        assert window.timeline_tabs is not None
         QApplication.sendEvent(window.timeline_tabs, key_event)
         qtbot.wait(10)
 

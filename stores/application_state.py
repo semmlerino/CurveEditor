@@ -615,8 +615,29 @@ def reset_application_state() -> None:
     Reset ApplicationState singleton (for testing).
 
     WARNING: Only call from tests! Resets all application state.
+
+    CRITICAL: Properly cleans up QObject to prevent resource exhaustion.
+    Without deleteLater() + processEvents(), QObjects accumulate in session-scope
+    QApplication causing segfaults after 850+ tests (see UNIFIED_TESTING_GUIDE).
     """
     global _app_state
     if _app_state is not None:
         logger.warning("ApplicationState reset (should only happen in tests)")
+
+        # CRITICAL: Properly clean up QObject to prevent accumulation
+        try:
+            # Remove parent if any (usually None, but safe to call)
+            _app_state.setParent(None)
+            # Schedule for deletion
+            _app_state.deleteLater()
+            # Process events to ensure deleteLater() is handled
+            from PySide6.QtWidgets import QApplication
+
+            app = QApplication.instance()
+            if app is not None:
+                app.processEvents()
+        except RuntimeError:
+            # QObject may already be deleted, that's okay
+            pass
+
     _app_state = None

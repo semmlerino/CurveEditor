@@ -35,6 +35,8 @@ from tests.fixtures.qt_fixtures import (
 )
 from tests.fixtures.service_fixtures import (
     all_services,
+    app_state,
+    curve_with_data,
     isolated_services,
     memory_monitor,
 )
@@ -63,6 +65,8 @@ __all__ = [
     "ui_file_load_worker",
     # Service fixtures
     "all_services",
+    "app_state",
+    "curve_with_data",
     "isolated_services",
     "memory_monitor",
 ]

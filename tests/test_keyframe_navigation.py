@@ -10,6 +10,10 @@ Following UNIFIED_TESTING_GUIDE best practices:
 - Clear test names describing behavior
 """
 
+from typing import cast
+from core.type_aliases import CurveDataList
+from core.type_aliases import PointTuple4Str
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent

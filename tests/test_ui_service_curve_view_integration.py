@@ -120,7 +120,7 @@ class TestPanOffsetOverflowPrevention:
                 curve_view_widget.zoom_factor = zoom_level
 
                 # Trigger zoom adjustment (this calls _clamp_pan_offsets internally)
-                curve_view_widget._update_transform()
+                curve_view_widget.view_camera._update_transform()
                 qapp.processEvents()
 
                 # Verify clamping occurred
@@ -147,7 +147,7 @@ class TestUIServiceErrorRecovery:
 
             # This should trigger error recovery which calls show_warning
             try:
-                curve_view_widget._update_transform()
+                curve_view_widget.view_camera._update_transform()
             except ValueError:
                 pass  # Expected during error recovery
 
@@ -223,7 +223,7 @@ class TestUIServiceErrorRecovery:
             with patch.object(ui_service, "show_warning"):
                 # This should trigger transform service failure and recovery
                 try:
-                    curve_view_widget._update_transform()
+                    curve_view_widget.view_camera._update_transform()
                     # Recovery should succeed, so we get a valid transform or None
                     # (None is okay since _update_transform doesn't return the transform)
                 except RuntimeError:

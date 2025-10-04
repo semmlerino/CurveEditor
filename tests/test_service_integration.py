@@ -133,7 +133,7 @@ class TestCrossServiceCommunication:
 
         # Verify transform parameters match view state
         params = transform.get_parameters()
-        assert params["scale"] == 1.5
+        assert float(params["scale"]) == 1.5  # pyright: ignore[reportArgumentType]
 
         # Test coordinate transformations for interactions
         screen_point = QPointF(300.0, 400.0)
@@ -307,7 +307,7 @@ class TestCompleteWorkflows:
                 image_path = os.path.join(temp_dir, f"frame{i:03d}.jpg")
                 # Create a minimal image file (1x1 pixel)
                 image = QImage(1, 1, QImage.Format.Format_RGB32)
-                image.save(image_path, "JPEG")
+                image.save(image_path)  # Format inferred from extension
 
             # 2. Load image sequence
             image_files = data_service.load_image_sequence(temp_dir)

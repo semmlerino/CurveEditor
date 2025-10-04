@@ -279,8 +279,7 @@ class TestFramePointHighlighting:
         curve_widget.invalidate_caches()
 
         # Caches should be cleared
-        assert len(curve_widget._visible_indices_cache) == 0
-        assert len(curve_widget._screen_points_cache) == 0
+        assert len(curve_widget.render_cache.screen_points_cache) == 0
 
         # After update, caches should be rebuilt with new highlighting
         curve_widget.update()

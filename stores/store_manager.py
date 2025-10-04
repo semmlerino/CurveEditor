@@ -88,10 +88,24 @@ class StoreManager(QObject):
             logger.warning("StoreManager reset - all data cleared")
 
             # CRITICAL: Properly delete QObjects to prevent accumulation
+            # Following pattern from UNIFIED_TESTING_GUIDE for QObject cleanup
             try:
+                # Remove parents and schedule for deletion
+                cls._instance.curve_store.setParent(None)
                 cls._instance.curve_store.deleteLater()
+
+                cls._instance.frame_store.setParent(None)
                 cls._instance.frame_store.deleteLater()
+
+                cls._instance.setParent(None)
                 cls._instance.deleteLater()
+
+                # Process events to ensure deleteLater() is handled
+                from PySide6.QtWidgets import QApplication
+
+                app = QApplication.instance()
+                if app is not None:
+                    app.processEvents()
             except RuntimeError:
                 pass  # QObjects may already be deleted
 

@@ -5,6 +5,9 @@ This module tests the ability to select and display multiple tracking points
 simultaneously, with proper view centering and rendering behavior.
 """
 
+from typing import cast
+from core.type_aliases import PointTuple4Str
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -515,7 +518,7 @@ class TestCurveModificationPreservation:
 
         # Verify that Track1's modifications were saved back to tracked_data
         assert controller.tracked_data["Track1"] == modified_data
-        assert controller.tracked_data["Track1"][0][3] == "ENDFRAME"
+        assert cast(PointTuple4Str, controller.tracked_data["Track1"][0])[3] == "ENDFRAME"
 
     def test_modifications_preserved_with_nudge(self, mock_main_window):
         """Test that coordinate changes (nudges) are preserved when switching curves."""

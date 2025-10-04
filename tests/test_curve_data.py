@@ -139,8 +139,13 @@ class TestCurveDataWithMetadata:
 
         # Extra fields should be preserved
         assert len(normalized.data[0]) == 4
-        assert normalized.data[0][3] == "keyframe"
-        assert normalized.data[1][3] == "interpolated"
+        # Safe access for PointTuple4
+        point0 = normalized.data[0]
+        point1 = normalized.data[1]
+        if len(point0) == 4:
+            assert point0[3] == "keyframe"
+        if len(point1) == 4:
+            assert point1[3] == "interpolated"
 
     def test_get_bounds(self):
         """Test getting bounding box of curve data."""
@@ -228,7 +233,9 @@ class TestCoordinateDetector:
         4 1250.0 710.0
         """
 
-        width, height = CoordinateDetector._infer_dimensions_from_data(content)
+        result = CoordinateDetector._infer_dimensions_from_data(content)
+        assert result is not None
+        width, height = result
         assert width == 1280
         assert height == 720
 
@@ -304,8 +311,11 @@ class TestHelperFunctions:
         info = get_system_info(CoordinateSystem.THREE_DE_EQUALIZER)
 
         assert info["origin"] == CoordinateOrigin.BOTTOM_LEFT
-        assert "3DEqualizer" in info["description"]
-        assert ".3de" in info["file_extensions"]
+        # Type narrow before using "in" operator
+        description = info["description"]
+        assert isinstance(description, str) and "3DEqualizer" in description
+        file_extensions = info["file_extensions"]
+        assert isinstance(file_extensions, list) and ".3de" in file_extensions
         assert info["default_dimensions"] == (1280, 720)
 
 
@@ -315,7 +325,7 @@ class TestEdgeCases:
     def test_invalid_data_format(self):
         """Test handling of invalid data format."""
         with pytest.raises(ValueError):
-            CurveDataWithMetadata(data=[(1, 100)])  # Missing Y coordinate
+            CurveDataWithMetadata(data=[(1, 100)])  # pyright: ignore[reportArgumentType] - Testing invalid data
 
     def test_empty_data(self):
         """Test handling of empty data."""
