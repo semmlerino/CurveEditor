@@ -663,6 +663,7 @@ class TestKeyEventHandling:
         """Test Delete key triggers delete command creation."""
         from PySide6.QtCore import Qt
         from PySide6.QtGui import QKeyEvent
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -687,6 +688,7 @@ class TestKeyEventHandling:
         """Test Ctrl+A selects all points."""
         from PySide6.QtCore import Qt
         from PySide6.QtGui import QKeyEvent
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -728,6 +730,7 @@ class TestKeyEventHandling:
         """Test arrow keys trigger nudge command creation."""
         from PySide6.QtCore import Qt
         from PySide6.QtGui import QKeyEvent
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -850,6 +853,7 @@ class TestMouseMoveEvents:
     def test_handle_mouse_move_drag_points(self) -> None:
         """Test mouse move during point dragging."""
         from PySide6.QtGui import QMouseEvent
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -924,6 +928,7 @@ class TestMouseReleaseEvents:
     def test_handle_mouse_release_drag(self) -> None:
         """Test mouse release after dragging points."""
         from PySide6.QtGui import QMouseEvent
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -977,6 +982,7 @@ class TestMouseReleaseEvents:
         """Test mouse release after rubber band selection."""
         from PySide6.QtGui import QMouseEvent
         from PySide6.QtWidgets import QRubberBand
+
         from stores.application_state import get_application_state
 
         app_state = get_application_state()

@@ -6,15 +6,13 @@ simultaneously, with proper view centering and rendering behavior.
 """
 
 from typing import cast
-from core.type_aliases import PointTuple4Str
-
 from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataList, PointTuple4Str
 from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow

@@ -107,7 +107,7 @@ class CurveDataStore(QObject):
 
     # ==================== Data Modification ====================
 
-    def set_data(self, data: CurveDataInput | "CurveDataWithMetadata", preserve_selection_on_sync: bool = False) -> None:
+    def set_data(self, data: CurveDataInput | CurveDataWithMetadata, preserve_selection_on_sync: bool = False) -> None:
         """
         Replace all curve data.
 

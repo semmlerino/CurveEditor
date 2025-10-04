@@ -27,12 +27,15 @@ class TestFindGapAroundFrame:
 
     def test_gap_in_middle(self):
         """Test finding a gap in the middle of trajectory."""
-        curve_data = cast(CurveDataList, [
-            (1, 10.0, 10.0),
-            (2, 11.0, 11.0),
-            (10, 20.0, 20.0),
-            (11, 21.0, 21.0),
-        ])
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0),
+                (2, 11.0, 11.0),
+                (10, 20.0, 20.0),
+                (11, 21.0, 21.0),
+            ],
+        )
 
         result = find_gap_around_frame(curve_data, 5)
 
@@ -90,7 +93,9 @@ class TestFindOverlapFrames:
     def test_overlap_before_and_after_gap(self):
         """Test finding overlap on both sides of gap."""
         target = cast(CurveDataList, [(1, 10.0, 10.0), (2, 11.0, 11.0), (10, 20.0, 20.0), (11, 21.0, 21.0)])
-        source = cast(CurveDataList, [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)])
+        source = cast(
+            CurveDataList, [(1, 15.0, 15.0), (2, 16.0, 16.0), (3, 17.0, 17.0), (10, 25.0, 25.0), (11, 26.0, 26.0)]
+        )
 
         gap_start, gap_end = 3, 9
 
@@ -374,10 +379,13 @@ class TestCreateAveragedCurve:
 
     def test_create_averaged_curve_simple(self):
         """Test creating averaged curve from two sources."""
-        sources = cast(dict[str, CurveDataList], {
-            "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
-            "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0), (3, 112.0, 212.0)],
-        })
+        sources = cast(
+            dict[str, CurveDataList],
+            {
+                "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
+                "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0), (3, 112.0, 212.0)],
+            },
+        )
 
         name, curve = create_averaged_curve(sources)
 
@@ -392,10 +400,13 @@ class TestCreateAveragedCurve:
 
     def test_only_common_frames(self):
         """Test that only frames common to all sources are included."""
-        sources = cast(dict[str, CurveDataList], {
-            "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
-            "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0)],  # Missing frame 3
-        })
+        sources = cast(
+            dict[str, CurveDataList],
+            {
+                "curve1": [(1, 100.0, 200.0), (2, 101.0, 201.0), (3, 102.0, 202.0)],
+                "curve2": [(1, 110.0, 210.0), (2, 111.0, 211.0)],  # Missing frame 3
+            },
+        )
 
         name, curve = create_averaged_curve(sources)
 
@@ -406,11 +417,14 @@ class TestCreateAveragedCurve:
 
     def test_three_sources(self):
         """Test averaging three sources."""
-        sources = cast(dict[str, CurveDataList], {
-            "curve1": [(1, 100.0, 200.0)],
-            "curve2": [(1, 110.0, 210.0)],
-            "curve3": [(1, 120.0, 220.0)],
-        })
+        sources = cast(
+            dict[str, CurveDataList],
+            {
+                "curve1": [(1, 100.0, 200.0)],
+                "curve2": [(1, 110.0, 210.0)],
+                "curve3": [(1, 120.0, 220.0)],
+            },
+        )
 
         name, curve = create_averaged_curve(sources)
 
@@ -421,10 +435,13 @@ class TestCreateAveragedCurve:
 
     def test_no_common_frames(self):
         """Test behavior when sources have no common frames."""
-        sources = cast(dict[str, CurveDataList], {
-            "curve1": [(1, 100.0, 200.0)],
-            "curve2": [(2, 110.0, 210.0)],
-        })
+        sources = cast(
+            dict[str, CurveDataList],
+            {
+                "curve1": [(1, 100.0, 200.0)],
+                "curve2": [(2, 110.0, 210.0)],
+            },
+        )
 
         name, curve = create_averaged_curve(sources)
 

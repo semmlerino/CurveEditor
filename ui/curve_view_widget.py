@@ -35,7 +35,6 @@ from PySide6.QtCore import (
     QPointF,
     QRect,
     QRectF,
-    QSize,
     Qt,
     Signal,
 )
@@ -54,7 +53,7 @@ from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
 from typing_extensions import override
 
 # Import core modules
-from core.models import CurvePoint, PointCollection, PointStatus
+from core.models import PointCollection, PointStatus
 from core.point_types import safe_extract_point
 from core.signal_manager import SignalManager
 from core.type_aliases import CurveDataInput, CurveDataList
@@ -64,13 +63,12 @@ from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from rendering.render_state import RenderState
 
 # Import services
-from services import get_data_service, get_interaction_service
+from services import get_interaction_service
 from services.transform_service import Transform, ViewState
 from ui.ui_constants import (
     DEFAULT_BACKGROUND_OPACITY,
     DEFAULT_IMAGE_HEIGHT,
     DEFAULT_IMAGE_WIDTH,
-    DEFAULT_ZOOM_FACTOR,
     MAX_ZOOM_FACTOR,
     MIN_ZOOM_FACTOR,
 )
@@ -939,60 +937,21 @@ class CurveViewWidget(QWidget):
         """
         Handle mouse press events.
 
+        Delegates business logic to InteractionService while maintaining Qt-specific
+        widget lifecycle (focus management, repaint).
+
         Args:
             event: Mouse event
         """
-        # Ensure this widget has keyboard focus when clicked
+        # Widget-specific: Ensure keyboard focus when clicked
         if not self.hasFocus():
             logger.info("[FOCUS] CurveViewWidget gaining focus from mouse press")
         self.setFocus(Qt.FocusReason.MouseFocusReason)
 
-        pos = event.position()
-        button = event.button()
-        modifiers = event.modifiers()
+        # Delegate business logic to InteractionService
+        self.interaction_service.handle_mouse_press(self, event)
 
-        if button == Qt.MouseButton.LeftButton:
-            if modifiers & Qt.KeyboardModifier.AltModifier:
-                # Start rubber band selection
-                self._start_rubber_band(pos)
-            else:
-                # Check for point selection/drag
-                # Use multi-curve search if we have multiple curves in ApplicationState
-                all_curve_names = self._app_state.get_all_curve_names()
-                if all_curve_names:
-                    idx, curve_name = self._find_point_at_multi_curve(pos)
-                else:
-                    idx = self._find_point_at(pos)
-                    curve_name = None
-
-                if idx >= 0:
-                    # Select and start dragging point
-                    add_to_selection = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
-                    self._select_point(idx, add_to_selection, curve_name)
-                    self.drag_active = True
-                    self.dragged_index = idx
-                    self.drag_start_pos = pos
-                    self.last_drag_pos = pos
-                else:
-                    # Clear selection if not Ctrl-clicking
-                    if not (modifiers & Qt.KeyboardModifier.ControlModifier):
-                        self.clear_selection()
-
-        elif button == Qt.MouseButton.MiddleButton:
-            # Start panning
-            self.pan_active = True
-            self.last_pan_pos = pos
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-
-        elif button == Qt.MouseButton.RightButton:
-            # Find point at position for context menu
-            idx = self._find_point_at(pos)
-            if idx >= 0:
-                # Store for context menu
-                self._context_menu_point = idx
-            else:
-                self._context_menu_point = -1
-
+        # Widget-specific: Trigger repaint
         self.update()
 
     @override
@@ -1000,16 +959,19 @@ class CurveViewWidget(QWidget):
         """
         Handle mouse move events.
 
+        Delegates business logic to InteractionService while maintaining widget-specific
+        hover tracking for visual feedback.
+
         Args:
             event: Mouse event
         """
         pos = event.position()
 
-        # Update hover with partial update
+        # Widget-specific: Update hover index for visual feedback (cursor highlighting)
         old_hover = self.hover_index
         self.hover_index = self._find_point_at(pos)
         if self.hover_index != old_hover:
-            # Only update areas around affected points for better performance
+            # Partial repaint optimization - only update affected point areas
             if old_hover >= 0:
                 old_rect = self._get_point_update_rect(old_hover)
                 self.update(old_rect)
@@ -1017,54 +979,23 @@ class CurveViewWidget(QWidget):
                 new_rect = self._get_point_update_rect(self.hover_index)
                 self.update(new_rect)
 
-        # Handle rubber band
-        if self.rubber_band_active and self.rubber_band:
-            self._update_rubber_band(pos)
-
-        # Handle dragging
-        elif self.drag_active and self.last_drag_pos:
-            delta = pos - self.last_drag_pos
-            self._drag_point(self.dragged_index, delta)
-            self.last_drag_pos = pos
-
-        # Handle panning
-        elif self.pan_active and self.last_pan_pos:
-            delta = pos - self.last_pan_pos
-            self.pan_offset_x += delta.x()
-            # Apply Y pan offset with conditional inversion for Y-flip mode
-            self.view_camera.apply_pan_offset_y(delta.y())
-            self.last_pan_pos = pos
-            self.invalidate_caches()
-            self.update()
-            self.view_changed.emit()
+        # Delegate business logic (drag, pan, rubber band) to InteractionService
+        self.interaction_service.handle_mouse_move(self, event)
 
     @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """
         Handle mouse release events.
 
+        Delegates business logic to InteractionService.
+
         Args:
             event: Mouse event
         """
-        button = event.button()
+        # Delegate business logic (drag cleanup, pan cleanup, rubber band finalization)
+        self.interaction_service.handle_mouse_release(self, event)
 
-        if button == Qt.MouseButton.LeftButton:
-            if self.rubber_band_active:
-                self._finish_rubber_band()
-            elif self.drag_active:
-                self.drag_active = False
-                self.dragged_index = -1
-                self.drag_start_pos = None
-                self.last_drag_pos = None
-
-                # History is now handled by commands in InteractionService
-                # self._add_to_history()  # Legacy - removed in favor of command system
-
-        elif button == Qt.MouseButton.MiddleButton:
-            self.pan_active = False
-            self.last_pan_pos = None
-            self.unsetCursor()
-
+        # Widget-specific: Trigger repaint
         self.update()
 
     @override
@@ -1310,87 +1241,15 @@ class CurveViewWidget(QWidget):
 
         # Use the optimized InteractionService with spatial indexing
         # Note: Protocol mismatch with InteractionService - using pyright: ignore for service integration
-        result: int = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # pyright: ignore[reportArgumentType]
+        result = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # pyright: ignore[reportArgumentType]
+
+        # Extract index from PointSearchResult (Increment 4 changed return type)
+        point_index = result.index if hasattr(result, "index") else result
 
         # Log for verification during integration testing
-        logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {result}")
+        logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {point_index}")
 
-        return result
-
-    def _find_point_at_multi_curve(self, pos: QPointF) -> tuple[int, str | None]:
-        """
-        Find point at given screen position across ALL visible curves.
-
-        This enables selecting points from any visible curve, not just the active one.
-        When a point is found, returns both the point index and the curve it belongs to.
-
-        Args:
-            pos: Screen position
-
-        Returns:
-            Tuple of (point_index, curve_name) or (-1, None) if not found
-        """
-        all_curve_names = self._app_state.get_all_curve_names()
-        if not all_curve_names:
-            # Fall back to single-curve mode
-            idx = self._find_point_at(pos)
-            return (idx, self._app_state.active_curve if idx >= 0 else None)
-
-        # ALWAYS search all curves to enable cross-curve selection
-        # When a user clicks a point on any curve, that curve gets added to selected_curve_names
-        # and becomes visible in the rendering. This enables the workflow:
-        # 1. User browses with show_all_curves enabled
-        # 2. Clicks point on curve A -> curve A added to selected_curve_names
-        # 3. Ctrl+clicks point on curve B -> curve B added to selected_curve_names
-        # 4. Both curves remain visible because they're both in selected_curve_names
-        curves_to_search = [
-            (name, self._app_state.get_curve_data(name))
-            for name in all_curve_names
-            if self._app_state.get_curve_metadata(name).get("visible", True)
-        ]
-
-        # Search each curve using spatial indexing
-        threshold = 5.0  # Screen pixels
-        best_match: tuple[int, str, float] | None = None  # (index, curve_name, distance)
-
-        for curve_name, curve_data in curves_to_search:
-            if not curve_data:
-                continue
-
-            # Temporarily set this curve as active to use spatial index
-            # IMPORTANT: Save both data AND selection since set_data() clears selection
-            saved_data = self.curve_data
-            saved_selection = self._curve_store.get_selection().copy()
-            try:
-                # Temporarily update to search this curve
-                self._curve_store.set_data(curve_data)
-
-                # Find point in this curve
-                idx = self._find_point_at(pos)
-                if idx >= 0:
-                    # Calculate distance to determine best match if multiple curves have points nearby
-                    point = curve_data[idx]
-                    data_x, data_y = float(point[1]), float(point[2])
-                    screen_point = self.data_to_screen(data_x, data_y)
-                    distance = ((screen_point.x() - pos.x()) ** 2 + (screen_point.y() - pos.y()) ** 2) ** 0.5
-
-                    if distance <= threshold:
-                        if best_match is None or distance < best_match[2]:
-                            best_match = (idx, curve_name, distance)
-            finally:
-                # Restore original curve store data and selection
-                self._curve_store.set_data(saved_data)
-                # Restore selection (set_data cleared it)
-                for idx in saved_selection:
-                    self._curve_store.select(idx, add_to_selection=True)
-
-        if best_match:
-            logger.debug(
-                f"[MULTI-CURVE] Found point at ({pos.x():.1f}, {pos.y():.1f}): idx={best_match[0]}, curve={best_match[1]}"
-            )
-            return (best_match[0], best_match[1])
-
-        return (-1, None)
+        return point_index
 
     def _select_point(self, index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
         """
@@ -1518,57 +1377,6 @@ class CurveViewWidget(QWidget):
             return closest_index
 
         return None
-
-    def _start_rubber_band(self, pos: QPointF) -> None:
-        """Start rubber band selection."""
-        self.rubber_band_active = True
-        self.rubber_band_origin = pos
-
-        if self.rubber_band:
-            self.rubber_band.setGeometry(QRect(pos.toPoint(), QSize()))
-            self.rubber_band.show()
-
-    def _update_rubber_band(self, pos: QPointF) -> None:
-        """Update rubber band selection."""
-        if self.rubber_band:
-            rect = QRect(self.rubber_band_origin.toPoint(), pos.toPoint()).normalized()
-            self.rubber_band.setGeometry(rect)
-
-            # Select points in rectangle
-            self._select_points_in_rect(rect)
-
-    def _finish_rubber_band(self) -> None:
-        """Finish rubber band selection."""
-        self.rubber_band_active = False
-
-        if self.rubber_band:
-            self.rubber_band.hide()
-
-        # Emit final selection
-        self.selection_changed.emit(list(self.selected_indices))
-
-    def _select_points_in_rect(self, rect: QRect) -> None:
-        """
-        Select points within rectangle.
-
-        Args:
-            rect: Selection rectangle in screen coordinates
-        """
-        # Clear selection first
-        self._curve_store.clear_selection()
-
-        # Update screen cache
-        self._update_screen_points_cache()
-
-        # Check each point and build selection
-        selected_points = []
-        for idx, screen_pos in self.render_cache.get_screen_points_items():
-            if rect.contains(screen_pos.toPoint()):
-                selected_points.append(idx)
-
-        # Select all points at once
-        for idx in selected_points:
-            self._curve_store.select(idx, add_to_selection=True)
 
     # Main Window Helper Methods
 

@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import threading
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
@@ -212,7 +212,13 @@ class PointIndex:
             logger.debug(f"Spatial index built with {len(self._grid)} occupied cells")
 
     def find_point_at_position(
-        self, curve_data: CurveDataList, transform: Transform, x: float, y: float, threshold: float = 5.0, view: CurveViewProtocol | None = None
+        self,
+        curve_data: CurveDataList,
+        transform: Transform,
+        x: float,
+        y: float,
+        threshold: float = 5.0,
+        view: CurveViewProtocol | None = None,
     ) -> int:
         """
         Find point at given screen position using spatial indexing.
@@ -237,8 +243,10 @@ class PointIndex:
             class DummyView:
                 def width(self) -> int:
                     return 800
+
                 def height(self) -> int:
                     return 600
+
             view = DummyView()  # type: ignore
 
         self.rebuild_index(curve_data, view, transform)
@@ -285,7 +293,14 @@ class PointIndex:
         return closest_idx
 
     def get_points_in_rect(
-        self, curve_data: CurveDataList, transform: Transform, x1: float, y1: float, x2: float, y2: float, view: CurveViewProtocol | None = None
+        self,
+        curve_data: CurveDataList,
+        transform: Transform,
+        x1: float,
+        y1: float,
+        x2: float,
+        y2: float,
+        view: CurveViewProtocol | None = None,
     ) -> list[int]:
         """
         Find all points within a rectangular region using spatial indexing.
@@ -309,8 +324,10 @@ class PointIndex:
             class DummyView:
                 def width(self) -> int:
                     return 800
+
                 def height(self) -> int:
                     return 600
+
             view = DummyView()  # type: ignore
 
         self.rebuild_index(curve_data, view, transform)

@@ -23,23 +23,26 @@ def curve_widget(qtbot):
     qtbot.addWidget(widget)
 
     # Set up multiple curves
-    curves_data = cast(dict[str, CurveDataList], {
-        "curve_a": [
-            (1, 10.0, 20.0, "normal"),  # frame, x, y, status
-            (2, 15.0, 25.0, "normal"),
-            (3, 20.0, 30.0, "normal"),
-        ],
-        "curve_b": [
-            (1, 50.0, 60.0, "normal"),
-            (2, 55.0, 65.0, "normal"),
-            (3, 60.0, 70.0, "normal"),
-        ],
-        "curve_c": [
-            (1, 100.0, 110.0, "normal"),
-            (2, 105.0, 115.0, "normal"),
-            (3, 110.0, 120.0, "normal"),
-        ],
-    })
+    curves_data = cast(
+        dict[str, CurveDataList],
+        {
+            "curve_a": [
+                (1, 10.0, 20.0, "normal"),  # frame, x, y, status
+                (2, 15.0, 25.0, "normal"),
+                (3, 20.0, 30.0, "normal"),
+            ],
+            "curve_b": [
+                (1, 50.0, 60.0, "normal"),
+                (2, 55.0, 65.0, "normal"),
+                (3, 60.0, 70.0, "normal"),
+            ],
+            "curve_c": [
+                (1, 100.0, 110.0, "normal"),
+                (2, 105.0, 115.0, "normal"),
+                (3, 110.0, 120.0, "normal"),
+            ],
+        },
+    )
 
     widget.set_curves_data(curves_data, active_curve="curve_a")
     widget.show()

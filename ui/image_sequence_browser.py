@@ -7,9 +7,9 @@ similar to 3DEqualizer or Nuke's sequence view.
 """
 
 import os
-import warnings
 import re
 import sys
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -1199,7 +1199,6 @@ class ImageSequenceBrowserDialog(QDialog):
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning, message="Failed to disconnect.*")
             self.cancel_scan_button.clicked.disconnect(self._on_cancel_scan)
-
 
     def _on_cancel_scan(self) -> None:
         """Handle scan cancellation request."""

@@ -27,7 +27,14 @@ else:
 try:
     from PySide6.QtCore import QObject, QSize  # pyright: ignore[reportAssignmentType]
     from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportAssignmentType]
-    from PySide6.QtWidgets import QLabel, QPushButton, QSlider, QSpinBox, QStatusBar, QWidget  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtWidgets import (  # pyright: ignore[reportAssignmentType]
+        QLabel,
+        QPushButton,
+        QSlider,
+        QSpinBox,
+        QStatusBar,
+        QWidget,
+    )
     from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime  # pyright: ignore[reportAssignmentType]
 
     HAS_QT = True  # pyright: ignore[reportConstantRedefinition]
@@ -311,6 +318,7 @@ class MockCurveView:
         else:
             try:
                 from PySide6.QtCore import QPointF
+
                 self.rubber_band_origin = QPointF(0.0, 0.0)  # type: ignore
             except ImportError:
                 # Fallback for non-Qt environments - use object
@@ -351,7 +359,9 @@ class MockCurveView:
         # TestSignal now properly implements SignalProtocol
         # Cast needed because instance attributes are invariant in Python's type system
         from typing import cast
+
         from protocols.services import SignalProtocol
+
         self.point_selected: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.point_moved: SignalProtocol = cast(SignalProtocol, TestSignal())
 
@@ -463,7 +473,7 @@ class MockCurveView:
     def findPointAt(self, pos: QtPointF) -> int:
         """Find point near given coordinates."""
         # Extract x, y from QtPointF (supports both QPoint and QPointF)
-        if hasattr(pos, 'x') and hasattr(pos, 'y'):
+        if hasattr(pos, "x") and hasattr(pos, "y"):
             x = pos.x() if callable(pos.x) else pos.x
             y = pos.y() if callable(pos.y) else pos.y
         else:
@@ -738,9 +748,7 @@ class MockMainWindow:
     def can_redo(self) -> bool:
         """Check if redo is available."""
         return (
-            self.history_index is not None
-            and self.history is not None
-            and self.history_index < len(self.history) - 1
+            self.history_index is not None and self.history is not None and self.history_index < len(self.history) - 1
         )
 
 
@@ -968,7 +976,11 @@ class PerformanceTimer:
 
 
 def assert_behavior_changed(
-    obj: object, attribute: str, operation: Callable[..., Any], expected_before: object = None, expected_after: object = None
+    obj: object,
+    attribute: str,
+    operation: Callable[..., Any],
+    expected_before: object = None,
+    expected_after: object = None,
 ) -> None:
     """
     Assert that behavior changes after an operation.

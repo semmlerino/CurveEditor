@@ -5,8 +5,6 @@ Tests actual component interactions without mocking.
 """
 
 from typing import cast
-from core.type_aliases import CurveDataList
-from core.type_aliases import PointTuple4Str
 
 import pytest
 from PySide6.QtCore import QPoint, QPointF, Qt
@@ -14,6 +12,7 @@ from PySide6.QtGui import QImage, QMouseEvent, QWheelEvent
 from PySide6.QtWidgets import QApplication
 
 from core.models import CurvePoint
+from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
 from stores.application_state import get_application_state

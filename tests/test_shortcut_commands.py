@@ -750,7 +750,6 @@ class TestShortcutCommandAbstractMethods:
         ]
 
         for cmd in commands_to_test:
-
             # Verify abstract methods exist and are callable
             assert hasattr(cmd, "can_execute")
             assert callable(cmd.can_execute)

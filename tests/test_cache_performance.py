@@ -361,8 +361,8 @@ class TestSmartCacheInvalidation:
         qtbot.addWidget(widget)
 
         # Enable monitoring (test-only monkey-patching)
-        setattr(widget, '_enable_monitoring', True)  # pyright: ignore[reportAttributeAccessIssue]
-        setattr(widget, '_cache_monitor', CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, "_enable_monitoring", True)  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, "_cache_monitor", CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)
@@ -397,8 +397,8 @@ class TestSmartCacheInvalidation:
         qtbot.addWidget(widget)
 
         # Test-only monkey-patching
-        setattr(widget, '_enable_monitoring', True)  # pyright: ignore[reportAttributeAccessIssue]
-        setattr(widget, '_cache_monitor', CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, "_enable_monitoring", True)  # pyright: ignore[reportAttributeAccessIssue]
+        setattr(widget, "_cache_monitor", CacheMonitor())  # pyright: ignore[reportAttributeAccessIssue]
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)
@@ -418,7 +418,7 @@ class TestSmartCacheInvalidation:
             widget.get_transform()
 
         # Check that we got some cache hits (not 0%)
-        cache_monitor = getattr(widget, '_cache_monitor', None)  # pyright: ignore[reportAttributeAccessIssue]
+        cache_monitor = getattr(widget, "_cache_monitor", None)  # pyright: ignore[reportAttributeAccessIssue]
         hit_rate = cache_monitor.hit_rate if cache_monitor else 0.0
         # More lenient assertion since cache behavior depends on implementation details
         assert hit_rate >= 0.0, f"Hit rate {hit_rate:.1f}% is negative"

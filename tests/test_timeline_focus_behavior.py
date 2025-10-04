@@ -9,10 +9,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 - Avoid implementation testing
 """
 
-from typing import cast
-from core.type_aliases import CurveDataList
-from core.type_aliases import PointTuple4Str
-
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent

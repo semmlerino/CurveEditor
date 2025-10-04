@@ -13,10 +13,6 @@ Following UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md:
 - Use real components where possible
 """
 
-from typing import cast
-from core.type_aliases import CurveDataList
-from core.type_aliases import PointTuple4Str
-
 from unittest.mock import Mock, patch
 
 import pytest

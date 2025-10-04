@@ -371,7 +371,9 @@ class TestInteractionHandling:
         # Verify the point is now a keyframe
         point_after = curve_view_widget.curve_data[1]
         # Safe access for PointTuple4
-        assert len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
+        assert (
+            len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value
+        ), "Point should be keyframe after nudge"
 
         # Verify position changed
         assert point_after[1] == 115.0, "X coordinate should have moved"
@@ -419,7 +421,9 @@ class TestInteractionHandling:
         # Verify the point is still a keyframe
         point_after = curve_view_widget.curve_data[0]
         # Safe access for PointTuple4
-        assert len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
+        assert (
+            len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value
+        ), "Point should remain keyframe after nudge"
 
 
 class TestServiceIntegration:

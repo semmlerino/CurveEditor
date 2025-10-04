@@ -8,7 +8,6 @@ and other accessibility features added for WCAG 2.1 compliance.
 from pathlib import Path
 from unittest.mock import Mock
 
-import pytest
 from PySide6.QtCore import QPoint, Qt
 from PySide6.QtWidgets import QDialog
 from pytestqt.qtbot import QtBot
@@ -345,16 +344,15 @@ class TestTabOrder:
 
         # Verify tab order using focus chain introspection
         # back_button -> forward_button
-        assert dialog.back_button.nextInFocusChain() is dialog.forward_button, \
-            "Tab from back should go to forward"
+        assert dialog.back_button.nextInFocusChain() is dialog.forward_button, "Tab from back should go to forward"
 
         # forward_button -> up_button
-        assert dialog.forward_button.nextInFocusChain() is dialog.up_button, \
-            "Tab from forward should go to up"
+        assert dialog.forward_button.nextInFocusChain() is dialog.up_button, "Tab from forward should go to up"
 
         # Verify reverse direction
-        assert dialog.forward_button.previousInFocusChain() is dialog.back_button, \
-            "Shift+Tab from forward should go to back"
+        assert (
+            dialog.forward_button.previousInFocusChain() is dialog.back_button
+        ), "Shift+Tab from forward should go to back"
 
     def test_tab_order_includes_main_panels(self, qtbot: QtBot):
         """Test that tab order includes favorites, tree, and sequence list.
@@ -370,18 +368,17 @@ class TestTabOrder:
 
         # Verify tab order using focus chain introspection
         # favorite_button -> favorites_list
-        assert dialog.favorite_button.nextInFocusChain() is dialog.favorites_list, \
-            "Tab from favorite button should go to favorites list"
+        assert (
+            dialog.favorite_button.nextInFocusChain() is dialog.favorites_list
+        ), "Tab from favorite button should go to favorites list"
 
         # favorites_list -> tree_view (may have viewport widgets in between)
         next_widget = self._find_next_user_widget(dialog.favorites_list)
-        assert next_widget is dialog.tree_view, \
-            "Tab from favorites list should eventually reach tree view"
+        assert next_widget is dialog.tree_view, "Tab from favorites list should eventually reach tree view"
 
         # tree_view -> sequence_filter (may have viewport widgets in between)
         next_widget = self._find_next_user_widget(dialog.tree_view)
-        assert next_widget is dialog.sequence_filter, \
-            "Tab from tree view should eventually reach sequence filter"
+        assert next_widget is dialog.sequence_filter, "Tab from tree view should eventually reach sequence filter"
 
     def test_tab_order_ends_with_action_buttons(self, qtbot: QtBot):
         """Test that tab order ends with Load button.
@@ -398,13 +395,11 @@ class TestTabOrder:
         # Verify tab order using focus chain introspection
         # sequence_list -> load_button (may have viewport widgets in between)
         next_widget = self._find_next_user_widget(dialog.sequence_list)
-        assert next_widget is dialog.load_button, \
-            "Tab from sequence list should eventually reach load button"
+        assert next_widget is dialog.load_button, "Tab from sequence list should eventually reach load button"
 
         # Verify reverse direction (may have viewport widgets in between)
         prev_widget = self._find_prev_user_widget(dialog.load_button)
-        assert prev_widget is dialog.sequence_list, \
-            "Shift+Tab from load button should eventually reach sequence list"
+        assert prev_widget is dialog.sequence_list, "Shift+Tab from load button should eventually reach sequence list"
 
 
 class TestBreadcrumbAccessibility:

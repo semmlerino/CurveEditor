@@ -10,7 +10,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 from typing import Any, cast
-from core.type_aliases import PointTuple4Str
 
 import pytest
 from PySide6.QtWidgets import QComboBox

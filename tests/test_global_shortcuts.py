@@ -44,10 +44,13 @@ def main_window_with_shortcuts(qtbot):
 
     # Add test tracking data
     if window.tracking_panel:
-        tracked_data = cast(dict[str, CurveDataInput], {
-            "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
-            "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
-        })
+        tracked_data = cast(
+            dict[str, CurveDataInput],
+            {
+                "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
+                "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
+            },
+        )
         window.tracking_panel.set_tracked_data(tracked_data)
 
     return window

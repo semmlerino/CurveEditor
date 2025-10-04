@@ -1,7 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Found 197 files to bundle
+Skipping large file (23.9MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 187 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -10,45 +11,39 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
-Bundled: APPLICATIONSTATE_MIGRATION_AUDIT_REPORT.md
-Bundled: APPLICATIONSTATE_MIGRATION_RELEASE_NOTES.md
 Bundled: ARCHITECTURE.md
 Bundled: basedpyrightconfig.json
+Bundled: BASEDPYRIGHT_STRATEGY.md
 Bundled: baseline_lines.txt
 Bundled: baseline_tests.txt
 Bundled: baseline_types.txt
-Bundled: BATCH_TRANSFORM_IMPLEMENTATION.md
-Bundled: CACHE_PERFORMANCE_REPORT.md
-Bundled: CACHE_PERFORMANCE_SUMMARY.md
 Bundled: CLAUDE.md
-Bundled: CLAUDE_stashed.md
 Bundled: conftest.py
-Bundled: CRITICAL_TEST_ISSUES.md
-Bundled: CURVE_SEGMENTS_FINDINGS.md
+Bundled: curveview_extraction_plan.md
+Bundled: curveview_method_categorization.txt
+Bundled: file_impact_summary.md
+Bundled: INTERACTIONSERVICE_MULTI_CURVE_ARCHITECTURE.md
 Bundled: KeyFrameTest.txt
 Bundled: KNOWN_ISSUES.md
 Bundled: main.py
 Bundled: mainwindow_diff.txt
+Bundled: MAJOR_REFACTOR_WORKFLOW.md
+Bundled: mock_curve_view_fixes_summary.md
 Bundled: ORCHESTRATION.md
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
 Bundled: performance_bottleneck_analysis.txt
-Bundled: PHASE2_STATUS.md
-Bundled: PLAN_DELTA_DO_NOT_DELETE.md
-Bundled: PLAN_EPSILON_DO_NOT_DELETE.md
-Bundled: PLAN_GAMMA_DO_NOT_DELETE.md
-Bundled: PLAN_GAMMA_PHASES_4-8.md
-Bundled: PLAN_OMEGA.md
-Bundled: PLAN_PHASE_1.md
+Bundled: PHASE8_TEST_COVERAGE_REPORT.md
+Bundled: PHASE_8_CRITICAL_FIXES.md
+Bundled: PHASE_8_FINAL_IMPLEMENTATION_PLAN.md
+Bundled: PHASE_8_INTERACTION_SERVICE_REFACTOR.md
+Bundled: PHASE_8_REFACTOR_TRACKER.md
 Bundled: Point01.txt
 Bundled: Point01_only.txt
 Bundled: PRODUCTION_DEPLOYMENT_CHECKLIST.md
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
-Bundled: QT_ZOOM_ANALYSIS.md
 Bundled: QUICK-REFERENCE.md
 Bundled: README.md
-Bundled: REFACTORING_PRIORITY_ANALYSIS_DO_NOT_DELETE.md
-Bundled: REMAINING_ISSUES_CLEANUP_PLAN.md
 Bundled: requirements.txt
 Bundled: ROADMAP_FUTURE_PHASES.md
 Bundled: run_tests.sh
@@ -58,20 +53,12 @@ Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
 Bundled: SetTrackingFwdBwd.py
 Bundled: testspline.txt
-Bundled: TEST_IMPROVEMENTS_SUMMARY.md
 Bundled: test_normalized_3de.txt
-Bundled: TEST_REMEDIATION_PLAN.md
 Bundled: test_results.txt
-Bundled: THREADING_SAFETY_AUDIT_REPORT.md
 Bundled: transfer_config.json
-Bundled: TYPE_SAFETY_SPRINT_REPORT.md
-Bundled: UNIFIED_REFACTORING_STRATEGY_DO_NOT_DELETE.md
-Bundled: ZOOM_BUG_FIX_SUMMARY.md
-Bundled: ZOOM_CACHE_PERFORMANCE_REPORT.md
-Bundled: ZOOM_FIX_SUMMARY.md
-Bundled: ZOOM_FLOATING_BUG_FIX_REPORT.md
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
+Bundled: .serena/project.yml
 Bundled: .windsurf/rules/coding.md
 Bundled: commands/Advice.md
 Bundled: commands/base.py
@@ -195,6 +182,10 @@ Bundled: ui/controllers/ui_initialization_controller.py
 Bundled: ui/controllers/view_camera_controller.py
 Bundled: ui/controllers/view_management_controller.py
 Bundled: ui/controllers/__init__.py
+Bundled: ui/controllers/curve_view/curve_data_facade.py
+Bundled: ui/controllers/curve_view/render_cache_controller.py
+Bundled: ui/controllers/curve_view/state_sync_controller.py
+Bundled: ui/controllers/curve_view/__init__.py
 Bundled: ui/protocols/controller_protocols.py
 Bundled: ui/protocols/__init__.py
 Bundled: ui/widgets/card.py
@@ -202,9 +193,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.43 MB
+Folder size: 2.39 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 777644 bytes
+Encoded size: 755800 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

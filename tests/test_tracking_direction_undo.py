@@ -11,9 +11,6 @@ Tests verify that:
 """
 
 from typing import cast
-from core.type_aliases import CurveDataList
-from core.type_aliases import PointTuple4Str
-
 from unittest.mock import patch
 
 import pytest
@@ -100,7 +97,9 @@ class TestTrackingDirectionUndo:
 
         # Verify command description
         command_desc = command_manager.get_undo_description()
-        assert command_desc is not None and "backward" in command_desc.lower(), f"Command description should mention direction: {command_desc}"
+        assert (
+            command_desc is not None and "backward" in command_desc.lower()
+        ), f"Command description should mention direction: {command_desc}"
 
     def test_tracking_direction_undo_reverses_status_changes(self, main_window_with_tracking_data):
         """Test that undo reverses the status changes from direction change."""

@@ -10,9 +10,6 @@ Following UNIFIED_TESTING_GUIDE principles:
 """
 
 from typing import cast
-from core.type_aliases import CurveDataList
-from core.type_aliases import PointTuple4Str
-
 from unittest.mock import Mock
 
 import pytest
@@ -26,6 +23,7 @@ from core.commands.shortcut_commands import (
     SetTrackingDirectionCommand,
 )
 from core.models import PointStatus, TrackingDirection
+from core.type_aliases import CurveDataList
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 from ui.tracking_points_panel import TrackingPointsPanel
@@ -87,11 +85,14 @@ def tracking_panel_with_data(qtbot):
     qtbot.addWidget(panel)
 
     # Add test points using tracked data format
-    tracked_data = cast(dict[str, CurveDataList], {
-        "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
-        "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
-        "Point_3": [(i, float(i * 15), float(i * 7), PointStatus.NORMAL.value) for i in range(10, 20)],
-    })
+    tracked_data = cast(
+        dict[str, CurveDataList],
+        {
+            "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 11)],
+            "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(5, 15)],
+            "Point_3": [(i, float(i * 15), float(i * 7), PointStatus.NORMAL.value) for i in range(10, 20)],
+        },
+    )
     panel.set_tracked_data(tracked_data)  # pyright: ignore[reportArgumentType]
 
     return panel
@@ -594,10 +595,13 @@ class TestRealComponentIntegration:
         qtbot.addWidget(panel)  # CRITICAL: Auto cleanup per guide
 
         # Add real data
-        tracked_data = cast(dict[str, CurveDataList], {
-            "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 6)],
-            "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(3, 8)],
-        })
+        tracked_data = cast(
+            dict[str, CurveDataList],
+            {
+                "Point_1": [(i, float(i * 10), float(i * 5), PointStatus.NORMAL.value) for i in range(1, 6)],
+                "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(3, 8)],
+            },
+        )
         panel.set_tracked_data(tracked_data)  # pyright: ignore[reportArgumentType]
 
         # Create real MainWindow and connect panel
