@@ -1023,6 +1023,41 @@ class InteractionService:
         if hasattr(view, "update"):
             view.update()
 
+    def on_selection_changed(self, indices: set[int], curve_name: str | None = None) -> None:
+        """
+        Handle selection change notifications.
+
+        Args:
+            indices: Set of selected point indices
+            curve_name: Curve whose selection changed. None = active curve.
+        """
+        self._assert_main_thread()
+        if curve_name is None:
+            logger.debug(f"Selection changed: {len(indices)} points selected (active curve)")
+        else:
+            logger.debug(f"Selection changed for '{curve_name}': {len(indices)} points selected")
+
+        # Clear spatial index since selection affects rendering
+        # (selected points may be highlighted differently)
+        self.clear_spatial_index()
+
+    def on_frame_changed(self, frame: int, curve_name: str | None = None) -> None:
+        """
+        Handle frame change notifications.
+
+        Args:
+            frame: New current frame
+            curve_name: Curve to update. None = update all curves.
+        """
+        self._assert_main_thread()
+        if curve_name is None:
+            logger.debug(f"Frame changed to {frame} (all curves)")
+        else:
+            logger.debug(f"Frame changed to {frame} for '{curve_name}'")
+
+        # Clear spatial index since frame affects which points are visible/highlighted
+        self.clear_spatial_index()
+
     def on_point_moved(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Handle point movement notifications."""
         logger.debug(f"Point {idx} moved to ({x}, {y})")
