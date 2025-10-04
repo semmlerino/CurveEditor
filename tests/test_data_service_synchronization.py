@@ -205,7 +205,7 @@ class TestDataServiceSynchronization:
     def test_synchronization_handles_exceptions_gracefully(self, curve_widget, test_tracking_data):
         """Test that synchronization handles exceptions without breaking."""
         # Mock get_data_service to raise an exception
-        with patch("ui.curve_view_widget.get_data_service") as mock_get_service:
+        with patch("services.get_data_service") as mock_get_service:
             mock_get_service.side_effect = RuntimeError("Service unavailable")
 
             # This should not crash, just log an error
