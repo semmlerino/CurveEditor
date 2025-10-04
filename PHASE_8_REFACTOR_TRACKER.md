@@ -10,22 +10,22 @@
 
 | Metric | Value |
 |--------|-------|
-| **Current Phase** | Implementation - Increment 6 Complete |
+| **Current Phase** | Implementation - Increment 8 Complete |
 | **Started** | 2025-10-04 |
-| **Overall Progress** | 60% Complete (6/10 increments done) |
-| **Status** | 🟢 IN PROGRESS - Increments 1-6 complete, 56/56 tests passing, ready for Increment 7 |
+| **Overall Progress** | 80% Complete (8/10 increments done) |
+| **Status** | 🟢 IN PROGRESS - Increments 1-8 complete, 97/97 tests passing (41 curve_view + 56 interaction_service), ready for Increment 9 |
 
 ---
 
 ## 📈 METRICS TRACKER
 
-### Current State (After Phase 1 Assessment)
+### Current State (After Increment 8 - Widget Delegation)
 
 | Component | Lines | Methods | Coverage | Notes |
 |-----------|-------|---------|----------|-------|
-| **CurveViewWidget** | 1,971 (786 code) | 86 | 44% | Phase 7 complete |
-| **InteractionService** | 1,095 (582 code) | 40+ | 45% | 25 duplicated methods found |
-| **Total Reduction** | -555 | -14 | - | From original 2,526 lines, 100 methods |
+| **CurveViewWidget** | 1,777 (-193) | ~80 | 44% | Widget delegation complete (Inc 8) |
+| **InteractionService** | 1,095 (582 code) | 40+ | 80% | 56/56 tests passing |
+| **Total Reduction** | -748 | -20 | - | From original 2,526 lines, 100 methods |
 
 ### Targets (Post-Refactor)
 
@@ -141,15 +141,16 @@
   - Added: `curve_name: str | None = None` parameter to 2 methods
   - Validation: ✅ 56/56 tests, ✅ thread safety, ✅ committed (cf4bdf2)
 
-- [ ] **Increment 7:** Verify Mouse Handlers + Y-flip Fix (30 min)
+- [x] **Increment 7:** Verify Mouse Handlers + Y-flip Fix (30 min) ✅ COMPLETE
   - Files: `services/interaction_service.py`
   - Goal: Verify all mouse handlers multi-curve ready, Y-flip fix complete
-  - Status: Partially done from Phase 4
+  - Status: ✅ All 4 handlers verified, Y-flip fix confirmed (lines 255-257), 56/56 tests passing
 
-- [ ] **Increment 8:** Widget Delegation (2-3 hours, **VERY HIGH RISK**)
-  - Files: `ui/curve_view_widget.py`, `services/interaction_service.py`
+- [x] **Increment 8:** Widget Delegation (2-3 hours, **VERY HIGH RISK**) ✅ COMPLETE
+  - Files: `ui/curve_view_widget.py` (1970 → 1777 lines, -193), `services/interaction_service.py`
   - Goal: Remove duplicate methods from widget, full delegation to service
-  - Status: Not started
+  - Status: ✅ Mouse handlers delegate to service, 124 redundant lines removed, 97/97 tests passing
+  - Commit: c2a17aa
 
 - [ ] **Increment 9:** Verify State Callbacks (20-30 min)
   - Files: `services/interaction_service.py`
@@ -165,9 +166,9 @@
 
 ## 🔨 CURRENT WORK
 
-**Active Phase:** Implementation - Increment 6 Complete
-**Status:** 🟢 IN PROGRESS - 60% complete (6/10 increments), all tests passing
-**Goal:** Proceed to Increment 7 (Verify Mouse Handlers + Y-flip Fix)
+**Active Phase:** Implementation - Increment 8 Complete
+**Status:** 🟢 IN PROGRESS - 80% complete (8/10 increments), all tests passing
+**Goal:** Proceed to Increment 9 (Verify State Callbacks)
 
 **Implementation Documents:**
 - `PHASE_8_FINAL_IMPLEMENTATION_PLAN.md` - Complete implementation plan with ROI
@@ -175,32 +176,34 @@
 - `PHASE_8_CRITICAL_FIXES.md` - Critical issues and fixes
 - `PHASE_8_REFACTOR_TRACKER.md` - This live tracker
 
-**Progress Summary (Increments 1-6):**
+**Progress Summary (Increments 1-8):**
 - ✅ Increment 1: Core types + SpatialIndex API fix + CurveSelection deep copy fix
 - ✅ Increment 2: Consolidated CurveViewProtocol (-120 lines duplicate)
 - ✅ Increment 3: Thread safety infrastructure (already complete from Phase 4)
 - ✅ Increment 4: find_point_at() PointSearchResult migration (already complete from Phase 4)
 - ✅ Increment 5: Added curve_name to 3 selection methods (79f0b48)
 - ✅ Increment 6: Added curve_name to 2 manipulation methods (cf4bdf2)
+- ✅ Increment 7: All mouse handlers verified, Y-flip fix confirmed
+- ✅ Increment 8: Widget delegation complete (-193 lines from widget, c2a17aa)
 
 **Key Achievements:**
-- 🎯 **5 methods now multi-curve ready** (selection + manipulation)
+- 🎯 **Widget is now thin presentation layer** - Mouse handlers delegate to InteractionService
 - 🧵 **Thread safety** enforced across all updated methods
-- 📊 **100% test pass rate** (56/56 InteractionService tests)
+- 📊 **100% test pass rate** (97/97 total: 41 curve_view + 56 interaction_service)
 - 🔒 **Backward compatibility** maintained (curve_name=None defaults)
-- 📉 **Code reduction** started (-120 lines from protocol consolidation)
+- 📉 **Major code reduction** (-193 lines from widget, -748 total vs original)
 
 **Current State:**
-- **Tests:** 56/56 passing ✅
+- **Tests:** 97/97 passing ✅ (41 curve_view + 56 interaction_service)
 - **Type Errors:** 0 ✅
-- **Commits:** 3 (Increment 1+2 combined, Increment 5, Increment 6)
-- **Files Modified:** `services/interaction_service.py`, `services/service_protocols.py`, `core/spatial_index.py`
+- **Widget Lines:** 1,777 (down from 1,970, -9.8%)
+- **Commits:** 5 (Inc 1+2, Inc 5, Inc 6, Inc 7, Inc 8)
+- **Files Modified:** `ui/curve_view_widget.py`, `services/interaction_service.py`, `services/service_protocols.py`, `core/spatial_index.py`
 
 **Next Increment:**
-- ⏭️ **Increment 7:** Verify Mouse Handlers + Y-flip Fix (30 min)
-  - Goal: Verify all mouse handlers are multi-curve ready
-  - Check: Y-flip fix implemented in handle_mouse_move()
-  - Review: handle_mouse_press(), handle_mouse_release(), handle_wheel_event()
+- ⏭️ **Increment 9:** Verify State Callbacks (20-30 min)
+  - Goal: Verify all state callbacks multi-curve ready
+  - Check: on_data_changed(), on_selection_changed(), on_frame_changed()
   - Status: Partially done from Phase 4 prototyping
 
 ---
@@ -273,6 +276,42 @@ def __bool__(self) -> bool:
 ---
 
 ## 📝 CHANGE LOG
+
+### 2025-10-04 - Increments 7-8 Complete ✅
+
+**Increment 7: Mouse Handlers Verification**
+- ✅ Verified all 4 mouse handlers are multi-curve ready
+- ✅ Y-flip fix confirmed: `y_multiplier = -1.0 if flip_y_axis else 1.0` (line 256)
+- ✅ Handlers verified: `handle_mouse_press()`, `handle_mouse_move()`, `handle_mouse_release()`, `handle_wheel_event()`
+- ✅ All handlers use ApplicationState for data access
+- ✅ Thread safety confirmed (mouse move has `_assert_main_thread()`)
+- ✅ Validation: 56/56 interaction_service tests passing
+
+**Increment 8: Widget Delegation (HIGH RISK)**
+- ✅ CurveViewWidget: 1970 → 1777 lines (-193 lines, -9.8% reduction)
+- ✅ Mouse event handlers now delegate to InteractionService:
+  - `mousePressEvent()`: 60 → 20 lines (focus + delegate + update)
+  - `mouseMoveEvent()`: 42 → 27 lines (hover tracking + delegate)
+  - `mouseReleaseEvent()`: 27 → 15 lines (delegate + update)
+- ✅ Removed redundant methods (-124 lines):
+  - `_find_point_at_multi_curve()` (74 lines) - service has `find_point_at(mode="all_visible")`
+  - `_start_rubber_band()`, `_update_rubber_band()`, `_finish_rubber_band()` (25 lines)
+  - `_select_points_in_rect()` (25 lines)
+- ✅ Fixed PointSearchResult integration in `_find_point_at()`
+- ✅ Widget retains: Focus management, hover tracking, repaint triggers
+- ✅ Validation: 97/97 tests passing (41 curve_view + 56 interaction_service)
+- ✅ Committed: c2a17aa
+
+**Architecture Benefits:**
+- ✅ Single source of truth (InteractionService)
+- ✅ Widget is thin presentation layer (~25 lines/handler)
+- ✅ Business logic centralized and tested
+- ✅ Multi-curve support automatic via delegation
+- ✅ Easier maintenance (update 1 place, not 2)
+
+**Status:** 80% complete (8/10 increments), ready for Increment 9
+
+---
 
 ### 2025-10-04 - Increments 5-6 Complete ✅
 
