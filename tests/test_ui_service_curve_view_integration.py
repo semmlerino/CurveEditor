@@ -226,8 +226,9 @@ class TestUIServiceErrorRecovery:
                     curve_view_widget.view_camera._update_transform()
                     # Recovery should succeed, so we get a valid transform or None
                     # (None is okay since _update_transform doesn't return the transform)
-                except RuntimeError:
+                except (ValueError, RuntimeError):
                     # If all recovery fails, that's also valid behavior
+                    # ValueError from validation, RuntimeError from recovery failure
                     pass
 
                 qapp.processEvents()

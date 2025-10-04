@@ -228,7 +228,7 @@ class TestIndexBuilding:
         view = MockCurveView([])
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         assert index.screen_width == 800.0
         assert index.screen_height == 600.0
@@ -250,7 +250,7 @@ class TestIndexBuilding:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         # Check that points are indexed
         assert len(index._grid) > 0
@@ -272,16 +272,16 @@ class TestIndexBuilding:
         transform = MockTransform("hash1")
 
         # First build
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         first_grid = dict(index._grid)
 
         # Second build with same data and transform - should not rebuild
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         assert index._grid == first_grid
 
         # Build with different transform - should rebuild
         transform.stability_hash = "hash2"
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         assert index._last_transform_hash == "hash2"
 
     def test_rebuild_index_invalid_points(self) -> None:
@@ -297,7 +297,7 @@ class TestIndexBuilding:
         transform = MockTransform()
 
         # Should not crash with malformed data
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         # Should only index valid points
         total_indexed = sum(len(points) for points in index._grid.values())
@@ -311,7 +311,7 @@ class TestIndexBuilding:
         view = MockCurveView(curve_data, width=1000.0, height=500.0)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         # Screen dimensions are updated because 600->1000 and 400->500 are significant changes (>10%)
         assert index.screen_width == 1000.0  # Updated from view (significant change)
@@ -331,7 +331,7 @@ class TestPointLookup:
         view = MockCurveView([])
         transform = MockTransform()
 
-        result = index.find_point_at_position(_as_curve_view(view), _as_transform(transform), 100.0, 100.0)
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 100.0, 100.0)
 
         assert result == -1
 
@@ -347,9 +347,7 @@ class TestPointLookup:
         transform = MockTransform()
 
         # Look for point at exact position
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 100.0, 150.0, threshold=1.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 100.0, 150.0, threshold=1.0)
 
         assert result == 0  # First point
 
@@ -362,9 +360,7 @@ class TestPointLookup:
         transform = MockTransform()
 
         # Look near the point (within threshold)
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 103.0, 147.0, threshold=5.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 103.0, 147.0, threshold=5.0)
 
         assert result == 0  # Should find the point
 
@@ -377,9 +373,7 @@ class TestPointLookup:
         transform = MockTransform()
 
         # Look far from the point (outside threshold)
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 200.0, 300.0, threshold=5.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 200.0, 300.0, threshold=5.0)
 
         assert result == -1  # Should not find the point
 
@@ -396,9 +390,7 @@ class TestPointLookup:
         transform = MockTransform()
 
         # Search at (112, 153) - closer to second point
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 112.0, 153.0, threshold=10.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 112.0, 153.0, threshold=10.0)
 
         assert result == 1  # Should find the closest point (second one)
 
@@ -412,9 +404,7 @@ class TestPointLookup:
         # Index should be empty initially
         assert index._grid == {}
 
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 100.0, 150.0, threshold=5.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 100.0, 150.0, threshold=5.0)
 
         # Index should be built now
         assert index._grid != {}
@@ -430,7 +420,7 @@ class TestRectangleSelection:
         view = MockCurveView([])
         transform = MockTransform()
 
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
 
         assert result == []
 
@@ -446,7 +436,7 @@ class TestRectangleSelection:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
 
         assert len(result) == 3
         assert set(result) == {0, 1, 2}
@@ -464,7 +454,7 @@ class TestRectangleSelection:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
 
         assert len(result) == 2
         assert set(result) == {0, 3}  # Points 0 and 3 are inside
@@ -480,7 +470,7 @@ class TestRectangleSelection:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
 
         assert result == []
 
@@ -493,7 +483,7 @@ class TestRectangleSelection:
         transform = MockTransform()
 
         # Pass swapped coordinates (x2 < x1, y2 < y1)
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 100.0, 100.0, 0.0, 0.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 100.0, 100.0, 0.0, 0.0)
 
         assert len(result) == 1
         assert result[0] == 0
@@ -508,7 +498,7 @@ class TestRectangleSelection:
         # Index should be empty initially
         assert index._grid == {}
 
-        result = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
+        result = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 100.0, 100.0)
 
         # Index should be built now
         assert index._grid != {}
@@ -547,7 +537,7 @@ class TestStatistics:
         view = MockCurveView(curve_data, width=400.0, height=400.0)
         transform = MockTransform("stats_hash")
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
 
         # After rebuild, screen dimensions updated and grid recalculated: int(400/45)=8, clamped to min(10)
@@ -576,7 +566,7 @@ class TestStatistics:
         view = MockCurveView(curve_data, width=200.0, height=200.0)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
 
         # After rebuild: screen 200x200, grid 10x10 (clamped), cell size 20x20
@@ -598,7 +588,7 @@ class TestCacheManagement:
         transform = MockTransform("cache_hash")
 
         # Build index
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         assert index._grid != {}
         assert index._last_transform_hash == "cache_hash"
         assert index._last_point_count == 1
@@ -619,11 +609,11 @@ class TestCacheManagement:
         transform2 = MockTransform("hash2")
 
         # Build with first transform
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform1))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform1))
         _ = dict(index._grid)  # Store first grid state
 
         # Build with second transform - should rebuild
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform2))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform2))
 
         assert index._last_transform_hash == "hash2"
         # Grid might be different depending on transform
@@ -635,12 +625,12 @@ class TestCacheManagement:
 
         # Build with 1 point
         view1 = MockCurveView([(1, 100.0, 150.0)])
-        index.rebuild_index(_as_curve_view(view1), _as_transform(transform))
+        index.rebuild_index(view1.curve_data, _as_curve_view(view1), _as_transform(transform))
         assert index._last_point_count == 1
 
         # Build with 2 points - should rebuild
         view2 = MockCurveView([(1, 100.0, 150.0), (2, 200.0, 250.0)])
-        index.rebuild_index(_as_curve_view(view2), _as_transform(transform))
+        index.rebuild_index(view2.curve_data, _as_curve_view(view2), _as_transform(transform))
         assert index._last_point_count == 2
 
 
@@ -660,7 +650,7 @@ class TestThreadSafety:
         def build_index(thread_id: int):
             try:
                 for _ in range(5):
-                    index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+                    index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
                     stats = index.get_stats()
                     assert stats["total_points"] == 100
                 results.append(thread_id)
@@ -689,7 +679,7 @@ class TestThreadSafety:
         transform = MockTransform()
 
         # Build index once
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         results = []
         errors = []
@@ -700,7 +690,7 @@ class TestThreadSafety:
                     x = float(i * 10)
                     y = float(i * 15)
                     result = index.find_point_at_position(
-                        _as_curve_view(view), _as_transform(transform), x, y, threshold=1.0
+                        view.curve_data, _as_transform(transform), x, y, threshold=1.0
                     )
                     # Should find corresponding point
                     if result >= 0:
@@ -728,7 +718,7 @@ class TestThreadSafety:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         results = []
         errors = []
@@ -776,7 +766,7 @@ class TestPerformanceOptimizations:
         transform = MockTransform()
 
         # Should handle large dataset without issues
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
 
         assert stats["total_points"] == 1000
@@ -784,7 +774,7 @@ class TestPerformanceOptimizations:
         assert isinstance(occupied_cells, int | float) and occupied_cells > 0
 
         # Test point lookup still works
-        result = index.find_point_at_position(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, threshold=5.0)
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), 0.0, 0.0, threshold=5.0)
         assert result == 0  # Should find first point
 
     def test_sparse_grid_efficiency(self) -> None:
@@ -803,7 +793,7 @@ class TestPerformanceOptimizations:
         view = MockCurveView(sparse_data)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
 
         assert stats["total_points"] == 4
@@ -827,7 +817,7 @@ class TestPerformanceOptimizations:
         view = MockCurveView(dense_data)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
 
         assert stats["total_points"] == 50
@@ -852,7 +842,7 @@ class TestEdgeCases:
         transform = MockTransform()
 
         # Rebuild should work fine with minimum grid dimensions
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         # Should work correctly even with minimal dimensions
         assert len(index._grid) >= 0  # Should not crash
 
@@ -867,12 +857,10 @@ class TestEdgeCases:
         view = MockCurveView(curve_data)
         transform = MockTransform()
 
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
 
         # Should handle negative coordinates gracefully
-        result = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), -100.0, -150.0, threshold=5.0
-        )
+        result = index.find_point_at_position(view.curve_data, _as_transform(transform), -100.0, -150.0, threshold=5.0)
         assert result == 0
 
     def test_very_large_coordinates(self) -> None:
@@ -887,7 +875,7 @@ class TestEdgeCases:
         transform = MockTransform()
 
         # Should handle large coordinates without crashing
-        index.rebuild_index(_as_curve_view(view), _as_transform(transform))
+        index.rebuild_index(view.curve_data, _as_curve_view(view), _as_transform(transform))
         stats = index.get_stats()
         assert stats["total_points"] == 2
 
@@ -900,9 +888,10 @@ class TestEdgeCases:
         transform = MockTransform()
 
         # Should handle missing attribute gracefully (getattr returns [])
-        index.rebuild_index(view, _as_transform(transform))  # type: ignore[arg-type]
+        # Pass empty list since view doesn't have curve_data attribute
+        index.rebuild_index([], view, _as_transform(transform))  # type: ignore[arg-type]
 
-        result = index.find_point_at_position(view, _as_transform(transform), 100.0, 150.0)  # type: ignore[arg-type]
+        result = index.find_point_at_position([], _as_transform(transform), 100.0, 150.0, view)  # type: ignore[arg-type]
         assert result == -1
 
     def test_transform_coordinate_conversion_errors(self) -> None:
@@ -919,12 +908,12 @@ class TestEdgeCases:
         # Should handle transform errors - they propagate up
         with pytest.raises(ValueError, match="Conversion error"):
             # pyright: ignore[reportArgumentType] - Testing error condition with incomplete mock
-            index.rebuild_index(_as_curve_view(view), transform)  # type: ignore[arg-type]
+            index.rebuild_index(view.curve_data, _as_curve_view(view), transform)  # type: ignore[arg-type]
 
         # Try point lookup - should also fail with same error
         with pytest.raises(ValueError, match="Conversion error"):
             # pyright: ignore[reportArgumentType] - Testing error condition with incomplete mock
-            index.find_point_at_position(_as_curve_view(view), transform, 100.0, 150.0)  # type: ignore[arg-type]
+            index.find_point_at_position(view.curve_data, transform, 100.0, 150.0, _as_curve_view(view))  # type: ignore[arg-type]
 
 
 class TestIntegration:
@@ -940,17 +929,19 @@ class TestIntegration:
         transform = MockTransform()
 
         # First lookup - should build index
-        result1 = index.find_point_at_position(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, threshold=10.0)
+        result1 = index.find_point_at_position(
+            view.curve_data, _as_transform(transform), 0.0, 0.0, threshold=10.0, view=_as_curve_view(view)
+        )
         assert result1 == 0
 
         # Second lookup - should use cached index
         result2 = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform), 50.0, 30.0, threshold=10.0
+            view.curve_data, _as_transform(transform), 50.0, 30.0, threshold=10.0, view=_as_curve_view(view)
         )
         assert result2 == 1
 
         # Rectangle selection - should use cached index
-        rect_points = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 200.0, 100.0)
+        rect_points = index.get_points_in_rect(view.curve_data, _as_transform(transform), 0.0, 0.0, 200.0, 100.0)
         assert len(rect_points) > 0
 
         # Check statistics
@@ -966,9 +957,7 @@ class TestIntegration:
         small_data = [(1, 100.0, 150.0), (2, 200.0, 250.0)]
         view1 = MockCurveView(small_data)
 
-        result1 = index.find_point_at_position(
-            _as_curve_view(view1), _as_transform(transform), 100.0, 150.0, threshold=5.0
-        )
+        result1 = index.find_point_at_position(view1.curve_data, _as_transform(transform), 100.0, 150.0, threshold=5.0)
         assert result1 == 0
 
         # Update to larger dataset
@@ -981,9 +970,7 @@ class TestIntegration:
         # Index 0: (1, 100.0, 150.0)
         # Index 1: (2, 200.0, 250.0)
         # Index 2: (3, 30.0, 60.0) <- This is at screen coordinates (30, 60)
-        result2 = index.find_point_at_position(
-            _as_curve_view(view2), _as_transform(transform), 30.0, 60.0, threshold=5.0
-        )
+        result2 = index.find_point_at_position(view2.curve_data, _as_transform(transform), 30.0, 60.0, threshold=5.0)
         assert result2 == 2  # Point at index 2 is (3, 30.0, 60.0)
 
     def test_coordinate_system_changes(self) -> None:
@@ -997,9 +984,7 @@ class TestIntegration:
         transform1._scale_x = 1.0
         transform1._scale_y = 1.0
 
-        result1 = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform1), 10.0, 20.0, threshold=2.0
-        )
+        result1 = index.find_point_at_position(view.curve_data, _as_transform(transform1), 10.0, 20.0, threshold=2.0)
         assert result1 == 0
 
         # Transform 2: 2x scale
@@ -1008,9 +993,7 @@ class TestIntegration:
         transform2._scale_y = 2.0
 
         # Point is now at (20, 40) in screen coordinates
-        result2 = index.find_point_at_position(
-            _as_curve_view(view), _as_transform(transform2), 20.0, 40.0, threshold=2.0
-        )
+        result2 = index.find_point_at_position(view.curve_data, _as_transform(transform2), 20.0, 40.0, threshold=2.0)
         assert result2 == 0
 
 
@@ -1044,11 +1027,15 @@ class TestPublicAPI:
         transform = MockTransform()
 
         # find_point_at_position returns int
-        result1 = index.find_point_at_position(_as_curve_view(view), _as_transform(transform), 100.0, 150.0)
+        result1 = index.find_point_at_position(
+            view.curve_data, _as_transform(transform), 100.0, 150.0, view=_as_curve_view(view)
+        )
         assert isinstance(result1, int)
 
         # get_points_in_rect returns list of int
-        result2 = index.get_points_in_rect(_as_curve_view(view), _as_transform(transform), 0.0, 0.0, 200.0, 200.0)
+        result2 = index.get_points_in_rect(
+            view.curve_data, _as_transform(transform), 0.0, 0.0, 200.0, 200.0, view=_as_curve_view(view)
+        )
         assert isinstance(result2, list)
         assert all(isinstance(x, int) for x in result2)
 

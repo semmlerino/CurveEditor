@@ -1221,6 +1221,18 @@ class CurveViewWidget(QWidget):
         """
         self.view_camera.center_on_frame(frame)
 
+    def pan(self, delta_x: float, delta_y: float) -> None:
+        """
+        Pan the view by screen pixel deltas.
+
+        Args:
+            delta_x: Horizontal screen pixels to pan (positive = right)
+            delta_y: Vertical screen pixels to pan (positive = down)
+
+        Note: Delegates to ViewCameraController (Phase 1 extraction)
+        """
+        self.view_camera.pan(delta_x, delta_y)
+
     # Selection Operations
 
     def _find_point_at(self, pos: QPointF) -> int:

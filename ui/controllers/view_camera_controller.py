@@ -526,6 +526,20 @@ class ViewCameraController:
         else:
             self.pan_offset_y += delta_y
 
+    def pan(self, delta_x: float, delta_y: float) -> None:
+        """
+        Pan the view by screen pixel deltas.
+
+        Updates pan offsets to move the visible area. Y panning respects
+        flip_y_axis mode for natural drag behavior.
+
+        Args:
+            delta_x: Horizontal screen pixels to pan (positive = right)
+            delta_y: Vertical screen pixels to pan (positive = down)
+        """
+        self.pan_offset_x += delta_x
+        self.apply_pan_offset_y(delta_y)
+
     def _get_image_top_coordinates(self, img_height: float, transform: Transform) -> tuple[float, float]:
         """
         Get image top-left coordinates accounting for Y-axis flip mode.

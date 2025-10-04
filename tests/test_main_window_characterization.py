@@ -275,8 +275,10 @@ class TestDataLoading:
 
         with patch.object(main_window.curve_widget, "set_curve_data") as mock_set:
             main_window.on_tracking_data_loaded(test_data)
-            # Note: Called 3 times in current implementation
-            assert mock_set.call_count == 3
+            # Note: Called 2 times after Phase 8 refactor (reduced from 3)
+            # 1. Direct call in on_tracking_data_loaded
+            # 2. Call from update_curve_display for active curve
+            assert mock_set.call_count == 2
             # Verify it was called with the test data
             mock_set.assert_called_with(test_data)
 

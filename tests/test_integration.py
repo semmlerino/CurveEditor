@@ -135,10 +135,10 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         # 6. Interact: Find and select a point
         target_screen = screen_coords[1]  # Point at index 1
         found_idx = self.interaction_service.find_point_at(self.curve_view, target_screen[0], target_screen[1])  # pyright: ignore[reportArgumentType]
-        assert found_idx == 1
+        assert found_idx.index == 1
 
         # 7. Interact: Select the point
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx)  # pyright: ignore[reportArgumentType]  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)  # pyright: ignore[reportArgumentType]  # pyright: ignore[reportArgumentType]
         assert success
         assert 1 in self.curve_view.selected_points
 
@@ -223,10 +223,10 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
         # Find point at screen coordinates
         found_idx = self.interaction_service.find_point_at(self.curve_view, screen_x, screen_y)  # pyright: ignore[reportArgumentType]
-        assert found_idx == 2
+        assert found_idx.index == 2
 
         # Select the found point
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)  # pyright: ignore[reportArgumentType]
         assert success
         assert self.curve_view.selected_point_idx == 2
 
@@ -296,7 +296,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
         # Should be able to find the point at screen coordinates
         found_idx = self.interaction_service.find_point_at(self.curve_view, screen_x, screen_y)  # pyright: ignore[reportArgumentType]
-        assert found_idx == 0  # Found the point after reset
+        assert found_idx.index == 0  # Found the point after reset
 
 
 class TestDataUIIntegration(TestServiceIntegration):
@@ -447,7 +447,7 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
 
         # Try to find point at extreme coordinates
         idx = self.interaction_service.find_point_at(self.curve_view, 1e10, 1e10)  # pyright: ignore[reportArgumentType]
-        assert idx == -1
+        assert idx.index == -1
 
     def test_service_state_consistency(self):
         """Test services maintain consistent state after errors."""
@@ -504,7 +504,7 @@ class TestPerformanceIntegration(TestServiceIntegration):
         mid_point = loaded[500]
         screen_x, screen_y = transform.data_to_screen(mid_point[1], mid_point[2])
         idx = self.interaction_service.find_point_at(self.curve_view, screen_x, screen_y)  # pyright: ignore[reportArgumentType]
-        assert idx == 500
+        assert idx.index == 500
 
         # Select all should work
         count = self.interaction_service.select_all_points(self.curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
