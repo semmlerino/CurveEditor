@@ -64,9 +64,9 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal, SignalInstance
 
 from core.display_mode import DisplayMode
+from core.models import CurvePoint, PointStatus
 
 if TYPE_CHECKING:
-    from core.models import CurvePoint
     from core.type_aliases import CurveDataInput, CurveDataList
 
 logger = logging.getLogger(__name__)
@@ -263,6 +263,189 @@ class ApplicationState(QObject):
         self._emit(self.curves_changed, (self._curves_data.copy(),))
 
         logger.debug(f"Updated point {index} in curve '{curve_name}'")
+
+    def add_point(self, curve_name: str, point: CurvePoint) -> int:
+        """
+        Add point to end of curve.
+
+        Args:
+            curve_name: Curve to add point to
+            point: Point to add
+
+        Returns:
+            Index of added point
+        """
+        self._assert_main_thread()
+
+        # Get or create curve
+        curve = self._curves_data.get(curve_name, [])
+
+        # Create new list with appended point (immutability)
+        new_curve = curve.copy()
+        new_curve.append(point.to_tuple4())
+        self._curves_data[curve_name] = new_curve
+
+        # Initialize metadata if new curve
+        if curve_name not in self._curve_metadata:
+            self._curve_metadata[curve_name] = {"visible": True}
+
+        self._emit(self.curves_changed, (self._curves_data.copy(),))
+
+        index = len(new_curve) - 1
+        logger.debug(f"Added point to curve '{curve_name}' at index {index}")
+        return index
+
+    def remove_point(self, curve_name: str, index: int) -> bool:
+        """
+        Remove point from curve.
+
+        Updates selection indices by shifting down indices after removed point.
+
+        Args:
+            curve_name: Curve containing point
+            index: Point index to remove
+
+        Returns:
+            True if removed, False if invalid
+        """
+        self._assert_main_thread()
+
+        if curve_name not in self._curves_data:
+            logger.warning(f"Cannot remove point: curve '{curve_name}' not found")
+            return False
+
+        curve = self._curves_data[curve_name]
+        if not (0 <= index < len(curve)):
+            logger.warning(f"Cannot remove point: index {index} out of range (0-{len(curve)-1})")
+            return False
+
+        # Create new list without the point (immutability)
+        new_curve = curve.copy()
+        del new_curve[index]
+        self._curves_data[curve_name] = new_curve
+
+        # Update selection: remove index and shift down indices after it
+        if curve_name in self._selection:
+            old_selection = self._selection[curve_name]
+            new_selection = {i - 1 if i > index else i for i in old_selection if i != index}
+            if new_selection != old_selection:
+                self._selection[curve_name] = new_selection
+                self._emit(self.selection_changed, (new_selection.copy(), curve_name))
+
+        self._emit(self.curves_changed, (self._curves_data.copy(),))
+
+        logger.debug(f"Removed point {index} from curve '{curve_name}'")
+        return True
+
+    def set_point_status(self, curve_name: str, index: int, status: str | PointStatus) -> bool:
+        """
+        Change point status.
+
+        Args:
+            curve_name: Curve containing point
+            index: Point index to update
+            status: New status (string or PointStatus enum)
+
+        Returns:
+            True if changed, False if invalid
+        """
+        self._assert_main_thread()
+
+        if curve_name not in self._curves_data:
+            logger.warning(f"Cannot set point status: curve '{curve_name}' not found")
+            return False
+
+        curve = self._curves_data[curve_name]
+        if not (0 <= index < len(curve)):
+            logger.warning(f"Cannot set point status: index {index} out of range (0-{len(curve)-1})")
+            return False
+
+        # Convert status to PointStatus enum
+        if isinstance(status, str):
+            status_enum = PointStatus.from_legacy(status)
+        else:
+            status_enum = status
+
+        # Get current point and create new point with updated status
+        current_point_tuple = curve[index]
+        current_point = CurvePoint.from_tuple(current_point_tuple)
+        new_point = current_point.with_status(status_enum)
+
+        # Create new list with updated point (immutability)
+        new_curve = curve.copy()
+        new_curve[index] = new_point.to_tuple4()
+        self._curves_data[curve_name] = new_curve
+
+        self._emit(self.curves_changed, (self._curves_data.copy(),))
+
+        logger.debug(f"Set point {index} status to '{status_enum.value}' in curve '{curve_name}'")
+        return True
+
+    def select_all(self, curve_name: str | None = None) -> None:
+        """
+        Select all points in curve.
+
+        Args:
+            curve_name: Curve to select all points in (defaults to active curve)
+        """
+        self._assert_main_thread()
+
+        # Default to active curve
+        if curve_name is None:
+            curve_name = self._active_curve
+
+        if curve_name is None:
+            logger.warning("Cannot select all: no curve specified and no active curve")
+            return
+
+        if curve_name not in self._curves_data:
+            logger.warning(f"Cannot select all: curve '{curve_name}' not found")
+            return
+
+        # Select all indices
+        curve = self._curves_data[curve_name]
+        all_indices = set(range(len(curve)))
+        self.set_selection(curve_name, all_indices)
+
+        logger.debug(f"Selected all {len(all_indices)} points in curve '{curve_name}'")
+
+    def select_range(self, curve_name: str, start: int, end: int) -> None:
+        """
+        Select range of points (inclusive).
+
+        Clamps indices to valid range.
+
+        Args:
+            curve_name: Curve to select points in
+            start: Start index (inclusive)
+            end: End index (inclusive)
+        """
+        self._assert_main_thread()
+
+        if curve_name not in self._curves_data:
+            logger.warning(f"Cannot select range: curve '{curve_name}' not found")
+            return
+
+        curve = self._curves_data[curve_name]
+        curve_len = len(curve)
+
+        if curve_len == 0:
+            logger.warning(f"Cannot select range: curve '{curve_name}' is empty")
+            return
+
+        # Clamp to valid range
+        start = max(0, min(start, curve_len - 1))
+        end = max(0, min(end, curve_len - 1))
+
+        # Ensure start <= end
+        if start > end:
+            start, end = end, start
+
+        # Select range
+        range_indices = set(range(start, end + 1))
+        self.set_selection(curve_name, range_indices)
+
+        logger.debug(f"Selected points {start}-{end} in curve '{curve_name}'")
 
     def delete_curve(self, curve_name: str) -> None:
         """
