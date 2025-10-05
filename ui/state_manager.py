@@ -127,18 +127,23 @@ class StateManager(QObject):
     # ==================== Signal Forwarding Adapters ====================
 
     def _on_app_state_selection_changed(self, indices: set[int], curve_name: str) -> None:
-        """
-        Adapter to forward ApplicationState selection_changed signal.
+        """Adapter to forward ApplicationState selection_changed signal.
 
         ApplicationState emits (indices, curve_name), StateManager emits just indices.
         Only forward if selection is for the active timeline point (or fallback curve).
+
+        Phase 4: Added None check for curve name.
 
         Args:
             indices: Selected point indices
             curve_name: Curve name the selection belongs to
         """
-        # Forward if it matches the curve we're tracking (including fallback)
+        # Forward if it matches the curve we're tracking
         expected_curve = self._get_curve_name_for_selection()
+        if expected_curve is None:
+            logger.debug("No active curve for selection - ignoring signal")
+            return
+
         if curve_name == expected_curve:
             self.selection_changed.emit(indices)
 
@@ -244,32 +249,36 @@ class StateManager(QObject):
 
     # ==================== Selection State Properties ====================
 
-    def _get_curve_name_for_selection(self) -> str:
-        """
-        Get the curve name to use for selection operations.
+    def _get_curve_name_for_selection(self) -> str | None:
+        """Determine which curve name to use for selection operations.
 
-        Returns active timeline point if set, otherwise falls back to ApplicationState's
-        active curve, or a default curve name for backward compatibility with single-curve code.
+        Phase 4: Removed __default__ fallback. Returns None if no active curve.
 
         Returns:
-            Curve name to use for selection operations
+            Curve name for selection, or None if no curve is active
         """
         if self._active_timeline_point:
             return self._active_timeline_point
         if self._app_state.active_curve:
             return self._app_state.active_curve
-        # Fallback for single-curve backward compatibility
-        return "__default__"
+        # No active curve - caller should handle None
+        return None
 
     @property
     def selected_points(self) -> list[int]:
         """Get the list of selected point indices (delegated to ApplicationState)."""
         curve_name = self._get_curve_name_for_selection()
+        if not curve_name:
+            logger.warning("No active curve for selection - returning empty selection")
+            return []
         return sorted(self._app_state.get_selection(curve_name))
 
     def set_selected_points(self, indices: list[int] | set[int]) -> None:
         """Set the selected point indices (delegated to ApplicationState)."""
         curve_name = self._get_curve_name_for_selection()
+        if not curve_name:
+            logger.warning("No active curve for selection - ignoring set_selected_points")
+            return
         new_selection = set(indices) if not isinstance(indices, set) else indices
         self._app_state.set_selection(curve_name, new_selection)
         # Signal already forwarded in __init__
@@ -278,6 +287,9 @@ class StateManager(QObject):
     def add_to_selection(self, index: int) -> None:
         """Add a point to the selection (delegated to ApplicationState)."""
         curve_name = self._get_curve_name_for_selection()
+        if not curve_name:
+            logger.warning("No active curve for selection - ignoring add_to_selection")
+            return
         self._app_state.add_to_selection(curve_name, index)
         # Signal already forwarded in __init__
         logger.debug(f"Added point {index} to selection in '{curve_name}'")
@@ -298,6 +310,9 @@ class StateManager(QObject):
     def remove_from_selection(self, index: int) -> None:
         """Remove a point from the selection (delegated to ApplicationState)."""
         curve_name = self._get_curve_name_for_selection()
+        if not curve_name:
+            logger.warning("No active curve for selection - ignoring remove_from_selection")
+            return
         self._app_state.remove_from_selection(curve_name, index)
         # Signal already forwarded in __init__
         logger.debug(f"Removed point {index} from selection in '{curve_name}'")
@@ -305,6 +320,9 @@ class StateManager(QObject):
     def clear_selection(self) -> None:
         """Clear the current selection (delegated to ApplicationState)."""
         curve_name = self._get_curve_name_for_selection()
+        if not curve_name:
+            logger.warning("No active curve for selection - ignoring clear_selection")
+            return
         self._app_state.clear_selection(curve_name)
         # Signal already forwarded in __init__
         logger.debug(f"Selection cleared for '{curve_name}'")

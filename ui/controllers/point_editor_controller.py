@@ -78,13 +78,15 @@ class PointEditorController:
             # No selection
             self._update_for_no_selection()
 
-    @Slot(set)
-    def on_store_selection_changed(self, selection: set[int]) -> None:
-        """
-        Handle selection changes from the reactive store.
+    @Slot(set, str)
+    def on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle selection changes from the reactive store.
+
+        Phase 4: Removed __default__ - curve_name is now optional.
 
         Args:
             selection: Set of selected point indices from the store
+            curve_name: Curve with selection change (currently unused)
         """
         if selection:
             # Update point editor with first selected point

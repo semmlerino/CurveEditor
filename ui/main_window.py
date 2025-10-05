@@ -295,9 +295,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         logger.info("MainWindow initialized successfully")
 
-    def on_store_selection_changed(self, selection: set[int]) -> None:
-        """Handle selection changes from the store (delegated to PointEditorController)."""
-        self.point_editor_controller.on_store_selection_changed(selection)
+    def on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle store selection changed.
+
+        Phase 4: Removed __default__ - curve_name is now optional.
+
+        Args:
+            selection: Selected indices
+            curve_name: Curve with selection change (None uses active curve)
+        """
+        # Delegate to point editor controller
+        self.point_editor_controller.on_store_selection_changed(selection, curve_name)
         self.update_ui_state()
 
     def _setup_tab_order(self) -> None:

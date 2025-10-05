@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 from core.logger_utils import get_logger
 from core.models import FrameNumber
 from stores import get_store_manager
+from stores.application_state import get_application_state
 
 # animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
@@ -236,6 +237,7 @@ class TimelineTabWidget(QWidget):
         # Connect to reactive data store
         self._store_manager = get_store_manager()
         self._curve_store = self._store_manager.get_curve_store()
+        self._app_state = get_application_state()
         self._connect_store_signals()
 
         # Initialize timeline from current store data
@@ -456,10 +458,22 @@ class TimelineTabWidget(QWidget):
             self.invalidate_frame_status(frame)
             self._schedule_deferred_update()
 
-    def _on_store_selection_changed(self, selection: set[int]) -> None:
-        """Handle selection changed in store."""
-        # Get current curve data to find frames containing selected points
-        curve_data = self._curve_store.get_data()
+    def _on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle selection changes.
+
+        Phase 4: Removed __default__ - curve_name is now optional.
+
+        Args:
+            selection: Selected indices
+            curve_name: Curve with selection change (None uses active curve)
+        """
+        # Use ApplicationState - fallback to active curve if curve_name not provided
+        if not curve_name:
+            curve_name = self._app_state.active_curve
+        if not curve_name:
+            return
+
+        curve_data = self._app_state.get_curve_data(curve_name)
         if not curve_data:
             return
 

@@ -194,11 +194,17 @@ class StateSyncController:
         if point and len(point) >= 3:
             self.widget.point_moved.emit(index, point[1], point[2])
 
-    def _on_store_selection_changed(self, selection: set[int]) -> None:
-        """Handle store selection changed signal."""
-        # Update display and notify listeners
+    def _on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle store selection changed signal.
+
+        Phase 4: Removed __default__ - curve_name is now optional.
+        """
+        # Update widget selection display
         self.widget.update()
+
+        # Emit widget's selection_changed signal (list format for compatibility)
         self.widget.selection_changed.emit(list(selection))
+        logger.debug(f"Store selection changed for '{curve_name}': {len(selection)} selected")
 
     def _sync_data_service(self) -> None:
         """Synchronize DataService with current curve data."""
@@ -213,24 +219,15 @@ class StateSyncController:
     # ==================== ApplicationState Signal Handlers ====================
 
     def _on_app_state_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
-        """Handle ApplicationState curves_changed signal."""
-        # CRITICAL: Sync ApplicationState "__default__" curve back to CurveDataStore
-        # This ensures widget.curve_data (which reads from CurveDataStore) reflects
-        # changes made through ApplicationState (e.g., by DeletePointsCommand)
-        default_curve = "__default__"
-        if default_curve in curves:
-            # Update CurveDataStore to match ApplicationState
-            # Use _curve_store.set_data() to avoid circular signal emissions
-            default_data = curves[default_curve]
-            current_data = self._curve_store.get_data()
+        """Handle ApplicationState curves_changed signal.
 
-            # Only update if data differs (avoid unnecessary signal emissions)
-            if default_data != current_data:
-                # Preserve selection during sync to avoid clearing it on status-only changes
-                self._curve_store.set_data(default_data, preserve_selection_on_sync=True)
-                logger.debug(f"Synced ApplicationState '__default__' ({len(default_data)} points) to CurveDataStore")
+        Phase 4: Removed __default__ sync - StateSyncController only handles
+        active_curve_changed for CurveDataStore sync now.
 
-        # Invalidate caches and request repaint
+        Args:
+            curves: Dictionary mapping curve names to curve data
+        """
+        # Multi-curve state has changed - repaint to show all visible curves
         self.widget.invalidate_caches()
         self.widget.update()
         logger.debug(f"ApplicationState curves changed: {len(curves)} curves")
@@ -243,7 +240,18 @@ class StateSyncController:
             logger.debug(f"ApplicationState selection changed for '{curve_name}': {len(indices)} selected")
 
     def _on_app_state_active_curve_changed(self, curve_name: str) -> None:
-        """Handle ApplicationState active_curve_changed signal."""
+        """Handle ApplicationState active_curve_changed signal.
+
+        Syncs the new active curve to CurveDataStore for backward compatibility.
+        Phase 3.2: Added automatic sync to remove manual syncing from facade.
+        """
+        # Sync active curve to CurveDataStore for backward compatibility
+        if curve_name:
+            curve_data = self._app_state.get_curve_data(curve_name)
+            if curve_data is not None:
+                self._curve_store.set_data(curve_data, preserve_selection_on_sync=True)
+                logger.debug(f"Synced active curve '{curve_name}' to CurveDataStore")
+
         # Update display to show new active curve
         self.widget.invalidate_caches()
         self.widget.update()

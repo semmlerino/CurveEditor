@@ -321,8 +321,15 @@ class PointEditorProtocol(Protocol):
         """Handle selection change."""
         ...
 
-    def on_store_selection_changed(self, selection: set[int]) -> None:
-        """Handle store selection change."""
+    def on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle selection changes.
+
+        Phase 4: Removed __default__ - use None to indicate no explicit curve.
+
+        Args:
+            selection: Set of selected point indices
+            curve_name: Name of curve with selection change (None uses active curve)
+        """
         ...
 
     def on_point_x_changed(self, value: float) -> None:

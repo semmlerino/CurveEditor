@@ -76,31 +76,24 @@ class MultiPointTrackingController:
 
     @property
     def tracked_data(self) -> dict[str, CurveDataList]:
-        """
-        Backward-compatible property for accessing tracked data during migration.
+        """Get all tracked curve data from ApplicationState.
 
-        Returns all curves from ApplicationState as a dict, excluding "__default__".
-        This property exists for backward compatibility during the Week 4 migration.
+        Phase 4: Removed __default__ filtering - all curves are real named curves.
         """
         result = {}
         for curve_name in self._app_state.get_all_curve_names():
-            # Filter out internal "__default__" curve used for single-curve mode
-            if curve_name != "__default__":
-                result[curve_name] = self._app_state.get_curve_data(curve_name)
+            result[curve_name] = self._app_state.get_curve_data(curve_name)
         return result
 
     @tracked_data.setter
     def tracked_data(self, value: dict[str, CurveDataList]) -> None:
-        """
-        Backward-compatible setter for tracked data during migration.
+        """Set all tracked curve data in ApplicationState.
 
-        Writes all curves to ApplicationState.
-        This setter exists for backward compatibility during the Week 4 migration.
+        Phase 4: Removed __default__ special handling - all curves treated equally.
         """
-        # Clear existing curves (except "__default__" which is for single-curve mode)
+        # Clear existing curves
         for curve_name in list(self._app_state.get_all_curve_names()):
-            if curve_name != "__default__":
-                self._app_state.delete_curve(curve_name)
+            self._app_state.delete_curve(curve_name)
 
         # Add all curves from the input dict
         for curve_name, curve_data in value.items():
@@ -377,15 +370,17 @@ class MultiPointTrackingController:
 
         logger.debug(f"Selected tracking points: {point_names}")
 
-    def on_curve_selection_changed(self, selection: set[int]) -> None:
-        """
-        Handle selection changes from CurveDataStore (bidirectional synchronization).
+    def on_curve_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+        """Handle selection changes from CurveDataStore (bidirectional synchronization).
 
         This provides visual feedback in the tracking panel when point selection changes
         in the curve view, completing the bidirectional sync between systems.
 
+        Phase 4: Removed __default__ special handling - use curve_name or active_timeline_point.
+
         Args:
             selection: Set of selected point indices from CurveDataStore
+            curve_name: Name of curve with selection change (None uses active_timeline_point)
         """
         if not self.main_window.tracking_panel:
             return
@@ -395,9 +390,8 @@ class MultiPointTrackingController:
             self.main_window.tracking_panel.set_selected_points([])
             return
 
-        # Find which curve contains the selected points by examining the current active timeline point
-        # The CurveDataStore selection represents points in the currently displayed single curve
-        active_curve_name = self.main_window.active_timeline_point
+        # Use explicit curve_name or fallback to active_timeline_point
+        active_curve_name = curve_name if curve_name else self.main_window.active_timeline_point
 
         if active_curve_name and active_curve_name in self._app_state.get_all_curve_names():
             # Update TrackingPanel to highlight the curve that contains the selected points
@@ -1087,7 +1081,7 @@ class MultiPointTrackingController:
             self._handling_signal = True
 
             # Update active timeline point to match ApplicationState
-            if curve_name and curve_name != "__default__":
+            if curve_name:
                 self.main_window.active_timeline_point = curve_name
                 # NOTE: Do NOT call update_curve_display() here to avoid signal loops
 

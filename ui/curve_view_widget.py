@@ -305,37 +305,34 @@ class CurveViewWidget(QWidget):
 
     @property
     def selected_indices(self) -> set[int]:
-        """Get selected indices from the store."""
-        selection = self._curve_store.get_selection()
+        """Get selected indices from the store.
 
-        # BACKWARD COMPATIBILITY: Also sync to ApplicationState default curve
-        default_curve = "__default__"
-        if default_curve in self._app_state.get_all_curve_names():
-            app_state_selection = self._app_state.get_selection(default_curve)
-            # Sync if they differ (prefer CurveDataStore as source of truth for single-curve)
-            if selection != app_state_selection:
-                self._app_state.set_selection(default_curve, selection)
-
-        return selection
+        Phase 4: Removed __default__ sync. Selection managed via active curve.
+        """
+        return self._curve_store.get_selection()
 
     @selected_indices.setter
     def selected_indices(self, value: set[int]) -> None:
-        """Set selected indices in the store."""
+        """Set selected indices in the store.
+
+        Phase 4: Removed __default__ sync. Selection now managed via active curve only.
+        """
         if not value:
             self._curve_store.clear_selection()
-            # BACKWARD COMPATIBILITY: Also clear in ApplicationState
-            default_curve = "__default__"
-            if default_curve in self._app_state.get_all_curve_names():
-                self._app_state.clear_selection(default_curve)
         else:
             # Clear first then add each index
             self._curve_store.clear_selection()
             for idx in value:
                 self._curve_store.select(idx, add_to_selection=True)
-            # BACKWARD COMPATIBILITY: Also update in ApplicationState
-            default_curve = "__default__"
-            if default_curve in self._app_state.get_all_curve_names():
-                self._app_state.set_selection(default_curve, value)
+
+        # Sync to ApplicationState for active curve
+        active_curve = self._app_state.active_curve
+        if active_curve:
+            if value:
+                self._app_state.set_selection(active_curve, value)
+            else:
+                self._app_state.clear_selection(active_curve)
+            logger.debug(f"Synced selection to active curve '{active_curve}'")
 
     @property
     def active_curve_name(self) -> str | None:
@@ -351,21 +348,18 @@ class CurveViewWidget(QWidget):
 
     @property
     def curves_data(self) -> dict[str, list[tuple[int, float, float] | tuple[int, float, float, str | bool]]]:
-        """
-        Get all curves data from ApplicationState.
+        """Get all curves data from ApplicationState.
 
-        Backward-compatible property for accessing multi-curve data during migration.
+        Phase 4: Removed __default__ filtering - all curves are real named curves.
+
         Returns dict mapping curve names to their data.
-        Filters out "__default__" which is internal for single-curve backward compatibility.
         """
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
         result = {}
         for curve_name in app_state.get_all_curve_names():
-            # Filter out "__default__" - it's for internal single-curve compatibility
-            if curve_name != "__default__":
-                result[curve_name] = app_state.get_curve_data(curve_name)
+            result[curve_name] = app_state.get_curve_data(curve_name)
         return result
 
     @property
@@ -1484,20 +1478,19 @@ class CurveViewWidget(QWidget):
         # Delegate to store - it will emit signals that trigger our updates
         self._curve_store.select(index, add_to_selection)
 
-        # BACKWARD COMPATIBILITY: Also update ApplicationState for single-curve default
-        default_curve = "__default__"
-        if curve_name == default_curve or (not curve_name and default_curve in all_curve_names):
-            # Single-curve mode - sync to ApplicationState
+        # Sync to ApplicationState for active curve
+        active = self._app_state.active_curve
+        if active:
             # Match CurveDataStore's toggle behavior when add_to_selection=True
             if add_to_selection:
                 # Toggle: add if not selected, remove if already selected
-                current_selection = self._app_state.get_selection(default_curve)
+                current_selection = self._app_state.get_selection(active)
                 if index in current_selection:
-                    self._app_state.remove_from_selection(default_curve, index)
+                    self._app_state.remove_from_selection(active, index)
                 else:
-                    self._app_state.add_to_selection(default_curve, index)
+                    self._app_state.add_to_selection(active, index)
             else:
-                self._app_state.set_selection(default_curve, {index})
+                self._app_state.set_selection(active, {index})
 
         # Emit our own signal for compatibility
         self.point_selected.emit(index)
@@ -1508,24 +1501,30 @@ class CurveViewWidget(QWidget):
             self.interaction_service.on_point_selected(self, self.main_window, index)  # pyright: ignore[reportArgumentType]
 
     def clear_selection(self) -> None:
-        """Clear all selection."""
+        """Clear all selection.
+
+        Phase 4: Removed __default__ sync - uses active curve.
+        """
         self._curve_store.clear_selection()
 
-        # BACKWARD COMPATIBILITY: Also clear in ApplicationState
-        default_curve = "__default__"
-        if default_curve in self._app_state.get_all_curve_names():
-            self._app_state.clear_selection(default_curve)
+        # Sync to ApplicationState for active curve
+        active = self._app_state.active_curve
+        if active:
+            self._app_state.clear_selection(active)
 
     def select_all(self) -> None:
-        """Select all points."""
+        """Select all points.
+
+        Phase 4: Removed __default__ sync - uses active curve.
+        """
         self._curve_store.select_all()
 
-        # BACKWARD COMPATIBILITY: Also sync to ApplicationState
-        default_curve = "__default__"
-        if default_curve in self._app_state.get_all_curve_names():
+        # Sync to ApplicationState for active curve
+        active = self._app_state.active_curve
+        if active:
             # Get all indices from curve data
             all_indices = set(range(len(self._curve_store.get_data())))
-            self._app_state.set_selection(default_curve, all_indices)
+            self._app_state.set_selection(active, all_indices)
 
     def select_point_at_frame(self, frame: int) -> int | None:
         """
