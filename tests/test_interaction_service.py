@@ -14,12 +14,13 @@ Following the testing guide principles:
 - Mock only at system boundaries
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QPoint, QRect, Qt
 
+from core.type_aliases import CurveDataList
 from services import get_interaction_service, get_transform_service
 
 if TYPE_CHECKING:
@@ -652,7 +653,7 @@ class TestInteractionServiceKeyboardEvents:
 class TestKeyEventHandling:
     """Test comprehensive key event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -671,7 +672,7 @@ class TestKeyEventHandling:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0, 2}  # Select first and third points
         # Don't set main_window - service will skip command execution
 
@@ -696,7 +697,7 @@ class TestKeyEventHandling:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
 
         event = Mock(spec=QKeyEvent)
         event.key.return_value = Qt.Key.Key_A
@@ -738,7 +739,7 @@ class TestKeyEventHandling:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0}
         # Don't set main_window - service will skip command execution
 
@@ -756,7 +757,7 @@ class TestKeyEventHandling:
 class TestPointManipulation:
     """Test point manipulation methods."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -773,7 +774,7 @@ class TestPointManipulation:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
 
         result = self.service.select_point_by_index(view, main_window, 1)  # pyright: ignore[reportArgumentType]
 
@@ -791,7 +792,7 @@ class TestPointManipulation:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0}
 
         result = self.service.select_point_by_index(view, main_window, 1, add_to_selection=True)  # pyright: ignore[reportArgumentType]
@@ -810,7 +811,7 @@ class TestPointManipulation:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
 
         result = self.service.update_point_position(view, main_window, 0, 150.0, 150.0)  # pyright: ignore[reportArgumentType]
 
@@ -829,7 +830,7 @@ class TestPointManipulation:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0}
 
         result = self.service.nudge_selected_points(view, main_window, 10.0, -5.0)  # pyright: ignore[reportArgumentType]
@@ -843,7 +844,7 @@ class TestPointManipulation:
 class TestMouseMoveEvents:
     """Test mouse move event handling for drag, pan, and rubber band operations."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -861,7 +862,7 @@ class TestMouseMoveEvents:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0}
         view.drag_active = True
         view.last_drag_pos = QPoint(100, 100)
@@ -918,7 +919,7 @@ class TestMouseMoveEvents:
 class TestMouseReleaseEvents:
     """Test mouse release event handling for completing drag/pan/selection."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -936,11 +937,11 @@ class TestMouseReleaseEvents:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.selected_points = {0}
         view.drag_active = True
         main_window = MockMainWindow()
-        view.main_window = main_window
+        view.main_window = main_window  # pyright: ignore[reportAttributeAccessIssue]
 
         # Set original positions
         self.service._drag_original_positions = {0: (100.0, 100.0)}  # pyright: ignore[reportPrivateUsage]
@@ -990,7 +991,7 @@ class TestMouseReleaseEvents:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         view.rubber_band_active = True
         view.rubber_band = Mock(spec=QRubberBand)
         view.rubber_band.geometry.return_value = QRect(90, 90, 70, 70)
@@ -1010,7 +1011,7 @@ class TestMouseReleaseEvents:
 class TestWheelEvents:
     """Test mouse wheel event handling for zooming."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1067,7 +1068,7 @@ class TestWheelEvents:
 class TestStateManagement:
     """Test save_state and restore_state functionality."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1086,7 +1087,7 @@ class TestStateManagement:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
         main_window.history = None
         main_window.history_index = None
@@ -1140,7 +1141,7 @@ class TestStateManagement:
 class TestHistoryWithMainWindow:
     """Test history management using MainWindow's history system."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1156,7 +1157,7 @@ class TestHistoryWithMainWindow:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
         main_window.history = []
         main_window.history_index = -1
@@ -1179,7 +1180,7 @@ class TestHistoryWithMainWindow:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
         main_window.history = []
         main_window.history_index = -1
@@ -1210,7 +1211,7 @@ class TestHistoryWithMainWindow:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
         main_window.history = []
         main_window.history_index = -1
@@ -1236,7 +1237,7 @@ class TestHistoryWithMainWindow:
 class TestHistoryEdgeCases:
     """Test edge cases in history management."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1269,22 +1270,21 @@ class TestHistoryEdgeCases:
 
     def test_update_history_buttons(self) -> None:
         """Test updating undo/redo button states."""
-        view = MockCurveView([])
         main_window = MockMainWindow()
         main_window.history = None
         main_window.history_index = None
 
-        # Create mock UI with buttons
-        main_window.ui = Mock()
-        main_window.ui.undo_button = Mock()
-        main_window.ui.redo_button = Mock()
+        # Create mock UI with buttons - use pyright: ignore to suppress attribute check
+        main_window.ui = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.ui.undo_button = Mock()  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.ui.redo_button = Mock()  # pyright: ignore[reportAttributeAccessIssue]
 
         # Update buttons with no history
         self.service.update_history_buttons(main_window)  # pyright: ignore[reportArgumentType]
 
         # Undo button should be disabled
-        main_window.ui.undo_button.setEnabled.assert_called_with(False)
-        main_window.ui.redo_button.setEnabled.assert_called_with(False)
+        main_window.ui.undo_button.setEnabled.assert_called_with(False)  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.ui.redo_button.setEnabled.assert_called_with(False)  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_get_memory_stats(self) -> None:
         """Test getting memory statistics."""
@@ -1310,7 +1310,7 @@ class TestHistoryEdgeCases:
 class TestCompatibilityMethods:
     """Test compatibility methods and legacy interfaces."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1352,7 +1352,7 @@ class TestCompatibilityMethods:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         self.service.clear_spatial_index()
 
         # With large tolerance
@@ -1404,7 +1404,7 @@ class TestCompatibilityMethods:
 class TestFindPointAtPositionEdgeCases:
     """Test edge cases for point finding functionality."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -1432,7 +1432,7 @@ class TestFindPointAtPositionEdgeCases:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
 
         # Try to select out-of-bounds index
@@ -1448,7 +1448,7 @@ class TestFindPointAtPositionEdgeCases:
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
-        view = MockCurveView(test_data)
+        view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
 
         # Try to update out-of-bounds index

@@ -31,7 +31,7 @@ from tests.test_helpers import MockMainWindow
 class TestHistoryOperations:
     """Test history management operations."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]  # Initialized in setup fixture
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -41,7 +41,7 @@ class TestHistoryOperations:
         self.service._history = []  # pyright: ignore[reportPrivateUsage]
         self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
         # Clear command manager
-        self.service.command_manager._commands = []  # pyright: ignore[reportPrivateUsage]
+        self.service.command_manager._history = []  # pyright: ignore[reportPrivateUsage]
         self.service.command_manager._current_index = -1  # pyright: ignore[reportPrivateUsage]
 
     def test_add_to_history_saves_application_state(self) -> None:
@@ -249,7 +249,7 @@ class TestHistoryOperations:
 class TestMemoryAndStats:
     """Test memory and statistics queries."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]  # Initialized in setup fixture
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -279,9 +279,10 @@ class TestMemoryAndStats:
         """Test clear_spatial_index resets the index."""
         # Build index by finding a point
         app_state = get_application_state()
+        from core.type_aliases import CurveDataList
         from tests.test_helpers import MockCurveView
 
-        test_data = [(1, 100.0, 100.0)]
+        test_data: CurveDataList = [(1, 100.0, 100.0)]
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 

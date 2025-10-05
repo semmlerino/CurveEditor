@@ -20,8 +20,11 @@ from PySide6.QtWidgets import (
 )
 
 from core.display_mode import DisplayMode
+from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput
+
+logger = get_logger(__name__)
 
 
 class TrackingTableEventFilter(QObject):
@@ -309,6 +312,9 @@ class TrackingPointsPanel(QWidget):
             if item:
                 selected_points.append(item.text())
 
+        # DEBUG: Log selected points
+        logger.info(f"[MULTI-CURVE-DEBUG] get_selected_points() returning: {selected_points}")
+
         return selected_points
 
     def set_selected_points(self, point_names: list[str]) -> None:
@@ -510,6 +516,9 @@ class TrackingPointsPanel(QWidget):
 
         selected_points = self.get_selected_points()
         self.points_selected.emit(selected_points)
+
+        # NOTE: Display mode is set by CurveDataFacade.set_curves_data()
+        # when points_selected signal is processed. Don't override it here!
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         """Handle item editing (point renaming)."""

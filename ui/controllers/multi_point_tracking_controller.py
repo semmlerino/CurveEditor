@@ -351,16 +351,17 @@ class MultiPointTrackingController:
         # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
         self.main_window.active_timeline_point = point_names[-1] if point_names else None
 
-        # Update the curve display with MANUAL_SELECTION context to preserve user selection intent
-        # This prevents auto-selection from overriding the user's manual selection
-        self.update_curve_display(SelectionContext.MANUAL_SELECTION)
+        # Synchronize table selection FIRST (before update_curve_display queries it)
+        # This prevents race condition where set_selected_points() clears selection mid-update
+        if self.main_window.tracking_panel:
+            self.main_window.tracking_panel.set_selected_points(point_names)
 
         # Synchronize selection state to CurveDataStore (fix TrackingPanel→CurveDataStore gap)
         self._sync_tracking_selection_to_curve_store(point_names)
 
-        # Synchronize table selection to show all selected points (visual selection)
-        if self.main_window.tracking_panel:
-            self.main_window.tracking_panel.set_selected_points(point_names)
+        # Update the curve display with MANUAL_SELECTION context to preserve user selection intent
+        # Pass point_names to avoid race condition with get_selected_points()
+        self.update_curve_display(SelectionContext.MANUAL_SELECTION, selected_points=point_names)
 
         # Center view on selected point at current frame
         # Small delay to ensure curve data and point selection are processed
@@ -664,11 +665,14 @@ class MultiPointTrackingController:
                 all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
             self.main_window.tracking_panel.set_tracked_data(all_tracked_data)  # pyright: ignore[reportArgumentType]
 
-    def update_curve_display(self, context: SelectionContext = SelectionContext.DEFAULT) -> None:
+    def update_curve_display(
+        self, context: SelectionContext = SelectionContext.DEFAULT, selected_points: list[str] | None = None
+    ) -> None:
         """Update curve display with selected tracking points.
 
         Args:
             context: Context for this update to control auto-selection behavior
+            selected_points: Optional list of selected point names (avoids race condition with get_selected_points())
         """
         if not self.main_window.curve_widget:
             return
@@ -720,16 +724,25 @@ class MultiPointTrackingController:
                     # selected_curves omitted - preserves existing selection
                 )
             elif context == SelectionContext.MANUAL_SELECTION:
-                # For tracking panel selection, use ALL selected curves from panel
-                # This fixes the bug where only one curve displays when selecting multiple
-                selected_curves_list = []
-                if self.main_window.tracking_panel:
+                # For tracking panel selection, use ALL selected curves
+                # Use provided selected_points parameter if available (avoids race condition)
+                if selected_points is not None:
+                    selected_curves_list = selected_points
+                    logger.info(f"[MULTI-CURVE-DEBUG] Using provided selected_points: {selected_curves_list}")
+                elif self.main_window.tracking_panel:
                     selected_curves_list = self.main_window.tracking_panel.get_selected_points()
+                    logger.info(f"[MULTI-CURVE-DEBUG] Got selected curves from panel: {selected_curves_list}")
+                else:
+                    selected_curves_list = []
 
                 # Fallback to active curve if no selection available
                 if not selected_curves_list and active_curve:
                     selected_curves_list = [active_curve]
+                    logger.info(f"[MULTI-CURVE-DEBUG] No selection, using active curve: {selected_curves_list}")
 
+                logger.info(
+                    f"[MULTI-CURVE-DEBUG] About to call set_curves_data with selected_curves={selected_curves_list}"
+                )
                 self.main_window.curve_widget.set_curves_data(
                     all_curves_data,
                     metadata,

@@ -913,7 +913,7 @@ class TestEdgeCases:
         # Try point lookup - should also fail with same error
         with pytest.raises(ValueError, match="Conversion error"):
             # pyright: ignore[reportArgumentType] - Testing error condition with incomplete mock
-            index.find_point_at_position(view.curve_data, transform, 100.0, 150.0, _as_curve_view(view))
+            index.find_point_at_position(view.curve_data, transform, 100.0, 150.0, view=_as_curve_view(view))
 
 
 class TestIntegration:

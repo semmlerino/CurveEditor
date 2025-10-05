@@ -29,11 +29,11 @@ try:
     from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportAssignmentType]
     from PySide6.QtWidgets import (  # pyright: ignore[reportAssignmentType]
         QLabel,
-        QPushButton,
+        QPushButton,  # pyright: ignore[reportAssignmentType]
         QSlider,
         QSpinBox,
         QStatusBar,
-        QWidget,
+        QWidget,  # pyright: ignore[reportAssignmentType]
     )
     from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime  # pyright: ignore[reportAssignmentType]
 
@@ -319,10 +319,10 @@ class MockCurveView:
             try:
                 from PySide6.QtCore import QPointF
 
-                self.rubber_band_origin = QPointF(0.0, 0.0)  # type: ignore
+                self.rubber_band_origin = QPointF(0.0, 0.0)  # pyright: ignore[reportAssignmentType]
             except ImportError:
                 # Fallback for non-Qt environments - use object
-                self.rubber_band_origin = object()  # type: ignore
+                self.rubber_band_origin = object()  # pyright: ignore[reportAssignmentType]
 
         # Display settings
         self.show_background: bool = True
@@ -344,7 +344,13 @@ class MockCurveView:
         # Image properties
         self.image_width: int = 1920
         self.image_height: int = 1080
-        self.background_image: object = None
+        # Type needs to match protocol exactly for invariant attribute
+        if TYPE_CHECKING:
+            from PySide6.QtGui import QPixmap
+
+            self.background_image: QPixmap | None = None
+        else:
+            self.background_image: object = None
 
         # Image sequence properties
         self.image_sequence_path: str = ""
@@ -355,7 +361,18 @@ class MockCurveView:
         self.transform: object = None  # Transform object - set by tests
 
         # Protocol required attributes
-        self.main_window: object = None  # MainWindowProtocol | None
+        # Type needs to match protocol exactly for invariant attribute
+        # Use cast via object to satisfy type checker while keeping None at runtime for tests
+        from typing import cast
+
+        if TYPE_CHECKING:
+            from protocols.ui import MainWindowProtocol
+
+            # Type checker sees MainWindowProtocol (required by protocol)
+            # But at runtime it's None (fine for tests)
+            self.main_window: MainWindowProtocol = cast("MainWindowProtocol", cast(object, None))
+        else:
+            self.main_window: object = None
         # TestSignal now properly implements SignalProtocol
         # Cast needed because instance attributes are invariant in Python's type system
         from typing import cast
@@ -578,6 +595,16 @@ class MockCurveView:
             else:
                 return (point[0], point[1], point[2], None)
         return (0, 0.0, 0.0, None)
+
+    def setup_for_3dequalizer_data(self) -> None:
+        """Set up the view for 3DEqualizer coordinate tracking data."""
+        self.flip_y_axis = True
+        self.scale_to_image = True
+
+    def setup_for_pixel_tracking(self) -> None:
+        """Set up the view for screen/pixel-coordinate tracking data."""
+        self.flip_y_axis = False
+        self.scale_to_image = False
 
 
 class MockMainWindow:

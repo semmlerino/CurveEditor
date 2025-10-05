@@ -76,9 +76,13 @@ class TestRenderStateAllVisibleMode:
 
         # Assert: All curves are visible
         assert state.display_mode == DisplayMode.ALL_VISIBLE
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 3
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track3" in state.visible_curves
         assert state.active_curve == "Track1"
 
@@ -93,9 +97,13 @@ class TestRenderStateAllVisibleMode:
         state = RenderState.compute(curve_widget)
 
         # Assert: All curves visible despite selection
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 3
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" in state.visible_curves  # Not selected but still visible
+        assert state.visible_curves is not None
         assert "Track3" in state.visible_curves  # Not selected but still visible
 
     def test_all_visible_respects_metadata_visibility(self, curve_widget, sample_curves):
@@ -110,9 +118,13 @@ class TestRenderStateAllVisibleMode:
         state = RenderState.compute(curve_widget)
 
         # Assert: Track2 hidden by metadata
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 2
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves  # Hidden by metadata
+        assert state.visible_curves is not None
         assert "Track3" in state.visible_curves
 
 
@@ -131,9 +143,13 @@ class TestRenderStateSelectedMode:
 
         # Assert: Only selected curves visible
         assert state.display_mode == DisplayMode.SELECTED
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 2
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves  # Not selected
+        assert state.visible_curves is not None
         assert "Track3" in state.visible_curves
 
     def test_selected_respects_metadata_visibility(self, curve_widget, sample_curves):
@@ -149,8 +165,11 @@ class TestRenderStateSelectedMode:
         state = RenderState.compute(curve_widget)
 
         # Assert: Track2 hidden despite being selected
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 1
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves  # Hidden by metadata
 
     def test_selected_empty_selection(self, curve_widget, sample_curves):
@@ -168,9 +187,13 @@ class TestRenderStateSelectedMode:
         # Assert: Mode automatically transitioned to ACTIVE_ONLY (empty selection)
         # So only the active curve is visible
         assert state.display_mode == DisplayMode.ACTIVE_ONLY
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 1
+        assert state.visible_curves is not None
         assert "Track1" in state.visible_curves  # Active curve visible
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track3" not in state.visible_curves
         assert state.active_curve == "Track1"
 
@@ -189,9 +212,13 @@ class TestRenderStateActiveOnlyMode:
 
         # Assert: Only active curve visible
         assert state.display_mode == DisplayMode.ACTIVE_ONLY
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 1
+        assert state.visible_curves is not None
         assert "Track1" not in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" in state.visible_curves  # Active
+        assert state.visible_curves is not None
         assert "Track3" not in state.visible_curves
         assert state.active_curve == "Track2"
 
@@ -207,7 +234,9 @@ class TestRenderStateActiveOnlyMode:
         state = RenderState.compute(curve_widget)
 
         # Assert: No curves visible (active curve is hidden)
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 0
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves  # Hidden by metadata
 
     def test_active_only_no_active_curve(self, curve_widget, sample_curves):
@@ -222,6 +251,7 @@ class TestRenderStateActiveOnlyMode:
         state = RenderState.compute(curve_widget)
 
         # Assert: No curves visible (no active curve)
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 0
         assert state.active_curve is None
 
@@ -238,6 +268,7 @@ class TestRenderStateEdgeCases:
         state = RenderState.compute(curve_widget)
 
         # Assert: Empty visible set
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 0
         assert bool(state) is False
 
@@ -254,9 +285,13 @@ class TestRenderStateEdgeCases:
         state = RenderState.compute(curve_widget)
 
         # Assert: No curves visible (all hidden)
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 0
+        assert state.visible_curves is not None
         assert "Track1" not in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track2" not in state.visible_curves
+        assert state.visible_curves is not None
         assert "Track3" not in state.visible_curves
 
 
@@ -304,6 +339,7 @@ class TestRenderStateConvenienceMethods:
 
         # Assert
         assert len(state) == 2
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 2
 
     def test_bool_operator_true(self, curve_widget, sample_curves):
@@ -467,6 +503,7 @@ class TestRenderStatePerformance:
 
         # Assert: Should complete quickly (< 100ms is very generous)
         assert elapsed < 0.1, f"Compute took {elapsed*1000:.2f}ms for 100 curves"
+        assert state.visible_curves is not None
         assert len(state.visible_curves) == 100
 
     def test_membership_check_is_fast(self, curve_widget, sample_curves):

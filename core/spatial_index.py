@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import math
 import threading
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
     from services.service_protocols import CurveViewProtocol
@@ -21,6 +21,18 @@ from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 
 logger = get_logger("spatial_index")
+
+
+class HasDimensionsProtocol(Protocol):
+    """Minimal protocol for objects that provide width and height."""
+
+    def width(self) -> int:
+        """Get widget width."""
+        ...
+
+    def height(self) -> int:
+        """Get widget height."""
+        ...
 
 
 class PointIndex:
@@ -153,13 +165,13 @@ class PointIndex:
                     cells.append((nx, ny))
         return cells
 
-    def rebuild_index(self, curve_data: CurveDataList, view: CurveViewProtocol, transform: Transform) -> None:
+    def rebuild_index(self, curve_data: CurveDataList, view: HasDimensionsProtocol, transform: Transform) -> None:
         """
         Rebuild the spatial index from curve data.
 
         Args:
             curve_data: The curve data to index
-            view: The curve view (for screen dimensions)
+            view: Object with width() and height() methods (for screen dimensions)
             transform: Transform for coordinate conversion
         """
         with self._lock:
@@ -238,6 +250,7 @@ class PointIndex:
             return -1
 
         # Rebuild index if needed (use view for screen dimensions, or create dummy)
+        dimensions_view: HasDimensionsProtocol
         if view is None:
             # Create a minimal view object for dimensions
             class DummyView:
@@ -247,9 +260,11 @@ class PointIndex:
                 def height(self) -> int:
                     return 600
 
-            view = DummyView()  # type: ignore
+            dimensions_view = DummyView()
+        else:
+            dimensions_view = view
 
-        self.rebuild_index(curve_data, view, transform)
+        self.rebuild_index(curve_data, dimensions_view, transform)
 
         # Type-safe curve data access
         typed_curve_data = curve_data
@@ -319,6 +334,7 @@ class PointIndex:
             return []
 
         # Rebuild index if needed
+        dimensions_view: HasDimensionsProtocol
         if view is None:
             # Create a minimal view object for dimensions
             class DummyView:
@@ -328,9 +344,11 @@ class PointIndex:
                 def height(self) -> int:
                     return 600
 
-            view = DummyView()  # type: ignore
+            dimensions_view = DummyView()
+        else:
+            dimensions_view = view
 
-        self.rebuild_index(curve_data, view, transform)
+        self.rebuild_index(curve_data, dimensions_view, transform)
 
         # Type-safe curve data access
         typed_curve_data = curve_data

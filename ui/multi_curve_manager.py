@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
@@ -106,6 +107,10 @@ class MultiCurveManager:
             # Update selected curves if specified
             if selected_curves is not None:
                 self.selected_curve_names = set(selected_curves)
+                # CRITICAL FIX: Update display mode to SELECTED when curves are selected
+                # This fixes the bug where selecting multiple curves only shows one
+                if selected_curves:
+                    self.widget.display_mode = DisplayMode.SELECTED
             elif not self.selected_curve_names:
                 # If no selection specified and no existing selection, default to active curve
                 self.selected_curve_names = {active_curve} if active_curve else set()

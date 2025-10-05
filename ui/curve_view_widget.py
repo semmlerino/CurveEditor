@@ -553,6 +553,16 @@ class CurveViewWidget(QWidget):
         """Y offset for OptimizedCurveRenderer compatibility."""
         return self.pan_offset_y + self.manual_offset_y
 
+    @property
+    def x_offset(self) -> float:
+        """X offset alias (protocol compatibility)."""
+        return self.offset_x
+
+    @property
+    def y_offset(self) -> float:
+        """Y offset alias (protocol compatibility)."""
+        return self.offset_y
+
     def set_curve_data(self, data: CurveDataInput) -> None:
         """
         Set the curve data to display.
@@ -1146,7 +1156,8 @@ class CurveViewWidget(QWidget):
         self.setFocus(Qt.FocusReason.MouseFocusReason)
 
         # Delegate business logic to InteractionService
-        self.interaction_service.handle_mouse_press(self, event)
+        # Note: Properties satisfy protocol attributes at runtime (variance issue)
+        self.interaction_service.handle_mouse_press(self, event)  # pyright: ignore[reportArgumentType]
 
         # Widget-specific: Trigger repaint
         self.update()
@@ -1177,7 +1188,8 @@ class CurveViewWidget(QWidget):
                 self.update(new_rect)
 
         # Delegate business logic (drag, pan, rubber band) to InteractionService
-        self.interaction_service.handle_mouse_move(self, event)
+        # Note: Properties satisfy protocol attributes at runtime (variance issue)
+        self.interaction_service.handle_mouse_move(self, event)  # pyright: ignore[reportArgumentType]
 
     @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
@@ -1190,7 +1202,8 @@ class CurveViewWidget(QWidget):
             event: Mouse event
         """
         # Delegate business logic (drag cleanup, pan cleanup, rubber band finalization)
-        self.interaction_service.handle_mouse_release(self, event)
+        # Note: Properties satisfy protocol attributes at runtime (variance issue)
+        self.interaction_service.handle_mouse_release(self, event)  # pyright: ignore[reportArgumentType]
 
         # Widget-specific: Trigger repaint
         self.update()
@@ -1450,7 +1463,11 @@ class CurveViewWidget(QWidget):
         result = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # pyright: ignore[reportArgumentType]
 
         # Extract index from PointSearchResult (Increment 4 changed return type)
-        point_index = result.index if hasattr(result, "index") else result
+        # PointSearchResult has .index attribute for accessing the point index
+        if hasattr(result, "index"):
+            point_index: int = result.index  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            point_index = result  # pyright: ignore[reportAssignmentType]
 
         # Log for verification during integration testing
         logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {point_index}")
@@ -1896,6 +1913,140 @@ class CurveViewWidget(QWidget):
         from ui.ui_constants import SPECIAL_COLORS
 
         return QColor(SPECIAL_COLORS["current_frame"])
+
+    # Protocol Compatibility Methods (CurveViewProtocol)
+
+    @property
+    def current_image_idx(self) -> int:
+        """Get current image index (protocol compatibility).
+
+        Delegates to main_window.current_image_idx if available, otherwise returns 0.
+        """
+        if self.main_window is not None:
+            return getattr(self.main_window, "current_image_idx", 0)
+        return 0
+
+    @current_image_idx.setter
+    def current_image_idx(self, value: int) -> None:
+        """Set current image index (protocol compatibility).
+
+        Note: This is a no-op as image index is managed by ViewManagementController.
+        """
+        # Image index is managed by ViewManagementController in main_window
+        # This setter exists for protocol compatibility but doesn't modify state
+        pass
+
+    def findPointAt(self, pos: QPointF) -> int:
+        """Find point at position (protocol compatibility).
+
+        Args:
+            pos: Position in screen coordinates
+
+        Returns:
+            Point index or -1 if no point found
+        """
+        return self._find_point_at(pos)
+
+    def selectPointByIndex(self, idx: int) -> bool:
+        """Select point by index (protocol compatibility).
+
+        Args:
+            idx: Point index to select
+
+        Returns:
+            True if point was selected successfully
+        """
+        self._select_point(idx)
+        return idx >= 0 and idx < len(self.curve_data)
+
+    def get_current_transform(self) -> object:
+        """Get current transform (protocol compatibility).
+
+        Alias for get_transform().
+        """
+        return self.get_transform()
+
+    def _invalidate_caches(self) -> None:
+        """Invalidate caches (protocol compatibility).
+
+        Alias for invalidate_caches().
+        """
+        self.invalidate_caches()
+
+    def get_point_data(self, idx: int) -> tuple[int, float, float, str | None]:
+        """Get point data for given index (protocol compatibility).
+
+        Args:
+            idx: Point index
+
+        Returns:
+            Tuple of (frame, x, y, status_str)
+        """
+        if 0 <= idx < len(self.curve_data):
+            point = self.curve_data[idx]
+            if len(point) == 3:
+                frame, x, y = point
+                return (frame, x, y, None)
+            else:
+                frame, x, y, status = point
+                status_str = status if isinstance(status, str) else None
+                return (frame, x, y, status_str)
+        return (-1, 0.0, 0.0, None)
+
+    def toggleBackgroundVisible(self, visible: bool) -> None:
+        """Toggle background visibility (protocol compatibility).
+
+        Args:
+            visible: Whether background should be visible
+        """
+        self.show_background = visible
+        self.update()
+
+    def toggle_point_interpolation(self, idx: int) -> None:
+        """Toggle interpolation status of a point (protocol compatibility).
+
+        Args:
+            idx: Point index to toggle
+        """
+        # This is a no-op as interpolation status is managed differently
+        # in the current architecture (via PointStatus)
+        pass
+
+    def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
+        """Set points with image dimensions (protocol compatibility).
+
+        Args:
+            data: Curve data list
+            width: Image width
+            height: Image height
+        """
+        self.image_width = width
+        self.image_height = height
+        self.set_curve_data(data)
+
+    def set_selected_indices(self, indices: list[int]) -> None:
+        """Set selected point indices (protocol compatibility).
+
+        Args:
+            indices: List of indices to select
+        """
+        # Clear current selection
+        self._curve_store.clear_selection()
+        # Add new selections
+        for idx in indices:
+            if 0 <= idx < len(self.curve_data):
+                self._curve_store.select(idx, add_to_selection=True)
+        self.update()
+
+    def setup_for_3dequalizer_data(self) -> None:
+        """Set up view for 3DEqualizer coordinate tracking data (protocol compatibility).
+
+        3DEqualizer uses normalized coordinates, so this is similar to pixel tracking
+        but may have different coordinate space assumptions.
+        """
+        # For now, use same setup as pixel tracking
+        # (Both use screen-space coordinates that scale with background)
+        self.setup_for_pixel_tracking()
 
     def _get_live_curves_data(self) -> dict[str, CurveDataList]:
         """

@@ -934,12 +934,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if not self.curve_widget:
             return
 
+        # DEBUG: Log display mode changes
+        logger.info(f"[MULTI-CURVE-DEBUG] on_display_mode_changed: {self.curve_widget.display_mode} → {mode}")
+
         # Update widget display mode
         self.curve_widget.display_mode = mode
 
         # Trigger widget repaint
         self.curve_widget.update()
-        logger.debug(f"Display mode changed to: {mode}")
+        logger.info(f"[MULTI-CURVE-DEBUG] Display mode changed to: {mode}")
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel (delegated to MultiPointTrackingController)."""

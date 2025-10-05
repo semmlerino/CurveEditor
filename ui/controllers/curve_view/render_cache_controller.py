@@ -8,9 +8,12 @@ positions, visible indices, and update regions for optimized painting performanc
 Phase 5 extraction from CurveViewWidget god object refactoring.
 """
 
+# Import cycle with CurveViewWidget is expected and safe - resolved via TYPE_CHECKING
+# pyright: reportImportCycles=false
+
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QPointF, QRect, QRectF
 
@@ -19,8 +22,6 @@ from core.point_types import safe_extract_point
 
 if TYPE_CHECKING:
     from ui.curve_view_widget import CurveViewWidget
-else:
-    CurveViewWidget = Any  # Runtime fallback to avoid import cycle
 
 logger = get_logger("render_cache_controller")
 

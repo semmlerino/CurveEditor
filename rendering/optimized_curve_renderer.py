@@ -1089,7 +1089,7 @@ class OptimizedCurveRenderer:
                 continue
 
             # Visibility check: use pre-computed visibility from RenderState
-            if curve_name not in visible_curves:
+            if visible_curves is None or curve_name not in visible_curves:
                 continue
 
             # Determine curve styling

@@ -291,8 +291,8 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
         screen_x, screen_y = transform.data_to_screen(test_x, test_y)
 
         # After reset, verify point can be found at transformed location
-        self.curve_view.curve_data = test_data
-        self.curve_view.points = self.curve_view.curve_data
+        # Use set_curve_data to handle type conversion properly
+        self.curve_view.set_curve_data(test_data)
 
         # Should be able to find the point at screen coordinates
         found_idx = self.interaction_service.find_point_at(self.curve_view, screen_x, screen_y)  # pyright: ignore[reportArgumentType]
@@ -457,7 +457,7 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
         app_state.set_active_curve("test_curve")
 
         # Cause an error by selecting invalid point
-        self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)
+        self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)  # pyright: ignore[reportArgumentType]
 
         # Verify view state is still valid
         assert isinstance(self.curve_view.selected_points, set)

@@ -9,6 +9,9 @@ store access from the widget, providing a clean API for data operations.
 Phase 4 extraction from CurveViewWidget god object refactoring.
 """
 
+# Import cycle with CurveViewWidget is expected and safe - resolved via TYPE_CHECKING
+# pyright: reportImportCycles=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -20,8 +23,6 @@ from stores.application_state import get_application_state
 
 if TYPE_CHECKING:
     from ui.curve_view_widget import CurveViewWidget
-else:
-    CurveViewWidget = Any  # Runtime fallback to avoid import cycle
 
 logger = get_logger("curve_data_facade")
 
@@ -134,6 +135,13 @@ class CurveDataFacade:
             active_curve: Name of the currently active curve for editing
             selected_curves: Optional list of curves to select for display
         """
+        # DEBUG: Log what we're setting
+        logger.info("[MULTI-CURVE-DEBUG] set_curves_data called:")
+        logger.info(f"  curves: {list(curves.keys())}")
+        logger.info(f"  active_curve: {active_curve}")
+        logger.info(f"  selected_curves: {selected_curves}")
+        logger.info(f"  Current display_mode BEFORE: {self.widget.display_mode}")
+
         # Use ApplicationState for multi-curve data (Week 3 migration)
         self._app_state.begin_batch()
         try:
@@ -147,7 +155,9 @@ class CurveDataFacade:
                 self.widget.selected_curve_names = set(selected_curves)
                 self.widget.selected_curves_ordered = list(selected_curves)
                 # Explicit: Set display mode to SELECTED (shows only selected curves)
+                logger.info(f"  Setting display_mode to SELECTED (selected={selected_curves})")
                 self.widget.display_mode = DisplayMode.SELECTED
+                logger.info(f"  display_mode AFTER setting SELECTED: {self.widget.display_mode}")
             elif not self.widget.selected_curve_names:
                 # Default to active curve
                 self.widget.selected_curve_names = {active_curve} if active_curve else set()

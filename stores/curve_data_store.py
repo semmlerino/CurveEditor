@@ -1,5 +1,13 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
+from PySide6.QtCore import QObject, Signal
+
+from core.logger_utils import get_logger
+from core.models import PointStatus
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
+
 """
 COMPATIBILITY LAYER - Gradual Migration Support
 
@@ -16,14 +24,6 @@ For new code, use:
 See: ApplicationState (stores/application_state.py) for the modern API with
 native multi-curve support, batch operations, and better type safety.
 """
-
-from typing import TYPE_CHECKING
-
-from PySide6.QtCore import QObject, Signal
-
-from core.logger_utils import get_logger
-from core.models import PointStatus
-from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 if TYPE_CHECKING:
     from core.curve_data import CurveDataWithMetadata

@@ -15,13 +15,14 @@ Following best practices:
 - Clear test names describing behavior
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
 from PySide6.QtCore import QPointF, QRect, Qt
 from PySide6.QtGui import QMouseEvent, QWheelEvent
 
+from core.type_aliases import CurveDataList
 from services import get_interaction_service
 from stores.application_state import get_application_state
 
@@ -34,7 +35,7 @@ from tests.test_helpers import MockCurveView
 class TestMousePressEvents:
     """Test mouse press event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -46,7 +47,7 @@ class TestMousePressEvents:
     def test_mouse_press_selects_point_single_click(self) -> None:
         """Test single click selects a single point."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0), (3, 300.0, 300.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0), (3, 300.0, 300.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -70,7 +71,7 @@ class TestMousePressEvents:
     def test_mouse_press_ctrl_toggles_selection(self) -> None:
         """Test Ctrl+click toggles point in selection."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -91,7 +92,7 @@ class TestMousePressEvents:
     def test_mouse_press_shift_adds_to_selection(self) -> None:
         """Test Shift+click adds point to selection."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -113,7 +114,7 @@ class TestMousePressEvents:
     def test_mouse_press_starts_drag_operation(self) -> None:
         """Test clicking on point starts drag operation."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -135,7 +136,7 @@ class TestMousePressEvents:
     def test_mouse_press_ctrl_starts_rubber_band(self) -> None:
         """Test Ctrl+click on empty area starts rubber band selection."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -173,7 +174,7 @@ class TestMousePressEvents:
     def test_mouse_press_clears_selection_on_empty_click(self) -> None:
         """Test clicking empty area without modifiers clears selection."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -195,7 +196,7 @@ class TestMousePressEvents:
 class TestMouseMoveEvents:
     """Test mouse move event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -205,7 +206,7 @@ class TestMouseMoveEvents:
     def test_mouse_move_drags_selected_points(self) -> None:
         """Test mouse move updates point positions during drag."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -271,7 +272,7 @@ class TestMouseMoveEvents:
 class TestMouseReleaseEvents:
     """Test mouse release event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
@@ -283,7 +284,7 @@ class TestMouseReleaseEvents:
         # Note: This test verifies that drag_active is properly reset
         # Command creation requires MainWindowProtocol which needs proper setup
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -324,7 +325,7 @@ class TestMouseReleaseEvents:
     def test_mouse_release_finalizes_rubber_band_selection(self) -> None:
         """Test mouse release finalizes rubber band selection."""
         app_state = get_application_state()
-        test_data = [(1, 100.0, 100.0), (2, 150.0, 150.0)]
+        test_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 150.0, 150.0)])
         app_state.set_curve_data("test_curve", test_data)
         app_state.set_active_curve("test_curve")
 
@@ -354,7 +355,7 @@ class TestMouseReleaseEvents:
 class TestWheelEvents:
     """Test wheel event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]

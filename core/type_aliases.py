@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol, TypeAlias
+from typing import TYPE_CHECKING, Literal, Protocol, TypeAlias
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPoint, QPointF
@@ -96,9 +96,6 @@ HistoryState = dict[str, CurveDataList | str | int | float | bool]  # State snap
 # Multi-point tracking types
 TrackingPointData = dict[str, CurveDataList | str | bool]  # Single tracking point with metadata
 TrackedData = dict[str, TrackingPointData]  # All tracking points keyed by name
-
-# Search mode for multi-curve operations (Phase 8)
-from typing import Literal
 
 SearchMode: TypeAlias = Literal["active", "all_visible"]
 """

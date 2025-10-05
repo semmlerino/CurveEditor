@@ -12,20 +12,22 @@ import logging
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from PySide6.QtWidgets import QRubberBand, QStatusBar
+    from PySide6.QtWidgets import QStatusBar
 
     # Note: Transform import moved to avoid circular dependency
     # Transform will be imported as needed in individual methods
 
 from core.type_aliases import (
-    CurveDataInput,
     CurveDataList,
-    QtPointF,
 )
 from protocols.services import SignalProtocol  # noqa: F401 - re-exported from authoritative source
 
 # Import consolidated protocol definitions from protocols.ui and protocols.services
-from protocols.ui import CurveViewProtocol, MainWindowProtocol, StateManagerProtocol  # noqa: F401 - re-exported for backward compat
+from protocols.ui import (  # noqa: F401 - re-exported for backward compat
+    CurveViewProtocol,
+    MainWindowProtocol,
+    StateManagerProtocol,
+)
 
 
 class LoggingServiceProtocol(Protocol):

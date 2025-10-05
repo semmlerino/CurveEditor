@@ -272,7 +272,7 @@ class RenderState:
         """
         return (
             f"RenderState("
-            f"mode={self.display_mode.name}, "
+            f"mode={self.display_mode.name if self.display_mode else None}, "
             f"curves={len(self.visible_curves) if self.visible_curves else 0}, "
             f"active={self.active_curve_name!r}"
             f")"

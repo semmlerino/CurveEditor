@@ -275,6 +275,7 @@ class TestMemoryUsagePatterns:
                 offset_y=float(i * 2),
             )
 
+            # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
             view_state = transform_service.create_view_state(mock_view)
             transform = transform_service.create_transform_from_view_state(view_state)
             transforms.append(transform)
@@ -500,6 +501,7 @@ class TestPerformanceBaselines:
 
         # Time view state creation
         start_time = time.perf_counter()
+        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
         view_state = transform_service.create_view_state(mock_view)
         view_state_time = time.perf_counter() - start_time
 
