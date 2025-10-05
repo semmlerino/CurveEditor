@@ -417,7 +417,6 @@ class UIInitializationController:
         self.main_window.tracking_panel_dock.setVisible(True)
 
         # Connect signals for tracking point management
-        _ = self.main_window.tracking_panel.points_selected.connect(self.main_window.on_tracking_points_selected)
         _ = self.main_window.tracking_panel.point_visibility_changed.connect(
             self.main_window.on_point_visibility_changed
         )
@@ -427,7 +426,6 @@ class UIInitializationController:
         _ = self.main_window.tracking_panel.tracking_direction_changed.connect(
             self.main_window.tracking_controller.on_tracking_direction_changed
         )
-        _ = self.main_window.tracking_panel.display_mode_changed.connect(self.main_window.on_display_mode_changed)
 
         logger.info("Tracking points panel dock widget initialized")
 

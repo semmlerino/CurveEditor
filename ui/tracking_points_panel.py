@@ -134,16 +134,11 @@ class TrackingPointsPanel(QWidget):
     """Panel displaying tracking point names with management capabilities."""
 
     # Signals
-    # LEGACY: points_selected and display_mode_changed are legacy signals
-    # still connected in production code (ui_initialization_controller.py).
-    # New code should subscribe to ApplicationState.selection_state_changed instead.
-    points_selected: Signal = Signal(list)  # LEGACY: List of selected point names
     point_visibility_changed: Signal = Signal(str, bool)  # Point name, visible
     point_color_changed: Signal = Signal(str, str)  # Point name, color hex
     tracking_direction_changed: Signal = Signal(str, object)  # Point name, TrackingDirection
     point_deleted: Signal = Signal(str)  # Point name
     point_renamed: Signal = Signal(str, str)  # Old name, new name
-    display_mode_changed: Signal = Signal(DisplayMode)  # LEGACY: Display mode
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the tracking points panel."""
@@ -463,12 +458,8 @@ class TrackingPointsPanel(QWidget):
 
         self._updating_display_mode = True
         try:
-            # NEW: Update ApplicationState (single source of truth)
+            # Update ApplicationState (single source of truth)
             self._app_state.set_show_all_curves(checked)
-
-            # KEEP: Emit legacy signal for backward compatibility during migration
-            mode = self._determine_mode_from_checkbox(checked)
-            self.display_mode_changed.emit(mode)
         finally:
             self._updating_display_mode = False
 
@@ -541,23 +532,6 @@ class TrackingPointsPanel(QWidget):
         """
         return mode == DisplayMode.ALL_VISIBLE
 
-    def _emit_display_mode_signals(self, mode: DisplayMode) -> None:
-        """Emit display mode change signal.
-
-        This is a convenience method that emits the signal with re-entrancy protection.
-
-        Args:
-            mode: DisplayMode to emit
-        """
-        if self._updating_display_mode:
-            return
-
-        self._updating_display_mode = True
-        try:
-            self.display_mode_changed.emit(mode)
-        finally:
-            self._updating_display_mode = False
-
     def _on_selection_changed(self) -> None:
         """Handle table selection changes - update ApplicationState."""
         if self._updating:
@@ -565,11 +539,9 @@ class TrackingPointsPanel(QWidget):
 
         selected_points = self.get_selected_points()
 
-        # NEW: Update ApplicationState (single source of truth)
+        # Update ApplicationState (single source of truth)
+        # This triggers selection_state_changed signal → MultiPointTrackingController
         self._app_state.set_selected_curves(set(selected_points))
-
-        # Still emit for backward compatibility during migration
-        self.points_selected.emit(selected_points)
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         """Handle item editing (point renaming)."""

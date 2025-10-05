@@ -52,7 +52,6 @@ from PySide6.QtWidgets import (
 )
 
 # Configure logger for this module
-from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
@@ -903,10 +902,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== Tracking Points Panel Handlers ====================
 
-    def on_tracking_points_selected(self, point_names: list[str]) -> None:
-        """Handle tracking point selection (delegated to MultiPointTrackingController)."""
-        self.tracking_controller.on_tracking_points_selected(point_names)
-
     def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
         """Handle point visibility change (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_point_visibility_changed(point_name, visible)
@@ -922,27 +917,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def on_point_renamed(self, old_name: str, new_name: str) -> None:
         """Handle point renaming (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_point_renamed(old_name, new_name)
-
-    def on_display_mode_changed(self, mode: DisplayMode) -> None:
-        """
-        Handle display mode change for curve rendering.
-
-        Args:
-            mode: DisplayMode enum value (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
-        """
-        if not self.curve_widget:
-            return
-
-        # DEBUG: Log display mode changes
-        logger.info(f"[MULTI-CURVE-DEBUG] on_display_mode_changed: {self.curve_widget.display_mode} → {mode}")
-
-        # NOTE: ApplicationState already updated by TrackingPanel (Phase 2)
-        # No need to update ApplicationState here - it's already the source of truth
-        # The signal comes FROM ApplicationState changes, so updating it here would be redundant
-
-        # Trigger widget repaint to reflect the new display mode
-        self.curve_widget.update()
-        logger.info(f"[MULTI-CURVE-DEBUG] Display mode changed to: {mode}")
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel (delegated to MultiPointTrackingController)."""

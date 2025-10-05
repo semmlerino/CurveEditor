@@ -524,8 +524,11 @@ class TestSignalIntegration:
         main_window.tracking_controller.tracked_data = test_data
         main_window.tracking_panel.set_tracked_data(test_data)
 
-        # Spy on the selection signal
-        spy = qt_api.QtTest.QSignalSpy(main_window.tracking_panel.points_selected)
+        # Spy on ApplicationState.selection_state_changed signal (replaces points_selected)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        spy = qt_api.QtTest.QSignalSpy(app_state.selection_state_changed)
 
         # Simulate selection in the panel (would normally be done via UI)
         main_window.tracking_panel._on_selection_changed()
@@ -535,9 +538,9 @@ class TestSignalIntegration:
 
         # Check if signal was emitted
         if spy.count() > 0:
-            # Get the first emission's arguments
-            selected = spy.at(0)[0]
-            assert isinstance(selected, list)
+            # Get the first emission's arguments (selected_curves: set, show_all: bool)
+            selected_curves = spy.at(0)[0]
+            assert isinstance(selected_curves, set)
 
 
 # Test for TDD approach - write test first for any bugs found

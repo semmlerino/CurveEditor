@@ -60,6 +60,7 @@ class MultiPointTrackingController:
         # Connect to ApplicationState signals for reactive updates
         _ = self._app_state.curves_changed.connect(self._on_curves_changed)
         _ = self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+        _ = self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
 
         # Recursion protection for signal handlers
         self._handling_signal = False
@@ -1089,6 +1090,56 @@ class MultiPointTrackingController:
             if curve_name and curve_name != "__default__":
                 self.main_window.active_timeline_point = curve_name
                 # NOTE: Do NOT call update_curve_display() here to avoid signal loops
+
+        finally:
+            self._handling_signal = False
+
+    def _on_selection_state_changed(self, selected_curves: set[str], show_all: bool) -> None:
+        """
+        React to selection state changes from ApplicationState.
+
+        Replaces legacy points_selected signal pathway. Handles:
+        - Setting active timeline point
+        - Syncing to CurveDataStore
+        - Updating curve display
+        - Centering view on selection
+
+        Args:
+            selected_curves: Set of selected curve names
+            show_all: Whether show-all mode is enabled
+        """
+        # Prevent recursion
+        if self._handling_signal:
+            return
+
+        try:
+            self._handling_signal = True
+
+            point_names = list(selected_curves)
+
+            # Set the last selected point as active timeline point
+            if point_names:
+                self.main_window.active_timeline_point = point_names[-1]
+            else:
+                self.main_window.active_timeline_point = None
+
+            # Sync to CurveDataStore
+            self._sync_tracking_selection_to_curve_store(point_names)
+
+            # Update curve display
+            self.update_curve_display(SelectionContext.MANUAL_SELECTION, selected_points=point_names)
+
+            # Center view on selection (with small delay for widget updates)
+            if self.main_window.curve_widget and point_names:
+                if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
+
+                    def safe_center_on_selection():
+                        if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
+                            self.main_window.curve_widget.center_on_selection()
+
+                    QTimer.singleShot(10, safe_center_on_selection)
+
+            logger.debug(f"Selection state changed: {point_names}")
 
         finally:
             self._handling_signal = False
