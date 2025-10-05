@@ -36,7 +36,7 @@ class TestCenteringToggle:
         qtbot.addWidget(window)
 
         widget = window.curve_widget
-        if not widget:
+        if widget is None:
             import pytest
 
             pytest.skip("CurveViewWidget not available in MainWindow")

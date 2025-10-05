@@ -402,7 +402,7 @@ class TestKeyboardShortcut:
         qtbot.addWidget(window)
 
         # Add some test data
-        if window.curve_widget:
+        if window.curve_widget is not None:
             test_data = [
                 (1, 100.0, 200.0),
                 (2, 150.0, 250.0),
@@ -448,7 +448,7 @@ class TestIntegration:
         qtbot.addWidget(window)
 
         # Add test data
-        if window.curve_widget:
+        if window.curve_widget is not None:
             test_data = [
                 (1, 100.0, 200.0),
                 (2, 150.0, 250.0),
@@ -472,7 +472,7 @@ class TestIntegration:
         assert integrated_window.state_manager.smoothing_window_size == 7
 
         # Select some points using the widget's selection mechanism
-        if integrated_window.curve_widget:
+        if integrated_window.curve_widget is not None:
             # Use the private method since there's no public setter
             integrated_window.curve_widget._select_point(1, False)
             integrated_window.curve_widget._select_point(2, True)  # Add to selection
@@ -505,7 +505,7 @@ class TestIntegration:
 
     def test_smoothing_preserves_unselected_points(self, integrated_window, qtbot):
         """Test that smoothing only affects selected points."""
-        if not integrated_window.curve_widget:
+        if integrated_window.curve_widget is None:
             pytest.skip("No curve widget available")
 
         # Select middle points only

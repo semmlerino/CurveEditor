@@ -77,7 +77,7 @@ class TestFramePointHighlighting:
             window.services.add_to_history = Mock()
 
             # Set up test data with points on different frames
-            if window.curve_widget:
+            if window.curve_widget is not None:
                 window.curve_widget.set_curve_data(
                     [
                         (1, 100.0, 200.0, "keyframe"),

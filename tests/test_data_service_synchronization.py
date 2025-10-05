@@ -145,7 +145,7 @@ class TestDataServiceSynchronization:
     def test_endframe_command_works_with_tracking_data(self, main_window, test_tracking_data):
         """Test that E key command works properly with tracking point data."""
         # Set up test data
-        if main_window.curve_widget:
+        if main_window.curve_widget is not None:
             main_window.curve_widget.set_curve_data(test_tracking_data)
 
         # Set current frame to a frame with data

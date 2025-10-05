@@ -28,7 +28,7 @@ class TestEndToEndSmoothing:
         qtbot.addWidget(window)
 
         # Add real test data
-        if window.curve_widget:
+        if window.curve_widget is not None:
             # Create a noisy curve that would benefit from smoothing
             test_data = [
                 (1, 100.0, 200.0),
@@ -423,7 +423,7 @@ class TestSmoothingWithOtherFeatures:
         window = full_featured_window
 
         # Simulate background image
-        if window.curve_widget:
+        if window.curve_widget is not None:
             window.curve_widget.show_background = True
 
             # Apply smoothing
@@ -456,7 +456,7 @@ class TestSmoothingWithOtherFeatures:
         """Test smoothing preserves zoom and pan state."""
         window = full_featured_window
 
-        if window.curve_widget:
+        if window.curve_widget is not None:
             # Stop any file loading threads that might interfere
             window.file_operations.cleanup_threads()
 

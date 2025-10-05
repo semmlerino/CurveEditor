@@ -32,7 +32,7 @@ def main_window_with_shortcuts(qtbot):
     qtbot.addWidget(window)
 
     # Add test curve data
-    if window.curve_widget:
+    if window.curve_widget is not None:
         test_data: CurveDataList = [
             (1, 100.0, 100.0, PointStatus.NORMAL.value),
             (2, 150.0, 120.0, PointStatus.KEYFRAME.value),
@@ -98,7 +98,7 @@ class TestGlobalShortcuts:
         """Test that tracking direction shortcuts work when curve widget has focus."""
         window = main_window_with_shortcuts
 
-        if not window.tracking_panel or not window.curve_widget:
+        if window.tracking_panel is None or window.curve_widget is None:
             pytest.skip("Tracking panel or curve widget not available")
 
         # Select tracking points
@@ -123,7 +123,7 @@ class TestGlobalShortcuts:
         """Test that C key centers view regardless of focus."""
         window = main_window_with_shortcuts
 
-        if not window.curve_widget:
+        if window.curve_widget is None:
             pytest.skip("Curve widget not available")
 
         # Select a point
@@ -155,7 +155,7 @@ class TestGlobalShortcuts:
         """Test that Delete key works contextually based on selection."""
         window = main_window_with_shortcuts
 
-        if not window.curve_widget:
+        if window.curve_widget is None:
             pytest.skip("Curve widget not available")
 
         # Select curve points
@@ -274,7 +274,7 @@ class TestEventFilterIntegration:
         """Test that event filter properly delegates to commands."""
         window = main_window_with_shortcuts
 
-        if not window.curve_widget:
+        if window.curve_widget is None:
             pytest.skip("Curve widget not available")
 
         # Track if command was executed

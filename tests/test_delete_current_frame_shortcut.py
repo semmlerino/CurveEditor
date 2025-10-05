@@ -205,7 +205,7 @@ def main_window_with_data(qapp, qtbot):
             (5, 140.0, 140.0, "keyframe"),
         ]
 
-        if main_window.curve_widget:
+        if main_window.curve_widget is not None:
             main_window.curve_widget.set_curve_data(test_data)
             main_window.current_frame = 1
 

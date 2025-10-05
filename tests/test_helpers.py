@@ -42,22 +42,22 @@ except ImportError:
     _has_qt_internal = False
 
     # Stub classes for non-Qt test environments
-    class QObject:  # type: ignore[no-redef]
+    class QObject:  # pyright: ignore[reportRedeclaration]
         pass
 
-    class QRubberBand:  # type: ignore[no-redef]
+    class QRubberBand:  # pyright: ignore[reportRedeclaration]
         def __init__(self, *args: Any) -> None:
             pass
 
     if not TYPE_CHECKING:
         QtRubberBand = QRubberBand  # Use stub in non-Qt environment
 
-    class QSize:  # type: ignore[no-redef]
+    class QSize:  # pyright: ignore[reportRedeclaration]
         def __init__(self, w: int, h: int) -> None:
             self.w = w
             self.h = h
 
-    class QImage:  # type: ignore[no-redef]
+    class QImage:  # pyright: ignore[reportRedeclaration]
         Format_RGB32 = None
 
         def __init__(self, *args: Any) -> None:
@@ -72,11 +72,11 @@ except ImportError:
         def sizeInBytes(self) -> int:
             return 0
 
-    class QColor:  # type: ignore[no-redef]
+    class QColor:  # pyright: ignore[reportRedeclaration]
         def __init__(self, *args: Any) -> None:
             pass
 
-    class _QWidgetStub:  # type: ignore[no-redef]
+    class _QWidgetStub:  # pyright: ignore[reportRedeclaration]
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -98,18 +98,18 @@ except ImportError:
         def showMessage(self, message: str, timeout: int = 0) -> None:
             pass
 
-    class _QPushButtonStub:  # type: ignore[no-redef]
+    class _QPushButtonStub:  # pyright: ignore[reportRedeclaration]
         def __init__(self, *args: Any) -> None:
             pass
 
-    class QAction:  # type: ignore[no-redef]
+    class QAction:  # pyright: ignore[reportRedeclaration]
         def __init__(self, *args: Any) -> None:
             pass
 
     # Type-safe stub assignments
-    QWidget = _QWidgetStub  # type: ignore[assignment,misc]
-    QPushButton = _QPushButtonStub  # type: ignore[assignment,misc]
-    QLabel = QSlider = QSpinBox = QStatusBar = _QWidgetStub  # type: ignore[assignment,misc]
+    QWidget = _QWidgetStub  # pyright: ignore[reportAssignmentType]
+    QPushButton = _QPushButtonStub  # pyright: ignore[reportAssignmentType]
+    QLabel = QSlider = QSpinBox = QStatusBar = _QWidgetStub  # pyright: ignore[reportAssignmentType]
 
 # Export HAS_QT constant (computed once from internal flag)
 HAS_QT: bool = _has_qt_internal

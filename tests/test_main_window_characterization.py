@@ -218,7 +218,7 @@ class TestSignalConnections:
     def test_curve_widget_signals_connected(self, main_window):
         """Curve widget signals should be connected."""
         # Check that emitting signals doesn't raise errors
-        if main_window.curve_widget:
+        if main_window.curve_widget is not None:
             main_window.curve_widget.selection_changed.emit([])  # Pass empty list
             main_window.curve_widget.view_changed.emit()
 
@@ -246,7 +246,7 @@ class TestUIState:
 
     def test_background_checkbox_state(self, main_window):
         """Background checkbox should control visibility."""
-        if main_window.show_background_cb and main_window.curve_widget:
+        if main_window.show_background_cb is not None and main_window.curve_widget is not None:
             main_window.show_background_cb.setChecked(True)
             assert main_window.curve_widget.show_background
 

@@ -49,7 +49,7 @@ class TestEventFilterNavigation:
         ]
 
         # Use real components
-        if window.curve_widget:
+        if window.curve_widget is not None:
             window.curve_widget.set_curve_data(test_data)
         window.update_timeline_tabs(test_data)
 
