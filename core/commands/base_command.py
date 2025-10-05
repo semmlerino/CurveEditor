@@ -15,7 +15,7 @@ from typing import TYPE_CHECKING
 from typing_extensions import override
 
 if TYPE_CHECKING:
-    from services.service_protocols import MainWindowProtocol
+    from protocols.ui import MainWindowProtocol
 
 from core.logger_utils import get_logger
 

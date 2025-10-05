@@ -17,28 +17,30 @@ from typing import TYPE_CHECKING
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 if TYPE_CHECKING:
-    from services.service_protocols import CurveViewProtocol
+    from PySide6.QtCore import QPointF
 
-try:
-    from PySide6.QtCore import QPointF  # pyright: ignore[reportMissingTypeStubs,reportAssignmentType]
-except ImportError:
-    # Stub for when PySide6 is not available
-    class QPointF:  # pyright: ignore[reportRedeclaration]
-        def __init__(self, x: float = 0, y: float = 0) -> None:
-            self._x: float = x
-            self._y: float = y
+    from protocols.ui import CurveViewProtocol
+else:
+    try:
+        from PySide6.QtCore import QPointF
+    except ImportError:
+        # Stub for when PySide6 is not available
+        class QPointF:
+            def __init__(self, x: float = 0, y: float = 0) -> None:
+                self._x: float = x
+                self._y: float = y
 
-        def x(self) -> float:
-            return self._x
+            def x(self) -> float:
+                return self._x
 
-        def y(self) -> float:
-            return self._y
+            def y(self) -> float:
+                return self._y
 
-        def setX(self, x: float) -> None:
-            self._x = x
+            def setX(self, x: float) -> None:
+                self._x = x
 
-        def setY(self, y: float) -> None:
-            self._y = y
+            def setY(self, y: float) -> None:
+                self._y = y
 
 
 from core.logger_utils import get_logger
@@ -87,7 +89,7 @@ class ViewState:
         updated = dict(self.__dict__)
         updated.update(kwargs)
         # Type ignore for dict unpacking with mixed types
-        return ViewState(**updated)  # pyright: ignore[reportArgumentType]
+        return ViewState(**updated)
 
     def to_dict(self) -> dict[str, object]:
         """Convert the ViewState to a dictionary."""

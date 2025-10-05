@@ -20,13 +20,13 @@ if TYPE_CHECKING:
 from core.type_aliases import (
     CurveDataList,
 )
-from protocols.services import SignalProtocol  # noqa: F401 - re-exported from authoritative source
+from protocols.services import SignalProtocol  # noqa: F401  # pyright: ignore[reportUnusedImport] - re-exported
 
 # Import consolidated protocol definitions from protocols.ui and protocols.services
 from protocols.ui import (  # noqa: F401 - re-exported for backward compat
     CurveViewProtocol,
-    MainWindowProtocol,
-    StateManagerProtocol,
+    MainWindowProtocol,  # pyright: ignore[reportUnusedImport]
+    StateManagerProtocol,  # pyright: ignore[reportUnusedImport]
 )
 
 

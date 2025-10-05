@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (26.8MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 201 files to bundle
+Skipping large file (27.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 212 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -11,6 +11,7 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
+Bundled: ARCHITECTURAL_ISSUES.md
 Bundled: ARCHITECTURE.md
 Bundled: basedpyrightconfig.json
 Bundled: BASEDPYRIGHT_STRATEGY.md
@@ -33,6 +34,7 @@ Bundled: mainwindow_diff.txt
 Bundled: MAJOR_REFACTOR_WORKFLOW.md
 Bundled: mock_curve_view_fixes_summary.md
 Bundled: ORCHESTRATION.md
+Bundled: ORCHESTRATOR_QUICK_REFERENCE.md
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
 Bundled: performance_bottleneck_analysis.txt
 Bundled: PHASE_4_COMPLETION_SUMMARY.md
@@ -50,6 +52,11 @@ Bundled: ROADMAP_FUTURE_PHASES.md
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: SAFE_REFACTOR_PLAN_DO_NOT_DELETE.md
+Bundled: SELECTION_STATE_ARCHITECTURE_SOLUTION.md
+Bundled: SELECTION_STATE_REFACTORING_DETAILED_PLAN.md
+Bundled: SELECTION_STATE_REFACTORING_PLAN.md
+Bundled: SELECTION_STATE_REFACTORING_PLAN_REVISED.md
+Bundled: SELECTION_STATE_REFACTORING_TRACKER.md
 Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
 Bundled: SetTrackingFwdBwd.py
@@ -138,6 +145,10 @@ Bundled: protocols/data.py
 Bundled: protocols/services.py
 Bundled: protocols/ui.py
 Bundled: protocols/__init__.py
+Bundled: refactoring/00_OVERVIEW.md
+Bundled: refactoring/01_PHASES_1_TO_3.md
+Bundled: refactoring/02_PHASES_4_TO_6.md
+Bundled: refactoring/03_PHASES_7_TO_8_AND_COMPLETION.md
 Bundled: rendering/optimized_curve_renderer.py
 Bundled: rendering/rendering_protocols.py
 Bundled: rendering/render_state.py
@@ -207,9 +218,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.55 MB
+Folder size: 2.92 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 817600 bytes
+Encoded size: 938124 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

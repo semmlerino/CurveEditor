@@ -147,7 +147,7 @@ class TestLoadExrAsQImage:
     def test_load_large_exr_dimensions(self, mock_qimage, mock_imread):
         """Test loading EXR with realistic dimensions."""
         # Create mock data with realistic dimensions (1920x1080)
-        large_data = np.random.default_rng().random((1080, 1920, 3)).astype(np.float32)  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+        large_data = np.random.default_rng().random((1080, 1920, 3)).astype(np.float32)
         mock_imread.return_value = large_data
 
         # Mock QImage

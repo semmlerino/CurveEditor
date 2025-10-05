@@ -41,10 +41,13 @@ from tests.test_helpers import ProtocolCompliantMockCurveView
 class TestFileToDisplayPipeline:
     """Test complete pipeline from file loading to display rendering."""
 
+    data_service: DataService  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: TransformService  # pyright: ignore[reportUninitializedInstanceVariable]
+
     def setup_method(self) -> None:
         """Set up test environment for each test method."""
-        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
-        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.data_service = get_data_service()
+        self.transform_service = get_transform_service()
 
     def test_json_load_to_display_workflow(self) -> None:
         """Test: JSON file → Load → Process → Transform → Display coordinates."""
@@ -63,7 +66,7 @@ class TestFileToDisplayPipeline:
 
         try:
             # 2. Load data through DataService
-            loaded_data = self.data_service._load_json(temp_file)  # pyright: ignore[reportPrivateUsage]
+            loaded_data = self.data_service._load_json(temp_file)
 
             # Verify data structure and content
             assert len(loaded_data) == 5
@@ -87,7 +90,7 @@ class TestFileToDisplayPipeline:
             )
 
             # 4. Generate transform for display
-            view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 5. Convert all data points to screen coordinates
@@ -136,7 +139,7 @@ class TestFileToDisplayPipeline:
 
         try:
             # 2. Load CSV data
-            loaded_data = self.data_service._load_csv(temp_file)  # pyright: ignore[reportPrivateUsage]
+            loaded_data = self.data_service._load_csv(temp_file)
 
             # Verify CSV parsing
             assert len(loaded_data) == 4  # Excluding header
@@ -149,7 +152,7 @@ class TestFileToDisplayPipeline:
             # 3. Process through full pipeline
             mock_view = ProtocolCompliantMockCurveView(points=loaded_data, zoom_factor=1.5, offset_x=0.0, offset_y=0.0)
 
-            view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 4. Verify all points can be transformed
@@ -182,11 +185,11 @@ class TestFileToDisplayPipeline:
 
         try:
             # 3. Load large dataset
-            loaded_data = self.data_service._load_json(temp_file)  # pyright: ignore[reportPrivateUsage]
+            loaded_data = self.data_service._load_json(temp_file)
             assert len(loaded_data) == 200
 
             # 4. Test data processing performance
-            smoothed_data = self.data_service.smooth_moving_average(loaded_data, window_size=5)  # pyright: ignore[reportArgumentType]
+            smoothed_data = self.data_service.smooth_moving_average(loaded_data, window_size=5)
             assert len(smoothed_data) == 200
 
             # 5. Test outlier detection on large dataset
@@ -200,7 +203,7 @@ class TestFileToDisplayPipeline:
                 points=smoothed_data, zoom_factor=1.0, offset_x=0.0, offset_y=0.0
             )
 
-            view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 7. Test batch transformation (sample for performance)
@@ -218,11 +221,15 @@ class TestFileToDisplayPipeline:
 class TestPointManipulationPipeline:
     """Test complete point manipulation workflows including undo/redo."""
 
+    interaction_service: InteractionService  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: TransformService  # pyright: ignore[reportUninitializedInstanceVariable]
+    data_service: DataService  # pyright: ignore[reportUninitializedInstanceVariable]
+
     def setup_method(self) -> None:
         """Set up test environment."""
-        self.interaction_service: InteractionService = get_interaction_service()  # pyright: ignore[reportUninitializedInstanceVariable]
-        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
-        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.interaction_service = get_interaction_service()
+        self.transform_service = get_transform_service()
+        self.data_service = get_data_service()
 
     def test_point_selection_to_modification_workflow(self) -> None:
         """Test: Point selection → Coordinate modification → Transform update → Display."""
@@ -239,7 +246,7 @@ class TestPointManipulationPipeline:
         )
 
         # 2. Create transform for coordinate conversions
-        view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+        view_state = self.transform_service.create_view_state(mock_view)
         transform = self.transform_service.create_transform_from_view_state(view_state)
 
         # 3. Simulate point selection by screen coordinates
@@ -303,7 +310,7 @@ class TestPointManipulationPipeline:
 
         # 3. Apply batch operation (smoothing on selected points)
         selected_points_data = [mock_view.points[i] for i in selected_indices]
-        smoothed_points = self.data_service.smooth_moving_average(selected_points_data, window_size=3)  # pyright: ignore[reportArgumentType]
+        smoothed_points = self.data_service.smooth_moving_average(selected_points_data, window_size=3)
 
         # 4. Update selected points with smoothed data
         for i, smoothed_point in enumerate(smoothed_points):
@@ -330,7 +337,7 @@ class TestPointManipulationPipeline:
         initial_state = [tuple(point) for point in original_data]
 
         # 3. Apply modification (smoothing)
-        modified_data = self.data_service.smooth_moving_average(original_data, window_size=3)  # pyright: ignore[reportArgumentType]
+        modified_data = self.data_service.smooth_moving_average(original_data, window_size=3)
 
         # 4. Verify modification occurred
         assert len(modified_data) == len(original_data)
@@ -369,10 +376,13 @@ class TestPointManipulationPipeline:
 class TestImageSequencePipeline:
     """Test complete image sequence workflows."""
 
+    data_service: DataService  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: TransformService  # pyright: ignore[reportUninitializedInstanceVariable]
+
     def setup_method(self) -> None:
         """Set up test environment."""
-        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
-        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.data_service = get_data_service()
+        self.transform_service = get_transform_service()
 
     def test_image_sequence_loading_to_display(self) -> None:
         """Test: Image directory → Load sequence → Frame navigation → Display sync."""
@@ -465,10 +475,13 @@ class TestImageSequencePipeline:
 class TestDataConsistencyPipeline:
     """Test data consistency across all pipeline stages."""
 
+    data_service: DataService  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: TransformService  # pyright: ignore[reportUninitializedInstanceVariable]
+
     def setup_method(self) -> None:
         """Set up services."""
-        self.data_service: DataService = get_data_service()  # pyright: ignore[reportUninitializedInstanceVariable]
-        self.transform_service: TransformService = get_transform_service()  # pyright: ignore[reportUninitializedInstanceVariable]
+        self.data_service = get_data_service()
+        self.transform_service = get_transform_service()
 
     def test_data_integrity_through_full_pipeline(self) -> None:
         """Test: Load → Process → Transform → Modify → Save → Reload → Verify consistency."""
@@ -492,17 +505,17 @@ class TestDataConsistencyPipeline:
 
         try:
             # 3. Load data
-            loaded_data = self.data_service._load_json(temp_input)  # pyright: ignore[reportPrivateUsage]
+            loaded_data = self.data_service._load_json(temp_input)
 
             # 4. Process data (smoothing)
-            processed_data = self.data_service.smooth_moving_average(loaded_data, window_size=3)  # pyright: ignore[reportArgumentType]
+            processed_data = self.data_service.smooth_moving_average(loaded_data, window_size=3)
 
             # 5. Transform coordinates
             mock_view = ProtocolCompliantMockCurveView(
                 points=processed_data, zoom_factor=1.2, offset_x=25.0, offset_y=50.0
             )
 
-            view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # Get screen coordinates for verification
@@ -516,18 +529,18 @@ class TestDataConsistencyPipeline:
             if processed_data:
                 old_point = processed_data[1]  # Modify second point
                 frame, x, y, status = safe_extract_point(old_point)
-                processed_data[1] = (int(frame), float(x) + 10.0, float(y) + 5.0, str(status))  # pyright: ignore[reportArgumentType]
+                processed_data[1] = (int(frame), float(x) + 10.0, float(y) + 5.0, str(status))
 
             # 7. Save modified data
             with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
                 temp_output = f.name
 
             # Use the direct save method instead of going through the dialog
-            save_result = self.data_service._save_json(temp_output, processed_data, label="Test Track", color="#FF0000")  # pyright: ignore[reportPrivateUsage]
+            save_result = self.data_service._save_json(temp_output, processed_data, label="Test Track", color="#FF0000")
             assert save_result, "Failed to save JSON data"
 
             # 8. Reload and verify consistency
-            reloaded_data = self.data_service._load_json(temp_output)  # pyright: ignore[reportPrivateUsage]
+            reloaded_data = self.data_service._load_json(temp_output)
 
             # 9. Verify data consistency
             assert len(reloaded_data) == len(processed_data)
@@ -566,7 +579,7 @@ class TestDataConsistencyPipeline:
                 offset_y=i * 50.0,
             )
 
-            view_state = self.transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(mock_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
 
             # 3. Test round-trip coordinate transformations
@@ -584,7 +597,7 @@ class TestDataConsistencyPipeline:
                 assert abs(back_data_y - data_y) < 0.1, f"Y coordinate round-trip failed: {data_y} -> {back_data_y}"
 
             # 4. Test data operations preserve coordinate validity
-            smoothed_data = self.data_service.smooth_moving_average(test_data, window_size=3)  # pyright: ignore[reportArgumentType]
+            smoothed_data = self.data_service.smooth_moving_average(test_data, window_size=3)
 
             for original, smoothed in zip(test_data, smoothed_data):
                 orig_frame = original[0]
@@ -607,12 +620,12 @@ class TestDataConsistencyPipeline:
         # 2. Test data service error recovery
         # Try invalid file operation
         try:
-            self.data_service._load_json("/nonexistent/path/file.json")  # pyright: ignore[reportPrivateUsage]
+            self.data_service._load_json("/nonexistent/path/file.json")
         except OSError:
             pass  # Expected error
 
         # Service should still work with valid data after error
-        _ = self.data_service.smooth_moving_average(valid_data, window_size=2)  # pyright: ignore[reportArgumentType]
+        _ = self.data_service.smooth_moving_average(valid_data, window_size=2)
 
         # 3. Test transform service error recovery
         # Create view with invalid parameters
@@ -625,7 +638,7 @@ class TestDataConsistencyPipeline:
 
         # Service should handle gracefully
         try:
-            view_state = self.transform_service.create_view_state(invalid_view)  # pyright: ignore[reportArgumentType]
+            view_state = self.transform_service.create_view_state(invalid_view)
             transform = self.transform_service.create_transform_from_view_state(view_state)
             # Should create some kind of valid transform even with invalid input
             assert transform is not None

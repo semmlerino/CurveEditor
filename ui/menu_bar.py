@@ -19,9 +19,7 @@ if TYPE_CHECKING:
     from services.interaction_service import InteractionService
     from services.ui_service import UIService
 
-from services.service_protocols import (
-    MainWindowProtocol,
-)
+from protocols.ui import MainWindowProtocol
 
 
 class MenuBar(QMenuBar):
@@ -39,7 +37,7 @@ class MenuBar(QMenuBar):
     image_service: "DataService"
 
     def __init__(self, parent: "MainWindowProtocol") -> None:  # MainWindow always provided
-        super().__init__(cast(QWidget, cast(object, parent)))  # pyright: ignore[reportInvalidCast]
+        super().__init__(cast(QWidget, cast(object, parent)))
         self.main_window = parent
         # Initialize signal manager for proper cleanup
         self.signal_manager = SignalManager(self)
@@ -323,7 +321,7 @@ class MenuBar(QMenuBar):
     @Slot()
     def _handle_load_track(self) -> None:
         """Handle load track action."""
-        _ = self.file_service.load_track_data(cast(QWidget, cast(object, self.main_window)))  # pyright: ignore[reportInvalidCast]
+        _ = self.file_service.load_track_data(cast(QWidget, cast(object, self.main_window)))
 
     @Slot()
     def _handle_add_track(self) -> None:
@@ -353,44 +351,40 @@ class MenuBar(QMenuBar):
     @Slot()
     def _handle_undo(self) -> None:
         """Handle undo action."""
-        self.history_service.undo(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.history_service.undo(self.main_window)
 
     @Slot()
     def _handle_redo(self) -> None:
         """Handle redo action."""
-        self.history_service.redo(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.history_service.redo(self.main_window)
 
     @Slot()
     def _handle_select_all(self) -> None:
         """Handle select all action."""
         if self.main_window and self.main_window.curve_view is not None:
             curve_view = self.main_window.curve_view
-            if curve_view is not None:
-                _ = self.curve_service.select_all_points(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
+            _ = self.curve_service.select_all_points(curve_view, self.main_window)
 
     @Slot()
     def _handle_deselect_all(self) -> None:
         """Handle deselect all action."""
         if self.main_window and self.main_window.curve_view is not None:
             curve_view = self.main_window.curve_view
-            if curve_view is not None:
-                self.curve_service.clear_selection(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
+            self.curve_service.clear_selection(curve_view, self.main_window)
 
     @Slot()
     def _handle_delete_selected(self) -> None:
         """Handle delete selected action."""
         if self.main_window and self.main_window.curve_view is not None:
             curve_view = self.main_window.curve_view
-            if curve_view is not None:
-                self.curve_service.delete_selected_points(curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
+            self.curve_service.delete_selected_points(curve_view, self.main_window)
 
     # View menu handlers
     def _handle_reset_view(self) -> None:
         """Handle reset view action."""
         if self.main_window and self.main_window.curve_view is not None:
             curve_view = self.main_window.curve_view
-            if curve_view is not None:
-                self.curve_service.reset_view(curve_view)  # pyright: ignore[reportArgumentType]
+            self.curve_service.reset_view(curve_view)
 
     def _handle_load_images(self) -> None:
         """Handle load image sequence action."""
@@ -418,13 +412,13 @@ class MenuBar(QMenuBar):
     # Help menu handlers
     def _handle_show_shortcuts(self) -> None:
         """Handle show keyboard shortcuts action."""
-        self.dialog_service.show_shortcuts_dialog(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.dialog_service.show_shortcuts_dialog(self.main_window)
 
     def __del__(self) -> None:
         """Destructor to ensure all signals are disconnected."""
         try:
-            if self.signal_manager is not None:
-                self.signal_manager.disconnect_all()
+            # signal_manager is non-None SignalManager
+            self.signal_manager.disconnect_all()
         except AttributeError:
             # signal_manager not yet initialized
             pass

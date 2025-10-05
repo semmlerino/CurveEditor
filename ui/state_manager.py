@@ -580,7 +580,7 @@ class StateManager(QObject):
                 signal.emit(value)  # pyright: ignore[reportAttributeAccessIssue]
             self._pending_signals.clear()
 
-    def _emit_signal(self, signal: Signal, value: object) -> None:  # pyright: ignore[reportGeneralTypeIssues]
+    def _emit_signal(self, signal: Signal, value: object) -> None:
         """
         Emit a signal, potentially batching if in batch mode.
 

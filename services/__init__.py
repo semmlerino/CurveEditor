@@ -23,12 +23,10 @@ import threading
 from typing import TYPE_CHECKING
 
 # Import protocols at module level (these are always safe)
+from protocols.ui import CurveViewProtocol, MainWindowProtocol, StateManagerProtocol
 from services.service_protocols import (
     BatchEditableProtocol,
-    CurveViewProtocol,
     LoggingServiceProtocol,
-    MainWindowProtocol,
-    StateManagerProtocol,
     StatusServiceProtocol,
 )
 

@@ -32,13 +32,12 @@ class TestUIErrorRecoveryCritical:
             # Service should handle the error gracefully
             # The improved system may handle this without raising
             try:
-                transform = service.create_transform_from_view_state(view_state)
-                # If successful, verify it returned a valid transform
-                if transform is not None:
-                    assert hasattr(transform, "data_to_screen")
-                    # Verify transform works with basic operations
-                    x, y = transform.data_to_screen(100.0, 100.0)
-                    assert isinstance(x, float) and isinstance(y, float)
+                transform = service.create_transform_from_view_state(view_state)  # Returns non-None Transform
+                # Verify it returned a valid transform
+                assert hasattr(transform, "data_to_screen")
+                # Verify transform works with basic operations
+                x, y = transform.data_to_screen(100.0, 100.0)
+                assert isinstance(x, float) and isinstance(y, float)
             except (ValueError, RuntimeError) as e:
                 # If it still raises, verify error is informative
                 assert "Invalid configuration" in str(e) or "Transform creation failed" in str(e)

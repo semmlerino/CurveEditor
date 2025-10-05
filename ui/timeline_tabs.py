@@ -162,7 +162,7 @@ class TimelineTabWidget(QWidget):
     status_cache: FrameStatusCache
     _update_timer: QTimer
 
-    # UI components - initialized in _setup_ui
+    # UI components - initialized in _setup_ui (called from __init__)
     main_layout: QVBoxLayout  # pyright: ignore[reportUninitializedInstanceVariable]
     first_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     prev_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
@@ -256,8 +256,10 @@ class TimelineTabWidget(QWidget):
             import warnings
 
             warnings.warn(
-                "timeline_tabs.current_frame setter called without StateManager connection. "
-                "This violates Single Source of Truth architecture.",
+                (
+                    "timeline_tabs.current_frame setter called without StateManager connection. "
+                    "This violates Single Source of Truth architecture."
+                ),
                 UserWarning,
                 stacklevel=2,
             )
@@ -388,7 +390,7 @@ class TimelineTabWidget(QWidget):
 
             # Update status for all frames
             data_service = get_data_service()
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            frame_status = data_service.get_frame_range_point_status(curve_data)
 
             for frame, status_data in frame_status.items():
                 (
@@ -471,7 +473,7 @@ class TimelineTabWidget(QWidget):
         from services import get_data_service
 
         data_service = get_data_service()
-        frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+        frame_status = data_service.get_frame_range_point_status(curve_data)
 
         for frame in range(self.min_frame, self.max_frame + 1):
             # Check if this frame has selected points
@@ -654,8 +656,10 @@ class TimelineTabWidget(QWidget):
             import warnings
 
             warnings.warn(
-                "timeline_tabs.frame_changed signal is deprecated. "
-                "Use StateManager.frame_changed instead for Single Source of Truth architecture.",
+                (
+                    "timeline_tabs.frame_changed signal is deprecated. "
+                    "Use StateManager.frame_changed instead for Single Source of Truth architecture."
+                ),
                 DeprecationWarning,
                 stacklevel=2,
             )
@@ -770,9 +774,7 @@ class TimelineTabWidget(QWidget):
             # Widget is being deleted, abort tab creation
             return
 
-        # Check if layout still exists (might be deleted during destruction)
-        if self.tabs_layout is None:
-            return
+        # Layout exists (non-None QHBoxLayout)
 
         # Clear existing tabs
         for tab in self.frame_tabs.values():
@@ -837,13 +839,12 @@ class TimelineTabWidget(QWidget):
                 )
 
             self.frame_tabs[frame] = tab
-            # Check layout still exists before adding
-            if self.tabs_layout is not None:
-                try:
-                    self.tabs_layout.addWidget(tab)
-                except RuntimeError:
-                    # Layout or widget being destroyed during teardown
-                    return
+            # Add to layout (tabs_layout is non-None QHBoxLayout)
+            try:
+                self.tabs_layout.addWidget(tab)
+            except RuntimeError:
+                # Layout or widget being destroyed during teardown
+                return
 
         # Update container size to fit all tabs
         total_width = tab_width * len(self.frame_tabs) + 4
@@ -856,11 +857,10 @@ class TimelineTabWidget(QWidget):
 
     def _update_frame_info(self) -> None:
         """Update frame information label."""
-        # Check if frame_info label still exists
+        # frame_info is non-None QLabel
         try:
-            if self.frame_info is not None:
-                info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
-                self.frame_info.setText(info_text)
+            info_text = f"Frame {self.current_frame:3d} | 1-{self.max_frame:3d}"
+            self.frame_info.setText(info_text)
         except RuntimeError:
             # frame_info QLabel has been deleted
             pass
@@ -904,7 +904,7 @@ class TimelineTabWidget(QWidget):
 
         if curve_data:
             # Get frame status for all points
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            frame_status = data_service.get_frame_range_point_status(curve_data)
 
             # Update cache for all frames with data
             for frame, status_data in frame_status.items():
@@ -1039,11 +1039,10 @@ class TimelineTabWidget(QWidget):
         Returns:
             Frame number or None if position is invalid
         """
-        # Get the scroll area's viewport position
-        if self.scroll_area is not None:
-            # Adjust x for scroll position
-            scroll_x = self.scroll_area.horizontalScrollBar().value()
-            x += scroll_x
+        # Get the scroll area's viewport position (scroll_area is non-None TimelineScrollArea)
+        # Adjust x for scroll position
+        scroll_x = self.scroll_area.horizontalScrollBar().value()
+        x += scroll_x
 
         # Check each tab to see if position falls within it
         for frame, tab in self.frame_tabs.items():

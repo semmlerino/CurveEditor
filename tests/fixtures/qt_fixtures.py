@@ -240,7 +240,7 @@ def main_window(qapp: QApplication, qtbot):
     # Use frame spinbox from timeline_controller if available, otherwise create one
     if not hasattr(window, "frame_spinbox") or window.frame_spinbox is None:
         # Use the frame_spinbox from timeline_controller if it exists (has signals connected)
-        if hasattr(window, "timeline_controller") and window.timeline_controller is not None:
+        if hasattr(window, "timeline_controller"):
             window.frame_spinbox = window.timeline_controller.frame_spinbox
         else:
             # Fallback: create a new one (shouldn't happen in normal flow)
@@ -250,10 +250,10 @@ def main_window(qapp: QApplication, qtbot):
 
     # Use frame slider from timeline_controller if available
     if not hasattr(window, "frame_slider") or window.frame_slider is None:
-        if hasattr(window, "timeline_controller") and window.timeline_controller is not None:
+        if hasattr(window, "timeline_controller"):
             # Access frame_slider attribute from concrete implementation
             if hasattr(window.timeline_controller, "frame_slider"):
-                window.frame_slider = getattr(window.timeline_controller, "frame_slider")  # pyright: ignore[reportAttributeAccessIssue]
+                window.frame_slider = getattr(window.timeline_controller, "frame_slider")
 
     # Process events to ensure widgets are ready
     qapp.processEvents()

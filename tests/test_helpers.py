@@ -25,23 +25,21 @@ else:
 
 # Qt imports with fallback for non-GUI environments
 try:
-    from PySide6.QtCore import QObject, QSize  # pyright: ignore[reportAssignmentType]
-    from PySide6.QtGui import QAction, QColor, QImage  # pyright: ignore[reportAssignmentType]
-    from PySide6.QtWidgets import (  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtWidgets import (
         QLabel,
-        QPushButton,  # pyright: ignore[reportAssignmentType]
+        QPushButton,
         QSlider,
         QSpinBox,
         QStatusBar,
-        QWidget,  # pyright: ignore[reportAssignmentType]
+        QWidget,
     )
-    from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime  # pyright: ignore[reportAssignmentType]
+    from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime
 
-    HAS_QT = True  # pyright: ignore[reportConstantRedefinition]
+    _has_qt_internal = True
     if not TYPE_CHECKING:
-        QtRubberBand = _QRubberBandRuntime  # Use real class at runtime  # pyright: ignore[reportConstantRedefinition]
+        QtRubberBand = _QRubberBandRuntime  # Use real class at runtime
 except ImportError:
-    HAS_QT = False  # pyright: ignore[reportConstantRedefinition]
+    _has_qt_internal = False
 
     # Stub classes for non-Qt test environments
     class QObject:  # type: ignore[no-redef]
@@ -52,7 +50,7 @@ except ImportError:
             pass
 
     if not TYPE_CHECKING:
-        QtRubberBand = QRubberBand  # Use stub in non-Qt environment  # pyright: ignore[reportConstantRedefinition]
+        QtRubberBand = QRubberBand  # Use stub in non-Qt environment
 
     class QSize:  # type: ignore[no-redef]
         def __init__(self, w: int, h: int) -> None:
@@ -78,7 +76,7 @@ except ImportError:
         def __init__(self, *args: Any) -> None:
             pass
 
-    class QWidget:  # type: ignore[no-redef]
+    class _QWidgetStub:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -100,7 +98,7 @@ except ImportError:
         def showMessage(self, message: str, timeout: int = 0) -> None:
             pass
 
-    class QPushButton:  # type: ignore[no-redef]
+    class _QPushButtonStub:  # type: ignore[no-redef]
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -108,7 +106,13 @@ except ImportError:
         def __init__(self, *args: Any) -> None:
             pass
 
-    QLabel = QSlider = QSpinBox = QStatusBar = QWidget  # type: ignore[assignment,misc]
+    # Type-safe stub assignments
+    QWidget = _QWidgetStub  # type: ignore[assignment,misc]
+    QPushButton = _QPushButtonStub  # type: ignore[assignment,misc]
+    QLabel = QSlider = QSpinBox = QStatusBar = _QWidgetStub  # type: ignore[assignment,misc]
+
+# Export HAS_QT constant (computed once from internal flag)
+HAS_QT: bool = _has_qt_internal
 
 
 # ==================== Type Aliases ====================
@@ -310,7 +314,7 @@ class MockCurveView:
         self.last_pan_pos: QtPointF | None = None
 
         # Rubber band selection attributes (required by CurveViewProtocol)
-        self.rubber_band: QtRubberBand | None = None  # pyright: ignore[reportAssignmentType]
+        self.rubber_band: QtRubberBand | None = None
         self.rubber_band_active: bool = False
         # Create a dummy origin point - protocol requires non-None QtPointF
         if TYPE_CHECKING:
@@ -319,10 +323,10 @@ class MockCurveView:
             try:
                 from PySide6.QtCore import QPointF
 
-                self.rubber_band_origin = QPointF(0.0, 0.0)  # pyright: ignore[reportAssignmentType]
+                self.rubber_band_origin = QPointF(0.0, 0.0)
             except ImportError:
                 # Fallback for non-Qt environments - use object
-                self.rubber_band_origin = object()  # pyright: ignore[reportAssignmentType]
+                self.rubber_band_origin = object()
 
         # Display settings
         self.show_background: bool = True

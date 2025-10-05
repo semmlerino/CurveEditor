@@ -12,7 +12,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from services.service_protocols import MainWindowProtocol
+    from protocols.ui import MainWindowProtocol
 
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
@@ -307,14 +307,13 @@ class CommandManager:
             main_window: Reference to the main application window
         """
         try:
-            # Update state manager if available
-            if main_window.state_manager is not None:
-                main_window.state_manager.set_history_state(
-                    can_undo=self.can_undo(),
-                    can_redo=self.can_redo(),
-                    position=self._current_index,
-                    size=len(self._history),
-                )
+            # Update state manager (state_manager property returns non-None StateManagerProtocol)
+            main_window.state_manager.set_history_state(
+                can_undo=self.can_undo(),
+                can_redo=self.can_redo(),
+                position=self._current_index,
+                size=len(self._history),
+            )
 
             # Update main window UI state (includes QActions)
             if getattr(main_window, "update_ui_state", None) is not None:

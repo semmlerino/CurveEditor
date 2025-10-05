@@ -78,7 +78,6 @@ from ui.ui_constants import (
 if TYPE_CHECKING:
     from typing import Protocol
 
-    from core.commands.curve_commands import BatchMoveCommand, DeletePointsCommand
     from services.interaction_service import InteractionService
     from ui.controllers.curve_view.state_sync_controller import StateSyncController
     from ui.controllers.view_camera_controller import ViewCameraController
@@ -95,8 +94,6 @@ if TYPE_CHECKING:
 else:
     MainWindow = Any  # Runtime fallback to avoid import cycle
     InteractionService = Any  # Runtime fallback to avoid import cycle
-    BatchMoveCommand = Any  # Runtime fallback to avoid import cycle
-    DeletePointsCommand = Any  # Runtime fallback to avoid import cycle
     StateSyncController = Any  # Runtime fallback to avoid import cycle
     ViewCameraController = Any  # Runtime fallback to avoid import cycle
 
@@ -443,11 +440,13 @@ class CurveViewWidget(QWidget):
         import warnings
 
         warnings.warn(
-            "Setting display_mode directly is deprecated. "
-            "Use ApplicationState: "
-            "app_state.set_show_all_curves(True) for ALL_VISIBLE, "
-            "app_state.set_selected_curves({...}) for SELECTED, "
-            "app_state.set_selected_curves(set()) for ACTIVE_ONLY",
+            (
+                "Setting display_mode directly is deprecated. "
+                "Use ApplicationState: "
+                "app_state.set_show_all_curves(True) for ALL_VISIBLE, "
+                "app_state.set_selected_curves({...}) for SELECTED, "
+                "app_state.set_selected_curves(set()) for ACTIVE_ONLY"
+            ),
             DeprecationWarning,
             stacklevel=2,
         )
@@ -1060,7 +1059,7 @@ class CurveViewWidget(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
 
         # Import theme colors
-        from ui.ui_constants import COLORS_DARK
+        from ui.color_manager import COLORS_DARK
 
         # Clear background with theme color
         bg_color = QColor(COLORS_DARK["bg_primary"])
@@ -1119,7 +1118,7 @@ class CurveViewWidget(QWidget):
         painter.setFont(font)
 
         # Import theme colors
-        from ui.ui_constants import COLORS_DARK
+        from ui.color_manager import COLORS_DARK
 
         # Draw background rectangle with theme accent color
         text = "CENTERING ON"
@@ -1519,7 +1518,7 @@ class CurveViewWidget(QWidget):
         # Extract index from PointSearchResult (Increment 4 changed return type)
         # PointSearchResult has .index attribute for accessing the point index
         if hasattr(result, "index"):
-            point_index: int = result.index  # pyright: ignore[reportAttributeAccessIssue]
+            point_index: int = result.index
         else:
             point_index = result  # pyright: ignore[reportAssignmentType]
 
@@ -1670,7 +1669,7 @@ class CurveViewWidget(QWidget):
             timeout: Timeout in milliseconds
         """
         if self.main_window is not None and getattr(self.main_window, "status_bar", None) is not None:
-            self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
+            self.main_window.status_bar.showMessage(message, timeout)
 
     def get_current_frame(self) -> int | None:
         """Get the current frame from state manager if available.
@@ -1790,7 +1789,7 @@ class CurveViewWidget(QWidget):
 
             # Execute the composite command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and interaction_service.command_manager is not None and self.main_window is not None:
+            if interaction_service and self.main_window:
                 # Protocol mismatch between local MainWindow and service's MainWindowProtocol
                 # At runtime, the actual main_window satisfies both protocols
                 interaction_service.command_manager.execute_command(composite, self.main_window)  # pyright: ignore[reportArgumentType]
@@ -1821,7 +1820,7 @@ class CurveViewWidget(QWidget):
 
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
-            if interaction_service and interaction_service.command_manager is not None and self.main_window is not None:
+            if interaction_service and self.main_window:
                 # Protocol mismatch between local MainWindow and service's MainWindowProtocol
                 # At runtime, the actual main_window satisfies both protocols
                 interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
@@ -1964,7 +1963,7 @@ class CurveViewWidget(QWidget):
     @property
     def current_frame_point_color(self) -> QColor:
         """Get current frame point color from centralized color system."""
-        from ui.ui_constants import SPECIAL_COLORS
+        from ui.color_manager import SPECIAL_COLORS
 
         return QColor(SPECIAL_COLORS["current_frame"])
 

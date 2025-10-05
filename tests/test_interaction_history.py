@@ -31,18 +31,18 @@ from tests.test_helpers import MockMainWindow
 class TestHistoryOperations:
     """Test history management operations."""
 
-    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]  # Initialized in setup fixture
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
         # Clear history
-        self.service._history = []  # pyright: ignore[reportPrivateUsage]
-        self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
+        self.service._history = []
+        self.service._current_index = -1
         # Clear command manager
-        self.service.command_manager._history = []  # pyright: ignore[reportPrivateUsage]
-        self.service.command_manager._current_index = -1  # pyright: ignore[reportPrivateUsage]
+        self.service.command_manager._history = []
+        self.service.command_manager._current_index = -1
 
     def test_add_to_history_saves_application_state(self) -> None:
         """Test add_to_history captures ApplicationState data."""
@@ -52,8 +52,8 @@ class TestHistoryOperations:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        main_window.point_name = "test_point"  # pyright: ignore[reportAttributeAccessIssue]
-        main_window.point_color = "red"  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.point_name = "test_point"
+        main_window.point_color = "red"
         # Force use of internal history
         main_window.history = None
         main_window.history_index = None
@@ -61,9 +61,9 @@ class TestHistoryOperations:
         self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should have at least one history entry (might start at 1 if add_to_history was called before)
-        assert len(self.service._history) >= 1  # pyright: ignore[reportPrivateUsage]
-        if len(self.service._history) > 0:  # pyright: ignore[reportPrivateUsage]
-            history_entry = self.service._history[-1]  # pyright: ignore[reportPrivateUsage]
+        assert len(self.service._history) >= 1
+        if len(self.service._history) > 0:
+            history_entry = self.service._history[-1]
             assert "curve_data" in history_entry
             # point_name and point_color are optional
             if "point_name" in history_entry:
@@ -99,7 +99,7 @@ class TestHistoryOperations:
             self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should not exceed max size
-        assert len(self.service._history) <= self.service._max_history_size  # pyright: ignore[reportPrivateUsage]
+        assert len(self.service._history) <= self.service._max_history_size
 
     def test_can_undo_with_command_manager(self) -> None:
         """Test can_undo returns True when commands are available."""
@@ -220,8 +220,8 @@ class TestHistoryOperations:
         self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should be empty
-        assert len(self.service._history) == 0  # pyright: ignore[reportPrivateUsage]
-        assert self.service._current_index == -1  # pyright: ignore[reportPrivateUsage]
+        assert len(self.service._history) == 0
+        assert self.service._current_index == -1
 
     def test_update_history_buttons(self) -> None:
         """Test update_history_buttons doesn't crash with command manager."""
@@ -249,14 +249,14 @@ class TestHistoryOperations:
 class TestMemoryAndStats:
     """Test memory and statistics queries."""
 
-    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]  # Initialized in setup fixture
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        self.service._history = []  # pyright: ignore[reportPrivateUsage]
-        self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
+        self.service._history = []
+        self.service._current_index = -1
 
     def test_get_memory_stats(self) -> None:
         """Test get_memory_stats returns statistics."""
@@ -287,10 +287,10 @@ class TestMemoryAndStats:
         app_state.set_active_curve("test_curve")
 
         view = MockCurveView(test_data)
-        self.service.find_point_at(view, 100.0, 100.0)  # pyright: ignore[reportArgumentType]
+        self.service.find_point_at(view, 100.0, 100.0)
 
         # Clear index
         self.service.clear_spatial_index()
 
         # Index should be reset (verified by internal state)
-        assert self.service._point_index._last_point_count == 0  # pyright: ignore[reportPrivateUsage]
+        assert self.service._point_index._last_point_count == 0

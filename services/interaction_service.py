@@ -29,7 +29,7 @@ if TYPE_CHECKING:
     from PySide6.QtCore import QRect
 
     from core.commands.command_manager import CommandManager
-    from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+    from protocols.ui import CurveViewProtocol, MainWindowProtocol
     from services.transform_service import TransformService
 
 from core.logger_utils import get_logger
@@ -317,7 +317,7 @@ class InteractionService:
             self.drag_point_idx = None
 
             # Create command if points were actually moved
-            if self._drag_original_positions and view.main_window is not None:
+            if self._drag_original_positions:
                 from core.commands.curve_commands import BatchMoveCommand
 
                 # Collect the moves using ApplicationState (Week 6)
@@ -339,7 +339,7 @@ class InteractionService:
                     # The points have already been moved during dragging,
                     # so we mark the command as executed and add it to history
                     command.executed = True
-                    self.command_manager.add_executed_command(command, cast(MainWindowProtocol, view.main_window))
+                    self.command_manager.add_executed_command(command, cast("MainWindowProtocol", view.main_window))
 
             # Clear the tracked positions
             self._drag_original_positions = None
@@ -380,8 +380,8 @@ class InteractionService:
                 view.rubber_band_active = False
 
                 # Update history if points were selected
-                if selected_count > 0 and view.main_window is not None:
-                    self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
+                if selected_count > 0:
+                    self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
 
         view.update()
 
@@ -407,7 +407,7 @@ class InteractionService:
         if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
             # Delete selected points using command for undo/redo
             # selected_points is defined in CurveViewProtocol
-            if view.selected_points and view.main_window is not None:
+            if view.selected_points:
                 from core.commands.curve_commands import DeletePointsCommand
 
                 # Collect points to delete using ApplicationState (Week 6)
@@ -427,7 +427,7 @@ class InteractionService:
                     )
 
                     # Execute the command through the command manager
-                    self.command_manager.execute_command(command, cast(MainWindowProtocol, view.main_window))
+                    self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
 
                     # Clear selection
                     view.selected_points.clear()
@@ -442,21 +442,19 @@ class InteractionService:
                 view.selected_points = set(range(len(active_curve_data)))
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
-            if view.main_window is not None:
-                self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
+                self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
 
         elif key == Qt.Key.Key_Escape:
             # Clear selection
             view.selected_points = set()
             view.selected_point_idx = -1
             # main_window is defined in CurveViewProtocol
-            if view.main_window is not None:
-                self.update_history_buttons(cast(MainWindowProtocol, view.main_window))
+            self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
 
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
             # Nudge selected points
             # selected_points is defined in CurveViewProtocol
-            if view.selected_points and view.main_window is not None:
+            if view.selected_points:
                 from core.commands.curve_commands import BatchMoveCommand
 
                 nudge_distance = 1.0
@@ -489,7 +487,7 @@ class InteractionService:
                         description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
                         moves=moves,
                     )
-                    self.command_manager.execute_command(command, cast(MainWindowProtocol, view.main_window))
+                    self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
                     # Note: No need to add_to_history - command manager handles it
 
         view.update()
@@ -559,13 +557,6 @@ class InteractionService:
                 history_state["curve_data"] = [tuple(point) for point in active_curve_data]
             else:
                 history_state["curve_data"] = copy.deepcopy(active_curve_data)
-        # Legacy fallback - try multiple possible attributes
-        elif main_window.curve_data is not None:
-            curve_data = main_window.curve_data
-            if curve_data and isinstance(curve_data[0], list):
-                history_state["curve_data"] = [tuple(point) for point in curve_data]
-            else:
-                history_state["curve_data"] = copy.deepcopy(curve_data)
         elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
             widget_curve_data = getattr(main_window.curve_widget, "curve_data")
             if (
@@ -604,7 +595,7 @@ class InteractionService:
 
         # Check if main_window has history attributes for direct management
         # history is defined in MainWindowProtocol
-        if main_window.history is not None:
+        if main_window.history is not None and main_window.history_index is not None:
             # Truncate future history if we're not at the end
             # history_index is defined in MainWindowProtocol
             if main_window.history_index < len(main_window.history) - 1:
@@ -677,6 +668,10 @@ class InteractionService:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
+        # Skip if main_window is None (test scenario)
+        if main_window is None:
+            return
+
         # Determine can_undo and can_redo based on history location
         if main_window.history is not None and main_window.history_index is not None:
             # Use main_window's history
@@ -1125,7 +1120,7 @@ class InteractionService:
 
         # Update pan offset
         if hasattr(view, "pan_offset_y"):
-            view.pan_offset_y = current_pan_y + adjusted_delta  # pyright: ignore[reportAttributeAccessIssue]
+            view.pan_offset_y = current_pan_y + adjusted_delta
             view.update()
 
         logger.debug(f"Applied pan offset Y: {delta_y} -> {adjusted_delta} (flip={view.flip_y_axis})")
@@ -1144,13 +1139,13 @@ class InteractionService:
             if getattr(view, "offset_y", None) is not None:
                 view.offset_y = 0
             if getattr(view, "pan_offset_x", None) is not None:
-                view.pan_offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.pan_offset_x = 0
             if getattr(view, "pan_offset_y", None) is not None:
-                view.pan_offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.pan_offset_y = 0
             if getattr(view, "manual_offset_x", None) is not None:
-                view.manual_offset_x = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.manual_offset_x = 0
             if getattr(view, "manual_offset_y", None) is not None:
-                view.manual_offset_y = 0  # pyright: ignore[reportAttributeAccessIssue]
+                view.manual_offset_y = 0
             view.update()
 
     # ==================== Legacy Methods (Minimal Implementation) ====================
@@ -1307,11 +1302,10 @@ class InteractionService:
 
                 self._app_state.set_curve_data(active_curve_name, cast(CurveDataList, curve_data))
 
-            # Legacy compatibility: also set on old storage locations
-            # Set on main_window directly if it has the attribute
-            if main_window.curve_data is not None:
+                # Legacy compatibility: also set on old storage locations
+                # Set on main_window directly if it has the attribute
                 # Use setattr since curve_data may be a property - Protocol compatibility
-                setattr(main_window, "curve_data", curve_data)  # pyright: ignore[reportAttributeAccessIssue]
+                setattr(main_window, "curve_data", curve_data)
 
             # Also set on curve_widget if present
             if (

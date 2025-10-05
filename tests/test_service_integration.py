@@ -100,7 +100,7 @@ class TestCrossServiceCommunication:
         )
 
         # Test transform service can create transforms for data
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         view_state = transform_service.create_view_state(mock_view)
         assert isinstance(view_state, ViewState)
         assert view_state.zoom_factor == 2.0
@@ -129,13 +129,15 @@ class TestCrossServiceCommunication:
         )
 
         # Test interaction service can get current transform
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         view_state = transform_service.create_view_state(mock_view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
         # Verify transform parameters match view state
         params = transform.get_parameters()
-        assert float(params["scale"]) == 1.5  # pyright: ignore[reportArgumentType]
+        scale_value = params["scale"]
+        assert isinstance(scale_value, int | float)
+        assert float(scale_value) == 1.5
 
         # Test coordinate transformations for interactions
         screen_point = QPointF(300.0, 400.0)
@@ -208,7 +210,6 @@ class TestCompleteWorkflows:
                 points=smoothed_data, zoom_factor=1.0, offset_x=0.0, offset_y=0.0
             )
 
-            # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
             view_state = transform_service.create_view_state(mock_view)
             transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -240,7 +241,7 @@ class TestCompleteWorkflows:
         mock_main_window.curve_view.curve_data = mock_view.points.copy()
 
         # 2. Create transform for coordinate conversion
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         view_state = transform_service.create_view_state(mock_view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -374,7 +375,7 @@ class TestErrorHandlingIntegration:
         )
 
         # Service should handle invalid values gracefully
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         view_state = transform_service.create_view_state(mock_view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -428,7 +429,6 @@ class TestServicePerformance:
 
         mock_view = ProtocolCompliantMockCurveView(points=many_points, zoom_factor=1.0, offset_x=0.0, offset_y=0.0)
 
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
         view_state = transform_service.create_view_state(mock_view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
@@ -513,7 +513,6 @@ class TestPerformanceBaselines:
         )
 
         def create_and_transform():
-            # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
             view_state = transform_service.create_view_state(mock_view)
             transform = transform_service.create_transform_from_view_state(view_state)
             return transform.data_to_screen(100.0, 200.0)
@@ -565,9 +564,9 @@ class TestServiceStateMaintenance:
         )
 
         # Create transforms for both
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         state_a = transform_service.create_view_state(view_a)
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         state_b = transform_service.create_view_state(view_b)
 
         transform_a = transform_service.create_transform_from_view_state(state_a)

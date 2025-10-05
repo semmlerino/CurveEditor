@@ -559,7 +559,7 @@ class FileOperations(QObject):
             if getattr(self.state_manager, "image_directory", None) is not None or hasattr(
                 self.state_manager, "image_directory"
             ):
-                self.state_manager.image_directory = selected_directory  # pyright: ignore[reportAttributeAccessIssue]
+                self.state_manager.image_directory = selected_directory
             add_recent_dir = getattr(self.state_manager, "add_recent_directory", None)
             if callable(add_recent_dir):
                 add_recent_dir(selected_directory)

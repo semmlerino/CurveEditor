@@ -347,9 +347,7 @@ class TrackingPointsPanel(QWidget):
             self.table.clearSelection()
 
             # Find and select rows that match the point names
-            selection_model = self.table.selectionModel()
-            if selection_model is None:
-                return
+            selection_model = self.table.selectionModel()  # Returns non-None QItemSelectionModel
 
             for row in range(self.table.rowCount()):
                 name_item = self.table.item(row, 1)  # Name column

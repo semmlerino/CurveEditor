@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Protocol, cast
 from core.image_state import ImageState
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
-from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+from protocols.ui import CurveViewProtocol, MainWindowProtocol
 
 if TYPE_CHECKING:
     from services.data_service import DataService
@@ -438,17 +438,17 @@ class ServiceFacade:
     def set_status(self, message: str, timeout: int = 0) -> None:
         """Set status bar message."""
         if self._ui_service and self.main_window:
-            self._ui_service.set_status(self.main_window, message, timeout)  # pyright: ignore[reportArgumentType]
+            self._ui_service.set_status(self.main_window, message, timeout)
 
     def clear_status(self) -> None:
         """Clear status bar message."""
         if self._ui_service and self.main_window:
-            self._ui_service.clear_status(self.main_window)  # pyright: ignore[reportArgumentType]
+            self._ui_service.clear_status(self.main_window)
 
     def update_ui_from_data(self) -> None:
         """Update UI components based on current data state."""
         if self._ui_service and self.main_window:
-            self._ui_service.update_ui_from_data(self.main_window)  # pyright: ignore[reportArgumentType]
+            self._ui_service.update_ui_from_data(self.main_window)
 
     # ==================== Convenience Methods ====================
 

@@ -52,10 +52,10 @@ class TestTrackingDirectionUndo:
         app_state.set_curve_data("Point1", tracking_data["Point1"])
 
         # Ensure tracking_controller exists before accessing (cast to concrete type for implementation details)
-        if main_window.tracking_controller is not None:
-            # Cast through object to avoid protocol overlap check
-            controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
-            controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
+        # tracking_controller is non-None MultiPointTrackingProtocol
+        # Cast through object to avoid protocol overlap check
+        controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
+        controller.point_tracking_directions = {"Point1": TrackingDirection.TRACKING_FW}
         main_window.active_timeline_point = "Point1"
 
         # Set curve data to match
@@ -66,11 +66,11 @@ class TestTrackingDirectionUndo:
         app_state.set_active_curve("Point1")
 
         # Update UI to reflect data
-        if main_window.tracking_controller is not None:
-            main_window.tracking_controller.update_tracking_panel()
-            # Cast through object to avoid protocol overlap check
-            controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
-            controller.update_curve_display(SelectionContext.DATA_LOADING)
+        # tracking_controller is non-None MultiPointTrackingProtocol
+        main_window.tracking_controller.update_tracking_panel()
+        # Cast through object to avoid protocol overlap check
+        controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
+        controller.update_curve_display(SelectionContext.DATA_LOADING)
 
         yield main_window
 

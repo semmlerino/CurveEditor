@@ -127,7 +127,7 @@ class TestUnifiedCurveRendering:
         )
 
         # Mock color functions to track calls (patch at correct import location)
-        with patch("ui.ui_constants.get_status_color") as mock_get_status_color:
+        with patch("ui.color_manager.get_status_color") as mock_get_status_color:
             mock_get_status_color.side_effect = {
                 "keyframe": "#00ff66",
                 "normal": "#ffffff",
@@ -136,7 +136,7 @@ class TestUnifiedCurveRendering:
                 "tracked": "#00bfff",
             }.get
 
-            with patch("ui.ui_constants.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
+            with patch("ui.color_manager.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
                 # Call the unified rendering method with mock painter
                 renderer._render_points_with_status(
                     painter=mock_painter,
@@ -274,8 +274,8 @@ class TestUnifiedCurveRendering:
 
         mock_painter.setBrush.side_effect = track_setBrush
 
-        with patch("ui.ui_constants.get_status_color", return_value="#ffffff"):
-            with patch("ui.ui_constants.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
+        with patch("ui.color_manager.get_status_color", return_value="#ffffff"):
+            with patch("ui.color_manager.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
                 renderer._render_points_with_status(
                     painter=mock_painter,
                     render_state=render_state,
@@ -328,12 +328,12 @@ class TestUnifiedCurveRendering:
             point_radius=5,
         )
 
-        with patch("ui.ui_constants.get_status_color") as mock_get_status_color:
+        with patch("ui.color_manager.get_status_color") as mock_get_status_color:
             mock_get_status_color.side_effect = lambda status: {"normal": "#ffffff", "keyframe": "#00ff66"}.get(
                 status, "#ffffff"
             )
 
-            with patch("ui.ui_constants.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
+            with patch("ui.color_manager.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
                 renderer._render_points_with_status(
                     painter=mock_painter,
                     render_state=render_state,
@@ -539,9 +539,9 @@ class TestUnifiedRenderingLogic:
         )
 
         # Test active curve (should use status color)
-        with patch("ui.ui_constants.get_status_color") as mock_get_status:
+        with patch("ui.color_manager.get_status_color") as mock_get_status:
             mock_get_status.return_value = "#ffffff"
-            with patch("ui.ui_constants.SPECIAL_COLORS", {}):
+            with patch("ui.color_manager.SPECIAL_COLORS", {}):
                 renderer._render_points_with_status(
                     painter=mock_painter,
                     render_state=render_state,
@@ -559,9 +559,9 @@ class TestUnifiedRenderingLogic:
 
         # Test inactive curve (should use curve color for normal points)
         mock_get_status.reset_mock()
-        with patch("ui.ui_constants.get_status_color") as mock_get_status:
+        with patch("ui.color_manager.get_status_color") as mock_get_status:
             mock_get_status.return_value = "#ffffff"
-            with patch("ui.ui_constants.SPECIAL_COLORS", {}):
+            with patch("ui.color_manager.SPECIAL_COLORS", {}):
                 renderer._render_points_with_status(
                     painter=mock_painter,
                     render_state=render_state,

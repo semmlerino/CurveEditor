@@ -51,7 +51,7 @@ class TestEventFilterNavigation:
         # Use real components
         if window.curve_widget:
             window.curve_widget.set_curve_data(test_data)
-        window.update_timeline_tabs(test_data)  # pyright: ignore[reportArgumentType]
+        window.update_timeline_tabs(test_data)
 
         # Install event filter (mimics main.py)
         app.installEventFilter(window)

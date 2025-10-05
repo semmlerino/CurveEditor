@@ -38,7 +38,7 @@ def test_current_frame_property_returns_int(qtbot: QtBot):
     qtbot.addWidget(window)
 
     # Mock the frame navigation controller's method
-    window.timeline_controller.get_current_frame = Mock(return_value=42)  # pyright: ignore[reportAttributeAccessIssue]
+    window.timeline_controller.get_current_frame = Mock(return_value=42)
 
     # Test property access
     frame = window.current_frame
@@ -59,7 +59,7 @@ def test_current_frame_property_setter(qtbot: QtBot):
     def track_frame_set(frame):
         frame_set_to[0] = frame
 
-    window.timeline_controller.set_frame = track_frame_set  # pyright: ignore[reportAttributeAccessIssue]
+    window.timeline_controller.set_frame = track_frame_set
 
     # Set via property
     window.current_frame = 100
@@ -80,7 +80,7 @@ def test_curve_view_can_access_current_frame(qtbot: QtBot):
     qtbot.addWidget(window)
 
     # Mock frame navigation controller
-    window.timeline_controller.get_current_frame = Mock(return_value=50)  # pyright: ignore[reportAttributeAccessIssue]
+    window.timeline_controller.get_current_frame = Mock(return_value=50)
 
     # Link them
     widget.main_window = window  # pyright: ignore[reportAttributeAccessIssue]
@@ -108,7 +108,7 @@ def test_protocol_compliance(qtbot: QtBot):
     # This is part of the duck-typing pattern in the codebase
 
     # Verify current_frame is accessible as property
-    window.timeline_controller.get_current_frame = Mock(return_value=1)  # pyright: ignore[reportAttributeAccessIssue]
+    window.timeline_controller.get_current_frame = Mock(return_value=1)
 
     frame = window.current_frame
     assert isinstance(frame, int)

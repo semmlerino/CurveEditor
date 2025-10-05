@@ -14,20 +14,20 @@ from unittest.mock import Mock
 
 from PySide6.QtWidgets import QStatusBar
 
+from protocols.services import SignalProtocol
+from protocols.ui import (
+    CurveViewProtocol as ServiceCurveViewProtocol,
+)
+from protocols.ui import (
+    MainWindowProtocol as ServiceMainWindowProtocol,
+)
+from protocols.ui import StateManagerProtocol
 from rendering.rendering_protocols import CurveViewProtocol
 from rendering.rendering_protocols import MainWindowProtocol as RenderingMainWindowProtocol
 from services.service_protocols import (
     BatchEditableProtocol,
     LoggingServiceProtocol,
-    SignalProtocol,
-    StateManagerProtocol,
     StatusServiceProtocol,
-)
-from services.service_protocols import (
-    CurveViewProtocol as ServiceCurveViewProtocol,
-)
-from services.service_protocols import (
-    MainWindowProtocol as ServiceMainWindowProtocol,
 )
 from ui.protocols.controller_protocols import (
     ActionHandlerProtocol,

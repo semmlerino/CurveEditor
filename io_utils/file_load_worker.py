@@ -349,7 +349,7 @@ class FileLoadWorker:
             for point_name, point_data in raw_data.items():
                 # point_data is a list from dict values, compatible with CurveDataList at runtime
                 result[point_name] = CurveDataWithMetadata(
-                    data=point_data,  # pyright: ignore[reportArgumentType]
+                    data=point_data,
                     metadata=metadata,
                     is_normalized=False,
                 )
@@ -364,7 +364,7 @@ class FileLoadWorker:
         elif isinstance(raw_data, list):
             # Single point data - backward compatibility
             # Type narrowing: raw_data is a list at this point, compatible with CurveDataList
-            curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)  # pyright: ignore[reportArgumentType]
+            curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)
 
             logger.info(
                 f"[COORD] Loaded {len(raw_data)} points with metadata: "
@@ -427,7 +427,7 @@ class FileLoadWorker:
             # Use direct loading with flip_y parameter
             result = self._load_2dtrack_data_direct(file_path, flip_y, image_height)
             # Runtime type is compatible despite variance rules
-            return result  # pyright: ignore[reportReturnType]
+            return result
 
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""

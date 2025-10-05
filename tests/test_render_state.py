@@ -67,9 +67,10 @@ class TestRenderStateAllVisibleMode:
 
     def test_all_visible_includes_all_curves(self, curve_widget, sample_curves):
         """In ALL_VISIBLE mode, all metadata-visible curves should be included."""
-        # Setup: Load curves and set ALL_VISIBLE mode
+        # Setup: Load curves and set ALL_VISIBLE mode via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -88,10 +89,11 @@ class TestRenderStateAllVisibleMode:
 
     def test_all_visible_ignores_selection(self, curve_widget, sample_curves):
         """In ALL_VISIBLE mode, selection doesn't affect visibility."""
-        # Setup: Load curves, set selection, set ALL_VISIBLE mode
+        # Setup: Load curves, set selection, set ALL_VISIBLE mode via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.selected_curve_names = {"Track1"}  # Select only Track1
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_selected_curves({"Track1"})  # Select only Track1
+        app_state.set_show_all_curves(True)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -108,11 +110,11 @@ class TestRenderStateAllVisibleMode:
 
     def test_all_visible_respects_metadata_visibility(self, curve_widget, sample_curves):
         """In ALL_VISIBLE mode, metadata.visible=False hides curves."""
-        # Setup: Load curves and hide Track2
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        # Setup: Load curves and hide Track2 via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         app_state.set_curve_visibility("Track2", False)
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -133,10 +135,11 @@ class TestRenderStateSelectedMode:
 
     def test_selected_includes_only_selected_curves(self, curve_widget, sample_curves):
         """In SELECTED mode, only selected curves should be included."""
-        # Setup: Load curves, select Track1 and Track3
+        # Setup: Load curves, select Track1 and Track3 via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.selected_curve_names = {"Track1", "Track3"}
-        curve_widget.display_mode = DisplayMode.SELECTED
+        app_state.set_selected_curves({"Track1", "Track3"})
+        app_state.set_show_all_curves(False)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -154,12 +157,12 @@ class TestRenderStateSelectedMode:
 
     def test_selected_respects_metadata_visibility(self, curve_widget, sample_curves):
         """In SELECTED mode, hidden curves don't render even if selected."""
-        # Setup: Load curves, hide Track2, select Track1 and Track2
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        # Setup: Load curves, hide Track2, select Track1 and Track2 via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         app_state.set_curve_visibility("Track2", False)
-        curve_widget.selected_curve_names = {"Track1", "Track2"}
-        curve_widget.display_mode = DisplayMode.SELECTED
+        app_state.set_selected_curves({"Track1", "Track2"})
+        app_state.set_show_all_curves(False)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -174,12 +177,14 @@ class TestRenderStateSelectedMode:
 
     def test_selected_empty_selection(self, curve_widget, sample_curves):
         """Clearing selection in SELECTED mode transitions to ACTIVE_ONLY mode."""
-        # Setup: Load curves, set SELECTED mode, then clear selection
+        # Setup: Load curves, set SELECTED mode, then clear selection via ApplicationState
         # Note: When selection is cleared, display_mode automatically becomes ACTIVE_ONLY
         # because DisplayMode.from_legacy() sees has_selection=False
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.SELECTED
-        curve_widget.selected_curve_names = set()  # Clear selection after mode set
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves({"Track1"})  # First select
+        app_state.set_selected_curves(set())  # Then clear selection
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -203,9 +208,11 @@ class TestRenderStateActiveOnlyMode:
 
     def test_active_only_includes_only_active_curve(self, curve_widget, sample_curves):
         """In ACTIVE_ONLY mode, only the active curve should be included."""
-        # Setup: Load curves with Track2 active
+        # Setup: Load curves with Track2 active via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track2")
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -224,11 +231,12 @@ class TestRenderStateActiveOnlyMode:
 
     def test_active_only_respects_metadata_visibility(self, curve_widget, sample_curves):
         """In ACTIVE_ONLY mode, hidden active curve doesn't render."""
-        # Setup: Load curves, make Track2 active, hide Track2
-        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
+        # Setup: Load curves, make Track2 active, hide Track2 via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
         app_state.set_curve_visibility("Track2", False)
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -241,11 +249,12 @@ class TestRenderStateActiveOnlyMode:
 
     def test_active_only_no_active_curve(self, curve_widget, sample_curves):
         """In ACTIVE_ONLY mode with no active curve, nothing visible."""
-        # Setup: Load curves, then clear active curve
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        # Setup: Load curves, then clear active curve via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         app_state.set_active_curve(None)
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -261,8 +270,9 @@ class TestRenderStateEdgeCases:
 
     def test_no_curves(self, curve_widget):
         """With no curves, visible_curves should be empty."""
-        # Setup: Widget with no curves
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        # Setup: Widget with no curves via ApplicationState
+        app_state = get_application_state()
+        app_state.set_show_all_curves(True)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -274,12 +284,12 @@ class TestRenderStateEdgeCases:
 
     def test_all_curves_hidden_by_metadata(self, curve_widget, sample_curves):
         """When all curves hidden by metadata, visible_curves should be empty."""
-        # Setup: Load curves and hide all
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        # Setup: Load curves and hide all via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         for curve_name in sample_curves:
             app_state.set_curve_visibility(curve_name, False)
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act: Compute render state
         state = RenderState.compute(curve_widget)
@@ -300,10 +310,11 @@ class TestRenderStateConvenienceMethods:
 
     def test_should_render_method(self, curve_widget, sample_curves):
         """should_render() should return True for visible curves."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.selected_curve_names = {"Track1", "Track3"}
-        curve_widget.display_mode = DisplayMode.SELECTED
+        app_state.set_selected_curves({"Track1", "Track3"})
+        app_state.set_show_all_curves(False)
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -315,9 +326,11 @@ class TestRenderStateConvenienceMethods:
 
     def test_contains_operator(self, curve_widget, sample_curves):
         """'in' operator should work for curve name checking."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -329,10 +342,11 @@ class TestRenderStateConvenienceMethods:
 
     def test_len_operator(self, curve_widget, sample_curves):
         """len() should return number of visible curves."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.selected_curve_names = {"Track1", "Track2"}
-        curve_widget.display_mode = DisplayMode.SELECTED
+        app_state.set_selected_curves({"Track1", "Track2"})
+        app_state.set_show_all_curves(False)
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -344,9 +358,10 @@ class TestRenderStateConvenienceMethods:
 
     def test_bool_operator_true(self, curve_widget, sample_curves):
         """bool() should return True when curves are visible."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -357,8 +372,9 @@ class TestRenderStateConvenienceMethods:
 
     def test_bool_operator_false(self, curve_widget):
         """bool() should return False when no curves are visible."""
-        # Setup: No curves
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        # Setup: No curves via ApplicationState
+        app_state = get_application_state()
+        app_state.set_show_all_curves(True)
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -369,9 +385,10 @@ class TestRenderStateConvenienceMethods:
 
     def test_repr_method(self, curve_widget, sample_curves):
         """repr() should return useful debug string."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act
         state = RenderState.compute(curve_widget)
@@ -422,9 +439,10 @@ class TestRenderStateMatchesShouldRenderCurve:
 
     def test_all_visible_mode_matches(self, curve_widget, sample_curves):
         """RenderState should match should_render_curve in ALL_VISIBLE mode."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Compute state
         state = RenderState.compute(curve_widget)
@@ -437,10 +455,11 @@ class TestRenderStateMatchesShouldRenderCurve:
 
     def test_selected_mode_matches(self, curve_widget, sample_curves):
         """RenderState should match should_render_curve in SELECTED mode."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        curve_widget.selected_curve_names = {"Track1", "Track3"}
-        curve_widget.display_mode = DisplayMode.SELECTED
+        app_state.set_selected_curves({"Track1", "Track3"})
+        app_state.set_show_all_curves(False)
 
         # Compute state
         state = RenderState.compute(curve_widget)
@@ -453,9 +472,11 @@ class TestRenderStateMatchesShouldRenderCurve:
 
     def test_active_only_mode_matches(self, curve_widget, sample_curves):
         """RenderState should match should_render_curve in ACTIVE_ONLY mode."""
-        # Setup
+        # Setup via ApplicationState
+        app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track2")
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
         # Compute state
         state = RenderState.compute(curve_widget)
@@ -468,11 +489,11 @@ class TestRenderStateMatchesShouldRenderCurve:
 
     def test_with_hidden_curves_matches(self, curve_widget, sample_curves):
         """RenderState should match should_render_curve with hidden curves."""
-        # Setup: Hide Track2
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        # Setup: Hide Track2 via ApplicationState
         app_state = get_application_state()
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         app_state.set_curve_visibility("Track2", False)
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Compute state
         state = RenderState.compute(curve_widget)
@@ -489,10 +510,11 @@ class TestRenderStatePerformance:
 
     def test_compute_is_efficient(self, curve_widget):
         """Compute should be fast even with many curves."""
-        # Setup: Create 100 curves
+        # Setup: Create 100 curves via ApplicationState
+        app_state = get_application_state()
         many_curves = {f"Track{i}": [(j, float(j), float(j)) for j in range(1, 4)] for i in range(100)}
         curve_widget.set_curves_data(many_curves, active_curve="Track0")
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        app_state.set_show_all_curves(True)
 
         # Act: Compute should be fast (this is just a smoke test)
         import time

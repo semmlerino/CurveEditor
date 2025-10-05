@@ -25,16 +25,11 @@ from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
 
 if TYPE_CHECKING:
     from services.transform_service import Transform
-    from ui.state_manager import StateManager
 
     from .render_state import RenderState
-    from .rendering_protocols import CurveViewProtocol, MainWindowProtocol
 else:
     Transform = object
-    StateManager = object
     RenderState = object
-    CurveViewProtocol = object
-    MainWindowProtocol = object
 
 # NumPy array type aliases - performance critical for vectorized operations
 # Using Any with targeted suppressions for NumPy operations
@@ -79,7 +74,7 @@ class ViewportCuller:
     def get_visible_points(self, points: FloatArray, viewport: QRectF, padding: float = 50) -> IntArray:  # pyright: ignore[reportAny]
         """Get indices of points visible in viewport using spatial indexing."""
         if len(points) == 0:
-            return np.array([], dtype=int)  # pyright: ignore[reportPrivateImportUsage]
+            return np.array([], dtype=int)
 
         # Expand viewport by padding
         expanded = QRectF(
@@ -117,12 +112,12 @@ class ViewportCuller:
                             if viewport.contains(x, y):
                                 visible.append(idx)
 
-        return np.array(visible, dtype=int)  # pyright: ignore[reportPrivateImportUsage,reportAny]
+        return np.array(visible, dtype=int)
 
     def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:  # pyright: ignore[reportAny]
         """Simple viewport culling for smaller datasets."""
         if len(points) == 0:
-            return np.array([], dtype=int)  # pyright: ignore[reportPrivateImportUsage,reportAny]
+            return np.array([], dtype=int)
 
         # Vectorized viewport test
         x_coords = points[:, 0]
@@ -135,7 +130,7 @@ class ViewportCuller:
             & (y_coords <= viewport.bottom())
         )
 
-        return np.where(visible_mask)[0]  # pyright: ignore[reportPrivateImportUsage,reportAny]
+        return np.where(visible_mask)[0]
 
 
 class LevelOfDetail:
@@ -174,7 +169,7 @@ class LevelOfDetail:
             step = max(2, len(working_points) // threshold + 1)
 
         # Sub-sample points evenly
-        sampled_indices = np.arange(0, len(working_points), step)  # pyright: ignore[reportPrivateImportUsage]
+        sampled_indices = np.arange(0, len(working_points), step)
         lod_points = working_points[sampled_indices]
 
         return lod_points, step
@@ -194,7 +189,7 @@ class VectorizedTransform:
     ) -> FloatArray:
         """Transform all points in a single vectorized operation."""
         if len(points) == 0:
-            return np.array([]).reshape(0, 2)  # pyright: ignore[reportPrivateImportUsage,reportAny]
+            return np.array([]).reshape(0, 2)
 
         # Extract x and y coordinates
         x_coords = points[:, 1] if points.shape[1] > 1 else points[:, 0]
@@ -209,7 +204,7 @@ class VectorizedTransform:
             screen_y = height - screen_y
 
         # Stack coordinates into Nx2 array
-        return np.column_stack((screen_x, screen_y))  # pyright: ignore[reportPrivateImportUsage,reportAny]
+        return np.column_stack((screen_x, screen_y))
 
 
 class OptimizedCurveRenderer:
@@ -387,11 +382,11 @@ class OptimizedCurveRenderer:
         logger.debug(f"Rendering {len(points)} points")
 
         # Convert to NumPy array for vectorized operations
-        if not isinstance(points, np.ndarray):  # pyright: ignore[reportPrivateImportUsage]
+        if not isinstance(points, np.ndarray):
             # Convert list of tuples to NumPy array - handle variable tuple lengths
             try:
                 # Extract frame, x, y from tuples (ignore optional 4th element)
-                point_data = np.array([(p[0], p[1], p[2]) for p in points if len(p) >= 3])  # pyright: ignore[reportPrivateImportUsage]
+                point_data = np.array([(p[0], p[1], p[2]) for p in points if len(p) >= 3])
             except (IndexError, TypeError):
                 # Fallback if points format is unexpected
                 return
@@ -417,7 +412,7 @@ class OptimizedCurveRenderer:
             # Transform all points using the Transform service for consistency with background
             transform = self._create_transform_from_render_state(render_state)
             # Transform each point through the same pipeline as background
-            screen_points = np.zeros((len(point_data), 2))  # pyright: ignore[reportPrivateImportUsage]
+            screen_points = np.zeros((len(point_data), 2))
             for i, point in enumerate(point_data):
                 x, y = transform.data_to_screen(point[1], point[2])
                 screen_points[i] = [x, y]
@@ -902,7 +897,7 @@ class OptimizedCurveRenderer:
         painter.setPen(Qt.PenStyle.NoPen)
 
         # Import centralized colors
-        from ui.ui_constants import SPECIAL_COLORS, get_status_color
+        from ui.color_manager import SPECIAL_COLORS, get_status_color
 
         # Draw points in order: endframe, interpolated, normal, tracked, keyframe
         # (so more important statuses appear on top)
@@ -973,7 +968,7 @@ class OptimizedCurveRenderer:
         else:
             label_step = 1
 
-        from ui.ui_constants import COLORS_DARK
+        from ui.color_manager import COLORS_DARK
 
         painter.setPen(QPen(QColor(COLORS_DARK["text_primary"])))
         font = QFont("Arial", 8)  # Smaller font for performance
@@ -1024,7 +1019,7 @@ class OptimizedCurveRenderer:
         painter.setFont(font)
 
         # Import centralized colors for state labels
-        from ui.ui_constants import get_status_color
+        from ui.color_manager import get_status_color
 
         # Define colors for different states from centralized source
         state_colors = {}
@@ -1118,7 +1113,7 @@ class OptimizedCurveRenderer:
 
             # Convert points to NumPy array
             try:
-                point_data = np.array([(p[0], p[1], p[2]) for p in curve_points if len(p) >= 3])  # pyright: ignore[reportPrivateImportUsage]
+                point_data = np.array([(p[0], p[1], p[2]) for p in curve_points if len(p) >= 3])
             except (IndexError, TypeError):
                 continue
 
@@ -1126,7 +1121,7 @@ class OptimizedCurveRenderer:
                 continue
 
             # Transform points to screen coordinates
-            screen_points = np.zeros((len(point_data), 2))  # pyright: ignore[reportPrivateImportUsage]
+            screen_points = np.zeros((len(point_data), 2))
             for i, point in enumerate(point_data):
                 x, y = transform.data_to_screen(point[1], point[2])
                 screen_points[i] = [x, y]
@@ -1219,7 +1214,7 @@ class OptimizedCurveRenderer:
 
     def _render_grid_optimized(self, painter: QPainter, render_state: RenderState) -> None:
         """Optimized grid rendering with adaptive density, centered on selected points."""
-        from ui.ui_constants import COLORS_DARK
+        from ui.color_manager import COLORS_DARK
 
         grid_color = QColor(COLORS_DARK["grid_lines"])
         grid_color.setAlpha(50)
@@ -1292,7 +1287,7 @@ class OptimizedCurveRenderer:
         # Note: show_info is an optional future feature - not in current RenderState
         # Future enhancement: Add show_info to RenderState for selective info display
 
-        from ui.ui_constants import COLORS_DARK
+        from ui.color_manager import COLORS_DARK
 
         painter.setPen(QPen(QColor(COLORS_DARK["text_primary"])))
         painter.setFont(QFont("Arial", 10))
@@ -1317,9 +1312,9 @@ class OptimizedCurveRenderer:
         # Only draw text if painter is active and in safe environment
         try:
             if painter.isActive():
-                # Skip text rendering in test environments or if device is None
-                device = painter.device()
-                if device is not None and getattr(device, "width", None) is not None:
+                # Skip text rendering in test environments
+                device = painter.device()  # device is non-None QPaintDevice
+                if getattr(device, "width", None) is not None:
                     painter.drawText(10, 20, info_text)
         except Exception:
             # Silently skip text rendering if it fails (e.g., in headless tests)

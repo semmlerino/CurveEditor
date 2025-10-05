@@ -337,7 +337,6 @@ class UIService:
         """
         for component_name in components:
             # Skip invalid component names (non-strings or empty)
-            # pyright: ignore[reportUnnecessaryIsInstance] - needed to handle invalid types in list
             if not component_name or not isinstance(component_name, str):
                 continue
 

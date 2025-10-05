@@ -251,6 +251,8 @@ class SessionManager:
         active_points: list[str] | None = None,
         view_bounds: tuple[float, float, float, float] | None = None,
         recent_directories: list[str] | None = None,
+        selected_curves: list[str] | None = None,
+        show_all_curves: bool = False,
     ) -> dict[str, Any]:
         """
         Create a session data dictionary with the provided values.
@@ -265,6 +267,8 @@ class SessionManager:
             active_points: List of active point names (for multi-point tracking)
             view_bounds: View bounds (min_x, min_y, max_x, max_y)
             recent_directories: List of recently visited directories
+            selected_curves: List of selected curve names (for multi-curve display)
+            show_all_curves: Whether to show all curves or only selected
 
         Returns:
             Dictionary containing session data
@@ -279,6 +283,8 @@ class SessionManager:
             "active_points": active_points or [],
             "view_bounds": list(view_bounds) if view_bounds else None,
             "recent_directories": recent_directories if recent_directories else [],
+            "selected_curves": selected_curves or [],
+            "show_all_curves": show_all_curves,
         }
 
     def restore_session_state(self, main_window: Any, session_data: dict[str, Any]) -> None:
@@ -303,6 +309,10 @@ class SessionManager:
             # Restore active points for multi-point data
             active_points = session_data.get("active_points", [])
 
+            # Restore selection state
+            selected_curves = session_data.get("selected_curves", [])
+            show_all_curves = session_data.get("show_all_curves", False)
+
             # Restore recent directories
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
                 if hasattr(main_window, "state_manager") and hasattr(
@@ -321,6 +331,8 @@ class SessionManager:
                     "zoom_level": zoom_level,
                     "pan_offset": pan_offset,
                     "active_points": active_points,
+                    "selected_curves": selected_curves,
+                    "show_all_curves": show_all_curves,
                 }
             else:
                 # Fallback to direct loading if no worker available
@@ -328,6 +340,14 @@ class SessionManager:
                 if tracking_file and hasattr(main_window, "file_operations_manager"):
                     # Simulate file opened event for session restoration
                     main_window.file_operations_manager.open_file()
+
+                # Restore selection state immediately via ApplicationState
+                from stores.application_state import get_application_state
+
+                app_state = get_application_state()
+                if selected_curves:
+                    app_state.set_selected_curves(set(selected_curves))
+                app_state.set_show_all_curves(show_all_curves)
 
         except Exception as e:
             logger.error(f"Failed to restore session state: {e}")

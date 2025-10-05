@@ -556,7 +556,7 @@ class TestRealComponentBenefits:
         test_data = MockDataBuilder().with_points(3).build()
 
         # Real widget (PySide6 implementation)
-        curve_view_widget.set_curve_data(test_data)  # pyright: ignore[reportArgumentType]
+        curve_view_widget.set_curve_data(test_data)
         assert len(curve_view_widget.curve_data) == 3
 
         # Real test component (lightweight implementation)

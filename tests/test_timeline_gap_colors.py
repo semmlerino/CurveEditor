@@ -335,7 +335,7 @@ class TestTimelineGapColors:
     def test_timeline_colors_match_ui_constants(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors are properly derived from ui_constants."""
         # This tests the DRY principle implementation
-        from ui.ui_constants import STATUS_COLORS, STATUS_COLORS_TIMELINE
+        from ui.color_manager import STATUS_COLORS, STATUS_COLORS_TIMELINE
 
         # Verify timeline colors are imported from ui_constants
         # This tests the DRY principle implementation

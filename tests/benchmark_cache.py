@@ -84,13 +84,10 @@ def benchmark_cache_hit_rate() -> float:
 
     for i in range(100):
         widget.zoom_factor *= 1.005
-        # pyright: ignore[reportAttributeAccessIssue] - Testing private method for benchmarking
-        widget._invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]
-        transform = widget.get_transform()
-        if transform is not None:
-            cache_monitor.record_hit()
-        else:
-            cache_monitor.record_miss()
+        # Testing private method for benchmarking
+        widget._invalidate_caches()
+        widget.get_transform()  # Returns non-None Transform
+        cache_monitor.record_hit()
 
     print(f"   Hit Rate: {cache_monitor.hit_rate:.1f}%")
     print(f"   Hits: {cache_monitor.hits}, Misses: {cache_monitor.misses}")
@@ -101,12 +98,9 @@ def benchmark_cache_hit_rate() -> float:
 
     for i in range(100):
         widget.pan_offset_x += 0.05  # Sub-threshold
-        widget._invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]
-        transform = widget.get_transform()
-        if transform is not None:
-            cache_monitor.record_hit()
-        else:
-            cache_monitor.record_miss()
+        widget._invalidate_caches()
+        widget.get_transform()  # Returns non-None Transform
+        cache_monitor.record_hit()
         cache_monitor.record_invalidation()
 
     print(f"   Hit Rate: {cache_monitor.hit_rate:.1f}%")
@@ -144,7 +138,7 @@ def benchmark_batch_transform() -> float:
 
     speedup = 1.0  # Initialize with default value
     for num_points in [100, 1000, 5000, 10000]:
-        test_points: npt.NDArray[np.float64] = np.random.default_rng().random((num_points, 3)) * 1000  # pyright: ignore[reportUnknownMemberType, reportAttributeAccessIssue]
+        test_points: npt.NDArray[np.float64] = np.random.default_rng().random((num_points, 3)) * 1000
 
         # Individual transforms (sample)
         sample_size = min(100, num_points)
@@ -187,7 +181,7 @@ def benchmark_render_performance() -> float:
     test_data = [(i, np.sin(i / 100) * 100, np.cos(i / 100) * 100) for i in range(5000)]
     widget.set_curve_data(test_data)
 
-    renderer = widget._optimized_renderer  # pyright: ignore[reportAttributeAccessIssue]
+    renderer = widget._optimized_renderer
 
     # Benchmark different quality modes
     render_times: dict[RenderQuality, float] = {}
@@ -199,10 +193,10 @@ def benchmark_render_performance() -> float:
         for _ in range(10):
             start = time.perf_counter()
             # Update screen points cache to simulate rendering load
-            widget._update_screen_points_cache()  # pyright: ignore[reportAttributeAccessIssue]
+            widget._update_screen_points_cache()
             times.append(time.perf_counter() - start)
 
-        avg_time: float = float(np.mean(times))  # pyright: ignore[reportUnknownArgumentType]
+        avg_time: float = float(np.mean(times))
         render_times[quality] = avg_time
         fps = 1.0 / avg_time if avg_time > 0 else 999.0
 
@@ -235,27 +229,26 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
 
     # Multiple transform requests
     for i in range(100):
-        transform = widget.get_transform()
-        if transform is not None:
-            cache_retrievals += 1
+        widget.get_transform()  # Returns non-None Transform
+        cache_retrievals += 1
 
     print(f"   Transform retrievals: {cache_retrievals}/100")
 
     # Benchmark 2: Transform creation time
     print("\n2. Transform Creation Performance:")
-    widget._invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]
+    widget._invalidate_caches()
 
     times: list[float] = []
     for _ in range(50):
-        widget._invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]
+        widget._invalidate_caches()
         start = time.perf_counter()
         widget.get_transform()
         transform_time = time.perf_counter() - start
         times.append(transform_time)
 
-    avg_time: float = float(np.mean(times)) * 1000  # pyright: ignore[reportUnknownArgumentType]
-    max_time: float = float(np.max(times)) * 1000  # pyright: ignore[reportUnknownArgumentType]
-    min_time: float = float(np.min(times)) * 1000  # pyright: ignore[reportUnknownArgumentType]
+    avg_time: float = float(np.mean(times)) * 1000
+    max_time: float = float(np.max(times)) * 1000
+    min_time: float = float(np.min(times)) * 1000
 
     print(f"   Average: {avg_time:.2f}ms")
     print(f"   Min: {min_time:.2f}ms, Max: {max_time:.2f}ms")
@@ -300,7 +293,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
     print("\n4. Cache Behavior During Zoom:")
 
     # Reset and count cache operations
-    original_invalidate: Callable[[], None] = widget._invalidate_caches  # pyright: ignore[reportAttributeAccessIssue]
+    original_invalidate: Callable[[], None] = widget._invalidate_caches
     invalidation_count = 0
 
     def count_invalidations() -> None:
@@ -308,7 +301,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
         invalidation_count += 1
         original_invalidate()
 
-    widget._invalidate_caches = count_invalidations  # pyright: ignore[reportAttributeAccessIssue]
+    widget._invalidate_caches = count_invalidations
 
     # Simulate zoom operations
     start_zoom = widget.zoom_factor
@@ -318,7 +311,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
         widget.get_transform()
 
     widget.zoom_factor = start_zoom  # Reset
-    widget._invalidate_caches = original_invalidate  # pyright: ignore[reportAttributeAccessIssue]
+    widget._invalidate_caches = original_invalidate
 
     print(f"   Cache invalidations during 50 zoom steps: {invalidation_count}")
     print(f"   Cache efficiency: {((50-invalidation_count)/50)*100:.1f}%")
@@ -334,7 +327,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
     setup_time = time.perf_counter() - start
 
     start = time.perf_counter()
-    widget._update_screen_points_cache()  # pyright: ignore[reportAttributeAccessIssue]
+    widget._update_screen_points_cache()
     cache_time = time.perf_counter() - start
 
     print(f"   Data setup (50k points): {setup_time*1000:.1f}ms")

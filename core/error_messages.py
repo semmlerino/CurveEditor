@@ -44,8 +44,8 @@ class ValidationError(ValueError):
             suggestion: Optional suggestion for fixing
         """
         message = f"Validation failed for '{field}': {reason}"
-        if value is not None:
-            message += f" (value: {value})"
+        # value is non-optional (str | int | float | bool)
+        message += f" (value: {value})"
         if suggestion:
             message += f"\n  → Try: {suggestion}"
         super().__init__(message)

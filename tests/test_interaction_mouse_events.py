@@ -38,11 +38,11 @@ class TestMousePressEvents:
     service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        self.service._history = []  # pyright: ignore[reportPrivateUsage]
-        self.service._current_index = -1  # pyright: ignore[reportPrivateUsage]
+        self.service._history = []
+        self.service._current_index = -1
 
     def test_mouse_press_selects_point_single_click(self) -> None:
         """Test single click selects a single point."""
@@ -62,7 +62,7 @@ class TestMousePressEvents:
         # Clear spatial index to ensure rebuild
         self.service.clear_spatial_index()
 
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should select point at index 0
         assert view.selected_point_idx == 0
@@ -84,7 +84,7 @@ class TestMousePressEvents:
         event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
 
         self.service.clear_spatial_index()
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should deselect point 0 (toggle off)
         assert 0 not in view.selected_points
@@ -105,7 +105,7 @@ class TestMousePressEvents:
         event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
 
         self.service.clear_spatial_index()
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should add point 0 to selection (both selected)
         assert 0 in view.selected_points
@@ -127,7 +127,7 @@ class TestMousePressEvents:
         event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
 
         self.service.clear_spatial_index()
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should start drag
         assert view.drag_active is True
@@ -149,7 +149,7 @@ class TestMousePressEvents:
         event.button.return_value = Qt.MouseButton.LeftButton
         event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
 
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should start rubber band
         assert view.rubber_band_active is True
@@ -165,7 +165,7 @@ class TestMousePressEvents:
         event.button.return_value = Qt.MouseButton.MiddleButton
         event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
 
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should start pan
         assert view.pan_active is True
@@ -186,7 +186,7 @@ class TestMousePressEvents:
         event.button.return_value = Qt.MouseButton.LeftButton
         event.modifiers.return_value = Qt.KeyboardModifier.NoModifier
 
-        self.service.handle_mouse_press(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_press(view, event)
 
         # Should clear selection and start pan
         assert len(view.selected_points) == 0
@@ -199,7 +199,7 @@ class TestMouseMoveEvents:
     service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
 
@@ -219,7 +219,7 @@ class TestMouseMoveEvents:
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(150.0, 150.0)
 
-        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_move(view, event)
 
         # Point should be updated in view.curve_data
         # Delta in screen coords: +50, +50
@@ -237,17 +237,17 @@ class TestMouseMoveEvents:
         pan_called = False
         original_pan = view.pan
 
-        def track_pan(dx: float, dy: float) -> None:  # pyright: ignore[reportUnusedFunction]
+        def track_pan(dx: float, dy: float) -> None:
             nonlocal pan_called
             pan_called = True
             original_pan(dx, dy)
 
-        view.pan = track_pan  # pyright: ignore[reportAttributeAccessIssue]
+        view.pan = track_pan
 
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(150.0, 150.0)
 
-        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_move(view, event)
 
         # Pan should be called
         assert pan_called is True
@@ -261,7 +261,7 @@ class TestMouseMoveEvents:
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(200.0, 200.0)
 
-        self.service.handle_mouse_move(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_move(view, event)
 
         # Rubber band geometry should be updated
         if view.rubber_band is not None:
@@ -275,7 +275,7 @@ class TestMouseReleaseEvents:
     service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
 
@@ -293,7 +293,7 @@ class TestMouseReleaseEvents:
         view.selected_points = {0}
 
         # Set original positions for drag
-        self.service._drag_original_positions = {0: (100.0, 100.0)}  # pyright: ignore[reportPrivateUsage]
+        self.service._drag_original_positions = {0: (100.0, 100.0)}
 
         # Update point position to simulate drag
         view.curve_data[0] = (1, 150.0, 150.0)
@@ -302,7 +302,7 @@ class TestMouseReleaseEvents:
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(150.0, 150.0)
 
-        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_release(view, event)
 
         # Should end drag operation
         assert view.drag_active is False
@@ -316,7 +316,7 @@ class TestMouseReleaseEvents:
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(150.0, 150.0)
 
-        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_release(view, event)
 
         # Pan should be ended
         assert view.pan_active is False
@@ -345,7 +345,7 @@ class TestMouseReleaseEvents:
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(200.0, 200.0)
 
-        self.service.handle_mouse_release(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_mouse_release(view, event)
 
         # Rubber band should be deactivated and hidden
         assert view.rubber_band_active is False
@@ -358,7 +358,7 @@ class TestWheelEvents:
     service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
 
     @pytest.fixture(autouse=True)
-    def setup(self, qapp) -> None:  # pyright: ignore[reportUnusedParameter]
+    def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
 
@@ -370,7 +370,7 @@ class TestWheelEvents:
         zoom_called = False
         zoom_factor_arg = 1.0
 
-        def track_zoom(factor: float, center: QPointF) -> None:  # pyright: ignore[reportUnusedParameter, reportUnusedFunction]
+        def track_zoom(factor: float, center: QPointF) -> None:
             nonlocal zoom_called, zoom_factor_arg
             zoom_called = True
             zoom_factor_arg = factor
@@ -381,7 +381,7 @@ class TestWheelEvents:
         event.angleDelta.return_value = Mock(y=lambda: 120)  # Positive delta
         event.position.return_value = QPointF(100.0, 100.0)
 
-        self.service.handle_wheel_event(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_wheel_event(view, event)
 
         # Zoom should be called with factor > 1.0
         assert zoom_called is True
@@ -394,7 +394,7 @@ class TestWheelEvents:
         zoom_called = False
         zoom_factor_arg = 1.0
 
-        def track_zoom(factor: float, center: QPointF) -> None:  # pyright: ignore[reportUnusedParameter, reportUnusedFunction]
+        def track_zoom(factor: float, center: QPointF) -> None:
             nonlocal zoom_called, zoom_factor_arg
             zoom_called = True
             zoom_factor_arg = factor
@@ -405,7 +405,7 @@ class TestWheelEvents:
         event.angleDelta.return_value = Mock(y=lambda: -120)  # Negative delta
         event.position.return_value = QPointF(100.0, 100.0)
 
-        self.service.handle_wheel_event(view, event)  # pyright: ignore[reportArgumentType]
+        self.service.handle_wheel_event(view, event)
 
         # Zoom should be called with factor < 1.0
         assert zoom_called is True

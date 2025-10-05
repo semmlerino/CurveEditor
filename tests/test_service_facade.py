@@ -13,7 +13,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 from core.image_state import ImageState
-from services.service_protocols import CurveViewProtocol, MainWindowProtocol
+from protocols.ui import CurveViewProtocol, MainWindowProtocol
 from ui.service_facade import ServiceFacade, get_service_facade, reset_service_facade
 
 

@@ -65,7 +65,10 @@ class MultiCurveManager:
         import warnings
 
         warnings.warn(
-            "manager.selected_curve_names is deprecated. " "Use get_application_state().get_selected_curves() instead.",
+            (
+                "manager.selected_curve_names is deprecated. "
+                "Use get_application_state().get_selected_curves() instead."
+            ),
             DeprecationWarning,
             stacklevel=2,
         )
@@ -85,8 +88,10 @@ class MultiCurveManager:
         import warnings
 
         warnings.warn(
-            "Setting manager.selected_curve_names is deprecated. "
-            "Use get_application_state().set_selected_curves() instead.",
+            (
+                "Setting manager.selected_curve_names is deprecated. "
+                "Use get_application_state().set_selected_curves() instead."
+            ),
             DeprecationWarning,
             stacklevel=2,
         )
@@ -285,7 +290,7 @@ class MultiCurveManager:
             # Auto-center on the current frame if centering mode is active
             if self.widget.centering_mode:
                 if self.widget.main_window and getattr(self.widget.main_window, "current_frame", None) is not None:
-                    current_frame = self.widget.main_window.current_frame  # pyright: ignore[reportAttributeAccessIssue]
+                    current_frame = self.widget.main_window.current_frame
                     logger.debug(
                         f"[CENTERING] Auto-centering on frame {current_frame} for newly selected curve '{name}'"
                     )

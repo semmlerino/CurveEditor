@@ -15,7 +15,7 @@ import copy
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from services.service_protocols import MainWindowProtocol
+    from protocols.ui import MainWindowProtocol
 
 from core.commands.base_command import Command
 from core.insert_track_algorithm import (

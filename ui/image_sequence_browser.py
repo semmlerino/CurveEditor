@@ -1573,7 +1573,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Update info label
         frame_count = len(sequence.frames)
-        self.info_label.setText(f"{sequence.display_name}\n" f"Directory: {sequence.directory}")
+        self.info_label.setText(f"{sequence.display_name}\nDirectory: {sequence.directory}")
 
         # Load and display thumbnails (limit to MAX_THUMBNAILS)
         thumbnails_to_show = min(frame_count, self.MAX_THUMBNAILS)

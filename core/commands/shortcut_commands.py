@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 
 if TYPE_CHECKING:
     from core.models import TrackingDirection
-    from services.service_protocols import MainWindowProtocol
+    from protocols.ui import MainWindowProtocol
 
 from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
 from core.logger_utils import get_logger
@@ -90,19 +90,15 @@ class InsertTrackShortcutCommand(ShortcutCommand):
             # Execute through command manager for undo/redo support
             interaction_service = get_interaction_service()
             if interaction_service:
-                from services.service_protocols import MainWindowProtocol
-
                 success = interaction_service.command_manager.execute_command(
-                    command, cast(MainWindowProtocol, cast(object, main_window))
+                    command, cast("MainWindowProtocol", cast(object, main_window))
                 )
                 if success:
                     logger.info(f"Insert Track executed for {len(selected_curves)} curves at frame {current_frame}")
                 return success
             else:
                 # Fallback: execute directly
-                from services.service_protocols import MainWindowProtocol
-
-                return command.execute(cast(MainWindowProtocol, cast(object, main_window)))
+                return command.execute(cast("MainWindowProtocol", cast(object, main_window)))
 
         except Exception as e:
             logger.error(f"Error executing Insert Track shortcut: {e}")

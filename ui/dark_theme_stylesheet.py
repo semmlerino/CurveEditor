@@ -6,7 +6,7 @@ Comprehensive Qt stylesheet providing consistent dark theme styling
 for all widgets in the application.
 """
 
-from .ui_constants import COLORS_DARK
+from .color_manager import COLORS_DARK
 
 
 def get_dark_theme_stylesheet() -> str:

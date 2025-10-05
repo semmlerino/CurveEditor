@@ -20,7 +20,7 @@ from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
-from services.service_protocols import MainWindowProtocol
+from protocols.ui import MainWindowProtocol
 from stores.application_state import get_application_state
 
 
@@ -132,7 +132,7 @@ class MultiPointTrackingController:
                 # We have existing data - add this as a new point
                 base_name = "Track"
                 point_name = self._get_unique_point_name(base_name)
-                self._app_state.set_curve_data(point_name, data)  # pyright: ignore[reportArgumentType]
+                self._app_state.set_curve_data(point_name, data)
                 self.main_window.active_timeline_point = point_name  # Set as active timeline point
                 # Initialize with default tracking direction
                 self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
@@ -142,7 +142,7 @@ class MultiPointTrackingController:
                 self.update_tracking_panel()
             else:
                 # No existing data - create initial data with this trajectory
-                self._app_state.set_curve_data("Track1", data)  # pyright: ignore[reportArgumentType]
+                self._app_state.set_curve_data("Track1", data)
                 self.main_window.active_timeline_point = "Track1"
                 # Sync table selection for file loading case
                 if self.main_window.tracking_panel:
@@ -157,7 +157,7 @@ class MultiPointTrackingController:
             # Set up view for pixel-coordinate tracking data BEFORE setting data
             self.main_window.curve_widget.setup_for_pixel_tracking()
             # Use the superior point-level selection system
-            self.main_window.curve_widget.set_curve_data(data)  # pyright: ignore[reportArgumentType]
+            self.main_window.curve_widget.set_curve_data(data)
             self.main_window.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
             # ALSO update the multi-curve display to maintain proper side pane synchronization
@@ -662,7 +662,7 @@ class MultiPointTrackingController:
             all_tracked_data = {}
             for curve_name in self._app_state.get_all_curve_names():
                 all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
-            self.main_window.tracking_panel.set_tracked_data(all_tracked_data)  # pyright: ignore[reportArgumentType]
+            self.main_window.tracking_panel.set_tracked_data(all_tracked_data)
 
     def update_curve_display(
         self, context: SelectionContext = SelectionContext.DEFAULT, selected_points: list[str] | None = None
@@ -689,10 +689,8 @@ class MultiPointTrackingController:
         # Update previous active curve for next switch
         self._previous_active_curve = self.main_window.active_timeline_point
 
-        # Check if curve widget supports multi-curve display
-        if self.main_window.curve_widget is not None and callable(
-            getattr(self.main_window.curve_widget, "set_curves_data", None)
-        ):
+        # Check if curve widget supports multi-curve display (curve_widget guaranteed non-None by line 683 hasattr check)
+        if callable(getattr(self.main_window.curve_widget, "set_curves_data", None)):
             # Get metadata from tracking panel if available
             metadata: dict[str, dict[str, str | bool]] = {}
             if self.main_window.tracking_panel is not None:

@@ -14,7 +14,7 @@ import threading
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
-    from services.service_protocols import CurveViewProtocol
+    from protocols.ui import CurveViewProtocol
     from services.transform_service import Transform
 
 from core.logger_utils import get_logger

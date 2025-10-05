@@ -232,7 +232,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.signal_manager = SignalConnectionManager(self)
 
         # Initialize service facade
-        from services.service_protocols import MainWindowProtocol
+        from protocols.ui import MainWindowProtocol
 
         from .service_facade import get_service_facade
 
@@ -495,7 +495,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @curve_data.setter
     def curve_data(self, value: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """Set the curve data."""
-        self._curve_store.set_data(value)  # pyright: ignore[reportArgumentType]
+        self._curve_store.set_data(value)
 
     @property
     def is_modified(self) -> bool:
@@ -585,7 +585,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             for curve_name, curve_data in data.items():
                 # Convert generic object to CurveDataList if needed
                 if isinstance(curve_data, list):
-                    state.set_curve_data(curve_name, curve_data)  # pyright: ignore[reportArgumentType]
+                    state.set_curve_data(curve_name, curve_data)
         finally:
             state.end_batch()
 
@@ -599,9 +599,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""
-        status_bar = self.statusBar()
-        if status_bar is not None:
-            status_bar.showMessage(message)
+        status_bar = self.statusBar()  # Returns non-None QStatusBar
+        status_bar.showMessage(message)
 
     @Slot(int)
     @Slot(int)
@@ -1154,7 +1153,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Get startframes from DataService analysis
         try:
             data_service = get_data_service()
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            frame_status = data_service.get_frame_range_point_status(curve_data)
             for frame, status in frame_status.items():
                 if status[5]:  # is_startframe flag at index 5
                     if frame not in nav_frames:
@@ -1176,7 +1175,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 break
 
         if prev_frame is not None:
-            self.timeline_controller.set_frame(prev_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.timeline_controller.set_frame(prev_frame)
             self.statusBar().showMessage(f"Navigated to previous frame: {prev_frame}", 2000)
         else:
             self.statusBar().showMessage("Already at first navigation frame", 2000)
@@ -1199,7 +1198,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Get startframes from DataService analysis
         try:
             data_service = get_data_service()
-            frame_status = data_service.get_frame_range_point_status(curve_data)  # pyright: ignore[reportArgumentType]
+            frame_status = data_service.get_frame_range_point_status(curve_data)
             for frame, status in frame_status.items():
                 if status[5]:  # is_startframe flag at index 5
                     if frame not in nav_frames:
@@ -1221,7 +1220,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 break
 
         if next_frame is not None:
-            self.timeline_controller.set_frame(next_frame)  # pyright: ignore[reportAttributeAccessIssue]
+            self.timeline_controller.set_frame(next_frame)
             self.statusBar().showMessage(f"Navigated to next frame: {next_frame}", 2000)
         else:
             self.statusBar().showMessage("Already at last navigation frame", 2000)

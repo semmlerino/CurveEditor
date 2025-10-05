@@ -326,6 +326,54 @@ class TestSessionManager:
         assert "\\" not in relative_path  # No backslashes
         assert relative_path == "data/subfolder/file.txt"
 
+    def test_selection_state_persistence(self, tmp_path):
+        """Test that selection state (selected_curves, show_all_curves) is saved and restored."""
+        # Arrange
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        session_manager = SessionManager(project_root)
+
+        # Create session data with selection state
+        session_data = session_manager.create_session_data(
+            tracking_file="/test/tracking.txt",
+            current_frame=42,
+            selected_curves=["Track1", "Track2", "Track3"],
+            show_all_curves=True,
+        )
+
+        # Act - Save and reload
+        session_manager.save_session(session_data)
+        loaded_data = session_manager.load_session()
+
+        # Assert - Selection state preserved
+        assert loaded_data is not None
+        assert "selected_curves" in loaded_data
+        assert loaded_data["selected_curves"] == ["Track1", "Track2", "Track3"]
+        assert "show_all_curves" in loaded_data
+        assert loaded_data["show_all_curves"] is True
+
+    def test_selection_state_defaults(self, tmp_path):
+        """Test that selection state has sensible defaults when not provided."""
+        # Arrange
+        project_root = tmp_path / "project"
+        project_root.mkdir()
+        session_manager = SessionManager(project_root)
+
+        # Create session without selection state
+        session_data = session_manager.create_session_data(
+            tracking_file="/test/tracking.txt",
+            current_frame=10,
+        )
+
+        # Act - Save and reload
+        session_manager.save_session(session_data)
+        loaded_data = session_manager.load_session()
+
+        # Assert - Default values
+        assert loaded_data is not None
+        assert loaded_data["selected_curves"] == []
+        assert loaded_data["show_all_curves"] is False
+
 
 class TestSessionManagerIntegration:
     """Integration tests for SessionManager with realistic scenarios."""

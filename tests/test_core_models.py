@@ -109,7 +109,7 @@ class TestPointStatus:
 
     def test_from_legacy_invalid_type(self) -> None:
         """Test conversion from invalid types falls back to NORMAL."""
-        assert PointStatus.from_legacy(123) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
+        assert PointStatus.from_legacy(123) == PointStatus.NORMAL
         assert PointStatus.from_legacy([]) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
         assert PointStatus.from_legacy({}) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
 
@@ -1005,7 +1005,7 @@ class TestImageDisplayInfo:
     def test_creation_with_pixmap(self):
         """Test creation with ThreadSafeTestImage."""
         pixmap = ThreadSafeTestImage(100, 200)
-        info = ImageDisplayInfo(pixmap=pixmap, width=100, height=200, filepath="/test/image.jpg")  # pyright: ignore[reportArgumentType]
+        info = ImageDisplayInfo(pixmap=cast(Any, pixmap), width=100, height=200, filepath="/test/image.jpg")
 
         assert info.pixmap == pixmap
         assert info.width == 100
@@ -1025,7 +1025,7 @@ class TestImageDisplayInfo:
 
         # Valid pixmap
         valid_pixmap = ThreadSafeTestImage(100, 100)
-        info3 = ImageDisplayInfo(pixmap=valid_pixmap)  # pyright: ignore[reportArgumentType]
+        info3 = ImageDisplayInfo(pixmap=cast(Any, valid_pixmap))
         assert info3.is_loaded
 
     def test_has_error_property(self):
@@ -1157,7 +1157,7 @@ class TestImageState:
         pixmap = ThreadSafeTestImage(100, 100)
         filepath = "/test/image.jpg"
 
-        state.set_image_loaded(pixmap, filepath)  # pyright: ignore[reportArgumentType]
+        state.set_image_loaded(cast(Any, pixmap), filepath)
 
         assert state.has_image_displayed()
         assert state.loading_state == ImageLoadingState.IMAGE_LOADED

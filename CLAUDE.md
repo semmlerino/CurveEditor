@@ -335,7 +335,7 @@ CurveEditor uses **ApplicationState** as the single source of truth for all appl
 - **Location:** `stores/application_state.py`
 - **Pattern:** Singleton with Qt signal-based reactivity
 - **Design:** Multi-curve native (`dict[str, CurveDataList]` at core)
-- **Signals:** `curves_changed`, `selection_changed`, `active_curve_changed`, `frame_changed`, `view_changed`, `curve_visibility_changed`
+- **Signals:** `curves_changed`, `selection_changed`, `active_curve_changed`, `frame_changed`, `view_changed`, `curve_visibility_changed`, `selection_state_changed`
 
 ### Usage
 
@@ -405,6 +405,109 @@ finally:
 - **Purpose**: Validates Qt signal/slot connections during development
 - **Features**: Detects orphaned connections and missing slots
 - **Usage**: Development-time debugging tool for signal integrity
+
+## Selection State Architecture
+
+**Critical Distinction**: CurveEditor has TWO types of selection:
+
+1. **Curve-Level Selection** (which trajectories to display)
+   - Managed by `ApplicationState._selected_curves` and `._show_all_curves`
+   - Controls which curves are visible in multi-curve mode
+   - Affects rendering and multi-curve operations
+
+2. **Point-Level Selection** (which frames within active curve)
+   - Managed by `ApplicationState._selection[curve_name]`
+   - Frame indices selected within a single curve's trajectory
+   - Affects editing operations (move, delete, status changes)
+
+### Curve-Level Selection API
+
+```python
+from stores.application_state import get_application_state
+
+state = get_application_state()
+
+# Get which curves are selected for display
+selected = state.get_selected_curves()  # Returns: set[str]
+
+# Set which curves to display (multi-curve mode)
+state.set_selected_curves({"Track1", "Track2", "Track3"})
+
+# Show all curves vs. only selected
+is_showing_all = state.get_show_all_curves()  # Returns: bool
+state.set_show_all_curves(True)  # Show all visible curves
+state.set_show_all_curves(False)  # Show only selected curves
+
+# Subscribe to selection state changes
+state.selection_state_changed.connect(on_selection_changed)
+# Signal signature: (selected_curves: set[str], show_all: bool)
+```
+
+### Display Mode (Computed Property)
+
+The `display_mode` property is **computed** from selection state inputs:
+
+```python
+@property
+def display_mode(self) -> DisplayMode:
+    """Computed from _selected_curves and _show_all_curves."""
+    if self._show_all_curves:
+        return DisplayMode.ALL_VISIBLE
+    elif self._selected_curves:
+        return DisplayMode.SELECTED
+    else:
+        return DisplayMode.ACTIVE_ONLY
+```
+
+**Important**: `display_mode` has NO setter - it's read-only. To change display mode:
+
+```python
+# ❌ Wrong: No setter exists
+widget.display_mode = DisplayMode.ALL_VISIBLE  # DeprecationWarning (Phase 7)
+
+# ✅ Correct: Set inputs
+state.set_show_all_curves(True)  # → display_mode becomes ALL_VISIBLE
+```
+
+### Batch Mode for Coordinated Changes
+
+When changing both selection fields together, use batch mode:
+
+```python
+# ❌ Bad: Two signals, two repaints
+state.set_show_all_curves(False)
+state.set_selected_curves({"Track1", "Track2"})
+
+# ✅ Good: One signal, one repaint
+state.begin_batch()
+try:
+    state.set_show_all_curves(False)
+    state.set_selected_curves({"Track1", "Track2"})
+finally:
+    state.end_batch()
+```
+
+### Session Persistence
+
+Selection state is automatically persisted in session files:
+
+```python
+# SessionManager saves/loads selection state
+session_data = session_manager.create_session_data(
+    tracking_file="tracking.txt",
+    selected_curves=["Track1", "Track2"],
+    show_all_curves=False,
+)
+
+# On restore, ApplicationState is updated via:
+# state.set_selected_curves(set(session_data["selected_curves"]))
+# state.set_show_all_curves(session_data["show_all_curves"])
+```
+
+**See Also**:
+- `stores/application_state.py` - Full implementation
+- `SELECTION_STATE_REFACTORING_TRACKER.md` - Migration history
+- `tests/test_selection_state_integration.py` - Comprehensive test coverage
 
 ## Key Operations
 

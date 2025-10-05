@@ -12,8 +12,8 @@ from typing import TYPE_CHECKING, cast
 from PySide6.QtCore import Slot
 
 from core.type_aliases import CurveDataList
+from protocols.ui import MainWindowProtocol
 from services import get_data_service
-from services.service_protocols import MainWindowProtocol
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -83,7 +83,7 @@ class ActionHandlerController:
                 self.main_window.tracking_controller.on_tracking_data_loaded(data)  # pyright: ignore[reportArgumentType]
 
                 # Update timeline tabs with frame range and point data
-                self.main_window.update_timeline_tabs(data)  # pyright: ignore[reportArgumentType]
+                self.main_window.update_timeline_tabs(data)
 
             self.main_window.update_ui_state()
             if self.main_window.status_label:
@@ -297,9 +297,7 @@ class ActionHandlerController:
             else:
                 logger.error("Command system failed to execute smooth command")
                 # Fall through to legacy implementation
-        else:
-            logger.info("Interaction service not available, using legacy smoothing implementation")
-            # Fall through to legacy implementation
+        # Fall through to legacy implementation (interaction_service is None or command failed)
 
         # Fallback to legacy DataService implementation if command system unavailable or failed
 

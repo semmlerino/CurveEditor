@@ -38,7 +38,7 @@ from tests.test_helpers import ProtocolCompliantMockCurveView
 class TestDataProcessingPerformance:
     """Test performance of data processing operations."""
 
-    data_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    data_service: Any = None
 
     def setup_method(self) -> None:
         """Set up services for performance testing."""
@@ -134,7 +134,7 @@ class TestDataProcessingPerformance:
 class TestTransformPerformance:
     """Test performance of coordinate transformation operations."""
 
-    transform_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    transform_service: Any = None
 
     def setup_method(self) -> None:
         """Set up services for transform testing."""
@@ -275,7 +275,6 @@ class TestMemoryUsagePatterns:
                 offset_y=float(i * 2),
             )
 
-            # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
             view_state = transform_service.create_view_state(mock_view)
             transform = transform_service.create_transform_from_view_state(view_state)
             transforms.append(transform)
@@ -334,8 +333,8 @@ class TestMemoryUsagePatterns:
 class TestRealisticWorkflowPerformance:
     """Test performance of complete realistic workflows."""
 
-    data_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
-    transform_service: Any  # pyright: ignore[reportUninitializedInstanceVariable]
+    data_service: Any = None
+    transform_service: Any = None
 
     def setup_method(self) -> None:
         """Set up services."""
@@ -501,7 +500,7 @@ class TestPerformanceBaselines:
 
         # Time view state creation
         start_time = time.perf_counter()
-        # pyright: ignore[reportArgumentType] - Mock has None main_window for testing
+
         view_state = transform_service.create_view_state(mock_view)
         view_state_time = time.perf_counter() - start_time
 

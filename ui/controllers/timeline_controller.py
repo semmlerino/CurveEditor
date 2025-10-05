@@ -424,16 +424,15 @@ class TimelineController(QObject):
         self.playback_state.max_frame = self.frame_spinbox.maximum()
 
         # Try to get actual frame range from curve data if available
-        parent = self.parent()
-        if parent is not None:
-            curve_widget = getattr(parent, "curve_widget", None)
-            if curve_widget is not None:
-                curve_data = curve_widget.curve_data
-                if curve_data:
-                    # Get actual frame range from curve data
-                    frames = [point[0] for point in curve_data]
-                    self.playback_state.min_frame = min(frames)
-                    self.playback_state.max_frame = max(frames)
+        parent = self.parent()  # Returns non-None QObject
+        curve_widget = getattr(parent, "curve_widget", None)
+        if curve_widget is not None:
+            curve_data = curve_widget.curve_data
+            if curve_data:
+                # Get actual frame range from curve data
+                frames = [point[0] for point in curve_data]
+                self.playback_state.min_frame = min(frames)
+                self.playback_state.max_frame = max(frames)
 
         logger.debug(f"Updated playback bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame}")
 
