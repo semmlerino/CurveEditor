@@ -471,6 +471,27 @@ class TestErrorHandling:
         # Try to remove non-existent point
         curve_view_widget.remove_point(99)  # Should not crash
 
+    def test_operations_with_no_active_curve(self, qtbot) -> None:
+        """Test CRUD operations when no active curve exists (Phase 5 regression test)."""
+        from stores.application_state import get_application_state
+
+        widget = CurveViewWidget()
+        qtbot.addWidget(widget)
+        app_state = get_application_state()
+
+        # Ensure no active curve
+        app_state.set_active_curve(None)
+
+        # All operations should handle gracefully (no crash)
+        result = widget.add_point((1, 100.0, 200.0))
+        assert result == -1, "add_point should return -1 when no active curve"
+
+        widget.update_point(0, 100.0, 200.0)  # Should not crash
+        widget.remove_point(0)  # Should not crash
+
+        # Verify no data was added (since no active curve)
+        assert len(widget.curve_data) == 0, "No data should be added without active curve"
+
     def test_selection_edge_cases(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
         """Test selection edge cases."""
         curve_view_widget.set_curve_data(sample_points)

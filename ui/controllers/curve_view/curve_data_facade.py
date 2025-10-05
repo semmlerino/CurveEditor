@@ -110,9 +110,13 @@ class CurveDataFacade:
             point: Point tuple (frame, x, y, [status])
 
         Returns:
-            Index of added point
+            Index of added point, or -1 if no active curve
         """
-        curve_name = self._get_active_curve_name()
+        try:
+            curve_name = self._get_active_curve_name()
+        except RuntimeError:
+            logger.warning("Cannot add point: no active curve")
+            return -1
 
         # Convert tuple to CurvePoint
         # Default to NORMAL status for 3-tuple inputs (status must be explicit for others)
@@ -136,7 +140,12 @@ class CurveDataFacade:
             x: New X coordinate
             y: New Y coordinate
         """
-        curve_name = self._get_active_curve_name()
+        try:
+            curve_name = self._get_active_curve_name()
+        except RuntimeError:
+            logger.warning(f"Cannot update point {index}: no active curve")
+            return
+
         current_data = self._app_state.get_curve_data(curve_name)
 
         if not current_data or index >= len(current_data):
@@ -160,7 +169,12 @@ class CurveDataFacade:
         Args:
             index: Point index to remove
         """
-        curve_name = self._get_active_curve_name()
+        try:
+            curve_name = self._get_active_curve_name()
+        except RuntimeError:
+            logger.warning(f"Cannot remove point {index}: no active curve")
+            return
+
         success = self._app_state.remove_point(curve_name, index)
         if not success:
             logger.warning(f"Failed to remove point {index} from curve '{curve_name}'")

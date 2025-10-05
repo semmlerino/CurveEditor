@@ -525,16 +525,19 @@ class CurveViewWidget(QWidget):
         """
         self.data_facade.set_curve_data(data)
 
-    def add_point(self, point: tuple[int, float, float] | tuple[int, float, float, str]) -> None:
+    def add_point(self, point: tuple[int, float, float] | tuple[int, float, float, str]) -> int:
         """
         Add a single point to the curve.
 
         Args:
             point: Point tuple (frame, x, y, [status])
 
+        Returns:
+            Index of added point, or -1 if no active curve
+
         Note: Delegates to CurveDataFacade (Phase 4 extraction)
         """
-        self.data_facade.add_point(point)
+        return self.data_facade.add_point(point)
 
     def update_point(self, index: int, x: float, y: float) -> None:
         """

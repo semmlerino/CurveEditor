@@ -221,12 +221,23 @@ class StateSyncController:
     def _on_app_state_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
         """Handle ApplicationState curves_changed signal.
 
-        Phase 4: Removed __default__ sync - StateSyncController only handles
-        active_curve_changed for CurveDataStore sync now.
+        Phase 4: Sync active curve (not __default__) to CurveDataStore for backward compatibility.
+        This ensures CurveDataStore stays in sync when curve data changes (add/remove/update points).
 
         Args:
             curves: Dictionary mapping curve names to curve data
         """
+        # Sync active curve to CurveDataStore (backward compatibility with widget.curve_data property)
+        active_curve = self._app_state.active_curve
+        if active_curve and active_curve in curves:
+            curve_data = curves[active_curve]
+            current_data = self._curve_store.get_data()
+
+            # Only sync if data actually changed (avoid unnecessary signals)
+            if curve_data != current_data:
+                self._curve_store.set_data(curve_data, preserve_selection_on_sync=True)
+                logger.debug(f"Synced active curve '{active_curve}' ({len(curve_data)} points) to CurveDataStore")
+
         # Multi-curve state has changed - repaint to show all visible curves
         self.widget.invalidate_caches()
         self.widget.update()
