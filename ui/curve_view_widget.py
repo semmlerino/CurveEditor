@@ -116,10 +116,18 @@ class CurveViewWidget(QWidget):
     This widget provides a complete curve editing interface with optimized
     rendering, interaction handling, and service integration.
 
-    IMPORTANT ARCHITECTURE NOTE:
-    All rendering is delegated to OptimizedCurveRenderer for performance.
-    This widget does NOT implement its own painting methods - the renderer
-    handles everything including background, grid, lines, points, etc.
+    IMPORTANT ARCHITECTURE NOTES:
+
+    1. RENDERING: All rendering is delegated to OptimizedCurveRenderer for performance.
+       This widget does NOT implement its own painting methods - the renderer
+       handles everything including background, grid, lines, points, etc.
+
+    2. SELECTION STATE ARCHITECTURE (Phase 1-5 Refactoring):
+       - Single Source of Truth: ApplicationState manages selection and display mode
+       - display_mode is a COMPUTED PROPERTY (not stored) - eliminates sync bugs
+       - Widget caches selection for rendering performance (O(1) membership checks)
+       - Cache updated via selection_state_changed signal (reactive architecture)
+       - Defense-in-depth: Value comparison + re-entrancy guards prevent loops
 
     Signals:
         point_selected: Emitted when a point is selected (index: int)
@@ -166,6 +174,9 @@ class CurveViewWidget(QWidget):
         # Get centralized ApplicationState (Week 3 migration)
         self._app_state = get_application_state()
 
+        # NEW: Subscribe to selection state changes for repainting
+        self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
+
         # State synchronization controller (Phase 3 extraction)
         # Handles all signal connections and reactive updates from stores
         from ui.controllers.curve_view.state_sync_controller import StateSyncController
@@ -191,10 +202,20 @@ class CurveViewWidget(QWidget):
 
         # Multi-curve support (VIEW state - stays in widget)
         # NOTE: DATA state (curves_data, curve_metadata, active_curve_name) migrated to ApplicationState
-        # Phase 4: _display_mode is the sole visibility API (boolean removed)
-        self._display_mode: DisplayMode = DisplayMode.ACTIVE_ONLY
-        self._updating_display_mode: bool = False  # Re-entrancy guard
-        self._selected_curve_names: set[str] = set()  # Currently selected curves to display (backing field)
+        # Display mode management (removed _display_mode storage - now read from ApplicationState)
+        self._updating_display_mode: bool = False
+
+        # CACHE COHERENCE STRATEGY:
+        # These fields cache ApplicationState selection for rendering performance (O(1) membership checks).
+        # Cache synchronization: Automatically updated via selection_state_changed signal.
+        # Signal handler (_on_selection_state_changed) updates these fields using DIRECT FIELD ACCESS
+        # to avoid circular updates (bypasses the setter which would re-update ApplicationState).
+        #
+        # Why cache? Rendering checks "if curve_name in self.selected_curve_names" on every frame.
+        # Reading from ApplicationState each time would add overhead. Local set provides O(1) lookups.
+        #
+        # Cache validity: Guaranteed by Qt signals - always reflects ApplicationState after signal fires.
+        self._selected_curve_names: set[str] = set()  # Cache of ApplicationState.get_selected_curves()
         self.selected_curves_ordered: list[str] = []  # Ordered list for visual differentiation
 
         # View transformation (zoom/pan managed by view_camera controller)
@@ -364,92 +385,101 @@ class CurveViewWidget(QWidget):
         """
         self._selected_curve_names = value
 
-        # Update display mode based on selection change (if not in ALL_VISIBLE mode)
-        if not self._updating_display_mode and self._display_mode != DisplayMode.ALL_VISIBLE:
+        # Update ApplicationState based on selection change (if not in ALL_VISIBLE mode)
+        if not self._updating_display_mode and self.display_mode != DisplayMode.ALL_VISIBLE:
             self._updating_display_mode = True
             try:
                 if value:
-                    self._display_mode = DisplayMode.SELECTED
+                    self._app_state.set_selected_curves(value)
+                    self._app_state.set_show_all_curves(False)
                 else:
-                    self._display_mode = DisplayMode.ACTIVE_ONLY
+                    self._app_state.set_selected_curves(set())
+                    self._app_state.set_show_all_curves(False)
             finally:
                 self._updating_display_mode = False
 
     @property
     def display_mode(self) -> DisplayMode:
         """
-        Get current display mode for curve rendering.
+        Get current display mode from ApplicationState.
 
-        This property provides an explicit, self-documenting way to understand
-        which curves are currently being displayed in the viewport.
+        This is a VIEW of ApplicationState - always fresh, no stale data.
+        Display mode is computed from selection inputs, never stored.
 
         Returns:
-            DisplayMode enum value indicating current display state:
-            - ALL_VISIBLE: All curves with metadata.visible=True are shown
-            - SELECTED: Only curves in selected_curve_names set are shown
-            - ACTIVE_ONLY: Only the active curve is shown
+            DisplayMode computed from ApplicationState selection state
 
         Example:
             >>> widget = CurveViewWidget()
-            >>> widget.display_mode = DisplayMode.ALL_VISIBLE
+            >>> app_state = get_application_state()
+            >>> app_state.set_show_all_curves(True)
             >>> widget.display_mode
             <DisplayMode.ALL_VISIBLE: 1>
 
-            >>> widget.display_mode = DisplayMode.SELECTED
-            >>> widget.selected_curve_names = {"Track1", "Track2"}
+            >>> app_state.set_selected_curves({"Track1", "Track2"})
+            >>> app_state.set_show_all_curves(False)
             >>> widget.display_mode
             <DisplayMode.SELECTED: 2>
-
-        See Also:
-            - should_render_curve(): Uses display mode to determine visibility
         """
-        return self._display_mode
+        return self._app_state.display_mode
 
     @display_mode.setter
     def display_mode(self, mode: DisplayMode) -> None:
         """
-        Set display mode for curve rendering.
+        DEPRECATED: Set display mode via ApplicationState instead.
+
+        This setter is deprecated and will be removed in Phase 8.
+
+        Use ApplicationState methods:
+        - app_state.set_show_all_curves(True) → ALL_VISIBLE
+        - app_state.set_selected_curves({...}) → SELECTED
+        - app_state.set_selected_curves(set()) → ACTIVE_ONLY
+
+        This backward-compatibility wrapper converts old API calls to new API.
 
         Args:
-            mode: DisplayMode to set (ALL_VISIBLE, SELECTED, or ACTIVE_ONLY)
-
-        Behavior:
-            - ALL_VISIBLE: Shows all curves with visible=True metadata
-            - SELECTED: Shows only selected curves (auto-selects active if none selected)
-            - ACTIVE_ONLY: Shows only active curve (clears selection)
-
-        Example:
-            >>> widget = CurveViewWidget()
-            >>> widget.display_mode = DisplayMode.ALL_VISIBLE
-            >>> # All visible curves now rendered
-
-            >>> widget.display_mode = DisplayMode.SELECTED
-            >>> # Only selected curves rendered (active auto-selected if none)
-
-            >>> widget.display_mode = DisplayMode.ACTIVE_ONLY
-            >>> # Only active curve rendered, selection cleared
-
-        Note:
-            When setting SELECTED mode with no existing selection, this method
-            automatically adds the active curve to selected_curve_names to ensure
-            the mode change is meaningful (otherwise nothing would be visible).
+            mode: DisplayMode to set (converted to ApplicationState calls)
         """
+        import warnings
+
+        warnings.warn(
+            "Setting display_mode directly is deprecated. "
+            "Use ApplicationState: "
+            "app_state.set_show_all_curves(True) for ALL_VISIBLE, "
+            "app_state.set_selected_curves({...}) for SELECTED, "
+            "app_state.set_selected_curves(set()) for ACTIVE_ONLY",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+
         if self._updating_display_mode:
             return
 
         self._updating_display_mode = True
         try:
-            self._display_mode = mode
+            # Convert old API to new API
+            if mode == DisplayMode.ALL_VISIBLE:
+                self._app_state.set_show_all_curves(True)
 
-            # If mode requires selection but none exists, select active curve
-            if mode == DisplayMode.SELECTED and not self.selected_curve_names:
-                if self._app_state.active_curve:
-                    self.selected_curve_names = {self._app_state.active_curve}
-            # If mode is ACTIVE_ONLY, clear selection
+            elif mode == DisplayMode.SELECTED:
+                # Sync local cache to ApplicationState if they differ
+                # (local cache may have been updated while in ALL_VISIBLE mode)
+                current_app_state_selection = self._app_state.get_selected_curves()
+                if self._selected_curve_names != current_app_state_selection:
+                    # Use local cache as source of truth
+                    self._app_state.set_selected_curves(self._selected_curve_names)
+
+                # Ensure something is selected (fallback to active curve)
+                if not self._selected_curve_names and self.active_curve_name:
+                    self._app_state.set_selected_curves({self.active_curve_name})
+
+                self._app_state.set_show_all_curves(False)
+
             elif mode == DisplayMode.ACTIVE_ONLY:
-                self.selected_curve_names = set()
+                self._app_state.set_show_all_curves(False)
+                self._app_state.set_selected_curves(set())
 
-            # Trigger repaint to reflect mode change
+            # Trigger repaint
             self.update()
         finally:
             self._updating_display_mode = False
@@ -818,10 +848,10 @@ class CurveViewWidget(QWidget):
             return False
 
         # Filter 2: Check display mode
-        if self._display_mode == DisplayMode.ALL_VISIBLE:
+        if self.display_mode == DisplayMode.ALL_VISIBLE:
             # ALL_VISIBLE mode: render all visible curves
             return True
-        elif self._display_mode == DisplayMode.SELECTED:
+        elif self.display_mode == DisplayMode.SELECTED:
             # SELECTED mode: render only selected curves
             return curve_name in self.selected_curve_names
         else:  # DisplayMode.ACTIVE_ONLY
@@ -1366,6 +1396,30 @@ class CurveViewWidget(QWidget):
         if self.centering_mode:
             logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled via legacy call)")
             self.center_on_frame(frame)
+
+    def _on_selection_state_changed(self, selected_curves: set[str], show_all: bool) -> None:
+        """
+        Update widget and repaint when ApplicationState selection changes.
+
+        FIX #2: Sync widget fields that renderer might use.
+        The widget maintains local copies of selected_curve_names and
+        selected_curves_ordered for rendering performance. These MUST
+        be kept in sync with ApplicationState.
+
+        Args:
+            selected_curves: Selected curve names from ApplicationState
+            show_all: Show-all mode from ApplicationState
+        """
+        # FIX #2: Update widget's local fields for rendering
+        # These are caches of ApplicationState for O(1) membership checks
+        # IMPORTANT: Use direct field access to avoid triggering setter
+        # which would create circular ApplicationState updates
+        self._selected_curve_names = selected_curves.copy()
+        self.selected_curves_ordered = list(selected_curves)
+
+        # Trigger repaint to reflect updated state
+        # display_mode property automatically reflects new ApplicationState
+        self.update()
 
     def setup_for_pixel_tracking(self) -> None:
         """Set up the view for pixel-coordinate tracking data.

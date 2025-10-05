@@ -351,10 +351,9 @@ class MultiPointTrackingController:
         # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
         self.main_window.active_timeline_point = point_names[-1] if point_names else None
 
-        # Synchronize table selection FIRST (before update_curve_display queries it)
-        # This prevents race condition where set_selected_points() clears selection mid-update
-        if self.main_window.tracking_panel:
-            self.main_window.tracking_panel.set_selected_points(point_names)
+        # REMOVED: Synchronization loop (Phase 5.1)
+        # TrackingPanel already updates ApplicationState directly (Phase 2)
+        # No need to call set_selected_points() back to panel (causes race condition)
 
         # Synchronize selection state to CurveDataStore (fix TrackingPanel→CurveDataStore gap)
         self._sync_tracking_selection_to_curve_store(point_names)
@@ -902,23 +901,45 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
-        widget = self.main_window.curve_widget
-
-        # Set the display mode on the widget
-        widget.display_mode = mode
-
-        # Handle mode-specific logic
+        # Handle mode-specific logic BEFORE updating ApplicationState
         if mode == DisplayMode.SELECTED:
             # If no curves selected, auto-select the active curve
-            if not widget.selected_curve_names and widget.active_curve_name:
-                widget.selected_curve_names = {widget.active_curve_name}
+            selected = self._app_state.get_selected_curves()
+            active_curve = self._app_state.active_curve
+
+            if not selected and active_curve:
+                # Auto-select active curve when switching to SELECTED mode with no selection
+                self._app_state.set_selected_curves({active_curve})
+                logger.debug(f"Auto-selected active curve '{active_curve}' for SELECTED mode")
+            elif not selected and not active_curve:
+                # Edge case: No selection and no active curve
+                logger.warning(
+                    "Cannot switch to SELECTED mode: no curves available. "
+                    "Load curves before using SELECTED display mode."
+                )
+                return
         elif mode == DisplayMode.ACTIVE_ONLY:
             # Clear selection in ACTIVE_ONLY mode
-            widget.selected_curve_names = set()
+            self._app_state.set_selected_curves(set())
+
+            # Validation logging
+            if not self._app_state.active_curve:
+                logger.debug("Switched to ACTIVE_ONLY mode with no active curve (nothing to display)")
+
+        # Update ApplicationState (single source of truth)
+        # display_mode is computed from _selected_curves and _show_all_curves
+        if mode == DisplayMode.ALL_VISIBLE:
+            self._app_state.set_show_all_curves(True)
+        elif mode == DisplayMode.SELECTED:
+            self._app_state.set_show_all_curves(False)
+            # Ensure we have a selection (already handled above)
+        elif mode == DisplayMode.ACTIVE_ONLY:
+            self._app_state.set_show_all_curves(False)
+            # Selection already cleared above
 
         # Trigger widget update
-        widget.update()
-        logger.debug(f"Display mode set to: {mode}")
+        self.main_window.curve_widget.update()
+        logger.debug(f"Display mode set to: {self._app_state.display_mode}")
 
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
@@ -933,9 +954,12 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
+        # Update ApplicationState (single source of truth)
+        self._app_state.set_selected_curves(set(curve_names))
+
+        # Widget fields updated automatically via selection_state_changed signal
+        # (No manual sync needed - signal handler updates widget._selected_curve_names)
         widget = self.main_window.curve_widget
-        widget.selected_curve_names = set(curve_names)
-        widget.selected_curves_ordered = list(curve_names)
 
         # Set the last selected as the active curve for editing
         all_curve_names = self._app_state.get_all_curve_names()
@@ -943,7 +967,11 @@ class MultiPointTrackingController:
             widget.set_active_curve(curve_names[-1])
 
         widget.update()
-        logger.debug(f"Selected curves: {widget.selected_curve_names}, Active: {self._app_state.active_curve}")
+        logger.debug(
+            f"Selected curves: {self._app_state.get_selected_curves()}, "
+            f"Active: {self._app_state.active_curve}, "
+            f"Mode: {self._app_state.display_mode}"
+        )
 
     def center_on_selected_curves(self) -> None:
         """

@@ -16,7 +16,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from stores.application_state import get_application_state
@@ -140,7 +139,7 @@ class CurveDataFacade:
         logger.info(f"  curves: {list(curves.keys())}")
         logger.info(f"  active_curve: {active_curve}")
         logger.info(f"  selected_curves: {selected_curves}")
-        logger.info(f"  Current display_mode BEFORE: {self.widget.display_mode}")
+        logger.info(f"  Current display_mode BEFORE: {self._app_state.display_mode}")
 
         # Use ApplicationState for multi-curve data (Week 3 migration)
         self._app_state.begin_batch()
@@ -150,18 +149,18 @@ class CurveDataFacade:
                 curve_metadata = metadata.get(name) if metadata else None
                 self._app_state.set_curve_data(name, data, curve_metadata)
 
-            # Update selected curves if specified (VIEW state - stays in widget)
+            # Update selection in ApplicationState (single source of truth)
             if selected_curves is not None:
-                self.widget.selected_curve_names = set(selected_curves)
-                self.widget.selected_curves_ordered = list(selected_curves)
-                # Explicit: Set display mode to SELECTED (shows only selected curves)
-                logger.info(f"  Setting display_mode to SELECTED (selected={selected_curves})")
-                self.widget.display_mode = DisplayMode.SELECTED
-                logger.info(f"  display_mode AFTER setting SELECTED: {self.widget.display_mode}")
-            elif not self.widget.selected_curve_names:
-                # Default to active curve
-                self.widget.selected_curve_names = {active_curve} if active_curve else set()
-                self.widget.selected_curves_ordered = [active_curve] if active_curve else []
+                self._app_state.set_selected_curves(set(selected_curves))
+                # NO MANUAL display_mode UPDATE NEEDED - computed automatically! ✅
+                # Widget fields updated automatically via selection_state_changed signal
+
+                logger.info(f"  Selection updated in ApplicationState (selected={selected_curves})")
+                logger.info(f"  display_mode AFTER: {self._app_state.display_mode}")
+            elif not self._app_state.get_selected_curves() and active_curve:
+                # Default to active curve ONLY if there's no existing selection
+                self._app_state.set_selected_curves({active_curve})
+                # Widget fields updated automatically via selection_state_changed signal
 
             # Set the active curve in ApplicationState
             if active_curve and active_curve in curves:

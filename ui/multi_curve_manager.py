@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
@@ -44,13 +43,54 @@ class MultiCurveManager:
         # ApplicationState integration (single source of truth)
         self._app_state = get_application_state()
 
-        # VIEW-specific state only (not data)
-        self.selected_curve_names: set[str] = set()
+        # REMOVED: selected_curve_names now in ApplicationState
+        # Backward-compatible property provided below for gradual migration
 
         logger.debug("MultiCurveManager initialized with ApplicationState")
 
     # ==================== Backward-Compatible Properties ====================
     # These delegate to ApplicationState for single source of truth
+
+    @property
+    def selected_curve_names(self) -> set[str]:
+        """
+        DEPRECATED: Access selected curves via ApplicationState.
+
+        This property is deprecated and will be removed in Phase 8.
+        Use: get_application_state().get_selected_curves()
+
+        Returns:
+            Set of selected curve names from ApplicationState
+        """
+        import warnings
+
+        warnings.warn(
+            "manager.selected_curve_names is deprecated. " "Use get_application_state().get_selected_curves() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self._app_state.get_selected_curves()
+
+    @selected_curve_names.setter
+    def selected_curve_names(self, value: set[str]) -> None:
+        """
+        DEPRECATED: Set selected curves via ApplicationState.
+
+        This setter is deprecated and will be removed in Phase 8.
+        Use: get_application_state().set_selected_curves(value)
+
+        Args:
+            value: Set of curve names to select
+        """
+        import warnings
+
+        warnings.warn(
+            "Setting manager.selected_curve_names is deprecated. "
+            "Use get_application_state().set_selected_curves() instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        self._app_state.set_selected_curves(value)
 
     @property
     def curves_data(self) -> dict[str, CurveDataList]:
@@ -104,16 +144,13 @@ class MultiCurveManager:
                     if "visible" not in current_meta:
                         self._app_state.set_curve_visibility(name, True)
 
-            # Update selected curves if specified
+            # NEW: Update selection in ApplicationState (single source of truth)
             if selected_curves is not None:
-                self.selected_curve_names = set(selected_curves)
-                # CRITICAL FIX: Update display mode to SELECTED when curves are selected
-                # This fixes the bug where selecting multiple curves only shows one
-                if selected_curves:
-                    self.widget.display_mode = DisplayMode.SELECTED
-            elif not self.selected_curve_names:
-                # If no selection specified and no existing selection, default to active curve
-                self.selected_curve_names = {active_curve} if active_curve else set()
+                self._app_state.set_selected_curves(set(selected_curves))
+                # NO MANUAL display_mode UPDATE NEEDED - computed automatically! ✅
+            elif not self._app_state.get_selected_curves() and active_curve:
+                # Default to active curve ONLY if there's no existing selection
+                self._app_state.set_selected_curves({active_curve})
 
             # Set the active curve
             if active_curve and active_curve in curves:
@@ -133,7 +170,11 @@ class MultiCurveManager:
 
         # Trigger repaint to show all curves
         self.widget.update()
-        logger.debug(f"Set {len(curves)} curves in ApplicationState, active: {self._app_state.active_curve}")
+        logger.debug(
+            f"Set {len(curves)} curves, active: {self._app_state.active_curve}, "
+            f"selected: {self._app_state.get_selected_curves()}, "
+            f"mode: {self._app_state.display_mode}"
+        )
 
     def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
         """
@@ -252,46 +293,53 @@ class MultiCurveManager:
 
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
-        Set which curves are currently selected for display.
-
-        In SELECTED display mode, only these selected curves will be displayed.
-        The last curve in the list becomes the active curve for editing.
+        Set selected curves for display.
 
         Args:
-            curve_names: List of curve names to select and display
+            curve_names: List of curve names to select
         """
-        self.selected_curve_names = set(curve_names)
+        # NEW: Update ApplicationState (single source of truth)
+        self._app_state.set_selected_curves(set(curve_names))
+
+        # Widget fields updated automatically via selection_state_changed signal
+        # (No manual sync needed - signal handler updates widget._selected_curve_names)
 
         # Set the last selected as the active curve for editing
         if curve_names and curve_names[-1] in self._app_state.get_all_curve_names():
             self.set_active_curve(curve_names[-1])
 
+        # Trigger repaint
         self.widget.update()
-        logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self._app_state.active_curve}")
+
+        logger.debug(
+            f"Selected curves: {self._app_state.get_selected_curves()}, "
+            f"Active: {self._app_state.active_curve}, "
+            f"Mode: {self._app_state.display_mode}"
+        )
 
     def center_on_selected_curves(self) -> None:
-        """
-        Center the view on all selected curves.
-
-        Calculates the bounding box of all selected curves and centers the view on it.
-        """
+        """Center view on all selected curves."""
         all_curve_names = self._app_state.get_all_curve_names()
+        selected_curves = self._app_state.get_selected_curves()  # NEW: Read from ApplicationState
+
         logger.debug(
-            f"center_on_selected_curves called with selected: {self.selected_curve_names}, ApplicationState curves: {all_curve_names}"
+            f"center_on_selected_curves called with selected: {selected_curves}, ApplicationState curves: {all_curve_names}"
         )
-        if not self.selected_curve_names or not all_curve_names:
+        if not selected_curves or not all_curve_names:
             logger.debug("Early return - no selected curves or no data in ApplicationState")
             return
 
-        # Collect all points from selected curves (from ApplicationState)
+        # Collect all points from all selected curves
         all_points: list[tuple[float, float]] = []
-        for curve_name in self.selected_curve_names:
+
+        for curve_name in selected_curves:  # NEW: Use ApplicationState selection
             if curve_name in all_curve_names:
                 curve_data = self._app_state.get_curve_data(curve_name)
                 logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points from ApplicationState")
                 for point in curve_data:
-                    if len(point) >= 3:
-                        all_points.append((float(point[1]), float(point[2])))
+                    # CurvePoint is a dataclass, not a tuple
+                    # ApplicationState returns CurvePoint objects (not legacy tuples)
+                    all_points.append((point.x, point.y))  # pyright: ignore[reportAttributeAccessIssue]
 
         if not all_points:
             logger.debug("No points found in selected curves")
@@ -331,7 +379,7 @@ class MultiCurveManager:
         self.widget.update()
         self.widget.view_changed.emit()
 
-        logger.debug(f"Centered on {len(all_points)} points from {len(self.selected_curve_names)} curves")
+        logger.debug(f"Centered on {len(all_points)} points from {len(selected_curves)} curves")
         logger.debug(
             f"Center position: ({center_x:.2f}, {center_y:.2f}), Zoom: {self.widget.zoom_factor:.2f}, Pan offset: ({self.widget.pan_offset_x:.2f}, {self.widget.pan_offset_y:.2f})"
         )

@@ -28,6 +28,24 @@ Usage:
     state = get_application_state()
     state.set_curve_data("pp56_TM_138G", curve_data)
     data = state.get_application_state("pp56_TM_138G")
+
+Batching Multiple Updates:
+    When changing multiple related fields, use batch mode to emit single signal:
+
+    # ❌ Bad: Multiple signals, multiple repaints
+    state.set_show_all_curves(False)
+    state.set_selected_curves({"Track1", "Track2"})
+
+    # ✅ Good: One signal, one repaint
+    state.begin_batch()
+    try:
+        state.set_show_all_curves(False)
+        state.set_selected_curves({"Track1", "Track2"})
+    finally:
+        state.end_batch()
+
+    Batch mode is especially important for coordinated selection state changes
+    where display_mode transitions require updating both show_all and selected_curves.
 """
 
 from __future__ import annotations
@@ -38,6 +56,7 @@ from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal, SignalInstance
 
+from core.display_mode import DisplayMode
 from core.models import CurvePoint
 from core.type_aliases import CurveDataInput, CurveDataList
 
@@ -106,11 +125,14 @@ class ApplicationState(QObject):
     # State change signals
     state_changed = Signal()  # Emitted on any state change
     curves_changed = Signal(dict)  # curves_data changed: dict[str, CurveDataList]
-    selection_changed = Signal(set, str)  # (indices: set[int], curve_name: str)
+    selection_changed = Signal(set, str)  # Point-level (frame indices)
     active_curve_changed = Signal(str)  # active_curve_name: str
     frame_changed = Signal(int)  # current_frame: int
     view_changed = Signal(object)  # view_state: ViewState
     curve_visibility_changed = Signal(str, bool)  # (curve_name, visible)
+
+    # NEW: Curve-level selection state changed (selected_curves, show_all)
+    selection_state_changed = Signal(set, bool)
 
     def __init__(self) -> None:
         super().__init__()
@@ -119,9 +141,16 @@ class ApplicationState(QObject):
         self._curves_data: dict[str, CurveDataList] = {}
         self._curve_metadata: dict[str, dict[str, Any]] = {}
         self._active_curve: str | None = None
-        self._selection: dict[str, set[int]] = {}  # curve_name -> selected indices
+        self._selection: dict[str, set[int]] = {}  # Point-level selection (indices within curves)
         self._current_frame: int = 1
         self._view_state: ViewState = ViewState()
+
+        # NEW: Curve-level selection state (which trajectories to display)
+        # Note: This is DISTINCT from _selection above:
+        #   - _selected_curves: which curve trajectories to show (curve names)
+        #   - _selection: which points within active curve are selected (frame indices)
+        self._selected_curves: set[str] = set()
+        self._show_all_curves: bool = False
 
         # Batch operation support (thread-safe with mutex)
         self._mutex = QMutex()  # Protects batch mode flag and pending signals
@@ -475,6 +504,133 @@ class ApplicationState(QObject):
         self._emit(self.curve_visibility_changed, (curve_name, visible))
 
         logger.debug(f"Curve '{curve_name}' visibility: {visible}")
+
+    # ========================================
+    # Curve-Level Selection State (NEW)
+    # ========================================
+
+    def get_selected_curves(self) -> set[str]:
+        """
+        Get selected curves for display (returns copy).
+
+        This is curve-level selection (which trajectories to show),
+        distinct from point-level selection (which points within active curve).
+
+        Note on terminology:
+        - get_selected_curves() → which curve trajectories to display (this method)
+        - get_selection(curve_name) → which frame indices within a curve are selected
+
+        Returns:
+            Set of selected curve names (copy for safety)
+        """
+        self._assert_main_thread()
+        return self._selected_curves.copy()
+
+    def set_selected_curves(self, curve_names: set[str]) -> None:
+        """
+        Set which curves are selected for display.
+
+        Automatically updates derived display_mode property via signal.
+
+        Validation: Filters out non-existent curves if data is loaded.
+        Allows setting selection before curves load (for session restoration).
+
+        Args:
+            curve_names: Set of curve names to select
+
+        Raises:
+            ValueError: If any curve name is empty or whitespace-only
+        """
+        self._assert_main_thread()
+        new_selection = curve_names.copy()
+
+        # Validate non-empty strings (defensive programming)
+        invalid_names = {name for name in new_selection if not name or not name.strip()}
+        if invalid_names:
+            raise ValueError(f"Curve names cannot be empty or whitespace-only: {invalid_names}")
+
+        # Validate curve existence - filter invalid curves (fail-fast)
+        if self._curves_data:  # Only validate if curves loaded
+            all_curves = set(self._curves_data.keys())
+            invalid = new_selection - all_curves
+            if invalid:
+                logger.warning(
+                    f"Filtering invalid curves from selection: {invalid}. " f"Available curves: {all_curves}"
+                )
+                # Filter to only valid curves to prevent persistent invalid references
+                new_selection = new_selection & all_curves
+
+        if new_selection != self._selected_curves:
+            self._selected_curves = new_selection
+            self._emit(self.selection_state_changed, (new_selection.copy(), self._show_all_curves))
+            logger.debug(f"Curve selection changed: {len(new_selection)} curves selected")
+
+    def get_show_all_curves(self) -> bool:
+        """Get show-all-curves mode state."""
+        self._assert_main_thread()
+        return self._show_all_curves
+
+    def set_show_all_curves(self, show_all: bool) -> None:
+        """
+        Set show-all-curves mode.
+
+        Automatically updates derived display_mode property via signal.
+
+        Args:
+            show_all: Whether to show all visible curves
+        """
+        self._assert_main_thread()
+
+        if show_all != self._show_all_curves:
+            self._show_all_curves = show_all
+            self._emit(self.selection_state_changed, (self._selected_curves.copy(), show_all))
+            logger.debug(f"Show all curves mode: {show_all}")
+
+    @property
+    def display_mode(self) -> DisplayMode:
+        """
+        Compute display mode from selection inputs.
+
+        This is DERIVED STATE - always consistent with inputs, no storage.
+
+        Logic:
+        - Show-all enabled → ALL_VISIBLE
+        - Curves selected → SELECTED
+        - Otherwise → ACTIVE_ONLY
+
+        Important: This property reflects state immediately, even during batch mode.
+        Batch mode only defers signal emissions, not state visibility.
+
+        Returns:
+            DisplayMode enum computed from current selection state
+
+        Example:
+            >>> app_state = get_application_state()
+            >>> app_state.set_show_all_curves(True)
+            >>> app_state.display_mode
+            <DisplayMode.ALL_VISIBLE: 1>
+
+            >>> app_state.set_show_all_curves(False)
+            >>> app_state.set_selected_curves({"Track1", "Track2"})
+            >>> app_state.display_mode
+            <DisplayMode.SELECTED: 2>
+
+            >>> # Batch mode: state visible immediately, signals deferred
+            >>> app_state.begin_batch()
+            >>> app_state.set_selected_curves(set())
+            >>> app_state.display_mode  # Returns ACTIVE_ONLY immediately!
+            <DisplayMode.ACTIVE_ONLY: 3>
+            >>> app_state.end_batch()  # Signals emit now
+        """
+        # Optional enhancement: Add thread safety assertion for consistency
+        self._assert_main_thread()
+
+        if self._show_all_curves:
+            return DisplayMode.ALL_VISIBLE
+        elif self._selected_curves:
+            return DisplayMode.SELECTED
+        else:
+            return DisplayMode.ACTIVE_ONLY
 
     # ==================== Batch Operations ====================
 

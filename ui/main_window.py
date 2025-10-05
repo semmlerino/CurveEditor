@@ -937,10 +937,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # DEBUG: Log display mode changes
         logger.info(f"[MULTI-CURVE-DEBUG] on_display_mode_changed: {self.curve_widget.display_mode} → {mode}")
 
-        # Update widget display mode
-        self.curve_widget.display_mode = mode
+        # NOTE: ApplicationState already updated by TrackingPanel (Phase 2)
+        # No need to update ApplicationState here - it's already the source of truth
+        # The signal comes FROM ApplicationState changes, so updating it here would be redundant
 
-        # Trigger widget repaint
+        # Trigger widget repaint to reflect the new display mode
         self.curve_widget.update()
         logger.info(f"[MULTI-CURVE-DEBUG] Display mode changed to: {mode}")
 

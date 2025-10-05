@@ -145,8 +145,15 @@ class TrackingPointsPanel(QWidget):
         super().__init__(parent)
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
+        self._update_depth: int = 0  # Track recursion depth for app state sync (more robust than boolean)
         self._updating_display_mode: bool = False  # Prevent display mode signal loops
         self._active_point: str | None = None  # Active timeline point (whose timeline is displayed)
+
+        # NEW: ApplicationState reference
+        from stores.application_state import get_application_state
+
+        self._app_state = get_application_state()
+
         self._init_ui()
 
         # Install event filter for tracking direction shortcuts
@@ -154,6 +161,9 @@ class TrackingPointsPanel(QWidget):
         self._table_event_filter = TrackingTableEventFilter(self)
         self._table_event_filter.setParent(self)
         self.table.installEventFilter(self._table_event_filter)
+
+        # NEW: Subscribe to ApplicationState changes (for reverse sync)
+        self._app_state.selection_state_changed.connect(self._on_app_state_changed)
 
     def _init_ui(self) -> None:
         """Initialize the user interface."""
@@ -427,9 +437,9 @@ class TrackingPointsPanel(QWidget):
         return True  # Default to visible
 
     def _on_display_mode_checkbox_toggled(self, checked: bool) -> None:
-        """Handle toggle of display mode checkbox.
+        """Handle toggle of display mode checkbox - update ApplicationState.
 
-        Emits display_mode_changed signal with the appropriate DisplayMode.
+        Updates ApplicationState which automatically computes correct display_mode.
         Re-entrancy guard prevents infinite loops.
 
         Args:
@@ -441,13 +451,40 @@ class TrackingPointsPanel(QWidget):
 
         self._updating_display_mode = True
         try:
-            # Determine display mode from checkbox state and selection context
-            mode = self._determine_mode_from_checkbox(checked)
+            # NEW: Update ApplicationState (single source of truth)
+            self._app_state.set_show_all_curves(checked)
 
-            # Emit display mode changed signal
+            # KEEP: Emit legacy signal for backward compatibility during migration
+            mode = self._determine_mode_from_checkbox(checked)
             self.display_mode_changed.emit(mode)
         finally:
             self._updating_display_mode = False
+
+    def _on_app_state_changed(self, selected_curves: set[str], show_all: bool) -> None:
+        """
+        Sync UI when ApplicationState changes (reverse flow).
+
+        Handles external changes to selection state (e.g., from other UI or API).
+        Uses recursion counter to prevent circular updates (more robust than boolean flag).
+
+        Args:
+            selected_curves: Set of selected curve names from ApplicationState
+            show_all: Show-all-curves mode from ApplicationState
+        """
+        # Use recursion counter to prevent re-entrant calls
+        if self._update_depth > 0:
+            return
+
+        self._update_depth += 1
+        try:
+            # Update table selection to match ApplicationState
+            self.set_selected_points(list(selected_curves))
+
+            # Update checkbox to match ApplicationState
+            if self.display_mode_checkbox.isChecked() != show_all:
+                self.display_mode_checkbox.setChecked(show_all)
+        finally:
+            self._update_depth -= 1
 
     def _determine_mode_from_checkbox(self, checked: bool) -> DisplayMode:
         """Determine DisplayMode from checkbox state and selection context.
@@ -510,15 +547,17 @@ class TrackingPointsPanel(QWidget):
             self._updating_display_mode = False
 
     def _on_selection_changed(self) -> None:
-        """Handle table selection changes."""
+        """Handle table selection changes - update ApplicationState."""
         if self._updating:
             return
 
         selected_points = self.get_selected_points()
-        self.points_selected.emit(selected_points)
 
-        # NOTE: Display mode is set by CurveDataFacade.set_curves_data()
-        # when points_selected signal is processed. Don't override it here!
+        # NEW: Update ApplicationState (single source of truth)
+        self._app_state.set_selected_curves(set(selected_points))
+
+        # Still emit for backward compatibility during migration
+        self.points_selected.emit(selected_points)
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         """Handle item editing (point renaming)."""
