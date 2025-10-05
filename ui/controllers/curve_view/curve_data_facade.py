@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
+from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from stores.application_state import get_application_state
@@ -123,6 +124,10 @@ class CurveDataFacade:
         """
         Set multiple curves to display.
 
+        Curve visibility is determined by CurveViewWidget.should_render_curve()
+        which coordinates three filters: metadata.visible flag, display_mode (DisplayMode enum),
+        and selected_curve_names set. See that method for detailed visibility logic.
+
         Args:
             curves: Dictionary mapping curve names to curve data
             metadata: Optional dictionary with per-curve metadata (visibility, color, etc.)
@@ -141,6 +146,8 @@ class CurveDataFacade:
             if selected_curves is not None:
                 self.widget.selected_curve_names = set(selected_curves)
                 self.widget.selected_curves_ordered = list(selected_curves)
+                # Explicit: Set display mode to SELECTED (shows only selected curves)
+                self.widget.display_mode = DisplayMode.SELECTED
             elif not self.widget.selected_curve_names:
                 # Default to active curve
                 self.widget.selected_curve_names = {active_curve} if active_curve else set()

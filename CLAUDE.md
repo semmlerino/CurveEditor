@@ -88,6 +88,124 @@ service.on_frame_changed(frame, curve_name=None)
 - **ShortcutRegistry**: Global keyboard shortcut registration and handling
 - **GlobalEventFilter**: Application-level keyboard event interception
 
+## Serena MCP Integration
+
+Serena provides semantic code intelligence tools for token-efficient navigation and surgical code modifications across CurveEditor's 66-file codebase.
+
+### When to Use Serena vs Traditional Tools
+
+**Use Serena when:**
+- ✅ Exploring unfamiliar code structure (get_symbols_overview first, then targeted reads)
+- ✅ Tracing logic across multiple files (find_referencing_symbols)
+- ✅ Debugging complex issues requiring cross-file analysis
+- ✅ Refactoring symbols (surgical edits without string matching)
+- ✅ Finding implementation patterns (search_for_pattern with multiline)
+
+**Use Traditional Tools when:**
+- ⚡ Reading specific known file paths → `Read`
+- ⚡ Simple text search (filenames, imports) → `Grep`
+- ⚡ Line-specific edits (comments, single line) → `Edit`
+- ⚡ Quick syntax validation → `python3 -m py_compile`
+
+**Rule of Thumb:** If you need to understand relationships between code, use Serena. If you know exactly what to change, use traditional tools.
+
+### Core Serena Tools
+
+**Code Navigation:**
+- `mcp__serena__list_dir`, `find_file` - Locate files and understand project structure
+- `mcp__serena__get_symbols_overview` - Get high-level view of symbols (classes, functions, methods) WITHOUT reading entire file
+- `mcp__serena__find_symbol` - Find specific symbols by name path with optional body content
+- `mcp__serena__find_referencing_symbols` - Discover where symbols are used across codebase
+- `mcp__serena__search_for_pattern` - Flexible regex search across codebase
+
+**Code Editing:**
+- `mcp__serena__replace_symbol_body` - Replace entire symbol (function, method, class)
+- `mcp__serena__insert_after_symbol` - Add new code after a symbol
+- `mcp__serena__insert_before_symbol` - Add new code before a symbol (useful for imports)
+
+**Meta-Cognitive:**
+- `mcp__serena__think_about_collected_information` - Assess if information is sufficient
+- `mcp__serena__think_about_task_adherence` - Verify on-track (ALWAYS before editing)
+- `mcp__serena__think_about_whether_you_are_done` - Confirm task completion
+
+### Token-Efficient Exploration Pattern
+
+**Progressive code exploration saves ~75% tokens:**
+
+```python
+# ❌ BAD: Read entire file (500+ lines)
+Read(ui/controllers/timeline_controller.py)
+
+# ✅ GOOD: Progressive exploration (saves 375 lines)
+get_symbols_overview(ui/controllers/timeline_controller.py)  # See structure (50 lines)
+find_symbol(TimelineController, depth=1, include_body=false)  # See methods (100 lines)
+find_symbol(TimelineController/_on_frame_changed, include_body=true)  # Read specific method (20 lines)
+```
+
+**Best Practices:**
+1. **Always start with `get_symbols_overview`** before reading full files
+2. Use `find_symbol(depth=0)` to see method signatures without bodies
+3. Use `include_body=true` only after you know which symbol you need
+4. Set `relative_path` to narrow search scope (e.g., `relative_path="ui/controllers"`)
+
+### Threading/Concurrency Debugging Pattern
+
+**Real Example** (segfault during test teardown - saved 80% tokens vs grep + Read):
+
+1. **Identify crash location** (from stacktrace: line 183 in conftest.py)
+   ```python
+   get_symbols_overview("tests/conftest.py")  # See structure first
+   find_symbol("reset_all_services", include_body=true)  # Read specific function
+   ```
+
+2. **Find threading patterns across codebase**
+   ```python
+   search_for_pattern(
+     substring_pattern="threading\.Thread|QThread",
+     restrict_search_to_code_files=true,
+     context_lines_after=3
+   )
+   ```
+
+3. **Trace cleanup logic** (MainWindow → FileOperations → FileLoadWorker)
+   ```python
+   find_symbol("MainWindow/closeEvent")  # See what cleanup happens
+   find_referencing_symbols("FileLoadWorker", "io_utils/file_load_worker.py")  # Where is worker used?
+   ```
+
+4. **Surgical fix without string matching**
+   ```python
+   replace_symbol_body(
+     name_path="_cleanup_main_window_event_filter",
+     relative_path="tests/fixtures/qt_fixtures.py",
+     body="..."  # New implementation
+   )
+   ```
+
+### Cross-File Navigation Patterns
+
+**Understanding component relationships:**
+- `find_referencing_symbols` reveals symbol usage patterns faster than grep
+- `search_for_pattern` with `multiline=true` finds complex patterns (e.g., decorators + function)
+- Use `relative_path` to scope searches: `relative_path="ui/controllers"` for controller-specific searches
+
+**Example: Refactoring across multiple files**
+```python
+# Find all usages of a service method
+find_referencing_symbols(
+  name_path="get_data_service",
+  relative_path="services/__init__.py"
+)
+# Returns: List of all files/locations using get_data_service with code snippets
+```
+
+### Common Import Patterns
+
+```python
+# Serena tools are available directly via MCP
+# No imports needed - just use mcp__serena__* tool names
+```
+
 ## Core Data Models (`core/models.py`)
 
 ```python
@@ -367,6 +485,71 @@ finally:
 - NumPy vectorized transformations
 - Adaptive quality based on FPS
 
+## Curve Visibility Architecture
+
+**Phase 4 Complete (October 2025)**: Boolean removal complete - DisplayMode enum is the sole visibility API.
+
+Curve rendering uses **three coordinated visibility filters**:
+
+1. **metadata.visible** - Per-curve permanent flag (checked first)
+2. **DisplayMode** - Three-state enum (replaces legacy `show_all_curves` boolean)
+3. **selected_curve_names** - Selection set (used in SELECTED mode)
+
+### DisplayMode Enum
+
+```python
+from core.display_mode import DisplayMode
+
+# Set display mode
+widget.display_mode = DisplayMode.ALL_VISIBLE   # Show all visible curves
+widget.display_mode = DisplayMode.SELECTED      # Show only selected curves
+widget.display_mode = DisplayMode.ACTIVE_ONLY   # Show active curve only
+```
+
+### Performance: RenderState Pattern
+
+```python
+from rendering.render_state import RenderState
+from core.display_mode import DisplayMode
+
+# Pre-compute visibility once per frame (in paintEvent)
+render_state = RenderState.compute(widget)
+
+# RenderState fields (frozen dataclass):
+# - display_mode: DisplayMode | None  (replaces legacy show_all_curves boolean)
+# - visible_curves: frozenset[str]    (pre-computed visibility)
+# - selected_curve_names: frozenset[str] | None
+# - active_curve_name: str | None
+# - curves_data: dict[str, CurveDataList] | None
+
+# O(1) membership check
+if curve_name in render_state.visible_curves:
+    render_curve(curve_name)
+
+# Multi-curve mode detection
+is_multi_curve = render_state.display_mode in (DisplayMode.ALL_VISIBLE, DisplayMode.SELECTED)
+```
+
+**Benefits**: Eliminates N ApplicationState lookups, O(1) checks, thread-safe, immutable
+
+### Common Patterns
+
+```python
+# Show all
+widget.display_mode = DisplayMode.ALL_VISIBLE
+
+# Show selected
+widget.display_mode = DisplayMode.SELECTED
+widget.selected_curve_names = {"Track1", "Track2"}
+
+# Hide permanently
+metadata = state.get_curve_metadata("Track1")
+metadata["visible"] = False
+state.set_curve_metadata("Track1", metadata)
+```
+
+**See Also**: `core/DISPLAY_MODE_MIGRATION.md`, `RENDER_STATE_IMPLEMENTATION.md`
+
 ## File Organization
 
 ```
@@ -383,116 +566,62 @@ CurveEditor/
 ├── session/        # Session state persistence
 ├── main.py         # Entry point
 ├── bpr             # Python wrapper for basedpyright with enhanced features
-└── venv/           # Python 3.12.3, PySide6==6.4.0
+├── .venv/          # uv-managed virtual environment (Python 3.13+)
+├── uv.lock         # Dependency lockfile (committed for reproducible builds)
+└── pyproject.toml  # Project config, dependencies, and tool settings
 ```
 
 ## Development Environment
 
+### Setup
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Create virtual environment and install dependencies
+uv sync
+
+# Activate environment (optional - uv run handles this automatically)
+source .venv/bin/activate
+```
+
+### Using uv in WSL Environment
+
+**IMPORTANT**: This project runs in WSL. If `uv` command is not available, use `.venv/bin/python3` directly.
+
+```bash
+# Check availability
+which uv  # Should show path, otherwise uv not installed
+
+# Command translations (when uv unavailable):
+uv run pytest tests/        → .venv/bin/python3 -m pytest tests/
+uv run ruff check .         → .venv/bin/python3 -m ruff check .
+uv run ./bpr                → .venv/bin/python3 ./bpr
+uv add <package>            → .venv/bin/python3 -m pip install <package>
+```
+
 ### Linting & Type Checking
 ```bash
-source venv/bin/activate
+# Ruff (use uv run OR direct path)
+uv run ruff check . --fix              # If uv available
+.venv/bin/python3 -m ruff check . --fix  # Always works
 
-# Ruff
-ruff check . --fix
-
-# Basedpyright (Python wrapper with enhanced features)
+# Basedpyright wrapper
 ./bpr                      # Check all
-./bpr --errors-only        # Show only errors
-./bpr --summary            # Show just error/warning counts
-./bpr ui/main_window.py    # Check specific file
-./bpr --check-config       # Check if config excludes irrelevant folders
-
-# Wrapper features: clean piping, JSON output, automatic folder exclusion
+./bpr --errors-only        # Errors only
+./bpr --summary            # Counts only
+./bpr ui/main_window.py    # Specific file
 ```
 
 ### Testing
 ```bash
-python -m pytest tests/           # All tests
-python -m pytest tests/ -x        # Stop on first failure
-python3 -m py_compile <file.py>  # Syntax check
+# Run tests (use uv run OR direct path)
+uv run pytest tests/                   # If uv available
+.venv/bin/python3 -m pytest tests/     # Always works
+
+# Quick syntax check (no venv needed)
+python3 -m py_compile <file.py>
 ```
-
-## Agent-Assisted Development
-
-**Proactive Agent Usage**: Claude Code provides specialized agents for complex tasks. Use them proactively to improve code quality, catch issues early, and accelerate development.
-
-### Quick Decision Guide
-
-**Ask yourself:**
-1. **Simple file operation?** → Use Read/Glob/Grep tools directly
-2. **Complex multi-step task?** → Use agents
-3. **Multiple independent analyses?** → Use agents **in parallel** (60% faster!)
-
-**When to Use Agents**:
-- ✅ **After implementing features**: python-code-reviewer, type-system-expert
-- ✅ **Before committing**: python-code-reviewer + type-system-expert in parallel
-- ✅ **For complex bugs**: deep-debugger, threading-debugger, qt-concurrency-architect
-- ✅ **Performance issues**: performance-profiler
-- ✅ **Test coverage**: test-development-master
-- ✅ **Refactoring**: code-refactoring-expert → python-code-reviewer verification
-
-**When NOT to Use Agents**:
-- ⛔ Reading specific files → Use Read tool
-- ⛔ Finding files by name → Use Glob tool
-- ⛔ Searching 1-3 files → Use Read/Grep tools
-
-### CurveEditor-Specific Agent Workflows
-
-**User Prompts** (copy to chat):
-
-```text
-# After refactoring CurveViewWidget (Week 3 migration)
-"Use python-code-reviewer and type-system-expert in parallel to analyze ui/curve_view_widget.py after ApplicationState migration"
-
-# Qt threading safety in controllers
-"Use qt-concurrency-architect to verify signal/slot threading safety in ui/controllers/multi_point_tracking_controller.py"
-
-# Performance validation after optimization
-"Use performance-profiler to verify 47x rendering speedup is maintained in rendering/optimized_curve_renderer.py"
-
-# Test migration to ApplicationState
-"Use test-development-master to update test fixtures in tests/conftest.py for ApplicationState migration"
-
-# Verify data duplication eliminated
-"Use code-refactoring-expert to verify no duplicate curve storage remains in ui/ and services/"
-
-# Multi-curve Insert Track feature review
-"Use python-code-reviewer to analyze Insert Track implementation in core/commands/insert_track_command.py and core/insert_track_algorithm.py"
-
-# Command system review
-"Use python-code-reviewer to verify all commands properly use ApplicationState in core/commands/"
-
-# Full pre-commit review (parallel = 60% faster!)
-"Use python-code-reviewer, type-system-expert, and performance-profiler in parallel to audit changes before commit"
-```
-
-### Understanding Agent Results
-
-**How results are presented:**
-- Agents return findings to Claude (not shown directly to you)
-- Claude summarizes results in clear, actionable format
-- You receive: analysis reports, code changes, or recommendations
-
-**What to expect from each agent:**
-
-| Agent | What You Get |
-|-------|--------------|
-| python-code-reviewer | List of bugs, style issues, design problems |
-| type-system-expert | Type annotations added + basedpyright errors fixed |
-| test-development-master | Test suite with coverage report |
-| deep-debugger | Root cause analysis + fix strategy |
-| performance-profiler | Bottleneck analysis with metrics |
-| code-refactoring-expert | Improved code structure |
-| qt-concurrency-architect | Qt-safe threading fixes |
-
-**Acting on results:**
-1. Review agent findings
-2. Ask clarifying questions if needed
-3. Request implementation of fixes
-4. Verify changes with tests
-
-**See QUICK-REFERENCE.md for complete agent workflows and decision matrix.**
-**See ORCHESTRATION.md for detailed recipes and troubleshooting.**
 
 ## Type Safety Best Practices
 
@@ -624,12 +753,15 @@ from ui.file_operations import FileOperations
 
 ## Development Tips
 
-1. Always activate venv: `source venv/bin/activate`
-2. Use `./bpr` for type checking - enhanced Python wrapper with clean output
-3. Check syntax first: `python3 -m py_compile <file>`
-4. Validate before integration to prevent silent failures
-5. Prefer None checks over hasattr() for type safety
-6. Use `pyright: ignore[rule]` not `type: ignore` for suppressions
+1. **Check uv availability first**: `which uv` - if not available, use `.venv/bin/python3` directly
+2. **Use direct paths in WSL**: `.venv/bin/python3 -m pytest tests/` always works
+3. **Type checking**: Use `./bpr` (works with or without uv)
+4. **Syntax check first**: `python3 -m py_compile <file>` (no dependencies)
+5. **Validate before integration** to prevent silent failures
+6. **Prefer None checks over hasattr()** for type safety
+7. **Use `pyright: ignore[rule]`** not `type: ignore` for suppressions
+8. **Keep uv.lock committed** for reproducible builds
+9. **See "Using uv in WSL Environment"** section above for full command translation guide
 
 ---
 *Last Updated: October 2025*

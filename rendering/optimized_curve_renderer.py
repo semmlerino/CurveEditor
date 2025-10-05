@@ -336,11 +336,13 @@ class OptimizedCurveRenderer:
                 self._render_grid_optimized(painter, render_state)
 
             # Check if render_state supports multi-curve rendering
-            has_multi_curve = render_state.curves_data is not None
-            has_selected_curves = render_state.selected_curve_names is not None and render_state.selected_curve_names
+            from core.display_mode import DisplayMode
 
-            if has_multi_curve and render_state.curves_data and (render_state.show_all_curves or has_selected_curves):
-                # Render multiple curves (all curves if show_all_curves, or just selected curves)
+            has_multi_curve = render_state.curves_data is not None
+            is_multi_curve_mode = render_state.display_mode in (DisplayMode.ALL_VISIBLE, DisplayMode.SELECTED)
+
+            if has_multi_curve and render_state.curves_data and is_multi_curve_mode:
+                # Render multiple curves (all visible or selected based on display mode)
                 self._render_multiple_curves(painter, render_state)
             else:
                 # Render single curve with advanced optimizations (backward compatibility)
@@ -1061,9 +1063,14 @@ class OptimizedCurveRenderer:
     def _render_multiple_curves(self, painter: QPainter, render_state: "RenderState") -> None:
         """Render multiple curves with different colors and styles.
 
+        Performance Optimization:
+            Uses pre-computed visible_curves set from RenderState instead of
+            checking metadata and display mode for each curve. This eliminates
+            redundant visibility checks and improves rendering performance.
+
         Args:
             painter: Qt painter for drawing
-            render_state: The render state with multi-curve support
+            render_state: The render state with multi-curve support and pre-computed visibility
         """
         if not render_state.curves_data:
             return
@@ -1071,9 +1078,8 @@ class OptimizedCurveRenderer:
         curves_data = render_state.curves_data
         curve_metadata = render_state.curve_metadata or {}
         active_curve = render_state.active_curve_name
-        show_all_curves = render_state.show_all_curves
-        selected_curve_names = render_state.selected_curve_names or set()
         selected_curves_ordered = render_state.selected_curves_ordered or []
+        visible_curves = render_state.visible_curves
 
         # Get transform once for all curves
         transform = self._create_transform_from_render_state(render_state)
@@ -1082,17 +1088,13 @@ class OptimizedCurveRenderer:
             if not curve_points:
                 continue
 
-            # Check if curve should be visible
-            metadata = curve_metadata.get(curve_name, {})
-            if not metadata.get("visible", True):
-                continue
-
-            # When show_all_curves is False, only render selected curves
-            if not show_all_curves and curve_name not in selected_curve_names:
+            # Visibility check: use pre-computed visibility from RenderState
+            if curve_name not in visible_curves:
                 continue
 
             # Determine curve styling
             is_active = curve_name == active_curve
+            metadata = curve_metadata.get(curve_name, {})
 
             # Determine if this is the second selected curve for visual differentiation
             is_second_selected = (

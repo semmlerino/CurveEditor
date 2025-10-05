@@ -41,6 +41,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QColor,
     QContextMenuEvent,
+    QFocusEvent,
     QKeyEvent,
     QMouseEvent,
     QPainter,
@@ -53,6 +54,7 @@ from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
 from typing_extensions import override
 
 # Import core modules
+from core.display_mode import DisplayMode
 from core.models import PointCollection, PointStatus
 from core.point_types import safe_extract_point
 from core.signal_manager import SignalManager
@@ -141,7 +143,7 @@ class CurveViewWidget(QWidget):
     zoom_changed: Signal = Signal(float)  # zoom level
     data_changed: Signal = Signal()  # curve data changed
 
-    def __init__(self, parent: QWidget | None = None, state_manager: StateManager | None = None):
+    def __init__(self, parent: QWidget | None = None, state_manager: StateManager | None = None) -> None:
         """
         Initialize the CurveViewWidget.
 
@@ -189,8 +191,10 @@ class CurveViewWidget(QWidget):
 
         # Multi-curve support (VIEW state - stays in widget)
         # NOTE: DATA state (curves_data, curve_metadata, active_curve_name) migrated to ApplicationState
-        self.show_all_curves: bool = False  # Toggle for showing all curves
-        self.selected_curve_names: set[str] = set()  # Currently selected curves to display
+        # Phase 4: _display_mode is the sole visibility API (boolean removed)
+        self._display_mode: DisplayMode = DisplayMode.ACTIVE_ONLY
+        self._updating_display_mode: bool = False  # Re-entrancy guard
+        self._selected_curve_names: set[str] = set()  # Currently selected curves to display (backing field)
         self.selected_curves_ordered: list[str] = []  # Ordered list for visual differentiation
 
         # View transformation (zoom/pan managed by view_camera controller)
@@ -343,6 +347,113 @@ class CurveViewWidget(QWidget):
                 result[curve_name] = app_state.get_curve_data(curve_name)
         return result
 
+    @property
+    def selected_curve_names(self) -> set[str]:
+        """Get selected curve names."""
+        return self._selected_curve_names
+
+    @selected_curve_names.setter
+    def selected_curve_names(self, value: set[str]) -> None:
+        """
+        Set selected curve names and update display mode if needed.
+
+        Note: This setter ONLY updates display_mode, it does NOT trigger repaint.
+        Callers are responsible for calling update() or display_mode setter which
+        includes update(). This design avoids redundant repaints when called from
+        display_mode.setter.
+        """
+        self._selected_curve_names = value
+
+        # Update display mode based on selection change (if not in ALL_VISIBLE mode)
+        if not self._updating_display_mode and self._display_mode != DisplayMode.ALL_VISIBLE:
+            self._updating_display_mode = True
+            try:
+                if value:
+                    self._display_mode = DisplayMode.SELECTED
+                else:
+                    self._display_mode = DisplayMode.ACTIVE_ONLY
+            finally:
+                self._updating_display_mode = False
+
+    @property
+    def display_mode(self) -> DisplayMode:
+        """
+        Get current display mode for curve rendering.
+
+        This property provides an explicit, self-documenting way to understand
+        which curves are currently being displayed in the viewport.
+
+        Returns:
+            DisplayMode enum value indicating current display state:
+            - ALL_VISIBLE: All curves with metadata.visible=True are shown
+            - SELECTED: Only curves in selected_curve_names set are shown
+            - ACTIVE_ONLY: Only the active curve is shown
+
+        Example:
+            >>> widget = CurveViewWidget()
+            >>> widget.display_mode = DisplayMode.ALL_VISIBLE
+            >>> widget.display_mode
+            <DisplayMode.ALL_VISIBLE: 1>
+
+            >>> widget.display_mode = DisplayMode.SELECTED
+            >>> widget.selected_curve_names = {"Track1", "Track2"}
+            >>> widget.display_mode
+            <DisplayMode.SELECTED: 2>
+
+        See Also:
+            - should_render_curve(): Uses display mode to determine visibility
+        """
+        return self._display_mode
+
+    @display_mode.setter
+    def display_mode(self, mode: DisplayMode) -> None:
+        """
+        Set display mode for curve rendering.
+
+        Args:
+            mode: DisplayMode to set (ALL_VISIBLE, SELECTED, or ACTIVE_ONLY)
+
+        Behavior:
+            - ALL_VISIBLE: Shows all curves with visible=True metadata
+            - SELECTED: Shows only selected curves (auto-selects active if none selected)
+            - ACTIVE_ONLY: Shows only active curve (clears selection)
+
+        Example:
+            >>> widget = CurveViewWidget()
+            >>> widget.display_mode = DisplayMode.ALL_VISIBLE
+            >>> # All visible curves now rendered
+
+            >>> widget.display_mode = DisplayMode.SELECTED
+            >>> # Only selected curves rendered (active auto-selected if none)
+
+            >>> widget.display_mode = DisplayMode.ACTIVE_ONLY
+            >>> # Only active curve rendered, selection cleared
+
+        Note:
+            When setting SELECTED mode with no existing selection, this method
+            automatically adds the active curve to selected_curve_names to ensure
+            the mode change is meaningful (otherwise nothing would be visible).
+        """
+        if self._updating_display_mode:
+            return
+
+        self._updating_display_mode = True
+        try:
+            self._display_mode = mode
+
+            # If mode requires selection but none exists, select active curve
+            if mode == DisplayMode.SELECTED and not self.selected_curve_names:
+                if self._app_state.active_curve:
+                    self.selected_curve_names = {self._app_state.active_curve}
+            # If mode is ACTIVE_ONLY, clear selection
+            elif mode == DisplayMode.ACTIVE_ONLY:
+                self.selected_curve_names = set()
+
+            # Trigger repaint to reflect mode change
+            self.update()
+        finally:
+            self._updating_display_mode = False
+
     # View transformation properties (delegate to view_camera controller)
 
     @property
@@ -433,12 +544,12 @@ class CurveViewWidget(QWidget):
     # Data Management
 
     @property
-    def offset_x(self):
+    def offset_x(self) -> float:
         """X offset for OptimizedCurveRenderer compatibility."""
         return self.pan_offset_x + self.manual_offset_x
 
     @property
-    def offset_y(self):
+    def offset_y(self) -> float:
         """Y offset for OptimizedCurveRenderer compatibility."""
         return self.pan_offset_y + self.manual_offset_y
 
@@ -569,30 +680,13 @@ class CurveViewWidget(QWidget):
         """
         self.data_facade.set_active_curve(name)
 
-    def toggle_show_all_curves(self, show_all: bool) -> None:
-        """
-        Toggle whether to show all curves or just the active one.
-
-        Note: Delegates to MultiPointTrackingController (Phase 6 extraction)
-
-        Args:
-            show_all: If True, show all visible curves; if False, show only active curve
-        """
-        if self.main_window and hasattr(self.main_window, "tracking_controller"):
-            self.main_window.tracking_controller.toggle_show_all_curves(show_all)  # pyright: ignore[reportAttributeAccessIssue]
-        else:
-            # Fallback for tests or when main_window not available
-            self.show_all_curves = show_all
-            self.update()
-            logger.debug(f"Show all curves: {show_all}")
-
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
         Set which curves are currently selected for display.
 
         Note: Delegates to MultiPointTrackingController (Phase 6 extraction)
 
-        When show_all_curves is False, only these selected curves will be displayed.
+        In SELECTED display mode, only these selected curves will be displayed.
         The last curve in the list becomes the active curve for editing.
 
         Args:
@@ -612,6 +706,147 @@ class CurveViewWidget(QWidget):
 
             self.update()
             logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self._app_state.active_curve}")
+
+    def should_render_curve(self, curve_name: str) -> bool:
+        """
+        Determine if a curve should be rendered based on visibility filters.
+
+        .. deprecated::
+            This method is deprecated in favor of using RenderState with pre-computed
+            visibility. Instead of calling this method for each curve during rendering,
+            use ``compute_render_state()`` which pre-computes the visible_curves set.
+
+            Old pattern::
+
+                for curve_name in curves_data:
+                    if not self.should_render_curve(curve_name):
+                        continue
+                    # ... render curve
+
+            New pattern::
+
+                render_state = self.compute_render_state()
+                for curve_name in curves_data:
+                    if curve_name not in render_state.visible_curves:
+                        continue
+                    # ... render curve
+
+        This method centralizes the three-way visibility coordination logic that
+        determines which curves are actually drawn in the viewport. A curve is
+        rendered only if it passes ALL of the following filters:
+
+        1. **Metadata Visibility Flag**: The curve's metadata.visible must be True
+           - Controlled by ApplicationState curve metadata
+           - Independent per-curve setting for permanent hiding
+           - Persists across selection changes
+
+        2. **Display Mode Filter**: Determines which curves to render based on mode
+           - ALL_VISIBLE: Renders all visible curves
+           - SELECTED: Renders only curves in selected_curve_names set
+           - ACTIVE_ONLY: Renders only the active curve
+
+        The three display modes work together to provide flexible curve visibility:
+        - metadata.visible=False → curve never renders (permanent hide)
+        - ALL_VISIBLE mode → all visible curves render (ignores selection)
+        - SELECTED mode → only selected visible curves render
+        - ACTIVE_ONLY mode → only active curve renders
+
+        DisplayMode Implementation Details:
+            The display_mode property maps to internal state as follows:
+
+            - **DisplayMode.ALL_VISIBLE**: Render all curves with metadata.visible=True
+              Logic: Returns True for all metadata-visible curves (first branch)
+
+            - **DisplayMode.SELECTED**: Render only curves in selected_curve_names
+              Logic: Returns True if curve_name in selected_curve_names (second branch)
+
+            - **DisplayMode.ACTIVE_ONLY**: Render only the active curve
+              Logic: Returns True if curve_name == active_curve (third branch)
+
+            The three-branch decision logic handles all cases:
+            1. if display_mode == ALL_VISIBLE → render all metadata-visible curves
+            2. elif display_mode == SELECTED → render only selected curves
+            3. else (ACTIVE_ONLY) → render only active curve
+
+        Args:
+            curve_name: Name of the curve to check
+
+        Returns:
+            True if the curve should be rendered, False otherwise
+
+        Example:
+            # In rendering loop
+            for curve_name, curve_data in curves_data.items():
+                if not self.should_render_curve(curve_name):
+                    continue
+                # ... render curve ...
+
+            # Check current display mode
+            if self.display_mode == DisplayMode.ALL_VISIBLE:
+                # All visible curves will render
+                pass
+            elif self.display_mode == DisplayMode.SELECTED:
+                # Only selected curves will render
+                pass
+            else:  # DisplayMode.ACTIVE_ONLY
+                # Only active curve will render
+                pass
+
+        Note:
+            This method is used by:
+            - OptimizedCurveRenderer._render_multi_curve() for viewport rendering
+            - CurveDataFacade.set_curves_data() for visibility documentation
+            - Any code that needs to check curve visibility before processing
+
+        See Also:
+            - display_mode property: Get/set display mode (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
+            - RenderState.compute(): Pre-computes visibility for efficient rendering
+        """
+        # Filter 1: Check metadata visibility flag
+        metadata = self._app_state.get_curve_metadata(curve_name)
+        if not metadata.get("visible", True):
+            return False
+
+        # Filter 2: Check display mode
+        if self._display_mode == DisplayMode.ALL_VISIBLE:
+            # ALL_VISIBLE mode: render all visible curves
+            return True
+        elif self._display_mode == DisplayMode.SELECTED:
+            # SELECTED mode: render only selected curves
+            return curve_name in self.selected_curve_names
+        else:  # DisplayMode.ACTIVE_ONLY
+            # ACTIVE_ONLY mode: render only active curve
+            return curve_name == self._app_state.active_curve
+
+    def compute_render_state(self) -> RenderState:
+        """
+        Compute current render state with pre-computed visibility.
+
+        This method creates a RenderState by extracting all necessary state
+        from the widget and pre-computing which curves should be visible.
+        This is more efficient than checking visibility for each curve during
+        rendering.
+
+        Performance Benefits:
+            - Single visibility computation per frame instead of N checks
+            - Eliminates repeated metadata lookups during rendering
+            - Cleaner separation between state computation and rendering
+
+        Returns:
+            Immutable RenderState with visible_curves set pre-computed
+
+        Example:
+            >>> # In paintEvent()
+            >>> render_state = self.compute_render_state()
+            >>> self._renderer.render(painter, event, render_state)
+
+        See Also:
+            - RenderState.compute(): Factory method that performs the computation
+            - should_render_curve(): Legacy method (deprecated in favor of RenderState)
+        """
+        from rendering.render_state import RenderState
+
+        return RenderState.compute(self)
 
     def center_on_selected_curves(self) -> None:
         """
@@ -794,48 +1029,10 @@ class CurveViewWidget(QWidget):
         # DELEGATE ALL RENDERING TO OPTIMIZED RENDERER
         # This is the ONLY rendering path - do not add paint methods to this widget
 
-        # Build RenderState from StateManager and widget properties (KISS/SOLID decoupling)
-        current_frame = 1  # Default fallback
-        selected_points: set[int] = set()  # Default fallback
-
-        if self._state_manager is not None:
-            state_manager = self._state_manager
-            current_frame = state_manager.current_frame
-            selected_points = set(state_manager.selected_points)
-
-        # Create RenderState with all necessary data for rendering (explicit state passing)
-        render_state = RenderState(
-            # Core data
-            points=self.points,
-            current_frame=current_frame,
-            selected_points=selected_points,
-            # Widget dimensions
-            widget_width=self.width(),
-            widget_height=self.height(),
-            # View transform settings
-            zoom_factor=self.zoom_factor,
-            pan_offset_x=self.pan_offset_x,
-            pan_offset_y=self.pan_offset_y,
-            manual_offset_x=self.manual_offset_x,
-            manual_offset_y=self.manual_offset_y,
-            flip_y_axis=self.flip_y_axis,
-            # Background settings
-            show_background=self.show_background,
-            background_image=self.background_image,
-            background_opacity=self.background_opacity,
-            # Image dimensions
-            image_width=self.image_width,
-            image_height=self.image_height,
-            # Grid and visual settings
-            show_grid=self.show_grid,
-            point_radius=self.point_radius,
-            # Multi-curve support - CRITICAL FIX for gap visualization
-            # Use live curves data that includes current status changes for active curve
-            curves_data=self._get_live_curves_data(),
-            show_all_curves=self.show_all_curves,
-            selected_curve_names=self.selected_curve_names,
-            selected_curves_ordered=self.selected_curves_ordered,  # For visual differentiation
-        )
+        # Compute render state with pre-computed visibility (performance optimization)
+        # This eliminates redundant visibility checks during rendering by computing
+        # the visible_curves set once instead of checking each curve multiple times
+        render_state = self.compute_render_state()
 
         # Pass explicit state to renderer instead of widget reference
         self._optimized_renderer.render(painter, event, render_state)
@@ -1110,13 +1307,13 @@ class CurveViewWidget(QWidget):
         super().keyPressEvent(event)
 
     @override
-    def focusInEvent(self, event) -> None:
+    def focusInEvent(self, event: QFocusEvent) -> None:
         """Handle focus in event."""
         logger.info(f"[FOCUS] CurveViewWidget gained focus! Reason: {event.reason()}")
         super().focusInEvent(event)
 
     @override
-    def focusOutEvent(self, event) -> None:
+    def focusOutEvent(self, event: QFocusEvent) -> None:
         """Handle focus out event."""
         logger.info(f"[FOCUS] CurveViewWidget lost focus! Reason: {event.reason()}")
         super().focusOutEvent(event)
@@ -1401,9 +1598,8 @@ class CurveViewWidget(QWidget):
             message: Status message to display
             timeout: Timeout in milliseconds
         """
-        if self.main_window is not None:
-            if getattr(self.main_window, "status_bar", None) is not None:
-                self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
+        if self.main_window is not None and getattr(self.main_window, "status_bar", None) is not None:
+            self.main_window.status_bar.showMessage(message, timeout)  # pyright: ignore[reportAttributeAccessIssue]
 
     def get_current_frame(self) -> int | None:
         """Get the current frame from state manager if available.

@@ -44,7 +44,6 @@ class MultiCurveManager:
         self._app_state = get_application_state()
 
         # VIEW-specific state only (not data)
-        self.show_all_curves: bool = False
         self.selected_curve_names: set[str] = set()
 
         logger.debug("MultiCurveManager initialized with ApplicationState")
@@ -246,22 +245,11 @@ class MultiCurveManager:
                     )
                     self.widget.center_on_frame(current_frame)
 
-    def toggle_show_all_curves(self, show_all: bool) -> None:
-        """
-        Toggle whether to show all curves or just the active one.
-
-        Args:
-            show_all: If True, show all visible curves; if False, show only active curve
-        """
-        self.show_all_curves = show_all
-        self.widget.update()
-        logger.debug(f"Show all curves: {show_all}")
-
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
         Set which curves are currently selected for display.
 
-        When show_all_curves is False, only these selected curves will be displayed.
+        In SELECTED display mode, only these selected curves will be displayed.
         The last curve in the list becomes the active curve for editing.
 
         Args:

@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.display_mode import DisplayMode
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput
 
@@ -134,13 +135,14 @@ class TrackingPointsPanel(QWidget):
     tracking_direction_changed: Signal = Signal(str, object)  # Point name, TrackingDirection
     point_deleted: Signal = Signal(str)  # Point name
     point_renamed: Signal = Signal(str, str)  # Old name, new name
-    show_all_curves_toggled: Signal = Signal(bool)  # Show all curves state
+    display_mode_changed: Signal = Signal(DisplayMode)  # Display mode
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the tracking points panel."""
         super().__init__(parent)
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
+        self._updating_display_mode: bool = False  # Prevent display mode signal loops
         self._active_point: str | None = None  # Active timeline point (whose timeline is displayed)
         self._init_ui()
 
@@ -156,14 +158,14 @@ class TrackingPointsPanel(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Add checkbox for toggling multi-curve display
-        self.show_all_curves_checkbox: QCheckBox = QCheckBox("Show all curves")
-        self.show_all_curves_checkbox.setToolTip(
+        self.display_mode_checkbox: QCheckBox = QCheckBox("Show all curves")
+        self.display_mode_checkbox.setToolTip(
             "When checked, displays all visible curves simultaneously.\n"
             "When unchecked, shows only the selected/active curve."
         )
-        self.show_all_curves_checkbox.setChecked(False)
-        _ = self.show_all_curves_checkbox.toggled.connect(self._on_show_all_curves_toggled)
-        layout.addWidget(self.show_all_curves_checkbox)
+        self.display_mode_checkbox.setChecked(False)
+        _ = self.display_mode_checkbox.toggled.connect(self._on_display_mode_checkbox_toggled)
+        layout.addWidget(self.display_mode_checkbox)
 
         # Create table widget
         self.table: QTableWidget = QTableWidget()
@@ -418,13 +420,88 @@ class TrackingPointsPanel(QWidget):
             return self._point_metadata[point_name]["visible"]
         return True  # Default to visible
 
-    def _on_show_all_curves_toggled(self, checked: bool) -> None:
-        """Handle toggle of show all curves checkbox.
+    def _on_display_mode_checkbox_toggled(self, checked: bool) -> None:
+        """Handle toggle of display mode checkbox.
+
+        Emits display_mode_changed signal with the appropriate DisplayMode.
+        Re-entrancy guard prevents infinite loops.
 
         Args:
             checked: Whether to show all curves
         """
-        self.show_all_curves_toggled.emit(checked)
+        # Re-entrancy guard: prevent signal loops
+        if self._updating_display_mode:
+            return
+
+        self._updating_display_mode = True
+        try:
+            # Determine display mode from checkbox state and selection context
+            mode = self._determine_mode_from_checkbox(checked)
+
+            # Emit display mode changed signal
+            self.display_mode_changed.emit(mode)
+        finally:
+            self._updating_display_mode = False
+
+    def _determine_mode_from_checkbox(self, checked: bool) -> DisplayMode:
+        """Determine DisplayMode from checkbox state and selection context.
+
+        Mapping Logic:
+            - checked=True → DisplayMode.ALL_VISIBLE (always)
+            - checked=False + has selection → DisplayMode.SELECTED
+            - checked=False + no selection → DisplayMode.ACTIVE_ONLY
+
+        Args:
+            checked: Checkbox state (True = show all curves)
+
+        Returns:
+            DisplayMode enum value based on checkbox and selection state
+        """
+        if checked:
+            return DisplayMode.ALL_VISIBLE
+
+        # Checkbox unchecked: determine SELECTED vs ACTIVE_ONLY
+        if self._has_selection():
+            return DisplayMode.SELECTED
+        else:
+            return DisplayMode.ACTIVE_ONLY
+
+    def _has_selection(self) -> bool:
+        """Check if any curves are selected in the table.
+
+        Returns:
+            True if one or more curves are selected, False otherwise
+        """
+        selected_items = self.table.selectedItems()
+        return len(selected_items) > 0
+
+    def _mode_to_checkbox_state(self, mode: DisplayMode) -> bool:
+        """Convert DisplayMode to checkbox state (for reverse mapping).
+
+        Args:
+            mode: DisplayMode enum value
+
+        Returns:
+            True if mode is ALL_VISIBLE, False for SELECTED or ACTIVE_ONLY
+        """
+        return mode == DisplayMode.ALL_VISIBLE
+
+    def _emit_display_mode_signals(self, mode: DisplayMode) -> None:
+        """Emit display mode change signal.
+
+        This is a convenience method that emits the signal with re-entrancy protection.
+
+        Args:
+            mode: DisplayMode to emit
+        """
+        if self._updating_display_mode:
+            return
+
+        self._updating_display_mode = True
+        try:
+            self.display_mode_changed.emit(mode)
+        finally:
+            self._updating_display_mode = False
 
     def _on_selection_changed(self) -> None:
         """Handle table selection changes."""

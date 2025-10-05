@@ -15,10 +15,10 @@ from PySide6.QtGui import QImage, QPixmap
 from core.type_aliases import CurveDataList
 
 if TYPE_CHECKING:
-    pass
+    from core.display_mode import DisplayMode
 
 
-@dataclass
+@dataclass(frozen=True)
 class RenderState:
     """
     State needed for rendering, passed explicitly to the renderer.
@@ -26,6 +26,12 @@ class RenderState:
     This dataclass contains all the information the renderer needs to draw
     the curve visualization, eliminating the need for the renderer to access
     UI component properties directly.
+
+    Performance Optimization:
+        The visible_curves set is pre-computed during RenderState creation,
+        eliminating redundant visibility checks during rendering. Instead of
+        checking metadata and display mode for each curve N times during
+        rendering, we compute the visible set once and do simple O(1) lookups.
     """
 
     # Core data
@@ -60,11 +66,14 @@ class RenderState:
 
     # Multi-curve support (for future extensibility)
     curves_data: dict[str, CurveDataList] | None = None
-    show_all_curves: bool = False
+    display_mode: "DisplayMode | None" = None
     selected_curve_names: set[str] | None = None
     selected_curves_ordered: list[str] | None = None  # Ordered list for visual differentiation
     curve_metadata: dict[str, dict[str, Any]] | None = None
     active_curve_name: str | None = None
+
+    # Pre-computed visibility (performance optimization)
+    visible_curves: frozenset[str] | None = None  # Pre-computed set of curves that should render
 
     def __post_init__(self) -> None:
         """Validate render state after initialization."""
@@ -83,3 +92,188 @@ class RenderState:
         # Ensure background opacity is in valid range
         if not 0.0 <= self.background_opacity <= 1.0:
             raise ValueError(f"Background opacity must be between 0.0 and 1.0: {self.background_opacity}")
+
+    @classmethod
+    def compute(cls, widget: Any) -> "RenderState":
+        """
+        Compute RenderState from CurveViewWidget with pre-computed visibility.
+
+        This factory method creates a RenderState by extracting all necessary
+        state from the widget and pre-computing the set of visible curves.
+        This eliminates redundant visibility checks during rendering.
+
+        Performance Benefits:
+            - Single visibility computation instead of N checks per render
+            - O(1) set lookup instead of O(1) metadata lookup + display mode logic
+            - Cleaner separation: widget computes state, renderer just uses it
+
+        Args:
+            widget: CurveViewWidget instance to extract state from
+
+        Returns:
+            RenderState with all fields populated and visible_curves pre-computed
+
+        Example:
+            >>> # In paintEvent()
+            >>> render_state = RenderState.compute(self)
+            >>> self._renderer.render(painter, event, render_state)
+        """
+        # Import here to avoid circular dependency
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
+        # Get current frame and selected points from state manager
+        current_frame = 1  # Default fallback
+        selected_points: set[int] = set()  # Default fallback
+
+        if hasattr(widget, "_state_manager") and widget._state_manager is not None:
+            state_manager = widget._state_manager
+            current_frame = state_manager.current_frame
+            selected_points = set(state_manager.selected_points)
+
+        # Pre-compute visible curves using the same logic as should_render_curve()
+        visible_curves: set[str] = set()
+        curves_data = widget._get_live_curves_data() if hasattr(widget, "_get_live_curves_data") else {}
+        curve_metadata = {}
+
+        # Use widget.curves_data as authoritative source (filters out "__default__")
+        all_curve_names = widget.curves_data.keys() if hasattr(widget, "curves_data") else curves_data.keys()
+
+        # Build metadata dict and visible_curves set
+        if all_curve_names:
+            for curve_name in all_curve_names:
+                # Get metadata for this curve
+                metadata = app_state.get_curve_metadata(curve_name)
+                curve_metadata[curve_name] = metadata
+
+                # Filter 1: Check metadata visibility flag
+                if not metadata.get("visible", True):
+                    continue
+
+                # Filter 2: Check display mode (three-branch decision)
+                from core.display_mode import DisplayMode
+
+                if widget.display_mode == DisplayMode.ALL_VISIBLE:
+                    # ALL_VISIBLE mode: render all visible curves
+                    visible_curves.add(curve_name)
+                elif widget.display_mode == DisplayMode.SELECTED:
+                    # SELECTED mode: render only selected curves
+                    if curve_name in widget.selected_curve_names:
+                        visible_curves.add(curve_name)
+                else:  # DisplayMode.ACTIVE_ONLY
+                    # ACTIVE_ONLY mode: render only active curve
+                    if curve_name == app_state.active_curve:
+                        visible_curves.add(curve_name)
+
+        # Create RenderState with all necessary data
+        return cls(
+            # Core data
+            points=widget.points,
+            current_frame=current_frame,
+            selected_points=selected_points,
+            # Widget dimensions
+            widget_width=widget.width(),
+            widget_height=widget.height(),
+            # View transform settings
+            zoom_factor=widget.zoom_factor,
+            pan_offset_x=widget.pan_offset_x,
+            pan_offset_y=widget.pan_offset_y,
+            manual_offset_x=widget.manual_offset_x,
+            manual_offset_y=widget.manual_offset_y,
+            flip_y_axis=widget.flip_y_axis,
+            # Background settings
+            show_background=widget.show_background,
+            background_image=widget.background_image,
+            background_opacity=widget.background_opacity,
+            # Image dimensions
+            image_width=widget.image_width,
+            image_height=widget.image_height,
+            # Grid and visual settings
+            show_grid=widget.show_grid,
+            point_radius=widget.point_radius,
+            # Multi-curve support
+            curves_data=curves_data,
+            display_mode=widget.display_mode,
+            selected_curve_names=widget.selected_curve_names,
+            selected_curves_ordered=widget.selected_curves_ordered,
+            curve_metadata=curve_metadata,
+            active_curve_name=app_state.active_curve,
+            # Pre-computed visibility
+            visible_curves=frozenset(visible_curves),
+        )
+
+    def should_render(self, curve_name: str) -> bool:
+        """
+        Check if a curve should be rendered.
+
+        Args:
+            curve_name: Name of curve to check
+
+        Returns:
+            True if curve should be rendered, False otherwise
+        """
+        if self.visible_curves is None:
+            return False
+        return curve_name in self.visible_curves
+
+    def __contains__(self, curve_name: str) -> bool:
+        """
+        Support 'in' operator for membership checking.
+
+        Args:
+            curve_name: Name of curve to check
+
+        Returns:
+            True if curve is in visible set, False otherwise
+        """
+        if self.visible_curves is None:
+            return False
+        return curve_name in self.visible_curves
+
+    def __len__(self) -> int:
+        """
+        Return number of visible curves.
+
+        Returns:
+            Count of curves that should be rendered
+        """
+        if self.visible_curves is None:
+            return 0
+        return len(self.visible_curves)
+
+    def __bool__(self) -> bool:
+        """
+        Check if any curves are visible.
+
+        Returns:
+            True if at least one curve should be rendered, False if none
+        """
+        if self.visible_curves is None:
+            return False
+        return bool(self.visible_curves)
+
+    @property
+    def active_curve(self) -> str | None:
+        """
+        Alias for active_curve_name to match test expectations.
+
+        Returns:
+            Name of active curve or None
+        """
+        return self.active_curve_name
+
+    def __repr__(self) -> str:  # pyright: ignore[reportImplicitOverride]
+        """
+        Return concise representation showing display mode and visible curves.
+
+        Returns:
+            Compact string representation for debugging
+        """
+        return (
+            f"RenderState("
+            f"mode={self.display_mode.name}, "
+            f"curves={len(self.visible_curves) if self.visible_curves else 0}, "
+            f"active={self.active_curve_name!r}"
+            f")"
+        )

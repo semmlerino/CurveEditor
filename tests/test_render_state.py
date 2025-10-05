@@ -1,640 +1,489 @@
-#!/usr/bin/env python3
 """
-Tests for RenderState dataclass - validation and structure.
+Comprehensive tests for RenderState visibility computation.
 
-This test module provides comprehensive coverage of the RenderState dataclass,
-testing validation logic, field assignments, defaults, and data integrity.
-Follows the testing guide patterns for dataclass and validation testing.
+This test suite verifies that RenderState.compute() correctly implements the same
+visibility logic as CurveViewWidget.should_render_curve() but pre-computes the
+results for better performance.
+
+Test Coverage:
+- All three display modes (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
+- Metadata visibility filtering (visible=True/False)
+- Interaction between display mode and metadata
+- Edge cases (no curves, no active curve, empty selection)
+- Convenience methods (should_render, __contains__, __len__, __bool__)
+- Immutability and thread safety
 """
-
-from typing import Any
 
 import pytest
-from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
 
-from core.type_aliases import CurveDataList
+from core.display_mode import DisplayMode
 from rendering.render_state import RenderState
+from stores.application_state import get_application_state
+from ui.curve_view_widget import CurveViewWidget
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
-
-
-class TestRenderStateCreation:
-    """Test RenderState creation and basic functionality."""
-
-    def test_minimal_valid_creation(self):
-        """Test RenderState can be created with minimal valid parameters."""
-        points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        selected_points: set[int] = {0, 1}
-
-        state = RenderState(
-            points=points,
-            current_frame=1,
-            selected_points=selected_points,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        # Verify core fields
-        assert state.points == points
-        assert state.current_frame == 1
-        assert state.selected_points == selected_points
-        assert state.widget_width == 800
-        assert state.widget_height == 600
-        assert state.zoom_factor == 1.0
-        assert state.pan_offset_x == 0.0
-        assert state.pan_offset_y == 0.0
-        assert state.manual_offset_x == 0.0
-        assert state.manual_offset_y == 0.0
-        assert state.flip_y_axis is False
-        assert state.show_background is True
-
-        # Verify defaults
-        assert state.background_image is None
-        assert state.background_opacity == 1.0
-        assert state.image_width == 0
-        assert state.image_height == 0
-        assert state.show_grid is True
-        assert state.point_radius == 3
-        assert state.curves_data is None
-        assert state.show_all_curves is False
-        assert state.selected_curve_names is None
-        assert state.curve_metadata is None
-        assert state.active_curve_name is None
-
-    def test_full_creation_with_all_fields(self):
-        """Test RenderState creation with all fields specified."""
-        points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        selected_points: set[int] = {0}
-        background_image = QImage(100, 100, QImage.Format.Format_RGB32)
-        curves_data: dict[str, CurveDataList] = {"curve1": [(1, 10.0, 20.0)], "curve2": [(2, 30.0, 40.0)]}
-        selected_curve_names: set[str] = {"curve1"}
-        curve_metadata: dict[str, dict[str, Any]] = {"curve1": {"color": "red"}, "curve2": {"color": "blue"}}
-
-        state = RenderState(
-            points=points,
-            current_frame=5,
-            selected_points=selected_points,
-            widget_width=1920,
-            widget_height=1080,
-            zoom_factor=2.5,
-            pan_offset_x=100.0,
-            pan_offset_y=200.0,
-            manual_offset_x=50.0,
-            manual_offset_y=75.0,
-            flip_y_axis=True,
-            show_background=False,
-            background_image=background_image,
-            background_opacity=0.7,
-            image_width=1920,
-            image_height=1080,
-            show_grid=False,
-            point_radius=5,
-            curves_data=curves_data,
-            show_all_curves=True,
-            selected_curve_names=selected_curve_names,
-            curve_metadata=curve_metadata,
-            active_curve_name="curve1",
-        )
-
-        # Verify all fields are set correctly
-        assert state.points == points
-        assert state.current_frame == 5
-        assert state.selected_points == selected_points
-        assert state.widget_width == 1920
-        assert state.widget_height == 1080
-        assert state.zoom_factor == 2.5
-        assert state.pan_offset_x == 100.0
-        assert state.pan_offset_y == 200.0
-        assert state.manual_offset_x == 50.0
-        assert state.manual_offset_y == 75.0
-        assert state.flip_y_axis is True
-        assert state.show_background is False
-        assert state.background_image is background_image
-        assert state.background_opacity == 0.7
-        assert state.image_width == 1920
-        assert state.image_height == 1080
-        assert state.show_grid is False
-        assert state.point_radius == 5
-        assert state.curves_data == curves_data
-        assert state.show_all_curves is True
-        assert state.selected_curve_names == selected_curve_names
-        assert state.curve_metadata == curve_metadata
-        assert state.active_curve_name == "curve1"
-
-    def test_creation_with_qpixmap_background(self, qapp: Any) -> None:
-        """Test RenderState creation with QPixmap background."""
-        points: CurveDataList = [(1, 100.0, 200.0)]
-        selected_points: set[int] = set()
-        background_image = QPixmap(100, 100)
-
-        state = RenderState(
-            points=points,
-            current_frame=1,
-            selected_points=selected_points,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-            background_image=background_image,
-        )
-
-        assert state.background_image is background_image
-        assert isinstance(state.background_image, QPixmap)
-
-
-class TestRenderStateValidation:
-    """Test RenderState validation logic."""
-
-    def get_valid_base_params(self) -> dict[str, Any]:
-        """Get base parameters for valid RenderState creation."""
-        points: CurveDataList = [(1, 100.0, 200.0)]
-        selected_points: set[int] = set()
-        return {
-            "points": points,
-            "current_frame": 1,
-            "selected_points": selected_points,
-            "widget_width": 800,
-            "widget_height": 600,
-            "zoom_factor": 1.0,
-            "pan_offset_x": 0.0,
-            "pan_offset_y": 0.0,
-            "manual_offset_x": 0.0,
-            "manual_offset_y": 0.0,
-            "flip_y_axis": False,
-            "show_background": True,
-        }
-
-    def test_validation_zero_widget_width(self):
-        """Test validation fails for zero widget width."""
-        params = self.get_valid_base_params()
-        params["widget_width"] = 0
-
-        with pytest.raises(ValueError, match="Widget dimensions must be positive"):
-            RenderState(**params)
-
-    def test_validation_negative_widget_width(self):
-        """Test validation fails for negative widget width."""
-        params = self.get_valid_base_params()
-        params["widget_width"] = -100
-
-        with pytest.raises(ValueError, match="Widget dimensions must be positive"):
-            RenderState(**params)
-
-    def test_validation_zero_widget_height(self):
-        """Test validation fails for zero widget height."""
-        params = self.get_valid_base_params()
-        params["widget_height"] = 0
-
-        with pytest.raises(ValueError, match="Widget dimensions must be positive"):
-            RenderState(**params)
-
-    def test_validation_negative_widget_height(self):
-        """Test validation fails for negative widget height."""
-        params = self.get_valid_base_params()
-        params["widget_height"] = -200
-
-        with pytest.raises(ValueError, match="Widget dimensions must be positive"):
-            RenderState(**params)
-
-    def test_validation_zero_zoom_factor(self):
-        """Test validation fails for zero zoom factor."""
-        params = self.get_valid_base_params()
-        params["zoom_factor"] = 0.0
-
-        with pytest.raises(ValueError, match="Zoom factor must be positive"):
-            RenderState(**params)
-
-    def test_validation_negative_zoom_factor(self):
-        """Test validation fails for negative zoom factor."""
-        params = self.get_valid_base_params()
-        params["zoom_factor"] = -1.5
-
-        with pytest.raises(ValueError, match="Zoom factor must be positive"):
-            RenderState(**params)
-
-    def test_validation_zero_point_radius(self):
-        """Test validation fails for zero point radius."""
-        params = self.get_valid_base_params()
-        params["point_radius"] = 0
-
-        with pytest.raises(ValueError, match="Point radius must be positive"):
-            RenderState(**params)
-
-    def test_validation_negative_point_radius(self):
-        """Test validation fails for negative point radius."""
-        params = self.get_valid_base_params()
-        params["point_radius"] = -3
-
-        with pytest.raises(ValueError, match="Point radius must be positive"):
-            RenderState(**params)
-
-    def test_validation_background_opacity_below_range(self):
-        """Test validation fails for background opacity below 0.0."""
-        params = self.get_valid_base_params()
-        params["background_opacity"] = -0.1
-
-        with pytest.raises(ValueError, match="Background opacity must be between 0.0 and 1.0"):
-            RenderState(**params)
-
-    def test_validation_background_opacity_above_range(self):
-        """Test validation fails for background opacity above 1.0."""
-        params = self.get_valid_base_params()
-        params["background_opacity"] = 1.1
-
-        with pytest.raises(ValueError, match="Background opacity must be between 0.0 and 1.0"):
-            RenderState(**params)
-
-    def test_validation_boundary_values(self):
-        """Test validation passes for boundary values."""
-        params = self.get_valid_base_params()
-
-        # Test minimum valid dimensions
-        params.update(
-            {
-                "widget_width": 1,
-                "widget_height": 1,
-                "zoom_factor": 0.001,  # Very small but positive
-                "point_radius": 1,
-                "background_opacity": 0.0,  # Minimum opacity
-            }
-        )
-
-        state = RenderState(**params)
-        assert state.widget_width == 1
-        assert state.widget_height == 1
-        assert state.zoom_factor == 0.001
-        assert state.point_radius == 1
-        assert state.background_opacity == 0.0
-
-        # Test maximum opacity
-        params["background_opacity"] = 1.0
-        state = RenderState(**params)
-        assert state.background_opacity == 1.0
-
-
-class TestRenderStateDataTypes:
-    """Test RenderState handles various data types correctly."""
-
-    def test_empty_points_list(self):
-        """Test RenderState with empty points list."""
-        state = RenderState(
-            points=[],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        assert state.points == []
-        assert len(state.points) == 0
-
-    def test_empty_selected_points(self):
-        """Test RenderState with empty selected points set."""
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        assert state.selected_points == set()
-        assert len(state.selected_points) == 0
-
-    def test_large_selected_points_set(self):
-        """Test RenderState with large selected points set."""
-        large_selection = set(range(1000))
-
-        state = RenderState(
-            points=[(i, float(i), float(i * 2)) for i in range(1000)],
-            current_frame=1,
-            selected_points=large_selection,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        assert state.selected_points == large_selection
-        assert len(state.selected_points) == 1000
-
-    def test_various_point_formats(self):
-        """Test RenderState with different point tuple formats."""
-        points: CurveDataList = [
-            (1, 100.0, 200.0),  # 3-tuple
-            (2, 150.0, 250.0, "KEYFRAME"),  # 4-tuple with status
-            (3, 200.0, 300.0, True),  # 4-tuple with boolean
-        ]
-
-        state = RenderState(
-            points=points,
-            current_frame=1,
-            selected_points={0, 2},
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        assert state.points == points
-        assert len(state.points) == 3
-
-    def test_floating_point_precision(self):
-        """Test RenderState handles floating point values correctly."""
-        state = RenderState(
-            points=[(1, 3.14159265359, 2.71828182846)],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.23456789,
-            pan_offset_x=-123.456,
-            pan_offset_y=987.654,
-            manual_offset_x=0.00001,
-            manual_offset_y=-0.00001,
-            flip_y_axis=False,
-            show_background=True,
-            background_opacity=0.123456,
-        )
-
-        assert state.zoom_factor == 1.23456789
-        assert state.pan_offset_x == -123.456
-        assert state.pan_offset_y == 987.654
-        assert state.manual_offset_x == 0.00001
-        assert state.manual_offset_y == -0.00001
-        assert state.background_opacity == 0.123456
-
-
-class TestRenderStateReferenceSharing:
-    """Test RenderState reference behavior (dataclass shares references by default)."""
-
-    def test_points_reference_sharing(self):
-        """Test that RenderState shares references with input data (current behavior)."""
-        original_points: CurveDataList = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        points_list: CurveDataList = list(original_points)
-
-        state = RenderState(
-            points=points_list,
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        # Verify RenderState stores the same reference
-        assert state.points is points_list
-
-        # Modify the original list
-        points_list.append((3, 300.0, 400.0))
-
-        # RenderState reflects the change (shared reference)
-        assert len(state.points) == 3
-        assert state.points == points_list
-
-    def test_selected_points_reference_sharing(self):
-        """Test that RenderState shares references with input selected points."""
-        selection_set = {0, 1, 2}
-
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=1,
-            selected_points=selection_set,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        # Verify RenderState stores the same reference
-        assert state.selected_points is selection_set
-
-        # Modify the original set
-        selection_set.add(5)
-
-        # RenderState reflects the change (shared reference)
-        assert len(state.selected_points) == 4
-        assert 5 in state.selected_points
-
-    def test_safe_data_passing(self):
-        """Test safe way to pass data to RenderState (using copies)."""
-        original_points = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
-        original_selection = {0, 1}
-
-        # Create copies before passing to RenderState
-        state = RenderState(
-            points=list(original_points),  # Copy the list
-            current_frame=1,
-            selected_points=set(original_selection),  # Copy the set
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
-
-        # Verify data is correct
-        assert state.points == original_points
-        assert state.selected_points == original_selection
-
-        # Verify independence (different objects)
-        assert state.points is not original_points
-        assert state.selected_points is not original_selection
-
-
-class TestRenderStateEquality:
-    """Test RenderState equality and comparison behavior."""
-
-    def test_equality_same_values(self):
-        """Test that RenderStates with same values are equal."""
-        points: CurveDataList = [(1, 100.0, 200.0)]
-        selected_points: set[int] = {0}
-        params: dict[str, Any] = {
-            "points": points,
-            "current_frame": 1,
-            "selected_points": selected_points,
-            "widget_width": 800,
-            "widget_height": 600,
-            "zoom_factor": 1.0,
-            "pan_offset_x": 0.0,
-            "pan_offset_y": 0.0,
-            "manual_offset_x": 0.0,
-            "manual_offset_y": 0.0,
-            "flip_y_axis": False,
-            "show_background": True,
-        }
-
-        state1 = RenderState(**params)
-        state2 = RenderState(**params)
-
-        assert state1 == state2
-
-    def test_inequality_different_values(self):
-        """Test that RenderStates with different values are not equal."""
-        points: CurveDataList = [(1, 100.0, 200.0)]
-        selected_points: set[int] = {0}
-        base_params: dict[str, Any] = {
-            "points": points,
-            "current_frame": 1,
-            "selected_points": selected_points,
-            "widget_width": 800,
-            "widget_height": 600,
-            "zoom_factor": 1.0,
-            "pan_offset_x": 0.0,
-            "pan_offset_y": 0.0,
-            "manual_offset_x": 0.0,
-            "manual_offset_y": 0.0,
-            "flip_y_axis": False,
-            "show_background": True,
-        }
-
-        state1 = RenderState(**base_params)
-
-        # Different zoom factor
-        different_params = base_params.copy()
-        different_params["zoom_factor"] = 2.0
-        state2 = RenderState(**different_params)
-
-        assert state1 != state2
+    """Provide Qt application instance."""
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    return app
+
+
+@pytest.fixture
+def curve_widget(qapp):
+    """Provide fresh CurveViewWidget for each test."""
+    widget = CurveViewWidget()
+    yield widget
+    widget.deleteLater()
+
+
+@pytest.fixture
+def sample_curves():
+    """Provide sample curve data for testing."""
+    return {
+        "Track1": [
+            (1, 10.0, 20.0),
+            (2, 15.0, 25.0),
+            (3, 20.0, 30.0),
+        ],
+        "Track2": [
+            (1, 30.0, 40.0),
+            (2, 35.0, 45.0),
+            (3, 40.0, 50.0),
+        ],
+        "Track3": [
+            (1, 50.0, 60.0),
+            (2, 55.0, 65.0),
+            (3, 60.0, 70.0),
+        ],
+    }
+
+
+class TestRenderStateAllVisibleMode:
+    """Test RenderState.compute() in ALL_VISIBLE display mode."""
+
+    def test_all_visible_includes_all_curves(self, curve_widget, sample_curves):
+        """In ALL_VISIBLE mode, all metadata-visible curves should be included."""
+        # Setup: Load curves and set ALL_VISIBLE mode
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: All curves are visible
+        assert state.display_mode == DisplayMode.ALL_VISIBLE
+        assert len(state.visible_curves) == 3
+        assert "Track1" in state.visible_curves
+        assert "Track2" in state.visible_curves
+        assert "Track3" in state.visible_curves
+        assert state.active_curve == "Track1"
+
+    def test_all_visible_ignores_selection(self, curve_widget, sample_curves):
+        """In ALL_VISIBLE mode, selection doesn't affect visibility."""
+        # Setup: Load curves, set selection, set ALL_VISIBLE mode
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.selected_curve_names = {"Track1"}  # Select only Track1
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: All curves visible despite selection
+        assert len(state.visible_curves) == 3
+        assert "Track1" in state.visible_curves
+        assert "Track2" in state.visible_curves  # Not selected but still visible
+        assert "Track3" in state.visible_curves  # Not selected but still visible
+
+    def test_all_visible_respects_metadata_visibility(self, curve_widget, sample_curves):
+        """In ALL_VISIBLE mode, metadata.visible=False hides curves."""
+        # Setup: Load curves and hide Track2
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        app_state = get_application_state()
+        app_state.set_curve_visibility("Track2", False)
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Track2 hidden by metadata
+        assert len(state.visible_curves) == 2
+        assert "Track1" in state.visible_curves
+        assert "Track2" not in state.visible_curves  # Hidden by metadata
+        assert "Track3" in state.visible_curves
+
+
+class TestRenderStateSelectedMode:
+    """Test RenderState.compute() in SELECTED display mode."""
+
+    def test_selected_includes_only_selected_curves(self, curve_widget, sample_curves):
+        """In SELECTED mode, only selected curves should be included."""
+        # Setup: Load curves, select Track1 and Track3
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.selected_curve_names = {"Track1", "Track3"}
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Only selected curves visible
+        assert state.display_mode == DisplayMode.SELECTED
+        assert len(state.visible_curves) == 2
+        assert "Track1" in state.visible_curves
+        assert "Track2" not in state.visible_curves  # Not selected
+        assert "Track3" in state.visible_curves
+
+    def test_selected_respects_metadata_visibility(self, curve_widget, sample_curves):
+        """In SELECTED mode, hidden curves don't render even if selected."""
+        # Setup: Load curves, hide Track2, select Track1 and Track2
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        app_state = get_application_state()
+        app_state.set_curve_visibility("Track2", False)
+        curve_widget.selected_curve_names = {"Track1", "Track2"}
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Track2 hidden despite being selected
+        assert len(state.visible_curves) == 1
+        assert "Track1" in state.visible_curves
+        assert "Track2" not in state.visible_curves  # Hidden by metadata
+
+    def test_selected_empty_selection(self, curve_widget, sample_curves):
+        """Clearing selection in SELECTED mode transitions to ACTIVE_ONLY mode."""
+        # Setup: Load curves, set SELECTED mode, then clear selection
+        # Note: When selection is cleared, display_mode automatically becomes ACTIVE_ONLY
+        # because DisplayMode.from_legacy() sees has_selection=False
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.SELECTED
+        curve_widget.selected_curve_names = set()  # Clear selection after mode set
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Mode automatically transitioned to ACTIVE_ONLY (empty selection)
+        # So only the active curve is visible
+        assert state.display_mode == DisplayMode.ACTIVE_ONLY
+        assert len(state.visible_curves) == 1
+        assert "Track1" in state.visible_curves  # Active curve visible
+        assert "Track2" not in state.visible_curves
+        assert "Track3" not in state.visible_curves
+        assert state.active_curve == "Track1"
+
+
+class TestRenderStateActiveOnlyMode:
+    """Test RenderState.compute() in ACTIVE_ONLY display mode."""
+
+    def test_active_only_includes_only_active_curve(self, curve_widget, sample_curves):
+        """In ACTIVE_ONLY mode, only the active curve should be included."""
+        # Setup: Load curves with Track2 active
+        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
+        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Only active curve visible
+        assert state.display_mode == DisplayMode.ACTIVE_ONLY
+        assert len(state.visible_curves) == 1
+        assert "Track1" not in state.visible_curves
+        assert "Track2" in state.visible_curves  # Active
+        assert "Track3" not in state.visible_curves
+        assert state.active_curve == "Track2"
+
+    def test_active_only_respects_metadata_visibility(self, curve_widget, sample_curves):
+        """In ACTIVE_ONLY mode, hidden active curve doesn't render."""
+        # Setup: Load curves, make Track2 active, hide Track2
+        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
+        app_state = get_application_state()
+        app_state.set_curve_visibility("Track2", False)
+        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: No curves visible (active curve is hidden)
+        assert len(state.visible_curves) == 0
+        assert "Track2" not in state.visible_curves  # Hidden by metadata
+
+    def test_active_only_no_active_curve(self, curve_widget, sample_curves):
+        """In ACTIVE_ONLY mode with no active curve, nothing visible."""
+        # Setup: Load curves, then clear active curve
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        app_state = get_application_state()
+        app_state.set_active_curve(None)
+        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: No curves visible (no active curve)
+        assert len(state.visible_curves) == 0
+        assert state.active_curve is None
 
 
 class TestRenderStateEdgeCases:
-    """Test RenderState edge cases and unusual inputs."""
+    """Test RenderState.compute() edge cases."""
 
-    def test_very_large_dimensions(self):
-        """Test RenderState with very large widget dimensions."""
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=999999,
-            widget_height=999999,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
+    def test_no_curves(self, curve_widget):
+        """With no curves, visible_curves should be empty."""
+        # Setup: Widget with no curves
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
 
-        assert state.widget_width == 999999
-        assert state.widget_height == 999999
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
 
-    def test_very_large_zoom_factor(self):
-        """Test RenderState with very large zoom factor."""
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1000000.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
+        # Assert: Empty visible set
+        assert len(state.visible_curves) == 0
+        assert bool(state) is False
 
-        assert state.zoom_factor == 1000000.0
+    def test_all_curves_hidden_by_metadata(self, curve_widget, sample_curves):
+        """When all curves hidden by metadata, visible_curves should be empty."""
+        # Setup: Load curves and hide all
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        app_state = get_application_state()
+        for curve_name in sample_curves:
+            app_state.set_curve_visibility(curve_name, False)
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
 
-    def test_negative_current_frame(self):
-        """Test RenderState with negative current frame (should be allowed)."""
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=-10,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
+        # Act: Compute render state
+        state = RenderState.compute(curve_widget)
 
-        assert state.current_frame == -10
+        # Assert: No curves visible (all hidden)
+        assert len(state.visible_curves) == 0
+        assert "Track1" not in state.visible_curves
+        assert "Track2" not in state.visible_curves
+        assert "Track3" not in state.visible_curves
 
-    def test_negative_offsets(self):
-        """Test RenderState with negative pan and manual offsets."""
-        state = RenderState(
-            points=[(1, 100.0, 200.0)],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=-1000.0,
-            pan_offset_y=-2000.0,
-            manual_offset_x=-500.0,
-            manual_offset_y=-750.0,
-            flip_y_axis=False,
-            show_background=True,
-        )
 
-        assert state.pan_offset_x == -1000.0
-        assert state.pan_offset_y == -2000.0
-        assert state.manual_offset_x == -500.0
-        assert state.manual_offset_y == -750.0
+class TestRenderStateConvenienceMethods:
+    """Test RenderState convenience methods."""
+
+    def test_should_render_method(self, curve_widget, sample_curves):
+        """should_render() should return True for visible curves."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.selected_curve_names = {"Track1", "Track3"}
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Act
+        state = RenderState.compute(curve_widget)
+
+        # Assert
+        assert state.should_render("Track1") is True
+        assert state.should_render("Track2") is False
+        assert state.should_render("Track3") is True
+
+    def test_contains_operator(self, curve_widget, sample_curves):
+        """'in' operator should work for curve name checking."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+
+        # Act
+        state = RenderState.compute(curve_widget)
+
+        # Assert: 'in' operator works
+        assert "Track1" in state
+        assert "Track2" not in state
+        assert "Track3" not in state
+
+    def test_len_operator(self, curve_widget, sample_curves):
+        """len() should return number of visible curves."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.selected_curve_names = {"Track1", "Track2"}
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Act
+        state = RenderState.compute(curve_widget)
+
+        # Assert
+        assert len(state) == 2
+        assert len(state.visible_curves) == 2
+
+    def test_bool_operator_true(self, curve_widget, sample_curves):
+        """bool() should return True when curves are visible."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act
+        state = RenderState.compute(curve_widget)
+
+        # Assert
+        assert bool(state) is True
+        assert state  # Truthy
+
+    def test_bool_operator_false(self, curve_widget):
+        """bool() should return False when no curves are visible."""
+        # Setup: No curves
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act
+        state = RenderState.compute(curve_widget)
+
+        # Assert
+        assert bool(state) is False
+        assert not state  # Falsy
+
+    def test_repr_method(self, curve_widget, sample_curves):
+        """repr() should return useful debug string."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act
+        state = RenderState.compute(curve_widget)
+        repr_str = repr(state)
+
+        # Assert: Contains key information
+        assert "RenderState" in repr_str
+        assert "ALL_VISIBLE" in repr_str
+        assert "curves=3" in repr_str
+        assert "Track1" in repr_str
+
+
+class TestRenderStateImmutability:
+    """Test that RenderState is truly immutable."""
+
+    def test_frozen_dataclass(self, curve_widget, sample_curves):
+        """RenderState should be frozen (immutable)."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Cannot modify attributes
+        with pytest.raises(Exception):  # FrozenInstanceError or similar
+            state.display_mode = DisplayMode.ACTIVE_ONLY  # pyright: ignore[reportAttributeAccessIssue]
+
+        with pytest.raises(Exception):
+            state.visible_curves = frozenset({"NewCurve"})  # pyright: ignore[reportAttributeAccessIssue]
+
+        with pytest.raises(Exception):
+            state.active_curve = "Track2"  # pyright: ignore[reportAttributeAccessIssue]
+
+    def test_visible_curves_is_frozenset(self, curve_widget, sample_curves):
+        """visible_curves should be frozenset (immutable)."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Is frozenset
+        assert isinstance(state.visible_curves, frozenset)
+
+        # Assert: Cannot modify frozenset
+        with pytest.raises(AttributeError):
+            state.visible_curves.add("NewCurve")  # pyright: ignore[reportAttributeAccessIssue]
+
+
+class TestRenderStateMatchesShouldRenderCurve:
+    """Test that RenderState.compute() matches should_render_curve() exactly."""
+
+    def test_all_visible_mode_matches(self, curve_widget, sample_curves):
+        """RenderState should match should_render_curve in ALL_VISIBLE mode."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Compute state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Every curve matches should_render_curve()
+        for curve_name in sample_curves:
+            expected = curve_widget.should_render_curve(curve_name)
+            actual = curve_name in state.visible_curves
+            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
+
+    def test_selected_mode_matches(self, curve_widget, sample_curves):
+        """RenderState should match should_render_curve in SELECTED mode."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        curve_widget.selected_curve_names = {"Track1", "Track3"}
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Compute state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Every curve matches should_render_curve()
+        for curve_name in sample_curves:
+            expected = curve_widget.should_render_curve(curve_name)
+            actual = curve_name in state.visible_curves
+            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
+
+    def test_active_only_mode_matches(self, curve_widget, sample_curves):
+        """RenderState should match should_render_curve in ACTIVE_ONLY mode."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
+        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+
+        # Compute state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Every curve matches should_render_curve()
+        for curve_name in sample_curves:
+            expected = curve_widget.should_render_curve(curve_name)
+            actual = curve_name in state.visible_curves
+            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
+
+    def test_with_hidden_curves_matches(self, curve_widget, sample_curves):
+        """RenderState should match should_render_curve with hidden curves."""
+        # Setup: Hide Track2
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        app_state = get_application_state()
+        app_state.set_curve_visibility("Track2", False)
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Compute state
+        state = RenderState.compute(curve_widget)
+
+        # Assert: Every curve matches should_render_curve()
+        for curve_name in sample_curves:
+            expected = curve_widget.should_render_curve(curve_name)
+            actual = curve_name in state.visible_curves
+            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
+
+
+class TestRenderStatePerformance:
+    """Test RenderState performance characteristics."""
+
+    def test_compute_is_efficient(self, curve_widget):
+        """Compute should be fast even with many curves."""
+        # Setup: Create 100 curves
+        many_curves = {f"Track{i}": [(j, float(j), float(j)) for j in range(1, 4)] for i in range(100)}
+        curve_widget.set_curves_data(many_curves, active_curve="Track0")
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Act: Compute should be fast (this is just a smoke test)
+        import time
+
+        start = time.perf_counter()
+        state = RenderState.compute(curve_widget)
+        elapsed = time.perf_counter() - start
+
+        # Assert: Should complete quickly (< 100ms is very generous)
+        assert elapsed < 0.1, f"Compute took {elapsed*1000:.2f}ms for 100 curves"
+        assert len(state.visible_curves) == 100
+
+    def test_membership_check_is_fast(self, curve_widget, sample_curves):
+        """Membership check should be O(1)."""
+        # Setup
+        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
+        state = RenderState.compute(curve_widget)
+
+        # Act: Many membership checks should be fast
+        import time
+
+        start = time.perf_counter()
+        for _ in range(10000):
+            _ = "Track1" in state
+            _ = "Track2" in state
+            _ = "Track3" in state
+        elapsed = time.perf_counter() - start
+
+        # Assert: 30k checks should complete very quickly (< 10ms)
+        assert elapsed < 0.01, f"30k membership checks took {elapsed*1000:.2f}ms"

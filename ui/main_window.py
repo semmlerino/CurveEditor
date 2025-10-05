@@ -52,6 +52,7 @@ from PySide6.QtWidgets import (
 )
 
 # Configure logger for this module
+from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
@@ -923,10 +924,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Handle point renaming (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_point_renamed(old_name, new_name)
 
-    def on_show_all_curves_toggled(self, show_all: bool) -> None:
-        """Handle toggling of show all curves option."""
-        if self.curve_widget:
-            self.curve_widget.toggle_show_all_curves(show_all)
+    def on_display_mode_changed(self, mode: DisplayMode) -> None:
+        """
+        Handle display mode change for curve rendering.
+
+        Args:
+            mode: DisplayMode enum value (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
+        """
+        if not self.curve_widget:
+            return
+
+        # Update widget display mode
+        self.curve_widget.display_mode = mode
+
+        # Trigger widget repaint
+        self.curve_widget.update()
+        logger.debug(f"Display mode changed to: {mode}")
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel (delegated to MultiPointTrackingController)."""

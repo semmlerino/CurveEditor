@@ -365,7 +365,7 @@ class TestImageBrowserStatePersistence:
         try:
             parent = dialog_with_state.parent()
             if parent:
-                state_manager = parent.state_manager  # type: ignore[attr-defined]
+                state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue]
                 # Should have called get_value for geometry, splitter, sort
                 assert state_manager.get_value.called
         except RuntimeError:
@@ -377,7 +377,7 @@ class TestImageBrowserStatePersistence:
         # Get state manager from parent
         parent = dialog_with_state.parent()
         if parent and hasattr(parent, "state_manager"):
-            state_manager = parent.state_manager  # type: ignore[attr-defined]
+            state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue]
             # Reset mock to check calls
             state_manager.set_value.reset_mock()
 

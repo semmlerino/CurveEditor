@@ -9,6 +9,9 @@ These components provide the architectural foundation that enables
 clean separation of concerns and testable code.
 """
 
+# Display Mode Enum
+from .display_mode import DisplayMode
+
 # Path Security Module
 from .path_security import (
     PathSecurityError,
@@ -17,6 +20,8 @@ from .path_security import (
 )
 
 __all__ = [
+    # Display Mode
+    "DisplayMode",
     # Path Security
     "PathSecurityError",
     "validate_file_path",

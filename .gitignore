@@ -5,8 +5,9 @@ __pycache__/
 .gitignore
 CurveEditor.concat
 
-# Virtual environment
+# Virtual environments
 venv/
+.venv/
 
 # Ignore obsolete and archive directories that contain historical/outdated code
 archive_legacy/
@@ -31,6 +32,9 @@ test_images_output/
 crash_debug*.log
 diagnose_*.py
 FIX_*.sh
+.coverage
+htmlcov/
+RENDER_STATE_DEMO.py
 
 # Session data (user-specific, should not be committed)
 session/

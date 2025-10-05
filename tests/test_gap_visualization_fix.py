@@ -14,6 +14,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 
 # CurveEditor specific imports
+from core.display_mode import DisplayMode
 from core.type_aliases import PointTuple4Str
 from ui.curve_view_widget import CurveViewWidget
 
@@ -204,9 +205,11 @@ class TestGapVisualizationBehavior:
             "Track2": [(2, 50.0, 60.0, "normal")],
         }
 
+        from core.display_mode import DisplayMode
+
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
-        curve_widget.show_all_curves = True
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
 
         # Live store has status change for Track1
         live_data_with_gap = [(1, 10.0, 20.0, "keyframe"), (5, 30.0, 40.0, "endframe")]  # Changed to endframe
@@ -269,7 +272,7 @@ class TestOriginalBugReproduction:
 
         # Set curves via set_curves_data method with active curve and selected curves
         curve_widget.set_curves_data(multi_curve_data, active_curve="Track1", selected_curves=["Track1"])
-        curve_widget.show_all_curves = False  # Only show selected curves
+        curve_widget.display_mode = DisplayMode.SELECTED  # Only show selected curves
 
         # Step 2: Simulate user setting point to endframe (superior implementation works)
         # This updates the curve store but NOT the static curves_data

@@ -241,7 +241,7 @@ class TestMouseMoveEvents:
             pan_called = True
             original_pan(dx, dy)
 
-        view.pan = track_pan  # type: ignore
+        view.pan = track_pan  # pyright: ignore[reportAttributeAccessIssue]
 
         event = Mock(spec=QMouseEvent)
         event.position.return_value = QPointF(150.0, 150.0)
@@ -364,7 +364,6 @@ class TestWheelEvents:
     def test_wheel_event_zooms_in(self) -> None:
         """Test positive wheel delta zooms in."""
         view = MockCurveView([])
-        initial_zoom = view.zoom_factor
 
         # Track zoom method calls
         zoom_called = False
@@ -375,7 +374,7 @@ class TestWheelEvents:
             zoom_called = True
             zoom_factor_arg = factor
 
-        view.zoom = track_zoom  # type: ignore
+        view.zoom = track_zoom  # pyright: ignore[reportAttributeAccessIssue]
 
         event = Mock(spec=QWheelEvent)
         event.angleDelta.return_value = Mock(y=lambda: 120)  # Positive delta
@@ -399,7 +398,7 @@ class TestWheelEvents:
             zoom_called = True
             zoom_factor_arg = factor
 
-        view.zoom = track_zoom  # type: ignore
+        view.zoom = track_zoom  # pyright: ignore[reportAttributeAccessIssue]
 
         event = Mock(spec=QWheelEvent)
         event.angleDelta.return_value = Mock(y=lambda: -120)  # Negative delta

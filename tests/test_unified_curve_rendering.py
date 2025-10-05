@@ -15,6 +15,7 @@ from unittest.mock import MagicMock, Mock, patch
 import pytest
 from PySide6.QtGui import QColor
 
+from core.display_mode import DisplayMode
 from core.models import PointStatus
 from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
@@ -61,8 +62,10 @@ class TestUnifiedCurveRendering:
             "curve2": {"visible": True, "color": "#00FF00"},  # Green
         }
 
+        from core.display_mode import DisplayMode
+
         mock_view.active_curve_name = "curve1"
-        mock_view.show_all_curves = False
+        mock_view.display_mode = DisplayMode.SELECTED
         mock_view.selected_curve_names = {"curve1", "curve2"}
 
         # Mock transform
@@ -197,8 +200,9 @@ class TestUnifiedCurveRendering:
                 "curve2": {"visible": True, "color": "#00FF00"},  # Green
             },
             active_curve_name="curve1",
-            show_all_curves=False,
+            display_mode=DisplayMode.SELECTED,
             selected_curve_names={"curve1", "curve2"},
+            visible_curves=frozenset({"curve1", "curve2"}),  # Both curves visible
         )
 
         # Mock all Qt drawing methods to avoid threading issues
@@ -387,8 +391,9 @@ class TestUnifiedCurveRendering:
                 "curve2": {"visible": True, "color": "#00FF00"},  # Green
             },
             active_curve_name="curve1",
-            show_all_curves=False,
+            display_mode=DisplayMode.SELECTED,
             selected_curve_names={"curve1", "curve2"},
+            visible_curves=frozenset({"curve1", "curve2"}),  # Both curves visible
         )
 
         # Mock the unified rendering method to verify it's called
@@ -787,8 +792,9 @@ class TestGapRenderingConsistency:
                 "curve2": {"visible": True, "color": "#00FF00"},
             },
             active_curve_name="curve1",
-            show_all_curves=True,
+            display_mode=DisplayMode.ALL_VISIBLE,
             selected_curve_names={"curve1", "curve2"},
+            visible_curves=frozenset({"curve1", "curve2"}),  # Both curves visible
         )
 
         # Mock the unified line rendering method
@@ -911,8 +917,9 @@ class TestGapRenderingConsistency:
             curves_data={"test_curve": segmented_curve_data},
             curve_metadata={"test_curve": {"visible": True, "color": "#FFFFFF"}},
             active_curve_name="test_curve",
-            show_all_curves=True,
+            display_mode=DisplayMode.ALL_VISIBLE,
             selected_curve_names={"test_curve"},
+            visible_curves=frozenset({"test_curve"}),  # Curve visible
         )
 
         # Test single curve rendering behavior

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
+from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataList
@@ -878,25 +879,39 @@ class MultiPointTrackingController:
 
     # ==================== Multi-Curve Display Methods (Phase 6) ====================
 
-    def toggle_show_all_curves(self, show_all: bool) -> None:
+    def set_display_mode(self, mode: DisplayMode) -> None:
         """
-        Toggle whether to show all curves or just the active one.
+        Set the display mode for curve rendering.
 
         Args:
-            show_all: If True, show all visible curves; if False, show only active curve
+            mode: DisplayMode enum value (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
         """
         if not self.main_window.curve_widget:
             return
 
-        self.main_window.curve_widget.show_all_curves = show_all
-        self.main_window.curve_widget.update()
-        logger.debug(f"Show all curves: {show_all}")
+        widget = self.main_window.curve_widget
+
+        # Set the display mode on the widget
+        widget.display_mode = mode
+
+        # Handle mode-specific logic
+        if mode == DisplayMode.SELECTED:
+            # If no curves selected, auto-select the active curve
+            if not widget.selected_curve_names and widget.active_curve_name:
+                widget.selected_curve_names = {widget.active_curve_name}
+        elif mode == DisplayMode.ACTIVE_ONLY:
+            # Clear selection in ACTIVE_ONLY mode
+            widget.selected_curve_names = set()
+
+        # Trigger widget update
+        widget.update()
+        logger.debug(f"Display mode set to: {mode}")
 
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
         Set which curves are currently selected for display.
 
-        When show_all_curves is False, only these selected curves will be displayed.
+        In SELECTED display mode, only these selected curves will be displayed.
         The last curve in the list becomes the active curve for editing.
 
         Args:

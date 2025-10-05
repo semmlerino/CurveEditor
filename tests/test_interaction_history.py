@@ -52,8 +52,8 @@ class TestHistoryOperations:
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        main_window.point_name = "test_point"  # type: ignore
-        main_window.point_color = "red"  # type: ignore
+        main_window.point_name = "test_point"  # pyright: ignore[reportAttributeAccessIssue]
+        main_window.point_color = "red"  # pyright: ignore[reportAttributeAccessIssue]
         # Force use of internal history
         main_window.history = None
         main_window.history_index = None

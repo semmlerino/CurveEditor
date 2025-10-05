@@ -67,9 +67,11 @@ class TestCrossCurveCtrlClick:
         """
         app_state = get_application_state()
 
+        from core.display_mode import DisplayMode
+
         # Verify initial state
         assert app_state.active_curve == "curve_a"
-        assert curve_widget.show_all_curves is False
+        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
 
         # Get screen position of first point on curve_a
         point_a = app_state.get_curve_data("curve_a")[0]
@@ -110,8 +112,8 @@ class TestCrossCurveCtrlClick:
         # Verify active curve switched to curve_b (last selected)
         assert app_state.active_curve == "curve_b"
 
-        # Verify show_all_curves is still False
-        assert curve_widget.show_all_curves is False
+        # Verify display mode is still not ALL_VISIBLE
+        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
 
         # Both curves should be visible according to rendering logic
         # (renderer shows curves in selected_curve_names when show_all_curves is False)

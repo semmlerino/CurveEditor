@@ -292,7 +292,7 @@ class TestIndexBuilding:
             (3, 300.0, 250.0),  # Valid point
         ]
         # Add an intentionally malformed point by casting
-        malformed_data = cast(Sequence[LegacyPointData], [curve_data[0], (2, 200.0), curve_data[1]])  # type: ignore[list-item]
+        malformed_data = cast(Sequence[LegacyPointData], [curve_data[0], (2, 200.0), curve_data[1]])  # pyright: ignore[reportArgumentType]
         view = MockCurveView(malformed_data)
         transform = MockTransform()
 
@@ -889,9 +889,9 @@ class TestEdgeCases:
 
         # Should handle missing attribute gracefully (getattr returns [])
         # Pass empty list since view doesn't have curve_data attribute
-        index.rebuild_index([], view, _as_transform(transform))  # type: ignore[arg-type]
+        index.rebuild_index([], view, _as_transform(transform))  # pyright: ignore[reportArgumentType]
 
-        result = index.find_point_at_position([], _as_transform(transform), 100.0, 150.0, view)  # type: ignore[arg-type]
+        result = index.find_point_at_position([], _as_transform(transform), 100.0, 150.0, view)  # pyright: ignore[reportArgumentType]
         assert result == -1
 
     def test_transform_coordinate_conversion_errors(self) -> None:
@@ -908,12 +908,12 @@ class TestEdgeCases:
         # Should handle transform errors - they propagate up
         with pytest.raises(ValueError, match="Conversion error"):
             # pyright: ignore[reportArgumentType] - Testing error condition with incomplete mock
-            index.rebuild_index(view.curve_data, _as_curve_view(view), transform)  # type: ignore[arg-type]
+            index.rebuild_index(view.curve_data, _as_curve_view(view), transform)
 
         # Try point lookup - should also fail with same error
         with pytest.raises(ValueError, match="Conversion error"):
             # pyright: ignore[reportArgumentType] - Testing error condition with incomplete mock
-            index.find_point_at_position(view.curve_data, transform, 100.0, 150.0, _as_curve_view(view))  # type: ignore[arg-type]
+            index.find_point_at_position(view.curve_data, transform, 100.0, 150.0, _as_curve_view(view))
 
 
 class TestIntegration:

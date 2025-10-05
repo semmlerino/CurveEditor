@@ -37,7 +37,6 @@ class TestMultiCurveManager:
         assert manager.curves_data == {}
         assert manager.curve_metadata == {}
         assert manager.active_curve_name is None
-        assert not manager.show_all_curves
         assert manager.selected_curve_names == set()
 
     def test_add_curve(self, manager, widget):
@@ -142,16 +141,6 @@ class TestMultiCurveManager:
         manager.update_curve_color("test_curve", "#FF0000")
 
         assert manager.curve_metadata["test_curve"]["color"] == "#FF0000"
-
-    def test_toggle_show_all_curves(self, manager, widget):
-        """Test toggling show all curves mode."""
-        assert not manager.show_all_curves
-
-        manager.toggle_show_all_curves(True)
-        assert manager.show_all_curves
-
-        manager.toggle_show_all_curves(False)
-        assert not manager.show_all_curves
 
     def test_set_selected_curves(self, manager, widget):
         """Test setting selected curves."""

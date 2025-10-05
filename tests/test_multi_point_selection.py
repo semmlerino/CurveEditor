@@ -12,6 +12,7 @@ import pytest
 from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 
+from core.display_mode import DisplayMode
 from core.type_aliases import CurveDataList, PointTuple4Str
 from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 from ui.curve_view_widget import CurveViewWidget
@@ -146,27 +147,27 @@ class TestCurveViewMultiSelection:
         assert curve_widget.active_curve_name == "Track3"
 
     def test_show_all_curves_vs_selected_curves(self, curve_widget, sample_curves):
-        """Test the difference between show_all_curves and selected curves."""
+        """Test the difference between display modes and selected curves."""
         curve_widget.set_curves_data(sample_curves)
 
-        # With show_all_curves False, only selected curves should render
-        curve_widget.show_all_curves = False
+        # With SELECTED mode, only selected curves should render
+        curve_widget.display_mode = DisplayMode.SELECTED
         curve_widget.set_selected_curves(["Track2"])
 
         assert curve_widget.selected_curve_names == {"Track2"}
-        assert not curve_widget.show_all_curves
+        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
 
-        # Enable show_all_curves
-        curve_widget.toggle_show_all_curves(True)
+        # Enable ALL_VISIBLE mode
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
 
-        assert curve_widget.show_all_curves
+        assert curve_widget.display_mode == DisplayMode.ALL_VISIBLE
         # Selected curves remain the same
         assert curve_widget.selected_curve_names == {"Track2"}
 
-        # Disable show_all_curves again
-        curve_widget.toggle_show_all_curves(False)
+        # Disable ALL_VISIBLE mode
+        curve_widget.display_mode = DisplayMode.SELECTED
 
-        assert not curve_widget.show_all_curves
+        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
         assert curve_widget.selected_curve_names == {"Track2"}
 
 
@@ -279,9 +280,6 @@ class TestMultiPointTrackingController:
         # Call update_curve_display with DEFAULT context (preserves existing selection)
         controller.update_curve_display()
 
-        # Verify toggle_show_all_curves was NOT called
-        assert not mock_main_window.curve_widget.toggle_show_all_curves.called
-
         # Verify set_curves_data was called
         mock_main_window.curve_widget.set_curves_data.assert_called_once()
         call_args = mock_main_window.curve_widget.set_curves_data.call_args
@@ -339,15 +337,133 @@ class TestRenderingWithSelection:
         widget.resize(800, 600)
         return widget
 
+    def test_rendering_respects_selection_mode(self, curve_widget, sample_curves):
+        """
+        BEHAVIOR TEST: Verify which curves ACTUALLY render based on selection state.
+
+        This test verifies BEHAVIOR (which curves render) not just STATE (variable values).
+        This is critical because it catches bugs where state is correct but rendering logic
+        doesn't respect that state.
+
+        Bug Context:
+        - Previous bug: show_all_curves=False with multiple selected curves only rendered one curve
+        - Root cause: Rendering logic only checked show_all_curves, not selected_curve_names
+        - Fix: Renderer now checks both conditions in should_render_curve() method
+
+        Test Strategy:
+        - Set up 3 curves with show_all_curves=False
+        - Select 2 of 3 curves (Track1, Track3)
+        - Verify rendering behavior: Track1=True, Track2=False, Track3=True
+
+        This test would have caught the original bug by verifying actual rendering decisions.
+        """
+        # Setup: Create 3 curves
+        curve_widget.set_curves_data(sample_curves)
+
+        # Configure selection mode: SELECTED mode, multiple curves selected
+        curve_widget.set_selected_curves(["Track1", "Track3"])
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        # Verify state setup is correct
+        assert curve_widget.display_mode == DisplayMode.SELECTED, "display_mode should be SELECTED"
+        assert curve_widget.selected_curve_names == {"Track1", "Track3"}, "Track1 and Track3 should be selected"
+
+        # TEST BEHAVIOR: Call should_render_curve() for each curve
+        # This is the critical test - does the widget actually decide to render the right curves?
+        # This method is used by the renderer to determine which curves to draw
+
+        # Verify rendering behavior
+        assert curve_widget.should_render_curve("Track1"), "Track1 should render (selected)"
+        assert not curve_widget.should_render_curve("Track2"), "Track2 should NOT render (not selected)"
+        assert curve_widget.should_render_curve("Track3"), "Track3 should render (selected)"
+
+        # Additional verification: only selected curves should render
+        curves_that_would_render = [
+            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
+        ]
+        assert curves_that_would_render == ["Track1", "Track3"], "Only Track1 and Track3 should render"
+
+    def test_rendering_show_all_curves_true(self, curve_widget, sample_curves):
+        """
+        BEHAVIOR TEST: Verify all curves render when show_all_curves=True.
+
+        This tests the complementary behavior: when show_all_curves=True,
+        ALL curves should render regardless of selection state.
+
+        Requirement: show_all_curves=True overrides selection - all visible curves render.
+        """
+        # Setup
+        curve_widget.set_curves_data(sample_curves)
+
+        # Configure: ALL_VISIBLE mode, but only Track2 selected
+        curve_widget.set_selected_curves(["Track2"])
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # Verify state
+        assert curve_widget.display_mode == DisplayMode.ALL_VISIBLE, "display_mode should be ALL_VISIBLE"
+        assert curve_widget.selected_curve_names == {"Track2"}, "Only Track2 selected"
+
+        # TEST BEHAVIOR: All curves should render when display_mode=ALL_VISIBLE
+        assert curve_widget.should_render_curve("Track1"), "Track1 should render (ALL_VISIBLE mode)"
+        assert curve_widget.should_render_curve("Track2"), "Track2 should render (ALL_VISIBLE mode)"
+        assert curve_widget.should_render_curve("Track3"), "Track3 should render (ALL_VISIBLE mode)"
+
+        # Additional verification: ALL curves should render
+        curves_that_would_render = [
+            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
+        ]
+        assert len(curves_that_would_render) == 3, "All 3 curves should render"
+        assert set(curves_that_would_render) == {"Track1", "Track2", "Track3"}
+
+    def test_rendering_respects_visibility_metadata(self, curve_widget, sample_curves):
+        """
+        BEHAVIOR TEST: Verify invisible curves don't render even if selected.
+
+        This tests metadata override: visible=False in metadata should prevent
+        rendering even when curve is selected or show_all_curves=True.
+
+        Requirement: Metadata visibility takes precedence over selection state.
+        """
+        # Setup with visibility metadata
+        metadata = {
+            "Track1": {"visible": True, "color": "#FF0000"},
+            "Track2": {"visible": False, "color": "#00FF00"},  # Invisible
+            "Track3": {"visible": True, "color": "#0000FF"},
+        }
+        curve_widget.set_curves_data(sample_curves, metadata=metadata)
+
+        # Configure: ALL_VISIBLE mode (should render all visible curves)
+        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+
+        # TEST BEHAVIOR: Invisible curves should not render
+        assert curve_widget.should_render_curve("Track1"), "Track1 should render (visible + ALL_VISIBLE)"
+        assert not curve_widget.should_render_curve("Track2"), "Track2 should NOT render (invisible in metadata)"
+        assert curve_widget.should_render_curve("Track3"), "Track3 should render (visible + ALL_VISIBLE)"
+
+        # Additional verification: Only visible curves should render
+        curves_that_would_render = [
+            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
+        ]
+        assert len(curves_that_would_render) == 2, "Only 2 visible curves should render"
+        assert set(curves_that_would_render) == {"Track1", "Track3"}
+
+        # Test with selection too - invisible curve should not render even if selected
+        curve_widget.set_selected_curves(["Track2"])  # Select invisible curve
+        curve_widget.display_mode = DisplayMode.SELECTED
+
+        assert not curve_widget.should_render_curve(
+            "Track2"
+        ), "Track2 should NOT render even when selected (invisible in metadata)"
+
     def test_renderer_checks_selected_curves(self, curve_widget, sample_curves):
         """Test that the renderer checks selected_curve_names."""
 
         # Set up curves with selection
         curve_widget.set_curves_data(sample_curves)
-        curve_widget.show_all_curves = False
         curve_widget.set_selected_curves(["Track2"])
+        curve_widget.display_mode = DisplayMode.SELECTED
 
-        # The renderer should check both show_all_curves and selected_curve_names
+        # The renderer should check both display_mode and selected_curve_names
         renderer = curve_widget._optimized_renderer
 
         # Mock the rendering to check what would be rendered
@@ -362,16 +478,16 @@ class TestRenderingWithSelection:
             # but the logic path is what we're testing
 
     def test_selection_without_show_all_curves(self, curve_widget, sample_curves):
-        """Test that selection works when show_all_curves is False."""
+        """Test that selection works in SELECTED display mode."""
         # Setup
         curve_widget.set_curves_data(sample_curves)
-        curve_widget.show_all_curves = False
 
-        # Select multiple curves
+        # Select multiple curves (this sets SELECTED mode)
         curve_widget.set_selected_curves(["Track1", "Track3"])
+        curve_widget.display_mode = DisplayMode.SELECTED
 
         # Verify state
-        assert not curve_widget.show_all_curves
+        assert curve_widget.display_mode == DisplayMode.SELECTED
         assert curve_widget.selected_curve_names == {"Track1", "Track3"}
         assert curve_widget.active_curve_name == "Track3"
 
@@ -449,13 +565,8 @@ def test_selection_bug_fix_tdd():
     }
     main_window.active_timeline_point = "Track1"
 
-    # The bug: update_curve_display was calling toggle_show_all_curves(True)
-    # This test ensures it doesn't
+    # Test that update_curve_display doesn't force any specific display mode
     controller.update_curve_display()
-
-    # This should NOT have been called (this was the bug)
-    if hasattr(curve_widget, "toggle_show_all_curves"):
-        curve_widget.toggle_show_all_curves.assert_not_called()
 
     # With DEFAULT context: selected_curves NOT passed to preserve existing selection
     # This supports Ctrl+click multi-curve selection

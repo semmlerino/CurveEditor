@@ -427,7 +427,7 @@ class UIInitializationController:
         _ = self.main_window.tracking_panel.tracking_direction_changed.connect(
             self.main_window.tracking_controller.on_tracking_direction_changed
         )
-        _ = self.main_window.tracking_panel.show_all_curves_toggled.connect(self.main_window.on_show_all_curves_toggled)
+        _ = self.main_window.tracking_panel.display_mode_changed.connect(self.main_window.on_display_mode_changed)
 
         logger.info("Tracking points panel dock widget initialized")
 

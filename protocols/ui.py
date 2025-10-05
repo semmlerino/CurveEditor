@@ -255,6 +255,143 @@ class CurveViewProtocol(Protocol):
         ...
 
 
+class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
+    """
+    Protocol for widgets that display and manipulate multiple curves.
+
+    This protocol extends CurveViewProtocol with multi-curve specific
+    attributes and methods added in Phase 8.
+
+    Key Features:
+    - Multiple curve display and selection
+    - Active curve management
+    - Per-curve visibility control
+    - Curve metadata management
+
+    Example Usage:
+        view: MultiCurveViewProtocol = CurveViewWidget()
+
+        # Set multiple curves
+        curves = {
+            "pp56_TM_138G": [(1, 10.0, 20.0), (2, 15.0, 25.0)],
+            "pp53_TM_134G": [(1, 30.0, 40.0), (2, 35.0, 45.0)],
+        }
+        view.set_curves_data(curves)
+
+        # Set active curve for editing
+        view.set_active_curve("pp56_TM_138G")
+
+        # Set display mode
+        view.widget.display_mode = DisplayMode.ALL_VISIBLE
+    """
+
+    # Multi-curve state
+    active_curve_name: str | None
+    """Name of the currently active curve for editing."""
+
+    curves_data: dict[str, CurveDataList]
+    """Dictionary mapping curve names to their data."""
+
+    selected_curve_names: set[str]
+    """Set of selected curve names (for multi-curve selection)."""
+
+    selected_curves_ordered: list[str]
+    """Ordered list of selected curves (preserves selection order)."""
+
+    # Multi-curve methods
+    def set_curves_data(
+        self,
+        curves: dict[str, CurveDataList],
+        metadata: dict[str, dict[str, object]] | None = None,
+        active_curve: str | None = None,
+        selected_curves: list[str] | None = None,
+    ) -> None:
+        """
+        Set multiple curves with optional metadata.
+
+        Args:
+            curves: Dictionary mapping curve names to curve data
+            metadata: Optional per-curve metadata (visibility, color, etc.)
+            active_curve: Optional active curve name to set
+            selected_curves: Optional list of selected curve names
+        """
+        ...
+
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, object] | None = None) -> None:
+        """
+        Add a single curve to the view.
+
+        Args:
+            name: Unique curve identifier
+            data: Curve data points
+            metadata: Optional curve metadata
+        """
+        ...
+
+    def remove_curve(self, name: str) -> None:
+        """
+        Remove a curve from the view.
+
+        Args:
+            name: Curve name to remove
+        """
+        ...
+
+    def set_active_curve(self, name: str) -> None:
+        """
+        Set the active curve for editing.
+
+        Args:
+            name: Curve name to activate
+        """
+        ...
+
+    def set_selected_curves(self, curve_names: list[str]) -> None:
+        """
+        Set the selected curves.
+
+        Args:
+            curve_names: List of curve names to select
+        """
+        ...
+
+    def update_curve_visibility(self, curve_name: str, visible: bool) -> None:
+        """
+        Update visibility of a specific curve.
+
+        Args:
+            curve_name: Curve to update
+            visible: True to show, False to hide
+        """
+        ...
+
+    def update_curve_color(self, curve_name: str, color: tuple[int, int, int]) -> None:
+        """
+        Update color of a specific curve.
+
+        Args:
+            curve_name: Curve to update
+            color: RGB color tuple (0-255)
+        """
+        ...
+
+    def get_curve_metadata(self, curve_name: str) -> dict[str, object]:
+        """
+        Get metadata for a specific curve.
+
+        Args:
+            curve_name: Curve name
+
+        Returns:
+            Dictionary of metadata (visibility, color, etc.)
+        """
+        ...
+
+    def center_on_selected_curves(self) -> None:
+        """Center the view on all selected curves."""
+        ...
+
+
 class MainWindowProtocol(Protocol):
     """Protocol for main window widgets.
 

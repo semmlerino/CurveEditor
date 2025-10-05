@@ -178,8 +178,22 @@ def _cleanup_main_window_event_filter(window):
     CRITICAL: Prevents event filter accumulation causing timeout after 1580+ tests.
     This callback is executed by qtbot.addWidget(before_close_func=...) before
     the window is destroyed, ensuring deterministic cleanup without relying on __del__.
+
+    CRITICAL: Also stops background worker threads to prevent segfault during
+    app.processEvents() in reset_all_services fixture (after gc.collect()).
+    Daemon threads + processEvents during destruction = SEGFAULT.
     """
     try:
+        # STEP 1: Stop background threads FIRST (before any processEvents)
+        # This prevents segfault when reset_all_services calls app.processEvents()
+        # after gc.collect() triggers __del__ with threads still running
+        if hasattr(window, "file_operations"):
+            try:
+                window.file_operations.cleanup_threads()
+            except (RuntimeError, AttributeError):
+                pass  # Already stopped or not initialized
+
+        # STEP 2: Remove event filters (original cleanup)
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()
@@ -189,7 +203,7 @@ def _cleanup_main_window_event_filter(window):
             except RuntimeError:
                 pass  # App or filter already deleted
     except Exception:
-        pass  # Suppress all exceptions in cleanup
+        pass  # Suppress all exceptions in cleanup  # Suppress all exceptions in cleanup
 
 
 @pytest.fixture
