@@ -10,7 +10,7 @@ of which widget has focus.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtGui import QKeyEvent
@@ -44,6 +44,7 @@ class GlobalEventFilter(QObject):
         self.registry = registry
         logger.info("GlobalEventFilter initialized")
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Filter events for the application.
 

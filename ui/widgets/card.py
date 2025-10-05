@@ -75,7 +75,7 @@ class Card(QWidget):
                 self._collapse_button = QToolButton()
                 self._collapse_button.setText("▼" if not collapsed else "▶")
                 self._collapse_button.setFixedSize(20, 20)
-                self._collapse_button.clicked.connect(self._toggle_collapsed)
+                _ = self._collapse_button.clicked.connect(self._toggle_collapsed)
                 self._collapse_button.setStyleSheet(
                     """
                     QToolButton {

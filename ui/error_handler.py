@@ -137,7 +137,7 @@ class ErrorDialog(QDialog):
             # Details button
             self.details_button: QPushButton = QPushButton("Show Details ▼")
             self.details_button.setCheckable(True)
-            self.details_button.clicked.connect(self._toggle_details)
+            _ = self.details_button.clicked.connect(self._toggle_details)
             layout.addWidget(self.details_button)
 
             # Details text area
@@ -168,15 +168,15 @@ class ErrorDialog(QDialog):
         # Add buttons based on options
         if self.error_info.can_retry:
             retry_button = self.button_box.addButton("Retry", QDialogButtonBox.ButtonRole.ActionRole)
-            retry_button.clicked.connect(self._on_retry)
+            _ = retry_button.clicked.connect(self._on_retry)
 
         if self.error_info.can_ignore:
             ignore_button = self.button_box.addButton("Ignore", QDialogButtonBox.ButtonRole.ActionRole)
-            ignore_button.clicked.connect(self._on_ignore)
+            _ = ignore_button.clicked.connect(self._on_ignore)
 
         # Always add OK button
         ok_button = self.button_box.addButton(QDialogButtonBox.StandardButton.Ok)
-        ok_button.clicked.connect(self.accept)
+        _ = ok_button.clicked.connect(self.accept)
         ok_button.setDefault(True)
 
         layout.addWidget(self.button_box)
@@ -346,10 +346,10 @@ class ErrorHandler(QObject):
             nonlocal retry_requested
             retry_requested = True
 
-        dialog.retry_requested.connect(on_retry)
+        _ = dialog.retry_requested.connect(on_retry)
 
         # Show dialog
-        dialog.exec()
+        _ = dialog.exec()
 
         return retry_requested
 
@@ -360,20 +360,20 @@ class ErrorHandler(QObject):
         )
 
         self._log_error(error_info)
-        self.show_error_dialog(error_info, parent)
+        _ = self.show_error_dialog(error_info, parent)
 
     def show_warning(self, message: str, title: str = "Warning", parent: QWidget | None = None) -> None:
         """Show a warning message."""
         error_info = ErrorInfo(title=title, message=message, severity=ErrorSeverity.WARNING, show_details=False)
 
         self._log_error(error_info)
-        QMessageBox.warning(parent, title, message)
+        _ = QMessageBox.warning(parent, title, message)
 
     def show_info(self, message: str, title: str = "Information", parent: QWidget | None = None) -> None:
         """Show an information message."""
-        ErrorInfo(title=title, message=message, severity=ErrorSeverity.INFO, show_details=False)
+        _ = ErrorInfo(title=title, message=message, severity=ErrorSeverity.INFO, show_details=False)
 
-        QMessageBox.information(parent, title, message)
+        _ = QMessageBox.information(parent, title, message)
 
     def _categorize_exception(self, exception: Exception) -> ErrorCategory:
         """Categorize an exception for better handling."""

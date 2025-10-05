@@ -7,6 +7,8 @@ with color coding to indicate tracking point status at each frame.
 Supports horizontal scrolling for many frames with performance optimizations.
 """
 
+from typing import override
+
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
 from PySide6.QtWidgets import (
@@ -50,6 +52,7 @@ class TimelineScrollArea(QScrollArea):
         #     # Fallback for older PySide6 versions
         #     pass
 
+    @override
     def wheelEvent(self, arg__1: QWheelEvent) -> None:
         """Handle mouse wheel for horizontal scrolling."""
         # Convert vertical wheel events to horizontal scrolling
@@ -330,12 +333,12 @@ class TimelineTabWidget(QWidget):
     def _connect_store_signals(self) -> None:
         """Connect to store signals for reactive updates."""
         # Connect to store signals for automatic updates
-        self._curve_store.data_changed.connect(self._on_store_data_changed)
-        self._curve_store.point_added.connect(self._on_store_point_added)
-        self._curve_store.point_updated.connect(self._on_store_point_updated)
-        self._curve_store.point_removed.connect(self._on_store_point_removed)
-        self._curve_store.point_status_changed.connect(self._on_store_status_changed)
-        self._curve_store.selection_changed.connect(self._on_store_selection_changed)
+        _ = self._curve_store.data_changed.connect(self._on_store_data_changed)
+        _ = self._curve_store.point_added.connect(self._on_store_point_added)
+        _ = self._curve_store.point_updated.connect(self._on_store_point_updated)
+        _ = self._curve_store.point_removed.connect(self._on_store_point_removed)
+        _ = self._curve_store.point_status_changed.connect(self._on_store_status_changed)
+        _ = self._curve_store.selection_changed.connect(self._on_store_selection_changed)
 
         logger.info("TimelineTabWidget connected to reactive store signals")
 
@@ -344,7 +347,7 @@ class TimelineTabWidget(QWidget):
         # Guard against operations during widget destruction in teardown only
         try:
             # Only block during actual teardown, not normal operation
-            self.isVisible()  # This will raise RuntimeError if widget is being destroyed
+            _ = self.isVisible()  # This will raise RuntimeError if widget is being destroyed
         except RuntimeError:
             # Widget is being destroyed, ignore the signal
             return
@@ -537,7 +540,7 @@ class TimelineTabWidget(QWidget):
         self.first_btn = QPushButton("⏮")
         self.first_btn.setFixedSize(button_size, button_size)
         self.first_btn.setToolTip("Go to first frame")
-        self.first_btn.clicked.connect(lambda: self.set_current_frame(self.min_frame))
+        _ = self.first_btn.clicked.connect(lambda: self.set_current_frame(self.min_frame))
 
         self.prev_group_btn = QPushButton("⏪")
         self.prev_group_btn.setFixedSize(button_size, button_size)
@@ -552,7 +555,7 @@ class TimelineTabWidget(QWidget):
         self.last_btn = QPushButton("⏭")
         self.last_btn.setFixedSize(button_size, button_size)
         self.last_btn.setToolTip("Go to last frame")
-        self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
+        _ = self.last_btn.clicked.connect(lambda: self.set_current_frame(self.max_frame))
 
         # Active point label - shows which tracking point's timeline is displayed
         self.active_point_label = QLabel("No point")
@@ -954,6 +957,7 @@ class TimelineTabWidget(QWidget):
                     has_selected=has_selected,
                 )
 
+    @override
     def resizeEvent(self, event: QResizeEvent) -> None:
         """Handle widget resize to recalculate tab widths."""
         super().resizeEvent(event)
@@ -970,6 +974,7 @@ class TimelineTabWidget(QWidget):
             total_width = tab_width * len(self.frame_tabs) + 4
             self.tabs_container.setMinimumWidth(total_width)
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard navigation."""
         if event.key() == Qt.Key.Key_Left:
@@ -996,6 +1001,7 @@ class TimelineTabWidget(QWidget):
             # Properly propagate unhandled events up the widget hierarchy
             super().keyPressEvent(event)
 
+    @override
     def mousePressEvent(self, event: QMouseEvent) -> None:
         """Start scrubbing when mouse is pressed."""
         if event.button() == Qt.MouseButton.LeftButton:
@@ -1010,6 +1016,7 @@ class TimelineTabWidget(QWidget):
                 return
         super().mousePressEvent(event)
 
+    @override
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         """Update frame while scrubbing."""
         if self.is_scrubbing:
@@ -1022,6 +1029,7 @@ class TimelineTabWidget(QWidget):
         else:
             super().mouseMoveEvent(event)
 
+    @override
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
         """Stop scrubbing when mouse is released."""
         if event.button() == Qt.MouseButton.LeftButton and self.is_scrubbing:

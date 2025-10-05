@@ -58,8 +58,8 @@ class MultiPointTrackingController:
         self._app_state = get_application_state()
 
         # Connect to ApplicationState signals for reactive updates
-        self._app_state.curves_changed.connect(self._on_curves_changed)
-        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+        _ = self._app_state.curves_changed.connect(self._on_curves_changed)
+        _ = self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
 
         # Recursion protection for signal handlers
         self._handling_signal = False

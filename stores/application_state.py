@@ -36,7 +36,12 @@ Batching Multiple Updates:
     state.set_show_all_curves(False)
     state.set_selected_curves({"Track1", "Track2"})
 
-    # ✅ Good: One signal, one repaint
+    # ✅ Good: One signal, one repaint (context manager - recommended)
+    with state.batch_updates():
+        state.set_show_all_curves(False)
+        state.set_selected_curves({"Track1", "Track2"})
+
+    # ✅ Good: One signal, one repaint (manual - for advanced use)
     state.begin_batch()
     try:
         state.set_show_all_curves(False)
@@ -51,17 +56,18 @@ Batching Multiple Updates:
 from __future__ import annotations
 
 import logging
+from collections.abc import Generator
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal, SignalInstance
 
 from core.display_mode import DisplayMode
-from core.models import CurvePoint
-from core.type_aliases import CurveDataInput, CurveDataList
 
 if TYPE_CHECKING:
-    pass
+    from core.models import CurvePoint
+    from core.type_aliases import CurveDataInput, CurveDataList
 
 logger = logging.getLogger(__name__)
 
@@ -539,9 +545,14 @@ class ApplicationState(QObject):
             curve_names: Set of curve names to select
 
         Raises:
+            TypeError: If curve_names is None
             ValueError: If any curve name is empty or whitespace-only
         """
         self._assert_main_thread()
+
+        if curve_names is None:
+            raise TypeError("curve_names cannot be None (use empty set for no selection)")
+
         new_selection = curve_names.copy()
 
         # Validate non-empty strings (defensive programming)
@@ -578,8 +589,14 @@ class ApplicationState(QObject):
 
         Args:
             show_all: Whether to show all visible curves
+
+        Raises:
+            TypeError: If show_all is None
         """
         self._assert_main_thread()
+
+        if show_all is None:
+            raise TypeError("show_all cannot be None (use True or False)")
 
         if show_all != self._show_all_curves:
             self._show_all_curves = show_all
@@ -688,17 +705,52 @@ class ApplicationState(QObject):
             self._pending_signals.clear()
 
         # Emit signals outside lock to prevent deadlock
-        seen_signals: set[int] = set()
+        # Keep LAST occurrence of each signal (not first) to ensure final state is emitted
+        deduped_signals: dict[int, tuple[SignalInstance, tuple[Any, ...]]] = {}
         for signal, args in signals_to_emit:
             signal_id = id(signal)
-            if signal_id not in seen_signals:
-                signal.emit(*args)
-                seen_signals.add(signal_id)
+            deduped_signals[signal_id] = (signal, args)  # Overwrites with latest args
+
+        for signal, args in deduped_signals.values():
+            signal.emit(*args)
 
         # Always emit state_changed last
         self.state_changed.emit()
 
-        logger.debug(f"Batch mode ended: {len(seen_signals)} unique signals emitted")
+        logger.debug(f"Batch mode ended: {len(deduped_signals)} unique signals emitted")
+
+    @contextmanager
+    def batch_updates(self) -> Generator[ApplicationState, None, None]:
+        """
+        Context manager for batch operations.
+
+        Provides cleaner syntax for batching multiple state updates.
+        Automatically calls begin_batch() on entry and end_batch() on exit,
+        ensuring signals are emitted even if an exception occurs.
+
+        Usage:
+            with state.batch_updates():
+                state.set_selected_curves({"Track1"})
+                state.set_show_all_curves(False)
+            # Signals emitted here automatically
+
+        Yields:
+            self: The ApplicationState instance for fluent API usage
+
+        Example with fluent API:
+            with state.batch_updates() as s:
+                s.set_selected_curves({"Track1", "Track2"})
+                s.set_show_all_curves(False)
+        """
+        self.begin_batch()
+        try:
+            yield self
+        except Exception:
+            # Log error but still end batch to emit accumulated signals
+            logger.exception("Exception during batch update")
+            raise
+        finally:
+            self.end_batch()
 
     def _emit(self, signal: SignalInstance, args: tuple[Any, ...]) -> None:
         """

@@ -202,7 +202,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Check if stylesheet already applied (avoid reapplying in tests)
             if not getattr(app, "_dark_theme_applied", False):
                 # Use Fusion style for better dark theme support
-                app.setStyle("Fusion")
+                _ = app.setStyle("Fusion")
                 # Apply the dark theme stylesheet
                 app.setStyleSheet(get_dark_theme_stylesheet())
                 app._dark_theme_applied = True  # pyright: ignore[reportAttributeAccessIssue]
@@ -1273,6 +1273,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         except Exception:
             pass  # Suppress all exceptions in destructor
 
+    @override
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")

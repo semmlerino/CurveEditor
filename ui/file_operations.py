@@ -336,12 +336,12 @@ class FileOperations(QObject):
 
     def _connect_worker_signals(self) -> None:
         """Connect worker signals to FileOperations signals."""
-        self.file_load_signals.tracking_data_loaded.connect(self.tracking_data_loaded.emit)
-        self.file_load_signals.multi_point_data_loaded.connect(self.multi_point_data_loaded.emit)
-        self.file_load_signals.image_sequence_loaded.connect(self.image_sequence_loaded.emit)
-        self.file_load_signals.progress_updated.connect(self.progress_updated.emit)
-        self.file_load_signals.error_occurred.connect(self.error_occurred.emit)
-        self.file_load_signals.finished.connect(self.finished.emit)
+        _ = self.file_load_signals.tracking_data_loaded.connect(self.tracking_data_loaded.emit)
+        _ = self.file_load_signals.multi_point_data_loaded.connect(self.multi_point_data_loaded.emit)
+        _ = self.file_load_signals.image_sequence_loaded.connect(self.image_sequence_loaded.emit)
+        _ = self.file_load_signals.progress_updated.connect(self.progress_updated.emit)
+        _ = self.file_load_signals.error_occurred.connect(self.error_occurred.emit)
+        _ = self.file_load_signals.finished.connect(self.finished.emit)
 
     def cleanup_threads(self) -> None:
         """Clean up background threads."""
@@ -562,7 +562,7 @@ class FileOperations(QObject):
                 self.state_manager.image_directory = selected_directory
             add_recent_dir = getattr(self.state_manager, "add_recent_directory", None)
             if callable(add_recent_dir):
-                add_recent_dir(selected_directory)
+                _ = add_recent_dir(selected_directory)
 
         # Start background loading of image sequence
         self.file_load_worker.start_work(tracking_file_path=None, image_dir_path=selected_directory)
@@ -582,5 +582,5 @@ class FileOperations(QObject):
         """
         parent = parent_widget or self.parent_widget
         # TODO: Implement data export dialog
-        QMessageBox.information(parent, "Not Implemented", "Data export will be implemented soon.")
+        _ = QMessageBox.information(parent, "Not Implemented", "Data export will be implemented soon.")
         return False

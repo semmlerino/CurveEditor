@@ -7,6 +7,7 @@ show_all_curves boolean with explicit, self-documenting states.
 """
 
 from enum import Enum, auto
+from typing import override
 
 
 class DisplayMode(Enum):
@@ -221,6 +222,7 @@ class DisplayMode(Enum):
         else:  # ACTIVE_ONLY
             return "Display only the currently active curve for editing"
 
+    @override
     def __str__(self) -> str:
         """
         Return human-readable string for logging and debugging.

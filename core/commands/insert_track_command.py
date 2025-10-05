@@ -14,6 +14,8 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -53,6 +55,7 @@ class InsertTrackCommand(Command):
         self.created_curve_name: str | None = None  # For scenario 3
         self.scenario: int = 0  # Which scenario was executed
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute Insert Track operation.
 
@@ -402,6 +405,7 @@ class InsertTrackCommand(Command):
         if hasattr(main_window, "update_timeline_tabs") and main_window.update_timeline_tabs is not None:
             main_window.update_timeline_tabs(curve_data)
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo Insert Track operation.
 
@@ -441,6 +445,7 @@ class InsertTrackCommand(Command):
             logger.error(f"Error undoing Insert Track: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo Insert Track operation.
 

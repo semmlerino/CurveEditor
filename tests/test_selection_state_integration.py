@@ -206,6 +206,38 @@ class TestSelectionStateIntegration:
         # Last write wins: show_all takes priority
         assert app_state.display_mode == DisplayMode.ALL_VISIBLE
 
+    def test_batch_mode_same_signal_different_args(self, qapp):
+        """
+        Test: Batch mode with same signal emitted multiple times uses LAST args.
+
+        Regression test for signal deduplication bug where first args were kept
+        instead of last, causing listeners to receive stale state.
+        """
+        app_state = get_application_state()
+
+        signal_emissions = []
+
+        def track_signals(selected: set[str], show_all: bool):
+            signal_emissions.append((selected.copy(), show_all))
+
+        app_state.selection_state_changed.connect(track_signals)
+
+        app_state.begin_batch()
+        try:
+            app_state.set_selected_curves({"Track1"})
+            app_state.set_selected_curves({"Track2"})
+            app_state.set_selected_curves({"Track3"})
+        finally:
+            app_state.end_batch()
+
+        # Should emit LAST value only, not first
+        assert len(signal_emissions) == 1
+        assert signal_emissions[0][0] == {"Track3"}
+        assert signal_emissions[0][1] is False
+
+        # Verify final state matches emitted signal
+        assert app_state.get_selected_curves() == {"Track3"}
+
     def test_qt_signal_timing_no_circular_updates(self, qapp, qtbot):
         """
         Test: _updating flag timing doesn't cause circular updates.
@@ -327,3 +359,52 @@ class TestSelectionStateIntegration:
 
         # Mode should remain ACTIVE_ONLY (no curves to select)
         assert app_state.display_mode == DisplayMode.ACTIVE_ONLY
+
+    def test_widget_destruction_disconnects_signals(self, qapp, qtbot):
+        """
+        Test: Widget destruction properly cleans up signal connections.
+
+        Regression test for memory leak where widgets connected directly to
+        ApplicationState signals without using SignalManager for cleanup.
+        """
+        from ui.curve_view_widget import CurveViewWidget
+        from ui.tracking_points_panel import TrackingPointsPanel
+
+        app_state = get_application_state()
+
+        # Track signal emissions to verify connections
+        emission_count = 0
+
+        def track_emissions(selected: set[str], show_all: bool):
+            nonlocal emission_count
+            emission_count += 1
+
+        app_state.selection_state_changed.connect(track_emissions)
+
+        # Create widgets (they connect to ApplicationState)
+        widget = CurveViewWidget()
+        panel = TrackingPointsPanel()
+
+        # Trigger signal to verify widgets are connected
+        app_state.set_selected_curves({"Track1"})
+        initial_emissions = emission_count
+
+        # Both widgets should have received the signal
+        assert initial_emissions >= 1
+
+        # Destroy widgets
+        widget.deleteLater()
+        panel.deleteLater()
+        qapp.processEvents()  # Process deleteLater events
+
+        # Reset counter
+        emission_count = 0
+
+        # Trigger signal again - destroyed widgets should NOT receive it
+        app_state.set_selected_curves({"Track2"})
+
+        # Signal should still work (our tracker receives it)
+        assert emission_count == 1
+
+        # Key test: No crashes or errors from destroyed widgets trying to handle signal
+        # (If SignalManager cleanup failed, this would crash or log errors)

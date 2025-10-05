@@ -12,7 +12,7 @@ Provides a unified interface for all coordinate transformations and view state m
 import hashlib
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
@@ -457,6 +457,7 @@ class Transform:
             scale_to_image=view_state.scale_to_image,
         )
 
+    @override
     def __repr__(self) -> str:
         """String representation for debugging."""
         return (

@@ -1,5 +1,7 @@
 """Point list widget for displaying and editing curve points in a table."""
 
+from typing import override
+
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QAction, QKeyEvent
 from PySide6.QtWidgets import (
@@ -60,10 +62,10 @@ class PointListWidget(QWidget):
         self.table.setColumnWidth(4, 80)  # Status
 
         # Connect signals
-        self.table.itemSelectionChanged.connect(self._on_selection_changed)
-        self.table.itemChanged.connect(self._on_item_changed)
+        _ = self.table.itemSelectionChanged.connect(self._on_selection_changed)
+        _ = self.table.itemChanged.connect(self._on_item_changed)
         self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.table.customContextMenuRequested.connect(self._show_context_menu)
+        _ = self.table.customContextMenuRequested.connect(self._show_context_menu)
 
         layout.addWidget(self.table)
 
@@ -213,26 +215,26 @@ class PointListWidget(QWidget):
 
         # Delete action
         delete_action = QAction("Delete", self)
-        delete_action.triggered.connect(lambda: self.point_deleted.emit(selected_rows))
-        menu.addAction(delete_action)
+        _ = delete_action.triggered.connect(lambda: self.point_deleted.emit(selected_rows))
+        _ = menu.addAction(delete_action)
 
         # Status actions
-        menu.addSeparator()
+        _ = menu.addSeparator()
         normal_action = QAction("Set Normal", self)
-        normal_action.triggered.connect(lambda: self._set_status_for_rows(selected_rows, PointStatus.NORMAL))
-        menu.addAction(normal_action)
+        _ = normal_action.triggered.connect(lambda: self._set_status_for_rows(selected_rows, PointStatus.NORMAL))
+        _ = menu.addAction(normal_action)
 
         interpolated_action = QAction("Set Interpolated", self)
-        interpolated_action.triggered.connect(
+        _ = interpolated_action.triggered.connect(
             lambda: self._set_status_for_rows(selected_rows, PointStatus.INTERPOLATED)
         )
-        menu.addAction(interpolated_action)
+        _ = menu.addAction(interpolated_action)
 
         keyframe_action = QAction("Set Keyframe", self)
-        keyframe_action.triggered.connect(lambda: self._set_status_for_rows(selected_rows, PointStatus.KEYFRAME))
-        menu.addAction(keyframe_action)
+        _ = keyframe_action.triggered.connect(lambda: self._set_status_for_rows(selected_rows, PointStatus.KEYFRAME))
+        _ = menu.addAction(keyframe_action)
 
-        menu.exec(self.table.viewport().mapToGlobal(position))
+        _ = menu.exec(self.table.viewport().mapToGlobal(position))
 
     def _set_status_for_rows(self, rows: list[int], status: PointStatus) -> None:
         """Set status for multiple rows."""
@@ -249,6 +251,7 @@ class PointListWidget(QWidget):
             return "Key"
         return "Normal"
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events."""
         if event.key() == Qt.Key.Key_Delete:

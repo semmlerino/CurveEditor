@@ -87,7 +87,7 @@ class CurveDataFacade:
             point: Point tuple (frame, x, y, [status])
         """
         # Delegate to store - it will emit signals that trigger widget updates
-        self._curve_store.add_point(point)
+        _ = self._curve_store.add_point(point)
 
     def update_point(self, index: int, x: float, y: float) -> None:
         """
@@ -99,7 +99,7 @@ class CurveDataFacade:
             y: New Y coordinate
         """
         # Delegate to store - it will emit signals that trigger widget updates
-        self._curve_store.update_point(index, x, y)
+        _ = self._curve_store.update_point(index, x, y)
 
     def remove_point(self, index: int) -> None:
         """
@@ -110,7 +110,7 @@ class CurveDataFacade:
         """
         # Delegate to store - it will emit signals that trigger widget updates
         # Store handles selection updates automatically
-        self._curve_store.remove_point(index)
+        _ = self._curve_store.remove_point(index)
 
     # ==================== Multi-Curve Operations ====================
 

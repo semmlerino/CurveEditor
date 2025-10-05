@@ -113,45 +113,45 @@ class TestDisplayModePropertySetter:
 
     def test_display_mode_setter_all_visible(self, curve_widget: CurveViewWidget) -> None:
         """
-        Test that setting DisplayMode.ALL_VISIBLE enables show_all_curves.
+        Test that setting show_all_curves=True results in ALL_VISIBLE display mode.
 
-        Verifies: Setting ALL_VISIBLE mode updates show_all_curves=True
+        Verifies: ApplicationState API correctly computes display_mode
         and leaves selection unchanged.
         """
         # Setup: Start with different mode via ApplicationState
         app_state = get_application_state()
         app_state.set_show_all_curves(False)
-        app_state.set_selected_curves(set())
         app_state.set_selected_curves({"Track1"})
 
-        # Action: Set ALL_VISIBLE mode (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.ALL_VISIBLE
+        # Action: Set show_all_curves=True via ApplicationState
+        app_state.set_show_all_curves(True)
 
-        # Verify: show_all_curves enabled, selection preserved
+        # Verify: display_mode computed as ALL_VISIBLE, selection preserved
         assert curve_widget.display_mode == DisplayMode.ALL_VISIBLE
+        assert app_state.display_mode == DisplayMode.ALL_VISIBLE
         assert "Track1" in app_state.get_selected_curves()  # Preserved
 
     def test_display_mode_setter_selected_auto_select(
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
     ) -> None:
         """
-        Test that setting DisplayMode.SELECTED with no selection auto-selects active curve.
+        Test that selecting a curve with show_all=False results in SELECTED mode.
 
-        Verifies: When switching to SELECTED mode with empty selection,
-        the active curve is automatically added to selected_curve_names
-        to ensure something is visible.
+        Verifies: ApplicationState API correctly computes display_mode
+        when curves are selected with show_all_curves disabled.
         """
-        # Setup: Load curves, clear selection via ApplicationState
+        # Setup: Load curves via ApplicationState
         app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        app_state.set_selected_curves(set())
         app_state.set_show_all_curves(True)
 
-        # Action: Set SELECTED mode with no selection (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.SELECTED
+        # Action: Select curve and disable show_all via ApplicationState
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves({"Track1"})
 
-        # Verify: Active curve auto-selected, show_all_curves disabled
-        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
+        # Verify: display_mode computed as SELECTED
+        assert curve_widget.display_mode == DisplayMode.SELECTED
+        assert app_state.display_mode == DisplayMode.SELECTED
         assert "Track1" in app_state.get_selected_curves()
         assert len(app_state.get_selected_curves()) == 1
 
@@ -159,10 +159,10 @@ class TestDisplayModePropertySetter:
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
     ) -> None:
         """
-        Test that setting DisplayMode.ACTIVE_ONLY clears selection.
+        Test that clearing selection with show_all=False results in ACTIVE_ONLY mode.
 
-        Verifies: When switching to ACTIVE_ONLY mode, the selected_curve_names
-        set is cleared and show_all_curves is disabled.
+        Verifies: ApplicationState API correctly computes display_mode
+        when selection is empty and show_all_curves is disabled.
         """
         # Setup: Load curves with selection via ApplicationState
         app_state = get_application_state()
@@ -170,11 +170,12 @@ class TestDisplayModePropertySetter:
         app_state.set_selected_curves({"Track1", "Track2", "Track3"})
         app_state.set_show_all_curves(False)
 
-        # Action: Set ACTIVE_ONLY mode (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        # Action: Clear selection via ApplicationState
+        app_state.set_selected_curves(set())
 
-        # Verify: Selection cleared, show_all_curves disabled
-        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
+        # Verify: display_mode computed as ACTIVE_ONLY
+        assert curve_widget.display_mode == DisplayMode.ACTIVE_ONLY
+        assert app_state.display_mode == DisplayMode.ACTIVE_ONLY
         assert len(app_state.get_selected_curves()) == 0
 
 
@@ -198,11 +199,13 @@ class TestDisplayModeEdgeCases:
         app_state.set_show_all_curves(True)
         assert app_state.active_curve is None
 
-        # Action: Set SELECTED mode with no active curve (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.SELECTED
+        # Action: Disable show_all with empty selection via ApplicationState
+        app_state.set_show_all_curves(False)
+        app_state.set_selected_curves(set())
 
-        # Verify: No crash, selection remains empty
-        assert curve_widget.display_mode != DisplayMode.ALL_VISIBLE
+        # Verify: No crash, display_mode is ACTIVE_ONLY (no selection possible)
+        assert curve_widget.display_mode == DisplayMode.ACTIVE_ONLY
+        assert app_state.display_mode == DisplayMode.ACTIVE_ONLY
         assert len(app_state.get_selected_curves()) == 0
 
     def test_display_mode_active_only_no_active_curve(self, curve_widget: CurveViewWidget) -> None:
@@ -217,12 +220,14 @@ class TestDisplayModeEdgeCases:
         app_state.set_selected_curves({"NonexistentCurve"})
         assert app_state.active_curve is None
 
-        # Action: Set ACTIVE_ONLY mode (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.ACTIVE_ONLY
+        # Action: Clear selection via ApplicationState
+        app_state.set_selected_curves(set())
+        app_state.set_show_all_curves(False)
 
-        # Verify: Selection cleared, no crashes
+        # Verify: Selection cleared, display_mode is ACTIVE_ONLY, no crashes
         assert len(app_state.get_selected_curves()) == 0
         assert curve_widget.display_mode == DisplayMode.ACTIVE_ONLY
+        assert app_state.display_mode == DisplayMode.ACTIVE_ONLY
 
     def test_display_mode_preserves_existing_selection(
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
@@ -239,10 +244,12 @@ class TestDisplayModeEdgeCases:
         app_state.set_selected_curves({"Track2", "Track3"})
         app_state.set_show_all_curves(True)
 
-        # Action: Set SELECTED mode (tests deprecated setter)
-        curve_widget.display_mode = DisplayMode.SELECTED
+        # Action: Disable show_all (keeps selection) via ApplicationState
+        app_state.set_show_all_curves(False)
 
-        # Verify: Existing selection preserved
+        # Verify: Existing selection preserved, display_mode is SELECTED
+        assert curve_widget.display_mode == DisplayMode.SELECTED
+        assert app_state.display_mode == DisplayMode.SELECTED
         selected = app_state.get_selected_curves()
         assert "Track2" in selected
         assert "Track3" in selected
@@ -399,16 +406,17 @@ class TestDisplayModeStateTransitions:
         app_state = get_application_state()
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         app_state.set_selected_curves({"Track1", "Track2"})
-
-        # Action: Set SELECTED mode multiple times (tests deprecated setter)
         app_state.set_show_all_curves(False)
+
+        # Capture original state
         original_selection = app_state.get_selected_curves().copy()
         original_mode = curve_widget.display_mode
 
-        curve_widget.display_mode = DisplayMode.SELECTED  # Set again
-        curve_widget.display_mode = DisplayMode.SELECTED  # And again
+        # Action: Set same state multiple times via ApplicationState (idempotency test)
+        app_state.set_show_all_curves(False)  # Again
+        app_state.set_selected_curves({"Track1", "Track2"})  # Again
 
-        # Verify: State unchanged
+        # Verify: State unchanged (idempotent)
         assert app_state.get_selected_curves() == original_selection
         assert curve_widget.display_mode == original_mode
         assert curve_widget.display_mode == DisplayMode.SELECTED

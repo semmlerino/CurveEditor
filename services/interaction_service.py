@@ -290,7 +290,7 @@ class InteractionService:
             # Pan the view if supported
             pan_method = getattr(view, "pan", None)
             if pan_method is not None and callable(pan_method):
-                pan_method(delta_x, delta_y)
+                _ = pan_method(delta_x, delta_y)
             view.last_pan_pos = pos
 
         # rubber_band_active is bool, rubber_band_origin is QPoint in CurveViewProtocol
@@ -339,7 +339,7 @@ class InteractionService:
                     # The points have already been moved during dragging,
                     # so we mark the command as executed and add it to history
                     command.executed = True
-                    self.command_manager.add_executed_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.add_executed_command(command, cast("MainWindowProtocol", view.main_window))
 
             # Clear the tracked positions
             self._drag_original_positions = None
@@ -395,7 +395,7 @@ class InteractionService:
         zoom_method = getattr(view, "zoom", None)
         if zoom_method is not None and callable(zoom_method):
             center = event.position()
-            zoom_method(zoom_factor, center)
+            _ = zoom_method(zoom_factor, center)
             view.update()
 
     def _handle_key_event_consolidated(self, view: CurveViewProtocol, event: QKeyEvent) -> None:
@@ -427,7 +427,7 @@ class InteractionService:
                     )
 
                     # Execute the command through the command manager
-                    self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
 
                     # Clear selection
                     view.selected_points.clear()
@@ -487,7 +487,7 @@ class InteractionService:
                         description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
                         moves=moves,
                     )
-                    self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
                     # Note: No need to add_to_history - command manager handles it
 
         view.update()
@@ -611,7 +611,7 @@ class InteractionService:
             max_history_size = getattr(main_window, "max_history_size", None)
             if max_history_size is not None:
                 while len(main_window.history) > max_history_size:
-                    main_window.history.pop(0)
+                    _ = main_window.history.pop(0)
                     # history_index is defined in MainWindowProtocol
                     main_window.history_index = max(0, main_window.history_index - 1)
         else:
@@ -625,7 +625,7 @@ class InteractionService:
 
             # Enforce size limit
             if len(self._history) > self._max_history_size:
-                self._history.pop(0)
+                _ = self._history.pop(0)
                 self._current_index -= 1
 
         # Update button states
@@ -1007,7 +1007,7 @@ class InteractionService:
                     indices=indices,
                     deleted_points=deleted_points,
                 )
-                self.command_manager.execute_command(command, main_window)
+                _ = self.command_manager.execute_command(command, main_window)
 
             # Clear selection
             view.selected_points.clear()
@@ -1094,7 +1094,7 @@ class InteractionService:
             status_bar = status_bar_method()
             show_message = getattr(status_bar, "showMessage", None)
             if show_message is not None and callable(show_message):
-                show_message(f"Point {idx}: ({x:.2f}, {y:.2f})")
+                _ = show_message(f"Point {idx}: ({x:.2f}, {y:.2f})")
 
     def _enable_point_controls(self, main_window: MainWindowProtocol) -> None:
         """Enable point manipulation controls."""
@@ -1154,7 +1154,7 @@ class InteractionService:
         """Legacy undo action - now uses command manager."""
         # Prefer command manager if available and has commands
         if self.command_manager.can_undo():
-            self.command_manager.undo(main_window)
+            _ = self.command_manager.undo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system")
@@ -1183,7 +1183,7 @@ class InteractionService:
         # Prefer command manager if available and has commands to redo
         if self.command_manager.can_redo():
             logger.info("Using command manager for redo")
-            self.command_manager.redo(main_window)
+            _ = self.command_manager.redo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
         elif main_window.history is not None and main_window.history_index is not None:
             logger.info("Using legacy history system for redo")

@@ -10,7 +10,7 @@ import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Protocol, runtime_checkable
+from typing import Any, Protocol, override, runtime_checkable
 
 from core.validation_utils import ensure_valid_scale as validate_scale
 from core.validation_utils import validate_finite, validate_point
@@ -143,6 +143,7 @@ class MinimalValidationStrategy(BaseValidationStrategy):
     - Extreme values that exceed system limits
     """
 
+    @override
     def validate_coordinate(self, x: float, y: float, context: str = "") -> ValidationResult:
         """Validate coordinates with minimal checks."""
         result = ValidationResult(is_valid=True)
@@ -166,6 +167,7 @@ class MinimalValidationStrategy(BaseValidationStrategy):
 
         return result
 
+    @override
     def validate_scale_factor(self, scale: float, context: str = "") -> ValidationResult:
         """Validate scale with minimal checks."""
         result = ValidationResult(is_valid=True)
@@ -190,6 +192,7 @@ class MinimalValidationStrategy(BaseValidationStrategy):
 
         return result
 
+    @override
     def validate_dimensions(self, width: float, height: float, context: str = "") -> ValidationResult:
         """Validate dimensions with minimal checks."""
         result = ValidationResult(is_valid=True)
@@ -212,6 +215,7 @@ class MinimalValidationStrategy(BaseValidationStrategy):
 
         return result
 
+    @override
     def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
         """Validate transform parameters with minimal checks."""
         result = ValidationResult(is_valid=True)
@@ -238,6 +242,7 @@ class MinimalValidationStrategy(BaseValidationStrategy):
         return result
 
     @property
+    @override
     def name(self) -> str:
         """Get strategy name."""
         return "minimal"
@@ -268,6 +273,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         self.max_scale = max_scale
         self.precision = precision
 
+    @override
     def validate_coordinate(self, x: float, y: float, context: str = "") -> ValidationResult:
         """Validate coordinates with comprehensive checks."""
         result = ValidationResult(is_valid=True)
@@ -341,6 +347,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         result.validated_value = (x_valid, y_valid)
         return result
 
+    @override
     def validate_scale_factor(self, scale: float, context: str = "") -> ValidationResult:
         """Validate scale with comprehensive checks."""
         result = ValidationResult(is_valid=True)
@@ -402,6 +409,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         result.validated_value = scale_valid
         return result
 
+    @override
     def validate_dimensions(self, width: float, height: float, context: str = "") -> ValidationResult:
         """Validate dimensions with comprehensive checks."""
         result = ValidationResult(is_valid=True)
@@ -461,6 +469,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         result.validated_value = (width, height)
         return result
 
+    @override
     def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
         """Validate transform parameters with comprehensive checks."""
         result = ValidationResult(is_valid=True)
@@ -525,6 +534,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         return result
 
     @property
+    @override
     def name(self) -> str:
         """Get strategy name."""
         return "comprehensive"
@@ -586,23 +596,28 @@ class AdaptiveValidationStrategy(BaseValidationStrategy):
         """Get the current active strategy."""
         return self.comprehensive if self._use_comprehensive else self.minimal
 
+    @override
     def validate_coordinate(self, x: float, y: float, context: str = "") -> ValidationResult:
         """Validate using current strategy."""
         return self.current_strategy.validate_coordinate(x, y, context)
 
+    @override
     def validate_scale_factor(self, scale: float, context: str = "") -> ValidationResult:
         """Validate using current strategy."""
         return self.current_strategy.validate_scale_factor(scale, context)
 
+    @override
     def validate_dimensions(self, width: float, height: float, context: str = "") -> ValidationResult:
         """Validate using current strategy."""
         return self.current_strategy.validate_dimensions(width, height, context)
 
+    @override
     def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
         """Validate using current strategy."""
         return self.current_strategy.validate_transform_params(params)
 
     @property
+    @override
     def name(self) -> str:
         """Get strategy name."""
         return f"adaptive_{self.current_strategy.name}"

@@ -36,7 +36,7 @@ import math
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TypeGuard, overload
+from typing import TypeGuard, overload, override
 
 # Type aliases for backward compatibility and clarity
 FrameNumber = int
@@ -149,6 +149,7 @@ class PointSearchResult:
         return self.index >= 0
 
     # Comparison operators for backward compatibility with int comparisons
+    @override
     def __eq__(self, other: object) -> bool:
         """Allow comparison with int (compares index)."""
         if isinstance(other, int):

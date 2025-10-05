@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -295,7 +297,7 @@ class CommandManager:
     def _enforce_history_limit(self) -> None:
         """Enforce the maximum history size limit."""
         while len(self._history) > self._max_history_size:
-            self._history.pop(0)
+            _ = self._history.pop(0)
             self._current_index -= 1
             self._current_index = max(-1, self._current_index)
 
@@ -338,10 +340,12 @@ class CommandManager:
         except Exception as e:
             logger.warning(f"Error updating UI state: {e}")
 
+    @override
     def __str__(self) -> str:
         """String representation of the command manager."""
         return f"CommandManager(commands={len(self._history)}, index={self._current_index})"
 
+    @override
     def __repr__(self) -> str:
         """Detailed string representation of the command manager."""
         return (

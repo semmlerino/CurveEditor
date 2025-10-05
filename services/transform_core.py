@@ -14,7 +14,7 @@ import logging
 import math
 import os
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 if TYPE_CHECKING:
     import numpy as np
@@ -1007,6 +1007,7 @@ class Transform:
             validation_config=validation_config,
         )
 
+    @override
     def __repr__(self) -> str:
         """String representation for debugging."""
         return (

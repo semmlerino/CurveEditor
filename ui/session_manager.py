@@ -166,7 +166,7 @@ class SessionManager:
         # Check if session clearing is requested
         if os.environ.get("CURVE_EDITOR_CLEAR_SESSION", "").lower() == "true":
             logger.info("Session clearing requested by environment variable")
-            self.clear_session()
+            _ = self.clear_session()
             return None
 
         # Check if session persistence is disabled

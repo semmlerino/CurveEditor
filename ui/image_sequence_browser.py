@@ -12,7 +12,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, override
 
 from PySide6.QtCore import QDir, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
@@ -148,7 +148,7 @@ class BreadcrumbBar(QWidget):
             # Use functools.partial to capture segment_path
             from functools import partial
 
-            button.clicked.connect(partial(self._on_segment_clicked, segment_path))
+            _ = button.clicked.connect(partial(self._on_segment_clicked, segment_path))
 
             # Bold the current (last) segment
             if i == len(segments) - 1:
@@ -206,7 +206,7 @@ class NavigationHistory:
 
         # Limit history size
         if len(self.history) > self.max_history:
-            self.history.pop(0)
+            _ = self.history.pop(0)
             self.current_index -= 1
 
     def can_go_back(self) -> bool:
@@ -650,7 +650,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Directory tree
         self.tree_view = QTreeView()
         self.file_model = QFileSystemModel()
-        self.file_model.setRootPath("")
+        _ = self.file_model.setRootPath("")
         self.file_model.setFilter(QDir.Filter.Dirs | QDir.Filter.NoDotAndDotDot)
         self.tree_view.setModel(self.file_model)
         self.tree_view.setRootIndex(self.file_model.index(""))
@@ -690,7 +690,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sequence_filter = QLineEdit()
         self.sequence_filter.setPlaceholderText("Filter sequences... (Ctrl+F)")
         self.sequence_filter.setClearButtonEnabled(True)
-        self.sequence_filter.textChanged.connect(self._filter_sequences)
+        _ = self.sequence_filter.textChanged.connect(self._filter_sequences)
         self.sequence_filter.setAccessibleName("Sequence filter")
         self.sequence_filter.setAccessibleDescription("Type to filter sequences by name or path")
         search_layout.addWidget(self.sequence_filter, stretch=1)
@@ -703,7 +703,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sort_combo.addItems(["Name", "Frame Count", "File Size", "Date Modified"])
         self.sort_combo.setToolTip("Sort sequences by...")
         self.sort_combo.setMaximumWidth(150)
-        self.sort_combo.currentTextChanged.connect(self._on_sort_changed)
+        _ = self.sort_combo.currentTextChanged.connect(self._on_sort_changed)
         self.sort_combo.setAccessibleName("Sort by")
         self.sort_combo.setAccessibleDescription("Choose how to sort the image sequences")
         search_layout.addWidget(self.sort_combo)
@@ -713,7 +713,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sort_order_button.setText("↑")  # Initially ascending (matches self.sort_ascending = True)
         self.sort_order_button.setToolTip("Sort order: Ascending (click to toggle)")
         self.sort_order_button.setFixedSize(32, 32)
-        self.sort_order_button.clicked.connect(self._toggle_sort_order)
+        _ = self.sort_order_button.clicked.connect(self._toggle_sort_order)
         self.sort_order_button.setAccessibleName("Sort order")
         self.sort_order_button.setAccessibleDescription("Toggle between ascending and descending sort order")
         search_layout.addWidget(self.sort_order_button)
@@ -824,8 +824,8 @@ class ImageSequenceBrowserDialog(QDialog):
         main_layout.addLayout(button_layout)
 
         # Connect button signals
-        self.load_button.clicked.connect(self.accept)
-        cancel_button.clicked.connect(self.reject)
+        _ = self.load_button.clicked.connect(self.accept)
+        _ = cancel_button.clicked.connect(self.reject)
 
         # Configure logical tab order for keyboard navigation
         self.setTabOrder(self.back_button, self.forward_button)
@@ -854,83 +854,84 @@ class ImageSequenceBrowserDialog(QDialog):
 
     def _connect_signals(self) -> None:
         """Connect internal signals."""
-        self.tree_view.clicked.connect(self._on_directory_selected)
-        self.tree_view.clicked.connect(self._update_address_bar)
-        self.sequence_list.currentItemChanged.connect(self._on_sequence_selected)
-        self.sequence_list.itemDoubleClicked.connect(self._on_sequence_double_clicked)
+        _ = self.tree_view.clicked.connect(self._on_directory_selected)
+        _ = self.tree_view.clicked.connect(self._update_address_bar)
+        _ = self.sequence_list.currentItemChanged.connect(self._on_sequence_selected)
+        _ = self.sequence_list.itemDoubleClicked.connect(self._on_sequence_double_clicked)
 
         # Navigation signals
-        self.back_button.clicked.connect(self._go_back)
-        self.forward_button.clicked.connect(self._go_forward)
-        self.up_button.clicked.connect(self._on_up_clicked)
-        self.home_button.clicked.connect(self._on_home_clicked)
-        self.go_button.clicked.connect(self._on_go_clicked)
-        self.breadcrumb_bar.path_changed.connect(self._navigate_to_path)
+        _ = self.back_button.clicked.connect(self._go_back)
+        _ = self.forward_button.clicked.connect(self._go_forward)
+        _ = self.up_button.clicked.connect(self._on_up_clicked)
+        _ = self.home_button.clicked.connect(self._on_home_clicked)
+        _ = self.go_button.clicked.connect(self._on_go_clicked)
+        _ = self.breadcrumb_bar.path_changed.connect(self._navigate_to_path)
 
         # Address bar signals
         if self.address_bar.lineEdit():
-            self.address_bar.lineEdit().returnPressed.connect(self._on_go_clicked)
-        self.address_bar.activated.connect(self._on_address_bar_activated)
+            _ = self.address_bar.lineEdit().returnPressed.connect(self._on_go_clicked)
+        _ = self.address_bar.activated.connect(self._on_address_bar_activated)
 
         # Favorites signals
-        self.favorite_button.clicked.connect(self._on_add_to_favorites)
-        self.favorites_list.itemDoubleClicked.connect(self._on_favorite_double_clicked)
-        self.favorites_list.customContextMenuRequested.connect(self._show_favorites_context_menu)
+        _ = self.favorite_button.clicked.connect(self._on_add_to_favorites)
+        _ = self.favorites_list.itemDoubleClicked.connect(self._on_favorite_double_clicked)
+        _ = self.favorites_list.customContextMenuRequested.connect(self._show_favorites_context_menu)
 
         # Drive selector signal (Windows only)
         if self.drive_selector is not None:
-            self.drive_selector.currentTextChanged.connect(self._on_drive_selected)
+            _ = self.drive_selector.currentTextChanged.connect(self._on_drive_selected)
 
         # Quick access menu setup
         self._setup_quick_access_menu()
 
         # Tree view context menu
         self.tree_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
-        self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
+        _ = self.tree_view.customContextMenuRequested.connect(self._show_tree_context_menu)
 
     def _setup_shortcuts(self) -> None:
         """Setup keyboard shortcuts for enhanced navigation."""
         # Navigation shortcuts
         # Alt+Up - Navigate to parent directory
         parent_shortcut = QShortcut(QKeySequence("Alt+Up"), self)
-        parent_shortcut.activated.connect(self._on_up_clicked)
+        _ = parent_shortcut.activated.connect(self._on_up_clicked)
 
         # Alt+Left/Right - Back/Forward in navigation history
         back_shortcut = QShortcut(QKeySequence("Alt+Left"), self)
-        back_shortcut.activated.connect(self._go_back)
+        _ = back_shortcut.activated.connect(self._go_back)
         forward_shortcut = QShortcut(QKeySequence("Alt+Right"), self)
-        forward_shortcut.activated.connect(self._go_forward)
+        _ = forward_shortcut.activated.connect(self._go_forward)
 
         # Ctrl+L - Focus address bar (like web browsers)
         focus_address_bar = QShortcut(QKeySequence("Ctrl+L"), self)
-        focus_address_bar.activated.connect(self._focus_address_bar)
+        _ = focus_address_bar.activated.connect(self._focus_address_bar)
 
         # Ctrl+F - Focus sequence filter for search
         focus_search = QShortcut(QKeySequence("Ctrl+F"), self)
-        focus_search.activated.connect(self._focus_sequence_filter)
+        _ = focus_search.activated.connect(self._focus_sequence_filter)
 
         # F5 - Refresh current directory
         refresh_shortcut = QShortcut(QKeySequence("F5"), self)
-        refresh_shortcut.activated.connect(self._refresh_current_directory)
+        _ = refresh_shortcut.activated.connect(self._refresh_current_directory)
 
         # Ctrl+D - Add to favorites
         favorite_shortcut = QShortcut(QKeySequence("Ctrl+D"), self)
-        favorite_shortcut.activated.connect(self._on_add_to_favorites)
+        _ = favorite_shortcut.activated.connect(self._on_add_to_favorites)
 
         # Ctrl+1/2/3 - Focus panels
         focus_tree = QShortcut(QKeySequence("Ctrl+1"), self)
-        focus_tree.activated.connect(lambda: self.tree_view.setFocus())
+        _ = focus_tree.activated.connect(lambda: self.tree_view.setFocus())
 
         focus_sequences = QShortcut(QKeySequence("Ctrl+2"), self)
-        focus_sequences.activated.connect(lambda: self.sequence_list.setFocus())
+        _ = focus_sequences.activated.connect(lambda: self.sequence_list.setFocus())
 
         # Ctrl+Shift+A - Clear selection (Escape is reserved for closing dialog)
         clear_selection_shortcut = QShortcut(QKeySequence("Ctrl+Shift+A"), self)
-        clear_selection_shortcut.activated.connect(self._clear_selection)
+        _ = clear_selection_shortcut.activated.connect(self._clear_selection)
 
         # Install event filter on sequence list for Enter key handling
         self.sequence_list.installEventFilter(self)
 
+    @override
     def eventFilter(self, obj: object, event: object) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Handle events for keyboard navigation."""
         from PySide6.QtCore import QEvent, QObject
@@ -951,6 +952,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return super().eventFilter(obj, event)  # type: ignore[misc]
         return False
 
+    @override
     def keyPressEvent(self, event: object) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
         """Handle keyboard shortcuts for the dialog."""
         from PySide6.QtGui import QKeyEvent
@@ -1085,7 +1087,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Cancel any existing scan
         if self.scan_worker is not None and self.scan_worker.isRunning():
             self.scan_worker.cancel()
-            self.scan_worker.wait()
+            _ = self.scan_worker.wait()
 
         # Start async directory scan
         self._start_directory_scan(directory_path)
@@ -1105,13 +1107,13 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Create and start worker
         self.scan_worker = DirectoryScanWorker(directory_path)
-        self.scan_worker.progress.connect(self._on_scan_progress)
-        self.scan_worker.sequences_found.connect(self._on_sequences_found)
-        self.scan_worker.error_occurred.connect(self._on_scan_error)
-        self.scan_worker.finished.connect(self._on_scan_finished)
+        _ = self.scan_worker.progress.connect(self._on_scan_progress)
+        _ = self.scan_worker.sequences_found.connect(self._on_sequences_found)
+        _ = self.scan_worker.error_occurred.connect(self._on_scan_error)
+        _ = self.scan_worker.finished.connect(self._on_scan_finished)
 
         # Connect cancel button
-        self.cancel_scan_button.clicked.connect(self._on_cancel_scan)
+        _ = self.cancel_scan_button.clicked.connect(self._on_cancel_scan)
 
         self.scan_worker.start()
         logger.debug(f"Started async scan of {directory_path}")
@@ -1198,7 +1200,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Disconnect cancel button (suppress warning if not connected)
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning, message="Failed to disconnect.*")
-            self.cancel_scan_button.clicked.disconnect(self._on_cancel_scan)
+            _ = self.cancel_scan_button.clicked.disconnect(self._on_cancel_scan)
 
     def _on_cancel_scan(self) -> None:
         """Handle scan cancellation request."""
@@ -1337,7 +1339,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Check for permission issues
         try:
             # Try to list directory to verify access
-            list(path_obj.iterdir())
+            _ = list(path_obj.iterdir())
         except PermissionError:
             logger.warning(f"Permission denied accessing: {normalized_path}")
             self.info_label.setText(f"Permission denied accessing: {normalized_path}")
@@ -1374,9 +1376,9 @@ class ImageSequenceBrowserDialog(QDialog):
                 current_drive = normalized_path[0].upper() + ":"
                 drive_index = self.drive_selector.findText(current_drive)
                 if drive_index >= 0:
-                    self.drive_selector.blockSignals(True)
+                    _ = self.drive_selector.blockSignals(True)
                     self.drive_selector.setCurrentIndex(drive_index)
-                    self.drive_selector.blockSignals(False)
+                    _ = self.drive_selector.blockSignals(False)
 
         # Add to recent directories
         parent_window = self.parent()
@@ -1822,7 +1824,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Actions
         rename_action = menu.addAction("Rename")
         remove_action = menu.addAction("Remove")
-        menu.addSeparator()
+        _ = menu.addSeparator()
         move_up_action = menu.addAction("Move Up")
         move_down_action = menu.addAction("Move Down")
 
@@ -1832,7 +1834,7 @@ class ImageSequenceBrowserDialog(QDialog):
         if action == rename_action:
             name, ok = QInputDialog.getText(self, "Rename Favorite", "Enter new name:", text=item.text().lstrip("★ "))
             if ok and name:
-                self.favorites_manager.rename(path, name)
+                _ = self.favorites_manager.rename(path, name)
                 self._populate_favorites()
 
         elif action == remove_action:
@@ -1847,16 +1849,16 @@ class ImageSequenceBrowserDialog(QDialog):
                 QMessageBox.StandardButton.No,  # Default to No for safety
             )
             if reply == QMessageBox.StandardButton.Yes:
-                self.favorites_manager.remove(path)
+                _ = self.favorites_manager.remove(path)
                 self._populate_favorites()
                 self._update_favorite_button_state()
 
         elif action == move_up_action:
-            self.favorites_manager.move_up(path)
+            _ = self.favorites_manager.move_up(path)
             self._populate_favorites()
 
         elif action == move_down_action:
-            self.favorites_manager.move_down(path)
+            _ = self.favorites_manager.move_down(path)
             self._populate_favorites()
 
     def _update_favorite_button_state(self) -> None:
@@ -1907,9 +1909,9 @@ class ImageSequenceBrowserDialog(QDialog):
                 index = self.drive_selector.findText(current_drive)
                 if index >= 0:
                     # Block signals temporarily to avoid triggering navigation
-                    self.drive_selector.blockSignals(True)
+                    _ = self.drive_selector.blockSignals(True)
                     self.drive_selector.setCurrentIndex(index)
-                    self.drive_selector.blockSignals(False)
+                    _ = self.drive_selector.blockSignals(False)
 
     def _on_drive_selected(self, drive: str) -> None:
         """Handle drive selection from combo box.
@@ -1940,7 +1942,7 @@ class ImageSequenceBrowserDialog(QDialog):
                 # Use functools.partial to avoid lambda default parameter issue
                 from functools import partial
 
-                action.triggered.connect(partial(self._on_quick_access_clicked, str(path)))
+                _ = action.triggered.connect(partial(self._on_quick_access_clicked, str(path)))
 
         self.quick_access_button.setMenu(menu)
 
@@ -2031,20 +2033,20 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Copy Path action
         copy_action = menu.addAction("Copy Path")
-        copy_action.triggered.connect(lambda: self._copy_path_to_clipboard(path))
+        _ = copy_action.triggered.connect(lambda: self._copy_path_to_clipboard(path))
 
         # Open in File Manager action
-        menu.addSeparator()
+        _ = menu.addSeparator()
         if sys.platform == "win32":
             open_action = menu.addAction("Open in File Explorer")
         elif sys.platform == "darwin":
             open_action = menu.addAction("Open in Finder")
         else:
             open_action = menu.addAction("Open in File Manager")
-        open_action.triggered.connect(lambda: self._open_in_file_manager(path))
+        _ = open_action.triggered.connect(lambda: self._open_in_file_manager(path))
 
         # Show menu
-        menu.exec(self.tree_view.mapToGlobal(pos))
+        _ = menu.exec(self.tree_view.mapToGlobal(pos))
 
     def _copy_path_to_clipboard(self, path: str) -> None:
         """Copy path to system clipboard.
@@ -2071,10 +2073,10 @@ class ImageSequenceBrowserDialog(QDialog):
                 os.startfile(path)  # type: ignore[attr-defined]
             elif sys.platform == "darwin":
                 # macOS: use open
-                subprocess.run(["open", path], check=True)
+                _ = subprocess.run(["open", path], check=True)
             else:
                 # Linux: use xdg-open
-                subprocess.run(["xdg-open", path], check=True)
+                _ = subprocess.run(["xdg-open", path], check=True)
 
             logger.debug(f"Opened {path} in file manager")
         except Exception as e:
@@ -2168,7 +2170,7 @@ class ImageSequenceBrowserDialog(QDialog):
                     from PySide6.QtCore import QByteArray
 
                     if isinstance(saved_geometry, bytes | QByteArray):
-                        self.restoreGeometry(saved_geometry)
+                        _ = self.restoreGeometry(saved_geometry)
                 except Exception as e:
                     logger.warning(f"Failed to restore dialog geometry: {e}")
 
@@ -2179,7 +2181,7 @@ class ImageSequenceBrowserDialog(QDialog):
                     from PySide6.QtCore import QByteArray
 
                     if isinstance(saved_splitter, bytes | QByteArray):
-                        self.splitter.restoreState(saved_splitter)
+                        _ = self.splitter.restoreState(saved_splitter)
                 except Exception as e:
                     logger.warning(f"Failed to restore splitter state: {e}")
 
@@ -2231,11 +2233,13 @@ class ImageSequenceBrowserDialog(QDialog):
             state_manager.set_value("image_browser_sort", self.current_sort)
             state_manager.set_value("image_browser_sort_ascending", self.sort_ascending)
 
+    @override
     def accept(self) -> None:
         """Override to save state before closing."""
         self._save_state()
         super().accept()
 
+    @override
     def reject(self) -> None:
         """Override to save state before closing."""
         self._save_state()

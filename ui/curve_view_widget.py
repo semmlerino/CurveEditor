@@ -29,7 +29,7 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, cast, override
 
 from PySide6.QtCore import (
     QPointF,
@@ -51,7 +51,6 @@ from PySide6.QtGui import (
     QWheelEvent,
 )
 from PySide6.QtWidgets import QRubberBand, QStatusBar, QWidget
-from typing_extensions import override
 
 # Import core modules
 from core.display_mode import DisplayMode
@@ -172,7 +171,12 @@ class CurveViewWidget(QWidget):
         self._app_state = get_application_state()
 
         # NEW: Subscribe to selection state changes for repainting
-        self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
+        # Use SignalManager to ensure automatic cleanup on widget destruction
+        _ = self.signal_manager.connect(
+            self._app_state.selection_state_changed,
+            self._on_selection_state_changed,
+            "selection_state_changed",
+        )
 
         # State synchronization controller (Phase 3 extraction)
         # Handles all signal connections and reactive updates from stores
@@ -200,18 +204,17 @@ class CurveViewWidget(QWidget):
         # Multi-curve support (VIEW state - stays in widget)
         # NOTE: DATA state (curves_data, curve_metadata, active_curve_name) migrated to ApplicationState
         # Display mode management (removed _display_mode storage - now read from ApplicationState)
-        self._updating_display_mode: bool = False
 
-        # CACHE COHERENCE STRATEGY:
+        # CACHE COHERENCE STRATEGY (Read-Only Cache Pattern):
         # These fields cache ApplicationState selection for rendering performance (O(1) membership checks).
         # Cache synchronization: Automatically updated via selection_state_changed signal.
-        # Signal handler (_on_selection_state_changed) updates these fields using DIRECT FIELD ACCESS
-        # to avoid circular updates (bypasses the setter which would re-update ApplicationState).
+        # Signal handler (_on_selection_state_changed) updates these fields directly.
         #
         # Why cache? Rendering checks "if curve_name in self.selected_curve_names" on every frame.
         # Reading from ApplicationState each time would add overhead. Local set provides O(1) lookups.
         #
         # Cache validity: Guaranteed by Qt signals - always reflects ApplicationState after signal fires.
+        # Updates: Use ApplicationState.set_selected_curves() or widget.set_selected_curves() - cache updates automatically.
         self._selected_curve_names: set[str] = set()  # Cache of ApplicationState.get_selected_curves()
         self.selected_curves_ordered: list[str] = []  # Ordered list for visual differentiation
 
@@ -367,33 +370,16 @@ class CurveViewWidget(QWidget):
 
     @property
     def selected_curve_names(self) -> set[str]:
-        """Get selected curve names."""
+        """
+        Get selected curve names (read-only).
+
+        This is a cached view of ApplicationState.get_selected_curves().
+        The cache is synchronized via selection_state_changed signal.
+
+        For updates, use ApplicationState.set_selected_curves() directly,
+        or use the set_selected_curves() method on this widget.
+        """
         return self._selected_curve_names
-
-    @selected_curve_names.setter
-    def selected_curve_names(self, value: set[str]) -> None:
-        """
-        Set selected curve names and update display mode if needed.
-
-        Note: This setter ONLY updates display_mode, it does NOT trigger repaint.
-        Callers are responsible for calling update() or display_mode setter which
-        includes update(). This design avoids redundant repaints when called from
-        display_mode.setter.
-        """
-        self._selected_curve_names = value
-
-        # Update ApplicationState based on selection change (if not in ALL_VISIBLE mode)
-        if not self._updating_display_mode and self.display_mode != DisplayMode.ALL_VISIBLE:
-            self._updating_display_mode = True
-            try:
-                if value:
-                    self._app_state.set_selected_curves(value)
-                    self._app_state.set_show_all_curves(False)
-                else:
-                    self._app_state.set_selected_curves(set())
-                    self._app_state.set_show_all_curves(False)
-            finally:
-                self._updating_display_mode = False
 
     @property
     def display_mode(self) -> DisplayMode:
@@ -420,68 +406,10 @@ class CurveViewWidget(QWidget):
         """
         return self._app_state.display_mode
 
-    @display_mode.setter
-    def display_mode(self, mode: DisplayMode) -> None:
-        """
-        DEPRECATED: Set display mode via ApplicationState instead.
-
-        This setter is deprecated and will be removed in Phase 8.
-
-        Use ApplicationState methods:
-        - app_state.set_show_all_curves(True) → ALL_VISIBLE
-        - app_state.set_selected_curves({...}) → SELECTED
-        - app_state.set_selected_curves(set()) → ACTIVE_ONLY
-
-        This backward-compatibility wrapper converts old API calls to new API.
-
-        Args:
-            mode: DisplayMode to set (converted to ApplicationState calls)
-        """
-        import warnings
-
-        warnings.warn(
-            (
-                "Setting display_mode directly is deprecated. "
-                "Use ApplicationState: "
-                "app_state.set_show_all_curves(True) for ALL_VISIBLE, "
-                "app_state.set_selected_curves({...}) for SELECTED, "
-                "app_state.set_selected_curves(set()) for ACTIVE_ONLY"
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
-        if self._updating_display_mode:
-            return
-
-        self._updating_display_mode = True
-        try:
-            # Convert old API to new API
-            if mode == DisplayMode.ALL_VISIBLE:
-                self._app_state.set_show_all_curves(True)
-
-            elif mode == DisplayMode.SELECTED:
-                # Sync local cache to ApplicationState if they differ
-                # (local cache may have been updated while in ALL_VISIBLE mode)
-                current_app_state_selection = self._app_state.get_selected_curves()
-                if self._selected_curve_names != current_app_state_selection:
-                    # Use local cache as source of truth
-                    self._app_state.set_selected_curves(self._selected_curve_names)
-
-                # Ensure something is selected (fallback to active curve)
-                if not self._selected_curve_names and self.active_curve_name:
-                    self._app_state.set_selected_curves({self.active_curve_name})
-
-                self._app_state.set_show_all_curves(False)
-
-            elif mode == DisplayMode.ACTIVE_ONLY:
-                self._app_state.set_show_all_curves(False)
-                self._app_state.set_selected_curves(set())
-
-            # Trigger repaint
-            self.update()
-        finally:
-            self._updating_display_mode = False
+    # Note: display_mode setter removed in Phase 8 - use ApplicationState API instead
+    # - app_state.set_show_all_curves(True) → ALL_VISIBLE
+    # - app_state.set_selected_curves({...}) → SELECTED
+    # - app_state.set_selected_curves(set()) → ACTIVE_ONLY
 
     # View transformation properties (delegate to view_camera controller)
 
@@ -735,7 +663,9 @@ class CurveViewWidget(QWidget):
             self.main_window.tracking_controller.set_selected_curves(curve_names)  # pyright: ignore[reportAttributeAccessIssue]
         else:
             # Fallback for tests or when main_window not available
-            self.selected_curve_names = set(curve_names)
+            # Update via ApplicationState (cache updates automatically via signal)
+            self._app_state.set_selected_curves(set(curve_names))
+            # selected_curves_ordered is not reactive - update manually
             self.selected_curves_ordered = list(curve_names)
 
             # Set the last selected as the active curve for editing
@@ -744,7 +674,7 @@ class CurveViewWidget(QWidget):
                 self.set_active_curve(curve_names[-1])
 
             self.update()
-            logger.debug(f"Selected curves: {self.selected_curve_names}, Active: {self._app_state.active_curve}")
+            logger.debug(f"Selected curves: {self._selected_curve_names}, Active: {self._app_state.active_curve}")
 
     def should_render_curve(self, curve_name: str) -> bool:
         """
@@ -1288,10 +1218,10 @@ class CurveViewWidget(QWidget):
                     action.setCheckable(True)
                     action.setChecked(True)
                 # Connect to handler
-                action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
+                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
 
             # Add separator
-            menu.addSeparator()
+            _ = menu.addSeparator()
 
             # Add info display
             frame_num = point[0]
@@ -1299,7 +1229,7 @@ class CurveViewWidget(QWidget):
             info_action.setEnabled(False)
 
             # Show menu at cursor position
-            menu.exec(event.globalPos())
+            _ = menu.exec(event.globalPos())
 
         else:
             # No point under cursor, show general menu or pass to parent
@@ -1314,7 +1244,7 @@ class CurveViewWidget(QWidget):
             status: New PointStatus value
         """
         # Delegate to store - it will emit signals that trigger our updates
-        self._curve_store.set_point_status(idx, status.value)
+        _ = self._curve_store.set_point_status(idx, status.value)
 
         point = self._curve_store.get_point(idx)
         if point:
@@ -1540,7 +1470,9 @@ class CurveViewWidget(QWidget):
         all_curve_names = self._app_state.get_all_curve_names()
         if curve_name and curve_name in all_curve_names:
             # Add this curve to selected curves for visibility
-            self.selected_curve_names.add(curve_name)
+            # Update via ApplicationState (cache updates automatically via signal)
+            current_selected = self._app_state.get_selected_curves()
+            self._app_state.set_selected_curves(current_selected | {curve_name})
 
             # If selecting from a different curve, switch to it
             if curve_name != self._app_state.active_curve:
@@ -1792,7 +1724,7 @@ class CurveViewWidget(QWidget):
             if interaction_service and self.main_window:
                 # Protocol mismatch between local MainWindow and service's MainWindowProtocol
                 # At runtime, the actual main_window satisfies both protocols
-                interaction_service.command_manager.execute_command(composite, self.main_window)  # pyright: ignore[reportArgumentType]
+                _ = interaction_service.command_manager.execute_command(composite, self.main_window)  # pyright: ignore[reportArgumentType]
 
     def delete_selected_points(self) -> None:
         """Delete selected points."""
@@ -1823,7 +1755,7 @@ class CurveViewWidget(QWidget):
             if interaction_service and self.main_window:
                 # Protocol mismatch between local MainWindow and service's MainWindowProtocol
                 # At runtime, the actual main_window satisfies both protocols
-                interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
+                _ = interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
 
         # Selection is cleared automatically by the command
 
@@ -1873,7 +1805,7 @@ class CurveViewWidget(QWidget):
             self.state_sync._state_manager = self._state_manager
             # Only connect if not already connected to prevent duplicates
             try:
-                self._state_manager.frame_changed.connect(self.state_sync._on_state_frame_changed)
+                _ = self._state_manager.frame_changed.connect(self.state_sync._on_state_frame_changed)
                 logger.debug("Connected to fallback state manager from main window via StateSyncController")
             except (RuntimeError, TypeError) as e:
                 # Signal might already be connected or other connection issue

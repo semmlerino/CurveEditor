@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
+from typing import TYPE_CHECKING, Any, Protocol, override, runtime_checkable
 
 if TYPE_CHECKING:
     from core.validation_strategy import ValidationIssue
@@ -163,6 +163,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         """Set a recovery callback for a specific operation."""
         self.recovery_callbacks[operation] = callback
 
+    @override
     def handle_validation_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle validation errors with fallback values."""
         error_key = f"validation_{context.operation}"
@@ -186,6 +187,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         # For critical validation, reset to safe state
         return RecoveryStrategy.RESET
 
+    @override
     def handle_transform_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle transform errors with identity transform."""
         error_key = f"transform_{context.operation}"
@@ -210,6 +212,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         # Otherwise reset to identity transform
         return RecoveryStrategy.RESET
 
+    @override
     def handle_cache_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle cache errors by clearing and retrying."""
         error_key = f"cache_{context.operation}"
@@ -227,6 +230,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         logger.info("Clearing cache due to persistent errors")
         return RecoveryStrategy.RESET
 
+    @override
     def handle_coordinate_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle coordinate system errors with normalization."""
         error_key = f"coordinate_{context.operation}"
@@ -247,6 +251,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         # Otherwise abort to prevent data corruption
         return RecoveryStrategy.ABORT
 
+    @override
     def report_issues(self, issues: list["ValidationIssue"]) -> None:
         """Report validation issues to user."""
         if not self.verbose or not issues:
@@ -276,10 +281,11 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
                 details = "\n".join(issue.format() for issue in issues[:5])  # Show first 5
                 msg.setDetailedText(details)
                 msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-                msg.exec()
+                _ = msg.exec()
             except ImportError:
                 pass  # Qt not available
 
+    @override
     def notify_recovery(self, context: ErrorContext, strategy: RecoveryStrategy) -> None:
         """Notify about recovery actions."""
         if not self.verbose:
@@ -313,6 +319,7 @@ class SilentTransformErrorHandler(BaseErrorHandler):
         super().__init__(parent_widget)
         self.captured_errors: list[ErrorContext] = []
 
+    @override
     def handle_validation_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Silently handle validation errors."""
         self.captured_errors.append(context)
@@ -323,18 +330,21 @@ class SilentTransformErrorHandler(BaseErrorHandler):
             else RecoveryStrategy.IGNORE
         )
 
+    @override
     def handle_transform_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Silently handle transform errors."""
         self.captured_errors.append(context)
         logger.debug(f"Silent: Transform error - {error}")
         return RecoveryStrategy.RESET
 
+    @override
     def handle_cache_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Silently handle cache errors."""
         self.captured_errors.append(context)
         logger.debug(f"Silent: Cache error - {error}")
         return RecoveryStrategy.RETRY if not context.recovery_attempted else RecoveryStrategy.RESET
 
+    @override
     def handle_coordinate_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Silently handle coordinate errors."""
         self.captured_errors.append(context)
@@ -345,11 +355,13 @@ class SilentTransformErrorHandler(BaseErrorHandler):
             else RecoveryStrategy.IGNORE
         )
 
+    @override
     def report_issues(self, issues: list["ValidationIssue"]) -> None:
         """Silently capture issues."""
         for issue in issues:
             logger.debug(f"Silent: {issue.format()}")
 
+    @override
     def notify_recovery(self, context: ErrorContext, strategy: RecoveryStrategy) -> None:
         """Silently log recovery."""
         logger.debug(f"Silent: Recovery [{strategy.value}] for {context.component}.{context.operation}")
@@ -374,6 +386,7 @@ class StrictTransformErrorHandler(BaseErrorHandler):
         """Initialize strict handler."""
         super().__init__(parent_widget)
 
+    @override
     def handle_validation_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Abort on validation errors."""
         logger.error(f"STRICT: Validation error - {error}")
@@ -381,21 +394,25 @@ class StrictTransformErrorHandler(BaseErrorHandler):
             raise error
         return RecoveryStrategy.ABORT
 
+    @override
     def handle_transform_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Abort on transform errors."""
         logger.error(f"STRICT: Transform error - {error}")
         raise error
 
+    @override
     def handle_cache_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Abort on cache errors."""
         logger.error(f"STRICT: Cache error - {error}")
         raise error
 
+    @override
     def handle_coordinate_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Abort on coordinate errors."""
         logger.error(f"STRICT: Coordinate error - {error}")
         raise error
 
+    @override
     def report_issues(self, issues: list["ValidationIssue"]) -> None:
         """Report all issues as errors."""
         from core.validation_strategy import ValidationSeverity
@@ -407,6 +424,7 @@ class StrictTransformErrorHandler(BaseErrorHandler):
             if issue.severity == ValidationSeverity.CRITICAL:
                 raise ValueError(issue.format())
 
+    @override
     def notify_recovery(self, context: ErrorContext, strategy: RecoveryStrategy) -> None:
         """Log recovery attempts as errors in strict mode."""
         logger.error(f"STRICT: Recovery attempted [{strategy.value}] for {context.component}.{context.operation}")

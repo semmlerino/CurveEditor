@@ -1143,8 +1143,8 @@ class TestStateManagement:  # pyright: ignore[reportUninitializedInstanceVariabl
 
         self.service.restore_state(
             main_window,  # pyright: ignore[reportArgumentType]
-            state,
-        )  # pyright: ignore[reportArgumentType]
+            cast(dict[str, object], state),
+        )
 
         # Verify ApplicationState was updated
         restored_data = app_state.get_curve_data("test_curve")

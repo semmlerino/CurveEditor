@@ -65,6 +65,8 @@ class TestUnifiedCurveRendering:
         from core.display_mode import DisplayMode
 
         mock_view.active_curve_name = "curve1"
+        # Note: In real code, display_mode is computed from ApplicationState.
+        # This mock directly sets it for testing rendering logic.
         mock_view.display_mode = DisplayMode.SELECTED
         mock_view.selected_curve_names = {"curve1", "curve2"}
 

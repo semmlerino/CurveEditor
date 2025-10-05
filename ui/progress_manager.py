@@ -11,7 +11,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, cast
+from typing import Any, cast, override
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
@@ -81,6 +81,7 @@ class ProgressWorker(QThread):
         self.is_cancelled = False
         self.result = None
 
+    @override
     def run(self) -> None:
         """Execute the operation in the thread."""
         try:
@@ -287,7 +288,7 @@ class ProgressManager(QObject):
     def show_busy_cursor(self) -> None:
         """Show busy cursor."""
         if self._busy_cursor_count == 0:
-            QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
+            _ = QApplication.setOverrideCursor(QCursor(Qt.CursorShape.WaitCursor))
         self._busy_cursor_count += 1
 
     def hide_busy_cursor(self) -> None:
@@ -339,7 +340,7 @@ class ProgressManager(QObject):
         worker.start()
 
         # Show dialog (blocks until complete)
-        dialog.exec()
+        _ = dialog.exec()
 
         # Clean up
         success = not worker.is_cancelled
@@ -406,7 +407,7 @@ class ProgressManager(QObject):
     def _handle_error(self, error_msg: str, dialog: QProgressDialog) -> None:
         """Handle error during progress operation."""
         logger.error(f"Progress operation error: {error_msg}")
-        dialog.close()
+        _ = dialog.close()
 
         # Could show error dialog here
         from PySide6.QtWidgets import QMessageBox

@@ -269,7 +269,10 @@ class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
     - Curve metadata management
 
     Example Usage:
+        from stores.application_state import get_application_state
+
         view: MultiCurveViewProtocol = CurveViewWidget()
+        app_state = get_application_state()
 
         # Set multiple curves
         curves = {
@@ -281,8 +284,8 @@ class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
         # Set active curve for editing
         view.set_active_curve("pp56_TM_138G")
 
-        # Set display mode
-        view.widget.display_mode = DisplayMode.ALL_VISIBLE
+        # Set display mode via ApplicationState
+        app_state.set_show_all_curves(True)  # → display_mode = ALL_VISIBLE
     """
 
     # Multi-curve state

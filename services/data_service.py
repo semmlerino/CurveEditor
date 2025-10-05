@@ -1005,7 +1005,7 @@ class DataService:
             with open(file_path, encoding="utf-8", newline="") as f:
                 # Try to detect delimiter
                 sample = f.read(1024)
-                f.seek(0)
+                _ = f.seek(0)
 
                 delimiter = ","
                 if "\t" in sample and sample.count("\t") > sample.count(","):
@@ -1021,9 +1021,9 @@ class DataService:
                     # Check if first row looks like a header
                     try:
                         # Try to convert first column to number
-                        float(first_row[0])
+                        _ = float(first_row[0])
                         # If successful, this is data, not header
-                        f.seek(0)
+                        _ = f.seek(0)
                         reader = csv.reader(f, delimiter=delimiter)
                     except (ValueError, IndexError):
                         # First row is likely a header, continue from next row

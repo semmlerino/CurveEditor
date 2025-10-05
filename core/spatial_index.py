@@ -195,7 +195,7 @@ class PointIndex:
             # Update screen dimensions and recalculate grid if needed
             new_width = float(getattr(view, "width", lambda: 800.0)())
             new_height = float(getattr(view, "height", lambda: 600.0)())
-            self.update_screen_dimensions(new_width, new_height)
+            _ = self.update_screen_dimensions(new_width, new_height)
 
             # Calculate cell dimensions
             self.cell_width = self.screen_width / self.grid_width

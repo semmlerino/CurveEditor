@@ -190,7 +190,7 @@ class ThumbnailCache:
 
         try:
             # Save as JPEG with quality 85 (good balance of quality/size)
-            pixmap.save(str(cache_file), "JPEG", 85)
+            _ = pixmap.save(str(cache_file), "JPEG", 85)
 
             # Clean up old cache entries if needed
             self._cleanup_disk_cache()

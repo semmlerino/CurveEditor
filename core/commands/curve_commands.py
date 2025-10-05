@@ -12,6 +12,8 @@ from __future__ import annotations
 import copy
 from typing import TYPE_CHECKING, Any
 
+from typing_extensions import override
+
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -45,6 +47,7 @@ class SetCurveDataCommand(Command):
         self.new_data = copy.deepcopy(new_data)
         self.old_data = copy.deepcopy(old_data) if old_data is not None else None
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute the command by setting new curve data."""
         try:
@@ -68,6 +71,7 @@ class SetCurveDataCommand(Command):
             logger.error(f"Error executing SetCurveDataCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo by restoring the old curve data."""
         try:
@@ -87,6 +91,7 @@ class SetCurveDataCommand(Command):
             logger.error(f"Error undoing SetCurveDataCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo by setting the new curve data again."""
         return self.execute(main_window)
@@ -127,6 +132,7 @@ class SmoothCommand(Command):
         self.old_points = copy.deepcopy(old_points) if old_points else None
         self.new_points = copy.deepcopy(new_points) if new_points else None
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute smoothing operation."""
         try:
@@ -189,6 +195,7 @@ class SmoothCommand(Command):
             logger.error(f"Error executing SmoothCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo smoothing by restoring original points."""
         try:
@@ -213,6 +220,7 @@ class SmoothCommand(Command):
             logger.error(f"Error undoing SmoothCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo smoothing by applying smoothed points."""
         try:
@@ -237,6 +245,7 @@ class SmoothCommand(Command):
             logger.error(f"Error redoing SmoothCommand: {e}")
             return False
 
+    @override
     def can_merge_with(self, other: Command) -> bool:
         """Check if this smooth command can be merged with another."""
         if not isinstance(other, SmoothCommand):
@@ -249,6 +258,7 @@ class SmoothCommand(Command):
             and bool(set(self.indices) & set(other.indices))  # Overlapping indices
         )
 
+    @override
     def merge_with(self, other: Command) -> Command:
         """Merge with another smooth command."""
         if not isinstance(other, SmoothCommand) or not self.can_merge_with(other):
@@ -291,6 +301,7 @@ class MovePointCommand(Command):
         self.old_pos = old_pos
         self.new_pos = new_pos
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point movement."""
         try:
@@ -319,6 +330,7 @@ class MovePointCommand(Command):
             logger.error(f"Error executing MovePointCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point movement."""
         try:
@@ -347,14 +359,17 @@ class MovePointCommand(Command):
             logger.error(f"Error undoing MovePointCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point movement."""
         return self.execute(main_window)
 
+    @override
     def can_merge_with(self, other: Command) -> bool:
         """Check if this move can be merged with another move of the same point."""
         return isinstance(other, MovePointCommand) and self.index == other.index
 
+    @override
     def merge_with(self, other: Command) -> Command:
         """Merge with another move command for the same point."""
         if not isinstance(other, MovePointCommand) or self.index != other.index:
@@ -389,6 +404,7 @@ class DeletePointsCommand(Command):
         self.indices = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
         self.deleted_points = copy.deepcopy(deleted_points) if deleted_points else None
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point deletion."""
         try:
@@ -420,6 +436,7 @@ class DeletePointsCommand(Command):
             logger.error(f"Error executing DeletePointsCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point deletion by restoring deleted points."""
         try:
@@ -444,6 +461,7 @@ class DeletePointsCommand(Command):
             logger.error(f"Error undoing DeletePointsCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point deletion."""
         return self.execute(main_window)
@@ -472,6 +490,7 @@ class BatchMoveCommand(Command):
         super().__init__(description)
         self.moves = moves  # List of (index, old_pos, new_pos)
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute batch point movement."""
         try:
@@ -501,6 +520,7 @@ class BatchMoveCommand(Command):
             logger.error(f"Error executing BatchMoveCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo batch point movement."""
         try:
@@ -530,10 +550,12 @@ class BatchMoveCommand(Command):
             logger.error(f"Error undoing BatchMoveCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo batch point movement."""
         return self.execute(main_window)
 
+    @override
     def can_merge_with(self, other: Command) -> bool:
         """Check if this batch move can be merged with another."""
         if not isinstance(other, BatchMoveCommand):
@@ -544,6 +566,7 @@ class BatchMoveCommand(Command):
         other_indices = {move[0] for move in other.moves}
         return self_indices == other_indices
 
+    @override
     def merge_with(self, other: Command) -> Command:
         """Merge with another batch move command."""
         if not isinstance(other, BatchMoveCommand) or not self.can_merge_with(other):
@@ -586,6 +609,7 @@ class SetPointStatusCommand(Command):
         super().__init__(description)
         self.changes = changes
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute status changes."""
         try:
@@ -622,7 +646,7 @@ class SetPointStatusCommand(Command):
                 store_manager = get_store_manager()
                 curve_store = store_manager.get_curve_store()
                 for index, _, new_status in self.changes:
-                    curve_store.set_point_status(index, new_status)
+                    _ = curve_store.set_point_status(index, new_status)
                 main_window.curve_widget.update()
 
             return True
@@ -631,6 +655,7 @@ class SetPointStatusCommand(Command):
             logger.error(f"Error executing SetPointStatusCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo status changes."""
         try:
@@ -667,7 +692,7 @@ class SetPointStatusCommand(Command):
                 store_manager = get_store_manager()
                 curve_store = store_manager.get_curve_store()
                 for index, old_status, _ in self.changes:
-                    curve_store.set_point_status(index, old_status)
+                    _ = curve_store.set_point_status(index, old_status)
                 main_window.curve_widget.update()
 
             return True
@@ -676,10 +701,12 @@ class SetPointStatusCommand(Command):
             logger.error(f"Error undoing SetPointStatusCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo status changes."""
         return self.execute(main_window)
 
+    @override
     def can_merge_with(self, other: Command) -> bool:
         """Check if this status change can be merged with another."""
         if not isinstance(other, SetPointStatusCommand):
@@ -690,6 +717,7 @@ class SetPointStatusCommand(Command):
         other_indices = {change[0] for change in other.changes}
         return self_indices == other_indices
 
+    @override
     def merge_with(self, other: Command) -> Command:
         """Merge with another status change command."""
         if not isinstance(other, SetPointStatusCommand) or not self.can_merge_with(other):
@@ -727,6 +755,7 @@ class AddPointCommand(Command):
         self.index = index
         self.point = copy.deepcopy(point)
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute point addition."""
         try:
@@ -749,6 +778,7 @@ class AddPointCommand(Command):
             logger.error(f"Error executing AddPointCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo point addition by removing the added point."""
         try:
@@ -771,6 +801,7 @@ class AddPointCommand(Command):
             logger.error(f"Error undoing AddPointCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo point addition."""
         return self.execute(main_window)
@@ -807,6 +838,7 @@ class ConvertToInterpolatedCommand(Command):
         self.old_point = old_point
         self.new_point = new_point
 
+    @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute the conversion to interpolated."""
         try:
@@ -831,6 +863,7 @@ class ConvertToInterpolatedCommand(Command):
             logger.error(f"Error executing ConvertToInterpolatedCommand: {e}")
             return False
 
+    @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
         """Undo the conversion by restoring the original point."""
         try:
@@ -855,6 +888,7 @@ class ConvertToInterpolatedCommand(Command):
             logger.error(f"Error undoing ConvertToInterpolatedCommand: {e}")
             return False
 
+    @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
         """Redo the conversion."""
         return self.execute(main_window)

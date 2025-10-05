@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QThread, Signal
 
@@ -56,6 +56,7 @@ class DirectoryScanWorker(QThread):
         self._cancelled = True
         logger.debug("Scan cancellation requested")
 
+    @override
     def run(self) -> None:
         """Execute the directory scan in background thread."""
         try:

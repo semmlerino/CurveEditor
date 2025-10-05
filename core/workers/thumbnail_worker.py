@@ -202,8 +202,8 @@ class ThumbnailBatchLoader(QObject):
             worker = ThumbnailWorker(idx, image_path, frame_num, self.thumbnail_size)
 
             # Connect signals
-            worker.signals.thumbnail_ready.connect(self._on_thumbnail_ready)
-            worker.signals.thumbnail_failed.connect(self._on_thumbnail_failed)
+            _ = worker.signals.thumbnail_ready.connect(self._on_thumbnail_ready)
+            _ = worker.signals.thumbnail_failed.connect(self._on_thumbnail_failed)
 
             # Start worker
             self._active_workers += 1

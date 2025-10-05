@@ -1,6 +1,6 @@
 """Tracking points panel for displaying and managing multiple tracking points."""
 
-from typing import TypedDict
+from typing import TypedDict, override
 
 from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeyEvent
@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
+from core.signal_manager import SignalManager
 from core.type_aliases import CurveDataInput
 
 logger = get_logger(__name__)
@@ -39,6 +40,7 @@ class TrackingTableEventFilter(QObject):
         super().__init__()
         self.panel = panel
 
+    @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         """Filter events for the tracking table.
 
@@ -132,17 +134,24 @@ class TrackingPointsPanel(QWidget):
     """Panel displaying tracking point names with management capabilities."""
 
     # Signals
-    points_selected: Signal = Signal(list)  # List of selected point names
+    # LEGACY: points_selected and display_mode_changed are legacy signals
+    # still connected in production code (ui_initialization_controller.py).
+    # New code should subscribe to ApplicationState.selection_state_changed instead.
+    points_selected: Signal = Signal(list)  # LEGACY: List of selected point names
     point_visibility_changed: Signal = Signal(str, bool)  # Point name, visible
     point_color_changed: Signal = Signal(str, str)  # Point name, color hex
     tracking_direction_changed: Signal = Signal(str, object)  # Point name, TrackingDirection
     point_deleted: Signal = Signal(str)  # Point name
     point_renamed: Signal = Signal(str, str)  # Old name, new name
-    display_mode_changed: Signal = Signal(DisplayMode)  # Display mode
+    display_mode_changed: Signal = Signal(DisplayMode)  # LEGACY: Display mode
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the tracking points panel."""
         super().__init__(parent)
+
+        # Signal management for proper cleanup
+        self.signal_manager: SignalManager = SignalManager(self)
+
         self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
         self._update_depth: int = 0  # Track recursion depth for app state sync (more robust than boolean)
@@ -163,7 +172,12 @@ class TrackingPointsPanel(QWidget):
         self.table.installEventFilter(self._table_event_filter)
 
         # NEW: Subscribe to ApplicationState changes (for reverse sync)
-        self._app_state.selection_state_changed.connect(self._on_app_state_changed)
+        # Use SignalManager to ensure automatic cleanup on widget destruction
+        _ = self.signal_manager.connect(
+            self._app_state.selection_state_changed,
+            self._on_app_state_changed,
+            "selection_state_changed",
+        )
 
     def _init_ui(self) -> None:
         """Initialize the user interface."""
@@ -623,9 +637,9 @@ class TrackingPointsPanel(QWidget):
 
         hide_action = QAction("Hide", self)
         _ = hide_action.triggered.connect(lambda: self._set_visibility_for_points(selected_points, False))
-        menu.addAction(hide_action)
+        _ = menu.addAction(hide_action)
 
-        menu.addSeparator()
+        _ = menu.addSeparator()
 
         # Tracking direction submenu
         direction_menu = QMenu("Set Direction", self)
@@ -634,23 +648,23 @@ class TrackingPointsPanel(QWidget):
         _ = fw_action.triggered.connect(
             lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_FW)
         )
-        direction_menu.addAction(fw_action)
+        _ = direction_menu.addAction(fw_action)
 
         bw_action = QAction("Backward (BW)", self)
         _ = bw_action.triggered.connect(
             lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_BW)
         )
-        direction_menu.addAction(bw_action)
+        _ = direction_menu.addAction(bw_action)
 
         fwbw_action = QAction("Bidirectional (FW+BW)", self)
         _ = fwbw_action.triggered.connect(
             lambda: self._set_direction_for_points(selected_points, TrackingDirection.TRACKING_FW_BW)
         )
-        direction_menu.addAction(fwbw_action)
+        _ = direction_menu.addAction(fwbw_action)
 
-        menu.addMenu(direction_menu)
+        _ = menu.addMenu(direction_menu)
 
-        menu.addSeparator()
+        _ = menu.addSeparator()
 
         # Delete action
         if len(selected_points) == 1:
@@ -658,9 +672,9 @@ class TrackingPointsPanel(QWidget):
         else:
             delete_action = QAction(f"Delete {len(selected_points)} points", self)
         _ = delete_action.triggered.connect(lambda: self._delete_points(selected_points))
-        menu.addAction(delete_action)
+        _ = menu.addAction(delete_action)
 
-        menu.exec(self.table.viewport().mapToGlobal(position))
+        _ = menu.exec(self.table.viewport().mapToGlobal(position))
 
     def _set_visibility_for_points(self, points: list[str], visible: bool) -> None:
         """Set visibility for multiple points."""
@@ -710,6 +724,7 @@ class TrackingPointsPanel(QWidget):
         for point_name in points:
             self.point_deleted.emit(point_name)
 
+    @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle key press events.
 
@@ -719,6 +734,7 @@ class TrackingPointsPanel(QWidget):
         # Let the event propagate to the global event filter
         super().keyPressEvent(event)
 
+    @override
     def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
         """Clean up event filters to prevent accumulation across tests.
 

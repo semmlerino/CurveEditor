@@ -51,51 +51,9 @@ class MultiCurveManager:
     # ==================== Backward-Compatible Properties ====================
     # These delegate to ApplicationState for single source of truth
 
-    @property
-    def selected_curve_names(self) -> set[str]:
-        """
-        DEPRECATED: Access selected curves via ApplicationState.
-
-        This property is deprecated and will be removed in Phase 8.
-        Use: get_application_state().get_selected_curves()
-
-        Returns:
-            Set of selected curve names from ApplicationState
-        """
-        import warnings
-
-        warnings.warn(
-            (
-                "manager.selected_curve_names is deprecated. "
-                "Use get_application_state().get_selected_curves() instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._app_state.get_selected_curves()
-
-    @selected_curve_names.setter
-    def selected_curve_names(self, value: set[str]) -> None:
-        """
-        DEPRECATED: Set selected curves via ApplicationState.
-
-        This setter is deprecated and will be removed in Phase 8.
-        Use: get_application_state().set_selected_curves(value)
-
-        Args:
-            value: Set of curve names to select
-        """
-        import warnings
-
-        warnings.warn(
-            (
-                "Setting manager.selected_curve_names is deprecated. "
-                "Use get_application_state().set_selected_curves() instead."
-            ),
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        self._app_state.set_selected_curves(value)
+    # Note: selected_curve_names property removed in Phase 8
+    # Use: get_application_state().get_selected_curves() to get
+    # Use: get_application_state().set_selected_curves(value) to set
 
     @property
     def curves_data(self) -> dict[str, CurveDataList]:

@@ -34,10 +34,14 @@ class TestMultiCurveManager:
 
     def test_initial_state(self, manager):
         """Test that manager starts with empty state."""
+        from stores.application_state import get_application_state
+
         assert manager.curves_data == {}
         assert manager.curve_metadata == {}
         assert manager.active_curve_name is None
-        assert manager.selected_curve_names == set()
+        # Check selected curves via ApplicationState
+        app_state = get_application_state()
+        assert app_state.get_selected_curves() == set()
 
     def test_add_curve(self, manager, widget):
         """Test adding a single curve."""
@@ -153,7 +157,11 @@ class TestMultiCurveManager:
 
         manager.set_selected_curves(["curve1", "curve3"])
 
-        assert manager.selected_curve_names == {"curve1", "curve3"}
+        # Check selected curves via ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        assert app_state.get_selected_curves() == {"curve1", "curve3"}
         # Last in list should become active
         assert manager.active_curve_name == "curve3"
 

@@ -66,6 +66,8 @@ class TestInsertTrackIntegration:
         main_window.curve_widget = Mock()
         main_window.curve_widget.set_curve_data = Mock()
         main_window.curve_widget.multi_curve_manager = Mock()
+        # Note: In real code, selected_curve_names is read from ApplicationState.
+        # This mock directly sets it for testing Insert Track logic.
         main_window.curve_widget.multi_curve_manager.selected_curve_names = {"point_01", "point_02"}
 
         main_window.active_timeline_point = "point_01"
@@ -111,6 +113,7 @@ class TestInsertTrackIntegration:
 
         main_window.curve_widget = Mock()
         main_window.curve_widget.multi_curve_manager = Mock()
+        # Note: In real code, selected_curve_names is read from ApplicationState.
         main_window.curve_widget.multi_curve_manager.selected_curve_names = set()  # Empty
 
         key_event = Mock()
@@ -162,6 +165,7 @@ class TestInsertTrackIntegration:
     def test_scenario_1_workflow_interpolate_gap(self, mock_main_window_with_controller):
         """Test Scenario 1: End-to-end workflow for interpolating a gap."""
         # Setup - select only point with gap
+        # Note: In real code, selected_curve_names is read from ApplicationState.
         mock_main_window_with_controller.curve_widget.multi_curve_manager.selected_curve_names = {"point_01"}
 
         # Execute command

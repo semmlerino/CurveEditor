@@ -180,7 +180,7 @@ class CompositeCommand(Command):
                 if not command.execute(main_window):
                     # Rollback previously executed commands
                     for rollback_cmd in reversed(executed_commands):
-                        rollback_cmd.undo(main_window)
+                        _ = rollback_cmd.undo(main_window)
                     return False
                 executed_commands.append(command)
 
@@ -192,7 +192,7 @@ class CompositeCommand(Command):
             # Rollback previously executed commands
             for rollback_cmd in reversed(executed_commands):
                 try:
-                    rollback_cmd.undo(main_window)
+                    _ = rollback_cmd.undo(main_window)
                 except Exception as rollback_error:
                     logger.error(f"Error during rollback: {rollback_error}")
             return False

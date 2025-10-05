@@ -94,7 +94,7 @@ class TimelineController(QObject):
 
         # Setup timer for playback
         self.playback_timer = QTimer(self)
-        self.playback_timer.timeout.connect(self._on_playback_timer)
+        _ = self.playback_timer.timeout.connect(self._on_playback_timer)
 
         # Connect signals
         self._connect_signals()
@@ -153,19 +153,19 @@ class TimelineController(QObject):
     def _connect_signals(self) -> None:
         """Connect widget signals."""
         # StateManager observer connection
-        self.state_manager.frame_changed.connect(lambda frame: self.update_frame_display(frame, update_state=False))
+        _ = self.state_manager.frame_changed.connect(lambda frame: self.update_frame_display(frame, update_state=False))
 
         # Navigation signals
-        self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
-        self.frame_slider.valueChanged.connect(self._on_slider_changed)
-        self.btn_first.clicked.connect(self._on_first_frame)
-        self.btn_prev.clicked.connect(self._on_prev_frame)
-        self.btn_next.clicked.connect(self._on_next_frame)
-        self.btn_last.clicked.connect(self._on_last_frame)
+        _ = self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
+        _ = self.frame_slider.valueChanged.connect(self._on_slider_changed)
+        _ = self.btn_first.clicked.connect(self._on_first_frame)
+        _ = self.btn_prev.clicked.connect(self._on_prev_frame)
+        _ = self.btn_next.clicked.connect(self._on_next_frame)
+        _ = self.btn_last.clicked.connect(self._on_last_frame)
 
         # Playback signals
-        self.btn_play_pause.toggled.connect(self._on_play_pause)
-        self.fps_spinbox.valueChanged.connect(self._on_fps_changed)
+        _ = self.btn_play_pause.toggled.connect(self._on_play_pause)
+        _ = self.fps_spinbox.valueChanged.connect(self._on_fps_changed)
 
     # ========== Frame Navigation Methods ==========
 
@@ -174,9 +174,9 @@ class TimelineController(QObject):
         logger.debug(f"[FRAME] Spinbox changed to: {value}")
 
         # Update slider without triggering its signal
-        self.frame_slider.blockSignals(True)
+        _ = self.frame_slider.blockSignals(True)
         self.frame_slider.setValue(value)
-        self.frame_slider.blockSignals(False)
+        _ = self.frame_slider.blockSignals(False)
 
         # Update state and emit signal
         self._update_frame(value)
@@ -186,9 +186,9 @@ class TimelineController(QObject):
         logger.debug(f"[FRAME] Slider changed to: {value}")
 
         # Update spinbox without triggering its signal
-        self.frame_spinbox.blockSignals(True)
+        _ = self.frame_spinbox.blockSignals(True)
         self.frame_spinbox.setValue(value)
-        self.frame_spinbox.blockSignals(False)
+        _ = self.frame_spinbox.blockSignals(False)
 
         # Update state and emit signal
         self._update_frame(value)
@@ -248,13 +248,13 @@ class TimelineController(QObject):
             update_state: Whether to update state manager
         """
         # Block signals to prevent feedback loops
-        self.frame_spinbox.blockSignals(True)
+        _ = self.frame_spinbox.blockSignals(True)
         self.frame_spinbox.setValue(frame)
-        self.frame_spinbox.blockSignals(False)
+        _ = self.frame_spinbox.blockSignals(False)
 
-        self.frame_slider.blockSignals(True)
+        _ = self.frame_slider.blockSignals(True)
         self.frame_slider.setValue(frame)
-        self.frame_slider.blockSignals(False)
+        _ = self.frame_slider.blockSignals(False)
 
         if update_state:
             self.state_manager.current_frame = frame
@@ -343,9 +343,9 @@ class TimelineController(QObject):
 
         # Update UI (block signals to prevent recursive calls)
         self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPause))
-        self.btn_play_pause.blockSignals(True)
+        _ = self.btn_play_pause.blockSignals(True)
         self.btn_play_pause.setChecked(True)
-        self.btn_play_pause.blockSignals(False)
+        _ = self.btn_play_pause.blockSignals(False)
 
         # Emit signals
         self.playback_started.emit()
@@ -368,9 +368,9 @@ class TimelineController(QObject):
 
         # Update UI (block signals to prevent recursive calls)
         self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.btn_play_pause.blockSignals(True)
+        _ = self.btn_play_pause.blockSignals(True)
         self.btn_play_pause.setChecked(False)
-        self.btn_play_pause.blockSignals(False)
+        _ = self.btn_play_pause.blockSignals(False)
 
         # Emit signals
         self.playback_stopped.emit()

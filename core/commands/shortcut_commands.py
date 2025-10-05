@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Qt
+from typing_extensions import override
 
 if TYPE_CHECKING:
     from core.models import TrackingDirection
@@ -31,6 +32,7 @@ class InsertTrackShortcutCommand(ShortcutCommand):
         """Initialize the Insert Track shortcut command."""
         super().__init__("Ctrl+Shift+I", "Insert Track - Fill gaps from other tracking points")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if Insert Track can be executed.
 
@@ -58,6 +60,7 @@ class InsertTrackShortcutCommand(ShortcutCommand):
 
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute Insert Track operation.
 
@@ -112,6 +115,7 @@ class SetEndframeCommand(ShortcutCommand):
         """Initialize the endframe toggle command."""
         super().__init__("E", "Toggle between keyframe and end frame")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can toggle endframe status.
 
@@ -136,6 +140,7 @@ class SetEndframeCommand(ShortcutCommand):
 
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the endframe toggle command.
 
@@ -217,6 +222,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
         description = f"Set tracking direction to {direction.value}"
         super().__init__(key_sequence, description)
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can set tracking direction.
 
@@ -248,6 +254,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
             return has_points
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the tracking direction command."""
         tracking_panel = context.main_window.tracking_panel
@@ -285,6 +292,7 @@ class DeletePointsCommand(ShortcutCommand):
         """Initialize the delete command."""
         super().__init__("Delete", "Delete selected points")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can delete points.
 
@@ -292,6 +300,7 @@ class DeletePointsCommand(ShortcutCommand):
         """
         return context.has_curve_selection or context.has_tracking_selection
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the delete command."""
         success = False
@@ -326,6 +335,7 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         """Initialize the delete current frame keyframe command."""
         super().__init__("Ctrl+R", "Convert keyframe to interpolated point")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can delete the keyframe at the current frame.
 
@@ -343,6 +353,7 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
 
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the convert keyframe to interpolated command.
 
@@ -451,6 +462,7 @@ class CenterViewCommand(ShortcutCommand):
         """Initialize the center view command."""
         super().__init__("C", "Center view on selection")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can center the view.
 
@@ -467,6 +479,7 @@ class CenterViewCommand(ShortcutCommand):
         # Need curve widget
         return context.main_window.curve_widget is not None
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the center view command."""
         curve_widget = context.main_window.curve_widget
@@ -502,6 +515,7 @@ class SelectAllCommand(ShortcutCommand):
         """Initialize the select all command."""
         super().__init__("Ctrl+A", "Select all points")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can select all.
 
@@ -509,6 +523,7 @@ class SelectAllCommand(ShortcutCommand):
         """
         return context.main_window.curve_widget is not None
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the select all command."""
         curve_widget = context.main_window.curve_widget
@@ -530,6 +545,7 @@ class DeselectAllCommand(ShortcutCommand):
         """Initialize the deselect command."""
         super().__init__("Escape", "Deselect all points")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can deselect all.
 
@@ -537,6 +553,7 @@ class DeselectAllCommand(ShortcutCommand):
         """
         return context.has_curve_selection
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the deselect command."""
         curve_widget = context.main_window.curve_widget
@@ -558,6 +575,7 @@ class FitBackgroundCommand(ShortcutCommand):
         """Initialize the fit background command."""
         super().__init__("F", "Fit background image to view")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can fit background.
 
@@ -575,6 +593,7 @@ class FitBackgroundCommand(ShortcutCommand):
         curve_widget = context.main_window.curve_widget
         return curve_widget is not None and curve_widget.background_image is not None
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the fit background command."""
         curve_widget = context.main_window.curve_widget
@@ -614,6 +633,7 @@ class NudgePointsCommand(ShortcutCommand):
             direction = "down"
         super().__init__(key, f"Nudge points {direction}")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can nudge points.
 
@@ -637,6 +657,7 @@ class NudgePointsCommand(ShortcutCommand):
 
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the nudge command."""
         curve_widget = context.main_window.curve_widget
@@ -695,6 +716,7 @@ class UndoCommand(ShortcutCommand):
         """Initialize the undo command."""
         super().__init__("Ctrl+Z", "Undo last action")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can undo.
 
@@ -705,6 +727,7 @@ class UndoCommand(ShortcutCommand):
             return context.main_window.action_undo.isEnabled()
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the undo command."""
         if context.main_window and context.main_window.action_undo:
@@ -725,6 +748,7 @@ class RedoCommand(ShortcutCommand):
         """Initialize the redo command."""
         super().__init__("Ctrl+Y", "Redo last action")
 
+    @override
     def can_execute(self, context: ShortcutContext) -> bool:
         """Check if we can redo.
 
@@ -735,6 +759,7 @@ class RedoCommand(ShortcutCommand):
             return context.main_window.action_redo.isEnabled()
         return False
 
+    @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the redo command."""
         if context.main_window and context.main_window.action_redo:
