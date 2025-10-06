@@ -2,7 +2,7 @@
 StateSyncController - Manages signal connections and reactive state updates for CurveViewWidget.
 
 This controller extracts signal handling responsibilities from CurveViewWidget:
-- Connects to CurveDataStore, ApplicationState, and StateManager signals
+- Connects to ApplicationState and StateManager signals
 - Handles reactive updates when stores emit change notifications
 - Synchronizes widget display state with underlying data stores
 

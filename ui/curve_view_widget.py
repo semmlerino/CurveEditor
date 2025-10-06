@@ -183,7 +183,7 @@ class CurveViewWidget(QWidget):
         self.state_sync.connect_all_signals()
 
         # Data management facade (Phase 4 extraction)
-        # Encapsulates all data operations, delegating to ApplicationState + CurveDataStore
+        # Encapsulates all data operations, delegating to ApplicationState
         from ui.controllers.curve_view.curve_data_facade import CurveDataFacade
 
         self.data_facade: CurveDataFacade = CurveDataFacade(self)
@@ -1377,7 +1377,7 @@ class CurveViewWidget(QWidget):
         # Update via ApplicationState for active curve
         active = self._app_state.active_curve
         if active:
-            # Match CurveDataStore's toggle behavior when add_to_selection=True
+            # Match legacy toggle behavior when add_to_selection=True
             if add_to_selection:
                 # Toggle: add if not selected, remove if already selected
                 current_selection = self._app_state.get_selection(active)

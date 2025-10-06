@@ -3,7 +3,7 @@ Reactive frame state store for CurveEditor.
 
 This store manages frame range and playback state, while delegating
 current_frame to StateManager to maintain single source of truth.
-It derives frame range from the CurveDataStore.
+It derives frame range from ApplicationState.
 """
 
 from typing import TYPE_CHECKING
