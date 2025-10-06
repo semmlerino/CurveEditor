@@ -573,8 +573,8 @@ class InteractionService:
                 history_state["curve_data"] = [tuple(point) for point in widget_curve_data]
             else:
                 history_state["curve_data"] = copy.deepcopy(widget_curve_data)
-        elif main_window.curve_view is not None and getattr(main_window.curve_view, "curve_data", None) is not None:
-            view_curve_data = getattr(main_window.curve_view, "curve_data")
+        elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
+            view_curve_data = getattr(main_window.curve_widget, "curve_data")
             if (
                 view_curve_data
                 and isinstance(view_curve_data, list)
@@ -1315,9 +1315,12 @@ class InteractionService:
             ):
                 setattr(main_window.curve_widget, "curve_data", curve_data)
 
-            # Also set on curve_view if present
-            if main_window.curve_view is not None and getattr(main_window.curve_view, "curve_data", None) is not None:
-                setattr(main_window.curve_view, "curve_data", curve_data)
+            # Also set on curve_widget if present
+            if (
+                main_window.curve_widget is not None
+                and getattr(main_window.curve_widget, "curve_data", None) is not None
+            ):
+                setattr(main_window.curve_widget, "curve_data", curve_data)
 
         # Restore point_name
         if "point_name" in state and getattr(main_window, "point_name", None) is not None:
@@ -1328,8 +1331,8 @@ class InteractionService:
             main_window.point_color = cast(str, state["point_color"])
 
         # Update the view
-        if main_window.curve_view is not None:
-            curve_view = main_window.curve_view
+        if main_window.curve_widget is not None:
+            curve_view = main_window.curve_widget
             # Ensure curve_data is available - curve_data is always bound now
             safe_curve_data = curve_data
             # Try different update methods

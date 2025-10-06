@@ -361,29 +361,29 @@ class MenuBar(QMenuBar):
     @Slot()
     def _handle_select_all(self) -> None:
         """Handle select all action."""
-        if self.main_window and self.main_window.curve_view is not None:
-            curve_view = self.main_window.curve_view
+        if self.main_window and self.main_window.curve_widget is not None:
+            curve_view = self.main_window.curve_widget
             _ = self.curve_service.select_all_points(curve_view, self.main_window)
 
     @Slot()
     def _handle_deselect_all(self) -> None:
         """Handle deselect all action."""
-        if self.main_window and self.main_window.curve_view is not None:
-            curve_view = self.main_window.curve_view
+        if self.main_window and self.main_window.curve_widget is not None:
+            curve_view = self.main_window.curve_widget
             self.curve_service.clear_selection(curve_view, self.main_window)
 
     @Slot()
     def _handle_delete_selected(self) -> None:
         """Handle delete selected action."""
-        if self.main_window and self.main_window.curve_view is not None:
-            curve_view = self.main_window.curve_view
+        if self.main_window and self.main_window.curve_widget is not None:
+            curve_view = self.main_window.curve_widget
             self.curve_service.delete_selected_points(curve_view, self.main_window)
 
     # View menu handlers
     def _handle_reset_view(self) -> None:
         """Handle reset view action."""
-        if self.main_window and self.main_window.curve_view is not None:
-            curve_view = self.main_window.curve_view
+        if self.main_window and self.main_window.curve_widget is not None:
+            curve_view = self.main_window.curve_widget
             self.curve_service.reset_view(curve_view)
 
     def _handle_load_images(self) -> None:

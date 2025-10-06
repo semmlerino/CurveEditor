@@ -18,7 +18,6 @@ Key architecture components:
 
 # Standard library imports
 import sys
-import warnings
 from typing import TYPE_CHECKING, cast
 
 from typing_extensions import override
@@ -568,16 +567,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get view update manager instance."""
         # Return view update manager if it exists (may be added in future)
         return getattr(self, "_view_update_manager", None)
-
-    @property
-    def curve_view(self) -> CurveViewWidget | None:
-        """Deprecated alias for curve_widget."""
-        warnings.warn(
-            "main_window.curve_view is deprecated. Use main_window.curve_widget instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self.curve_widget
 
     # MainWindowProtocol required methods
     def restore_state(self, state: object) -> None:
