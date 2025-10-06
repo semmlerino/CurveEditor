@@ -26,7 +26,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from PySide6.QtCore import QPointF
 from PySide6.QtWidgets import QWidget
 
-from tests.test_helpers import MockCurveView, MockDataBuilder, PointsList
+from tests.test_helpers import MockCurveView, MockDataBuilder, PointsList, set_test_selection
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -123,7 +123,7 @@ class TestPointDataManagement:
         """Test getting selected indices."""
         curve_view_widget.set_curve_data(sample_points)
         # Set selection via public API
-        curve_view_widget.selected_indices = {0, 2}
+        set_test_selection(curve_view_widget, {0, 2})
 
         selected = list(curve_view_widget.selected_indices)
         assert set(selected) == {0, 2}
@@ -186,7 +186,7 @@ class TestViewStateManagement:
         """Test centering on selected points."""
         curve_view_widget.set_curve_data(sample_points)
         # Set selection via public API
-        curve_view_widget.selected_indices = {0, 1}
+        set_test_selection(curve_view_widget, {0, 1})
 
         # Should not raise exceptions
         curve_view_widget.center_on_selection()
@@ -316,7 +316,7 @@ class TestInteractionHandling:
         """Test deleting selected points."""
         curve_view_widget.set_curve_data(sample_points)
         # Set selection via public API
-        curve_view_widget.selected_indices = {0, 2}
+        set_test_selection(curve_view_widget, {0, 2})
         original_length = len(curve_view_widget.curve_data)
 
         curve_view_widget.delete_selected_points()
@@ -329,7 +329,7 @@ class TestInteractionHandling:
         """Test nudging selected points."""
         curve_view_widget.set_curve_data(sample_points)
         # Set selection via public API
-        curve_view_widget.selected_indices = {0}
+        set_test_selection(curve_view_widget, {0})
 
         # Get original position
         original_x = curve_view_widget.curve_data[0][1]
@@ -358,7 +358,7 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the interpolated point (index 1)
-        curve_view_widget.selected_indices = {1}
+        set_test_selection(curve_view_widget, {1})
 
         # Verify it's interpolated before nudging
         point_before = curve_view_widget.curve_data[1]
@@ -391,7 +391,7 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the normal point (index 0)
-        curve_view_widget.selected_indices = {0}
+        set_test_selection(curve_view_widget, {0})
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)
@@ -413,7 +413,7 @@ class TestInteractionHandling:
         curve_view_widget.set_curve_data(test_data)
 
         # Select the keyframe (index 0)
-        curve_view_widget.selected_indices = {0}
+        set_test_selection(curve_view_widget, {0})
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)

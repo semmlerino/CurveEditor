@@ -1036,6 +1036,48 @@ def assert_behavior_changed(
         assert actual_after == expected_after, f"After: expected {attribute}={expected_after}, got {actual_after}"
 
 
+def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
+    """Helper to set selection in Phase 6+ compatible way.
+
+    This helper function provides a migration path for tests during Phase 6.
+    During Phase 6.1-6.2, it syncs to both CurveDataStore and ApplicationState
+    (matching the widget setter behavior). After Phase 6.3, only ApplicationState
+    will be used.
+
+    Args:
+        widget: Widget (may need CurveDataStore sync until Phase 6.3)
+        indices: Point indices to select
+
+    Usage:
+        # OLD: widget.selected_indices = {0, 1, 2}
+        # NEW: set_test_selection(widget, {0, 1, 2})
+    """
+    from stores.application_state import get_application_state
+
+    # Convert list to set if needed
+    if isinstance(indices, list):
+        indices_set = set(indices)
+    else:
+        indices_set = indices
+
+    # Sync to ApplicationState
+    app_state = get_application_state()
+    active_curve = app_state.active_curve
+    if active_curve:
+        app_state.set_selection(active_curve, indices_set)
+
+    # Sync to CurveDataStore (until Phase 6.3 removal)
+    # Check if widget has _curve_store attribute (real CurveViewWidget)
+    if hasattr(widget, "_curve_store"):
+        curve_store = widget._curve_store  # pyright: ignore[reportAttributeAccessIssue]
+        if not indices_set:
+            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
+        else:
+            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
+            for idx in indices_set:
+                curve_store.select(idx, add_to_selection=True)  # pyright: ignore[reportAttributeAccessIssue]
+
+
 # ==================== Export all helpers ====================
 
 __all__ = [
@@ -1064,6 +1106,7 @@ __all__ = [
     "assert_qt_container_exists",
     "safe_qt_cleanup",  # Now imported from test_utils
     "mock_dialog_exec",
+    "set_test_selection",  # Phase 6 migration helper
     # Performance
     "PerformanceTimer",
     # Assertions

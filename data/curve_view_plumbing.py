@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 from core.logger_utils import get_logger
 from protocols.ui import CurveViewProtocol, MainWindowProtocol
 from services import get_interaction_service
+from stores.application_state import get_application_state
 
 # Type variable for generic decorator return types
 T = TypeVar("T")
@@ -196,7 +197,11 @@ def finalize_data_change(
     restore_view_state_and_selection(curve_view, view_state, selected_indices, original_primary)
     curve_view.update()
     if main_window and getattr(main_window, "selected_indices", None) is not None and selected_indices is not None:
-        main_window.selected_indices = selected_indices
+        # Update selection via ApplicationState
+        app_state = get_application_state()
+        active_curve = app_state.active_curve
+        if active_curve:
+            app_state.set_selection(active_curve, set(selected_indices))
     if main_window and selected_indices:
         idx0 = original_primary if original_primary in selected_indices else selected_indices[0]
         fd = main_window.curve_data[idx0]

@@ -28,6 +28,7 @@ from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 # Import protocols and type aliases for proper typing
 from protocols.ui import CurveViewProtocol, MainWindowProtocol
+from stores.application_state import get_application_state
 
 logger = get_logger("batch_edit")
 
@@ -380,9 +381,11 @@ class BatchEditUI:
                     # Select all points
                     curve_view.selected_points = set(range(num_points))
                     curve_view.selected_point_idx = 0
-                    # Update parent's selected indices
-                    # selected_indices is defined in MainWindowProtocol
-                    self.parent.selected_indices = list(range(num_points))
+                    # Update selection via ApplicationState
+                    app_state = get_application_state()
+                    active_curve = app_state.active_curve
+                    if active_curve:
+                        app_state.set_selection(active_curve, set(range(num_points)))
                     curve_view.update()
                     # Show status message
                     # statusBar() is a QMainWindow method, always available

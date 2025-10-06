@@ -20,6 +20,7 @@ from core.type_aliases import CurveDataList
 from rendering.render_state import RenderState
 from stores.application_state import get_application_state
 from stores.store_manager import StoreManager
+from tests.test_helpers import set_test_selection
 from ui.curve_view_widget import CurveViewWidget
 
 # ============================================================================
@@ -252,17 +253,17 @@ def test_selection_bidirectional_sync():
     app_state.set_curve_data("test", create_test_curve(20))
     app_state.set_active_curve("test")
 
-    # Set selection via widget setter (which syncs to ApplicationState)
-    widget.selected_indices = {0, 5, 10}
+    # Set selection via ApplicationState API
+    set_test_selection(widget, {0, 5, 10})
 
-    # ApplicationState should reflect selection (setter synced it)
+    # ApplicationState should reflect selection
     assert app_state.get_selection("test") == {0, 5, 10}
 
     # Widget should also reflect it (reads from CurveDataStore)
     assert widget.selected_indices == {0, 5, 10}
 
-    # Change selection via widget again
-    widget.selected_indices = {1, 2, 3}
+    # Change selection via ApplicationState again
+    set_test_selection(widget, {1, 2, 3})
 
     # Both should be in sync
     assert app_state.get_selection("test") == {1, 2, 3}
