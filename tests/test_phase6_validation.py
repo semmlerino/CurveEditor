@@ -56,29 +56,23 @@ def create_curve_with_frames(min_frame: int, max_frame: int) -> CurveDataList:
 # ============================================================================
 
 
-@pytest.mark.xfail(reason="Phase 6.2 not implemented yet - setter doesn't exist", strict=True)
 def test_curve_data_property_is_read_only(curve_view_widget):
     """Test 1: Verify widget.curve_data setter raises AttributeError.
 
     Ensures property can't be shadowed by instance attribute.
 
-    NOTE: XFAIL until Phase 6.2 is implemented. Current behavior:
-    - No setter exists, so AttributeError says "has no setter"
-    - Phase 6.2 will add setter that raises with "read-only" message
+    Phase 6.2 Complete: Setter raises AttributeError with "read-only" message.
     """
     with pytest.raises(AttributeError, match="read-only"):
         curve_view_widget.curve_data = []
 
 
-@pytest.mark.xfail(reason="Phase 6.2 not implemented yet - setter still works", strict=True)
 def test_selected_indices_property_is_read_only(curve_view_widget):
     """Test 2: Verify widget.selected_indices setter raises AttributeError.
 
     Ensures property can't be shadowed by instance attribute.
 
-    NOTE: XFAIL until Phase 6.2 is implemented. Current behavior:
-    - Setter exists and works (syncs to CurveDataStore + ApplicationState)
-    - Phase 6.2 will make it raise AttributeError with "read-only" message
+    Phase 6.2 Complete: Setter raises AttributeError with "read-only" message.
     """
     with pytest.raises(AttributeError, match="read-only"):
         curve_view_widget.selected_indices = {1, 2, 3}

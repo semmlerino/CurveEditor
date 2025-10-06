@@ -300,7 +300,7 @@ class CurveViewWidget(QWidget):
         logger.info("CurveViewWidget initialized with OptimizedCurveRenderer and reactive store")
 
     @property
-    def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str | bool]]:
+    def curve_data(self) -> CurveDataList:
         """Get curve data from store (DEPRECATED - Phase 6 removal)."""
         warnings.warn(
             "widget.curve_data is deprecated and will be removed in Phase 6. "
@@ -309,6 +309,17 @@ class CurveViewWidget(QWidget):
             stacklevel=2,
         )
         return self._curve_store.get_data()
+
+    @curve_data.setter
+    def curve_data(self, value: CurveDataList) -> None:
+        """Prevent writes - property is read-only.
+
+        Raises:
+            AttributeError: Always raised - property is read-only
+        """
+        raise AttributeError(
+            "widget.curve_data is read-only. " "Use app_state.set_curve_data(curve_name, data) instead."
+        )
 
     @property
     def selected_indices(self) -> set[int]:
@@ -320,26 +331,14 @@ class CurveViewWidget(QWidget):
 
     @selected_indices.setter
     def selected_indices(self, value: set[int]) -> None:
-        """Set selected indices in the store.
+        """Prevent writes - property is read-only.
 
-        Phase 4: Removed __default__ sync. Selection now managed via active curve only.
+        Raises:
+            AttributeError: Always raised - property is read-only
         """
-        if not value:
-            self._curve_store.clear_selection()
-        else:
-            # Clear first then add each index
-            self._curve_store.clear_selection()
-            for idx in value:
-                self._curve_store.select(idx, add_to_selection=True)
-
-        # Sync to ApplicationState for active curve
-        active_curve = self._app_state.active_curve
-        if active_curve:
-            if value:
-                self._app_state.set_selection(active_curve, value)
-            else:
-                self._app_state.clear_selection(active_curve)
-            logger.debug(f"Synced selection to active curve '{active_curve}'")
+        raise AttributeError(
+            "widget.selected_indices is read-only. " "Use app_state.set_selection(curve_name, indices) instead."
+        )
 
     @property
     def active_curve_name(self) -> str | None:
