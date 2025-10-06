@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (28.9MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 211 files to bundle
+Skipping large file (29.8MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 200 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -11,7 +11,6 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
-Bundled: ARCHITECTURAL_ISSUES.md
 Bundled: ARCHITECTURE.md
 Bundled: basedpyrightconfig.json
 Bundled: BASEDPYRIGHT_STRATEGY.md
@@ -20,24 +19,18 @@ Bundled: baseline_tests.txt
 Bundled: baseline_types.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
-Bundled: CONTROLLER_DISPLAYMODE_MIGRATION.md
-Bundled: curveview_extraction_plan.md
 Bundled: curveview_method_categorization.txt
-Bundled: CURVE_VISIBILITY_REFACTOR_PLAN.md
-Bundled: DISPLAYMODE_MIGRATION_PLAN.md
-Bundled: file_impact_summary.md
 Bundled: INTERACTIONSERVICE_MULTI_CURVE_ARCHITECTURE.md
 Bundled: KeyFrameTest.txt
 Bundled: KNOWN_ISSUES.md
 Bundled: main.py
 Bundled: mainwindow_diff.txt
 Bundled: MAJOR_REFACTOR_WORKFLOW.md
-Bundled: mock_curve_view_fixes_summary.md
 Bundled: ORCHESTRATION.md
 Bundled: ORCHESTRATOR_QUICK_REFERENCE.md
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
 Bundled: performance_bottleneck_analysis.txt
-Bundled: PHASE_4_COMPLETION_SUMMARY.md
+Bundled: PHASE_6_DEPRECATION_REMOVAL_PLAN.md
 Bundled: PHASE_8_INTERACTION_SERVICE_REFACTOR.md
 Bundled: Point01.txt
 Bundled: Point01_only.txt
@@ -52,10 +45,6 @@ Bundled: ROADMAP_FUTURE_PHASES.md
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: SAFE_REFACTOR_PLAN_DO_NOT_DELETE.md
-Bundled: SELECTION_STATE_ARCHITECTURE_SOLUTION.md
-Bundled: SELECTION_STATE_REFACTORING_DETAILED_PLAN.md
-Bundled: SELECTION_STATE_REFACTORING_PLAN.md
-Bundled: SELECTION_STATE_REFACTORING_PLAN_REVISED.md
 Bundled: SELECTION_STATE_REFACTORING_TRACKER.md
 Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
@@ -217,9 +206,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.91 MB
+Folder size: 2.60 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 934740 bytes
+Encoded size: 830220 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json
