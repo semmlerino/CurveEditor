@@ -240,6 +240,32 @@ class TimelineTabWidget(QWidget):
         # Initialize timeline from current ApplicationState data
         self._on_curves_changed(self._app_state.get_all_curves())
 
+    def __del__(self) -> None:
+        """Disconnect signals to prevent memory leaks.
+
+        TimelineTabWidget connects to singleton ApplicationState signals.
+        Without cleanup, destroyed widgets would remain in memory as signal
+        connection targets, causing memory leaks and potential crashes.
+        """
+        # Disconnect ApplicationState signals
+        try:
+            if hasattr(self, "_app_state") and self._app_state is not None:
+                self._app_state.curves_changed.disconnect(self._on_curves_changed)
+                self._app_state.active_curve_changed.disconnect(self._on_active_curve_changed)
+                self._app_state.selection_changed.disconnect(self._on_selection_changed)
+        except (RuntimeError, AttributeError):
+            # Already disconnected or objects destroyed
+            pass
+
+        # Disconnect StateManager signals
+        try:
+            if hasattr(self, "_state_manager") and self._state_manager is not None:
+                self._state_manager.frame_changed.disconnect(self._on_frame_changed)
+                self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
+        except (RuntimeError, AttributeError):
+            # Already disconnected or objects destroyed
+            pass
+
     @property
     def current_frame(self) -> int:
         """Get current frame from StateManager (single source of truth)."""

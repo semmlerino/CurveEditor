@@ -96,6 +96,45 @@ class TestApplicationState:
         names = state.get_all_curve_names()
         assert set(names) == {"curve1", "curve2", "curve3"}
 
+    def test_get_all_curves_returns_copy(self) -> None:
+        """Verify get_all_curves returns independent copy."""
+        state = get_application_state()
+
+        # Set up multiple curves
+        state.set_curve_data("Track1", [(1, 1.0, 1.0, "normal")])
+        state.set_curve_data("Track2", [(2, 2.0, 2.0, "keyframe"), (3, 3.0, 3.0, "normal")])
+        state.set_curve_data("Track3", [(4, 4.0, 4.0, "normal")])
+
+        # Get all curves
+        all_curves = state.get_all_curves()
+
+        # Verify structure
+        assert len(all_curves) == 3
+        assert "Track1" in all_curves
+        assert "Track2" in all_curves
+        assert "Track3" in all_curves
+
+        # Verify data integrity
+        assert len(all_curves["Track1"]) == 1
+        assert len(all_curves["Track2"]) == 2
+        assert len(all_curves["Track3"]) == 1
+
+        # Verify immutability - modifying returned dict should not affect state
+        all_curves["Track1"].append((5, 5.0, 5.0, "normal"))
+        assert len(state.get_curve_data("Track1")) == 1  # Unchanged
+
+        # Verify immutability - adding new key should not affect state
+        all_curves["NewCurve"] = [(6, 6.0, 6.0, "normal")]
+        assert "NewCurve" not in state.get_all_curve_names()
+
+    def test_get_all_curves_empty_state(self) -> None:
+        """Verify get_all_curves works with empty state."""
+        state = get_application_state()
+        all_curves = state.get_all_curves()
+
+        assert isinstance(all_curves, dict)
+        assert len(all_curves) == 0
+
     # ==================== Selection Tests ====================
 
     def test_per_curve_selection(self) -> None:

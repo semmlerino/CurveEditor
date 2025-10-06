@@ -281,7 +281,11 @@ class TestGridCentering:
 
         # Test 2: Selection index out of bounds (shouldn't happen but be defensive)
         curve_widget.set_curve_data([(1, 100.0, 200.0)])
-        curve_widget._curve_store.select(5)  # Invalid index
+        # Note: _select_point validates index, so we directly set invalid selection for edge case testing
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_selection("__default__", {5})  # Invalid index for edge case test
 
         test_image.fill(0)
         render_state2 = RenderState(

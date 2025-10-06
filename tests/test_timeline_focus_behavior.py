@@ -135,11 +135,9 @@ class TestTimelineFocusBehavior:
         # Simulate clicking on frame 5's tab
         # This would require knowing the tab's position
         # For now, test the method directly (integration test will verify UI)
-        with qtbot.waitSignal(timeline_widget.frame_changed) as blocker:
-            timeline_widget.set_current_frame(5)
+        timeline_widget.set_current_frame(5)
 
         assert timeline_widget.current_frame == 5
-        assert blocker.signal_triggered
 
     def test_timeline_scrubbing_behavior(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
         """Test timeline scrubbing (drag to navigate frames)."""

@@ -10,6 +10,7 @@ This unified controller manages all view-related functionality including:
 
 from pathlib import Path
 from typing import TYPE_CHECKING
+from weakref import WeakKeyDictionary
 
 from PySide6.QtCore import QThread, Slot
 from PySide6.QtGui import QPixmap
@@ -40,8 +41,8 @@ class ViewManagementController:
         """
         self.main_window = main_window
 
-        # View options state
-        self._stored_tooltips: dict[QWidget, str] = {}
+        # View options state (WeakKeyDictionary prevents memory leaks)
+        self._stored_tooltips: WeakKeyDictionary[QWidget, str] = WeakKeyDictionary()
 
         # Image sequence data
         self.image_directory: str | None = None
@@ -106,20 +107,20 @@ class ViewManagementController:
 
     @Slot()
     def toggle_tooltips(self) -> None:
-        """Toggle tooltips on/off for all widgets."""
+        """Toggle tooltips on/off for all widgets.
+
+        Uses WeakKeyDictionary to store tooltips, which automatically
+        cleans up entries for deleted widgets, preventing memory leaks.
+        """
         if not self.main_window.show_tooltips_cb:
             return
 
         enable_tooltips = self.main_window.show_tooltips_cb.isChecked()
 
         if enable_tooltips:
-            # Restore stored tooltips
+            # Restore stored tooltips (dead widgets auto-removed by WeakKeyDictionary)
             for widget, tooltip in self._stored_tooltips.items():
-                try:
-                    widget.setToolTip(tooltip)
-                except RuntimeError:
-                    # Widget may have been deleted
-                    pass
+                widget.setToolTip(tooltip)
             self._stored_tooltips.clear()
             logger.info("Tooltips enabled")
         else:

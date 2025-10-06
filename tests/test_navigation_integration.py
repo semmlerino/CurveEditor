@@ -246,11 +246,11 @@ class TestNavigationIntegration:
         # timeline_tabs should update visually but not emit its own signal (avoids loops)
         assert state_spy.count() > 0, "StateManager frame_changed signal should be emitted"
 
-        # Test direct timeline_tabs interaction (should emit timeline_tabs signal)
+        # Test direct timeline_tabs interaction
         assert window.timeline_tabs is not None
-        timeline_spy = QSignalSpy(window.timeline_tabs.frame_changed)
         window.timeline_tabs.set_current_frame(5)
-        assert timeline_spy.count() > 0, "timeline_tabs.frame_changed should be emitted for direct calls"
+        # Timeline updates its display but doesn't emit its own signal (avoids loops)
+        assert window.timeline_tabs.current_frame == 5, "timeline_tabs should update to frame 5"
 
         # Check UI elements updated
         assert window.frame_spinbox is not None

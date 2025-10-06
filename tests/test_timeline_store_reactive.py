@@ -11,7 +11,6 @@ import pytest
 from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
-from stores import get_store_manager
 from ui.main_window import MainWindow
 
 
@@ -40,9 +39,10 @@ class TestTimelineStoreReactive:
 
     def test_timeline_reacts_to_store_changes(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline updates when store changes."""
-        # Get the store
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
+        # Get ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
 
         # Get timeline
         timeline = main_window.timeline_tabs
@@ -59,7 +59,7 @@ class TestTimelineStoreReactive:
             (2, 110.0, 110.0, "interpolated"),
             (3, 120.0, 120.0, "keyframe"),
         ]
-        curve_store.set_data(test_data)
+        app_state.set_curve_data("__default__", test_data)
 
         # Process events to allow signals to propagate
         # Use processEvents instead of qtbot.wait to avoid event loop issues after 1600+ tests
@@ -79,15 +79,16 @@ class TestTimelineStoreReactive:
 
     def test_timeline_colors_update_on_status_change(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors update when point status changes."""
-        # Get the store
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
+        # Get ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
 
         # Set initial data - single keyframe at frame 1
         test_data = [
             (1, 100.0, 100.0, "keyframe"),
         ]
-        curve_store.set_data(test_data)
+        app_state.set_curve_data("__default__", test_data)
 
         # Process events to allow signals to propagate
         app = QApplication.instance()
@@ -108,8 +109,12 @@ class TestTimelineStoreReactive:
             assert tab1.keyframe_count == 1
             assert tab1.interpolated_count == 0
 
-            # Change status to interpolated
-            curve_store.set_point_status(0, "interpolated")  # Index 0 is frame 1
+            # Change status to interpolated via ApplicationState
+            current_data = list(app_state.get_curve_data("__default__"))
+            point = current_data[0]  # Index 0 is frame 1
+            frame, x, y = point[0], point[1], point[2]
+            current_data[0] = (frame, x, y, "interpolated")
+            app_state.set_curve_data("__default__", current_data)
 
             # Manually trigger the deferred update instead of waiting for timer
             # This avoids Qt event loop issues after 1600+ tests

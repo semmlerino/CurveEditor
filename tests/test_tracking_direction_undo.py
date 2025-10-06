@@ -324,12 +324,17 @@ class TestStatusColorUpdates:
         # Clear the list
         update_called.clear()
 
-        # Change a point status
-        from stores import get_store_manager
+        # Change a point status via ApplicationState
+        from stores.application_state import get_application_state
 
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
-        curve_store.set_point_status(0, "endframe")
+        app_state = get_application_state()
+
+        # Get current data, modify status, and set back
+        current_data = list(app_state.get_curve_data("__default__"))
+        point = current_data[0]
+        frame, x, y = point[0], point[1], point[2]
+        current_data[0] = (frame, x, y, "endframe")
+        app_state.set_curve_data("__default__", current_data)
 
         # Verify update was called
         assert len(update_called) > 0, "update() should have been called after status change"

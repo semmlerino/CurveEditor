@@ -30,7 +30,6 @@ class TestFrameStore:
         """Test that frame store syncs with curve data."""
         # Get stores
         store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
         frame_store = store_manager.get_frame_store()
 
         # Initially should be at default
@@ -38,13 +37,16 @@ class TestFrameStore:
         assert frame_store.max_frame == 1
         assert frame_store.current_frame == 1
 
-        # Set curve data
+        # Set curve data via ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
         test_data: CurveDataList = [
             (5, 100.0, 100.0, "keyframe"),
             (10, 110.0, 110.0, "interpolated"),
             (15, 120.0, 120.0, "keyframe"),
         ]
-        curve_store.set_data(test_data)
+        app_state.set_curve_data("__default__", test_data)
 
         # Frame store should have updated automatically
         assert frame_store.min_frame == 5
@@ -55,15 +57,17 @@ class TestFrameStore:
         """Test frame navigation methods."""
         store_manager = get_store_manager()
         frame_store = store_manager.get_frame_store()
-        curve_store = store_manager.get_curve_store()
 
-        # Set up test data
+        # Set up test data via ApplicationState
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
         test_data: CurveDataList = [
             (1, 100.0, 100.0, "keyframe"),
             (5, 110.0, 110.0, "interpolated"),
             (10, 120.0, 120.0, "keyframe"),
         ]
-        curve_store.set_data(test_data)
+        app_state.set_curve_data("__default__", test_data)
 
         # Test navigation
         assert frame_store.current_frame == 1

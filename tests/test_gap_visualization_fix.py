@@ -8,7 +8,7 @@ manual selection would break gap visualization.
 """
 
 from typing import cast
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -102,7 +102,10 @@ class TestGetLiveCurvesDataMethod:
         assert result == test_curves_data
 
     def test_get_live_curves_data_replaces_active_curve_with_live_data(self, curve_widget):
-        """Test the core fix - active curve data replaced with live store data."""
+        """Test the core fix - active curve data replaced with live data from ApplicationState."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
 
         # Setup static curves data (stale)
         static_curves_data = {
@@ -113,45 +116,24 @@ class TestGetLiveCurvesDataMethod:
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
 
-        # Setup live store data (current with status changes)
-        live_store_data = [(1, 10.0, 20.0, "keyframe"), (2, 30.0, 40.0, "endframe")]  # Status changed!
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_store_data
+        # Setup live data in ApplicationState (current with status changes)
+        live_data = [(1, 10.0, 20.0, "keyframe"), (2, 30.0, 40.0, "endframe")]  # Status changed!
+        app_state.set_curve_data("Track1", live_data)
 
         result = curve_widget._get_live_curves_data()
 
-        # Active curve should have live data, inactive curves unchanged
+        # Active curve should have live data from ApplicationState, inactive curves unchanged
         expected = {
-            "Track1": live_store_data,  # Replaced with live data
+            "Track1": live_data,  # Replaced with live data from ApplicationState
             "Track2": [(1, 50.0, 60.0, "normal")],  # Unchanged static data
         }
         assert result == expected
 
-        # Verify the store was queried
-        curve_widget._curve_store.get_data.assert_called_once()
-
-    def test_get_live_curves_data_no_curve_store(self, curve_widget):
-        """Test when curve store doesn't exist - should return original data."""
-
-        test_curves_data = {
-            "Track1": [(1, 10.0, 20.0, "keyframe")],
-        }
-
-        # Set curves via set_curves_data method with active curve
-        curve_widget.set_curves_data(test_curves_data, active_curve="Track1")
-
-        # Temporarily remove _curve_store to test fallback (restore after test)
-        original_store = curve_widget._curve_store
-        try:
-            delattr(curve_widget, "_curve_store")
-            result = curve_widget._get_live_curves_data()
-            assert result == test_curves_data
-        finally:
-            # Restore _curve_store for cleanup
-            curve_widget._curve_store = original_store
-
     def test_get_live_curves_data_empty_live_store(self, curve_widget):
-        """Test when curve store returns empty data - should keep static data."""
+        """Test when ApplicationState returns empty data - should keep static data."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
         static_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe")],
         }
@@ -159,9 +141,8 @@ class TestGetLiveCurvesDataMethod:
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
 
-        # Store returns empty data
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = []
+        # ApplicationState returns empty data for active curve
+        app_state.set_curve_data("Track1", [])
 
         result = curve_widget._get_live_curves_data()
 
@@ -197,7 +178,7 @@ class TestGapVisualizationBehavior:
         assert curve_widget.points == curve_data  # Points property for renderer
 
     def test_multi_curve_rendering_uses_live_data(self, qtbot, curve_widget):
-        """Test that multi-curve mode uses live data from the fix."""
+        """Test that multi-curve mode uses live data from ApplicationState."""
         # Setup multi-curve scenario
         static_curves_data = {
             "Track1": [(1, 10.0, 20.0, "keyframe"), (5, 30.0, 40.0, "normal")],  # Original
@@ -213,10 +194,9 @@ class TestGapVisualizationBehavior:
         app_state = get_application_state()
         app_state.set_show_all_curves(True)
 
-        # Live store has status change for Track1
+        # Update ApplicationState with status change for Track1
         live_data_with_gap = [(1, 10.0, 20.0, "keyframe"), (5, 30.0, 40.0, "endframe")]  # Changed to endframe
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_data_with_gap
+        app_state.set_curve_data("Track1", live_data_with_gap)
 
         # Get the data that would be passed to renderer
         live_curves = curve_widget._get_live_curves_data()
@@ -229,12 +209,15 @@ class TestGapVisualizationBehavior:
     @patch("ui.curve_view_widget.logger")
     def test_live_data_logging(self, mock_logger, curve_widget):
         """Test that live data replacement is properly logged."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe")]
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_data
+        app_state.set_curve_data("Track1", live_data)
 
         curve_widget._get_live_curves_data()
 
@@ -244,11 +227,14 @@ class TestGapVisualizationBehavior:
     @patch("ui.curve_view_widget.logger")
     def test_empty_live_data_logging(self, mock_logger, curve_widget):
         """Test logging when no live data is available."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
 
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = []  # Empty
+        app_state.set_curve_data("Track1", [])  # Empty
 
         curve_widget._get_live_curves_data()
 
@@ -281,13 +267,12 @@ class TestOriginalBugReproduction:
         app_state = get_application_state()
         app_state.set_show_all_curves(False)  # Display mode will be SELECTED
 
-        # Step 2: Simulate user setting point to endframe (superior implementation works)
-        # This updates the curve store but NOT the static curves_data
+        # Step 2: Simulate user setting point to endframe
+        # This updates ApplicationState with new status
         updated_live_data = [(1, 100.0, 100.0, "keyframe"), (10, 200.0, 150.0, "endframe")]
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = updated_live_data
+        app_state.set_curve_data("Track1", updated_live_data)
 
-        # Step 3: Simulate manual selection in side pane (inferior implementation)
+        # Step 3: Simulate manual selection in side pane
         # Before fix: This would use stale static curves_data without endframe status
         # After fix: This uses live data from _get_live_curves_data()
 
@@ -305,15 +290,18 @@ class TestOriginalBugReproduction:
 
         This was the core symptom: timeline showed gaps but curve didn't.
         """
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
         # Setup scenario with endframe creating a gap
         curve_widget.set_curves_data(
             {"ActiveTrack": [(1, 10.0, 10.0, "keyframe"), (5, 20.0, 20.0, "normal")]}, active_curve="ActiveTrack"
         )
 
-        # Simulate status change that creates gap (would update timeline)
+        # Simulate status change that creates gap (updates ApplicationState and timeline)
         live_data_with_gap = [(1, 10.0, 10.0, "keyframe"), (5, 20.0, 20.0, "endframe")]
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_data_with_gap
+        app_state.set_curve_data("ActiveTrack", live_data_with_gap)
 
         # Get data that multi-curve renderer would use
         renderer_data = curve_widget._get_live_curves_data()
@@ -329,6 +317,10 @@ class TestEdgeCasesAndRobustness:
 
     def test_type_safety_with_various_data_formats(self, curve_widget):
         """Test handling of different curve data tuple formats."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
         # Test with various tuple lengths (3-element and 4-element tuples)
         mixed_curves_data = {
             "Track1": [(1, 10.0, 20.0), (2, 30.0, 40.0, "keyframe")],  # Mixed formats
@@ -339,8 +331,7 @@ class TestEdgeCasesAndRobustness:
         curve_widget.set_curves_data(mixed_curves_data, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe"), (2, 30.0, 40.0, "keyframe")]
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_data
+        app_state.set_curve_data("Track1", live_data)
 
         result = curve_widget._get_live_curves_data()
 
@@ -352,21 +343,21 @@ class TestEdgeCasesAndRobustness:
         """Test that original curves_data is not modified."""
         from stores.application_state import get_application_state
 
+        app_state = get_application_state()
+
         original_data = {"Track1": [(1, 10.0, 20.0, "keyframe")]}
 
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data(original_data, active_curve="Track1")
 
         live_data = [(1, 10.0, 20.0, "endframe")]  # Different status
-        curve_widget._curve_store = Mock()
-        curve_widget._curve_store.get_data.return_value = live_data
+        app_state.set_curve_data("Track1", live_data)
 
         result = curve_widget._get_live_curves_data()
 
-        # ApplicationState should be unchanged
-        app_state = get_application_state()
+        # ApplicationState should have the new data
         stored_data = app_state.get_curve_data("Track1")
-        assert cast(PointTuple4Str, stored_data[0])[3] == "keyframe"  # ApplicationState data preserved
+        assert cast(PointTuple4Str, stored_data[0])[3] == "endframe"  # ApplicationState has live data
         assert cast(PointTuple4Str, result["Track1"][0])[3] == "endframe"  # Result has live data
         assert result is not original_data  # Different objects
 
@@ -379,6 +370,10 @@ def test_gap_visualization_tdd_style(qtbot):
     This test follows the RED-GREEN-REFACTOR pattern from the testing guide.
     It would have failed before the fix (RED) and passes after (GREEN).
     """
+    from stores.application_state import get_application_state
+
+    app_state = get_application_state()
+
     # Arrange: Setup multi-curve scenario like real usage
     widget = CurveViewWidget()
     qtbot.addWidget(widget)
@@ -389,12 +384,14 @@ def test_gap_visualization_tdd_style(qtbot):
         {"MainTrack": [(1, 100, 100, "keyframe"), (10, 200, 150, "normal")]}, active_curve="MainTrack"
     )
 
-    # 2. User changes point status (updates curve store)
-    widget._curve_store = Mock()
-    widget._curve_store.get_data.return_value = [
-        (1, 100, 100, "keyframe"),
-        (10, 200, 150, "endframe"),  # Changed to create gap
-    ]
+    # 2. User changes point status (updates ApplicationState)
+    app_state.set_curve_data(
+        "MainTrack",
+        [
+            (1, 100, 100, "keyframe"),
+            (10, 200, 150, "endframe"),  # Changed to create gap
+        ],
+    )
 
     # 3. Manual selection triggers multi-curve rendering
     live_data = widget._get_live_curves_data()

@@ -463,7 +463,7 @@ class ApplicationState(QObject):
         """
         Remove curve from state.
 
-        Also removes associated metadata and selection.
+        Also removes associated metadata, selection, and curve-level selection.
 
         Args:
             curve_name: Curve to delete
@@ -476,10 +476,20 @@ class ApplicationState(QObject):
         if curve_name in self._selection:
             del self._selection[curve_name]
 
+        # Remove from curve-level selection if present
+        selection_modified = False
+        if curve_name in self._selected_curves:
+            self._selected_curves.discard(curve_name)
+            selection_modified = True
+
         # If active curve was deleted, clear it
         if self._active_curve == curve_name:
             self._active_curve = None
             self._emit(self.active_curve_changed, ("",))
+
+        # Emit selection state changed if curve was in selection
+        if selection_modified:
+            self._emit(self.selection_state_changed, (self._selected_curves.copy(), self._show_all_curves))
 
         self._emit(self.curves_changed, (self._curves_data.copy(),))
 
@@ -921,13 +931,16 @@ class ApplicationState(QObject):
 
         Provides cleaner syntax for batching multiple state updates.
         Automatically calls begin_batch() on entry and end_batch() on exit,
-        ensuring signals are emitted even if an exception occurs.
+        ensuring signals are emitted only if the batch completes successfully.
+
+        If an exception occurs during the batch, pending signals are cleared
+        without emission to prevent partial state updates from being broadcast.
 
         Usage:
             with state.batch_updates():
                 state.set_selected_curves({"Track1"})
                 state.set_show_all_curves(False)
-            # Signals emitted here automatically
+            # Signals emitted here automatically (only on success)
 
         Yields:
             self: The ApplicationState instance for fluent API usage
@@ -938,14 +951,21 @@ class ApplicationState(QObject):
                 s.set_show_all_curves(False)
         """
         self.begin_batch()
+        success = False
         try:
             yield self
+            success = True
         except Exception:
-            # Log error but still end batch to emit accumulated signals
-            logger.exception("Exception during batch update")
+            logger.exception("Exception during batch update - clearing pending signals")
             raise
         finally:
-            self.end_batch()
+            if success:
+                self.end_batch()
+            else:
+                # Rollback: clear pending signals without emitting
+                with QMutexLocker(self._mutex):
+                    self._batch_mode = False
+                    self._pending_signals.clear()
 
     def _emit(self, signal: SignalInstance, args: tuple[Any, ...]) -> None:
         """

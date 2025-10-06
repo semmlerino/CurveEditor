@@ -131,9 +131,16 @@ class TestTimelineColorsIntegration:
         assert color2_before.name() == color3_before.name()
 
         # Change status of point at frame 2 to interpolated
-        assert main_window.curve_widget._curve_store is not None
-        store = main_window.curve_widget._curve_store
-        store.set_point_status(1, "interpolated")  # Index 1 is frame 2
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        # Get current data, modify status, and set back
+        current_data = list(app_state.get_curve_data("__default__"))
+        # Index 1 is frame 2 - update its status
+        point = current_data[1]
+        frame, x, y = point[0], point[1], point[2]
+        current_data[1] = (frame, x, y, "interpolated")
+        app_state.set_curve_data("__default__", current_data)
 
         # Update timeline
         main_window.update_timeline_tabs()
