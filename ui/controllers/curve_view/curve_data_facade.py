@@ -190,9 +190,9 @@ class CurveDataFacade:
         """
         Set multiple curves to display.
 
-        Curve visibility is determined by CurveViewWidget.should_render_curve()
-        which coordinates three filters: metadata.visible flag, display_mode (DisplayMode enum),
-        and selected_curve_names set. See that method for detailed visibility logic.
+        Curve visibility is determined by RenderState.compute() which coordinates three
+        filters: metadata.visible flag, display_mode (DisplayMode enum), and
+        selected_curve_names set. See RenderState for detailed visibility logic.
 
         Args:
             curves: Dictionary mapping curve names to curve data

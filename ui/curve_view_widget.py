@@ -674,117 +674,6 @@ class CurveViewWidget(QWidget):
             self.update()
             logger.debug(f"Selected curves: {self._selected_curve_names}, Active: {self._app_state.active_curve}")
 
-    def should_render_curve(self, curve_name: str) -> bool:
-        """
-        Determine if a curve should be rendered based on visibility filters.
-
-        .. deprecated::
-            This method is deprecated in favor of using RenderState with pre-computed
-            visibility. Instead of calling this method for each curve during rendering,
-            use ``compute_render_state()`` which pre-computes the visible_curves set.
-
-            Old pattern::
-
-                for curve_name in curves_data:
-                    if not self.should_render_curve(curve_name):
-                        continue
-                    # ... render curve
-
-            New pattern::
-
-                render_state = self.compute_render_state()
-                for curve_name in curves_data:
-                    if curve_name not in render_state.visible_curves:
-                        continue
-                    # ... render curve
-
-        This method centralizes the three-way visibility coordination logic that
-        determines which curves are actually drawn in the viewport. A curve is
-        rendered only if it passes ALL of the following filters:
-
-        1. **Metadata Visibility Flag**: The curve's metadata.visible must be True
-           - Controlled by ApplicationState curve metadata
-           - Independent per-curve setting for permanent hiding
-           - Persists across selection changes
-
-        2. **Display Mode Filter**: Determines which curves to render based on mode
-           - ALL_VISIBLE: Renders all visible curves
-           - SELECTED: Renders only curves in selected_curve_names set
-           - ACTIVE_ONLY: Renders only the active curve
-
-        The three display modes work together to provide flexible curve visibility:
-        - metadata.visible=False → curve never renders (permanent hide)
-        - ALL_VISIBLE mode → all visible curves render (ignores selection)
-        - SELECTED mode → only selected visible curves render
-        - ACTIVE_ONLY mode → only active curve renders
-
-        DisplayMode Implementation Details:
-            The display_mode property maps to internal state as follows:
-
-            - **DisplayMode.ALL_VISIBLE**: Render all curves with metadata.visible=True
-              Logic: Returns True for all metadata-visible curves (first branch)
-
-            - **DisplayMode.SELECTED**: Render only curves in selected_curve_names
-              Logic: Returns True if curve_name in selected_curve_names (second branch)
-
-            - **DisplayMode.ACTIVE_ONLY**: Render only the active curve
-              Logic: Returns True if curve_name == active_curve (third branch)
-
-            The three-branch decision logic handles all cases:
-            1. if display_mode == ALL_VISIBLE → render all metadata-visible curves
-            2. elif display_mode == SELECTED → render only selected curves
-            3. else (ACTIVE_ONLY) → render only active curve
-
-        Args:
-            curve_name: Name of the curve to check
-
-        Returns:
-            True if the curve should be rendered, False otherwise
-
-        Example:
-            # In rendering loop
-            for curve_name, curve_data in curves_data.items():
-                if not self.should_render_curve(curve_name):
-                    continue
-                # ... render curve ...
-
-            # Check current display mode
-            if self.display_mode == DisplayMode.ALL_VISIBLE:
-                # All visible curves will render
-                pass
-            elif self.display_mode == DisplayMode.SELECTED:
-                # Only selected curves will render
-                pass
-            else:  # DisplayMode.ACTIVE_ONLY
-                # Only active curve will render
-                pass
-
-        Note:
-            This method is used by:
-            - OptimizedCurveRenderer._render_multi_curve() for viewport rendering
-            - CurveDataFacade.set_curves_data() for visibility documentation
-            - Any code that needs to check curve visibility before processing
-
-        See Also:
-            - display_mode property: Get/set display mode (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
-            - RenderState.compute(): Pre-computes visibility for efficient rendering
-        """
-        # Filter 1: Check metadata visibility flag
-        metadata = self._app_state.get_curve_metadata(curve_name)
-        if not metadata.get("visible", True):
-            return False
-
-        # Filter 2: Check display mode
-        if self.display_mode == DisplayMode.ALL_VISIBLE:
-            # ALL_VISIBLE mode: render all visible curves
-            return True
-        elif self.display_mode == DisplayMode.SELECTED:
-            # SELECTED mode: render only selected curves
-            return curve_name in self.selected_curve_names
-        else:  # DisplayMode.ACTIVE_ONLY
-            # ACTIVE_ONLY mode: render only active curve
-            return curve_name == self._app_state.active_curve
-
     def compute_render_state(self) -> RenderState:
         """
         Compute current render state with pre-computed visibility.
@@ -809,7 +698,6 @@ class CurveViewWidget(QWidget):
 
         See Also:
             - RenderState.compute(): Factory method that performs the computation
-            - should_render_curve(): Legacy method (deprecated in favor of RenderState)
         """
         from rendering.render_state import RenderState
 

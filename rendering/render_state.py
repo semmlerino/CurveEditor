@@ -132,7 +132,7 @@ class RenderState:
             current_frame = state_manager.current_frame
             selected_points = set(state_manager.selected_points)
 
-        # Pre-compute visible curves using the same logic as should_render_curve()
+        # Pre-compute visible curves based on display mode and metadata visibility
         visible_curves: set[str] = set()
         curves_data = widget._get_live_curves_data() if hasattr(widget, "_get_live_curves_data") else {}
         curve_metadata = {}
