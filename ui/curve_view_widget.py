@@ -29,7 +29,6 @@ Architecture:
 
 from __future__ import annotations
 
-import warnings
 from typing import TYPE_CHECKING, Any, cast, override
 
 from PySide6.QtCore import (
@@ -164,11 +163,8 @@ class CurveViewWidget(QWidget):
         # Store injected state manager
         self._state_manager = state_manager
 
-        # Get the reactive data store
+        # Get store manager and ApplicationState
         self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
-
-        # Get centralized ApplicationState (Week 3 migration)
         self._app_state = get_application_state()
 
         # NEW: Subscribe to selection state changes for repainting
@@ -301,14 +297,12 @@ class CurveViewWidget(QWidget):
 
     @property
     def curve_data(self) -> CurveDataList:
-        """Get curve data from store (DEPRECATED - Phase 6 removal)."""
-        warnings.warn(
-            "widget.curve_data is deprecated and will be removed in Phase 6. "
-            "Use app_state.get_curve_data(curve_name) instead.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        return self._curve_store.get_data()
+        """Get active curve data from ApplicationState."""
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            logger.warning("No active curve set, returning empty data")
+            return []
+        return self._app_state.get_curve_data(active_curve)
 
     @curve_data.setter
     def curve_data(self, value: CurveDataList) -> None:
@@ -323,11 +317,12 @@ class CurveViewWidget(QWidget):
 
     @property
     def selected_indices(self) -> set[int]:
-        """Get selected indices from the store.
-
-        Phase 4: Removed __default__ sync. Selection managed via active curve.
-        """
-        return self._curve_store.get_selection()
+        """Get selection for active curve from ApplicationState."""
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            logger.warning("No active curve set, returning empty selection")
+            return set()
+        return self._app_state.get_selection(active_curve)
 
     @selected_indices.setter
     def selected_indices(self, value: set[int]) -> None:
@@ -1246,13 +1241,20 @@ class CurveViewWidget(QWidget):
             idx: Index of the point to change
             status: New PointStatus value
         """
-        # Delegate to store - it will emit signals that trigger our updates
-        _ = self._curve_store.set_point_status(idx, status.value)
+        # Update via ApplicationState
+        active_curve = self._app_state.active_curve
+        if active_curve:
+            curve_data = self._app_state.get_curve_data(active_curve)
+            if 0 <= idx < len(curve_data):
+                point = curve_data[idx]
+                frame = point[0]
+                logger.info(f"Changed point {idx} (frame {frame}) status to {status.value}")
 
-        point = self._curve_store.get_point(idx)
-        if point:
-            frame = point[0]
-            logger.info(f"Changed point {idx} (frame {frame}) status to {status.value}")
+                # Update point status via ApplicationState
+                from core.models import CurvePoint
+
+                updated_point = CurvePoint.from_tuple(point).with_status(status)
+                self._app_state.update_point(active_curve, idx, updated_point)
 
     @override
     def wheelEvent(self, event: QWheelEvent) -> None:
@@ -1484,10 +1486,7 @@ class CurveViewWidget(QWidget):
                 )
                 self.set_active_curve(curve_name)
 
-        # Delegate to store - it will emit signals that trigger our updates
-        self._curve_store.select(index, add_to_selection)
-
-        # Sync to ApplicationState for active curve
+        # Update via ApplicationState for active curve
         active = self._app_state.active_curve
         if active:
             # Match CurveDataStore's toggle behavior when add_to_selection=True
@@ -1514,9 +1513,7 @@ class CurveViewWidget(QWidget):
 
         Phase 4: Removed __default__ sync - uses active curve.
         """
-        self._curve_store.clear_selection()
-
-        # Sync to ApplicationState for active curve
+        # Update via ApplicationState for active curve
         active = self._app_state.active_curve
         if active:
             self._app_state.clear_selection(active)
@@ -1526,13 +1523,11 @@ class CurveViewWidget(QWidget):
 
         Phase 4: Removed __default__ sync - uses active curve.
         """
-        self._curve_store.select_all()
-
-        # Sync to ApplicationState for active curve
+        # Update via ApplicationState for active curve
         active = self._app_state.active_curve
         if active:
             # Get all indices from curve data
-            all_indices = set(range(len(self._curve_store.get_data())))
+            all_indices = set(range(len(self._app_state.get_curve_data(active))))
             self._app_state.set_selection(active, all_indices)
 
     def select_point_at_frame(self, frame: int) -> int | None:
@@ -1861,12 +1856,12 @@ class CurveViewWidget(QWidget):
     @selected_points.setter
     def selected_points(self, value: set[int]) -> None:
         """Set selected points (compatibility with InteractionService)."""
-        current_selection = self._curve_store.get_selection()
+        current_selection = self.selected_indices
         if current_selection != value:  # Only update if changed
-            # Clear and rebuild selection
-            self._curve_store.clear_selection()
-            for idx in value:
-                self._curve_store.select(idx, add_to_selection=True)
+            # Update via ApplicationState for active curve
+            active = self._app_state.active_curve
+            if active:
+                self._app_state.set_selection(active, set(value))
             # Don't call update() here - InteractionService will call it
 
     @property
@@ -1883,8 +1878,9 @@ class CurveViewWidget(QWidget):
     def selected_point_idx(self, value: int) -> None:
         """Set primary selected point (compatibility with InteractionService)."""
         if value >= 0:
-            if value not in self._curve_store.get_selection():
-                self._curve_store.select(value, add_to_selection=True)
+            active = self._app_state.active_curve
+            if active and value not in self._app_state.get_selection(active):
+                self._app_state.add_to_selection(active, value)
                 self.update()
 
     @property
@@ -2023,12 +2019,12 @@ class CurveViewWidget(QWidget):
         Args:
             indices: List of indices to select
         """
-        # Clear current selection
-        self._curve_store.clear_selection()
-        # Add new selections
-        for idx in indices:
-            if 0 <= idx < len(self.curve_data):
-                self._curve_store.select(idx, add_to_selection=True)
+        # Update via ApplicationState for active curve
+        active = self._app_state.active_curve
+        if active:
+            # Filter valid indices
+            valid_indices = {idx for idx in indices if 0 <= idx < len(self.curve_data)}
+            self._app_state.set_selection(active, valid_indices)
         self.update()
 
     def setup_for_3dequalizer_data(self) -> None:
@@ -2060,20 +2056,8 @@ class CurveViewWidget(QWidget):
         # Create a copy to avoid modifying the original
         live_curves_data: dict[str, CurveDataList] = curves_data.copy()
 
-        # Get the active curve name from the tracking controller if available
-        active_curve_name: str | None = getattr(self, "active_curve_name", None)
-
-        # If we have an active curve and live curve store data, replace with live data
-        if active_curve_name and active_curve_name in live_curves_data and hasattr(self, "_curve_store"):
-            live_data = self._curve_store.get_data()
-            if live_data:
-                # Replace the active curve's static data with live data from store
-                live_curves_data[active_curve_name] = live_data
-                logger.debug(
-                    f"Using live curve store data for active curve '{active_curve_name}' ({len(live_data)} points)"
-                )
-            else:
-                logger.debug(f"No live data available for active curve '{active_curve_name}'")
+        # All curve data now comes from ApplicationState - no separate live data needed
+        # (CurveDataStore removal - Phase 6.3)
 
         return live_curves_data
 

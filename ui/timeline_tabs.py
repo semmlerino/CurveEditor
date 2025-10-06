@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from core.logger_utils import get_logger
 from core.models import FrameNumber
+from core.type_aliases import CurveDataList
 from stores import get_store_manager
 from stores.application_state import get_application_state
 
@@ -234,14 +235,13 @@ class TimelineTabWidget(QWidget):
         # Enable mouse tracking for scrubbing
         self.setMouseTracking(True)
 
-        # Connect to reactive data store
+        # Connect to ApplicationState
         self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
         self._app_state = get_application_state()
-        self._connect_store_signals()
+        self._connect_signals()
 
-        # Initialize timeline from current store data
-        self._on_store_data_changed()
+        # Initialize timeline from current ApplicationState data
+        self._on_curves_changed(self._app_state.get_all_curves())
 
     @property
     def current_frame(self) -> int:
@@ -332,43 +332,46 @@ class TimelineTabWidget(QWidget):
         # Initialize with default range
         self._create_all_tabs()
 
-    def _connect_store_signals(self) -> None:
-        """Connect to store signals for reactive updates."""
-        # Connect to store signals for automatic updates
-        _ = self._curve_store.data_changed.connect(self._on_store_data_changed)
-        _ = self._curve_store.point_added.connect(self._on_store_point_added)
-        _ = self._curve_store.point_updated.connect(self._on_store_point_updated)
-        _ = self._curve_store.point_removed.connect(self._on_store_point_removed)
-        _ = self._curve_store.point_status_changed.connect(self._on_store_status_changed)
-        _ = self._curve_store.selection_changed.connect(self._on_store_selection_changed)
+    def _connect_signals(self) -> None:
+        """Connect to ApplicationState signals for reactive updates."""
+        # Connect to ApplicationState signals
+        self._app_state.curves_changed.connect(self._on_curves_changed)
+        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+        self._app_state.selection_changed.connect(self._on_selection_changed)
 
-        logger.info("TimelineTabWidget connected to reactive store signals")
+        logger.info("TimelineTabWidget connected to ApplicationState signals")
 
-    def _on_store_data_changed(self) -> None:
-        """Handle complete data change from store."""
-        # Guard against operations during widget destruction in teardown only
+    def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
+        """Handle ApplicationState curves_changed signal."""
+        # Guard against operations during widget destruction
         try:
-            # Only block during actual teardown, not normal operation
             _ = self.isVisible()  # This will raise RuntimeError if widget is being destroyed
         except RuntimeError:
-            # Widget is being destroyed, ignore the signal
             return
 
-        # Get updated data and rebuild timeline
+        # Get active curve data
         from services import get_data_service
 
-        curve_data = self._curve_store.get_data()
-        logger.debug(f"_on_store_data_changed: got {len(curve_data) if curve_data else 0} points from store")
-
-        if not curve_data:
+        active_curve = self._app_state.active_curve
+        if not active_curve or active_curve not in curves:
             # Check if image sequence is loaded even without tracking data
             if self._state_manager and self._state_manager.total_frames > 1:
                 logger.debug(
-                    f"_on_store_data_changed: No tracking data, using image sequence range 1-{self._state_manager.total_frames}"
+                    f"_on_curves_changed: No tracking data, using image sequence range 1-{self._state_manager.total_frames}"
                 )
                 self.set_frame_range(1, self._state_manager.total_frames)
             else:
-                logger.debug("_on_store_data_changed: No data, setting frame range to 1-1")
+                logger.debug("_on_curves_changed: No data, setting frame range to 1-1")
+                self.set_frame_range(1, 1)
+            return
+
+        curve_data = curves[active_curve]
+        logger.debug(f"_on_curves_changed: got {len(curve_data) if curve_data else 0} points from ApplicationState")
+
+        if not curve_data:
+            if self._state_manager and self._state_manager.total_frames > 1:
+                self.set_frame_range(1, self._state_manager.total_frames)
+            else:
                 self.set_frame_range(1, 1)
             return
 
@@ -381,7 +384,6 @@ class TimelineTabWidget(QWidget):
             # Also consider image sequence length from StateManager
             if self._state_manager:
                 image_sequence_frames = self._state_manager.total_frames
-                # Timeline should show union of tracking data range and image sequence
                 max_frame = max(max_frame, image_sequence_frames)
 
             # Limit to reasonable number for performance
@@ -420,45 +422,14 @@ class TimelineTabWidget(QWidget):
                     has_selected=has_selected,
                 )
 
-            logger.debug(f"Timeline updated from store: {len(frame_status)} frames")
+            logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
-    def _on_store_point_added(self, index: int, point_data: object) -> None:
-        """Handle point added to store."""
-        if isinstance(point_data, list | tuple) and len(point_data) >= 3:
-            frame = int(point_data[0])
+    def _on_active_curve_changed(self, curve_name: str) -> None:
+        """Handle ApplicationState active_curve_changed signal."""
+        # Refresh timeline with new active curve data
+        self._on_curves_changed(self._app_state.get_all_curves())
 
-            # Check if frame extends the current range
-            if frame < self.min_frame or frame > self.max_frame:
-                # Recalculate frame range from all data
-                self._on_store_data_changed()
-            else:
-                # Just invalidate this frame so it gets updated
-                self.invalidate_frame_status(frame)
-                self._schedule_deferred_update()
-
-    def _on_store_point_updated(self, index: int, x: float, y: float) -> None:
-        """Handle point updated in store."""
-        # Point coordinates changed, but frame might not have
-        # Still trigger a deferred update in case status changed
-        self._schedule_deferred_update()
-
-    def _on_store_point_removed(self, index: int) -> None:
-        """Handle point removed from store."""
-        # Need to recalculate entire timeline since we don't know which frame
-        self.invalidate_all_frames()
-        self._schedule_deferred_update()
-
-    def _on_store_status_changed(self, index: int, new_status: str) -> None:
-        """Handle point status changed in store."""
-        # Get the point to find its frame
-        point = self._curve_store.get_point(index)
-        if point and len(point) >= 3:
-            frame = int(point[0])
-            # Invalidate and update this specific frame
-            self.invalidate_frame_status(frame)
-            self._schedule_deferred_update()
-
-    def _on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+    def _on_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
         """Handle selection changes.
 
         Phase 4: Removed __default__ - curve_name is now optional.
@@ -903,7 +874,12 @@ class TimelineTabWidget(QWidget):
         from services import get_data_service
 
         data_service = get_data_service()
-        curve_data = self._curve_store.get_data()
+
+        # Get active curve data from ApplicationState
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            return
+        curve_data = self._app_state.get_curve_data(active_curve)
 
         # Clear status for frames that no longer have points
         for frame in range(self.min_frame, self.max_frame + 1):

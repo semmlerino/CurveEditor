@@ -639,14 +639,8 @@ class SetPointStatusCommand(Command):
             app_state.set_curve_data(active_curve, curve_data)
             self.executed = True
 
-            # Update CurveDataStore for backward compatibility
+            # Trigger widget update (CurveDataStore removed in Phase 6.3)
             if main_window.curve_widget:
-                from stores import get_store_manager
-
-                store_manager = get_store_manager()
-                curve_store = store_manager.get_curve_store()
-                for index, _, new_status in self.changes:
-                    _ = curve_store.set_point_status(index, new_status)
                 main_window.curve_widget.update()
 
             return True
@@ -685,14 +679,8 @@ class SetPointStatusCommand(Command):
             app_state.set_curve_data(active_curve, curve_data)
             self.executed = False
 
-            # Update CurveDataStore for backward compatibility
+            # Trigger widget update (CurveDataStore removed in Phase 6.3)
             if main_window.curve_widget:
-                from stores import get_store_manager
-
-                store_manager = get_store_manager()
-                curve_store = store_manager.get_curve_store()
-                for index, old_status, _ in self.changes:
-                    _ = curve_store.set_point_status(index, old_status)
                 main_window.curve_widget.update()
 
             return True

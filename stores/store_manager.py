@@ -10,8 +10,9 @@ from typing import TYPE_CHECKING, Any, Optional
 from PySide6.QtCore import QObject
 
 from core.logger_utils import get_logger
+from core.type_aliases import CurveDataList
 
-from .curve_data_store import CurveDataStore
+from .application_state import get_application_state
 from .frame_store import FrameStore
 
 if TYPE_CHECKING:
@@ -46,8 +47,10 @@ class StoreManager(QObject):
         super().__init__()
 
         # Initialize all stores
-        self.curve_store = CurveDataStore()
         self.frame_store = FrameStore()
+
+        # Get ApplicationState reference
+        self._app_state = get_application_state()
 
         # Future stores can be added here:
         # self.view_store = ViewStore()
@@ -83,7 +86,6 @@ class StoreManager(QObject):
         """
         if cls._instance:
             # Clear all store data
-            cls._instance.curve_store.clear()
             cls._instance.frame_store.clear()
             logger.warning("StoreManager reset - all data cleared")
 
@@ -91,9 +93,6 @@ class StoreManager(QObject):
             # Following pattern from UNIFIED_TESTING_GUIDE for QObject cleanup
             try:
                 # Remove parents and schedule for deletion
-                cls._instance.curve_store.setParent(None)
-                cls._instance.curve_store.deleteLater()
-
                 cls._instance.frame_store.setParent(None)
                 cls._instance.frame_store.deleteLater()
 
@@ -110,15 +109,6 @@ class StoreManager(QObject):
                 pass  # QObjects may already be deleted
 
         cls._instance = None
-
-    def get_curve_store(self) -> CurveDataStore:
-        """
-        Get the curve data store.
-
-        Returns:
-            The singleton CurveDataStore instance
-        """
-        return self.curve_store
 
     def get_frame_store(self) -> FrameStore:
         """
@@ -140,23 +130,25 @@ class StoreManager(QObject):
         logger.debug("StateManager reference set for FrameStore delegation")
 
     def _connect_stores(self) -> None:
-        """
-        Connect stores to each other for coordinated updates.
-        """
-        # When curve data changes, update frame range in frame store
-        self.curve_store.data_changed.connect(
-            lambda: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
-        )
+        """Connect ApplicationState to FrameStore for coordinated updates."""
+        # Connect to ApplicationState signals (replaces CurveDataStore signals)
+        self._app_state.curves_changed.connect(self._on_curves_changed)
+        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
 
-        # Also sync on individual point operations
-        self.curve_store.point_added.connect(
-            lambda index, point: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
-        )
-        self.curve_store.point_removed.connect(
-            lambda index: self.frame_store.sync_with_curve_data(self.curve_store.get_data())
-        )
+        logger.debug("Connected ApplicationState signals for store coordination")
 
-        logger.debug("Connected stores for coordinated updates")
+    def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
+        """Sync FrameStore when curve data changes."""
+        active = self._app_state.active_curve
+        if active and active in curves:
+            curve_data = curves[active]
+            self.frame_store.sync_with_curve_data(curve_data)
+
+    def _on_active_curve_changed(self, curve_name: str) -> None:
+        """Sync FrameStore when active curve switches (without data change)."""
+        if curve_name:
+            curve_data = self._app_state.get_curve_data(curve_name)
+            self.frame_store.sync_with_curve_data(curve_data)
 
     def connect_all_stores(self) -> None:
         """
@@ -176,9 +168,8 @@ class StoreManager(QObject):
         Returns:
             Dictionary containing all store states
         """
+        # Note: Curve data and selection now managed by ApplicationState
         state = {
-            "curve_data": self.curve_store.get_data(),
-            "selection": list(self.curve_store.get_selection()),
             # Add other stores as they're implemented
         }
         logger.debug("Saved store state")
@@ -191,11 +182,5 @@ class StoreManager(QObject):
         Args:
             state: Previously saved state dictionary
         """
-        if "curve_data" in state:
-            self.curve_store.set_data(state["curve_data"])
-
-        if "selection" in state:
-            for index in state["selection"]:
-                self.curve_store.select(index, add_to_selection=True)
-
+        # Note: Curve data and selection now managed by ApplicationState
         logger.debug("Restored store state")

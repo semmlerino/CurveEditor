@@ -144,14 +144,13 @@ def test_rendering_all_visible_no_active_curve():
     assert data == []
 
 
-@pytest.mark.xfail(reason="Known bug - StoreManager needs active_curve_changed handler (Phase 6.3 Step 5)", strict=True)
 def test_frame_store_syncs_on_active_curve_switch():
     """Test 5: Verify FrameStore updates when switching curves without data changes.
 
     CRITICAL: Validates StoreManager's active_curve_changed connection (Phase 6.3 Step 5).
-    This bug was identified in planning: FrameStore only synced on data_changed, not curve switch.
+    This bug was identified in planning and FIXED in Phase 6.3.
 
-    NOTE: XFAIL - This test DOCUMENTS THE BUG. It will pass after Phase 6.3 Step 5.
+    Phase 6.3 Complete: StoreManager now has active_curve_changed handler.
     """
     app_state = get_application_state()
     store_manager = StoreManager.get_instance()

@@ -281,17 +281,26 @@ class MultiPointTrackingController:
         curve_data = self.main_window.curve_widget.curve_data
         if curve_data:
             # Look for point at current frame
+            # Get active curve name
+            from stores.application_state import get_application_state
+
+            state = get_application_state()
+            active_curve = state.active_curve
+
+            if not active_curve:
+                return
+
             for i, point in enumerate(curve_data):
                 frame = point[0]  # First element is frame number
                 if frame == current_frame:
-                    # Found point at current frame - select it
-                    self.main_window.curve_widget._curve_store.select(i)
+                    # Found point at current frame - select it via ApplicationState
+                    state.set_selection(active_curve, {i})
                     logger.debug(f"Auto-selected point at frame {current_frame} (index {i})")
                     return
 
             # No point at current frame - select first point as fallback
             if len(curve_data) > 0:
-                self.main_window.curve_widget._curve_store.select(0)
+                state.set_selection(active_curve, {0})
                 logger.debug(f"No point at frame {current_frame}, auto-selected first point (index 0)")
 
     def _sync_tracking_selection_to_curve_store(self, point_names: list[str]) -> None:
@@ -322,17 +331,15 @@ class MultiPointTrackingController:
         for i, point in enumerate(curve_data):
             frame = point[0]
             if frame == current_frame:
-                # Select this point in the CurveDataStore
-                if hasattr(self.main_window.curve_widget, "_curve_store"):
-                    self.main_window.curve_widget._curve_store.select(i)
-                    logger.debug(f"Synced TrackingPanel selection to CurveDataStore: point {i} at frame {frame}")
+                # Select this point via ApplicationState
+                self._app_state.set_selection(active_curve_name, {i})
+                logger.debug(f"Synced TrackingPanel selection to ApplicationState: point {i} at frame {frame}")
                 return
 
         # If no point at current frame, select the first point as fallback
         if len(curve_data) > 0:
-            if hasattr(self.main_window.curve_widget, "_curve_store"):
-                self.main_window.curve_widget._curve_store.select(0)
-                logger.debug("Synced TrackingPanel selection to CurveDataStore: fallback to first point (index 0)")
+            self._app_state.set_selection(active_curve_name, {0})
+            logger.debug("Synced TrackingPanel selection to ApplicationState: fallback to first point (index 0)")
 
     def on_tracking_points_selected(self, point_names: list[str]) -> None:
         """
@@ -553,11 +560,11 @@ class MultiPointTrackingController:
                 )
 
                 if success:
-                    # Sync ApplicationState from curve_store after command executes
-                    if self.main_window.curve_widget and hasattr(self.main_window.curve_widget, "_curve_store"):
-                        updated_curve_data = self.main_window.curve_widget._curve_store.get_data()
+                    # Sync ApplicationState from curve widget after command executes
+                    if self.main_window.curve_widget:
+                        updated_curve_data = self.main_window.curve_widget.curve_data
                         self._app_state.set_curve_data(point_name, updated_curve_data)
-                        logger.info("Synced ApplicationState from curve store after direction change")
+                        logger.info("Synced ApplicationState from curve widget after direction change")
                 else:
                     logger.error("Failed to execute direction change command")
                     return
@@ -601,11 +608,11 @@ class MultiPointTrackingController:
             return True
 
         # For manual selection and default contexts, check if we should preserve existing data
-        if not self.main_window.curve_widget or not hasattr(self.main_window.curve_widget, "_curve_store"):
-            return True  # Fallback to update if curve store not available
+        if not self.main_window.curve_widget:
+            return True  # Fallback to update if curve widget not available
 
-        # Get current curve store data
-        current_store_data = self.main_window.curve_widget._curve_store.get_data()
+        # Get current curve widget data
+        current_store_data = self.main_window.curve_widget.curve_data
         tracking_data = (
             self._app_state.get_curve_data(active_curve)
             if active_curve in self._app_state.get_all_curve_names()
@@ -674,12 +681,11 @@ class MultiPointTrackingController:
         # CRITICAL: Save PREVIOUS curve data back to ApplicationState before switching
         # This ensures modifications (endframes, nudges, etc.) are preserved
         if self._previous_active_curve and self._previous_active_curve in self._app_state.get_all_curve_names():
-            # Get current data from curve widget's store (contains previous curve's data)
-            if hasattr(self.main_window.curve_widget, "_curve_store"):
-                current_data = self.main_window.curve_widget._curve_store.get_data()
-                if current_data:
-                    self._app_state.set_curve_data(self._previous_active_curve, current_data)
-                    logger.debug(f"Saved modifications for '{self._previous_active_curve}' back to ApplicationState")
+            # Get current data from curve widget (contains previous curve's data)
+            current_data = self.main_window.curve_widget.curve_data
+            if current_data:
+                self._app_state.set_curve_data(self._previous_active_curve, current_data)
+                logger.debug(f"Saved modifications for '{self._previous_active_curve}' back to ApplicationState")
 
         # Update previous active curve for next switch
         self._previous_active_curve = self.main_window.active_timeline_point

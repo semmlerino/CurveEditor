@@ -17,7 +17,6 @@ if TYPE_CHECKING:
 
 from core.logger_utils import get_logger
 from core.point_types import safe_extract_point
-from stores import get_store_manager
 
 logger = get_logger("point_editor_controller")
 
@@ -41,10 +40,6 @@ class PointEditorController:
         """
         self.main_window = main_window
         self.state_manager = state_manager
-
-        # Get reactive data store
-        self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
 
         # Track if spinbox connections have been made
         self._spinbox_connected = False
@@ -109,8 +104,8 @@ class PointEditorController:
         if self.main_window.selected_point_label:
             self.main_window.selected_point_label.setText(f"Point #{idx}")
 
-        # Get point data from store
-        curve_data = self._curve_store.get_data()
+        # Get point data from curve widget
+        curve_data = self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []
         if idx < len(curve_data):
             point_data = curve_data[idx]
             frame, x, y, _ = safe_extract_point(point_data)
@@ -166,7 +161,7 @@ class PointEditorController:
         Args:
             idx: Index of the point to display
         """
-        curve_data = self._curve_store.get_data()
+        curve_data = self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []
         if idx < len(curve_data) and self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
             point_data = curve_data[idx]
             frame, x, y, _ = safe_extract_point(point_data)
@@ -216,7 +211,7 @@ class PointEditorController:
         selected_indices = self.state_manager.selected_points
         if len(selected_indices) == 1 and self.main_window.curve_widget:
             idx = selected_indices[0]
-            curve_data = self._curve_store.get_data()
+            curve_data = self.main_window.curve_widget.curve_data
             if idx < len(curve_data):
                 _, _, y, _ = safe_extract_point(curve_data[idx])
                 self.main_window.curve_widget.update_point(idx, value, y)
@@ -234,7 +229,7 @@ class PointEditorController:
         selected_indices = self.state_manager.selected_points
         if len(selected_indices) == 1 and self.main_window.curve_widget:
             idx = selected_indices[0]
-            curve_data = self._curve_store.get_data()
+            curve_data = self.main_window.curve_widget.curve_data
             if idx < len(curve_data):
                 _, x, _, _ = safe_extract_point(curve_data[idx])
                 self.main_window.curve_widget.update_point(idx, x, value)

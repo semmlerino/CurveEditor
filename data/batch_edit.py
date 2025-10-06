@@ -566,19 +566,22 @@ class BatchEditUI:
         if update_method is not None:
             update_method(new_data)
         else:
-            # Fallback to direct update
-            # PointsList and CurveDataList are now compatible (both use LegacyPointData)
-            self.parent.curve_data[:] = new_data
-            curve_view = cast(CurveViewProtocol, self.parent.curve_view)
-            # Use set_curve_data method if available
-            set_data_method = getattr(curve_view, "set_curve_data", None)
-            if set_data_method is not None:
-                set_data_method(new_data)
+            # Update via ApplicationState instead of direct curve_data assignment
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+            if active_curve:
+                app_state.set_curve_data(active_curve, new_data)
             else:
-                # Fall back to setPoints for backward compatibility
-                set_points_method = getattr(curve_view, "setPoints", None)
-                if set_points_method is not None:
-                    set_points_method(new_data, self.parent.image_width, self.parent.image_height)
+                # Fallback if no ApplicationState integration
+                curve_view = cast(CurveViewProtocol, self.parent.curve_view)
+                set_data_method = getattr(curve_view, "set_curve_data", None)
+                if set_data_method is not None:
+                    set_data_method(new_data)
+                else:
+                    # Fall back to setPoints for backward compatibility
+                    set_points_method = getattr(curve_view, "setPoints", None)
+                    if set_points_method is not None:
+                        set_points_method(new_data, self.parent.image_width, self.parent.image_height)
 
         # Update status bar
         self.parent.statusBar().showMessage(status_message, 2000)

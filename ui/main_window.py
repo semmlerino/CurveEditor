@@ -57,7 +57,6 @@ from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
 from stores import get_store_manager
-from stores.curve_data_store import CurveDataStore
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
@@ -214,9 +213,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager: StateManager = StateManager(self)
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
-        # Get reactive data store
+        # Get store manager (CurveDataStore removed in Phase 6.3)
         self._store_manager = get_store_manager()
-        self._curve_store = self._store_manager.get_curve_store()
 
         # Connect StateManager to FrameStore for delegation
         self._store_manager.set_state_manager(self.state_manager)
@@ -496,14 +494,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @property
     def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
-        """Get the current curve data from the store."""
-        # Always get data from the store (single source of truth)
-        return self._curve_store.get_data()  # pyright: ignore[reportReturnType]
+        """Get the current curve data from the curve widget."""
+        # Get data from curve widget (which uses ApplicationState internally)
+        return self.curve_widget.curve_data if self.curve_widget else []  # pyright: ignore[reportReturnType]
 
     @curve_data.setter
     def curve_data(self, value: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
-        """Set the curve data."""
-        self._curve_store.set_data(value)
+        """Set the curve data via ApplicationState."""
+        from stores.application_state import get_application_state
+
+        state = get_application_state()
+        active_curve = state.active_curve
+        if active_curve:
+            state.set_curve_data(active_curve, value)
 
     @property
     def is_modified(self) -> bool:
@@ -575,10 +578,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             stacklevel=2,
         )
         return self.curve_widget
-
-    def get_curve_store(self) -> CurveDataStore:
-        """Get the reactive curve data store."""
-        return self._curve_store
 
     # MainWindowProtocol required methods
     def restore_state(self, state: object) -> None:
@@ -803,7 +802,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # Update info labels - use curve widget data if available
         if self.curve_widget:
-            curve_data = self._curve_store.get_data()
+            curve_data = self.curve_widget.curve_data
             analysis = self.services.analyze_curve_bounds(curve_data)  # pyright: ignore[reportArgumentType]
 
             point_count = analysis["count"]
@@ -971,55 +970,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """
         Verify all critical signal connections are established.
 
-        This helps catch orphaned components that aren't connected to
-        the reactive store system, preventing silent failures.
+        Phase 6.3: CurveDataStore removed, verification simplified.
         """
         from stores import ConnectionVerifier
 
         verifier = ConnectionVerifier()
 
-        # Register critical connections for timeline
-        if self.timeline_tabs:
-            # Timeline must connect to store for automatic updates
-            verifier.add_required_connection(
-                source_name="curve_store",
-                source_obj=self._curve_store,
-                signal_name="data_changed",
-                target_name="timeline_tabs",
-                target_obj=self.timeline_tabs,
-                slot_name="_on_store_data_changed",
-                critical=True,
-            )
-            verifier.add_required_connection(
-                source_name="curve_store",
-                source_obj=self._curve_store,
-                signal_name="point_status_changed",
-                target_name="timeline_tabs",
-                target_obj=self.timeline_tabs,
-                slot_name="_on_store_status_changed",
-                critical=True,
-            )
-
-        # Register critical connections for curve widget
-        if self.curve_widget:
-            verifier.add_required_connection(
-                source_name="curve_store",
-                source_obj=self._curve_store,
-                signal_name="data_changed",
-                target_name="curve_widget",
-                target_obj=self.curve_widget,
-                slot_name="_on_store_data_changed",
-                critical=True,
-            )
-            verifier.add_required_connection(
-                source_name="curve_store",
-                source_obj=self._curve_store,
-                signal_name="selection_changed",
-                target_name="curve_widget",
-                target_obj=self.curve_widget,
-                slot_name="_on_store_selection_changed",
-                critical=True,
-            )
+        # Phase 6.3: CurveDataStore connections removed (migrated to ApplicationState)
+        # All state synchronization now handled through ApplicationState signals
 
         # Verify all connections exist
         all_connected, _ = verifier.verify_all()
@@ -1131,7 +1089,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _navigate_to_prev_keyframe(self) -> None:
         """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
         current_frame = self.state_manager.current_frame
-        curve_data = self._curve_store.get_data()
+        curve_data = self.curve_widget.curve_data if self.curve_widget else []
 
         if not curve_data:
             self.statusBar().showMessage("No curve data loaded", 3000)
@@ -1176,7 +1134,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def _navigate_to_next_keyframe(self) -> None:
         """Navigate to the next keyframe, endframe, or startframe relative to current frame."""
         current_frame = self.state_manager.current_frame
-        curve_data = self._curve_store.get_data()
+        curve_data = self.curve_widget.curve_data if self.curve_widget else []
 
         if not curve_data:
             self.statusBar().showMessage("No curve data loaded", 3000)

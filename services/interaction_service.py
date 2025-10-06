@@ -264,20 +264,25 @@ class InteractionService:
                 # Use ApplicationState with batch mode for performance (Week 6)
                 active_curve_name = self._app_state.active_curve
                 if active_curve_name:
-                    active_curve_data = self._app_state.get_curve_data()
+                    active_curve_data = list(self._app_state.get_curve_data())
 
-                    # Move all selected points
-                    for idx in view.selected_points:
-                        if 0 <= idx < len(active_curve_data):
-                            point = active_curve_data[idx]
-                            new_x = point[1] + curve_delta_x
-                            new_y = point[2] + curve_delta_y
-                            # Update via view.curve_data for real-time display during drag
-                            # (ApplicationState will be updated via command on release)
-                            if len(point) >= 4:
-                                view.curve_data[idx] = (point[0], new_x, new_y, point[3])
-                            else:
-                                view.curve_data[idx] = (point[0], new_x, new_y)
+                    # Move all selected points - update via ApplicationState with batch mode
+                    self._app_state.begin_batch()
+                    try:
+                        for idx in view.selected_points:
+                            if 0 <= idx < len(active_curve_data):
+                                point = active_curve_data[idx]
+                                new_x = point[1] + curve_delta_x
+                                new_y = point[2] + curve_delta_y
+                                # Update in local copy
+                                if len(point) >= 4:
+                                    active_curve_data[idx] = (point[0], new_x, new_y, point[3])
+                                else:
+                                    active_curve_data[idx] = (point[0], new_x, new_y)
+                        # Write back to ApplicationState
+                        self._app_state.set_curve_data(active_curve_name, active_curve_data)
+                    finally:
+                        self._app_state.end_batch()
 
             view.last_drag_pos = pos
 
@@ -954,11 +959,7 @@ class InteractionService:
             updated_point = CurvePoint(frame=point[0], x=x, y=y, status=status)
             self._app_state.update_point(curve_name, idx, updated_point)
 
-            # Update view for backward compatibility
-            if len(point) >= 4:
-                view.curve_data[idx] = (point[0], x, y, point[3])
-            elif len(point) == 3:
-                view.curve_data[idx] = (point[0], x, y)
+            # ApplicationState update triggers signals - no manual view update needed
             view.update()
             return True
         return False
@@ -1415,25 +1416,31 @@ class InteractionService:
             return False
 
         # Get curve data for specified curve
-        curve_data = self._app_state.get_curve_data(curve_name)
+        curve_data = list(self._app_state.get_curve_data(curve_name))
         if not curve_data:
             return False
 
         success = False
-        for idx in view.selected_points:
-            if 0 <= idx < len(curve_data):
-                point = curve_data[idx]
-                # Preserve frame and status, update x and y
-                if len(point) >= 4:
+        # Update via ApplicationState with batch mode for performance
+        self._app_state.begin_batch()
+        try:
+            for idx in view.selected_points:
+                if 0 <= idx < len(curve_data):
+                    point = curve_data[idx]
+                    # Preserve frame and status, update x and y
                     new_x = point[1] + dx
                     new_y = point[2] + dy
-                    view.curve_data[idx] = (point[0], new_x, new_y, point[3])
+                    if len(point) >= 4:
+                        curve_data[idx] = (point[0], new_x, new_y, point[3])
+                    else:
+                        curve_data[idx] = (point[0], new_x, new_y)
                     success = True
-                elif len(point) == 3:
-                    new_x = point[1] + dx
-                    new_y = point[2] + dy
-                    view.curve_data[idx] = (point[0], new_x, new_y)
-                    success = True
+
+            if success:
+                # Write back to ApplicationState
+                self._app_state.set_curve_data(curve_name, curve_data)
+        finally:
+            self._app_state.end_batch()
 
         if success:
             view.update()

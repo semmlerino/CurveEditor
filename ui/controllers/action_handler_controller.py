@@ -20,7 +20,6 @@ if TYPE_CHECKING:
     from ui.state_manager import StateManager
 
 from core.logger_utils import get_logger
-from stores import get_store_manager
 
 logger = get_logger("action_handler_controller")
 
@@ -44,12 +43,6 @@ class ActionHandlerController:
         self.state_manager: StateManager = state_manager
         self.main_window: MainWindow = main_window
 
-        # Get reactive data store
-        from stores import StoreManager
-        from stores.curve_data_store import CurveDataStore
-
-        self._store_manager: StoreManager = get_store_manager()
-        self._curve_store: CurveDataStore = self._store_manager.get_curve_store()
         logger.info("ActionHandlerController initialized")
 
     # ==================== File Action Handlers ====================
@@ -346,9 +339,9 @@ class ActionHandlerController:
     # ==================== Helper Methods ====================
 
     def _get_current_curve_data(self) -> CurveDataList:
-        """Get current curve data from the reactive store."""
-        # Always get data from the store (single source of truth)
-        return self._curve_store.get_data()
+        """Get current curve data from the curve widget."""
+        # Get data from curve widget (which uses ApplicationState internally)
+        return self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []
 
     def update_zoom_label(self) -> None:
         """Update the zoom level label in status bar."""

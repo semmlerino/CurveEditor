@@ -51,7 +51,6 @@ class CurveDataFacade:
             widget: CurveViewWidget instance
         """
         self.widget = widget
-        self._curve_store = widget._curve_store
         self._app_state = get_application_state()
 
         logger.debug("CurveDataFacade initialized")

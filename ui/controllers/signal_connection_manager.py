@@ -99,21 +99,11 @@ class SignalConnectionManager:
         # through StateManager, eliminating need for this connection
 
     def _connect_store_signals(self) -> None:
-        """Connect to reactive store signals for automatic updates."""
-        # Timeline now connects directly to store signals - no manual updates needed
-        # The timeline_tabs widget subscribes to store signals directly in its __init__
-        # This ensures automatic reactive updates without going through the controller
+        """Connect to ApplicationState signals for automatic updates."""
+        # Phase 6.3: CurveDataStore removed, using ApplicationState directly
+        # ApplicationState signals now handle all state synchronization
 
-        # Only connect selection change which MainWindow needs
-        _ = self.main_window.get_curve_store().selection_changed.connect(self.main_window.on_store_selection_changed)
-
-        # BIDIRECTIONAL SYNC: Connect CurveDataStore selection changes to tracking controller
-        # This ensures point-level selection changes are reflected in the tracking panel
-        _ = self.main_window.get_curve_store().selection_changed.connect(
-            self.main_window.tracking_controller.on_curve_selection_changed
-        )
-
-        logger.info("Connected MainWindow to reactive store signals")
+        logger.info("Store signal connections skipped (migrated to ApplicationState)")
 
     def _connect_curve_widget_signals(self) -> None:
         """Connect signals from the curve widget."""
@@ -161,26 +151,7 @@ class SignalConnectionManager:
         """Verify all critical signal connections are established."""
         verifier = ConnectionVerifier()
 
-        # Add critical store connections to verify
-        verifier.add_required_connection(
-            "CurveDataStore",
-            self.main_window.get_curve_store(),
-            "data_changed",
-            "TimelineController",
-            self.main_window.timeline_controller,  # pyright: ignore[reportArgumentType]
-            "update_timeline_tabs",
-            critical=False,  # TimelineController doesn't extend QObject, connection handled differently
-        )
-
-        verifier.add_required_connection(
-            "CurveDataStore",
-            self.main_window.get_curve_store(),
-            "selection_changed",
-            "MainWindow",
-            self.main_window,
-            "on_store_selection_changed",
-            critical=True,
-        )
+        # Phase 6.3: CurveDataStore connections removed (migrated to ApplicationState)
 
         # Add curve widget connections if available
         if self.main_window.curve_widget:
