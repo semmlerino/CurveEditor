@@ -147,9 +147,6 @@ class TimelineTabWidget(QWidget):
     """Main timeline widget with frame tabs and navigation."""
 
     # Signals
-    # DEPRECATED: Use StateManager.frame_changed instead for new code
-    # Kept for backward compatibility only
-    frame_changed: Signal = Signal(int)
     frame_hovered: Signal = Signal(int)
 
     # Layout constants
@@ -273,17 +270,17 @@ class TimelineTabWidget(QWidget):
         """Connect to StateManager for frame synchronization."""
         self._state_manager = state_manager
         # Connect to frame changes
-        state_manager.frame_changed.connect(self._on_state_frame_changed)
+        state_manager.frame_changed.connect(self._on_frame_changed)
         # Connect to active timeline point changes
         state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
 
         # Sync initial state
         if self._state_manager.current_frame != self._current_frame:
-            self._on_state_frame_changed(self._state_manager.current_frame)
+            self._on_frame_changed(self._state_manager.current_frame)
         # Sync initial active timeline point
         self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
 
-    def _on_state_frame_changed(self, frame: int) -> None:
+    def _on_frame_changed(self, frame: int) -> None:
         """React to StateManager frame changes (visual updates only)."""
         # Clamp to valid range
         frame = max(self.min_frame, min(self.max_frame, frame))
@@ -302,8 +299,6 @@ class TimelineTabWidget(QWidget):
 
         # Update frame info display
         self._update_frame_info()
-
-        # Do NOT emit frame_changed here (would create loop)
 
     def _on_active_timeline_point_changed(self, point_name: str | None) -> None:
         """React to StateManager active timeline point changes.
@@ -637,21 +632,8 @@ class TimelineTabWidget(QWidget):
         old_frame = self.current_frame
 
         if frame != old_frame:
-            # Set through StateManager (triggers _on_state_frame_changed for visual updates)
+            # Set through StateManager (triggers _on_frame_changed for visual updates)
             self.current_frame = frame
-
-            # Emit signal for backward compatibility (with deprecation warning)
-            import warnings
-
-            warnings.warn(
-                (
-                    "timeline_tabs.frame_changed signal is deprecated. "
-                    "Use StateManager.frame_changed instead for Single Source of Truth architecture."
-                ),
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            self.frame_changed.emit(frame)
 
     def update_frame_status(
         self,
