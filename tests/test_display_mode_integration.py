@@ -16,6 +16,7 @@ import pytest
 
 from core.display_mode import DisplayMode
 from core.type_aliases import CurveDataList
+from rendering.render_state import RenderState
 from stores.application_state import get_application_state, reset_application_state
 from ui.curve_view_widget import CurveViewWidget
 
@@ -270,8 +271,8 @@ class TestShouldRenderCurveIntegration:
         """
         Test that ALL_VISIBLE mode renders all visible curves.
 
-        Verifies: In ALL_VISIBLE mode, should_render_curve() returns True
-        for all curves with metadata.visible=True, regardless of selection.
+        Verifies: In ALL_VISIBLE mode, RenderState.visible_curves contains
+        all curves with metadata.visible=True, regardless of selection.
         """
         # Setup: Load curves, set ALL_VISIBLE mode via ApplicationState
         app_state = get_application_state()
@@ -279,15 +280,19 @@ class TestShouldRenderCurveIntegration:
         app_state.set_show_all_curves(True)
 
         # Verify: All curves should render
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is True
-        assert curve_widget.should_render_curve("Track3") is True
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves
+        assert "Track3" in render_state.visible_curves
 
         # Verify: Selection doesn't affect rendering in ALL_VISIBLE mode
         app_state.set_selected_curves({"Track1"})  # Select only Track1
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is True  # Still renders
-        assert curve_widget.should_render_curve("Track3") is True  # Still renders
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves  # Still renders
+        assert "Track3" in render_state.visible_curves  # Still renders
 
     def test_should_render_selected_mode(
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
@@ -295,8 +300,8 @@ class TestShouldRenderCurveIntegration:
         """
         Test that SELECTED mode renders only selected curves.
 
-        Verifies: In SELECTED mode, should_render_curve() returns True
-        only for curves in the selected_curve_names set.
+        Verifies: In SELECTED mode, RenderState.visible_curves contains
+        only curves in the selected_curve_names set.
         """
         # Setup: Load curves, set SELECTED mode with specific selection via ApplicationState
         app_state = get_application_state()
@@ -305,9 +310,11 @@ class TestShouldRenderCurveIntegration:
         app_state.set_show_all_curves(False)
 
         # Verify: Only selected curves render
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is True
-        assert curve_widget.should_render_curve("Track3") is False  # Not selected
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves
+        assert "Track3" not in render_state.visible_curves  # Not selected
 
     def test_should_render_active_only_mode(
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
@@ -320,8 +327,8 @@ class TestShouldRenderCurveIntegration:
         should render. Previously, the else branch would render the active
         curve even in SELECTED mode, causing incorrect behavior.
 
-        Verifies: In ACTIVE_ONLY mode, should_render_curve() returns True
-        only for the active curve, and False for all other curves.
+        Verifies: In ACTIVE_ONLY mode, RenderState.visible_curves contains
+        only the active curve, and no other curves.
         """
         # Setup: Load curves, set ACTIVE_ONLY mode via ApplicationState
         app_state = get_application_state()
@@ -330,15 +337,19 @@ class TestShouldRenderCurveIntegration:
         app_state.set_selected_curves(set())
 
         # Verify: Only active curve renders (this is the bug fix!)
-        assert curve_widget.should_render_curve("Track1") is False
-        assert curve_widget.should_render_curve("Track2") is True  # Active
-        assert curve_widget.should_render_curve("Track3") is False
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" not in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves  # Active
+        assert "Track3" not in render_state.visible_curves
 
         # Verify: Changing active curve changes rendering
         curve_widget.set_active_curve("Track3")
-        assert curve_widget.should_render_curve("Track1") is False
-        assert curve_widget.should_render_curve("Track2") is False
-        assert curve_widget.should_render_curve("Track3") is True  # New active
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" not in render_state.visible_curves
+        assert "Track2" not in render_state.visible_curves
+        assert "Track3" in render_state.visible_curves  # New active
 
 
 # =============================================================================
@@ -366,32 +377,40 @@ class TestDisplayModeStateTransitions:
         # Transition 1: ALL_VISIBLE
         app_state.set_show_all_curves(True)
         assert curve_widget.display_mode == DisplayMode.ALL_VISIBLE
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is True
-        assert curve_widget.should_render_curve("Track3") is True
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves
+        assert "Track3" in render_state.visible_curves
 
         # Transition 2: SELECTED
         app_state.set_selected_curves({"Track1", "Track3"})
         app_state.set_show_all_curves(False)
         assert curve_widget.display_mode == DisplayMode.SELECTED
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is False  # Not selected
-        assert curve_widget.should_render_curve("Track3") is True
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" not in render_state.visible_curves  # Not selected
+        assert "Track3" in render_state.visible_curves
 
         # Transition 3: ACTIVE_ONLY
         app_state.set_selected_curves(set())
         assert curve_widget.display_mode == DisplayMode.ACTIVE_ONLY
         assert len(app_state.get_selected_curves()) == 0  # Cleared
-        assert curve_widget.should_render_curve("Track1") is True  # Active
-        assert curve_widget.should_render_curve("Track2") is False
-        assert curve_widget.should_render_curve("Track3") is False
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves  # Active
+        assert "Track2" not in render_state.visible_curves
+        assert "Track3" not in render_state.visible_curves
 
         # Transition 4: Back to ALL_VISIBLE
         app_state.set_show_all_curves(True)
         assert curve_widget.display_mode == DisplayMode.ALL_VISIBLE
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is True
-        assert curve_widget.should_render_curve("Track3") is True
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" in render_state.visible_curves
+        assert "Track3" in render_state.visible_curves
 
     def test_display_mode_setter_idempotent(
         self, curve_widget: CurveViewWidget, sample_curves: dict[str, CurveDataList]
@@ -427,7 +446,7 @@ class TestDisplayModeStateTransitions:
         """
         Test that all display modes respect metadata.visible=False.
 
-        Verifies: Curves with metadata.visible=False are never rendered,
+        Verifies: Curves with metadata.visible=False are never in RenderState.visible_curves,
         regardless of display mode (ALL_VISIBLE, SELECTED, or ACTIVE_ONLY).
         This ensures metadata visibility is the highest priority filter.
         """
@@ -438,17 +457,23 @@ class TestDisplayModeStateTransitions:
 
         # Test 1: ALL_VISIBLE mode respects metadata.visible
         app_state.set_show_all_curves(True)
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is False  # Hidden by metadata
-        assert curve_widget.should_render_curve("Track3") is True
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" not in render_state.visible_curves  # Hidden by metadata
+        assert "Track3" in render_state.visible_curves
 
         # Test 2: SELECTED mode respects metadata.visible
         app_state.set_selected_curves({"Track1", "Track2"})  # Try to select hidden
         app_state.set_show_all_curves(False)
-        assert curve_widget.should_render_curve("Track1") is True
-        assert curve_widget.should_render_curve("Track2") is False  # Still hidden!
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track1" in render_state.visible_curves
+        assert "Track2" not in render_state.visible_curves  # Still hidden!
 
         # Test 3: ACTIVE_ONLY mode respects metadata.visible
         curve_widget.set_active_curve("Track2")  # Make hidden curve active
         app_state.set_selected_curves(set())
-        assert curve_widget.should_render_curve("Track2") is False  # Hidden even when active!
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.visible_curves is not None
+        assert "Track2" not in render_state.visible_curves  # Hidden even when active!

@@ -15,7 +15,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 
 from services import get_data_service
-from stores import get_store_manager
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
 # ============================================================================
@@ -128,9 +128,8 @@ def main_window_with_data(qtbot, make_navigation_dataset):
             data_service = get_data_service()
             processed_data = data_service._apply_default_statuses(test_data)
 
-            store_manager = get_store_manager()
-            curve_store = store_manager.get_curve_store()
-            curve_store.set_data(processed_data)
+            app_state = get_application_state()
+            app_state.set_curve_data("__default__", processed_data)
 
             # Update state manager's total frames based on loaded data
             # This is normally done by timeline controller when data is loaded
@@ -449,9 +448,8 @@ class TestNavigationPerformance:
         window = MainWindow()
         qtbot.addWidget(window)
 
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
-        curve_store.set_data(large_data)
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", large_data)
 
         window.show()
         qtbot.waitExposed(window)
@@ -531,9 +529,8 @@ class TestRealFileNavigation:
         window = MainWindow()
         qtbot.addWidget(window)
 
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
-        curve_store.set_data(test_data)
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", test_data)  # pyright: ignore[reportArgumentType]
 
         window.show()
         qtbot.waitExposed(window)

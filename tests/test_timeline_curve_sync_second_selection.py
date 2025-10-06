@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
 
 from core.models import PointStatus
-from stores import get_store_manager
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
 
@@ -50,21 +50,24 @@ class TestTimelineCurveSyncSecondSelection:
         """Test that demonstrates the bug where selecting second point breaks sync."""
         curve_widget = main_window.curve_widget
         timeline = main_window.timeline_tabs
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
+        app_state = get_application_state()
+
+        # Get active curve name
+        active_curve = app_state.active_curve
+        assert active_curve is not None, "Active curve should be set"
 
         # Initial state: no selection
         assert len(curve_widget.selected_indices) == 0
-        assert len(curve_store.get_selection()) == 0
+        assert len(app_state.get_selection(active_curve)) == 0
 
         # Step 1: Select first point (index 0) - this should work fine
         print("=== Selecting first point ===")
-        curve_store.select(0, add_to_selection=False)
+        app_state.set_selection(active_curve, {0})
         qtbot.wait(50)
 
         # Verify first selection works
         assert 0 in curve_widget.selected_indices, "First point should be selected in curve"
-        assert 0 in curve_store.get_selection(), "First point should be selected in store"
+        assert 0 in app_state.get_selection(active_curve), "First point should be selected in store"
 
         # Check timeline shows selection (if it has a method to check)
         if hasattr(timeline, "get_frame_status"):
@@ -75,17 +78,17 @@ class TestTimelineCurveSyncSecondSelection:
         print("=== Selecting second point (this is where it breaks) ===")
 
         # Store initial state to compare
-        curve_store.get_selection().copy()
+        app_state.get_selection(active_curve).copy()
         curve_widget.selected_indices.copy()
 
         # Add second point to selection (Ctrl+click behavior)
-        curve_store.select(1, add_to_selection=True)
+        app_state.add_to_selection(active_curve, 1)
         qtbot.wait(50)
 
         # Verify second selection state
         expected_selection = {0, 1}
         curve_selection = set(curve_widget.selected_indices)
-        store_selection = curve_store.get_selection()
+        store_selection = app_state.get_selection(active_curve)
 
         print("After second selection:")
         print(f"  Curve selection: {curve_selection}")
@@ -101,8 +104,11 @@ class TestTimelineCurveSyncSecondSelection:
         print("=== Testing status toggle after second selection ===")
 
         # Get current status of selected points
-        point_0_data = curve_store.get_point(0)
-        point_1_data = curve_store.get_point(1)
+        curve_data = app_state.get_curve_data(active_curve)
+        assert curve_data is not None, "Curve data should exist"
+
+        point_0_data = curve_data[0] if len(curve_data) > 0 else None
+        point_1_data = curve_data[1] if len(curve_data) > 1 else None
 
         print(f"Point 0 data: {point_0_data}")
         print(f"Point 1 data: {point_1_data}")
@@ -116,19 +122,15 @@ class TestTimelineCurveSyncSecondSelection:
         # Track if signals are emitted
         signals_emitted = []
 
-        def track_data_changed():
-            signals_emitted.append("data_changed")
+        def track_curves_changed(curves):
+            signals_emitted.append(f"curves_changed: {list(curves.keys())}")
 
-        def track_selection_changed(selection):
-            signals_emitted.append(f"selection_changed: {selection}")
-
-        def track_point_status_changed(index, status):
-            signals_emitted.append(f"point_status_changed: {index} -> {status}")
+        def track_selection_changed(curve_name, selection):
+            signals_emitted.append(f"selection_changed: {curve_name} -> {selection}")
 
         # Connect signal trackers
-        curve_store.data_changed.connect(track_data_changed)
-        curve_store.selection_changed.connect(track_selection_changed)
-        curve_store.point_status_changed.connect(track_point_status_changed)
+        app_state.curves_changed.connect(track_curves_changed)
+        app_state.selection_changed.connect(track_selection_changed)
 
         try:
             # Debug: Check global event filter and registry
@@ -176,8 +178,11 @@ class TestTimelineCurveSyncSecondSelection:
             print(f"Signals emitted after E key: {signals_emitted}")
 
             # Check if status actually changed
-            new_point_0_data = curve_store.get_point(0)
-            new_point_1_data = curve_store.get_point(1)
+            new_curve_data = app_state.get_curve_data(active_curve)
+            assert new_curve_data is not None
+
+            new_point_0_data = new_curve_data[0] if len(new_curve_data) > 0 else None
+            new_point_1_data = new_curve_data[1] if len(new_curve_data) > 1 else None
 
             new_point_0_status = new_point_0_data[3] if new_point_0_data and len(new_point_0_data) > 3 else "unknown"
             new_point_1_status = new_point_1_data[3] if new_point_1_data and len(new_point_1_data) > 3 else "unknown"
@@ -195,15 +200,15 @@ class TestTimelineCurveSyncSecondSelection:
             assert status_changed, "E key should toggle status of selected points"
 
             # Critical test: check if timeline reflects the changes
-            # With the fix, we should see point_status_changed signals instead of data_changed
-            status_signal_emitted = any("point_status_changed" in signal for signal in signals_emitted)
+            # With the fix, we should see curves_changed signals
+            curves_signal_emitted = any("curves_changed" in signal for signal in signals_emitted)
             assert (
-                status_signal_emitted
-            ), f"point_status_changed signal should be emitted after status toggle, got signals: {signals_emitted}"
+                curves_signal_emitted
+            ), f"curves_changed signal should be emitted after status toggle, got signals: {signals_emitted}"
 
             # Critical fix verification: selections should be preserved after status change
             final_curve_selection = set(curve_widget.selected_indices)
-            final_store_selection = curve_store.get_selection()
+            final_store_selection = app_state.get_selection(active_curve)
 
             print("Final selections:")
             print(f"  Curve: {final_curve_selection}")
@@ -219,35 +224,37 @@ class TestTimelineCurveSyncSecondSelection:
 
         finally:
             # Clean up signal connections
-            curve_store.data_changed.disconnect(track_data_changed)
-            curve_store.selection_changed.disconnect(track_selection_changed)
-            curve_store.point_status_changed.disconnect(track_point_status_changed)
+            app_state.curves_changed.disconnect(track_curves_changed)
+            app_state.selection_changed.disconnect(track_selection_changed)
 
     def test_signal_integrity_after_multi_selection(self, qtbot, main_window):
         """Test that signal connections remain intact after multi-point selection."""
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
+        app_state = get_application_state()
+
+        # Get active curve name
+        active_curve = app_state.active_curve
+        assert active_curve is not None, "Active curve should be set"
 
         # Track signal emissions to verify signals still work
         signals_received = []
 
-        def track_data_changed():
-            signals_received.append("data_changed")
+        def track_curves_changed(curves):
+            signals_received.append(f"curves_changed: {list(curves.keys())}")
 
-        def track_selection_changed(selection):
-            signals_received.append(f"selection_changed: {selection}")
+        def track_selection_changed(curve_name, selection):
+            signals_received.append(f"selection_changed: {curve_name} -> {selection}")
 
         # Connect signal trackers
-        curve_store.data_changed.connect(track_data_changed)
-        curve_store.selection_changed.connect(track_selection_changed)
+        app_state.curves_changed.connect(track_curves_changed)
+        app_state.selection_changed.connect(track_selection_changed)
 
         try:
             # Make multiple selections
-            curve_store.select(0, add_to_selection=False)
+            app_state.set_selection(active_curve, {0})
             qtbot.wait(50)
-            curve_store.select(1, add_to_selection=True)
+            app_state.add_to_selection(active_curve, 1)
             qtbot.wait(50)
-            curve_store.select(2, add_to_selection=True)
+            app_state.add_to_selection(active_curve, 2)
             qtbot.wait(50)
 
             # Verify selection signals were emitted
@@ -257,58 +264,61 @@ class TestTimelineCurveSyncSecondSelection:
             ), f"Should have received at least 3 selection_changed signals, got: {selection_signals}"
 
             # Trigger a data change to verify that signal still works
-            curve_store.set_data([(0, 0.0, 0.0, "test")])
+            app_state.set_curve_data(active_curve, [(0, 0.0, 0.0, "test")])
             qtbot.wait(50)
 
-            # Verify data_changed signal was emitted
-            assert (
-                "data_changed" in signals_received
-            ), f"data_changed signal should work after multi-selection, received: {signals_received}"
+            # Verify curves_changed signal was emitted
+            assert any(
+                "curves_changed" in s for s in signals_received
+            ), f"curves_changed signal should work after multi-selection, received: {signals_received}"
 
         finally:
             # Clean up signal connections
-            curve_store.data_changed.disconnect(track_data_changed)
-            curve_store.selection_changed.disconnect(track_selection_changed)
+            app_state.curves_changed.disconnect(track_curves_changed)
+            app_state.selection_changed.disconnect(track_selection_changed)
 
     def test_timeline_update_mechanism_after_second_selection(self, qtbot, main_window):
         """Test the specific timeline update mechanism that might be breaking."""
         timeline = main_window.timeline_tabs
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
+        app_state = get_application_state()
+
+        # Get active curve name
+        active_curve = app_state.active_curve
+        assert active_curve is not None, "Active curve should be set"
 
         # Track timeline update calls
         update_calls = []
 
         # Patch timeline update methods to track calls
-        original_on_store_data_changed = timeline._on_store_data_changed
-        original_on_store_selection_changed = getattr(timeline, "_on_store_selection_changed", None)
+        original_on_curves_changed = timeline._on_curves_changed
+        original_on_selection_changed = getattr(timeline, "_on_selection_changed", None)
 
-        def tracked_data_changed():
-            update_calls.append("_on_store_data_changed")
+        def tracked_curves_changed(curves):
+            update_calls.append(f"_on_curves_changed: {list(curves.keys())}")
             try:
-                return original_on_store_data_changed()
+                return original_on_curves_changed(curves)
             except Exception as e:
-                update_calls.append(f"_on_store_data_changed ERROR: {e}")
+                update_calls.append(f"_on_curves_changed ERROR: {e}")
                 raise
 
-        def tracked_selection_changed(selection):
-            update_calls.append(f"_on_store_selection_changed: {selection}")
-            if original_on_store_selection_changed:
+        def tracked_selection_changed(curve_name, selection):
+            update_calls.append(f"_on_selection_changed: {curve_name} -> {selection}")
+            if original_on_selection_changed:
                 try:
-                    return original_on_store_selection_changed(selection)
+                    return original_on_selection_changed(curve_name, selection)
                 except Exception as e:
-                    update_calls.append(f"_on_store_selection_changed ERROR: {e}")
+                    update_calls.append(f"_on_selection_changed ERROR: {e}")
                     raise
 
         # Apply patches
-        timeline._on_store_data_changed = tracked_data_changed
-        if hasattr(timeline, "_on_store_selection_changed"):
-            timeline._on_store_selection_changed = tracked_selection_changed
+        timeline._on_curves_changed = tracked_curves_changed
+        if hasattr(timeline, "_on_selection_changed"):
+            timeline._on_selection_changed = tracked_selection_changed
 
         try:
             # Select first point
             print("=== First selection ===")
-            curve_store.select(0, add_to_selection=False)
+            app_state.set_selection(active_curve, {0})
             qtbot.wait(100)
 
             first_selection_calls = update_calls.copy()
@@ -317,7 +327,7 @@ class TestTimelineCurveSyncSecondSelection:
             # Select second point
             print("=== Second selection ===")
             update_calls.clear()
-            curve_store.select(1, add_to_selection=True)
+            app_state.add_to_selection(active_curve, 1)
             qtbot.wait(100)
 
             second_selection_calls = update_calls.copy()
@@ -327,18 +337,18 @@ class TestTimelineCurveSyncSecondSelection:
             print("=== Triggering data change ===")
             update_calls.clear()
 
-            # Manually trigger data change
-            curve_store.data_changed.emit()
+            # Manually trigger curves change
+            app_state.curves_changed.emit(app_state.get_all_curves())
             qtbot.wait(100)
 
             data_change_calls = update_calls.copy()
             print(f"Timeline update calls after manual data change: {data_change_calls}")
 
             # Timeline should respond to data changes
-            assert "_on_store_data_changed" in str(data_change_calls), "Timeline should respond to data_changed signal"
+            assert "_on_curves_changed" in str(data_change_calls), "Timeline should respond to curves_changed signal"
 
         finally:
             # Restore original methods
-            timeline._on_store_data_changed = original_on_store_data_changed
-            if original_on_store_selection_changed and hasattr(timeline, "_on_store_selection_changed"):
-                timeline._on_store_selection_changed = original_on_store_selection_changed
+            timeline._on_curves_changed = original_on_curves_changed
+            if original_on_selection_changed and hasattr(timeline, "_on_selection_changed"):
+                timeline._on_selection_changed = original_on_selection_changed

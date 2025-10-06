@@ -10,7 +10,6 @@ the current frame indicator should update properly on the selected points.
 import pytest
 
 from core.models import PointStatus
-from stores import get_store_manager
 from ui.main_window import MainWindow
 
 
@@ -46,8 +45,6 @@ class TestFrameSelectionSync:
     def test_frame_indicator_updates_after_point_selection(self, qtbot, main_window):
         """Test that frame indicators update correctly after selecting points and navigating timeline."""
         curve_widget = main_window.curve_widget
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
 
         # Initial state: no selection, frame 1
         assert len(curve_widget.selected_indices) == 0
@@ -55,7 +52,7 @@ class TestFrameSelectionSync:
 
         # Step 1: Select a point (index 0 at frame 1)
         print("=== Selecting point at frame 1 ===")
-        curve_store.select(0, add_to_selection=False)
+        curve_widget._select_point(0, add_to_selection=False)
         qtbot.wait(50)
 
         # Verify point is selected
@@ -82,7 +79,7 @@ class TestFrameSelectionSync:
 
         # Step 4: Select another point (index 1 at frame 5) while at frame 10
         print("=== Selecting another point while at frame 10 ===")
-        curve_store.select(1, add_to_selection=True)
+        curve_widget._select_point(1, add_to_selection=True)
         qtbot.wait(50)
 
         # Verify both points are selected and frame is still 10
@@ -146,13 +143,11 @@ class TestFrameSelectionSync:
     def test_frame_update_with_multiple_selections(self, qtbot, main_window):
         """Test frame updates work correctly with multiple point selections."""
         curve_widget = main_window.curve_widget
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
 
         # Select multiple points
-        curve_store.select(0, add_to_selection=False)  # Frame 1
-        curve_store.select(2, add_to_selection=True)  # Frame 10
-        curve_store.select(3, add_to_selection=True)  # Frame 15
+        curve_widget._select_point(0, add_to_selection=False)  # Frame 1
+        curve_widget._select_point(2, add_to_selection=True)  # Frame 10
+        curve_widget._select_point(3, add_to_selection=True)  # Frame 15
         qtbot.wait(50)
 
         # Verify all points are selected
@@ -173,8 +168,6 @@ class TestFrameSelectionSync:
     def test_selection_after_frame_navigation(self, qtbot, main_window):
         """Test that point selection works correctly after frame navigation."""
         curve_widget = main_window.curve_widget
-        store_manager = get_store_manager()
-        curve_store = store_manager.get_curve_store()
 
         # Navigate to frame 10 first
         main_window.timeline_controller.set_frame(10)
@@ -182,7 +175,7 @@ class TestFrameSelectionSync:
         assert curve_widget.current_frame == 10
 
         # Now select a point
-        curve_store.select(2, add_to_selection=False)  # Point at frame 10
+        curve_widget._select_point(2, add_to_selection=False)  # Point at frame 10
         qtbot.wait(50)
 
         # Verify selection and frame are both correct
