@@ -222,7 +222,11 @@ class ViewManagementController:
 
             # Update timeline to reflect image sequence range
             if self.main_window.timeline_tabs:
-                self.main_window.timeline_tabs._on_store_data_changed()
+                # Trigger timeline refresh with current ApplicationState data
+                from stores.application_state import get_application_state
+
+                app_state = get_application_state()
+                self.main_window.timeline_tabs._on_curves_changed(app_state.get_all_curves())
                 logger.info(f"Updated timeline to show {num_images} frames")
 
             # Load the first image as background

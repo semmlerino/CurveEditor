@@ -206,6 +206,18 @@ class ApplicationState(QObject):
             return []
         return self._curves_data[curve_name].copy()
 
+    def get_all_curves(self) -> dict[str, CurveDataList]:
+        """
+        Get all curves data as dictionary.
+
+        Returns a COPY for safety. Modifying returned dict won't affect state.
+
+        Returns:
+            Dict mapping curve names to curve data (copies)
+        """
+        self._assert_main_thread()  # Prevent read tearing from wrong thread
+        return {name: data.copy() for name, data in self._curves_data.items()}
+
     def set_curve_data(self, curve_name: str, data: CurveDataInput, metadata: dict[str, Any] | None = None) -> None:
         """
         Replace entire curve data.

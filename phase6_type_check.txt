@@ -1,0 +1,192 @@
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_centering_toggle.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_centering_toggle.py:223:16 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_curve_view_widget_store_integration.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_curve_view_widget_store_integration.py:242:47 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:57:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:103:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:133:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:164:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:200:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:240:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:278:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:314:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:354:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:381:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:425:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:454:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:530:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:582:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:639:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_data_flow.py:668:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:282:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:283:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:284:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:288:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:289:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:290:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:308:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:309:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:310:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:333:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:334:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:335:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:339:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:340:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:341:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:369:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:370:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:371:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:377:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:378:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:379:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:385:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:386:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:387:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:392:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:393:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:394:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:441:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:442:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:443:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:448:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:449:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_display_mode_integration.py:454:29 - error: Cannot access attribute "should_render_curve" for class "CurveViewWidget"
+    Attribute "should_render_curve" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_selection_sync.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_selection_sync.py:50:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_selection_sync.py:150:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_selection_sync.py:177:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_store.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_store.py:33:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_frame_store.py:58:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_gap_visualization_fix.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_gap_visualization_fix.py:393:12 - error: Cannot assign to attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_gap_visualization_fix.py:394:12 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_grid_centering.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_grid_centering.py:284:22 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_keyframe_navigation.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_keyframe_navigation.py:132:41 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_keyframe_navigation.py:453:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_keyframe_navigation.py:535:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_main_window_store_integration.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_main_window_store_integration.py:23:49 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_navigation_integration.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_navigation_integration.py:251:56 - error: Cannot access attribute "frame_changed" for class "TimelineTabWidget"
+    Attribute "frame_changed" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:41:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:51:30 - error: Cannot access attribute "_on_store_data_changed" for class "TimelineTabWidget"
+    Attribute "_on_store_data_changed" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:60:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:132:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:172:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_automatic_updates.py:204:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_colors_integration.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_colors_integration.py:134:41 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_colors_integration.py:135:42 - error: Cannot access attribute "_curve_store" for class "CurveViewWidget"
+    Attribute "_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_curve_sync_second_selection.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_curve_sync_second_selection.py:54:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_curve_sync_second_selection.py:229:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_curve_sync_second_selection.py:277:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_focus_behavior.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_focus_behavior.py:138:47 - error: Cannot access attribute "frame_changed" for class "TimelineTabWidget"
+    Attribute "frame_changed" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_functionality.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_functionality.py:350:47 - error: Cannot access attribute "frame_changed" for class "TimelineTabWidget"
+    Attribute "frame_changed" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_scrubbing.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_scrubbing.py:151:53 - error: Cannot access attribute "frame_changed" for class "TimelineTabWidget"
+    Attribute "frame_changed" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_scrubbing.py:204:45 - error: Cannot access attribute "frame_changed" for class "TimelineTabWidget"
+    Attribute "frame_changed" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_store_reactive.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_store_reactive.py:45:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_timeline_store_reactive.py:84:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_tracking_direction_undo.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/tests/test_tracking_direction_undo.py:331:37 - error: Cannot access attribute "get_curve_store" for class "StoreManager"
+    Attribute "get_curve_store" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/controllers/view_management_controller.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/controllers/view_management_controller.py:225:48 - error: Cannot access attribute "_on_store_data_changed" for class "TimelineTabWidget"
+    Attribute "_on_store_data_changed" is unknown (reportAttributeAccessIssue)
+/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/timeline_tabs.py
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/timeline_tabs.py:241:49 - error: Cannot access attribute "get_all_curves" for class "ApplicationState"
+    Attribute "get_all_curves" is unknown (reportAttributeAccessIssue)
+  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/timeline_tabs.py:425:49 - error: Cannot access attribute "get_all_curves" for class "ApplicationState"
+    Attribute "get_all_curves" is unknown (reportAttributeAccessIssue)
+85 errors, 0 warnings, 0 notes
