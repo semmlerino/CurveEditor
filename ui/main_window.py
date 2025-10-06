@@ -170,7 +170,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     undo_button: QPushButton | None = None  # Required by protocol, created from action
     redo_button: QPushButton | None = None  # Required by protocol, created from action
     save_button: QPushButton | None = None  # Required by protocol, created from action
-    ui_components: object | None = None  # UIComponents container - deprecated, use self.ui instead
 
     # Controllers - initialized in __init__
     timeline_controller: TimelineControllerProtocol

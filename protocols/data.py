@@ -108,7 +108,6 @@ class HistoryContainerProtocol(Protocol):
     curve_widget: object
     curve_view: object
     services: object
-    ui_components: object
 
     def restore_state(self, state: HistoryState) -> None:
         """Restore state from history."""

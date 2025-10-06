@@ -447,7 +447,6 @@ class MainWindowProtocol(Protocol):
     undo_button: "QPushButton | None"
     redo_button: "QPushButton | None"
     save_button: "QPushButton | None"
-    ui_components: object
     _point_spinbox_connected: bool
     file_operations: object  # FileOperations instance
 
