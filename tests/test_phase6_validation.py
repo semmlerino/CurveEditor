@@ -141,7 +141,7 @@ def test_rendering_all_visible_no_active_curve():
 
     # Should render all 10 curves, not crash
     render_state = RenderState.compute(widget)
-    assert len(render_state.visible_curves) == 10
+    assert len(render_state.visible_curves or set()) == 10
     assert render_state.display_mode == DisplayMode.ALL_VISIBLE
 
     # widget.curve_data should return [] with warning (no active curve)

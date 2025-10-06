@@ -18,6 +18,7 @@ Key architecture components:
 
 # Standard library imports
 import sys
+import warnings
 from typing import TYPE_CHECKING, cast
 
 from typing_extensions import override
@@ -249,7 +250,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.ui_init_controller.initialize_ui()
 
         # Legacy attributes for backward compatibility
-        self.curve_view: CurveViewWidget | None = None  # Deprecated - use curve_widget instead
+        self._curve_view_deprecated: CurveViewWidget | None = None  # Private backing for deprecated curve_view property
 
         # Initialize history tracking
         self.history: list[dict[str, object]] = []  # Each history entry is a dict with curve data
@@ -564,6 +565,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Get view update manager instance."""
         # Return view update manager if it exists (may be added in future)
         return getattr(self, "_view_update_manager", None)
+
+    @property
+    def curve_view(self) -> CurveViewWidget | None:
+        """Deprecated alias for curve_widget."""
+        warnings.warn(
+            "main_window.curve_view is deprecated. Use main_window.curve_widget instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.curve_widget
 
     def get_curve_store(self) -> CurveDataStore:
         """Get the reactive curve data store."""
@@ -1084,7 +1095,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def set_curve_view(self, curve_view: CurveViewWidget | None) -> None:
         """Set the curve view widget (legacy method - now uses CurveViewWidget)."""
-        self.curve_view = curve_view
+        self._curve_view_deprecated = curve_view
         logger.info("Legacy curve view reference set")
 
     def get_view_options(self) -> dict[str, object]:

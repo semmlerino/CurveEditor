@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (29.9MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 200 files to bundle
+Skipping large file (30.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 194 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
@@ -11,7 +11,6 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
-Bundled: ARCHITECTURE.md
 Bundled: basedpyrightconfig.json
 Bundled: BASEDPYRIGHT_STRATEGY.md
 Bundled: baseline_lines.txt
@@ -20,16 +19,13 @@ Bundled: baseline_types.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
 Bundled: curveview_method_categorization.txt
-Bundled: INTERACTIONSERVICE_MULTI_CURVE_ARCHITECTURE.md
 Bundled: KeyFrameTest.txt
-Bundled: KNOWN_ISSUES.md
 Bundled: main.py
 Bundled: mainwindow_diff.txt
-Bundled: MAJOR_REFACTOR_WORKFLOW.md
 Bundled: ORCHESTRATION.md
 Bundled: ORCHESTRATOR_QUICK_REFERENCE.md
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
-Bundled: performance_bottleneck_analysis.txt
+Bundled: PHASE_6.3_RISK_ASSESSMENT.md
 Bundled: PHASE_6_DEPRECATION_REMOVAL_PLAN.md
 Bundled: PHASE_8_INTERACTION_SERVICE_REFACTOR.md
 Bundled: Point01.txt
@@ -39,13 +35,11 @@ Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QUICK-REFERENCE.md
 Bundled: README.md
-Bundled: RENDER_STATE_IMPLEMENTATION.md
 Bundled: requirements.txt
 Bundled: ROADMAP_FUTURE_PHASES.md
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
-Bundled: SAFE_REFACTOR_PLAN_DO_NOT_DELETE.md
-Bundled: SELECTION_STATE_REFACTORING_TRACKER.md
+Bundled: SESSION_SUMMARY_2025-10-06.md
 Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
 Bundled: SetTrackingFwdBwd.py
@@ -206,9 +200,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.65 MB
+Folder size: 2.49 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 846784 bytes
+Encoded size: 786796 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

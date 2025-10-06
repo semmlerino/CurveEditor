@@ -29,6 +29,7 @@ Architecture:
 
 from __future__ import annotations
 
+import warnings
 from typing import TYPE_CHECKING, Any, cast, override
 
 from PySide6.QtCore import (
@@ -300,7 +301,13 @@ class CurveViewWidget(QWidget):
 
     @property
     def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str | bool]]:
-        """Get curve data from the store."""
+        """Get curve data from store (DEPRECATED - Phase 6 removal)."""
+        warnings.warn(
+            "widget.curve_data is deprecated and will be removed in Phase 6. "
+            "Use app_state.get_curve_data(curve_name) instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         return self._curve_store.get_data()
 
     @property
