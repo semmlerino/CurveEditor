@@ -41,6 +41,10 @@ class TestFrameStore:
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
+
+        # CRITICAL: Set active curve first so StoreManager syncs FrameStore
+        app_state.set_active_curve("__default__")
+
         test_data: CurveDataList = [
             (5, 100.0, 100.0, "keyframe"),
             (10, 110.0, 110.0, "interpolated"),
@@ -62,6 +66,10 @@ class TestFrameStore:
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
+
+        # CRITICAL: Set active curve first so StoreManager syncs FrameStore
+        app_state.set_active_curve("__default__")
+
         test_data: CurveDataList = [
             (1, 100.0, 100.0, "keyframe"),
             (5, 110.0, 110.0, "interpolated"),

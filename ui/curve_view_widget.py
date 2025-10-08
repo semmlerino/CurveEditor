@@ -1205,7 +1205,7 @@ class CurveViewWidget(QWidget):
         """Handle frame change event from timeline navigation.
 
         Note: This method is now primarily for legacy compatibility.
-        The main frame update logic is handled by _on_state_frame_changed.
+        The main frame update logic is handled by FrameChangeCoordinator.
 
         Args:
             frame: The new current frame number
@@ -1688,21 +1688,9 @@ class CurveViewWidget(QWidget):
         self.main_window = main_window
         # Services are already initialized in __init__
 
-        # Legacy compatibility - state_manager now injected via constructor
-        # If state manager wasn't injected, try to get from main window as fallback
-        if self._state_manager is None and getattr(main_window, "state_manager", None) is not None:
-            self._state_manager = main_window.state_manager
-            # Update controller's state manager reference and reconnect signals
-            self.state_sync._state_manager = self._state_manager
-            # Only connect if not already connected to prevent duplicates
-            try:
-                _ = self._state_manager.frame_changed.connect(self.state_sync._on_state_frame_changed)
-                logger.debug("Connected to fallback state manager from main window via StateSyncController")
-            except (RuntimeError, TypeError) as e:
-                # Signal might already be connected or other connection issue
-                logger.debug(f"State manager signal connection issue: {e}")
-
-        # State manager signals are connected above if needed
+        # State manager is injected via constructor (ui_initialization_controller.py)
+        # Signal connections are made in __init__ via state_sync.connect_all_signals()
+        # No fallback needed - proper initialization order is enforced
 
     def set_background_image(self, pixmap: QPixmap | None) -> None:
         """
@@ -1936,18 +1924,18 @@ class CurveViewWidget(QWidget):
         Returns:
             Dictionary of curve data with active curve having live status data
         """
-        # Start with static curves data as base
-        curves_data: dict[str, CurveDataList] | None = getattr(self, "curves_data", None)
-        if not curves_data:
+        # All curve data now comes from ApplicationState (Phase 6.3)
+        # Read directly from ApplicationState for live data
+        all_curves = self._app_state.get_all_curves()
+
+        # If no data in ApplicationState, check for static curves_data attribute (legacy)
+        if not all_curves:
+            curves_data: dict[str, CurveDataList] | None = getattr(self, "curves_data", None)
+            if curves_data:
+                return curves_data.copy()
             return {}
 
-        # Create a copy to avoid modifying the original
-        live_curves_data: dict[str, CurveDataList] = curves_data.copy()
-
-        # All curve data now comes from ApplicationState - no separate live data needed
-        # (CurveDataStore removal - Phase 6.3)
-
-        return live_curves_data
+        return all_curves
 
 
 # Example usage and testing

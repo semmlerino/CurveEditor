@@ -92,11 +92,22 @@ class TestTrackingPointStatusCommands:
         2. Press E key to change status
         3. Verify no "Cannot handle status change" error occurs
         """
+        # Clear any pre-existing curves to ensure clean state
+        # Do this right before loading to prevent any intermediate curve creation
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        for curve_name in list(app_state.get_all_curve_names()):
+            app_state.delete_curve(curve_name)
+
+        # Verify clean state before loading
+        assert len(app_state.get_all_curve_names()) == 0, "ApplicationState should be empty before loading"
+
         # Step 1: Load multi-point tracking data
         main_window.tracking_controller.on_multi_point_data_loaded(multi_point_data)
 
-        # Verify tracking data is loaded
-        assert len(main_window.tracking_controller.tracked_data) == 3
+        # Verify tracking data is loaded (should match input exactly)
+        assert len(main_window.tracking_controller.tracked_data) == len(multi_point_data)
         assert "Point1" in main_window.tracking_controller.tracked_data
 
         # Step 2: Set current frame to a frame with tracking data
@@ -138,6 +149,13 @@ class TestTrackingPointStatusCommands:
 
     def test_tracking_point_switching_maintains_synchronization(self, main_window, multi_point_data):
         """Test that switching between tracking points maintains DataService sync."""
+        # Clear any pre-existing curves to ensure clean state
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        for curve_name in list(app_state.get_all_curve_names()):
+            app_state.delete_curve(curve_name)
+
         # Load multi-point data
         main_window.tracking_controller.on_multi_point_data_loaded(multi_point_data)
 
@@ -169,6 +187,13 @@ class TestTrackingPointStatusCommands:
 
     def test_e_key_with_frame_navigation(self, main_window, multi_point_data):
         """Test E key functionality during frame navigation with tracking data."""
+        # Clear any pre-existing curves to ensure clean state
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        for curve_name in list(app_state.get_all_curve_names()):
+            app_state.delete_curve(curve_name)
+
         # Load data
         main_window.tracking_controller.on_multi_point_data_loaded(multi_point_data)
 
@@ -210,6 +235,16 @@ class TestTrackingPointStatusCommands:
         - Frame switching between 1 and 12
         - Multiple E key presses
         """
+        # Clear any pre-existing curves to ensure clean state
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        for curve_name in list(app_state.get_all_curve_names()):
+            app_state.delete_curve(curve_name)
+
+        # Verify clean state
+        assert len(app_state.get_all_curve_names()) == 0, "ApplicationState should be empty before loading"
+
         # Create data matching the log: 12 tracking points
         multi_point_data = {}
         for i in range(1, 13):
@@ -224,7 +259,7 @@ class TestTrackingPointStatusCommands:
         main_window.tracking_controller.on_multi_point_data_loaded(multi_point_data)
 
         # Verify 12 points loaded (matching log: "Loaded 12 tracking points")
-        assert len(main_window.tracking_controller.tracked_data) == 12
+        assert len(main_window.tracking_controller.tracked_data) == len(multi_point_data)
 
         # Test the frame switching pattern from the log
         frames_to_test = [1, 12, 1, 12]  # Pattern seen in log
@@ -258,11 +293,32 @@ class TestTrackingPointStatusCommands:
 
     def test_dataservice_warning_eliminated(self, main_window, multi_point_data):
         """Test that the specific warning from the log is eliminated."""
+        # Clear any pre-existing curves to ensure clean state
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        for curve_name in list(app_state.get_all_curve_names()):
+            app_state.delete_curve(curve_name)
+
+        # Verify clean state
+        assert len(app_state.get_all_curve_names()) == 0, "ApplicationState should be empty before loading"
+
         # Load data
         main_window.tracking_controller.on_multi_point_data_loaded(multi_point_data)
+
+        # Verify data is loaded and active curve is set
+        assert len(main_window.tracking_controller.tracked_data) == len(multi_point_data)
+        assert main_window.active_timeline_point is not None, "Active timeline point should be set"
+
         main_window.state_manager.current_frame = 1
 
         data_service = get_data_service()
+
+        # DataService should already be synchronized by on_multi_point_data_loaded
+        # Just verify it has data
+        active_curve = main_window.active_timeline_point
+        assert active_curve is not None
+        assert active_curve in app_state.get_all_curve_names()
 
         # This operation was generating the warning before the fix
         # "Cannot handle status change: no current curve data"

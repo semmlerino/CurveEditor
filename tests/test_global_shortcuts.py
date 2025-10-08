@@ -82,8 +82,12 @@ class TestGlobalShortcuts:
             # Press E key - should toggle point at current frame (frame 1, index 0)
             QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
 
-            # Verify point at frame 1 (index 0) was toggled to ENDFRAME
-            point0 = window.curve_widget._curve_store.get_point(0)
+            # Verify point at frame 1 (index 0) was toggled to ENDFRAME (Phase 6: Use ApplicationState)
+            from stores.application_state import get_application_state
+
+            app_state = get_application_state()
+            curve_data = list(app_state.get_curve_data())
+            point0 = curve_data[0] if curve_data else None
             assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
 
             # Now test with frame 3 (index 2)
@@ -91,7 +95,8 @@ class TestGlobalShortcuts:
             QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
 
             # Verify point at frame 3 (index 2) was toggled to ENDFRAME
-            point2 = window.curve_widget._curve_store.get_point(2)
+            curve_data = list(app_state.get_curve_data())
+            point2 = curve_data[2] if len(curve_data) > 2 else None
             assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
 
     def test_tracking_shortcuts_work_when_curve_has_focus(self, main_window_with_shortcuts, qtbot):

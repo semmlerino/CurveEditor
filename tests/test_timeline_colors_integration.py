@@ -109,6 +109,12 @@ class TestTimelineColorsIntegration:
 
     def test_timeline_updates_on_status_change(self, main_window: MainWindow, qtbot: QtBot) -> None:
         """Test that timeline colors update when point status changes."""
+        # Set active curve first
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         # Create simple test data
         test_data = [
             (1, 100.0, 100.0, "keyframe"),
@@ -131,9 +137,6 @@ class TestTimelineColorsIntegration:
         assert color2_before.name() == color3_before.name()
 
         # Change status of point at frame 2 to interpolated
-        from stores.application_state import get_application_state
-
-        app_state = get_application_state()
         # Get current data, modify status, and set back
         current_data = list(app_state.get_curve_data("__default__"))
         # Index 1 is frame 2 - update its status

@@ -45,6 +45,10 @@ class SignalConnectionManager:
         if self.main_window.curve_widget:
             self._connect_curve_widget_signals()
 
+        # Connect frame change coordinator (replaces 6 independent frame_changed connections)
+        self.main_window.frame_change_coordinator.connect()
+        logger.info("FrameChangeCoordinator wired")
+
         # Verify all critical connections (fail-loud mechanism)
         self._verify_connections()
 
@@ -75,13 +79,12 @@ class SignalConnectionManager:
         # Connect state manager signals
         _ = self.main_window.state_manager.file_changed.connect(self.main_window.on_file_changed)
         _ = self.main_window.state_manager.modified_changed.connect(self.main_window.on_modified_changed)
-        _ = self.main_window.state_manager.frame_changed.connect(self.main_window.on_state_frame_changed)
         _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)
         _ = self.main_window.state_manager.view_state_changed.connect(self.main_window.on_view_state_changed)
 
-        # Connect ViewManagementController to frame changes for background updates
-        _ = self.main_window.state_manager.frame_changed.connect(
-            self.main_window.view_management_controller.update_background_for_frame
+        # Connect total_frames_changed to update timeline range
+        _ = self.main_window.state_manager.total_frames_changed.connect(
+            lambda total: self.main_window.timeline_controller.set_frame_range(1, total)
         )
 
         # Connect timeline_tabs to StateManager as observer

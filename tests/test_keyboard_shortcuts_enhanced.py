@@ -134,14 +134,18 @@ class TestEndframeKeyboardShortcut:
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
-        # Verify point at frame 1 was toggled to ENDFRAME
-        point0_after = widget._curve_store.get_point(0)
+        # Verify point at frame 1 was toggled to ENDFRAME (Phase 6: use ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        curve_data = list(app_state.get_curve_data())
+        point0_after = curve_data[0] if curve_data else None
         assert point0_after and len(point0_after) >= 4
         # Should toggle to ENDFRAME
         assert point0_after[3] == PointStatus.ENDFRAME.value
 
         # Other points should remain unchanged
-        point1 = widget._curve_store.get_point(1)
+        point1 = curve_data[1] if len(curve_data) > 1 else None
         assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
 
     def test_e_key_converts_current_frame_point_when_none_selected(self, curve_widget_with_data, qtbot):
@@ -172,13 +176,18 @@ class TestEndframeKeyboardShortcut:
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
-        # Verify point at frame 3 (index 2) was converted to ENDFRAME
-        point2 = widget._curve_store.get_point(2)
+        # Verify point at frame 3 (index 2) was converted to ENDFRAME (Phase 6: use ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        curve_data = list(app_state.get_curve_data())
+
+        point2 = curve_data[2] if len(curve_data) > 2 else None
         assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
         # Other points should remain unchanged
-        point0 = widget._curve_store.get_point(0)
+        point0 = curve_data[0] if curve_data else None
         assert point0 and len(point0) >= 4 and point0[3] == PointStatus.NORMAL.value
-        point1 = widget._curve_store.get_point(1)
+        point1 = curve_data[1] if len(curve_data) > 1 else None
         assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
 
     def test_e_key_ignores_selection_and_uses_current_frame(self, curve_widget_with_data, qtbot):
@@ -210,23 +219,33 @@ class TestEndframeKeyboardShortcut:
             current_frame=1,  # But current frame is 1
         )
 
-        # Get initial state of selected point
-        point3_before = widget._curve_store.get_point(3)  # Frame 4 (selected)
+        # Get initial state of selected point (Phase 6: use ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        curve_data_before = list(app_state.get_curve_data())
+        point3_before = curve_data_before[3] if len(curve_data_before) > 3 else None  # Frame 4 (selected)
 
         # Execute command
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
         # CRITICAL: Point at current_frame (1) should be toggled to ENDFRAME
-        point0_after = widget._curve_store.get_point(0)
+        curve_data_after = list(app_state.get_curve_data())
+        point0_after = curve_data_after[0] if curve_data_after else None
         assert point0_after and len(point0_after) >= 4
         assert point0_after[3] == PointStatus.ENDFRAME.value, "Point at frame 1 should be toggled"
 
         # CRITICAL: Selected point at frame 4 should be UNCHANGED
-        point3_after = widget._curve_store.get_point(3)
-        assert point3_after and len(point3_after) >= 4
-        assert point3_after[3] == point3_before[3], "Selected point at frame 4 should remain unchanged"
-        assert point3_after[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
+        point3_after = curve_data_after[3] if len(curve_data_after) > 3 else None
+        assert point3_after and len(point3_after) >= 4 and point3_before is not None
+        # Cast to 4-tuple after length check - we've verified it has status info
+        from core.type_aliases import PointTuple4
+
+        point3_after_4 = cast(PointTuple4, point3_after)
+        point3_before_4 = cast(PointTuple4, point3_before)
+        assert point3_after_4[3] == point3_before_4[3], "Selected point at frame 4 should remain unchanged"
+        assert point3_after_4[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
 
     def test_e_key_fails_when_no_point_at_current_frame(self, curve_widget_with_data, qtbot):
         """Test that E key fails can_execute when no point exists at current_frame."""
@@ -257,8 +276,14 @@ class TestEndframeKeyboardShortcut:
 
         # Select a point using the proper method
         widget._select_point(0, add_to_selection=False)
-        point0 = widget._curve_store.get_point(0)
-        original_status = point0[3] if point0 and len(point0) >= 4 else None
+
+        # Get initial status (Phase 6: use ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        curve_data_initial = list(app_state.get_curve_data())
+        point0_initial = curve_data_initial[0] if curve_data_initial else None
+        original_status = point0_initial[3] if point0_initial and len(point0_initial) >= 4 else None
 
         # Create mock main window
         mock_window = Mock()
@@ -280,7 +305,8 @@ class TestEndframeKeyboardShortcut:
         assert not cmd.can_execute(context)
 
         # Status should remain unchanged
-        point0 = widget._curve_store.get_point(0)
+        curve_data_after = list(app_state.get_curve_data())
+        point0 = curve_data_after[0] if curve_data_after else None
         assert point0 and len(point0) >= 4 and point0[3] == original_status
 
 
@@ -567,8 +593,12 @@ class TestRealComponentIntegration:
         assert cmd.can_execute(context)
         assert cmd.execute(context)
 
-        # Verify point at frame 1 (index 0) was toggled to ENDFRAME
-        point0 = window.curve_widget._curve_store.get_point(0)
+        # Verify point at frame 1 (index 0) was toggled to ENDFRAME (Phase 6: use ApplicationState)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        curve_data = list(app_state.get_curve_data())
+        point0 = curve_data[0] if curve_data else None
         assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
 
         # Now test frame 3 (index 2)
@@ -585,7 +615,8 @@ class TestRealComponentIntegration:
         assert cmd.execute(context2)
 
         # Verify point at frame 3 (index 2) was toggled to ENDFRAME
-        point2 = window.curve_widget._curve_store.get_point(2)
+        curve_data = list(app_state.get_curve_data())
+        point2 = curve_data[2] if len(curve_data) > 2 else None
         assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
 
     def test_tracking_direction_with_real_components(self, qtbot):

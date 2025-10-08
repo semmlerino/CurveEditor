@@ -138,8 +138,10 @@ dev = [
     { name = "pytest" },
     { name = "pytest-benchmark" },
     { name = "pytest-cov" },
+    { name = "pytest-pystack" },
     { name = "pytest-qt" },
     { name = "pytest-timeout" },
+    { name = "pytest-xdist" },
     { name = "ruff" },
 ]
 
@@ -163,8 +165,10 @@ dev = [
     { name = "pytest", specifier = ">=8.0.0" },
     { name = "pytest-benchmark", specifier = ">=4.0.0" },
     { name = "pytest-cov", specifier = ">=4.0.0" },
+    { name = "pytest-pystack", specifier = ">=1.0.2" },
     { name = "pytest-qt", specifier = ">=4.0.0" },
     { name = "pytest-timeout", specifier = ">=2.0.0" },
+    { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff", specifier = ">=0.12.0" },
 ]
 
@@ -175,6 +179,15 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/96/8e/709914eb2b5749865801041647dc7f4e6d00b549cfe88b65ca192995f07c/distlib-0.4.0.tar.gz", hash = "sha256:feec40075be03a04501a973d81f633735b4b69f98b05450592310c0f401a4e0d", size = 614605, upload-time = "2025-07-17T16:52:00.465Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/33/6b/e0547afaf41bf2c42e52430072fa5658766e3d65bd4b03a563d1b6336f57/distlib-0.4.0-py2.py3-none-any.whl", hash = "sha256:9659f7d87e46584a30b5780e43ac7a2143098441670ff0a49d5f9034c54a6c16", size = 469047, upload-time = "2025-07-17T16:51:58.613Z" },
+]
+
+[[package]]
+name = "execnet"
+version = "2.1.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/bb/ff/b4c0dc78fbe20c3e59c0c7334de0c27eb4001a2b2017999af398bf730817/execnet-2.1.1.tar.gz", hash = "sha256:5189b52c6121c24feae288166ab41b32549c7e2348652736540b9e6e7d4e72e3", size = 166524, upload-time = "2024-04-08T09:04:19.245Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/43/09/2aea36ff60d16dd8879bdb2f5b3ee0ba8d08cbbdcdfe870e695ce3784385/execnet-2.1.1-py3-none-any.whl", hash = "sha256:26dee51f1b80cebd6d0ca8e74dd8745419761d3bef34163928cbebbdc4749fdc", size = 40612, upload-time = "2024-04-08T09:04:17.414Z" },
 ]
 
 [[package]]
@@ -600,6 +613,26 @@ wheels = [
 ]
 
 [[package]]
+name = "pystack"
+version = "1.5.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/0e/81/242c87b53cfca4cdea18878513bc0a19fa365bc0df372668cbbafb4c6863/pystack-1.5.1.tar.gz", hash = "sha256:9aa1a25ea2f1c3d2176059a280ef2f7c4e26c5540d37ed3c90ded65e6cc06f50", size = 102254, upload-time = "2025-08-18T20:59:50.832Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/4c/5285221360436c94031bbbb33d14fa83b0656a692e5754a33bf14e29383c/pystack-1.5.1-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:ec014e5765681c105c8140dbbd9ab8214b78f866284cfe6d6986767d7aa6d0ec", size = 7073983, upload-time = "2025-08-18T20:59:25.116Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/ee/b4f1a0a7c429d5fa661a410446d54b1e829d35eedccf10f0c4a6f96025a8/pystack-1.5.1-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:644e75c8ecfbf7c9761aa6d2beff992f6bd140ae3aa4ff3a55887d1f79ee2962", size = 6893742, upload-time = "2025-08-18T20:59:26.376Z" },
+    { url = "https://files.pythonhosted.org/packages/12/98/d941f35cfc19fad8d49f7704de6644fb0ce6dca17f4c812652673f6b2215/pystack-1.5.1-cp312-cp312-musllinux_1_2_x86_64.whl", hash = "sha256:2ce4f54b849ae956cbbdf27bce10254cafdaea76f7dd39971068b3ae10aafab6", size = 7985654, upload-time = "2025-08-18T20:59:27.887Z" },
+    { url = "https://files.pythonhosted.org/packages/dd/84/393129226fc4ebcc738b73a6777f3cc860069faf1e9d4235dc3287a40191/pystack-1.5.1-cp313-cp313-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:48686d108054533a79c812eaf652fc00919c056706b321cd91fcc5749b3c2783", size = 7073031, upload-time = "2025-08-18T20:59:29.22Z" },
+    { url = "https://files.pythonhosted.org/packages/92/26/5481d2cc541c700a16aa2c75bcb8f8407eccb116435cee4b0f13e4708a07/pystack-1.5.1-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e9e707c784b53235fb8b2fa6024afe4d90a9c1c97edb7fdc64e4a6d009454bf5", size = 6894895, upload-time = "2025-08-18T20:59:30.565Z" },
+    { url = "https://files.pythonhosted.org/packages/ba/3b/640ebe51dce55c8395d71a91a895a3cae9906f8a276c6ae5e9b724239e92/pystack-1.5.1-cp313-cp313-musllinux_1_2_x86_64.whl", hash = "sha256:da9498c47f80e4d4dc9bdbf123499d33d78530f5959560140447ddf92af60c1b", size = 7987056, upload-time = "2025-08-18T20:59:31.935Z" },
+    { url = "https://files.pythonhosted.org/packages/66/fe/dd87e2259352581865916e1ea1db400b24a383ed15dd3e1def2872754fc4/pystack-1.5.1-cp314-cp314-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:8028a87485760f4a4503c3f87861053e9d4f64143614b17104a808f53424adb6", size = 7060215, upload-time = "2025-08-18T20:59:33.589Z" },
+    { url = "https://files.pythonhosted.org/packages/3b/d7/a920e11ce1bcedd5d35ff471fb32134412f4781e94180a4beae5b5fd2f8c/pystack-1.5.1-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:3edceccf3308eeb36c7719a50733a400e3fa009aec00d46aadcb6475939c3fb7", size = 6884822, upload-time = "2025-08-18T20:59:34.98Z" },
+    { url = "https://files.pythonhosted.org/packages/92/27/10939f939a6c725c69e7115b067f0099065b34a0f8fd55fc5497ef423226/pystack-1.5.1-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:688318a839795b59338f81c8de205420de3eb0bd64e8482048a2d70f41e4ea7d", size = 7973011, upload-time = "2025-08-18T20:59:36.265Z" },
+    { url = "https://files.pythonhosted.org/packages/8d/60/c477a065a226a7a3c8aa81cc882d3fd9281b6f431412de6e9dd6ec19f907/pystack-1.5.1-cp314-cp314t-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:07c1e01e710ecbf2ccda0a81dde005970fe67466431498e44fbf853808d5b902", size = 7033856, upload-time = "2025-08-18T20:59:37.564Z" },
+    { url = "https://files.pythonhosted.org/packages/70/2a/270bdcd214d8a79189fff910dfe9d1fa68502f278335b16ece41d6ac6b31/pystack-1.5.1-cp314-cp314t-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:d534d177b9b88a995294ba330cae4ea53ed9168802bb1efeb8b38a302018e6ad", size = 6883264, upload-time = "2025-08-18T20:59:39.188Z" },
+    { url = "https://files.pythonhosted.org/packages/59/65/157d26eb56aff4d6ea725f7f193a53b92b63f06081a52b462af8bd136d9c/pystack-1.5.1-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:4de406ba67b132a86a801cc8ec29ec4c7a4d2867a66058b314f760960efc81b6", size = 7937342, upload-time = "2025-08-18T20:59:40.538Z" },
+]
+
+[[package]]
 name = "pytest"
 version = "8.4.2"
 source = { registry = "https://pypi.org/simple" }
@@ -643,6 +676,19 @@ wheels = [
 ]
 
 [[package]]
+name = "pytest-pystack"
+version = "1.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pystack" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a8/4f/f9560584a4e14af46e43984adf99b51a1da544ff3b5c1a050224cd791604/pytest_pystack-1.0.2.tar.gz", hash = "sha256:04b310cf26fcdbe55581c55ef50722677c7698fbb4b6854868b4ec2e8e938d91", size = 18472, upload-time = "2024-11-16T22:23:36.612Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/39/ad/acae22b651ef3c505a0a676d953a7a730a663f6c2ce3590aa00178fc8ba6/pytest_pystack-1.0.2-py3-none-any.whl", hash = "sha256:f3b565c62c297a1ff716fe9bb4c3f8dd594b57f21df261230cc3f941d38a97bb", size = 14835, upload-time = "2024-11-16T22:23:35.099Z" },
+]
+
+[[package]]
 name = "pytest-qt"
 version = "4.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -666,6 +712,19 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/ac/82/4c9ecabab13363e72d880f2fb504c5f750433b2b6f16e99f4ec21ada284c/pytest_timeout-2.4.0.tar.gz", hash = "sha256:7e68e90b01f9eff71332b25001f85c75495fc4e3a836701876183c4bcfd0540a", size = 17973, upload-time = "2025-05-05T19:44:34.99Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/fa/b6/3127540ecdf1464a00e5a01ee60a1b09175f6913f0644ac748494d9c4b21/pytest_timeout-2.4.0-py3-none-any.whl", hash = "sha256:c42667e5cdadb151aeb5b26d114aff6bdf5a907f176a007a30b940d3d865b5c2", size = 14382, upload-time = "2025-05-05T19:44:33.502Z" },
+]
+
+[[package]]
+name = "pytest-xdist"
+version = "3.8.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "execnet" },
+    { name = "pytest" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/78/b4/439b179d1ff526791eb921115fca8e44e596a13efeda518b9d845a619450/pytest_xdist-3.8.0.tar.gz", hash = "sha256:7e578125ec9bc6050861aa93f2d59f1d8d085595d6551c2c90b6f4fad8d3a9f1", size = 88069, upload-time = "2025-07-01T13:30:59.346Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ca/31/d4e37e9e550c2b92a9cbc2e4d0b7420a27224968580b5a447f420847c975/pytest_xdist-3.8.0-py3-none-any.whl", hash = "sha256:202ca578cfeb7370784a8c33d6d05bc6e13b4f25b5053c30a152269fd10f0b88", size = 46396, upload-time = "2025-07-01T13:30:56.632Z" },
 ]
 
 [[package]]

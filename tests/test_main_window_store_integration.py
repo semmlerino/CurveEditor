@@ -41,8 +41,13 @@ class MinimalMainWindow(QWidget):
         """Update timeline tabs."""
         pass  # Will be mocked in tests
 
-    def _on_selection_changed(self, curve_name, selection):
-        """Handle selection changes from ApplicationState."""
+    def _on_selection_changed(self, selection, curve_name):
+        """Handle selection changes from ApplicationState.
+
+        Args:
+            selection: Set of selected point indices
+            curve_name: Name of the curve whose selection changed
+        """
         if curve_name == self._curve_name and selection:
             min_idx = min(selection)
             self._update_point_editor(min_idx)
@@ -216,6 +221,7 @@ class TestMainWindowStoreIntegration:
         """Test that selection changes trigger UI updates."""
         # Setup initial data
         main_window._app_state.set_curve_data(main_window._curve_name, [(1, 100.0, 200.0), (2, 150.0, 250.0)])
+        main_window._app_state.set_active_curve(main_window._curve_name)  # Set active curve for selection
 
         # Track actual behavior
         editor_updated_with = [None]

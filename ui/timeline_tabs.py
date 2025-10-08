@@ -295,8 +295,6 @@ class TimelineTabWidget(QWidget):
     def set_state_manager(self, state_manager) -> None:
         """Connect to StateManager for frame synchronization."""
         self._state_manager = state_manager
-        # Connect to frame changes
-        state_manager.frame_changed.connect(self._on_frame_changed)
         # Connect to active timeline point changes
         state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
 

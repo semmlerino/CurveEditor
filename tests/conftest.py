@@ -155,7 +155,31 @@ def reset_all_services() -> Generator[None, None, None]:
                         }
                     )
 
-        # 5. Process pending Qt events to clean up QObjects
+        # 5. CRITICAL: Check for background threads before processEvents to prevent deadlock
+        # Only log warnings - don't block test execution with join()
+        try:
+            import logging
+            import threading
+
+            # Get all active threads (excluding main thread and daemon threads)
+            active_threads = [
+                t for t in threading.enumerate() if t != threading.main_thread() and not t.daemon and t.is_alive()
+            ]
+
+            if active_threads:
+                logger = logging.getLogger(__name__)
+                # Try very brief join (0.01s = 10ms) but don't block if thread won't stop
+                for thread in active_threads:
+                    thread.join(timeout=0.01)
+
+                # Log remaining threads for debugging but continue
+                still_alive = [t for t in active_threads if t.is_alive()]
+                if still_alive:
+                    logger.debug(f"Background threads still running: {[t.name for t in still_alive]}")
+        except Exception:
+            pass
+
+        # 6. Process pending Qt events to clean up QObjects
         try:
             from PySide6.QtWidgets import QApplication
 
@@ -168,7 +192,7 @@ def reset_all_services() -> Generator[None, None, None]:
         except Exception:
             pass
 
-        # 6. Force Python garbage collection to trigger __del__ for MainWindow cleanup
+        # 7. Force Python garbage collection to trigger __del__ for MainWindow cleanup
         # CRITICAL: MainWindow.__del__ removes global event filters.
         # Without gc.collect(), event filters accumulate causing timeout after 1580+ tests.
         import gc

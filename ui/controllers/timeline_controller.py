@@ -152,9 +152,6 @@ class TimelineController(QObject):
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""
-        # StateManager observer connection
-        _ = self.state_manager.frame_changed.connect(lambda frame: self.update_frame_display(frame, update_state=False))
-
         # Navigation signals
         _ = self.frame_spinbox.valueChanged.connect(self._on_frame_changed)
         _ = self.frame_slider.valueChanged.connect(self._on_slider_changed)

@@ -59,6 +59,7 @@ class TestTimelineStoreReactive:
             (2, 110.0, 110.0, "interpolated"),
             (3, 120.0, 120.0, "keyframe"),
         ]
+        app_state.set_active_curve("__default__")  # Set active curve before data
         app_state.set_curve_data("__default__", test_data)
 
         # Process events to allow signals to propagate
@@ -88,6 +89,7 @@ class TestTimelineStoreReactive:
         test_data = [
             (1, 100.0, 100.0, "keyframe"),
         ]
+        app_state.set_active_curve("__default__")  # Set active curve before data
         app_state.set_curve_data("__default__", test_data)
 
         # Process events to allow signals to propagate

@@ -5,6 +5,7 @@
 # pyright: reportImportCycles=false
 
 from .action_handler_controller import ActionHandlerController
+from .frame_change_coordinator import FrameChangeCoordinator
 from .multi_point_tracking_controller import MultiPointTrackingController
 from .point_editor_controller import PointEditorController
 from .signal_connection_manager import SignalConnectionManager
@@ -14,6 +15,7 @@ from .view_management_controller import ViewManagementController
 
 __all__ = [
     "ActionHandlerController",
+    "FrameChangeCoordinator",
     "MultiPointTrackingController",
     "PlaybackMode",
     "PlaybackState",

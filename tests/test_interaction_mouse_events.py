@@ -221,11 +221,14 @@ class TestMouseMoveEvents:
 
         self.service.handle_mouse_move(view, event)
 
-        # Point should be updated in view.curve_data
+        # Point should be updated in ApplicationState (Phase 6: single source of truth)
         # Delta in screen coords: +50, +50
         # With default transform (scale=1), delta in curve coords: +50, -50 (Y inverted)
-        updated_point = view.curve_data[0]
-        assert updated_point[1] != 100.0 or updated_point[2] != 100.0  # Position changed
+        updated_data = app_state.get_curve_data("test_curve")
+        updated_point = updated_data[0] if updated_data else None
+        assert updated_point is not None and (
+            updated_point[1] != 100.0 or updated_point[2] != 100.0
+        )  # Position changed
 
     def test_mouse_move_pans_view(self) -> None:
         """Test mouse move pans view when pan is active."""

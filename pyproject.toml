@@ -29,17 +29,16 @@ dev = [
     "pytest-timeout>=2.0.0",
     "pytest-benchmark>=4.0.0",
     "hypothesis>=6.0.0",
-    "psutil>=5.0.0",  # Performance monitoring for tests
-
+    "psutil>=5.0.0", # Performance monitoring for tests
     # Code Quality
     "ruff>=0.12.0",
     "basedpyright>=1.0.0",
-
     # Pre-commit
     "pre-commit>=3.0.0",
-
     # Type stubs
     "PySide6-stubs>=6.7.0",
+    "pytest-pystack>=1.0.2",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv]

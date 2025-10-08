@@ -225,6 +225,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.background_controller = self.view_management_controller
         self.point_editor_controller = PointEditorController(self, self.state_manager)  # pyright: ignore[reportAttributeAccessIssue]
         self.tracking_controller = MultiPointTrackingController(self)  # pyright: ignore[reportAttributeAccessIssue]
+
+        # Frame change coordinator (replaces 6 independent frame_changed connections)
+        from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
+
+        self.frame_change_coordinator = FrameChangeCoordinator(self)
+
         self.signal_manager = SignalConnectionManager(self)
 
         # Initialize service facade
@@ -936,13 +942,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # View options are now handled by ViewManagementController
 
     # ==================== Frame Navigation Handlers ====================
-
-    @Slot(int)
-    def on_state_frame_changed(self, frame: int) -> None:
-        """Handle frame change from state manager."""
-        # StateManager already updated - Observer pattern handles propagation automatically
-        # No manual cascade calls needed with KISS/SOLID architecture
-        logger.debug(f"[FRAME] Received StateManager frame_changed signal for frame {frame}")
+    # Frame change handling now managed by FrameChangeCoordinator
 
     # ==================== Utility Methods ====================
 

@@ -149,14 +149,16 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         new_x, new_y = 160.0, 260.0
         success = self.interaction_service.update_point_position(self.curve_view, self.main_window, 1, new_x, new_y)  # pyright: ignore[reportArgumentType]
         assert success
-        # Note: update_point_position updates view.curve_data, not ApplicationState directly
-        # Verify in view
-        assert self.curve_view.curve_data[1][1] == new_x
-        assert self.curve_view.curve_data[1][2] == new_y
+        # Phase 6: update_point_position updates ApplicationState (single source of truth)
+        # Verify in ApplicationState
+        app_state = get_application_state()
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[1][1] == new_x
+        assert curve_data[1][2] == new_y
 
-        # 9. Save modified data from view
+        # 9. Save modified data from ApplicationState
         output_file = self.create_temp_file(".json")
-        success = self.data_service._save_json(output_file, self.curve_view.curve_data, "TestLabel", "#FF0000")
+        success = self.data_service._save_json(output_file, curve_data, "TestLabel", "#FF0000")
         assert success
 
         # 10. Verify saved data
@@ -366,9 +368,10 @@ class TestHistoryIntegration(TestServiceIntegration):
         # Modify a point
         self.interaction_service.update_point_position(self.curve_view, self.main_window, 0, 110.0, 210.0)  # pyright: ignore[reportArgumentType]
 
-        # Verify point was modified in view (update_point_position updates view, not app_state)
-        assert self.curve_view.curve_data[0][1] == 110.0
-        assert self.curve_view.curve_data[0][2] == 210.0
+        # Verify point was modified in ApplicationState (Phase 6: ApplicationState is source of truth)
+        curve_data = app_state.get_curve_data("test_curve")
+        assert curve_data[0][1] == 110.0
+        assert curve_data[0][2] == 210.0
 
         # Add modified state to history
         self.interaction_service.add_to_history(self.main_window)  # pyright: ignore[reportArgumentType]

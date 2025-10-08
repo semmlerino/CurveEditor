@@ -231,6 +231,10 @@ class MultiPointTrackingController:
             active_point = self.main_window.active_timeline_point
             if active_point and self.main_window.curve_widget:
                 if active_point in self._app_state.get_all_curve_names():
+                    # CRITICAL: Set active_curve BEFORE calling set_curve_data
+                    # Otherwise facade creates "Curve1" duplicate
+                    self._app_state.set_active_curve(active_point)
+
                     # Set up view for pixel-coordinate tracking data
                     self.main_window.curve_widget.setup_for_pixel_tracking()
                     trajectory = self._app_state.get_curve_data(active_point)

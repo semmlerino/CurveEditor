@@ -25,6 +25,12 @@ class TestCurveViewWidgetStoreIntegration:
     @pytest.fixture
     def widget(self, qtbot):
         """Create a CurveViewWidget for testing."""
+        from stores.application_state import get_application_state
+
+        # Set __default__ as active curve so tests can use it
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         widget = CurveViewWidget()
         qtbot.addWidget(widget)
         return widget

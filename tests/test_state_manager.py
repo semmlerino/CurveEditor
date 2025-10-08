@@ -26,6 +26,33 @@ def state_manager():
     return sm
 
 
+@pytest.fixture
+def state_manager_with_curve(state_manager):
+    """Create a StateManager with active curve set for selection tests."""
+    from core.models import CurvePoint
+    from stores.application_state import get_application_state, reset_application_state
+
+    app_state = get_application_state()
+
+    # Set up test curve data
+    test_data = [
+        CurvePoint(frame=1, x=100.0, y=200.0),
+        CurvePoint(frame=2, x=110.0, y=210.0),
+        CurvePoint(frame=3, x=120.0, y=220.0),
+        CurvePoint(frame=4, x=130.0, y=230.0),
+        CurvePoint(frame=5, x=140.0, y=240.0),
+    ]
+    # Convert CurvePoint objects to legacy tuple format
+    test_data_tuples = [point.to_legacy_tuple() for point in test_data]
+    app_state.set_curve_data("TestCurve", test_data_tuples)
+    app_state.set_active_curve("TestCurve")
+
+    yield state_manager
+
+    # Clean up ApplicationState to prevent test pollution
+    reset_application_state()
+
+
 class TestStateManagerInitialization:
     """Test StateManager initialization and defaults."""
 
@@ -225,74 +252,75 @@ class TestStateManagerDataState:
 class TestStateManagerSelectionState:
     """Test selection state management."""
 
-    def test_selected_points_property(self, state_manager):
+    def test_selected_points_property(self, state_manager_with_curve):
         """Test selected_points property returns sorted list."""
-        state_manager.set_selected_points([3, 1, 2])
-        assert state_manager.selected_points == [1, 2, 3]
+        state_manager_with_curve.set_selected_points([3, 1, 2])
+        assert state_manager_with_curve.selected_points == [1, 2, 3]
 
-    def test_set_selected_points_with_list(self, state_manager, qtbot):
+    def test_set_selected_points_with_list(self, state_manager_with_curve, qtbot):
         """Test setting selected points with list."""
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.set_selected_points([5, 2, 8])
+        state_manager_with_curve.set_selected_points([5, 2, 8])
 
-        assert state_manager.selected_points == [2, 5, 8]
+        # Note: Only indices 0-4 exist in test data, but selection doesn't validate
+        assert state_manager_with_curve.selected_points == [2, 5, 8]
         assert selection_spy.count() == 1
         assert selection_spy.at(0)[0] == {2, 5, 8}
 
-    def test_set_selected_points_with_set(self, state_manager, qtbot):
+    def test_set_selected_points_with_set(self, state_manager_with_curve, qtbot):
         """Test setting selected points with set."""
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.set_selected_points({7, 3, 5})
+        state_manager_with_curve.set_selected_points({7, 3, 5})
 
-        assert state_manager.selected_points == [3, 5, 7]
+        assert state_manager_with_curve.selected_points == [3, 5, 7]
         assert selection_spy.count() == 1
 
-    def test_add_to_selection(self, state_manager, qtbot):
+    def test_add_to_selection(self, state_manager_with_curve, qtbot):
         """Test adding points to selection."""
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.add_to_selection(5)
-        assert state_manager.selected_points == [5]
+        state_manager_with_curve.add_to_selection(5)
+        assert state_manager_with_curve.selected_points == [5]
         assert selection_spy.count() == 1
 
-        state_manager.add_to_selection(3)
-        assert state_manager.selected_points == [3, 5]
+        state_manager_with_curve.add_to_selection(3)
+        assert state_manager_with_curve.selected_points == [3, 5]
         assert selection_spy.count() == 2
 
         # Adding existing point doesn't change
-        state_manager.add_to_selection(5)
-        assert state_manager.selected_points == [3, 5]
+        state_manager_with_curve.add_to_selection(5)
+        assert state_manager_with_curve.selected_points == [3, 5]
         assert selection_spy.count() == 2
 
-    def test_remove_from_selection(self, state_manager, qtbot):
+    def test_remove_from_selection(self, state_manager_with_curve, qtbot):
         """Test removing points from selection."""
-        state_manager.set_selected_points([1, 2, 3, 4])
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        state_manager_with_curve.set_selected_points([1, 2, 3, 4])
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.remove_from_selection(2)
-        assert state_manager.selected_points == [1, 3, 4]
+        state_manager_with_curve.remove_from_selection(2)
+        assert state_manager_with_curve.selected_points == [1, 3, 4]
         assert selection_spy.count() == 1
 
         # Removing non-existent point doesn't change
-        state_manager.remove_from_selection(10)
-        assert state_manager.selected_points == [1, 3, 4]
+        state_manager_with_curve.remove_from_selection(10)
+        assert state_manager_with_curve.selected_points == [1, 3, 4]
         assert selection_spy.count() == 1
 
-    def test_clear_selection(self, state_manager, qtbot):
+    def test_clear_selection(self, state_manager_with_curve, qtbot):
         """Test clearing selection."""
-        state_manager.set_selected_points([1, 2, 3])
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        state_manager_with_curve.set_selected_points([1, 2, 3])
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.clear_selection()
+        state_manager_with_curve.clear_selection()
 
-        assert state_manager.selected_points == []
+        assert state_manager_with_curve.selected_points == []
         assert selection_spy.count() == 1
         assert selection_spy.at(0)[0] == set()
 
         # Clearing empty selection doesn't emit
-        state_manager.clear_selection()
+        state_manager_with_curve.clear_selection()
         assert selection_spy.count() == 1
 
     def test_hover_point_property(self, state_manager):
@@ -305,12 +333,12 @@ class TestStateManagerSelectionState:
         state_manager.hover_point = None
         assert state_manager.hover_point is None
 
-    def test_selection_no_signal_on_same_value(self, state_manager, qtbot):
+    def test_selection_no_signal_on_same_value(self, state_manager_with_curve, qtbot):
         """Test selection doesn't emit when unchanged."""
-        state_manager.set_selected_points([1, 2, 3])
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        state_manager_with_curve.set_selected_points([1, 2, 3])
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        state_manager.set_selected_points([3, 2, 1])  # Same set, different order
+        state_manager_with_curve.set_selected_points([3, 2, 1])  # Same set, different order
 
         assert selection_spy.count() == 0
 
@@ -522,42 +550,42 @@ class TestStateManagerHistory:
 class TestStateManagerReset:
     """Test reset functionality."""
 
-    def test_reset_to_defaults(self, state_manager, qtbot):
+    def test_reset_to_defaults(self, state_manager_with_curve, qtbot):
         """Test resetting to default state."""
         # Set various states
-        state_manager.current_file = "/test.txt"
-        state_manager.is_modified = True
-        state_manager.set_track_data([(1.0, 2.0)], mark_modified=False)
-        state_manager.set_selected_points([1, 2, 3])
-        state_manager.total_frames = 100  # Set total_frames BEFORE current_frame
-        state_manager.current_frame = 50
-        state_manager.zoom_level = 2.0
+        state_manager_with_curve.current_file = "/test.txt"
+        state_manager_with_curve.is_modified = True
+        state_manager_with_curve.set_track_data([(1.0, 2.0)], mark_modified=False)
+        state_manager_with_curve.set_selected_points([1, 2, 3])
+        state_manager_with_curve.total_frames = 100  # Set total_frames BEFORE current_frame
+        state_manager_with_curve.current_frame = 50
+        state_manager_with_curve.zoom_level = 2.0
         # Use enough image files to not clamp current_frame (50 requires at least 50 images)
-        state_manager.set_image_files([f"img{i}.png" for i in range(1, 51)])
-        state_manager.current_tool = "pen"
+        state_manager_with_curve.set_image_files([f"img{i}.png" for i in range(1, 51)])
+        state_manager_with_curve.current_tool = "pen"
 
         # Setup spies
-        file_spy = QSignalSpy(state_manager.file_changed)
-        modified_spy = QSignalSpy(state_manager.modified_changed)
-        selection_spy = QSignalSpy(state_manager.selection_changed)
-        frame_spy = QSignalSpy(state_manager.frame_changed)
-        view_spy = QSignalSpy(state_manager.view_state_changed)
+        file_spy = QSignalSpy(state_manager_with_curve.file_changed)
+        modified_spy = QSignalSpy(state_manager_with_curve.modified_changed)
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
+        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
+        view_spy = QSignalSpy(state_manager_with_curve.view_state_changed)
 
         # Reset
-        state_manager.reset_to_defaults()
+        state_manager_with_curve.reset_to_defaults()
 
         # Verify defaults
-        assert state_manager.current_file is None
-        assert state_manager.is_modified is False
-        assert state_manager.track_data == []
-        assert state_manager.selected_points == []
-        assert state_manager.current_frame == 1
-        assert state_manager.total_frames == 1
-        assert state_manager.zoom_level == 1.0
-        assert state_manager.image_files == []
-        assert state_manager.current_tool == "select"
-        assert state_manager.can_undo is False
-        assert state_manager.can_redo is False
+        assert state_manager_with_curve.current_file is None
+        assert state_manager_with_curve.is_modified is False
+        assert state_manager_with_curve.track_data == []
+        assert state_manager_with_curve.selected_points == []
+        assert state_manager_with_curve.current_frame == 1
+        assert state_manager_with_curve.total_frames == 1
+        assert state_manager_with_curve.zoom_level == 1.0
+        assert state_manager_with_curve.image_files == []
+        assert state_manager_with_curve.current_tool == "select"
+        assert state_manager_with_curve.can_undo is False
+        assert state_manager_with_curve.can_redo is False
 
         # Verify signals emitted
         assert file_spy.count() == 1
@@ -599,22 +627,22 @@ class TestStateManagerSummary:
         assert summary["history"]["can_undo"] is False
         assert summary["history"]["can_redo"] is False
 
-    def test_get_state_summary_with_data(self, state_manager):
+    def test_get_state_summary_with_data(self, state_manager_with_curve):
         """Test state summary with populated data."""
         # Set up state
-        state_manager.current_file = "/data/test.json"
-        state_manager.is_modified = True
-        state_manager.set_track_data([(1.0, 2.0), (3.0, 4.0)], mark_modified=False)
-        state_manager.set_selected_points([0, 1])
-        state_manager.hover_point = 1
-        state_manager.zoom_level = 1.5
+        state_manager_with_curve.current_file = "/data/test.json"
+        state_manager_with_curve.is_modified = True
+        state_manager_with_curve.set_track_data([(1.0, 2.0), (3.0, 4.0)], mark_modified=False)
+        state_manager_with_curve.set_selected_points([0, 1])
+        state_manager_with_curve.hover_point = 1
+        state_manager_with_curve.zoom_level = 1.5
         # Set images first (which sets total_frames to 10)
-        state_manager.set_image_files([f"f{i}.png" for i in range(1, 11)])
+        state_manager_with_curve.set_image_files([f"f{i}.png" for i in range(1, 11)])
         # Now set current frame (within the new total_frames)
-        state_manager.current_frame = 5
-        state_manager.set_history_state(True, False, 3, 5)
+        state_manager_with_curve.current_frame = 5
+        state_manager_with_curve.set_history_state(True, False, 3, 5)
 
-        summary = state_manager.get_state_summary()
+        summary = state_manager_with_curve.get_state_summary()
 
         assert summary["file"]["current_file"] == "/data/test.json"
         assert summary["file"]["is_modified"] is True
@@ -639,43 +667,43 @@ class TestStateManagerSummary:
 class TestStateManagerIntegration:
     """Integration tests for StateManager."""
 
-    def test_complex_state_workflow(self, state_manager, qtbot):
+    def test_complex_state_workflow(self, state_manager_with_curve, qtbot):
         """Test complex workflow with multiple state changes."""
         # Start with file loading simulation
-        state_manager.current_file = "/project/animation.json"
-        state_manager.file_format = "json"
+        state_manager_with_curve.current_file = "/project/animation.json"
+        state_manager_with_curve.file_format = "json"
 
         # Load data
         data = [(float(i), float(i * 2)) for i in range(10)]
-        state_manager.set_track_data(data, mark_modified=False)
-        state_manager.set_original_data(data)
+        state_manager_with_curve.set_track_data(data, mark_modified=False)
+        state_manager_with_curve.set_original_data(data)
 
         # Load image sequence
         images = [f"frame{i:03d}.png" for i in range(1, 11)]
-        state_manager.set_image_files(images)
+        state_manager_with_curve.set_image_files(images)
 
         # User interactions
-        state_manager.current_frame = 5
-        state_manager.set_selected_points([2, 3, 4])
-        state_manager.zoom_level = 2.0
-        state_manager.pan_offset = (50.0, 50.0)
+        state_manager_with_curve.current_frame = 5
+        state_manager_with_curve.set_selected_points([2, 3, 4])
+        state_manager_with_curve.zoom_level = 2.0
+        state_manager_with_curve.pan_offset = (50.0, 50.0)
 
         # Edit data
         modified_data = data.copy()
         modified_data[3] = (3.0, 7.0)
-        state_manager.set_track_data(modified_data)
+        state_manager_with_curve.set_track_data(modified_data)
 
         # Verify state
-        assert state_manager.is_modified is True
-        assert state_manager.current_image == "frame005.png"
-        assert len(state_manager.selected_points) == 3
-        assert state_manager.has_data is True
+        assert state_manager_with_curve.is_modified is True
+        assert state_manager_with_curve.current_image == "frame005.png"
+        assert len(state_manager_with_curve.selected_points) == 3
+        assert state_manager_with_curve.has_data is True
 
         # Save simulation
-        state_manager.is_modified = False
-        state_manager.set_original_data(modified_data)
+        state_manager_with_curve.is_modified = False
+        state_manager_with_curve.set_original_data(modified_data)
 
-        assert state_manager.is_modified is False
+        assert state_manager_with_curve.is_modified is False
 
     def test_frame_synchronization(self, state_manager):
         """Test frame synchronization with image sequence."""
@@ -701,40 +729,40 @@ class TestStateManagerIntegration:
         assert state_manager.current_frame == 5  # Adjusted
         assert state_manager.current_image == "img5.jpg"
 
-    def test_selection_operations_performance(self, state_manager):
+    def test_selection_operations_performance(self, state_manager_with_curve):
         """Test selection operations are efficient with sets."""
         # Large selection
         large_selection = list(range(1000))
-        state_manager.set_selected_points(large_selection)
+        state_manager_with_curve.set_selected_points(large_selection)
 
         # Add should be O(1)
-        state_manager.add_to_selection(1000)
-        assert 1000 in state_manager.selected_points
+        state_manager_with_curve.add_to_selection(1000)
+        assert 1000 in state_manager_with_curve.selected_points
 
         # Remove should be O(1)
-        state_manager.remove_from_selection(500)
-        assert 500 not in state_manager.selected_points
+        state_manager_with_curve.remove_from_selection(500)
+        assert 500 not in state_manager_with_curve.selected_points
 
         # Clear
-        state_manager.clear_selection()
-        assert state_manager.selected_points == []
+        state_manager_with_curve.clear_selection()
+        assert state_manager_with_curve.selected_points == []
 
-    def test_concurrent_state_changes(self, state_manager, qtbot):
+    def test_concurrent_state_changes(self, state_manager_with_curve, qtbot):
         """Test multiple concurrent state changes."""
         # Set total frames first to allow frame changes
-        state_manager.total_frames = 20
+        state_manager_with_curve.total_frames = 20
 
         # Setup signal spies
-        file_spy = QSignalSpy(state_manager.file_changed)
-        frame_spy = QSignalSpy(state_manager.frame_changed)
-        selection_spy = QSignalSpy(state_manager.selection_changed)
+        file_spy = QSignalSpy(state_manager_with_curve.file_changed)
+        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
 
         # Rapid state changes (start from 2 to ensure first frame change emits)
         for i in range(10):
-            state_manager.current_file = f"/file{i}.txt"
-            state_manager.is_modified = i % 2 == 0
-            state_manager.current_frame = i + 2  # 2 through 11
-            state_manager.set_selected_points([i, i + 1])
+            state_manager_with_curve.current_file = f"/file{i}.txt"
+            state_manager_with_curve.is_modified = i % 2 == 0
+            state_manager_with_curve.current_frame = i + 2  # 2 through 11
+            state_manager_with_curve.set_selected_points([i, i + 1])
 
         # All changes should be tracked
         assert file_spy.count() == 10
@@ -742,9 +770,9 @@ class TestStateManagerIntegration:
         assert selection_spy.count() == 10
 
         # Final state
-        assert state_manager.current_file == "/file9.txt"
-        assert state_manager.current_frame == 11
-        assert state_manager.selected_points == [9, 10]
+        assert state_manager_with_curve.current_file == "/file9.txt"
+        assert state_manager_with_curve.current_frame == 11
+        assert state_manager_with_curve.selected_points == [9, 10]
 
 
 class TestStateManagerEdgeCases:
@@ -833,7 +861,7 @@ class TestKISSOLIDArchitectureVerification:
         state_manager.current_frame = 3  # Same value
         assert frame_spy_2.count() == 0
 
-    def test_observer_pattern(self, state_manager):
+    def test_observer_pattern(self, state_manager_with_curve):
         """
         Verify components react to state changes via signals.
 
@@ -843,25 +871,25 @@ class TestKISSOLIDArchitectureVerification:
         - batch_update prevents signal storms
         """
         # Test 1: Frame change emits signal
-        state_manager.total_frames = 10  # Set enough frames first
-        frame_spy = QSignalSpy(state_manager.frame_changed)
-        state_manager.current_frame = 5
+        state_manager_with_curve.total_frames = 10  # Set enough frames first
+        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
+        state_manager_with_curve.current_frame = 5
         assert frame_spy.count() == 1
         assert frame_spy.at(0)[0] == 5
 
         # Test 2: Selection change emits signal
-        selection_spy = QSignalSpy(state_manager.selection_changed)
-        state_manager.set_selected_points([1, 2, 3])
+        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
+        state_manager_with_curve.set_selected_points([1, 2, 3])
         assert selection_spy.count() == 1
         assert selection_spy.at(0)[0] == {1, 2, 3}
 
         # Test 3: Batch updates prevent signal storms
-        frame_spy_batch = QSignalSpy(state_manager.frame_changed)
-        selection_spy_batch = QSignalSpy(state_manager.selection_changed)
+        frame_spy_batch = QSignalSpy(state_manager_with_curve.frame_changed)
+        selection_spy_batch = QSignalSpy(state_manager_with_curve.selection_changed)
 
-        with state_manager.batch_update():
-            state_manager.current_frame = 8
-            state_manager.set_selected_points([4, 5])
+        with state_manager_with_curve.batch_update():
+            state_manager_with_curve.current_frame = 8
+            state_manager_with_curve.set_selected_points([4, 5])
             # No signals should be emitted yet
             assert frame_spy_batch.count() == 0
             assert selection_spy_batch.count() == 0

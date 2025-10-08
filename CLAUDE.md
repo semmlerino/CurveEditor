@@ -137,6 +137,7 @@ Specialized controllers in `ui/controllers/`:
 6. **UIInitializationController**: UI component setup
 7. **ViewCameraController**: Camera movement
 8. **ViewManagementController**: View state (zoom, pan, fit)
+9. **FrameChangeCoordinator**: Coordinates frame change responses in deterministic order, eliminating race conditions from Qt signal ordering
 
 ## Keyboard Shortcuts
 

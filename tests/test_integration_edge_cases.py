@@ -144,7 +144,7 @@ class TestCompositeCommandUndo:
         curve_widget.set_curve_data(initial_data)
 
         # Select the interpolated point
-        curve_widget._curve_store.select(1)
+        app_state.set_selection("test_curve", {1})
 
         # Nudge the point (should move AND change status to keyframe)
         curve_widget.nudge_selected(5.0, 5.0)
@@ -176,12 +176,16 @@ class TestCompositeCommandUndo:
             (1, 100.0, 100.0, "keyframe"),
             (2, 110.0, 110.0, "interpolated"),
         ]
+        # Set active curve first so set_curve_data uses it
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         # This ensures commands operate on the same curve that the widget reads from
         curve_widget.set_curve_data(initial_data)
 
         # Select and nudge
-        curve_widget._curve_store.select(1)
+        app_state.set_selection("__default__", {1})
         curve_widget.nudge_selected(5.0, 5.0)
 
         # Undo
@@ -422,13 +426,15 @@ class TestMixedStatusNudgeUndo:
             (2, 110.0, 110.0, "interpolated"),  # Will convert
             (3, 120.0, 120.0, "normal"),  # Will convert
         ]
+        # Set active curve first so set_curve_data uses it
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
 
         # Select all points
-        curve_widget._curve_store.select(0)
-        curve_widget._curve_store.select(1, add_to_selection=True)
-        curve_widget._curve_store.select(2, add_to_selection=True)
+        app_state.set_selection("__default__", {0, 1, 2})
 
         # Nudge all
         curve_widget.nudge_selected(5.0, 5.0)
@@ -462,9 +468,7 @@ class TestMixedStatusNudgeUndo:
         curve_widget.set_curve_data(initial_data)
 
         # Select and nudge all
-        curve_widget._curve_store.select(0)
-        curve_widget._curve_store.select(1, add_to_selection=True)
-        curve_widget._curve_store.select(2, add_to_selection=True)
+        app_state.set_selection("test_curve", {0, 1, 2})
         curve_widget.nudge_selected(5.0, 5.0)
 
         # Undo
@@ -493,6 +497,10 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),  # Will convert this
             (10, 200.0, 200.0, "keyframe"),
         ]
+        # Set active curve first so set_curve_data uses it
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
@@ -515,7 +523,7 @@ class TestWorkflowConvertNudgeUndo:
         assert after_convert[1][3] == PointStatus.INTERPOLATED.value, "Should be interpolated"
 
         # Step 2: Nudge (should convert back to keyframe)
-        curve_widget._curve_store.select(1)
+        app_state.set_selection("__default__", {1})
         curve_widget.nudge_selected(10.0, 10.0)
 
         # Verify nudged and converted to keyframe
@@ -554,6 +562,10 @@ class TestWorkflowConvertNudgeUndo:
             (5, 150.0, 150.0, "keyframe"),
             (10, 200.0, 200.0, "keyframe"),
         ]
+        # Set active curve first so set_curve_data uses it
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         # Use widget.set_curve_data which syncs to ApplicationState "__default__" curve
         curve_widget.set_curve_data(initial_data)
         main_window.current_frame = 5
@@ -575,7 +587,7 @@ class TestWorkflowConvertNudgeUndo:
         converted_x = after_convert[1][1]
         converted_y = after_convert[1][2]
 
-        curve_widget._curve_store.select(1)
+        app_state.set_selection("__default__", {1})
         curve_widget.nudge_selected(10.0, 10.0)
 
         # Undo both

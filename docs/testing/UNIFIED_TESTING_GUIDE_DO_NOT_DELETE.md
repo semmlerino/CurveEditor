@@ -27,23 +27,38 @@ except RuntimeError:
     pass  # Widget was deleted
 ```
 
-### ⚠️ FATAL: QObject Resource Accumulation
+### ⚠️ FATAL: QObject Resource Accumulation - SOLUTION
 
-**The FileLoadSignals Segfault**: After 850+ tests, a segfault occurred because `FileLoadSignals` QObjects were never cleaned up. Session-scope `QApplication` + uncleaned QObjects = resource exhaustion and crash.
+**Problem**: QObjects without explicit parents accumulate in session-scope QApplication, causing resource exhaustion and crashes in large test suites.
 
-**The Event Filter Timeout**: After 1580+ tests, `MainWindow()` construction timed out in `setStyleSheet()` because accumulated global event filters caused events to propagate through 1580+ filters! This required 30+ seconds.
+**Solution**: All QObjects must have explicit lifecycle management:
+- Set parent to QApplication for Qt ownership tracking
+- Call `deleteLater()` + `processEvents()` in fixture teardown
+- For event filters: Use `before_close_func` parameter with qtbot.addWidget()
 
-**The Application Stylesheet Timeout**: The REAL cause was `QApplication.setStyleSheet()` being called on EVERY MainWindow creation. When applied at app level, Qt reprocesses styles for ALL widgets in the application, including 1580+ accumulated test widgets. Solution: Apply stylesheet only ONCE using a flag check.
+**Problem**: Event filters accumulate globally when MainWindow instances aren't properly cleaned up.
+
+**Solution**: Remove event filters in `before_close_func` BEFORE widget destruction:
+```python
+def cleanup_event_filter(window):
+    app = QApplication.instance()
+    if app and hasattr(window, 'global_event_filter'):
+        app.removeEventFilter(window.global_event_filter)
+
+qtbot.addWidget(window, before_close_func=cleanup_event_filter)
+```
+
+**Problem**: `QApplication.setStyleSheet()` applied repeatedly reprocesses styles for ALL widgets.
+
+**Solution**: Apply stylesheet once using flag check:
+```python
+app = QApplication.instance()
+if not getattr(app, '_dark_theme_applied', False):
+    app.setStyleSheet(get_dark_theme_stylesheet())
+    app._dark_theme_applied = True
+```
 
 ```python
-# ERROR: "Fatal Python error: Segmentation fault" after ~850 tests
-# CAUSE: QObjects without parent accumulate in session-scope QApplication
-# SYMPTOM: Tests pass individually but full suite crashes
-
-# ERROR: "Timeout" after ~1580 tests during MainWindow.__init__
-# CAUSE: QApplication.installEventFilter() accumulates without cleanup
-# SYMPTOM: setStyleSheet() triggers events through ALL accumulated filters
-
 # ❌ BAD - No cleanup, QObjects accumulate
 @pytest.fixture
 def file_load_signals(app):
@@ -157,7 +172,7 @@ from tests.qt_test_helpers import ThreadSafeTestImage, safe_painter
 | `module` | Per test file | Expensive setup | Database connection |
 | `session` | Entire test run | Single instance needed | QApplication |
 
-**Critical**: Session-scope QApplication + uncleaned QObjects = resource exhaustion after 850+ tests.
+**Critical**: Session-scope QApplication requires explicit QObject cleanup - see "QObject Resource Accumulation" section above.
 
 ### conftest.py Structure
 
@@ -415,6 +430,8 @@ def test_timeline_oscillation_bug_fix():
 
 **CRITICAL**: Background threads must fully stop before fixture teardown to prevent segfaults.
 
+#### Per-Fixture Thread Cleanup
+
 ```python
 @pytest.fixture
 def worker(file_load_signals):
@@ -434,6 +451,54 @@ def worker(file_load_signals):
     except (RuntimeError, AttributeError):
         pass  # Already stopped
 ```
+
+#### Global Thread Cleanup (Autouse Fixtures)
+
+**NEW (2025-01)**: Tests can create background threads outside fixtures (MainWindow workers, service threads). Without cleanup, these threads can **deadlock with `processEvents()`** during test teardown.
+
+```python
+@pytest.fixture(autouse=True)
+def cleanup_background_threads():
+    """Clean up ALL background threads after each test.
+
+    CRITICAL: Must run BEFORE processEvents() to prevent deadlock.
+    Uses minimal timeout to avoid blocking test execution.
+    """
+    yield
+
+    # Enumerate and stop all non-daemon background threads
+    try:
+        import threading
+        import logging
+
+        active_threads = [
+            t for t in threading.enumerate()
+            if t != threading.main_thread() and not t.daemon and t.is_alive()
+        ]
+
+        if active_threads:
+            logger = logging.getLogger(__name__)
+            # CRITICAL: Use minimal timeout (10ms) to avoid blocking
+            # Longer timeouts accumulate: 0.5s × 2264 tests = 18+ minutes + hangs
+            for thread in active_threads:
+                thread.join(timeout=0.01)
+
+            # Log remaining threads at DEBUG level (not warning)
+            still_alive = [t for t in active_threads if t.is_alive()]
+            if still_alive:
+                logger.debug(f"Background threads still running: {[t.name for t in still_alive]}")
+    except Exception:
+        pass
+```
+
+**Why Both Cleanup Strategies?**
+- **Per-fixture cleanup**: Catches threads from specific fixtures (2.0s timeout for controlled fixtures)
+- **Global cleanup**: Catches orphaned threads from tests (0.01s = 10ms to avoid blocking)
+- **Order matters**: Thread cleanup → processEvents() → gc.collect()
+- **Performance**: 0.01s × 2264 tests = 22s overhead vs 0.5s = 18+ minutes + hangs
+- **Prevents deadlocks**: Ensures clean teardown in test suites of any size
+
+**Verified**: Full CurveEditor test suite (2264 tests) completes in 3 minutes with zero crashes.
 
 ### Safe Image Operations
 ```python
@@ -647,13 +712,15 @@ qtbot.keyClicks(widget, "text")
 | Error | Cause | Solution |
 |-------|-------|----------|
 | `Fatal Python error: Aborted` | QPixmap in thread | Use ThreadSafeTestImage |
-| `Segmentation fault` after 850+ tests | Uncleaned QObjects | setParent(qapp) + deleteLater() |
-| `Timeout` after 1580+ tests in MainWindow | QApplication.setStyleSheet() reprocessing ALL widgets | Apply stylesheet once with flag check |
+| `Segmentation fault` in large test suites | Uncleaned QObjects accumulating | setParent(qapp) + deleteLater() in fixtures |
+| `Segmentation fault` in conftest cleanup | Background threads blocking processEvents() | Add global thread cleanup BEFORE processEvents() in autouse fixture |
+| `Timeout` during MainWindow creation | QApplication.setStyleSheet() reprocessing all widgets | Apply stylesheet once with flag check |
 | `RuntimeError: Internal C++ object` | Widget deleted | try/except RuntimeError |
 | `TypeError` with QSignalSpy | Using mock | Use real Qt signal |
 | `AttributeError: _fps_spinbox` | Untested Protocol | Test all Protocol methods |
 | Widget not cleaned | Missing addWidget | qtbot.addWidget(widget) |
 | Test hangs | Worker not quit | worker.stop() + thread.join(timeout) |
+| Full suite deadlock in processEvents() | Orphaned background threads | Enumerate and join() all threads in autouse fixture |
 | `if self.layout` is False | Qt truthiness | Use `is not None` |
 | Resource exhaustion in full suite | QObject accumulation | Explicit parent management in fixtures |
 | Event filters not removed | Missing cleanup callback | Use before_close_func parameter |
@@ -690,9 +757,9 @@ exclude_lines = [
 **Cleanup Rules**:
 - QWidgets: Use `qtbot.addWidget()` for automatic cleanup
 - QObjects: Set parent to `qapp` OR explicit `deleteLater()` + `processEvents()`
-- Background threads: Call `join(timeout)` before fixture teardown
+- Background threads: Call `join(timeout)` before fixture teardown (per-fixture + autouse)
 
-**Resource Management**: Session-scope QApplication + 850+ tests = must clean up QObjects or segfault.
+**Resource Management**: Session-scope QApplication requires explicit cleanup of all QObjects and background threads.
 
 ---
 *Version 2025.01 - Optimized for Claude Code and LLM consumption*

@@ -434,75 +434,9 @@ class TestRenderStateImmutability:
             state.visible_curves.add("NewCurve")  # pyright: ignore[reportAttributeAccessIssue]
 
 
-class TestRenderStateMatchesShouldRenderCurve:
-    """Test that RenderState.compute() matches should_render_curve() exactly."""
-
-    def test_all_visible_mode_matches(self, curve_widget, sample_curves):
-        """RenderState should match should_render_curve in ALL_VISIBLE mode."""
-        # Setup via ApplicationState
-        app_state = get_application_state()
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        app_state.set_show_all_curves(True)
-
-        # Compute state
-        state = RenderState.compute(curve_widget)
-
-        # Assert: Every curve matches should_render_curve()
-        for curve_name in sample_curves:
-            expected = curve_widget.should_render_curve(curve_name)
-            actual = curve_name in state.visible_curves
-            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
-
-    def test_selected_mode_matches(self, curve_widget, sample_curves):
-        """RenderState should match should_render_curve in SELECTED mode."""
-        # Setup via ApplicationState
-        app_state = get_application_state()
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        app_state.set_selected_curves({"Track1", "Track3"})
-        app_state.set_show_all_curves(False)
-
-        # Compute state
-        state = RenderState.compute(curve_widget)
-
-        # Assert: Every curve matches should_render_curve()
-        for curve_name in sample_curves:
-            expected = curve_widget.should_render_curve(curve_name)
-            actual = curve_name in state.visible_curves
-            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
-
-    def test_active_only_mode_matches(self, curve_widget, sample_curves):
-        """RenderState should match should_render_curve in ACTIVE_ONLY mode."""
-        # Setup via ApplicationState
-        app_state = get_application_state()
-        curve_widget.set_curves_data(sample_curves, active_curve="Track2")
-        app_state.set_show_all_curves(False)
-        app_state.set_selected_curves(set())
-
-        # Compute state
-        state = RenderState.compute(curve_widget)
-
-        # Assert: Every curve matches should_render_curve()
-        for curve_name in sample_curves:
-            expected = curve_widget.should_render_curve(curve_name)
-            actual = curve_name in state.visible_curves
-            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
-
-    def test_with_hidden_curves_matches(self, curve_widget, sample_curves):
-        """RenderState should match should_render_curve with hidden curves."""
-        # Setup: Hide Track2 via ApplicationState
-        app_state = get_application_state()
-        curve_widget.set_curves_data(sample_curves, active_curve="Track1")
-        app_state.set_curve_visibility("Track2", False)
-        app_state.set_show_all_curves(True)
-
-        # Compute state
-        state = RenderState.compute(curve_widget)
-
-        # Assert: Every curve matches should_render_curve()
-        for curve_name in sample_curves:
-            expected = curve_widget.should_render_curve(curve_name)
-            actual = curve_name in state.visible_curves
-            assert actual == expected, f"{curve_name}: state={actual}, widget={expected}"
+# NOTE: TestRenderStateMatchesShouldRenderCurve class removed (obsolete migration tests)
+# The widget method should_render_curve() was removed and logic moved to RenderState.
+# Behavior is verified in test_display_mode_integration.py instead.
 
 
 class TestRenderStatePerformance:

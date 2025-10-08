@@ -177,6 +177,15 @@ class TimelineControllerProtocol(Protocol):
         """Update timeline to show current frame."""
         ...
 
+    def update_frame_display(self, frame: int, update_state: bool = True) -> None:
+        """Update frame display without emitting signals.
+
+        Args:
+            frame: Frame number to display
+            update_state: Whether to update state manager
+        """
+        ...
+
     def update_timeline_tabs(self, curve_data: object | None = None) -> None:
         """Update timeline tabs with curve data."""
         ...

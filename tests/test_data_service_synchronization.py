@@ -39,6 +39,17 @@ class TestDataServiceSynchronization:
     @pytest.fixture
     def curve_widget(self, app, qtbot):
         """Create real CurveViewWidget for testing."""
+        from stores.application_state import get_application_state
+
+        # Reset DataService to clean state
+        data_service = get_data_service()
+        data_service._current_curve_data = None
+        data_service._segmented_curve = None
+
+        # Set __default__ as active curve
+        app_state = get_application_state()
+        app_state.set_active_curve("__default__")
+
         widget = CurveViewWidget()
         qtbot.addWidget(widget)  # CRITICAL: Auto cleanup
         return widget

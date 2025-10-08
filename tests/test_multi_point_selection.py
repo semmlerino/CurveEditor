@@ -5,7 +5,6 @@ This module tests the ability to select and display multiple tracking points
 simultaneously, with proper view centering and rendering behavior.
 """
 
-from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
@@ -13,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 
 from core.display_mode import DisplayMode
-from core.type_aliases import CurveDataList, PointTuple4Str
+from core.type_aliases import CurveDataList
 from stores.application_state import get_application_state
 from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 from ui.curve_view_widget import CurveViewWidget
@@ -371,19 +370,19 @@ class TestRenderingWithSelection:
         assert curve_widget.display_mode == DisplayMode.SELECTED, "display_mode should be SELECTED"
         assert app_state.get_selected_curves() == {"Track1", "Track3"}, "Track1 and Track3 should be selected"
 
-        # TEST BEHAVIOR: Call should_render_curve() for each curve
-        # This is the critical test - does the widget actually decide to render the right curves?
-        # This method is used by the renderer to determine which curves to draw
+        # TEST BEHAVIOR: Compute render state to check which curves would render
+        # This is the critical test - does RenderState correctly determine which curves to draw?
+        from rendering.render_state import RenderState
+
+        render_state = RenderState.compute(curve_widget)
 
         # Verify rendering behavior
-        assert curve_widget.should_render_curve("Track1"), "Track1 should render (selected)"
-        assert not curve_widget.should_render_curve("Track2"), "Track2 should NOT render (not selected)"
-        assert curve_widget.should_render_curve("Track3"), "Track3 should render (selected)"
+        assert render_state.should_render("Track1"), "Track1 should render (selected)"
+        assert not render_state.should_render("Track2"), "Track2 should NOT render (not selected)"
+        assert render_state.should_render("Track3"), "Track3 should render (selected)"
 
         # Additional verification: only selected curves should render
-        curves_that_would_render = [
-            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
-        ]
+        curves_that_would_render = [name for name in ["Track1", "Track2", "Track3"] if render_state.should_render(name)]
         assert curves_that_would_render == ["Track1", "Track3"], "Only Track1 and Track3 should render"
 
     def test_rendering_show_all_curves_true(self, curve_widget, sample_curves):
@@ -408,14 +407,15 @@ class TestRenderingWithSelection:
         assert app_state.get_selected_curves() == {"Track2"}, "Only Track2 selected"
 
         # TEST BEHAVIOR: All curves should render when display_mode=ALL_VISIBLE
-        assert curve_widget.should_render_curve("Track1"), "Track1 should render (ALL_VISIBLE mode)"
-        assert curve_widget.should_render_curve("Track2"), "Track2 should render (ALL_VISIBLE mode)"
-        assert curve_widget.should_render_curve("Track3"), "Track3 should render (ALL_VISIBLE mode)"
+        from rendering.render_state import RenderState
+
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.should_render("Track1"), "Track1 should render (ALL_VISIBLE mode)"
+        assert render_state.should_render("Track2"), "Track2 should render (ALL_VISIBLE mode)"
+        assert render_state.should_render("Track3"), "Track3 should render (ALL_VISIBLE mode)"
 
         # Additional verification: ALL curves should render
-        curves_that_would_render = [
-            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
-        ]
+        curves_that_would_render = [name for name in ["Track1", "Track2", "Track3"] if render_state.should_render(name)]
         assert len(curves_that_would_render) == 3, "All 3 curves should render"
         assert set(curves_that_would_render) == {"Track1", "Track2", "Track3"}
 
@@ -441,14 +441,15 @@ class TestRenderingWithSelection:
         app_state.set_show_all_curves(True)
 
         # TEST BEHAVIOR: Invisible curves should not render
-        assert curve_widget.should_render_curve("Track1"), "Track1 should render (visible + ALL_VISIBLE)"
-        assert not curve_widget.should_render_curve("Track2"), "Track2 should NOT render (invisible in metadata)"
-        assert curve_widget.should_render_curve("Track3"), "Track3 should render (visible + ALL_VISIBLE)"
+        from rendering.render_state import RenderState
+
+        render_state = RenderState.compute(curve_widget)
+        assert render_state.should_render("Track1"), "Track1 should render (visible + ALL_VISIBLE)"
+        assert not render_state.should_render("Track2"), "Track2 should NOT render (invisible in metadata)"
+        assert render_state.should_render("Track3"), "Track3 should render (visible + ALL_VISIBLE)"
 
         # Additional verification: Only visible curves should render
-        curves_that_would_render = [
-            name for name in ["Track1", "Track2", "Track3"] if curve_widget.should_render_curve(name)
-        ]
+        curves_that_would_render = [name for name in ["Track1", "Track2", "Track3"] if render_state.should_render(name)]
         assert len(curves_that_would_render) == 2, "Only 2 visible curves should render"
         assert set(curves_that_would_render) == {"Track1", "Track3"}
 
@@ -456,7 +457,8 @@ class TestRenderingWithSelection:
         curve_widget.set_selected_curves(["Track2"])  # Select invisible curve
         app_state.set_show_all_curves(False)
 
-        assert not curve_widget.should_render_curve(
+        render_state2 = RenderState.compute(curve_widget)
+        assert not render_state2.should_render(
             "Track2"
         ), "Track2 should NOT render even when selected (invisible in metadata)"
 
@@ -584,165 +586,12 @@ def test_selection_bug_fix_tdd():
     assert "selected_curves" not in call_args[1]
 
 
-class TestCurveModificationPreservation:
-    """Test that curve modifications are preserved when switching between curves."""
+# NOTE: TestCurveModificationPreservation class removed (obsolete pre-migration tests)
+# After ApplicationState migration, widget.curve_data is read-only and reads directly
+# from ApplicationState. There's no "dirty widget data" to sync back on curve switches.
+# All modifications go directly to ApplicationState, making these tests obsolete.
 
-    @pytest.fixture
-    def mock_main_window(self):
-        """Create a mock main window with necessary attributes."""
-        mock = Mock(spec=MainWindow)
-        mock.curve_widget = Mock(spec=CurveViewWidget)
-        mock.curve_widget.curve_data = []  # Set as empty list to support iteration
-
-        # Add mock _curve_store for data persistence
-        mock_curve_store = Mock()
-        mock_curve_store.get_data.return_value = []
-        mock.curve_widget._curve_store = mock_curve_store
-
-        mock.tracking_panel = Mock(spec=TrackingPointsPanel)
-        mock.state_manager = Mock()
-        mock.state_manager.current_frame = 1
-        return mock
-
-    def test_modifications_preserved_on_curve_switch(self, mock_main_window):
-        """Test that modifications to a curve are saved when switching to another curve."""
-        # Setup controller with initial data
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {
-            "Track1": [
-                (0, 100.0, 100.0, "NORMAL"),
-                (10, 110.0, 105.0, "NORMAL"),
-            ],
-            "Track2": [
-                (0, 200.0, 150.0, "NORMAL"),
-                (10, 210.0, 155.0, "NORMAL"),
-            ],
-        }
-        mock_main_window.active_timeline_point = "Track1"
-
-        # Initialize previous active curve by calling once
-        controller.update_curve_display()
-
-        # Simulate modifications to Track1 (e.g., adding ENDFRAME status)
-        modified_data = [
-            (0, 100.0, 100.0, "ENDFRAME"),  # Modified status
-            (10, 110.0, 105.0, "NORMAL"),
-        ]
-        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_data
-
-        # Switch to Track2
-        mock_main_window.active_timeline_point = "Track2"
-        controller.update_curve_display()
-
-        # Verify that Track1's modifications were saved back to tracked_data
-        assert controller.tracked_data["Track1"] == modified_data
-        assert cast(PointTuple4Str, controller.tracked_data["Track1"][0])[3] == "ENDFRAME"
-
-    def test_modifications_preserved_with_nudge(self, mock_main_window):
-        """Test that coordinate changes (nudges) are preserved when switching curves."""
-        # Setup
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {
-            "Track1": [(0, 100.0, 100.0, "NORMAL")],
-            "Track2": [(0, 200.0, 150.0, "NORMAL")],
-        }
-        mock_main_window.active_timeline_point = "Track1"
-
-        # Initialize previous active curve
-        controller.update_curve_display()
-
-        # Simulate nudging Track1 point
-        nudged_data = [(0, 105.0, 103.0, "NORMAL")]  # Nudged +5, +3
-        mock_main_window.curve_widget._curve_store.get_data.return_value = nudged_data
-
-        # Switch to Track2
-        mock_main_window.active_timeline_point = "Track2"
-        controller.update_curve_display()
-
-        # Verify nudge was preserved
-        assert controller.tracked_data["Track1"] == nudged_data
-        assert controller.tracked_data["Track1"][0][1] == 105.0
-        assert controller.tracked_data["Track1"][0][2] == 103.0
-
-    def test_no_save_when_no_curve_store(self, mock_main_window):
-        """Test graceful handling when curve_store is not available."""
-        # Setup without _curve_store attribute
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {"Track1": [(0, 100.0, 100.0, "NORMAL")]}
-        mock_main_window.active_timeline_point = "Track1"
-        del mock_main_window.curve_widget._curve_store  # Remove _curve_store
-
-        # Should not crash when switching
-        mock_main_window.active_timeline_point = "Track2"
-        controller.update_curve_display()
-
-        # Original data unchanged
-        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]
-
-    def test_no_save_when_curve_not_in_tracked_data(self, mock_main_window):
-        """Test that save is skipped if active curve is not in tracked_data."""
-        # Setup
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {"Track1": [(0, 100.0, 100.0, "NORMAL")]}
-        mock_main_window.active_timeline_point = "NonexistentTrack"
-
-        # Should not crash
-        controller.update_curve_display()
-
-        # Original data unchanged
-        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]
-
-    def test_multiple_switches_preserve_all_modifications(self, mock_main_window):
-        """Test that switching between multiple curves preserves all modifications."""
-        # Setup
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {
-            "Track1": [(0, 100.0, 100.0, "NORMAL")],
-            "Track2": [(0, 200.0, 150.0, "NORMAL")],
-            "Track3": [(0, 300.0, 200.0, "NORMAL")],
-        }
-
-        # Modify Track1
-        mock_main_window.active_timeline_point = "Track1"
-        controller.update_curve_display()  # Initialize
-        modified_track1 = [(0, 101.0, 101.0, "ENDFRAME")]
-        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track1
-        mock_main_window.active_timeline_point = "Track2"
-        controller.update_curve_display()
-
-        # Modify Track2
-        modified_track2 = [(0, 202.0, 152.0, "KEYFRAME")]
-        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track2
-        mock_main_window.active_timeline_point = "Track3"
-        controller.update_curve_display()
-
-        # Modify Track3
-        modified_track3 = [(0, 303.0, 203.0, "NORMAL")]
-        mock_main_window.curve_widget._curve_store.get_data.return_value = modified_track3
-        mock_main_window.active_timeline_point = "Track1"
-        controller.update_curve_display()
-
-        # Verify all modifications were preserved
-        assert controller.tracked_data["Track1"] == modified_track1
-        assert controller.tracked_data["Track2"] == modified_track2
-        assert controller.tracked_data["Track3"] == modified_track3
-
-    def test_empty_curve_data_handled_gracefully(self, mock_main_window):
-        """Test that empty curve data is handled without errors."""
-        # Setup
-        controller = MultiPointTrackingController(mock_main_window)
-        controller.tracked_data = {
-            "Track1": [(0, 100.0, 100.0, "NORMAL")],
-            "Track2": [(0, 200.0, 150.0, "NORMAL")],
-        }
-        mock_main_window.active_timeline_point = "Track1"
-
-        # Simulate empty curve data
-        mock_main_window.curve_widget._curve_store.get_data.return_value = []
-
-        # Switch curves - should not save empty data
-        mock_main_window.active_timeline_point = "Track2"
-        controller.update_curve_display()
-
-        # Original data should be preserved (empty data not saved)
-        assert controller.tracked_data["Track1"] == [(0, 100.0, 100.0, "NORMAL")]
+# NOTE: TestCurveModificationPreservation_OBSOLETE class removed (lines 600-762)
+# After ApplicationState migration, widget.curve_data is read-only and reads directly
+# from ApplicationState. There's no "dirty widget data" to sync back on curve switches.
+# All modifications go directly to ApplicationState, making these tests obsolete.

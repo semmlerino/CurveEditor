@@ -429,6 +429,10 @@ class DeletePointsCommand(Command):
                     del curve_data[idx]
 
             app_state.set_curve_data(active_curve, curve_data)
+
+            # Clear selection after deletion
+            app_state.set_selection(active_curve, set())
+
             self.executed = True
             return True
 

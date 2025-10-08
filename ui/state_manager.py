@@ -41,6 +41,7 @@ class StateManager(QObject):
     view_state_changed: Signal = Signal()  # Emits when view state changes
     selection_changed: Signal = Signal(set)  # Emits set of selected indices
     frame_changed: Signal = Signal(int)  # Emits new frame number
+    total_frames_changed: Signal = Signal(int)  # Emits new total_frames value
     playback_state_changed: Signal = Signal(object)  # Emits PlaybackMode
     active_timeline_point_changed: Signal = Signal(object)  # Emits str | None - active tracking point name
 
@@ -369,6 +370,8 @@ class StateManager(QObject):
             # Ensure current frame is within bounds
             if self.current_frame > self._total_frames:
                 self.current_frame = self._total_frames
+            # Emit signal so UI can update frame range
+            self.total_frames_changed.emit(self._total_frames)
             logger.debug(f"Total frames changed to: {self._total_frames}")
 
     @property

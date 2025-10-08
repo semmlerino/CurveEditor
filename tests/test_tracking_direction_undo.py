@@ -329,12 +329,17 @@ class TestStatusColorUpdates:
 
         app_state = get_application_state()
 
+        # Get active curve (created by set_curve_data as "Curve1")
+        active_curve = app_state.active_curve
+        assert active_curve is not None, "Active curve should be set after fixture loads data"
+
         # Get current data, modify status, and set back
-        current_data = list(app_state.get_curve_data("__default__"))
+        current_data = list(app_state.get_curve_data(active_curve))
+        assert len(current_data) > 0, f"Curve '{active_curve}' should have data"
         point = current_data[0]
         frame, x, y = point[0], point[1], point[2]
         current_data[0] = (frame, x, y, "endframe")
-        app_state.set_curve_data("__default__", current_data)
+        app_state.set_curve_data(active_curve, current_data)
 
         # Verify update was called
         assert len(update_called) > 0, "update() should have been called after status change"

@@ -86,16 +86,10 @@ class TestTimelineMainWindowIntegration:
         assert timeline_widget.min_frame == 10
         assert timeline_widget.max_frame == 50
 
-    def test_timeline_click_signal(self, timeline_widget, qtbot):
-        """Test clicking timeline tab emits signal."""
-        # Connect to signal
-        with qtbot.waitSignal(timeline_widget.frame_changed, timeout=100) as blocker:
-            # Simulate clicking frame 35
-            timeline_widget.frame_changed.emit(35)
-
-        # Check signal was emitted with correct value
-        assert blocker.signal_triggered
-        assert blocker.args[0] == 35
+    # NOTE: test_timeline_click_signal removed (obsolete test)
+    # TimelineTabWidget doesn't have a frame_changed signal - it listens to
+    # ApplicationState.frame_changed but doesn't emit its own.
+    # The test was also a trivial tautology (emit signal, check signal emitted).
 
     def test_timeline_status_cache(self, timeline_widget):
         """Test timeline status cache functionality."""

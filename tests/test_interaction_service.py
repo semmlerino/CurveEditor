@@ -832,9 +832,10 @@ class TestPointManipulation:  # pyright: ignore[reportUninitializedInstanceVaria
         )
 
         assert result is True
-        # Check view.curve_data (direct update)
-        assert view.curve_data[0][1] == 150.0
-        assert view.curve_data[0][2] == 150.0
+        # Check ApplicationState (Phase 6: single source of truth)
+        updated_data = app_state.get_curve_data("test_curve")
+        assert updated_data[0][1] == 150.0
+        assert updated_data[0][2] == 150.0
 
     def test_nudge_selected_points(self) -> None:
         """Test nudging selected points."""
@@ -847,6 +848,10 @@ class TestPointManipulation:  # pyright: ignore[reportUninitializedInstanceVaria
 
         main_window = MockMainWindow()
         view = MockCurveView(cast(CurveDataList, test_data))
+
+        # Set selection via ApplicationState (Phase 6)
+        app_state.set_selection("test_curve", {0})
+        # MockCurveView doesn't have property syncing, so set directly too
         view.selected_points = {0}
 
         result = self.service.nudge_selected_points(
@@ -857,9 +862,10 @@ class TestPointManipulation:  # pyright: ignore[reportUninitializedInstanceVaria
         )
 
         assert result is True
-        # Check view.curve_data
-        assert view.curve_data[0][1] == 110.0
-        assert view.curve_data[0][2] == 95.0
+        # Check ApplicationState (Phase 6: single source of truth)
+        updated_data = app_state.get_curve_data("test_curve")
+        assert updated_data[0][1] == 110.0
+        assert updated_data[0][2] == 95.0
 
 
 class TestMouseMoveEvents:  # pyright: ignore[reportUninitializedInstanceVariable]

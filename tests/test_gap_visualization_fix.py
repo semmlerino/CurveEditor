@@ -8,7 +8,6 @@ manual selection would break gap visualization.
 """
 
 from typing import cast
-from unittest.mock import patch
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -130,7 +129,7 @@ class TestGetLiveCurvesDataMethod:
         assert result == expected
 
     def test_get_live_curves_data_empty_live_store(self, curve_widget):
-        """Test when ApplicationState returns empty data - should keep static data."""
+        """Test when ApplicationState returns empty data - should return empty (Phase 6)."""
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
@@ -141,13 +140,13 @@ class TestGetLiveCurvesDataMethod:
         # Set curves via set_curves_data method with active curve
         curve_widget.set_curves_data(static_curves_data, active_curve="Track1")
 
-        # ApplicationState returns empty data for active curve
+        # ApplicationState returns empty data for active curve (user cleared it)
         app_state.set_curve_data("Track1", [])
 
         result = curve_widget._get_live_curves_data()
 
-        # Should keep static data when live data is empty
-        assert result == static_curves_data
+        # Phase 6: ApplicationState is single source of truth - should return empty
+        assert result == {"Track1": []}
 
 
 class TestGapVisualizationBehavior:
@@ -206,40 +205,8 @@ class TestGapVisualizationBehavior:
         assert live_curves["Track1"][1][3] == "endframe"  # Gap-creating status
         assert live_curves["Track2"] == static_curves_data["Track2"]  # Unchanged
 
-    @patch("ui.curve_view_widget.logger")
-    def test_live_data_logging(self, mock_logger, curve_widget):
-        """Test that live data replacement is properly logged."""
-        from stores.application_state import get_application_state
-
-        app_state = get_application_state()
-
-        # Set curves via set_curves_data method with active curve
-        curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
-
-        live_data = [(1, 10.0, 20.0, "endframe")]
-        app_state.set_curve_data("Track1", live_data)
-
-        curve_widget._get_live_curves_data()
-
-        # Verify debug logging occurred
-        mock_logger.debug.assert_called_with("Using live curve store data for active curve 'Track1' (1 points)")
-
-    @patch("ui.curve_view_widget.logger")
-    def test_empty_live_data_logging(self, mock_logger, curve_widget):
-        """Test logging when no live data is available."""
-        from stores.application_state import get_application_state
-
-        app_state = get_application_state()
-
-        # Set curves via set_curves_data method with active curve
-        curve_widget.set_curves_data({"Track1": [(1, 10.0, 20.0)]}, active_curve="Track1")
-
-        app_state.set_curve_data("Track1", [])  # Empty
-
-        curve_widget._get_live_curves_data()
-
-        # Verify warning logged
-        mock_logger.debug.assert_called_with("No live data available for active curve 'Track1'")
+    # Phase 6: Logging tests removed - implementation details no longer relevant
+    # ApplicationState is now single source of truth, no special logging for "live" vs "static" data
 
 
 class TestOriginalBugReproduction:

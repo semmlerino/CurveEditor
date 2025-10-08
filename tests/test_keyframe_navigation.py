@@ -117,12 +117,9 @@ def main_window_with_data(qtbot, make_navigation_dataset):
         Returns:
             MainWindow instance with data loaded
         """
-        # Create window
-        window = MainWindow()
-        qtbot.addWidget(window)
-
-        # Load test data
+        # Load test data BEFORE creating window to ensure it's available during initialization
         test_data = make_navigation_dataset(dataset_scenario)
+        processed_data = None
         if test_data:
             # Apply default status assignment as DataService does when loading files
             data_service = get_data_service()
@@ -130,12 +127,17 @@ def main_window_with_data(qtbot, make_navigation_dataset):
 
             app_state = get_application_state()
             app_state.set_curve_data("__default__", processed_data)
+            app_state.set_active_curve("__default__")  # Set active curve for navigation
 
-            # Update state manager's total frames based on loaded data
-            # This is normally done by timeline controller when data is loaded
+        # NOW create window - it will see the data already set
+        window = MainWindow()
+        qtbot.addWidget(window)
+
+        # Update frame range via timeline controller (updates spinbox max)
+        if test_data:
             if processed_data:
                 max_frame = max(point[0] for point in processed_data)
-                window.state_manager.total_frames = max_frame
+                window.timeline_controller.set_frame_range(1, max_frame)
 
         # Show and wait for exposure
         window.show()
@@ -232,6 +234,9 @@ class TestMainWindowNavigation:
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
 
+        # Process Qt events to allow spinbox signal propagation
+        qtbot.wait(10)
+
         # Should navigate to frame 5 (next keyframe)
         assert window.state_manager.current_frame == 5
 
@@ -245,6 +250,9 @@ class TestMainWindowNavigation:
         # Simulate PageUp key press
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
+
+        # Process Qt events
+        qtbot.wait(10)
 
         # Should navigate to frame 5 (previous keyframe)
         assert window.state_manager.current_frame == 5
@@ -260,6 +268,9 @@ class TestMainWindowNavigation:
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
 
+        # Process Qt events
+        qtbot.wait(10)
+
         # Should navigate to frame 10 (endframe)
         assert window.state_manager.current_frame == 10
 
@@ -273,6 +284,9 @@ class TestMainWindowNavigation:
         # Simulate PageUp
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
+
+        # Process Qt events
+        qtbot.wait(10)
 
         # Should navigate to frame 20 (startframe after gap)
         assert window.state_manager.current_frame == 20
@@ -444,12 +458,17 @@ class TestNavigationPerformance:
             status = "keyframe" if i % 20 == 0 else "tracked"
             large_data.append(make_navigation_point(i, 100.0 + i, 200.0 + i, status))
 
-        # Create window and load data
+        # Set data BEFORE creating window
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", large_data)
+        app_state.set_active_curve("__default__")
+
+        # Create window - it will see the data already set
         window = MainWindow()
         qtbot.addWidget(window)
 
-        app_state = get_application_state()
-        app_state.set_curve_data("__default__", large_data)
+        # Update frame range
+        window.timeline_controller.set_frame_range(1, 200)
 
         window.show()
         qtbot.waitExposed(window)
@@ -464,6 +483,9 @@ class TestNavigationPerformance:
         # Perform navigation
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event)
+
+        # Process Qt events
+        qtbot.wait(10)
 
         elapsed = time.time() - start_time
 
@@ -525,12 +547,19 @@ class TestRealFileNavigation:
         except FileNotFoundError:
             pytest.skip("KeyFrameTest.txt not available")
 
+        # Set data BEFORE creating window
+        app_state = get_application_state()
+        app_state.set_curve_data("__default__", test_data)  # pyright: ignore[reportArgumentType]
+        app_state.set_active_curve("__default__")
+
         # Create window with real data
         window = MainWindow()
         qtbot.addWidget(window)
 
-        app_state = get_application_state()
-        app_state.set_curve_data("__default__", test_data)  # pyright: ignore[reportArgumentType]
+        # Update frame range based on data
+        if test_data:
+            max_frame = max(point[0] for point in test_data)  # pyright: ignore[reportIndexIssue]
+            window.timeline_controller.set_frame_range(1, max_frame)
 
         window.show()
         qtbot.waitExposed(window)
@@ -545,6 +574,7 @@ class TestRealFileNavigation:
         for expected_frame in expected_sequence:
             key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
             window.keyPressEvent(key_event)
+            qtbot.wait(10)  # Process Qt events
             assert (
                 window.state_manager.current_frame == expected_frame
             ), f"Expected frame {expected_frame}, got {window.state_manager.current_frame}"

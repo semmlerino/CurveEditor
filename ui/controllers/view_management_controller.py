@@ -272,7 +272,8 @@ class ViewManagementController:
 
                 if pixmap is not None and not pixmap.isNull():
                     self.main_window.curve_widget.background_image = pixmap
-                    self.main_window.curve_widget.update()
+                    # NOTE: Don't call update() here - FrameChangeCoordinator handles the repaint
+                    # in phase 3 after centering, preventing visual jumps during playback
                     logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
             else:
                 logger.warning("Image directory not set")

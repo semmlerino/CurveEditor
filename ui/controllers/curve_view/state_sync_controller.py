@@ -74,29 +74,12 @@ class StateSyncController:
 
     def _connect_state_manager_signals(self) -> None:
         """Connect to state manager signals for frame updates."""
-        # Use injected state manager or fallback to main window
-        if self._state_manager is not None:
-            state_manager = self._state_manager
-            state_manager.frame_changed.connect(self._on_state_frame_changed)
-            logger.debug("Connected to state manager frame_changed signal")
-        else:
-            # No state manager available - will connect later if main window provides one
-            logger.debug("No state manager available - state manager connection will be made when available")
+        # Frame change handling now managed by FrameChangeCoordinator
+        # No direct state manager connection needed
+        logger.debug("Frame change handling delegated to FrameChangeCoordinator")
 
     # ==================== State Manager Signal Handlers ====================
-
-    def _on_state_frame_changed(self, frame: int) -> None:
-        """Handle frame changes from state manager."""
-        logger.debug(f"[FRAME] State manager frame changed to {frame}, updating view")
-
-        # Force a full update to ensure current frame highlighting updates
-        self.widget.invalidate_caches()
-        self.widget.update()
-
-        # Handle centering mode
-        if self.widget.centering_mode:
-            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled)")
-            self.widget.center_on_frame(frame)
+    # Frame change handling now managed by FrameChangeCoordinator
 
     # ==================== ApplicationState Signal Handlers ====================
 
@@ -130,6 +113,8 @@ class StateSyncController:
         # Update display if this is the active curve
         if curve_name == self._app_state.active_curve:
             self.widget.update()
+            # Emit widget signal for backward compatibility
+            self.widget.selection_changed.emit(list(indices))
             logger.debug(f"ApplicationState selection changed for '{curve_name}': {len(indices)} selected")
 
     def _on_app_state_active_curve_changed(self, curve_name: str) -> None:
