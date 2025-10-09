@@ -1,9 +1,0 @@
-# StateManager Migration Plan – Code Verification (2025-10-07)
-
-- **No existing `track_data_changed` signal** – `StateManager` currently only defines `file_changed`, `modified_changed`, `view_state_changed`, `selection_changed`, `frame_changed`, `total_frames_changed`, `playback_state_changed`, and `active_timeline_point_changed` (`ui/state_manager.py:38-46`). A repository-wide search confirms `track_data_changed` does not exist outside planning docs (`rg "track_data_changed"`). Any duplication concerns or refactor steps should acknowledge that no such signal is present today.
-
-- **Legacy data still read from local fields** – Multiple `StateManager` APIs depend on `_track_data`, `_total_frames`, and `_image_files`: `data_bounds` (`ui/state_manager.py:240-249`), `current_frame` (`ui/state_manager.py:345-358`), `current_image` (`ui/state_manager.py:442-447`), `reset_to_defaults` (`ui/state_manager.py:621-672`), and `get_state_summary` (`ui/state_manager.py:676-710`). These sections will need updates once the underlying storage migrates to `ApplicationState`.
-
-- **`_emit_signal` requires a `Signal` instance** – The helper signature is `def _emit_signal(self, signal: Signal, value: object)` (`ui/state_manager.py:604-617`), so emitting via a string name (e.g., `_emit_signal('undo_state_changed', ...)`) would raise at runtime. The plan should pass the concrete signal (`self.undo_state_changed`).
-
-- **Toolbar undo/redo controls are `QAction`s, not buttons** – The toolbar is populated via `addAction(window.action_undo)` / `addAction(window.action_redo)` with no `QPushButton` assignment to `ui.toolbar.undo_button` (`ui/main_window_builder.py:200-224`, `ui/ui_components.py:53-112`). Wiring new signals to `self.main_window.ui.toolbar.undo_button` would therefore do nothing unless the UI layers start populating those placeholders.
