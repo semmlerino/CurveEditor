@@ -2,14 +2,14 @@
 Background file loading worker.
 
 Handles asynchronous loading of tracking data and image sequences
-using Python threading (not QThread) for better compatibility.
+using Qt threading (QThread) for proper Qt integration and thread safety.
 """
 
 import logging
-import threading
 from pathlib import Path
+from typing import ClassVar
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QMutex, QMutexLocker, QThread, Signal
 
 from core.config import get_config
 from core.coordinate_detector import detect_coordinate_system
@@ -19,41 +19,44 @@ from core.type_aliases import CurveDataList
 logger = logging.getLogger(__name__)
 
 
-class FileLoadSignals(QObject):
-    """Signals for file loading operations."""
+class FileLoadWorker(QThread):
+    """Worker class for loading files in a Qt background thread.
 
-    tracking_data_loaded = Signal(object)  # CurveDataWithMetadata or list
-    image_sequence_loaded = Signal(str, list)  # dir_path, file_list
-    progress_updated = Signal(int, str)  # progress%, message
-    error_occurred = Signal(str)  # error message
-    finished = Signal()
+    Uses QThread for proper Qt integration and thread-safe signal emission.
+    Signals are automatically marshaled across threads using Qt's event system.
+    """
 
+    # Qt signals as class attributes
+    tracking_data_loaded: ClassVar[Signal] = Signal(object)  # CurveDataWithMetadata or list/dict
+    image_sequence_loaded: ClassVar[Signal] = Signal(str, list)  # dir_path, file_list
+    progress_updated: ClassVar[Signal] = Signal(int, str)  # progress%, message
+    error_occurred: ClassVar[Signal] = Signal(str)  # error message
+    finished: ClassVar[Signal] = Signal()
 
-class FileLoadWorker:
-    """Worker class for loading files in a Python background thread (not QThread)."""
-
-    def __init__(self, signals: FileLoadSignals):
-        """Initialize worker with signal emitter."""
-        self.signals = signals  # QObject for emitting signals
+    def __init__(self) -> None:
+        """Initialize worker."""
+        super().__init__()
         self.tracking_file_path: str | None = None
         self.image_dir_path: str | None = None
-        self._should_stop: bool = False
         self._work_ready: bool = False
-        self._work_ready_lock: threading.Lock = threading.Lock()
-        self._stop_lock: threading.Lock = threading.Lock()
-        self._thread: threading.Thread | None = None
+        self._work_ready_mutex: QMutex = QMutex()
 
     def stop(self) -> None:
         """Request the worker to stop processing."""
-        with self._stop_lock:
-            self._should_stop = True
+        # Request thread interruption (Qt mechanism)
+        self.requestInterruption()
 
         # Wait for thread to finish if it's running
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
+        if self.isRunning():
+            self.wait(2000)  # Wait up to 2 seconds
 
     def start_work(self, tracking_file_path: str | None, image_dir_path: str | None) -> None:
-        """Start new file loading work in a Python thread."""
+        """Start new file loading work in Qt thread.
+
+        Args:
+            tracking_file_path: Path to tracking data file, or None
+            image_dir_path: Path to image directory, or None
+        """
         # Stop any existing work
         self.stop()
 
@@ -61,29 +64,29 @@ class FileLoadWorker:
         self.tracking_file_path = tracking_file_path
         self.image_dir_path = image_dir_path
 
-        with self._work_ready_lock:
+        with QMutexLocker(self._work_ready_mutex):
             self._work_ready = True
 
-        self._should_stop = False
-
-        # Start new thread
-        self._thread = threading.Thread(target=self.run, daemon=True)
-        self._thread.start()
+        # Start Qt thread (calls run() automatically)
+        self.start()
 
     def _check_should_stop(self) -> bool:
-        """Thread-safe check of stop flag."""
-        with self._stop_lock:
-            return self._should_stop
+        """Thread-safe check of interruption flag."""
+        return self.isInterruptionRequested()
 
     def run(self) -> None:
-        """Main worker method that runs in background Python thread."""
+        """Main worker method that runs in background Qt thread.
+
+        This is called automatically by QThread.start().
+        All signal emissions are thread-safe via Qt's event system.
+        """
         # Check if there's work ready
-        with self._work_ready_lock:
+        with QMutexLocker(self._work_ready_mutex):
             if not self._work_ready:
                 return  # No work to do
             self._work_ready = False
 
-        logger.info(f"[PYTHON-THREAD] Worker.run() starting in Python thread: {threading.current_thread().name}")
+        logger.info(f"[QTHREAD] Worker.run() starting in Qt thread: {self.objectName() or 'FileLoadWorker'}")
 
         try:
             total_tasks = 0
@@ -96,14 +99,14 @@ class FileLoadWorker:
                 total_tasks += 1
 
             if total_tasks == 0:
-                # Direct signal emission (Qt handles thread safety)
-                self.signals.finished.emit()
+                # Signal emission (Qt handles thread-safety via QueuedConnection)
+                self.finished.emit()
                 return
 
             # Load tracking data if requested
             if self.tracking_file_path and not self._check_should_stop():
-                # Direct signal emission (Qt handles thread safety)
-                self.signals.progress_updated.emit(0, "Loading tracking data...")
+                # Signal emission (Qt handles thread-safety)
+                self.progress_updated.emit(0, "Loading tracking data...")
 
                 try:
                     # Check if we should use metadata-aware loading
@@ -122,14 +125,13 @@ class FileLoadWorker:
 
                     if data:
                         logger.info(
-                            f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
+                            f"[QTHREAD] Emitting tracking_data_loaded from Qt thread: {self.objectName() or 'FileLoadWorker'}"
                         )
 
-                    # Direct signal emission (Qt handles thread safety)
-                    self.signals.tracking_data_loaded.emit(data)
+                    # Signal emission (Qt handles thread-safety)
+                    self.tracking_data_loaded.emit(data)
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
-                    # Direct signal emission (Qt handles thread safety)
                     # Handle different data types for length calculation
                     if isinstance(data, CurveDataWithMetadata):
                         data_len = len(data.data)
@@ -137,23 +139,22 @@ class FileLoadWorker:
                         data_len = sum(
                             len(v.data) if isinstance(v, CurveDataWithMetadata) else len(v) for v in data.values()
                         )
-                    elif isinstance(data, list):
-                        data_len = len(data)
                     else:
-                        data_len = 0
+                        # Must be a list at this point
+                        data_len = len(data) if data else 0
                     msg = f"Loaded {data_len if data else 0} tracking points"
-                    self.signals.progress_updated.emit(progress, msg)
+                    self.progress_updated.emit(progress, msg)
 
                 except Exception as e:
-                    # Direct signal emission (Qt handles thread safety)
+                    # Signal emission (Qt handles thread-safety)
                     error_msg = f"Failed to load tracking data: {str(e)}"
-                    self.signals.error_occurred.emit(error_msg)
+                    self.error_occurred.emit(error_msg)
 
             # Load image sequence if requested
             if self.image_dir_path and not self._check_should_stop():
-                # Direct signal emission (Qt handles thread safety)
+                # Signal emission (Qt handles thread-safety)
                 progress_pct = int((current_task / total_tasks) * 100)
-                self.signals.progress_updated.emit(progress_pct, "Loading image sequence...")
+                self.progress_updated.emit(progress_pct, "Loading image sequence...")
 
                 try:
                     # Directly scan for image files without creating DataService
@@ -161,32 +162,32 @@ class FileLoadWorker:
 
                     if image_files:
                         logger.info(
-                            f"[PYTHON-THREAD] Emitting image_sequence_loaded from Python thread: {threading.current_thread().name}"
+                            f"[QTHREAD] Emitting image_sequence_loaded from Qt thread: {self.objectName() or 'FileLoadWorker'}"
                         )
-                        # Direct signal emission (Qt handles thread safety)
-                        self.signals.image_sequence_loaded.emit(self.image_dir_path, image_files)
+                        # Signal emission (Qt handles thread-safety)
+                        self.image_sequence_loaded.emit(self.image_dir_path, image_files)
 
                     current_task += 1
-                    # Direct signal emission (Qt handles thread safety)
+                    # Signal emission (Qt handles thread-safety)
                     msg = f"Loaded {len(image_files) if image_files else 0} images"
-                    self.signals.progress_updated.emit(100, msg)
+                    self.progress_updated.emit(100, msg)
 
                 except Exception as e:
-                    # Direct signal emission (Qt handles thread safety)
+                    # Signal emission (Qt handles thread-safety)
                     error_msg = f"Failed to load image sequence: {str(e)}"
-                    self.signals.error_occurred.emit(error_msg)
+                    self.error_occurred.emit(error_msg)
 
         except Exception as e:
-            # Direct signal emission (Qt handles thread safety)
+            # Signal emission (Qt handles thread-safety)
             error_msg = f"Unexpected error in file loading: {str(e)}"
-            self.signals.error_occurred.emit(error_msg)
+            self.error_occurred.emit(error_msg)
 
         finally:
-            logger.info("[PYTHON-THREAD] About to emit finished signal")
-            logger.info(f"[PYTHON-THREAD] Current Python thread: {threading.current_thread().name}")
-            # Direct signal emission (Qt handles thread safety)
-            self.signals.finished.emit()
-            logger.info("[PYTHON-THREAD] finished.emit() completed")
+            logger.info("[QTHREAD] About to emit finished signal")
+            logger.info(f"[QTHREAD] Current Qt thread: {self.objectName() or 'FileLoadWorker'}")
+            # Signal emission (Qt handles thread-safety)
+            self.finished.emit()
+            logger.info("[QTHREAD] finished.emit() completed")
 
     def _load_2dtrack_data_direct(
         self, file_path: str, flip_y: bool = False, image_height: float = 720
@@ -212,7 +213,7 @@ class FileLoadWorker:
             For multi-point data: Dict mapping point names to lists of tracking points
         """
         try:
-            multi_point_data = {}  # Dict for multi-point data
+            multi_point_data: dict[str, CurveDataList] = {}  # Dict for multi-point data
 
             with open(file_path) as f:
                 lines = f.readlines()
@@ -263,10 +264,10 @@ class FileLoadWorker:
                 logger.debug(f"Loading point {point_idx + 1}/{num_points}: {point_name} with {num_frames} frames")
 
                 # Initialize list for this point's data
-                point_data = []
+                point_data: CurveDataList = []
 
                 # Read frame data for this point
-                for frame_idx in range(num_frames):
+                for _ in range(num_frames):
                     # Check if we should stop processing (make worker responsive)
                     if self._check_should_stop():
                         logger.info("File loading cancelled by user during frame processing")
@@ -308,14 +309,14 @@ class FileLoadWorker:
             if num_points > 1:
                 total_frames = sum(len(points) for points in multi_point_data.values())
                 logger.info(f"Loaded {num_points} points with {total_frames} total frames from {file_path}")
-                return multi_point_data
+                return multi_point_data  # pyright: ignore[reportReturnType]
             elif num_points == 1 and multi_point_data:
                 # For single point, return the list directly for backward compatibility
                 point_name = list(multi_point_data.keys())[0]
                 logger.info(
                     f"Loaded single point '{point_name}' with {len(multi_point_data[point_name])} frames from {file_path}"
                 )
-                return multi_point_data[point_name]
+                return multi_point_data[point_name]  # pyright: ignore[reportReturnType]
             else:
                 logger.info(f"No valid tracking points loaded from {file_path}")
                 return []
@@ -357,19 +358,19 @@ class FileLoadWorker:
             total_frames = sum(len(curve.data) for curve in result.values())
             logger.info(
                 f"[COORD] Loaded {len(result)} points with {total_frames} total frames with metadata: "
-                f"system={metadata.system.value}, origin={metadata.origin.value}, "
-                f"dimensions={metadata.width}x{metadata.height}"
+                + f"system={metadata.system.value}, origin={metadata.origin.value}, "
+                + f"dimensions={metadata.width}x{metadata.height}"
             )
             return result
-        elif isinstance(raw_data, list):
-            # Single point data - backward compatibility
+        elif raw_data:
+            # Single point data - backward compatibility (raw_data is a list at this point)
             # Type narrowing: raw_data is a list at this point, compatible with CurveDataList
             curve_data = CurveDataWithMetadata(data=raw_data, metadata=metadata)
 
             logger.info(
                 f"[COORD] Loaded {len(raw_data)} points with metadata: "
-                f"system={metadata.system.value}, origin={metadata.origin.value}, "
-                f"dimensions={metadata.width}x{metadata.height}"
+                + f"system={metadata.system.value}, origin={metadata.origin.value}, "
+                + f"dimensions={metadata.width}x{metadata.height}"
             )
 
             return curve_data
@@ -413,16 +414,13 @@ class FileLoadWorker:
                         result_dict[point_name] = point_curve.to_legacy_format()
                 # Runtime type is compatible despite variance rules
                 return result_dict  # pyright: ignore[reportReturnType]
-            elif isinstance(curve_data, CurveDataWithMetadata):
-                # Single point data - to_legacy_format returns CurveDataList
+            else:
+                # Single point data (CurveDataWithMetadata) - to_legacy_format returns CurveDataList
                 if flip_y and curve_data.needs_y_flip_for_display:
                     # Convert to normalized then back with flip
                     return curve_data.to_normalized().to_legacy_format()  # pyright: ignore[reportReturnType]
                 else:
                     return curve_data.to_legacy_format()  # pyright: ignore[reportReturnType]
-            else:
-                # Fallback for unexpected types
-                return []
         else:
             # Use direct loading with flip_y parameter
             result = self._load_2dtrack_data_direct(file_path, flip_y, image_height)
@@ -432,7 +430,7 @@ class FileLoadWorker:
     def _scan_image_directory(self, dir_path: str) -> list[str]:
         """Scan directory for image files without using DataService."""
         supported_formats = [".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".gif", ".exr"]
-        image_files = []
+        image_files: list[str] = []
 
         try:
             path = Path(dir_path)
@@ -447,3 +445,20 @@ class FileLoadWorker:
             raise
 
         return sorted(image_files)  # Return sorted list of filenames
+
+
+# Backward compatibility: Provide FileLoadSignals class that redirects to FileLoadWorker
+class FileLoadSignals(FileLoadWorker):
+    """Legacy compatibility class.
+
+    DEPRECATED: Use FileLoadWorker directly instead.
+    This class exists only for backward compatibility with existing code.
+    """
+
+    def __init__(self) -> None:
+        """Initialize as FileLoadWorker."""
+        super().__init__()
+        logger.warning(
+            "FileLoadSignals is deprecated. Use FileLoadWorker directly. "
+            "FileLoadWorker now inherits from QThread with signals as class attributes."
+        )

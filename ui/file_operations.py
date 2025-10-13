@@ -7,8 +7,6 @@ and background file processing. Extracted from MainWindow to improve
 maintainability and separation of concerns.
 """
 
-import os
-import threading
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -16,6 +14,7 @@ from PySide6.QtCore import QObject, Signal
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QWidget
 
 from core.type_aliases import CurveDataList
+from io_utils.file_load_worker import FileLoadWorker
 from services import get_data_service
 
 if TYPE_CHECKING:
@@ -27,265 +26,8 @@ from core.logger_utils import get_logger
 logger = get_logger("file_operations")
 
 
-class FileLoadSignals(QObject):
-    """Signal emitter for thread-safe communication from Python thread to Qt main thread."""
-
-    # Signals for communicating with main thread
-    tracking_data_loaded: Signal = Signal(list)  # Emits list of tracking data points
-    multi_point_data_loaded: Signal = Signal(dict)  # Emits dict of multi-point tracking data
-    image_sequence_loaded: Signal = Signal(str, list)  # Emits directory path and list of filenames
-    progress_updated: Signal = Signal(int, str)  # Emits progress percentage and status message
-    error_occurred: Signal = Signal(str)  # Emits error message
-    finished: Signal = Signal()  # Emits when all loading is complete
-
-
-class FileLoadWorker:
-    """Worker class for loading files in a Python background thread (not QThread)."""
-
-    def __init__(self, signals: FileLoadSignals):
-        """Initialize worker with signal emitter."""
-        self.signals: FileLoadSignals = signals  # QObject for emitting signals
-        self.tracking_file_path: str | None = None
-        self.image_dir_path: str | None = None
-        self._should_stop: bool = False
-        self._work_ready: bool = False
-        self._work_ready_lock: threading.Lock = threading.Lock()
-        self._stop_lock: threading.Lock = threading.Lock()
-        self._thread: threading.Thread | None = None
-
-    def stop(self) -> None:
-        """Request the worker to stop processing."""
-        with self._stop_lock:
-            self._should_stop = True
-        # Wait for thread to finish if it's running
-        if self._thread and self._thread.is_alive():
-            self._thread.join(timeout=2.0)
-
-    def start_work(self, tracking_file_path: str | None, image_dir_path: str | None) -> None:
-        """Start new file loading work in a Python thread."""
-        # Stop any existing work
-        self.stop()
-
-        # Set new work parameters
-        self.tracking_file_path = tracking_file_path
-        self.image_dir_path = image_dir_path
-        with self._work_ready_lock:
-            self._work_ready = True
-        self._should_stop = False
-
-        # Start new thread
-        self._thread = threading.Thread(target=self.run, daemon=True)
-        self._thread.start()
-
-    def _check_should_stop(self) -> bool:
-        """Thread-safe check of stop flag."""
-        with self._stop_lock:
-            return self._should_stop
-
-    def run(self) -> None:
-        """Main worker method that runs in background Python thread."""
-        # Check if there's work ready
-        with self._work_ready_lock:
-            if not self._work_ready:
-                return  # No work to do
-            self._work_ready = False
-
-        logger.info(f"[PYTHON-THREAD] Worker.run() starting in Python thread: {threading.current_thread().name}")
-        try:
-            total_tasks = 0
-            current_task = 0
-
-            # Count tasks to do
-            if self.tracking_file_path:
-                total_tasks += 1
-            if self.image_dir_path:
-                total_tasks += 1
-
-            if total_tasks == 0:
-                self.signals.finished.emit()
-                return
-
-            # Load tracking data if requested
-            if self.tracking_file_path and not self._check_should_stop():
-                self.signals.progress_updated.emit(0, "Loading tracking data...")
-                try:
-                    # Check if it's a multi-point file
-                    is_multi_point = False
-                    try:
-                        with open(self.tracking_file_path) as f:
-                            content = f.read(500)  # Read first 500 chars to detect format
-                            # Multi-point files have "Point" followed by a name
-                            is_multi_point = "Point" in content and ("Point1" in content or "Point01" in content)
-                    except OSError:
-                        pass
-
-                    multi_data = {}
-                    data = []
-
-                    if is_multi_point:
-                        # Load as multi-point data
-                        multi_data = self._load_multi_point_data_direct(
-                            self.tracking_file_path, flip_y=True, image_height=720
-                        )
-                        if multi_data:
-                            # Emit multi-point data signal
-                            self.signals.multi_point_data_loaded.emit(multi_data)
-
-                            # Also emit first point's data for compatibility
-                            first_point = list(multi_data.keys())[0] if multi_data else None
-                            data = multi_data.get(first_point, []) if first_point else []
-
-                            logger.info(
-                                f"[PYTHON-THREAD] Loaded {len(multi_data)} tracking points from multi-point file"
-                            )
-                    else:
-                        # Load as single-point data
-                        data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
-                        if data:
-                            logger.info(
-                                f"[PYTHON-THREAD] Emitting tracking_data_loaded from Python thread: {threading.current_thread().name}"
-                            )
-                            self.signals.tracking_data_loaded.emit(data)
-
-                    current_task += 1
-                    progress = int((current_task / total_tasks) * 100)
-
-                    if is_multi_point and multi_data:
-                        total_points = sum(len(traj) for traj in multi_data.values())
-                        self.signals.progress_updated.emit(
-                            progress, f"Loaded {len(multi_data)} trajectories, {total_points} total points"
-                        )
-                    else:
-                        self.signals.progress_updated.emit(
-                            progress, f"Loaded {len(data) if data else 0} tracking points"
-                        )
-                except Exception as e:
-                    self.signals.error_occurred.emit(f"Failed to load tracking data: {str(e)}")
-
-            # Load image sequence if requested
-            if self.image_dir_path and not self._check_should_stop():
-                self.signals.progress_updated.emit(int((current_task / total_tasks) * 100), "Loading image sequence...")
-                try:
-                    # Directly scan for image files without creating DataService
-                    image_files = self._scan_image_directory(self.image_dir_path)
-                    if image_files:
-                        logger.info(
-                            f"[PYTHON-THREAD] Emitting image_sequence_loaded from Python thread: {threading.current_thread().name}"
-                        )
-                        self.signals.image_sequence_loaded.emit(self.image_dir_path, image_files)
-                    current_task += 1
-                    self.signals.progress_updated.emit(100, f"Loaded {len(image_files) if image_files else 0} images")
-                except Exception as e:
-                    self.signals.error_occurred.emit(f"Failed to load image sequence: {str(e)}")
-
-            # Emit finished signal
-            self.signals.finished.emit()
-            logger.info(f"[PYTHON-THREAD] Worker.run() finished in Python thread: {threading.current_thread().name}")
-
-        except Exception as e:
-            logger.error(f"[PYTHON-THREAD] Worker.run() error: {e}")
-            self.signals.error_occurred.emit(str(e))
-            self.signals.finished.emit()
-
-    def _scan_image_directory(self, directory: str) -> list[str]:
-        """Scan directory for image files."""
-        image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
-        image_files = []
-
-        try:
-            for file_name in sorted(os.listdir(directory)):
-                if any(file_name.lower().endswith(ext) for ext in image_extensions):
-                    image_files.append(file_name)
-        except OSError as e:
-            logger.error(f"Failed to scan image directory: {e}")
-
-        return image_files
-
-    def _load_2dtrack_data_direct(
-        self, file_path: str, flip_y: bool = False, image_height: float = 720
-    ) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
-        """Load 2D tracking data directly."""
-        data = []
-
-        try:
-            with open(file_path) as file:
-                for line_num, line in enumerate(file, 1):
-                    line = line.strip()
-                    if not line or line.startswith("#"):
-                        continue
-
-                    parts = line.split()
-                    if len(parts) >= 3:
-                        try:
-                            frame = int(parts[0])
-                            x = float(parts[1])
-                            y = float(parts[2])
-
-                            if flip_y:
-                                y = image_height - y
-
-                            # Check for status field
-                            if len(parts) >= 4:
-                                status = parts[3]
-                                data.append((frame, x, y, status))
-                            else:
-                                data.append((frame, x, y))
-
-                        except ValueError as e:
-                            logger.warning(f"Failed to parse line {line_num} in {file_path}: {e}")
-
-        except OSError as e:
-            logger.error(f"Failed to load tracking data from {file_path}: {e}")
-
-        return data
-
-    def _load_multi_point_data_direct(
-        self, file_path: str, flip_y: bool = False, image_height: float = 720
-    ) -> dict[str, CurveDataList]:
-        """Load multi-point tracking data directly."""
-        multi_data: dict[str, CurveDataList] = {}
-        current_point = None
-
-        try:
-            with open(file_path) as file:
-                for line in file:
-                    line = line.strip()
-                    if not line:
-                        continue
-
-                    # Check for point marker
-                    if line.startswith("Point"):
-                        # Extract point name
-                        parts = line.split()
-                        if len(parts) >= 2:
-                            current_point = parts[1]
-                            multi_data[current_point] = []
-                    elif current_point and not line.startswith("#"):
-                        # Parse trajectory data
-                        parts = line.split()
-                        if len(parts) >= 3:
-                            try:
-                                frame = int(parts[0])
-                                x = float(parts[1])
-                                y = float(parts[2])
-
-                                if flip_y:
-                                    y = image_height - y
-
-                                # Check for status field
-                                if len(parts) >= 4:
-                                    status = parts[3]
-                                    multi_data[current_point].append((frame, x, y, status))
-                                else:
-                                    multi_data[current_point].append((frame, x, y))
-
-                            except ValueError:
-                                continue
-
-        except OSError as e:
-            logger.error(f"Failed to load multi-point data from {file_path}: {e}")
-
-        return multi_data
+# FileLoadWorker is now imported from io_utils.file_load_worker
+# It uses QThread for proper Qt threading instead of Python threading
 
 
 class FileOperations(QObject):
@@ -321,13 +63,13 @@ class FileOperations(QObject):
             services: Service facade for I/O operations
         """
         super().__init__(parent)
-        self.parent_widget = parent
-        self.state_manager = state_manager
-        self.services = services
+        self.parent_widget: QWidget | None = parent
+        self.state_manager: StateManager | None = state_manager
+        self.services: ServiceFacade | None = services
 
         # Initialize file loading components
-        self.file_load_signals = FileLoadSignals()
-        self.file_load_worker = FileLoadWorker(self.file_load_signals)
+        # FileLoadWorker now inherits from QThread with signals as class attributes
+        self.file_load_worker: FileLoadWorker = FileLoadWorker()
 
         # Connect worker signals to our signals
         self._connect_worker_signals()
@@ -336,12 +78,26 @@ class FileOperations(QObject):
 
     def _connect_worker_signals(self) -> None:
         """Connect worker signals to FileOperations signals."""
-        _ = self.file_load_signals.tracking_data_loaded.connect(self.tracking_data_loaded.emit)
-        _ = self.file_load_signals.multi_point_data_loaded.connect(self.multi_point_data_loaded.emit)
-        _ = self.file_load_signals.image_sequence_loaded.connect(self.image_sequence_loaded.emit)
-        _ = self.file_load_signals.progress_updated.connect(self.progress_updated.emit)
-        _ = self.file_load_signals.error_occurred.connect(self.error_occurred.emit)
-        _ = self.file_load_signals.finished.connect(self.finished.emit)
+        # FileLoadWorker now has signals as class attributes (QThread pattern)
+        # tracking_data_loaded can emit either single curve or dict of curves
+        _ = self.file_load_worker.tracking_data_loaded.connect(self._on_tracking_data_loaded)
+        _ = self.file_load_worker.image_sequence_loaded.connect(self.image_sequence_loaded.emit)
+        _ = self.file_load_worker.progress_updated.connect(self.progress_updated.emit)
+        _ = self.file_load_worker.error_occurred.connect(self.error_occurred.emit)
+        _ = self.file_load_worker.finished.connect(self.finished.emit)
+
+    def _on_tracking_data_loaded(self, data: object) -> None:
+        """Handle tracking data loaded from worker.
+
+        The new FileLoadWorker emits either single curve data or multi-point dict.
+        This handler splits the signal for backward compatibility.
+        """
+        if isinstance(data, dict):
+            # Multi-point data
+            self.multi_point_data_loaded.emit(data)
+        else:
+            # Single curve data
+            self.tracking_data_loaded.emit(data)
 
     def cleanup_threads(self) -> None:
         """Clean up background threads."""
@@ -446,15 +202,16 @@ class FileOperations(QObject):
         if not file_path:
             return self.save_file_as(data)
 
-        # Save using services
-        if self.services:
-            # ServiceFacade provides save_track_data_to_file method
-            if self.services.save_track_data_to_file(data, file_path):  # pyright: ignore[reportAttributeAccessIssue]
-                self.file_saved.emit(file_path)
-                if self.state_manager:
-                    self.state_manager.current_file = file_path
-                    self.state_manager.is_modified = False
-                return True
+        # Save directly using DataService
+        data_service = get_data_service()
+        success = data_service.save_json(file_path, data)
+
+        if success:
+            self.file_saved.emit(file_path)
+            if self.state_manager:
+                self.state_manager.current_file = file_path
+                self.state_manager.is_modified = False
+            return True
 
         return False
 
@@ -580,6 +337,7 @@ class FileOperations(QObject):
         Returns:
             True if exported successfully
         """
+        _ = data  # Unused for now - placeholder for future implementation
         parent = parent_widget or self.parent_widget
         # TODO: Implement data export dialog
         _ = QMessageBox.information(parent, "Not Implemented", "Data export will be implemented soon.")

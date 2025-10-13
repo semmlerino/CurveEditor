@@ -69,23 +69,22 @@ class MainWindowBuilder:
         logger.info("[PYTHON-THREAD] Initializing file loader with Python threading")
 
         # Import here to avoid circular dependency
-        from io_utils.file_load_worker import FileLoadSignals, FileLoadWorker
+        from io_utils.file_load_worker import FileLoadWorker
 
-        # Create signal emitter (stays in main thread)
-        window.file_load_signals = FileLoadSignals()  # pyright: ignore[reportAttributeAccessIssue]
+        # Create FileLoadWorker (QThread with signals as class attributes)
+        # No longer needs separate FileLoadSignals - signals are part of the worker
+        window.file_load_worker = FileLoadWorker()  # pyright: ignore[reportAttributeAccessIssue]
 
-        # Create worker (plain Python class, not QObject)
-        window.file_load_worker = FileLoadWorker(window.file_load_signals)  # pyright: ignore[reportAttributeAccessIssue]
+        # Connect signals (Qt automatically handles cross-thread signal emission)
+        # Note: Handler names match the public API in MainWindow (without underscore prefix)
+        # Type warnings about Unknown in list types are from PySide6 Signal stubs - handlers have proper types
+        _ = window.file_load_worker.tracking_data_loaded.connect(window.on_tracking_data_loaded)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
+        _ = window.file_load_worker.image_sequence_loaded.connect(window._on_image_sequence_loaded)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType, reportPrivateUsage]
+        _ = window.file_load_worker.progress_updated.connect(window.on_file_load_progress)  # pyright: ignore[reportAttributeAccessIssue]
+        _ = window.file_load_worker.error_occurred.connect(window.on_file_load_error)  # pyright: ignore[reportAttributeAccessIssue]
+        _ = window.file_load_worker.finished.connect(window.on_file_load_finished)  # pyright: ignore[reportAttributeAccessIssue]
 
-        # Connect signals (emitter is in main thread, so this is safe)
-        # Note: Some handlers may not be implemented yet - they'll be added as needed
-        _ = window.file_load_signals.tracking_data_loaded.connect(window._on_tracking_data_loaded)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_signals.image_sequence_loaded.connect(window._on_image_sequence_loaded)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_signals.progress_updated.connect(window._on_file_load_progress)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_signals.error_occurred.connect(window._on_file_load_error)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_signals.finished.connect(window._on_file_load_finished)  # pyright: ignore[reportAttributeAccessIssue]
-
-        logger.info("[PYTHON-THREAD] File loader initialized with Python threading")
+        logger.info("[QTHREAD] File loader initialized with Qt threading (QThread)")
 
     def _build_actions(self, window: MainWindow) -> None:
         """Initialize all QActions for menus and toolbars.
@@ -383,7 +382,7 @@ class MainWindowBuilder:
         layout.addWidget(window.curve_widget)
 
         # Set focus to curve widget after creation
-        def set_focus_safe():
+        def set_focus_safe() -> None:
             try:
                 if hasattr(window, "curve_widget") and window.curve_widget:
                     window.curve_widget.setFocus()
@@ -391,7 +390,7 @@ class MainWindowBuilder:
                 # Widget was deleted (C++ object destroyed)
                 pass
 
-        QTimer.singleShot(100, set_focus_safe)
+        QTimer.singleShot(100, set_focus_safe)  # pyright: ignore[reportUnknownMemberType]
 
         logger.info("CurveViewWidget created and integrated")
 
