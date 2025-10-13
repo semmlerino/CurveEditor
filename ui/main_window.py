@@ -821,12 +821,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 if self.bounds_label:
                     self.bounds_label.setText("Bounds: N/A")
         else:
-            # Fallback to state manager
-            point_count = len(self.state_manager.track_data)
+            # Fallback to ApplicationState
+            from stores.application_state import get_application_state
+
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+
+            if active_curve:
+                curve_data = app_state.get_curve_data(active_curve)
+                point_count = len(curve_data) if curve_data else 0
+            else:
+                point_count = 0
+
             if self.point_count_label:
                 self.point_count_label.setText(f"Points: {point_count}")
 
-            if point_count > 0:
+            if point_count > 0 and active_curve:
                 bounds = self.state_manager.data_bounds
                 if self.bounds_label:
                     self.bounds_label.setText(

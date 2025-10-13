@@ -378,8 +378,8 @@ def test_batch_operation_exception_handling():
     """
     app_state = get_application_state()
 
-    # Verify batch mode starts as False
-    assert app_state._batch_mode is False
+    # Verify batch mode starts at depth 0
+    assert app_state._batch_depth == 0
 
     # Simulate exception during batch
     try:
@@ -392,7 +392,7 @@ def test_batch_operation_exception_handling():
         app_state.end_batch()
 
     # Should not leak batch mode state
-    assert app_state._batch_mode is False, "Batch mode leaked!"
+    assert app_state._batch_depth == 0, "Batch mode leaked!"
 
     # Should still be functional
     app_state.set_curve_data("test2", create_test_curve())

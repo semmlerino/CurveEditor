@@ -7,7 +7,6 @@ Single source of truth for all application state:
 - Per-curve selection (dict[str, set[int]])
 - Active curve (str)
 - Current frame (int)
-- View transformation state (ViewState)
 - Curve metadata (visibility, color, etc.)
 
 Key Design Principles:
@@ -58,10 +57,9 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from contextlib import contextmanager
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from PySide6.QtCore import QCoreApplication, QMutex, QMutexLocker, QObject, QThread, Signal, SignalInstance
+from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal, SignalInstance
 
 from core.display_mode import DisplayMode
 from core.models import CurvePoint, PointStatus
@@ -70,34 +68,6 @@ if TYPE_CHECKING:
     from core.type_aliases import CurveDataInput, CurveDataList
 
 logger = logging.getLogger(__name__)
-
-
-@dataclass(frozen=True)
-class ViewState:
-    """
-    Immutable view transformation state.
-
-    Uses dataclass with frozen=True for immutability.
-    Helper methods create new instances rather than modifying.
-    """
-
-    zoom: float = 1.0
-    pan_x: float = 0.0
-    pan_y: float = 0.0
-    flip_y: bool = True
-    scale_to_image: bool = True
-
-    def with_zoom(self, zoom: float) -> ViewState:
-        """Create new ViewState with updated zoom."""
-        return ViewState(
-            zoom=zoom, pan_x=self.pan_x, pan_y=self.pan_y, flip_y=self.flip_y, scale_to_image=self.scale_to_image
-        )
-
-    def with_pan(self, pan_x: float, pan_y: float) -> ViewState:
-        """Create new ViewState with updated pan."""
-        return ViewState(
-            zoom=self.zoom, pan_x=pan_x, pan_y=pan_y, flip_y=self.flip_y, scale_to_image=self.scale_to_image
-        )
 
 
 class ApplicationState(QObject):
@@ -134,11 +104,13 @@ class ApplicationState(QObject):
     selection_changed = Signal(set, str)  # Point-level (frame indices)
     active_curve_changed = Signal(str)  # active_curve_name: str
     frame_changed = Signal(int)  # current_frame: int
-    view_changed = Signal(object)  # view_state: ViewState
     curve_visibility_changed = Signal(str, bool)  # (curve_name, visible)
 
     # NEW: Curve-level selection state changed (selected_curves, show_all)
     selection_state_changed = Signal(set, bool)
+
+    # Image sequence signal (total_frames is derived, no separate signal needed)
+    image_sequence_changed: Signal = Signal()
 
     def __init__(self) -> None:
         super().__init__()
@@ -149,7 +121,6 @@ class ApplicationState(QObject):
         self._active_curve: str | None = None
         self._selection: dict[str, set[int]] = {}  # Point-level selection (indices within curves)
         self._current_frame: int = 1
-        self._view_state: ViewState = ViewState()
 
         # NEW: Curve-level selection state (which trajectories to display)
         # Note: This is DISTINCT from _selection above:
@@ -158,10 +129,18 @@ class ApplicationState(QObject):
         self._selected_curves: set[str] = set()
         self._show_all_curves: bool = False
 
-        # Batch operation support (thread-safe with mutex)
-        self._mutex = QMutex()  # Protects batch mode flag and pending signals
-        self._batch_mode: bool = False
+        # Batch operation support (no QMutex needed - main-thread-only)
+        self._batch_depth: int = 0
         self._pending_signals: list[tuple[SignalInstance, tuple[Any, ...]]] = []
+        self._emitting_batch: bool = False  # Prevents reentrancy during emission
+
+        # Image sequence state
+        self._image_files: list[str] = []
+        self._image_directory: str | None = None
+        self._total_frames: int = 1
+
+        # Original data for undo/comparison
+        self._original_data: dict[str, CurveDataList] = {}
 
         logger.info("ApplicationState initialized")
 
@@ -197,12 +176,19 @@ class ApplicationState(QObject):
             curve_name: Curve to retrieve, or None for active curve
 
         Returns:
-            Copy of curve data, or empty list if curve doesn't exist
+            Copy of curve data
+
+        Raises:
+            ValueError: If curve_name is None and no active curve is set
         """
         self._assert_main_thread()  # Prevent read tearing from wrong thread
         if curve_name is None:
             curve_name = self._active_curve
-        if curve_name is None or curve_name not in self._curves_data:
+            if curve_name is None:
+                raise ValueError(
+                    "No active curve set. Call set_active_curve() first or " "provide explicit curve_name parameter."
+                )
+        if curve_name not in self._curves_data:
             return []
         return self._curves_data[curve_name].copy()
 
@@ -652,35 +638,122 @@ class ApplicationState(QObject):
 
             logger.debug(f"Frame changed: {old_frame} → {frame}")
 
-    # ==================== View State ====================
+    # ==================== Image Sequence Methods ====================
 
-    @property
-    def view_state(self) -> ViewState:
-        """Get current view state (copy)."""
-        return self._view_state
-
-    def set_view_state(self, view_state: ViewState) -> None:
+    def set_image_files(self, files: list[str], directory: str | None = None) -> None:
         """
-        Set view state.
+        Set the image file sequence.
 
         Args:
-            view_state: New view state
+            files: List of image file paths
+            directory: Optional base directory (if None, keeps current)
+
+        Raises:
+            TypeError: If files is not a list
+            ValueError: If files list is too large or contains invalid paths
         """
         self._assert_main_thread()
-        self._view_state = view_state
-        self._emit(self.view_changed, (view_state,))
 
-        logger.debug(
-            f"View state updated: zoom={view_state.zoom:.2f}, pan=({view_state.pan_x:.1f}, {view_state.pan_y:.1f})"
-        )
+        # Validation
+        if not isinstance(files, list):
+            raise TypeError(f"files must be list, got {type(files).__name__}")
 
-    def set_zoom(self, zoom: float) -> None:
-        """Update only zoom level."""
-        self.set_view_state(self._view_state.with_zoom(zoom))
+        max_files = 10_000
+        if len(files) > max_files:
+            raise ValueError(f"Too many files: {len(files)} (max: {max_files})")
 
-    def set_pan(self, pan_x: float, pan_y: float) -> None:
-        """Update only pan offset."""
-        self.set_view_state(self._view_state.with_pan(pan_x, pan_y))
+        for f in files:
+            if not isinstance(f, str):
+                raise TypeError(f"File path must be str, got {type(f).__name__}")
+
+        # Store copy (immutability) - consistent with set_curve_data() pattern
+        old_files = self._image_files
+        old_dir = self._image_directory
+        self._image_files = list(files)  # Defensive copy
+
+        if directory is not None:
+            self._image_directory = directory
+
+        # Update derived state (internal only - no signal needed)
+        self._total_frames = len(files) if files else 1
+
+        # Emit single signal if image sequence changed
+        if old_files != self._image_files or (directory is not None and old_dir != directory):
+            self._emit(self.image_sequence_changed, ())
+
+        logger.debug(f"Image files updated: {len(files)} files, total_frames={self._total_frames}")
+
+    def get_image_files(self) -> list[str]:
+        """Get the image file sequence (defensive copy for safety)."""
+        self._assert_main_thread()
+        return self._image_files.copy()
+
+    def get_image_directory(self) -> str | None:
+        """Get the image base directory."""
+        self._assert_main_thread()
+        return self._image_directory
+
+    def set_image_directory(self, directory: str | None) -> None:
+        """Set the image base directory (emits signal if changed)."""
+        self._assert_main_thread()
+
+        if self._image_directory != directory:
+            self._image_directory = directory
+            self._emit(self.image_sequence_changed, ())
+            logger.debug(f"Image directory changed to: {directory}")
+
+    def get_total_frames(self) -> int:
+        """
+        Get total frame count (derived from image sequence length).
+
+        This is derived state - always consistent with image_files.
+        Subscribe to image_sequence_changed to be notified of changes.
+        """
+        self._assert_main_thread()
+        return self._total_frames
+
+    # ==================== Original Data (Undo/Comparison) ====================
+
+    def set_original_data(self, curve_name: str, data: CurveDataInput) -> None:
+        """
+        Store original unmodified data for comparison/undo.
+
+        Args:
+            curve_name: Curve to store original data for
+            data: Original curve data before modifications
+        """
+        self._assert_main_thread()
+        self._original_data[curve_name] = list(data)
+        logger.debug(f"Stored original data for '{curve_name}': {len(data)} points")
+
+    def get_original_data(self, curve_name: str) -> CurveDataList:
+        """
+        Get original unmodified data for curve.
+
+        Args:
+            curve_name: Curve to get original data for
+
+        Returns:
+            Copy of original data, or empty list if not set
+        """
+        self._assert_main_thread()
+        return self._original_data.get(curve_name, []).copy()
+
+    def clear_original_data(self, curve_name: str | None = None) -> None:
+        """
+        Clear original data (after committing changes).
+
+        Args:
+            curve_name: Curve to clear, or None to clear all
+        """
+        self._assert_main_thread()
+
+        if curve_name is None:
+            self._original_data.clear()
+            logger.debug("Cleared all original data")
+        elif curve_name in self._original_data:
+            del self._original_data[curve_name]
+            logger.debug(f"Cleared original data for '{curve_name}'")
 
     # ==================== Metadata ====================
 
@@ -858,12 +931,12 @@ class ApplicationState(QObject):
 
     def begin_batch(self) -> None:
         """
-        Begin batch operation mode.
+        Begin batch operation mode (supports nesting).
 
         In batch mode, signals are deferred until end_batch() is called.
         This prevents signal storms when making multiple related changes.
 
-        Thread-safe: Protected by internal mutex for concurrent access safety.
+        Supports nested batches - signals only emit when outermost batch completes.
 
         Example:
             state.begin_batch()
@@ -875,16 +948,13 @@ class ApplicationState(QObject):
         """
         self._assert_main_thread()
 
-        # Critical section: protected by mutex
-        with QMutexLocker(self._mutex):
-            if self._batch_mode:
-                logger.warning("Already in batch mode")
-                return
+        # Support nesting with reference counting
+        self._batch_depth += 1
+        is_outermost = self._batch_depth == 1
 
-            self._batch_mode = True
+        if is_outermost:
             self._pending_signals.clear()
-
-        logger.debug("Batch mode started")
+            logger.debug("Batch mode started")
 
     def end_batch(self) -> None:
         """
@@ -892,103 +962,86 @@ class ApplicationState(QObject):
 
         Signals are emitted in order they were triggered.
         Duplicate signals are eliminated.
-
-        Thread-safe: Protected by internal mutex for concurrent access safety.
-        Signals are emitted outside the lock to prevent deadlock.
         """
         self._assert_main_thread()
 
-        # Critical section: copy pending signals while holding lock
-        with QMutexLocker(self._mutex):
-            if not self._batch_mode:
-                logger.warning("Not in batch mode")
-                return
+        if self._batch_depth == 0:
+            logger.warning("Not in batch mode")
+            return
 
-            self._batch_mode = False
-            # Copy pending signals to emit outside lock (prevents deadlock)
-            signals_to_emit = self._pending_signals.copy()
+        self._batch_depth -= 1
+        is_outermost = self._batch_depth == 0
+
+        if is_outermost:
+            # Emit accumulated signals
+            self._flush_pending_signals()
+            logger.debug("Batch mode ended")
+
+    def _flush_pending_signals(self) -> None:
+        """Emit all pending signals (deduplicated)."""
+        # Deduplicate by signal type - last emission wins
+        unique_signals: dict[SignalInstance, tuple[Any, ...]] = {}
+        for signal, args in self._pending_signals:
+            unique_signals[signal] = args
+
+        # Set flag to prevent reentrancy during emission
+        self._emitting_batch = True
+        try:
+            # Emit in deterministic order
+            for signal, args in unique_signals.items():
+                signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
+        finally:
+            self._emitting_batch = False
             self._pending_signals.clear()
 
-        # Emit signals outside lock to prevent deadlock
-        # Keep LAST occurrence of each signal (not first) to ensure final state is emitted
-        deduped_signals: dict[int, tuple[SignalInstance, tuple[Any, ...]]] = {}
-        for signal, args in signals_to_emit:
-            signal_id = id(signal)
-            deduped_signals[signal_id] = (signal, args)  # Overwrites with latest args
-
-        for signal, args in deduped_signals.values():
-            signal.emit(*args)
-
-        # Always emit state_changed last
-        self.state_changed.emit()
-
-        logger.debug(f"Batch mode ended: {len(deduped_signals)} unique signals emitted")
-
     @contextmanager
-    def batch_updates(self) -> Generator[ApplicationState, None, None]:
+    def batch_updates(self) -> Generator[None, None, None]:
         """
-        Context manager for batch operations.
+        Context manager for batch operations with automatic nesting support.
 
-        Provides cleaner syntax for batching multiple state updates.
-        Automatically calls begin_batch() on entry and end_batch() on exit,
-        ensuring signals are emitted only if the batch completes successfully.
+        Signals are queued during batch operations and emitted once at the end.
+        Supports nested batches - signals only emit when outermost batch completes.
 
-        If an exception occurs during the batch, pending signals are cleared
-        without emission to prevent partial state updates from being broadcast.
-
-        Usage:
+        Example:
             with state.batch_updates():
-                state.set_selected_curves({"Track1"})
-                state.set_show_all_curves(False)
-            # Signals emitted here automatically (only on success)
-
-        Yields:
-            self: The ApplicationState instance for fluent API usage
-
-        Example with fluent API:
-            with state.batch_updates() as s:
-                s.set_selected_curves({"Track1", "Track2"})
-                s.set_show_all_curves(False)
+                state.set_curve_data("Track1", data1)
+                state.set_curve_data("Track2", data2)
+                # Signals emitted once at end
         """
-        self.begin_batch()
-        success = False
+        self._assert_main_thread()
+
+        # Support nesting with reference counting
+        self._batch_depth += 1
+        is_outermost = self._batch_depth == 1
+
+        if is_outermost:
+            self._pending_signals.clear()
+            logger.debug("Batch mode started")
+
         try:
-            yield self
-            success = True
+            yield
         except Exception:
-            logger.exception("Exception during batch update - clearing pending signals")
+            # On exception, still need to clean up
+            if is_outermost:
+                self._pending_signals.clear()
             raise
         finally:
-            if success:
-                self.end_batch()
-            else:
-                # Rollback: clear pending signals without emitting
-                with QMutexLocker(self._mutex):
-                    self._batch_mode = False
-                    self._pending_signals.clear()
+            self._batch_depth -= 1
+
+            if is_outermost:
+                # Emit accumulated signals
+                self._flush_pending_signals()
+                logger.debug("Batch mode ended")
 
     def _emit(self, signal: SignalInstance, args: tuple[Any, ...]) -> None:
-        """
-        Emit signal (or defer if in batch mode).
-
-        Internal method used by all state modification methods.
-
-        Thread-safe: Protected by internal mutex when checking/modifying batch state.
-
-        Args:
-            signal: Qt signal to emit
-            args: Signal arguments as tuple
-        """
-        # Critical section: check batch mode and append if needed
-        with QMutexLocker(self._mutex):
-            if self._batch_mode:
-                # Defer signal (append while holding lock)
-                self._pending_signals.append((signal, args))
-                return
-
-        # Emit immediately (outside lock to prevent deadlock)
-        signal.emit(*args)
-        self.state_changed.emit()
+        """Emit signal immediately or queue if in batch mode."""
+        # Queue if in batch or currently emitting batch signals (prevents reentrancy)
+        if self._batch_depth > 0 or self._emitting_batch:
+            # Queue signal for later
+            self._pending_signals.append((signal, args))
+        else:
+            # Emit immediately
+            signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
 
     # ==================== State Inspection ====================
 
@@ -1008,8 +1061,7 @@ class ApplicationState(QObject):
             "total_selected": total_selected,
             "active_curve": self._active_curve,
             "current_frame": self._current_frame,
-            "view_zoom": self._view_state.zoom,
-            "batch_mode": self._batch_mode,
+            "batch_depth": self._batch_depth,
         }
 
 

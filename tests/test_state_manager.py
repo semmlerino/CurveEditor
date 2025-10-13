@@ -98,6 +98,9 @@ class TestStateManagerInitialization:
         assert hasattr(state_manager, "view_state_changed")
         assert hasattr(state_manager, "selection_changed")
         assert hasattr(state_manager, "frame_changed")
+        assert hasattr(state_manager, "undo_state_changed")
+        assert hasattr(state_manager, "redo_state_changed")
+        assert hasattr(state_manager, "tool_state_changed")
 
 
 class TestStateManagerFileState:
@@ -217,14 +220,6 @@ class TestStateManagerDataState:
         assert state_manager.track_data == data
         assert state_manager.is_modified is False
         assert modified_spy.count() == 0
-
-    def test_set_original_data(self, state_manager):
-        """Test setting original data."""
-        data = [(10.0, 20.0), (30.0, 40.0)]
-        state_manager.set_original_data(data)
-
-        # Original data is internal, test indirectly through behavior
-        # It's used for comparison, stored but not directly accessible
 
     def test_data_bounds_calculation(self, state_manager):
         """Test data bounds calculation."""
@@ -524,6 +519,22 @@ class TestStateManagerUIState:
         state_manager.current_tool = "eraser"
         assert state_manager.current_tool == "eraser"
 
+    def test_tool_state_changed_signal(self, state_manager, qtbot):
+        """Tool changes emit signal."""
+        with qtbot.waitSignal(state_manager.tool_state_changed, timeout=1000) as blocker:
+            state_manager.current_tool = "smooth"
+
+        assert state_manager.current_tool == "smooth"
+        assert blocker.args == ["smooth"]
+
+    def test_tool_no_signal_when_unchanged(self, state_manager, qtbot):
+        """Tool state doesn't emit signal if value doesn't change."""
+        state_manager.current_tool = "select"
+
+        # Try to set same tool - should not emit signal
+        with qtbot.assertNotEmitted(state_manager.tool_state_changed):
+            state_manager.current_tool = "select"
+
 
 class TestStateManagerHistory:
     """Test history state management."""
@@ -545,6 +556,45 @@ class TestStateManagerHistory:
 
         assert state_manager.can_undo is True
         assert state_manager.can_redo is True
+
+    def test_undo_state_changed_signal(self, state_manager, qtbot):
+        """Undo state changes emit signal."""
+        with qtbot.waitSignal(state_manager.undo_state_changed, timeout=1000) as blocker:
+            state_manager.set_history_state(can_undo=True, can_redo=False)
+
+        assert state_manager.can_undo is True
+        assert blocker.args == [True]
+
+    def test_redo_state_changed_signal(self, state_manager, qtbot):
+        """Redo state changes emit signal."""
+        with qtbot.waitSignal(state_manager.redo_state_changed, timeout=1000) as blocker:
+            state_manager.set_history_state(can_undo=False, can_redo=True)
+
+        assert state_manager.can_redo is True
+        assert blocker.args == [True]
+
+    def test_history_state_no_signal_when_unchanged(self, state_manager, qtbot):
+        """History state doesn't emit signals if values don't change."""
+        # Set initial state
+        state_manager.set_history_state(can_undo=True, can_redo=False)
+
+        # Try to set same state - should not emit signals
+        with qtbot.assertNotEmitted(state_manager.undo_state_changed):
+            with qtbot.assertNotEmitted(state_manager.redo_state_changed):
+                state_manager.set_history_state(can_undo=True, can_redo=False)
+
+    def test_history_state_emits_only_changed_signals(self, state_manager, qtbot):
+        """Only changed history values emit signals."""
+        # Set initial state
+        state_manager.set_history_state(can_undo=True, can_redo=False)
+
+        # Change only redo state - undo shouldn't emit, redo should
+        with qtbot.assertNotEmitted(state_manager.undo_state_changed):
+            with qtbot.waitSignal(state_manager.redo_state_changed, timeout=1000) as blocker:
+                state_manager.set_history_state(can_undo=True, can_redo=True)
+
+        # Verify redo signal payload
+        assert blocker.args == [True]
 
 
 class TestStateManagerReset:
@@ -676,7 +726,6 @@ class TestStateManagerIntegration:
         # Load data
         data = [(float(i), float(i * 2)) for i in range(10)]
         state_manager_with_curve.set_track_data(data, mark_modified=False)
-        state_manager_with_curve.set_original_data(data)
 
         # Load image sequence
         images = [f"frame{i:03d}.png" for i in range(1, 11)]
@@ -701,7 +750,6 @@ class TestStateManagerIntegration:
 
         # Save simulation
         state_manager_with_curve.is_modified = False
-        state_manager_with_curve.set_original_data(modified_data)
 
         assert state_manager_with_curve.is_modified is False
 

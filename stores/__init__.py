@@ -5,14 +5,13 @@ This module provides centralized state management with automatic UI updates
 via Qt signals, solving the "orphaned component" problem.
 """
 
-from .application_state import ApplicationState, ViewState, get_application_state, reset_application_state
+from .application_state import ApplicationState, get_application_state, reset_application_state
 from .connection_verifier import ConnectionRegistry, ConnectionReport, ConnectionStatus, ConnectionVerifier
 from .store_manager import StoreManager
 
 __all__ = [
     # ApplicationState architecture
     "ApplicationState",
-    "ViewState",
     "get_application_state",
     "reset_application_state",
     # Legacy stores (maintained for compatibility)

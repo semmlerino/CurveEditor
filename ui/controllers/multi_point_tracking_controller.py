@@ -152,7 +152,6 @@ class MultiPointTrackingController:
             self.main_window.curve_widget.setup_for_pixel_tracking()
             # Use the superior point-level selection system
             self.main_window.curve_widget.set_curve_data(data)
-            self.main_window.state_manager.set_track_data(data, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
             # ALSO update the multi-curve display to maintain proper side pane synchronization
             # This ensures both the superior point-level system AND the tracking panel stay in sync
@@ -239,7 +238,6 @@ class MultiPointTrackingController:
                     self.main_window.curve_widget.setup_for_pixel_tracking()
                     trajectory = self._app_state.get_curve_data(active_point)
                     self.main_window.curve_widget.set_curve_data(trajectory)
-                    self.main_window.state_manager.set_track_data(trajectory, mark_modified=False)  # pyright: ignore[reportArgumentType]
 
                     # AUTO-SELECT point at current frame for immediate superior selection experience
                     self._auto_select_point_at_current_frame()

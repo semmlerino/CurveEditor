@@ -45,6 +45,13 @@ class StateManager(QObject):
     playback_state_changed: Signal = Signal(object)  # Emits PlaybackMode
     active_timeline_point_changed: Signal = Signal(object)  # Emits str | None - active tracking point name
 
+    # History UI state signals (for toolbar button enable/disable)
+    undo_state_changed: Signal = Signal(bool)  # Emits can_undo
+    redo_state_changed: Signal = Signal(bool)  # Emits can_redo
+
+    # Tool state signal
+    tool_state_changed: Signal = Signal(str)  # Emits new tool name
+
     def __init__(self, parent: QObject | None = None):
         """
         Initialize the state manager.
@@ -68,10 +75,9 @@ class StateManager(QObject):
         self._is_modified: bool = False
         self._file_format: str = "txt"
 
-        # Data state
-        self._track_data: list[tuple[float, float]] = []
-        self._original_data: list[tuple[float, float]] = []
-        self._has_data: bool = False
+        # Data state - DEPRECATED: Migrated to ApplicationState (Phases 1-3)
+        # track_data and has_data delegate to ApplicationState
+        # original_data removed (Phase 3) - use ApplicationState.set_original_data() directly
 
         # Selection state - MIGRATED to ApplicationState (Week 5)
         # Removed: self._selected_points (now delegated to ApplicationState per-curve selection)
@@ -82,14 +88,14 @@ class StateManager(QObject):
 
         # View state
         # Removed: self._current_frame (now delegated to ApplicationState)
-        self._total_frames: int = 1
+        # Removed: self._total_frames (now delegated to ApplicationState - Phase 2)
         self._zoom_level: float = 1.0
         self._pan_offset: tuple[float, float] = (0.0, 0.0)
         self._view_bounds: tuple[float, float, float, float] = (0.0, 0.0, 100.0, 100.0)  # min_x, min_y, max_x, max_y
 
         # Image sequence state
         self._image_directory: str | None = None
-        self._image_files: list[str] = []
+        # Removed: self._image_files (now delegated to ApplicationState - Phase 2)
         self._current_image: str | None = None
 
         # Recent directories tracking (for quick access)
@@ -208,43 +214,82 @@ class StateManager(QObject):
 
     @property
     def track_data(self) -> list[tuple[float, float]]:
-        """Get the current track data."""
-        return self._track_data.copy()
+        """Get the current track data (delegated to ApplicationState).
+
+        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
+        New code should use ApplicationState.get_curve_data() directly.
+        """
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            return []
+
+        curve_data = self._app_state.get_curve_data(active_curve)
+        if not curve_data:
+            return []
+
+        # Convert from CurveDataList (with optional status) to (x, y) tuples
+        return [(float(point[1]), float(point[2])) for point in curve_data]
 
     def set_track_data(self, data: list[tuple[float, float]], mark_modified: bool = True) -> None:
-        """
-        Set new track data.
+        """Set new track data (delegated to ApplicationState).
+
+        DEPRECATED: This method delegates to ApplicationState for backward compatibility.
+        New code should use ApplicationState.set_curve_data() directly.
 
         Args:
             data: List of (x, y) coordinate tuples
             mark_modified: Whether to mark the document as modified
         """
-        self._track_data = data.copy()
-        self._has_data = len(data) > 0
+        active_curve = self._app_state.active_curve
+
+        # Create default curve if none exists (for backward compatibility with tests)
+        if not active_curve:
+            default_curve = "__default__"
+            self._app_state.set_active_curve(default_curve)
+            active_curve = default_curve
+            logger.debug(f"Created default curve '{default_curve}' for backward compatibility")
+
+        # Convert from (x, y) tuples to CurveDataList format (frame, x, y)
+        # Generate sequential frame numbers starting from 1
+        curve_data_list = [(i + 1, data[i][0], data[i][1]) for i in range(len(data))]
+
+        self._app_state.set_curve_data(active_curve, curve_data_list)
 
         if mark_modified:
             self.is_modified = True
 
-        logger.debug(f"Track data updated: {len(data)} points")
-
-    def set_original_data(self, data: list[tuple[float, float]]) -> None:
-        """Set the original unmodified data (for comparison)."""
-        self._original_data = data.copy()
-        logger.debug(f"Original data stored: {len(data)} points")
+        logger.debug(f"Track data updated via ApplicationState: {len(data)} points")
 
     @property
     def has_data(self) -> bool:
-        """Check if track data is loaded."""
-        return self._has_data
+        """Check if track data is loaded (delegated to ApplicationState).
+
+        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
+        """
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            return False
+
+        curve_data = self._app_state.get_curve_data(active_curve)
+        return len(curve_data) > 0 if curve_data else False
 
     @property
     def data_bounds(self) -> tuple[float, float, float, float]:
-        """Get data bounds as (min_x, min_y, max_x, max_y)."""
-        if not self._track_data:
+        """Get data bounds as (min_x, min_y, max_x, max_y) (delegated to ApplicationState).
+
+        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
+        """
+        active_curve = self._app_state.active_curve
+        if not active_curve:
             return (0.0, 0.0, 1.0, 1.0)
 
-        x_coords = [point[0] for point in self._track_data]
-        y_coords = [point[1] for point in self._track_data]
+        curve_data = self._app_state.get_curve_data(active_curve)
+        if not curve_data:
+            return (0.0, 0.0, 1.0, 1.0)
+
+        # Extract x and y coordinates (indices 1 and 2 in CurveDataList)
+        x_coords = [float(point[1]) for point in curve_data]
+        y_coords = [float(point[2]) for point in curve_data]
 
         return (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
 
@@ -349,30 +394,66 @@ class StateManager(QObject):
 
     @current_frame.setter
     def current_frame(self, frame: int) -> None:
-        """Set the current frame number (delegated to ApplicationState)."""
-        # Validation with total_frames clamping (StateManager responsibility)
-        frame = max(1, min(frame, self._total_frames))
+        """Set the current frame number (with clamping to valid range).
+
+        Note: Signal emission happens before frame clamping in set_image_files(),
+        creating a brief window where current_frame may exceed total_frames.
+        Observers should clamp defensively if needed.
+        """
+        # Phase 2: Now total_frames is fully migrated, use ApplicationState directly
+        total = self._app_state.get_total_frames()
+        frame = max(1, min(frame, total))
+
         # Delegate to ApplicationState for storage
         self._app_state.set_frame(frame)
-        # Signal already forwarded in __init__
         logger.debug(f"Current frame changed to: {frame}")
 
     @property
     def total_frames(self) -> int:
-        """Get the total number of frames."""
-        return self._total_frames
+        """Get the total number of frames (delegated to ApplicationState).
+
+        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
+        New code should use ApplicationState.get_total_frames() directly.
+
+        Note: total_frames is derived from image_files length, not set directly.
+        """
+        return self._app_state.get_total_frames()
 
     @total_frames.setter
     def total_frames(self, count: int) -> None:
-        """Set the total number of frames."""
-        if self._total_frames != count:
-            self._total_frames = max(1, count)
-            # Ensure current frame is within bounds
-            if self.current_frame > self._total_frames:
-                self.current_frame = self._total_frames
-            # Emit signal so UI can update frame range
-            self.total_frames_changed.emit(self._total_frames)
-            logger.debug(f"Total frames changed to: {self._total_frames}")
+        """Set total frames by creating synthetic image_files list (DEPRECATED).
+
+        DEPRECATED: This setter exists for backward compatibility only.
+        Phase 2: total_frames is derived from image_files length in ApplicationState.
+
+        This setter creates a synthetic empty image_files list of the requested length
+        to maintain the "derived from image_files" invariant.
+
+        New code should use ApplicationState.set_image_files() directly or accept
+        that total_frames is derived from actual image files.
+
+        TODO(Phase 4): Remove this setter after migrating tests to use set_image_files().
+        Currently used by 14 test files - migrate them to ApplicationState.set_image_files().
+
+        Args:
+            count: Desired total frame count (will be clamped to >= 1)
+        """
+        count = max(1, count)
+        current_total = self._app_state.get_total_frames()
+
+        if current_total != count:
+            # Create synthetic image_files list to achieve desired total_frames
+            # This maintains the invariant that total_frames = len(image_files)
+            synthetic_files = [f"<synthetic_frame_{i+1}>" for i in range(count)]
+            self._app_state.set_image_files(synthetic_files)
+
+            # Clamp current frame if it exceeds new total (for backward compatibility)
+            if self.current_frame > count:
+                self.current_frame = count
+
+            # Emit signal for backward compatibility
+            self.total_frames_changed.emit(count)
+            logger.debug(f"Total frames set to {count} via synthetic image_files (DEPRECATED)")
 
     @property
     def zoom_level(self) -> float:
@@ -430,21 +511,40 @@ class StateManager(QObject):
 
     @property
     def image_files(self) -> list[str]:
-        """Get the list of image files."""
-        return self._image_files.copy()
+        """Get the list of image files (delegated to ApplicationState).
+
+        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
+        New code should use ApplicationState.get_image_files() directly.
+        """
+        return self._app_state.get_image_files().copy()  # Defensive copy
 
     def set_image_files(self, files: list[str]) -> None:
-        """Set the list of image files."""
-        self._image_files = files.copy()
-        self.total_frames = len(files) if files else 1
-        logger.debug(f"Image files updated: {len(files)} files")
+        """Set the list of image files (delegated to ApplicationState).
+
+        DEPRECATED: This method delegates to ApplicationState for backward compatibility.
+        New code should use ApplicationState.set_image_files() directly.
+
+        Note: This also updates total_frames automatically in ApplicationState.
+        """
+        self._app_state.set_image_files(files)
+        new_total = self._app_state.get_total_frames()
+
+        # Clamp current frame if it exceeds new total (for backward compatibility)
+        if self.current_frame > new_total:
+            self.current_frame = new_total
+
+        # ApplicationState automatically updates total_frames based on image_files length
+        # Emit signal so UI can update frame range (for backward compatibility)
+        self.total_frames_changed.emit(new_total)
+        logger.debug(f"Set image files: {len(files)} files")
 
     @property
     def current_image(self) -> str | None:
-        """Get the current image file path."""
+        """Get the current image file path (uses ApplicationState for both frame and image_files)."""
         current_frame = self.current_frame  # Use property (delegated to ApplicationState)
-        if self._image_files and 1 <= current_frame <= len(self._image_files):
-            return self._image_files[current_frame - 1]
+        image_files = self._app_state.get_image_files()  # Phase 2: Get from ApplicationState
+        if image_files and 1 <= current_frame <= len(image_files):
+            return image_files[current_frame - 1]
         return None
 
     @property
@@ -502,19 +602,42 @@ class StateManager(QObject):
 
     @current_tool.setter
     def current_tool(self, tool: str) -> None:
-        """Set the current tool."""
+        """Set the current tool and emit signal if changed.
+
+        Signals:
+            Emits tool_state_changed if tool value changes.
+        """
         if self._current_tool != tool:
             self._current_tool = tool
+            self._emit_signal(self.tool_state_changed, tool)  # pyright: ignore[reportArgumentType]
             logger.debug(f"Current tool changed to: {tool}")
 
     # ==================== History State Properties ====================
 
     def set_history_state(self, can_undo: bool, can_redo: bool, position: int = 0, size: int = 0) -> None:
-        """Update history state information."""
-        self._can_undo = can_undo
-        self._can_redo = can_redo
+        """Update history state information.
+
+        Args:
+            can_undo: Whether undo is available
+            can_redo: Whether redo is available
+            position: Current position in history (optional)
+            size: Total history size (optional)
+
+        Signals:
+            Emits undo_state_changed if can_undo value changes.
+            Emits redo_state_changed if can_redo value changes.
+        """
         self._history_position = position
         self._history_size = size
+
+        # Emit signals only if values changed (prevent unnecessary UI updates)
+        if self._can_undo != can_undo:
+            self._can_undo = can_undo
+            self._emit_signal(self.undo_state_changed, can_undo)  # pyright: ignore[reportArgumentType]
+
+        if self._can_redo != can_redo:
+            self._can_redo = can_redo
+            self._emit_signal(self.redo_state_changed, can_redo)  # pyright: ignore[reportArgumentType]
 
     @property
     def can_undo(self) -> bool:
@@ -625,47 +748,43 @@ class StateManager(QObject):
         self._is_modified = False
         self._file_format = "txt"
 
-        # Data state
-        self._track_data.clear()
-        self._original_data.clear()
-        self._has_data = False
+        # Data state - now managed by ApplicationState, clear all curves
+        for curve in list(self._app_state.get_all_curve_names()):
+            self._app_state.delete_curve(curve)
+        self._app_state.set_active_curve(None)
 
-        # Selection state (delegated to ApplicationState)
-        curve_name = self._get_curve_name_for_selection()
-        self._app_state.clear_selection(curve_name)
+        # Selection state - emit signal since curves were deleted
         self._hover_point = None
+        self.selection_changed.emit(set())  # Emit empty selection
 
         # View state (delegated to ApplicationState for frame)
         self._app_state.set_frame(1)
-        self._total_frames = 1
         self._zoom_level = 1.0
         self._pan_offset = (0.0, 0.0)
 
-        # Image sequence state
+        # Image sequence state (delegated to ApplicationState for image_files - Phase 2)
         self._image_directory = None
-        self._image_files.clear()
+        self._app_state.set_image_files([])
 
         # Recent directories
         self._recent_directories.clear()
 
-        # Tools state
-        self._current_tool = "select"
+        # Tools state (use setter to emit signal - Phase 4)
+        self.current_tool = "select"
         self._tool_options.clear()
 
         # Smoothing state
         self._smoothing_window_size = 5
         self._smoothing_filter_type = "moving_average"
 
-        # History state
-        self._history_position = 0
-        self._history_size = 0
-        self._can_undo = False
-        self._can_redo = False
+        # History state (use method to emit signals - Phase 4)
+        self.set_history_state(can_undo=False, can_redo=False, position=0, size=0)
 
         # Reset playback mode
         self._playback_mode = PlaybackMode.STOPPED
 
         # Emit relevant signals (frame_changed and selection_changed forwarded from ApplicationState)
+        # Note: tool_state_changed, undo_state_changed, redo_state_changed emitted above via setters
         self.file_changed.emit("")
         self.modified_changed.emit(False)
         self.view_state_changed.emit()
@@ -682,9 +801,9 @@ class StateManager(QObject):
                 "file_format": self._file_format,
             },
             "data": {
-                "has_data": self._has_data,
-                "point_count": len(self._track_data),
-                "data_bounds": self.data_bounds if self._has_data else None,
+                "has_data": self.has_data,  # Use property (delegated to ApplicationState)
+                "point_count": len(self.track_data),  # Use property (delegated to ApplicationState)
+                "data_bounds": self.data_bounds if self.has_data else None,  # Use property
             },
             "selection": {
                 "selected_count": len(self.selected_points),  # Use property (delegated to ApplicationState)
@@ -692,13 +811,13 @@ class StateManager(QObject):
             },
             "view": {
                 "current_frame": self.current_frame,  # Use property (delegated to ApplicationState)
-                "total_frames": self._total_frames,
+                "total_frames": self.total_frames,  # Use property (delegated to ApplicationState - Phase 2)
                 "zoom_level": self._zoom_level,
                 "pan_offset": self._pan_offset,
             },
             "images": {
                 "image_directory": self._image_directory,
-                "image_count": len(self._image_files),
+                "image_count": len(self.image_files),  # Use property (delegated to ApplicationState - Phase 2)
                 "current_image": self.current_image,
             },
             "history": {
