@@ -55,7 +55,7 @@ from PySide6.QtWidgets import (
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
-from stores import get_store_manager
+from stores import StoreManager, get_store_manager
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
@@ -212,7 +212,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
         # Get store manager (CurveDataStore removed in Phase 6.3)
-        self._store_manager = get_store_manager()
+        self._store_manager: StoreManager = get_store_manager()
 
         # Connect StateManager to FrameStore for delegation
         self._store_manager.set_state_manager(self.state_manager)
@@ -229,7 +229,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Frame change coordinator (replaces 6 independent frame_changed connections)
         from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
 
-        self.frame_change_coordinator = FrameChangeCoordinator(self)
+        self.frame_change_coordinator: FrameChangeCoordinator = FrameChangeCoordinator(self)
 
         self.signal_manager = SignalConnectionManager(self)
 
@@ -260,10 +260,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.max_history_size: int = MAX_HISTORY_SIZE
 
         # File operations are now handled by FileOperations class
-        self._file_loading: bool = False  # Track if file loading is in progress
+        # Note: _file_loading already declared at class level (line 104)
 
         # Initialize centering state
-        self.auto_center_enabled: bool = False
+        # Note: auto_center_enabled already declared at class level (line 105)
 
         # Image data now managed by ViewManagementController
 
@@ -349,7 +349,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         from core.models import TrackingDirection
 
         # Create shortcut registry
-        self.shortcut_registry = ShortcutRegistry()
+        self.shortcut_registry: ShortcutRegistry = ShortcutRegistry()
 
         # Register shortcuts
         # Undo/Redo shortcuts
@@ -392,7 +392,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.shortcut_registry.register(DeselectAllCommand())
 
         # Install global event filter
-        self.global_event_filter = GlobalEventFilter(self, self.shortcut_registry)
+        self.global_event_filter: GlobalEventFilter = GlobalEventFilter(self, self.shortcut_registry)
         app = QApplication.instance()
         if app:
             app.installEventFilter(self.global_event_filter)
@@ -574,7 +574,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         return getattr(self, "_view_update_manager", None)
 
     # MainWindowProtocol required methods
-    def restore_state(self, state: object) -> None:
+    def restore_state(self, _state: object) -> None:
         """Restore state from history (delegate to state manager)."""
         # This method is required by MainWindowProtocol but actual implementation
         # is handled by the state manager and services
@@ -627,24 +627,24 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # ==================== Action Handlers ====================
 
     @Slot()
-    def _on_action_new(self) -> None:
+    def on_action_new(self) -> None:
         """Handle new file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_new()
+        self.action_controller._on_action_new()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_open(self) -> None:
+    def on_action_open(self) -> None:
         """Handle open file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_open()
+        self.action_controller._on_action_open()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_save(self) -> None:
+    def on_action_save(self) -> None:
         """Handle save file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_save()
+        self.action_controller._on_action_save()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_save_as(self) -> None:
+    def on_action_save_as(self) -> None:
         """Handle save as action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_save_as()
+        self.action_controller._on_action_save_as()  # pyright: ignore[reportPrivateUsage]
 
     def _cleanup_file_load_thread(self) -> None:
         """Clean up file loading thread - delegates to FileOperations."""
@@ -692,30 +692,30 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._file_loading = False
 
     @Slot()
-    def _on_action_undo(self) -> None:
+    def on_action_undo(self) -> None:
         """Handle undo action (delegated to ActionHandlerController)."""
-        logger.info("MainWindow._on_action_undo called")
-        self.action_controller._on_action_undo()
+        logger.info("MainWindow.on_action_undo called")
+        self.action_controller._on_action_undo()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_redo(self) -> None:
+    def on_action_redo(self) -> None:
         """Handle redo action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_redo()
+        self.action_controller._on_action_redo()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_zoom_in(self) -> None:
+    def on_action_zoom_in(self) -> None:
         """Handle zoom in action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_zoom_in()
+        self.action_controller._on_action_zoom_in()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_zoom_out(self) -> None:
+    def on_action_zoom_out(self) -> None:
         """Handle zoom out action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_zoom_out()
+        self.action_controller._on_action_zoom_out()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_action_reset_view(self) -> None:
+    def on_action_reset_view(self) -> None:
         """Handle reset view action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_reset_view()
+        self.action_controller._on_action_reset_view()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
     def _on_toggle_grid(self) -> None:
@@ -725,44 +725,44 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.show_grid_cb.setChecked(not self.show_grid_cb.isChecked())
 
     @Slot()
-    def _on_load_images(self) -> None:
+    def on_load_images(self) -> None:
         """Handle load background images action (delegated to ActionHandlerController)."""
-        self.action_controller._on_load_images()
+        self.action_controller._on_load_images()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_export_data(self) -> None:
+    def on_export_data(self) -> None:
         """Handle export curve data action (delegated to ActionHandlerController)."""
-        self.action_controller._on_export_data()
+        self.action_controller._on_export_data()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_select_all(self) -> None:
+    def on_select_all(self) -> None:
         """Handle select all action (delegated to ActionHandlerController)."""
-        self.action_controller._on_select_all()
+        self.action_controller._on_select_all()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_add_point(self) -> None:
+    def on_add_point(self) -> None:
         """Handle add point action (delegated to ActionHandlerController)."""
-        self.action_controller._on_add_point()
+        self.action_controller._on_add_point()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_zoom_fit(self) -> None:
+    def on_zoom_fit(self) -> None:
         """Handle zoom fit action (delegated to ActionHandlerController)."""
-        self.action_controller._on_zoom_fit()
+        self.action_controller._on_zoom_fit()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_smooth_curve(self) -> None:
+    def on_smooth_curve(self) -> None:
         """Handle smooth curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_smooth_curve()
+        self.action_controller._on_smooth_curve()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_filter_curve(self) -> None:
+    def on_filter_curve(self) -> None:
         """Handle filter curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_filter_curve()
+        self.action_controller._on_filter_curve()  # pyright: ignore[reportPrivateUsage]
 
     @Slot()
-    def _on_analyze_curve(self) -> None:
+    def on_analyze_curve(self) -> None:
         """Handle analyze curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_analyze_curve()
+        self.action_controller._on_analyze_curve()  # pyright: ignore[reportPrivateUsage]
 
     # ==================== State Change Handlers ====================
 
@@ -962,7 +962,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
-        return self.action_controller._get_current_curve_data()  # pyright: ignore[reportReturnType]
+        return self.action_controller._get_current_curve_data()  # pyright: ignore[reportReturnType, reportPrivateUsage]
 
     def _verify_connections(self) -> None:
         """
@@ -1013,7 +1013,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         compliance_failures = []
         for controller, protocol, name in protocol_checks:
-            if not isinstance(controller, protocol):
+            # Protocol check - structural typing means this is always true but verifies at runtime
+            if not isinstance(controller, protocol):  # pyright: ignore[reportUnnecessaryIsInstance]
                 compliance_failures.append(f"{name} does not implement {protocol.__name__}")
 
         if compliance_failures:
@@ -1236,8 +1237,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Stop playback timer if running
         if getattr(self, "timeline_controller", None) is not None:
             self.timeline_controller.stop_playback()
-            if getattr(self.timeline_controller, "playback_timer", None) is not None:
-                self.timeline_controller.playback_timer.stop()
+            # Note: playback_timer access handled by stop_playback() method
 
         # Stop any file operation threads
         # file_operations is always initialized in __init__

@@ -78,6 +78,8 @@ if TYPE_CHECKING:
     from typing import Protocol
 
     from services.interaction_service import InteractionService
+    from stores import StoreManager
+    from stores.application_state import ApplicationState
     from ui.controllers.curve_view.state_sync_controller import StateSyncController
     from ui.controllers.view_camera_controller import ViewCameraController
     from ui.state_manager import StateManager
@@ -161,11 +163,11 @@ class CurveViewWidget(QWidget):
         self.signal_manager: SignalManager = SignalManager(self)
 
         # Store injected state manager
-        self._state_manager = state_manager
+        self._state_manager: StateManager | None = state_manager
 
         # Get store manager and ApplicationState
-        self._store_manager = get_store_manager()
-        self._app_state = get_application_state()
+        self._store_manager: StoreManager = get_store_manager()
+        self._app_state: ApplicationState = get_application_state()
 
         # NEW: Subscribe to selection state changes for repainting
         # Use SignalManager to ensure automatic cleanup on widget destruction
@@ -305,15 +307,13 @@ class CurveViewWidget(QWidget):
         return self._app_state.get_curve_data(active_curve)
 
     @curve_data.setter
-    def curve_data(self, value: CurveDataList) -> None:
+    def curve_data(self, _value: CurveDataList) -> None:
         """Prevent writes - property is read-only.
 
         Raises:
             AttributeError: Always raised - property is read-only
         """
-        raise AttributeError(
-            "widget.curve_data is read-only. " "Use app_state.set_curve_data(curve_name, data) instead."
-        )
+        raise AttributeError("widget.curve_data is read-only. Use app_state.set_curve_data(curve_name, data) instead.")
 
     @property
     def selected_indices(self) -> set[int]:
@@ -325,14 +325,14 @@ class CurveViewWidget(QWidget):
         return self._app_state.get_selection(active_curve)
 
     @selected_indices.setter
-    def selected_indices(self, value: set[int]) -> None:
+    def selected_indices(self, _value: set[int]) -> None:
         """Prevent writes - property is read-only.
 
         Raises:
             AttributeError: Always raised - property is read-only
         """
         raise AttributeError(
-            "widget.selected_indices is read-only. " "Use app_state.set_selection(curve_name, indices) instead."
+            "widget.selected_indices is read-only. Use app_state.set_selection(curve_name, indices) instead."
         )
 
     @property
@@ -348,7 +348,7 @@ class CurveViewWidget(QWidget):
         return get_application_state().active_curve
 
     @property
-    def curves_data(self) -> dict[str, list[tuple[int, float, float] | tuple[int, float, float, str | bool]]]:
+    def curves_data(self) -> dict[str, CurveDataList]:
         """Get all curves data from ApplicationState.
 
         Phase 4: Removed __default__ filtering - all curves are real named curves.
@@ -358,7 +358,7 @@ class CurveViewWidget(QWidget):
         from stores.application_state import get_application_state
 
         app_state = get_application_state()
-        result = {}
+        result: dict[str, CurveDataList] = {}
         for curve_name in app_state.get_all_curve_names():
             result[curve_name] = app_state.get_curve_data(curve_name)
         return result
@@ -569,7 +569,7 @@ class CurveViewWidget(QWidget):
     def set_curves_data(
         self,
         curves: dict[str, CurveDataList],
-        metadata: dict[str, dict[str, Any]] | None = None,
+        metadata: dict[str, dict[str, object]] | None = None,
         active_curve: str | None = None,
         selected_curves: list[str] | None = None,
     ) -> None:
@@ -586,7 +586,7 @@ class CurveViewWidget(QWidget):
         """
         self.data_facade.set_curves_data(curves, metadata, active_curve, selected_curves)
 
-    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, object] | None = None) -> None:
         """
         Add a new curve to the display.
 
@@ -1104,7 +1104,8 @@ class CurveViewWidget(QWidget):
                     action.setCheckable(True)
                     action.setChecked(True)
                 # Connect to handler
-                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
+                # Note: PySide6 signal connect requires Callable, lambda type hints not supported
+                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))  # pyright: ignore[reportUnknownLambdaType]
 
             # Add separator
             _ = menu.addSeparator()
@@ -1219,7 +1220,7 @@ class CurveViewWidget(QWidget):
             logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled via legacy call)")
             self.center_on_frame(frame)
 
-    def _on_selection_state_changed(self, selected_curves: set[str], show_all: bool) -> None:
+    def _on_selection_state_changed(self, selected_curves: set[str], _show_all: bool) -> None:
         """
         Update widget and repaint when ApplicationState selection changes.
 
@@ -1230,7 +1231,7 @@ class CurveViewWidget(QWidget):
 
         Args:
             selected_curves: Selected curve names from ApplicationState
-            show_all: Show-all mode from ApplicationState
+            _show_all: Show-all mode from ApplicationState (unused, display_mode computed from ApplicationState)
         """
         # FIX #2: Update widget's local fields for rendering
         # These are caches of ApplicationState for O(1) membership checks
@@ -1563,8 +1564,8 @@ class CurveViewWidget(QWidget):
         from services import get_interaction_service
 
         # Collect moves and status changes
-        moves = []
-        status_changes = []
+        moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
+        status_changes: list[tuple[int, str, str]] = []
         for idx in self.selected_indices:
             if 0 <= idx < len(self.curve_data):
                 _, x, y, _ = safe_extract_point(self.curve_data[idx])
@@ -1578,10 +1579,12 @@ class CurveViewWidget(QWidget):
                     old_status = point[3]
                     # Convert bool to string if needed
                     if isinstance(old_status, bool):
-                        old_status = "interpolated" if old_status else "normal"
+                        old_status_str: str = "interpolated" if old_status else "normal"
+                    else:
+                        old_status_str = str(old_status)
                     # Only add status change if not already a keyframe
-                    if old_status != PointStatus.KEYFRAME.value:
-                        status_changes.append((idx, old_status, PointStatus.KEYFRAME.value))
+                    if old_status_str != PointStatus.KEYFRAME.value:
+                        status_changes.append((idx, old_status_str, PointStatus.KEYFRAME.value))
                 else:
                     # 3-tuple point has implicit "normal" status
                     status_changes.append((idx, "normal", PointStatus.KEYFRAME.value))
@@ -1626,7 +1629,7 @@ class CurveViewWidget(QWidget):
 
         # Collect points to delete
         indices = list(self.selected_indices)
-        deleted_points = []
+        deleted_points: list[tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]] = []
         for idx in sorted(indices):
             if 0 <= idx < len(self.curve_data):
                 deleted_points.append((idx, self.curve_data[idx]))
@@ -1792,7 +1795,7 @@ class CurveViewWidget(QWidget):
         return 0
 
     @current_image_idx.setter
-    def current_image_idx(self, value: int) -> None:
+    def current_image_idx(self, _value: int) -> None:
         """Set current image index (protocol compatibility).
 
         Note: This is a no-op as image index is managed by ViewManagementController.
@@ -1867,11 +1870,11 @@ class CurveViewWidget(QWidget):
         self.show_background = visible
         self.update()
 
-    def toggle_point_interpolation(self, idx: int) -> None:
+    def toggle_point_interpolation(self, _idx: int) -> None:
         """Toggle interpolation status of a point (protocol compatibility).
 
         Args:
-            idx: Point index to toggle
+            _idx: Point index to toggle (unused)
         """
         # This is a no-op as interpolation status is managed differently
         # in the current architecture (via PointStatus)
@@ -1974,9 +1977,10 @@ if __name__ == "__main__":
     main_window.setCentralWidget(curve_widget)
 
     # Connect signals for testing
-    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))
-    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))
-    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))
+    # Note: PySide6 signal connect requires Callable, lambda type hints not supported
+    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))  # pyright: ignore[reportUnknownLambdaType]
+    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))  # pyright: ignore[reportUnknownLambdaType]
+    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))  # pyright: ignore[reportUnknownLambdaType]
 
     main_window.show()
     sys.exit(app.exec())

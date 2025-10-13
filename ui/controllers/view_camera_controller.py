@@ -18,9 +18,9 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Protocol
 
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF, SignalInstance
 from PySide6.QtGui import QPixmap, QWheelEvent
 
 from core.logger_utils import get_logger
@@ -54,9 +54,10 @@ class CurveViewProtocol(Protocol):
     manual_offset_x: float
     manual_offset_y: float
 
-    # Signals (use Any because Qt Signals are descriptors that can't be properly typed in Protocols)
-    zoom_changed: Any  # Signal
-    view_changed: Any  # Signal
+    # Signals - Qt Signal instances (bound at runtime)
+    # SignalInstance represents the bound signal with emit() method
+    zoom_changed: SignalInstance  # Signal(float)
+    view_changed: SignalInstance  # Signal()
 
     # Methods
     def width(self) -> int: ...
@@ -116,7 +117,8 @@ class ViewCameraController:
     def _update_transform(self) -> None:
         """Update the cached transformation object using TransformService for LRU caching."""
         # Calculate display dimensions using widget helper method
-        display_width, display_height = self.widget._get_display_dimensions()
+        # Protocol explicitly declares this method as part of the interface
+        display_width, display_height = self.widget._get_display_dimensions()  # pyright: ignore[reportPrivateUsage]
 
         logger.info(
             f"[TRANSFORM] Display dimensions: {display_width}x{display_height}, zoom_factor: {self.zoom_factor}"
@@ -490,7 +492,8 @@ class ViewCameraController:
             ViewState object with current parameters
         """
         # Calculate display dimensions using widget helper method
-        display_width, display_height = self.widget._get_display_dimensions()
+        # Protocol explicitly declares this method as part of the interface
+        display_width, display_height = self.widget._get_display_dimensions()  # pyright: ignore[reportPrivateUsage]
 
         return ViewState(
             display_width=display_width,

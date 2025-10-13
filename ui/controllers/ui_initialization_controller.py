@@ -6,16 +6,20 @@ This controller handles all UI component initialization that was previously
 handled directly in MainWindow, reducing MainWindow complexity.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QCheckBox,
+    QComboBox,
     QDockWidget,
     QDoubleSpinBox,
     QFrame,
+    QHBoxLayout,
     QLabel,
+    QPushButton,
     QSlider,
+    QSpinBox,
     QStatusBar,
     QStyle,
     QToolBar,
@@ -39,6 +43,9 @@ class UIInitializationController:
     compatibility with existing component structure.
     """
 
+    # Explicit attribute declarations for type checking
+    main_window: "MainWindow"
+
     def __init__(self, main_window: "MainWindow"):
         """
         Initialize the UI initialization controller.
@@ -46,7 +53,7 @@ class UIInitializationController:
         Args:
             main_window: Reference to the main window for UI component setup
         """
-        self.main_window: MainWindow = main_window
+        self.main_window = main_window
         logger.info("UIInitializationController initialized")
 
     def initialize_ui(self) -> None:
@@ -120,41 +127,41 @@ class UIInitializationController:
         file_menu = menubar.addMenu("&File")
         for action in self.main_window.shortcut_manager.get_file_actions():
             if action is None:
-                file_menu.addSeparator()
+                _ = file_menu.addSeparator()
             else:
-                file_menu.addAction(action)
+                _ = file_menu.addAction(action)
 
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
         for action in self.main_window.shortcut_manager.get_edit_actions():
             if action is None:
-                edit_menu.addSeparator()
+                _ = edit_menu.addSeparator()
             else:
-                edit_menu.addAction(action)
+                _ = edit_menu.addAction(action)
 
         # View menu
         view_menu = menubar.addMenu("&View")
         for action in self.main_window.shortcut_manager.get_view_actions():
             if action is None:
-                view_menu.addSeparator()
+                _ = view_menu.addSeparator()
             else:
-                view_menu.addAction(action)
+                _ = view_menu.addAction(action)
 
         # Curve menu
         curve_menu = menubar.addMenu("&Curve")
         for action in self.main_window.shortcut_manager.get_curve_actions():
             if action is None:
-                curve_menu.addSeparator()
+                _ = curve_menu.addSeparator()
             else:
-                curve_menu.addAction(action)
+                _ = curve_menu.addAction(action)
 
         # Navigation menu
         nav_menu = menubar.addMenu("&Navigation")
         for action in self.main_window.shortcut_manager.get_navigation_actions():
             if action is None:
-                nav_menu.addSeparator()
+                _ = nav_menu.addSeparator()
             else:
-                nav_menu.addAction(action)
+                _ = nav_menu.addAction(action)
 
     def _init_toolbar(self) -> None:
         """Initialize the main toolbar."""
@@ -189,8 +196,6 @@ class UIInitializationController:
         _ = toolbar.addSeparator()
 
         # Add smoothing controls to toolbar wrapped in distinct frame
-        from PySide6.QtWidgets import QComboBox, QFrame, QHBoxLayout, QSpinBox
-
         # Create container frame for smoothing controls with distinct styling
         smoothing_frame = QFrame()
         smoothing_frame.setObjectName("smoothingControlsFrame")
@@ -245,10 +250,10 @@ class UIInitializationController:
 
         # Add frame control to toolbar (from TimelineController)
         _ = toolbar.addWidget(QLabel("Frame:"))
-        frame_spinbox = self.main_window.timeline_controller.frame_spinbox
-        if isinstance(frame_spinbox, QWidget):
-            self.main_window.frame_spinbox = frame_spinbox  # pyright: ignore[reportAttributeAccessIssue]
-            _ = toolbar.addWidget(frame_spinbox)
+        # Access timeline controller widgets via cast - not exposed in protocol
+        frame_spinbox = cast(QSpinBox, getattr(self.main_window.timeline_controller, "frame_spinbox"))
+        self.main_window.frame_spinbox = frame_spinbox
+        _ = toolbar.addWidget(frame_spinbox)
         self.main_window.ui.timeline.frame_spinbox = self.main_window.frame_spinbox  # Map to timeline group
         _ = toolbar.addSeparator()
 
@@ -307,15 +312,19 @@ class UIInitializationController:
         self.main_window.ui.visualization.line_width_slider = self.main_window.line_width_slider
 
         # Playback controls from TimelineController
-        self.main_window.btn_play_pause = self.main_window.timeline_controller.btn_play_pause  # pyright: ignore[reportAttributeAccessIssue]
+        # Access timeline controller widgets via cast - not exposed in protocol
+        btn_play_pause = cast(QPushButton, getattr(self.main_window.timeline_controller, "btn_play_pause"))
+        self.main_window.btn_play_pause = btn_play_pause
         self.main_window.ui.timeline.play_button = self.main_window.btn_play_pause
 
         # FPS control from TimelineController
-        self.main_window.fps_spinbox = self.main_window.timeline_controller.fps_spinbox  # pyright: ignore[reportAttributeAccessIssue]
+        fps_spinbox = cast(QSpinBox, getattr(self.main_window.timeline_controller, "fps_spinbox"))
+        self.main_window.fps_spinbox = fps_spinbox
         self.main_window.ui.timeline.fps_spinbox = self.main_window.fps_spinbox
 
         # Frame slider from TimelineController
-        self.main_window.frame_slider = self.main_window.timeline_controller.frame_slider  # pyright: ignore[reportAttributeAccessIssue]
+        frame_slider = cast(QSlider, getattr(self.main_window.timeline_controller, "frame_slider"))
+        self.main_window.frame_slider = frame_slider
         self.main_window.ui.timeline.timeline_slider = self.main_window.frame_slider
 
         # Labels
@@ -386,7 +395,7 @@ class UIInitializationController:
         layout.addWidget(self.main_window.curve_widget)
 
         # Set focus to curve widget after creation
-        def set_focus_safe():
+        def set_focus_safe() -> None:
             try:
                 if self.main_window.curve_widget is not None:
                     self.main_window.curve_widget.setFocus()
@@ -394,7 +403,7 @@ class UIInitializationController:
                 # Widget was deleted or not yet initialized
                 pass
 
-        QTimer.singleShot(100, set_focus_safe)
+        QTimer.singleShot(100, set_focus_safe)  # pyright: ignore[reportUnknownMemberType]
 
         logger.info("CurveViewWidget created and integrated")
 

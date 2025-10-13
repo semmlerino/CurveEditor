@@ -1,3 +1,4 @@
+# pyright: reportImportCycles=false
 """
 FrameChangeCoordinator - Coordinates all frame change responses.
 

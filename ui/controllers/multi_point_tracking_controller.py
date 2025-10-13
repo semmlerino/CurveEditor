@@ -695,7 +695,7 @@ class MultiPointTrackingController:
         # Check if curve widget supports multi-curve display (curve_widget guaranteed non-None by line 683 hasattr check)
         if callable(getattr(self.main_window.curve_widget, "set_curves_data", None)):
             # Get metadata from tracking panel if available
-            metadata: dict[str, dict[str, str | bool]] = {}
+            metadata: dict[str, dict[str, object]] = {}
             if self.main_window.tracking_panel is not None:
                 # Use public interface for getting point metadata
                 for name in self._app_state.get_all_curve_names():

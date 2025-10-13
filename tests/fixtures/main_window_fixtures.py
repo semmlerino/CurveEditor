@@ -265,7 +265,7 @@ class MainWindowTestHelper:
         """Simulate loading a file through the UI."""
         with patch("ui.main_window.QFileDialog.getOpenFileName") as mock_dialog:
             mock_dialog.return_value = (file_path, "")
-            window._on_action_open()
+            window.on_action_open()
 
     @staticmethod
     def simulate_image_load(window: MainWindow, image_dir: str):

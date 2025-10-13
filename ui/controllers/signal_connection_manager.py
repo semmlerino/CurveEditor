@@ -57,9 +57,9 @@ class SignalConnectionManager:
     def _connect_file_operations_signals(self) -> None:
         """Connect signals from file operations manager."""
         # Connect file loading signals
-        _ = self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)
+        _ = self.main_window.file_operations.tracking_data_loaded.connect(self.main_window.on_tracking_data_loaded)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         _ = self.main_window.file_operations.multi_point_data_loaded.connect(
-            self.main_window.on_multi_point_data_loaded
+            self.main_window.on_multi_point_data_loaded  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         )
         _ = self.main_window.file_operations.image_sequence_loaded.connect(
             self.main_window.view_management_controller.on_image_sequence_loaded
@@ -79,23 +79,23 @@ class SignalConnectionManager:
         # Connect state manager signals
         _ = self.main_window.state_manager.file_changed.connect(self.main_window.on_file_changed)
         _ = self.main_window.state_manager.modified_changed.connect(self.main_window.on_modified_changed)
-        _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)
+        _ = self.main_window.state_manager.selection_changed.connect(self.main_window.on_selection_changed)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         _ = self.main_window.state_manager.view_state_changed.connect(self.main_window.on_view_state_changed)
 
         # Connect total_frames_changed to update timeline range
         _ = self.main_window.state_manager.total_frames_changed.connect(
-            lambda total: self.main_window.timeline_controller.set_frame_range(1, total)
+            lambda total: self.main_window.timeline_controller.set_frame_range(1, total)  # pyright: ignore[reportUnknownLambdaType, reportUnknownArgumentType]
         )
 
         # Connect timeline_tabs to StateManager as observer
         if self.main_window.timeline_tabs:
-            self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)
+            self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)  # pyright: ignore[reportUnknownMemberType]
 
         # Connect timeline controller signals (unified playback and navigation)
-        _ = self.main_window.timeline_controller.frame_changed.connect(
+        _ = self.main_window.timeline_controller.frame_changed.connect(  # pyright: ignore[reportAny]
             self.main_window.on_frame_changed_from_controller
         )
-        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)
+        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAny]
 
         # NOTE: timeline_tabs.frame_changed connection REMOVED to prevent circular signal flow
         # With StateManager as single source of truth, timeline_tabs delegates frame changes
@@ -116,7 +116,7 @@ class SignalConnectionManager:
         # Connect curve widget signals to handlers
         _ = self.main_window.curve_widget.point_selected.connect(self.main_window.on_point_selected)
         _ = self.main_window.curve_widget.point_moved.connect(self.main_window.on_point_moved)
-        _ = self.main_window.curve_widget.selection_changed.connect(self.main_window.on_curve_selection_changed)
+        _ = self.main_window.curve_widget.selection_changed.connect(self.main_window.on_curve_selection_changed)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
         _ = self.main_window.curve_widget.view_changed.connect(self.main_window.on_curve_view_changed)
         _ = self.main_window.curve_widget.zoom_changed.connect(self.main_window.on_curve_zoom_changed)
         # Timeline now updates automatically via store signals - no manual connection needed
