@@ -9,7 +9,7 @@ This unified controller manages all view-related functionality including:
 """
 
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, TypedDict
 from weakref import WeakKeyDictionary
 
 from PySide6.QtCore import QThread, Slot
@@ -24,6 +24,20 @@ from core.logger_utils import get_logger
 logger = get_logger("view_management_controller")
 
 
+class ViewOptions(TypedDict, total=False):
+    """Type definition for view options dictionary.
+
+    All fields are optional since not all UI widgets may be present.
+    """
+
+    show_background: bool
+    show_grid: bool
+    show_info: bool
+    show_tooltips: bool
+    point_size: int
+    line_width: int
+
+
 class ViewManagementController:
     """
     Unified controller for all view management and visual settings.
@@ -31,6 +45,8 @@ class ViewManagementController:
     Combines functionality from ViewOptionsController and BackgroundImageController
     into a single coherent controller managing all visual aspects of the application.
     """
+
+    main_window: "MainWindow"
 
     def __init__(self, main_window: "MainWindow"):
         """
@@ -132,14 +148,14 @@ class ViewManagementController:
                     widget.setToolTip("")
             logger.info("Tooltips disabled")
 
-    def get_view_options(self) -> dict[str, object]:
+    def get_view_options(self) -> ViewOptions:
         """
         Get current view options as a dictionary.
 
         Returns:
             Dictionary of view option settings
         """
-        options = {}
+        options: ViewOptions = {}
 
         if self.main_window.show_background_cb:
             options["show_background"] = self.main_window.show_background_cb.isChecked()
@@ -156,7 +172,7 @@ class ViewManagementController:
 
         return options
 
-    def set_view_options(self, options: dict[str, object]) -> None:
+    def set_view_options(self, options: ViewOptions) -> None:
         """
         Set view options from a dictionary.
 
@@ -172,15 +188,9 @@ class ViewManagementController:
         if "show_tooltips" in options and self.main_window.show_tooltips_cb:
             self.main_window.show_tooltips_cb.setChecked(bool(options["show_tooltips"]))
         if "point_size" in options and self.main_window.point_size_slider:
-            # Convert to int safely - value should be numeric
-            point_size_val = options["point_size"]
-            if isinstance(point_size_val, int | float | str):
-                self.main_window.point_size_slider.setValue(int(point_size_val))
+            self.main_window.point_size_slider.setValue(options["point_size"])
         if "line_width" in options and self.main_window.line_width_slider:
-            # Convert to int safely - value should be numeric
-            line_width_val = options["line_width"]
-            if isinstance(line_width_val, int | float | str):
-                self.main_window.line_width_slider.setValue(int(line_width_val))
+            self.main_window.line_width_slider.setValue(options["line_width"])
 
         # Apply the options
         self.update_curve_view_options()
@@ -220,15 +230,6 @@ class ViewManagementController:
             # Update state manager
             if self.main_window.state_manager:
                 self.main_window.state_manager.set_image_files(image_files)
-
-            # Update timeline to reflect image sequence range
-            if self.main_window.timeline_tabs:
-                # Trigger timeline refresh with current ApplicationState data
-                from stores.application_state import get_application_state
-
-                app_state = get_application_state()
-                self.main_window.timeline_tabs._on_curves_changed(app_state.get_all_curves())
-                logger.info(f"Updated timeline to show {num_images} frames")
 
             # Load the first image as background
             self._load_initial_background(image_dir, image_files)

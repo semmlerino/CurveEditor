@@ -12,9 +12,10 @@ This renderer addresses the critical performance issues identified in the analys
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, TypeAlias
 
 import numpy as np
+from numpy.typing import NDArray
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
@@ -32,9 +33,8 @@ else:
     RenderState = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-# Using Any with targeted suppressions for NumPy operations
-FloatArray: TypeAlias = Any  # np.ndarray with float64 elements  # pyright: ignore[reportExplicitAny]
-IntArray: TypeAlias = Any  # np.ndarray with int32 elements    # pyright: ignore[reportExplicitAny]
+FloatArray: TypeAlias = NDArray[np.float64]  # np.ndarray with float64 elements
+IntArray: TypeAlias = NDArray[np.int32]  # np.ndarray with int32 elements
 
 logger = get_logger("optimized_curve_renderer")
 
@@ -54,7 +54,7 @@ class ViewportCuller:
         self._grid_size: float = GRID_CELL_SIZE  # Grid cell size for spatial indexing
         self._spatial_index: dict[tuple[int, int], list[int]] = {}
 
-    def update_spatial_index(self, points: FloatArray, viewport: QRectF) -> None:  # pyright: ignore[reportUnusedParameter,reportAny]
+    def update_spatial_index(self, points: FloatArray, viewport: QRectF) -> None:  # pyright: ignore[reportUnusedParameter]
         """Update spatial index for the given points."""
         self._spatial_index.clear()
 
@@ -71,7 +71,7 @@ class ViewportCuller:
                 self._spatial_index[key] = []
             self._spatial_index[key].append(i)
 
-    def get_visible_points(self, points: FloatArray, viewport: QRectF, padding: float = 50) -> IntArray:  # pyright: ignore[reportAny]
+    def get_visible_points(self, points: FloatArray, viewport: QRectF, padding: float = 50) -> IntArray:
         """Get indices of points visible in viewport using spatial indexing."""
         if len(points) == 0:
             return np.array([], dtype=int)
@@ -90,7 +90,7 @@ class ViewportCuller:
         else:
             return self._get_visible_points_simple(points, expanded)
 
-    def _get_visible_points_spatial(self, points: FloatArray, viewport: QRectF) -> IntArray:  # pyright: ignore[reportAny]
+    def _get_visible_points_spatial(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Use spatial index for large datasets."""
         visible = []
 
@@ -114,7 +114,7 @@ class ViewportCuller:
 
         return np.array(visible, dtype=int)
 
-    def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:  # pyright: ignore[reportAny]
+    def _get_visible_points_simple(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Simple viewport culling for smaller datasets."""
         if len(points) == 0:
             return np.array([], dtype=int)
@@ -130,7 +130,7 @@ class ViewportCuller:
             & (y_coords <= viewport.bottom())
         )
 
-        return np.where(visible_mask)[0]
+        return np.where(visible_mask)[0].astype(np.int32)
 
 
 class LevelOfDetail:
@@ -179,7 +179,7 @@ class VectorizedTransform:
     """Vectorized coordinate transformation using NumPy."""
 
     @staticmethod
-    def transform_points_batch(  # pyright: ignore[reportAny]
+    def transform_points_batch(
         points: FloatArray,
         zoom: float,
         offset_x: float,
@@ -515,7 +515,7 @@ class OptimizedCurveRenderer:
         # if render_state.show_all_frame_numbers and self._render_quality == RenderQuality.HIGH:
         #     self._render_frame_numbers_optimized(painter, render_state, lod_points, visible_indices, step)
 
-    def _render_lines_optimized(self, painter: QPainter, screen_points: FloatArray, step: int) -> None:
+    def _render_lines_optimized(self, painter: QPainter, screen_points: FloatArray, step: int) -> None:  # pyright: ignore[reportUnusedParameter]
         """Render lines between points using optimized QPainterPath."""
         if len(screen_points) < 2:
             return

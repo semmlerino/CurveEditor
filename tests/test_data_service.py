@@ -98,7 +98,7 @@ class TestDataAnalysis:
             (6, 20.0, 30.0),
         ]
 
-        result = service.filter_butterworth(data, cutoff=0.1)
+        result = service.filter_butterworth(data, _cutoff=0.1)
 
         assert len(result) == len(data)
         # Verify data is returned (smoothing applied with moving average)

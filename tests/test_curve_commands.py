@@ -672,7 +672,8 @@ class TestDeletePointsCommand:
     def test_command_creation(self):
         """Test command can be created with proper attributes."""
         indices = [0, 2, 4]
-        points = [(1, 100.0, 200.0), (3, 300.0, 400.0), (5, 500.0, 600.0)]
+        # deleted_points format: list of (index, point_data) tuples
+        points = [(0, (1, 100.0, 200.0)), (2, (3, 300.0, 400.0)), (4, (5, 500.0, 600.0))]
 
         cmd = DeletePointsCommand("Delete points", indices, points)
 

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot  # pyright: ignore[reportUnknownVariableType]
 from PySide6.QtWidgets import (
     QApplication,
     QPushButton,
@@ -69,11 +69,11 @@ class TimelineController(QObject):
     """
 
     # Signals
-    frame_changed = Signal(int)  # Emitted when frame changes
-    playback_started = Signal()
-    playback_stopped = Signal()
-    playback_state_changed = Signal(PlaybackMode)  # For UI updates
-    status_message = Signal(str)  # Status bar updates
+    frame_changed: Signal = Signal(int)  # Emitted when frame changes
+    playback_started: Signal = Signal()
+    playback_stopped: Signal = Signal()
+    playback_state_changed: Signal = Signal(PlaybackMode)  # For UI updates
+    status_message: Signal = Signal(str)  # Status bar updates
 
     def __init__(self, state_manager: "StateManager", parent: QObject | None = None):
         """
@@ -84,16 +84,16 @@ class TimelineController(QObject):
             parent: Parent QObject (typically MainWindow)
         """
         super().__init__(parent)
-        self.state_manager = state_manager
-        self.playback_state = PlaybackState()
+        self.state_manager: StateManager = state_manager
+        self.playback_state: PlaybackState = PlaybackState()
         # Store reference to MainWindow for accessing other components
-        self.main_window = parent
+        self.main_window: QObject | None = parent
 
         # Create UI components
         self._create_widgets()
 
         # Setup timer for playback
-        self.playback_timer = QTimer(self)
+        self.playback_timer: QTimer = QTimer(self)
         _ = self.playback_timer.timeout.connect(self._on_playback_timer)
 
         # Connect signals
@@ -105,45 +105,45 @@ class TimelineController(QObject):
 
         # ========== Navigation Widgets ==========
         # Frame spinbox
-        self.frame_spinbox = QSpinBox()
+        self.frame_spinbox: QSpinBox = QSpinBox()
         self.frame_spinbox.setMinimum(1)
         self.frame_spinbox.setMaximum(1000)  # Default max, will be updated
         self.frame_spinbox.setValue(1)
         self.frame_spinbox.setToolTip("Current frame")
 
         # Frame slider
-        self.frame_slider = QSlider(Qt.Orientation.Horizontal)
+        self.frame_slider: QSlider = QSlider(Qt.Orientation.Horizontal)
         self.frame_slider.setMinimum(1)
         self.frame_slider.setMaximum(1000)  # Match spinbox max
         self.frame_slider.setValue(1)
         self.frame_slider.setToolTip("Scrub through frames")
 
         # Navigation buttons
-        self.btn_first = QPushButton()
+        self.btn_first: QPushButton = QPushButton()
         self.btn_first.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
         self.btn_first.setToolTip("First frame")
 
-        self.btn_prev = QPushButton()
+        self.btn_prev: QPushButton = QPushButton()
         self.btn_prev.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
         self.btn_prev.setToolTip("Previous frame")
 
-        self.btn_next = QPushButton()
+        self.btn_next: QPushButton = QPushButton()
         self.btn_next.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
         self.btn_next.setToolTip("Next frame")
 
-        self.btn_last = QPushButton()
+        self.btn_last: QPushButton = QPushButton()
         self.btn_last.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
         self.btn_last.setToolTip("Last frame")
 
         # ========== Playback Widgets ==========
         # Play/pause button
-        self.btn_play_pause = QPushButton()
+        self.btn_play_pause: QPushButton = QPushButton()
         self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
         self.btn_play_pause.setCheckable(True)
         self.btn_play_pause.setToolTip("Play/Pause (Spacebar)")
 
         # FPS spinbox
-        self.fps_spinbox = QSpinBox()
+        self.fps_spinbox: QSpinBox = QSpinBox()
         self.fps_spinbox.setMinimum(1)
         self.fps_spinbox.setMaximum(120)
         self.fps_spinbox.setValue(24)
@@ -348,12 +348,10 @@ class TimelineController(QObject):
         self.playback_started.emit()
         self.playback_state_changed.emit(PlaybackMode.PLAYING_FORWARD)
         self.status_message.emit(
-            f"Started oscillating playback at {fps} FPS "
-            f"(bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
+            f"Started oscillating playback at {fps} FPS (bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
         )
         logger.info(
-            f"Started oscillating playback at {fps} FPS "
-            f"(bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
+            f"Started oscillating playback at {fps} FPS (bounds: {self.playback_state.min_frame}-{self.playback_state.max_frame})"
         )
 
     def _stop_oscillating_playback(self) -> None:
@@ -424,10 +422,10 @@ class TimelineController(QObject):
         parent = self.parent()  # Returns non-None QObject
         curve_widget = getattr(parent, "curve_widget", None)
         if curve_widget is not None:
-            curve_data = curve_widget.curve_data
+            curve_data = curve_widget.curve_data  # pyright: ignore[reportAny]
             if curve_data:
                 # Get actual frame range from curve data
-                frames = [point[0] for point in curve_data]
+                frames = [point[0] for point in curve_data]  # pyright: ignore[reportAny]
                 self.playback_state.min_frame = min(frames)
                 self.playback_state.max_frame = max(frames)
 
@@ -498,6 +496,8 @@ class TimelineController(QObject):
 
     def update_timeline_tabs(self, curve_data: object | None = None) -> None:
         """Update timeline tabs with curve data."""
+        # Parameter kept for protocol compliance but intentionally unused
+        _ = curve_data  # Suppress unused variable warning
         # This would update the visual timeline tabs if we had them
         logger.debug("Timeline tabs update requested")
 

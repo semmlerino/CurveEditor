@@ -9,7 +9,7 @@ existing ShortcutManager connections and behavior.
 
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot  # pyright: ignore[reportUnknownVariableType]
 
 from core.type_aliases import CurveDataList
 from protocols.ui import MainWindowProtocol
@@ -267,30 +267,28 @@ class ActionHandlerController:
         )
 
         interaction_service = get_interaction_service()
-        if interaction_service is not None:
-            logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
-            if interaction_service.command_manager.execute_command(
-                smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
-            ):
-                # Mark as modified
-                self.state_manager.is_modified = True
+        logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
+        if interaction_service.command_manager.execute_command(
+            smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))
+        ):
+            # Mark as modified
+            self.state_manager.is_modified = True
 
-                # Update status with details
-                filter_display = {
-                    "moving_average": "Moving Average",
-                    "median": "Median",
-                    "butterworth": "Butterworth",
-                }.get(filter_type, filter_type)
+            # Update status with details
+            filter_display = {
+                "moving_average": "Moving Average",
+                "median": "Median",
+                "butterworth": "Butterworth",
+            }.get(filter_type, filter_type)
 
-                self.main_window.statusBar().showMessage(
-                    f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
-                )
-                logger.info(f"{filter_display} smoothing applied successfully via command system")
-                return  # Command succeeded, exit early
-            else:
-                logger.error("Command system failed to execute smooth command")
-                # Fall through to legacy implementation
-        # Fall through to legacy implementation (interaction_service is None or command failed)
+            self.main_window.statusBar().showMessage(
+                f"Applied {filter_display} smoothing to {len(selected_indices)} points (size: {window_size})", 3000
+            )
+            logger.info(f"{filter_display} smoothing applied successfully via command system")
+            return  # Command succeeded, exit early
+
+        # Fall through to legacy implementation if command failed
+        logger.error("Command system failed to execute smooth command")
 
         # Fallback to legacy DataService implementation if command system unavailable or failed
 

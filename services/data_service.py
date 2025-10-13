@@ -171,7 +171,7 @@ class DataService:
             self._status.set_status(f"Applied median filter (window={window_size})")
         return result
 
-    def filter_butterworth(self, data: CurveDataList, cutoff: float = 0.1, order: int = 2) -> CurveDataList:
+    def filter_butterworth(self, data: CurveDataList, _cutoff: float = 0.1, order: int = 2) -> CurveDataList:
         """Apply lowpass filter to curve data.
 
         Now uses simple moving average instead of scipy.
@@ -205,7 +205,7 @@ class DataService:
         if len(data) < 2:
             return data
 
-        result = []
+        result: CurveDataList = []
         filled_count = 0
 
         for i in range(len(data) - 1):
@@ -234,7 +234,7 @@ class DataService:
             return []
 
         # Calculate velocities
-        velocities = []
+        velocities: list[tuple[float, float]] = []
         for i in range(1, len(data)):
             dx = data[i][1] - data[i - 1][1]
             dy = data[i][2] - data[i - 1][2]
@@ -441,7 +441,7 @@ class DataService:
         endframe_frames = set()  # Track which frames have endframes
         sorted_points = sorted(points, key=lambda p: p[0] if isinstance(p, list | tuple) else getattr(p, "frame", 0))
 
-        for i, point in enumerate(sorted_points):
+        for _i, point in enumerate(sorted_points):
             # Handle both tuple format and CurvePoint objects
             if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
                 frame = point[0]
@@ -579,7 +579,7 @@ class DataService:
         # Convert lists to tuples
         return {frame: tuple(counts) for frame, counts in frame_status.items()}
 
-    def add_track_data(self, data: CurveDataList, label: str = "Track", color: str = "#FF0000") -> None:
+    def add_track_data(self, data: CurveDataList, label: str = "Track", _color: str = "#FF0000") -> None:
         """Add track data (for compatibility)."""
         if self._status:
             self._status.set_status(f"Added {len(data)} points for '{label}'")
@@ -685,12 +685,12 @@ class DataService:
                 self._logger.log_error(f"Failed to load image sequence: {e}")
             return []
 
-    def set_current_image_by_frame(self, view: object, frame: int) -> None:
+    def set_current_image_by_frame(self, _view: object, _frame: int) -> None:
         """Set current image by frame number."""
         # No-op implementation for consolidated service
         pass
 
-    def load_current_image(self, view: object) -> "QImage | None":
+    def load_current_image(self, _view: object) -> "QImage | None":
         """Load current image for view."""
         return None
 

@@ -9,7 +9,7 @@ selection, and display of multiple tracking trajectories.
 from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import QThread, QTimer, Slot
+from PySide6.QtCore import QThread, QTimer, Slot  # pyright: ignore[reportUnknownVariableType]
 from PySide6.QtWidgets import QApplication
 
 if TYPE_CHECKING:
@@ -18,10 +18,10 @@ if TYPE_CHECKING:
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
-from stores.application_state import get_application_state
+from stores.application_state import ApplicationState, get_application_state
 
 
 class SelectionContext(Enum):
@@ -52,10 +52,10 @@ class MultiPointTrackingController:
         Args:
             main_window: Reference to the main window for UI access
         """
-        self.main_window = main_window
+        self.main_window: MainWindow = main_window
 
         # Get centralized ApplicationState (Week 4 migration)
-        self._app_state = get_application_state()
+        self._app_state: ApplicationState = get_application_state()
 
         # Connect to ApplicationState signals for reactive updates
         _ = self._app_state.curves_changed.connect(self._on_curves_changed)
@@ -63,7 +63,7 @@ class MultiPointTrackingController:
         _ = self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
 
         # Recursion protection for signal handlers
-        self._handling_signal = False
+        self._handling_signal: bool = False
 
         # Tracking data storage
         # REMOVED: self.tracked_data - migrated to ApplicationState (Week 4)
@@ -80,7 +80,7 @@ class MultiPointTrackingController:
 
         Phase 4: Removed __default__ filtering - all curves are real named curves.
         """
-        result = {}
+        result: dict[str, CurveDataList] = {}
         for curve_name in self._app_state.get_all_curve_names():
             result[curve_name] = self._app_state.get_curve_data(curve_name)
         return result
@@ -186,7 +186,7 @@ class MultiPointTrackingController:
                 logger.info(f"Merging {len(multi_data)} new points with {len(existing_curves)} existing points")
 
                 # Track newly added points for selection
-                new_point_names = []
+                new_point_names: list[str] = []
 
                 for point_name, trajectory in multi_data.items():
                     # Check for naming conflicts and resolve them
@@ -227,7 +227,7 @@ class MultiPointTrackingController:
             self.update_tracking_panel()
 
             # Display the active timeline point's trajectory (could be existing or newly loaded)
-            active_point = self.main_window.active_timeline_point
+            active_point: str | None = self.main_window.active_timeline_point
             if active_point and self.main_window.curve_widget:
                 if active_point in self._app_state.get_all_curve_names():
                     # CRITICAL: Set active_curve BEFORE calling set_curve_data
@@ -370,11 +370,11 @@ class MultiPointTrackingController:
         if self.main_window.curve_widget and point_names:
             if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
                 # Use small delay to allow widget updates to complete
-                def safe_center_on_selection():
+                def safe_center_on_selection() -> None:
                     if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
                         self.main_window.curve_widget.center_on_selection()
 
-                QTimer.singleShot(10, safe_center_on_selection)
+                QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
                 logger.debug("Scheduled centering on selected point after 10ms delay")
 
         logger.debug(f"Selected tracking points: {point_names}")
@@ -536,10 +536,10 @@ class MultiPointTrackingController:
         updated_data = update_keyframe_status_for_tracking_direction(curve_data, new_direction, previous_direction)
 
         # Detect status changes - build list of (index, old_status, new_status)
-        status_changes = []
+        status_changes: list[tuple[int, str, str]] = []
         for i, (old_point, new_point) in enumerate(zip(curve_data, updated_data)):
-            old_status = old_point[3] if len(old_point) > 3 else "keyframe"
-            new_status = new_point[3] if len(new_point) > 3 else "keyframe"
+            old_status = str(old_point[3]) if len(old_point) > 3 else "keyframe"
+            new_status = str(new_point[3]) if len(new_point) > 3 else "keyframe"
             if old_status != new_status:
                 status_changes.append((i, old_status, new_status))
 
@@ -663,7 +663,8 @@ class MultiPointTrackingController:
         """Update tracking panel with current tracking data."""
         if self.main_window.tracking_panel:
             # Build dict from ApplicationState for tracking panel
-            all_tracked_data = {}
+            # Cast to Mapping to handle dict invariance (list is Sequence subtype)
+            all_tracked_data: dict[str, CurveDataInput] = {}
             for curve_name in self._app_state.get_all_curve_names():
                 all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
             self.main_window.tracking_panel.set_tracked_data(all_tracked_data)
@@ -705,7 +706,7 @@ class MultiPointTrackingController:
                     }
 
             # Build curves dict from ApplicationState
-            all_curves_data = {}
+            all_curves_data: dict[str, CurveDataList] = {}
             for curve_name in self._app_state.get_all_curve_names():
                 all_curves_data[curve_name] = self._app_state.get_curve_data(curve_name)
 
@@ -916,7 +917,7 @@ class MultiPointTrackingController:
                 # Edge case: No selection and no active curve
                 logger.warning(
                     "Cannot switch to SELECTED mode: no curves available. "
-                    "Load curves before using SELECTED display mode."
+                    + "Load curves before using SELECTED display mode."
                 )
                 return
         elif mode == DisplayMode.ACTIVE_ONLY:
@@ -970,8 +971,8 @@ class MultiPointTrackingController:
         widget.update()
         logger.debug(
             f"Selected curves: {self._app_state.get_selected_curves()}, "
-            f"Active: {self._app_state.active_curve}, "
-            f"Mode: {self._app_state.display_mode}"
+            + f"Active: {self._app_state.active_curve}, "
+            + f"Mode: {self._app_state.display_mode}"
         )
 
     def center_on_selected_curves(self) -> None:
@@ -1036,7 +1037,7 @@ class MultiPointTrackingController:
             widget.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
 
         # Use the proper centering method that handles coordinate transformation and Y-flip
-        widget._center_view_on_point(center_x, center_y)
+        widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportPrivateUsage]
 
         widget.invalidate_caches()
         widget.update()
@@ -1044,7 +1045,7 @@ class MultiPointTrackingController:
 
     # ==================== ApplicationState Signal Handlers ====================
 
-    def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
+    def _on_curves_changed(self, _curves: dict[str, CurveDataList]) -> None:
         """
         React to curve data changes from ApplicationState.
 
@@ -1096,7 +1097,7 @@ class MultiPointTrackingController:
         finally:
             self._handling_signal = False
 
-    def _on_selection_state_changed(self, selected_curves: set[str], show_all: bool) -> None:
+    def _on_selection_state_changed(self, selected_curves: set[str], _show_all: bool) -> None:
         """
         React to selection state changes from ApplicationState.
 
@@ -1135,11 +1136,11 @@ class MultiPointTrackingController:
             if self.main_window.curve_widget and point_names:
                 if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
 
-                    def safe_center_on_selection():
+                    def safe_center_on_selection() -> None:
                         if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
                             self.main_window.curve_widget.center_on_selection()
 
-                    QTimer.singleShot(10, safe_center_on_selection)
+                    QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
 
             logger.debug(f"Selection state changed: {point_names}")
 

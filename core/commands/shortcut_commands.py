@@ -218,7 +218,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
             direction: The tracking direction to set
             key_sequence: The key sequence that triggers this command
         """
-        self.direction = direction
+        self.direction: TrackingDirection = direction
         description = f"Set tracking direction to {direction.value}"
         super().__init__(key_sequence, description)
 
@@ -620,8 +620,8 @@ class NudgePointsCommand(ShortcutCommand):
             dx: X direction nudge amount
             dy: Y direction nudge amount
         """
-        self.base_dx = dx
-        self.base_dy = dy
+        self.base_dx: float = dx
+        self.base_dy: float = dy
         direction = ""
         if dx < 0:
             direction = "left"

@@ -10,7 +10,8 @@ including point manipulation, smoothing, filtering, and data modifications.
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING, Any
+from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from typing_extensions import override
 
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
-from core.type_aliases import CurveDataInput
+from core.type_aliases import CurveDataInput, LegacyPointData
 from stores.application_state import get_application_state
 
 logger = get_logger("curve_commands")
@@ -44,8 +45,8 @@ class SetCurveDataCommand(Command):
             old_data: The previous curve data (captured during execution if None)
         """
         super().__init__(description)
-        self.new_data = copy.deepcopy(new_data)
-        self.old_data = copy.deepcopy(old_data) if old_data is not None else None
+        self.new_data: list[LegacyPointData] = copy.deepcopy(list(new_data))
+        self.old_data: list[LegacyPointData] | None = copy.deepcopy(list(old_data)) if old_data is not None else None
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -64,7 +65,7 @@ class SetCurveDataCommand(Command):
 
             # Set new data in ApplicationState (signals update view)
             app_state.set_curve_data(active_curve, list(self.new_data))
-            self.executed = True
+            self.executed: bool = True
             return True
 
         except Exception as e:
@@ -108,11 +109,11 @@ class SmoothCommand(Command):
     def __init__(
         self,
         description: str,
-        indices: list[int],
+        indices: Sequence[int],
         filter_type: str,
         window_size: int,
-        old_points: list[Any] | None = None,
-        new_points: list[Any] | None = None,
+        old_points: Sequence[LegacyPointData] | None = None,
+        new_points: Sequence[LegacyPointData] | None = None,
     ) -> None:
         """
         Initialize the smooth command.
@@ -126,11 +127,11 @@ class SmoothCommand(Command):
             new_points: Smoothed point values after smoothing
         """
         super().__init__(description)
-        self.indices = list(indices)
-        self.filter_type = filter_type
-        self.window_size = window_size
-        self.old_points = copy.deepcopy(old_points) if old_points else None
-        self.new_points = copy.deepcopy(new_points) if new_points else None
+        self.indices: list[int] = list(indices)
+        self.filter_type: str = filter_type
+        self.window_size: int = window_size
+        self.old_points: list[LegacyPointData] | None = copy.deepcopy(list(old_points)) if old_points else None
+        self.new_points: list[LegacyPointData] | None = copy.deepcopy(list(new_points)) if new_points else None
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -188,7 +189,7 @@ class SmoothCommand(Command):
 
             # Update ApplicationState (signals update view, preserves view state)
             app_state.set_curve_data(active_curve, new_curve_data)
-            self.executed = True
+            self.executed: bool = True
             return True
 
         except Exception as e:
@@ -297,9 +298,9 @@ class MovePointCommand(Command):
             new_pos: New (x, y) position
         """
         super().__init__(description)
-        self.index = index
-        self.old_pos = old_pos
-        self.new_pos = new_pos
+        self.index: int = index
+        self.old_pos: tuple[float, float] = old_pos
+        self.new_pos: tuple[float, float] = new_pos
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -321,7 +322,7 @@ class MovePointCommand(Command):
                     curve_data[self.index] = (point[0], self.new_pos[0], self.new_pos[1])
 
                 app_state.set_curve_data(active_curve, curve_data)
-                self.executed = True
+                self.executed: bool = True
                 return True
 
             return False
@@ -391,7 +392,12 @@ class DeletePointsCommand(Command):
     Stores the deleted points and their positions for restoration.
     """
 
-    def __init__(self, description: str, indices: list[int], deleted_points: list[Any] | None = None) -> None:
+    def __init__(
+        self,
+        description: str,
+        indices: Sequence[int],
+        deleted_points: Sequence[tuple[int, LegacyPointData]] | None = None,
+    ) -> None:
         """
         Initialize the delete points command.
 
@@ -401,8 +407,10 @@ class DeletePointsCommand(Command):
             deleted_points: The points that were deleted (captured during execution if None)
         """
         super().__init__(description)
-        self.indices = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
-        self.deleted_points = copy.deepcopy(deleted_points) if deleted_points else None
+        self.indices: list[int] = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
+        self.deleted_points: list[tuple[int, LegacyPointData]] | None = (
+            copy.deepcopy(list(deleted_points)) if deleted_points else None
+        )
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -433,7 +441,7 @@ class DeletePointsCommand(Command):
             # Clear selection after deletion
             app_state.set_selection(active_curve, set())
 
-            self.executed = True
+            self.executed: bool = True
             return True
 
         except Exception as e:
@@ -482,7 +490,7 @@ class BatchMoveCommand(Command):
     def __init__(
         self,
         description: str,
-        moves: list[tuple[int, tuple[float, float], tuple[float, float]]],
+        moves: Sequence[tuple[int, tuple[float, float], tuple[float, float]]],
     ) -> None:
         """
         Initialize the batch move command.
@@ -492,7 +500,9 @@ class BatchMoveCommand(Command):
             moves: List of (index, old_pos, new_pos) tuples
         """
         super().__init__(description)
-        self.moves = moves  # List of (index, old_pos, new_pos)
+        self.moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = list(
+            moves
+        )  # List of (index, old_pos, new_pos)
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -517,7 +527,7 @@ class BatchMoveCommand(Command):
                         curve_data[index] = (point[0], new_pos[0], new_pos[1])
 
             app_state.set_curve_data(active_curve, curve_data)
-            self.executed = True
+            self.executed: bool = True
             return True
 
         except Exception as e:
@@ -577,7 +587,7 @@ class BatchMoveCommand(Command):
             raise ValueError("Cannot merge incompatible batch moves")
 
         # Create new moves using original positions from self and new positions from other
-        merged_moves = []
+        merged_moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
         other_dict = {move[0]: move[2] for move in other.moves}  # index -> new_pos
 
         for index, old_pos, _ in self.moves:
@@ -601,7 +611,7 @@ class SetPointStatusCommand(Command):
     def __init__(
         self,
         description: str,
-        changes: list[tuple[int, str, str]],  # (index, old_status, new_status)
+        changes: Sequence[tuple[int, str, str]],  # (index, old_status, new_status)
     ) -> None:
         """
         Initialize the set point status command.
@@ -611,7 +621,7 @@ class SetPointStatusCommand(Command):
             changes: List of (index, old_status, new_status) tuples
         """
         super().__init__(description)
-        self.changes = changes
+        self.changes: list[tuple[int, str, str]] = list(changes)
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -641,7 +651,7 @@ class SetPointStatusCommand(Command):
 
             # Update ApplicationState with modified data
             app_state.set_curve_data(active_curve, curve_data)
-            self.executed = True
+            self.executed: bool = True
 
             # Trigger widget update (CurveDataStore removed in Phase 6.3)
             if main_window.curve_widget:
@@ -716,7 +726,7 @@ class SetPointStatusCommand(Command):
             raise ValueError("Cannot merge incompatible status changes")
 
         # Create new changes using original statuses from self and new statuses from other
-        merged_changes = []
+        merged_changes: list[tuple[int, str, str]] = []
         other_dict = {change[0]: change[2] for change in other.changes}  # index -> new_status
 
         for index, old_status, _ in self.changes:
@@ -734,7 +744,7 @@ class AddPointCommand(Command):
     Command for adding new points to the curve.
     """
 
-    def __init__(self, description: str, index: int, point: Any) -> None:
+    def __init__(self, description: str, index: int, point: LegacyPointData) -> None:
         """
         Initialize the add point command.
 
@@ -744,8 +754,8 @@ class AddPointCommand(Command):
             point: The point data to add
         """
         super().__init__(description)
-        self.index = index
-        self.point = copy.deepcopy(point)
+        self.index: int = index
+        self.point: LegacyPointData = copy.deepcopy(point)
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -761,7 +771,7 @@ class AddPointCommand(Command):
             if 0 <= self.index <= len(curve_data):
                 curve_data.insert(self.index, self.point)
                 app_state.set_curve_data(active_curve, curve_data)
-                self.executed = True
+                self.executed: bool = True
                 return True
 
             return False
@@ -826,9 +836,9 @@ class ConvertToInterpolatedCommand(Command):
             new_point: New interpolated point (frame, x, y, status)
         """
         super().__init__(description)
-        self.index = index
-        self.old_point = old_point
-        self.new_point = new_point
+        self.index: int = index
+        self.old_point: tuple[int, float, float, str] = old_point
+        self.new_point: tuple[int, float, float, str] = new_point
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -846,7 +856,7 @@ class ConvertToInterpolatedCommand(Command):
                 curve_data[self.index] = self.new_point
 
                 app_state.set_curve_data(active_curve, curve_data)
-                self.executed = True
+                self.executed: bool = True
                 return True
 
             return False

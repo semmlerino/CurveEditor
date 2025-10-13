@@ -12,7 +12,7 @@ Provides a unified interface for all coordinate transformations and view state m
 import hashlib
 import threading
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Protocol, cast, override
 
 from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
@@ -48,6 +48,18 @@ from core.logger_utils import get_logger
 logger = get_logger("transform_service")
 
 
+class BackgroundImageProtocol(Protocol):
+    """Protocol for background image objects (QPixmap, QImage, etc.)."""
+
+    def width(self) -> int:
+        """Get image width."""
+        ...
+
+    def height(self) -> int:
+        """Get image height."""
+        ...
+
+
 @dataclass(frozen=True)
 class ViewState:
     """
@@ -77,7 +89,7 @@ class ViewState:
     manual_y_offset: float = 0.0
 
     # Background image reference (optional) - excluded from hash for LRU cache
-    background_image: object | None = field(default=None, hash=False)
+    background_image: BackgroundImageProtocol | None = field(default=None, hash=False)
 
     # Original data dimensions for scaling
     image_width: int = DEFAULT_IMAGE_WIDTH
@@ -86,10 +98,9 @@ class ViewState:
     def with_updates(self, **kwargs: object) -> "ViewState":
         """Create a new ViewState with updated values."""
         # Merge current values with updates, ensuring proper types
-        updated = dict(self.__dict__)
+        updated: dict[str, object] = dict(self.__dict__)
         updated.update(kwargs)
-        # Type ignore for dict unpacking with mixed types
-        return ViewState(**updated)
+        return ViewState(**updated)  # pyright: ignore[reportArgumentType]
 
     def to_dict(self) -> dict[str, object]:
         """Convert the ViewState to a dictionary."""
@@ -127,15 +138,20 @@ class ViewState:
         display_height = int(image_height)
 
         # Check for background image dimensions
-        background_image = getattr(curve_view, "background_image", None)
-        if background_image:
+        background_image_obj = getattr(curve_view, "background_image", None)
+        background_image: BackgroundImageProtocol | None = cast(BackgroundImageProtocol | None, background_image_obj)
+        if background_image is not None:
+            # Type checker now knows background_image is BackgroundImageProtocol
             display_width = background_image.width()
             display_height = background_image.height()
 
         # Get zoom factor with type validation
-        zoom_factor = getattr(curve_view, "zoom_factor", 1.0)
-        if not isinstance(zoom_factor, int | float):
-            raise TypeError(f"zoom_factor must be real number, not {type(zoom_factor).__name__}")
+        zoom_factor_obj = getattr(curve_view, "zoom_factor", 1.0)
+        if not isinstance(zoom_factor_obj, int | float):
+            # Type name extraction - safe to ignore reportAny in error message
+            type_name = type(zoom_factor_obj).__name__  # pyright: ignore[reportAny]
+            raise TypeError(f"zoom_factor must be real number, not {type_name}")
+        zoom_factor: float = float(zoom_factor_obj)
 
         # Create the ViewState
         return cls(

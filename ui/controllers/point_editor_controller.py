@@ -9,7 +9,7 @@ points are selected and applying changes when spinbox values are edited.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Slot
+from PySide6.QtCore import Slot  # pyright: ignore[reportUnknownVariableType]
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -29,6 +29,10 @@ class PointEditorController:
     including updating spinbox values on selection changes and applying
     coordinate changes back to the curve.
     """
+
+    main_window: "MainWindow"
+    state_manager: "StateManager"
+    _spinbox_connected: bool
 
     def __init__(self, main_window: "MainWindow", state_manager: "StateManager"):
         """
@@ -74,14 +78,14 @@ class PointEditorController:
             self._update_for_no_selection()
 
     @Slot(set, str)
-    def on_store_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
+    def on_store_selection_changed(self, selection: set[int], _curve_name: str | None = None) -> None:
         """Handle selection changes from the reactive store.
 
         Phase 4: Removed __default__ - curve_name is now optional.
 
         Args:
             selection: Set of selected point indices from the store
-            curve_name: Curve with selection change (currently unused)
+            _curve_name: Curve with selection change (currently unused)
         """
         if selection:
             # Update point editor with first selected point
@@ -108,7 +112,7 @@ class PointEditorController:
         curve_data = self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []
         if idx < len(curve_data):
             point_data = curve_data[idx]
-            frame, x, y, _ = safe_extract_point(point_data)
+            _frame, x, y, _ = safe_extract_point(point_data)
 
             # Update spinboxes with actual values
             if self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
@@ -164,7 +168,7 @@ class PointEditorController:
         curve_data = self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []
         if idx < len(curve_data) and self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
             point_data = curve_data[idx]
-            frame, x, y, _ = safe_extract_point(point_data)
+            _frame, x, y, _ = safe_extract_point(point_data)
 
             # Block signals while updating
             _ = self.main_window.point_x_spinbox.blockSignals(True)

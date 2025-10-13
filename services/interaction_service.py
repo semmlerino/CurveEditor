@@ -23,7 +23,7 @@ from PySide6.QtWidgets import QRubberBand
 from core.models import PointSearchResult
 from core.spatial_index import PointIndex
 from core.type_aliases import SearchMode
-from stores.application_state import get_application_state
+from stores.application_state import ApplicationState, get_application_state
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QRect
@@ -65,7 +65,7 @@ class InteractionService:
     def __init__(self) -> None:
         """Initialize the interaction service."""
         # ApplicationState integration (Week 6)
-        self._app_state = get_application_state()
+        self._app_state: ApplicationState = get_application_state()
 
         # State for compatibility
         self.drag_mode: str | None = None
@@ -111,8 +111,7 @@ class InteractionService:
             main = app.thread()
             if current != main:
                 raise RuntimeError(
-                    f"InteractionService must be called from main thread only "
-                    f"(called from {current}, main is {main})"
+                    f"InteractionService must be called from main thread only (called from {current}, main is {main})"
                 )
 
     @property
@@ -311,7 +310,7 @@ class InteractionService:
 
         view.update()
 
-    def _handle_mouse_release_consolidated(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
+    def _handle_mouse_release_consolidated(self, view: CurveViewProtocol, _event: QMouseEvent) -> None:
         """Consolidated mouse release handling for default mode."""
 
         # drag_active is bool in CurveViewProtocol
@@ -344,7 +343,7 @@ class InteractionService:
                     # The points have already been moved during dragging,
                     # so we mark the command as executed and add it to history
                     command.executed = True
-                    _ = self.command_manager.add_executed_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.add_executed_command(command, view.main_window)
 
             # Clear the tracked positions
             self._drag_original_positions = None
@@ -386,7 +385,7 @@ class InteractionService:
 
                 # Update history if points were selected
                 if selected_count > 0:
-                    self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
+                    self.update_history_buttons(view.main_window)
 
         view.update()
 
@@ -432,7 +431,7 @@ class InteractionService:
                     )
 
                     # Execute the command through the command manager
-                    _ = self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.execute_command(command, view.main_window)
 
                     # Clear selection
                     view.selected_points.clear()
@@ -447,14 +446,14 @@ class InteractionService:
                 view.selected_points = set(range(len(active_curve_data)))
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
-                self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
+                self.update_history_buttons(view.main_window)
 
         elif key == Qt.Key.Key_Escape:
             # Clear selection
             view.selected_points = set()
             view.selected_point_idx = -1
             # main_window is defined in CurveViewProtocol
-            self.update_history_buttons(cast("MainWindowProtocol", view.main_window))
+            self.update_history_buttons(view.main_window)
 
         elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
             # Nudge selected points
@@ -492,7 +491,7 @@ class InteractionService:
                         description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
                         moves=moves,
                     )
-                    _ = self.command_manager.execute_command(command, cast("MainWindowProtocol", view.main_window))
+                    _ = self.command_manager.execute_command(command, view.main_window)
                     # Note: No need to add_to_history - command manager handles it
 
         view.update()
@@ -503,7 +502,7 @@ class InteractionService:
         """Compatibility method that routes to handle_key_event."""
         self.handle_key_event(view, event)
 
-    def handle_context_menu(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
+    def handle_context_menu(self, _view: CurveViewProtocol, _event: QMouseEvent) -> None:
         """
         Handle context menu requests.
 
@@ -534,7 +533,7 @@ class InteractionService:
 
     # ==================== Legacy Compatibility Methods ====================
 
-    def add_to_history(self, main_window_or_view: MainWindowProtocol, state: dict[str, object] | None = None) -> None:
+    def add_to_history(self, main_window_or_view: MainWindowProtocol, _state: dict[str, object] | None = None) -> None:
         """
         Add current state to history.
 
@@ -673,10 +672,6 @@ class InteractionService:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
-        # Skip if main_window is None (test scenario)
-        if main_window is None:
-            return
-
         # Determine can_undo and can_redo based on history location
         if main_window.history is not None and main_window.history_index is not None:
             # Use main_window's history
