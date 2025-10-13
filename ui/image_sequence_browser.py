@@ -66,15 +66,15 @@ class BreadcrumbBar(QWidget):
     - Tooltip showing full path on hover
     """
 
-    path_changed = Signal(str)
+    path_changed: Signal = Signal(str)
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize breadcrumb bar."""
         super().__init__(parent)
-        self.current_path = ""
+        self.current_path: str = ""
 
         # Create horizontal layout
-        self._layout = QHBoxLayout(self)
+        self._layout: QHBoxLayout = QHBoxLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setSpacing(0)
         self._layout.addStretch()  # Push breadcrumbs to the left
@@ -118,7 +118,7 @@ class BreadcrumbBar(QWidget):
 
         # Split path into segments
         path_obj = Path(path)
-        segments = []
+        segments: list[tuple[str, str]] = []
 
         # Build segment list from root to current
         for parent in reversed(list(path_obj.parents)):
@@ -156,13 +156,13 @@ class BreadcrumbBar(QWidget):
 
             self._layout.insertWidget(self._layout.count() - 1, button)
 
-    def _on_segment_clicked(self, path: str, checked: bool = False) -> None:
+    def _on_segment_clicked(self, path: str, _checked: bool = False) -> None:
         """
         Handle segment click.
 
         Args:
             path: Path that was clicked
-            checked: Button checked state (unused)
+            _checked: Button checked state (unused)
         """
         self.path_changed.emit(path)
 
@@ -182,8 +182,8 @@ class NavigationHistory:
             max_history: Maximum number of history entries to keep
         """
         self.history: list[str] = []
-        self.current_index = -1
-        self.max_history = max_history
+        self.current_index: int = -1
+        self.max_history: int = max_history
 
     def add(self, path: str) -> None:
         """
@@ -365,7 +365,7 @@ class ImageSequence:
         if self.bit_depth:
             metadata_parts.append(f"{self.bit_depth}bit")
 
-        metadata_str = f" ({', '.join(metadata_parts)})" if metadata_parts else ""
+        metadata_str: str = f" ({', '.join(metadata_parts)})" if metadata_parts else ""
 
         return f"{self.base_name}{padding_str}{self.extension} {self.frame_range_str} ({frame_count} frame{plural}){metadata_str}"
 
@@ -416,17 +416,17 @@ class ImageSequenceBrowserDialog(QDialog):
         self.favorites_manager: FavoritesManager = FavoritesManager()
 
         # Initialize workers and cache
-        self.thumbnail_cache = ThumbnailCache()
+        self.thumbnail_cache: ThumbnailCache = ThumbnailCache()
         self.scan_worker: DirectoryScanWorker | None = None
-        self.metadata_extractor = ImageMetadataExtractor()
+        self.metadata_extractor: ImageMetadataExtractor = ImageMetadataExtractor()
 
         # Navigation history
-        self.nav_history = NavigationHistory()
-        self._navigating_from_history = False  # Flag to prevent adding to history during history navigation
+        self.nav_history: NavigationHistory = NavigationHistory()
+        self._navigating_from_history: bool = False  # Flag to prevent adding to history during history navigation
 
         # Sorting state
-        self.current_sort = "name"  # name, frame_count, size, date
-        self.sort_ascending = True
+        self.current_sort: str = "name"  # name, frame_count, size, date
+        self.sort_ascending: bool = True
 
         # Determine best starting directory
         self.start_directory = self._determine_start_directory(parent, start_directory)
@@ -1086,7 +1086,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Cancel any existing scan
         if self.scan_worker is not None and self.scan_worker.isRunning():
-            self.scan_worker.cancel()
+            self.scan_worker.stop()
             _ = self.scan_worker.wait()
 
         # Start async directory scan
@@ -1107,10 +1107,10 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Create and start worker
         self.scan_worker = DirectoryScanWorker(directory_path)
-        _ = self.scan_worker.progress.connect(self._on_scan_progress)
-        _ = self.scan_worker.sequences_found.connect(self._on_sequences_found)
-        _ = self.scan_worker.error_occurred.connect(self._on_scan_error)
-        _ = self.scan_worker.finished.connect(self._on_scan_finished)
+        _ = self.scan_worker.progress.connect(self._on_scan_progress, Qt.ConnectionType.QueuedConnection)
+        _ = self.scan_worker.sequences_found.connect(self._on_sequences_found, Qt.ConnectionType.QueuedConnection)
+        _ = self.scan_worker.error_occurred.connect(self._on_scan_error, Qt.ConnectionType.QueuedConnection)
+        _ = self.scan_worker.finished.connect(self._on_scan_finished, Qt.ConnectionType.QueuedConnection)
 
         # Connect cancel button
         _ = self.cancel_scan_button.clicked.connect(self._on_cancel_scan)
@@ -1205,7 +1205,7 @@ class ImageSequenceBrowserDialog(QDialog):
     def _on_cancel_scan(self) -> None:
         """Handle scan cancellation request."""
         if self.scan_worker is not None:
-            self.scan_worker.cancel()
+            self.scan_worker.requestInterruption()
             self.info_label.setText("Scan cancelled")
             logger.debug("Scan cancelled by user")
 

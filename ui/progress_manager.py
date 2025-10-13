@@ -69,7 +69,6 @@ class ProgressWorker(QThread):
     operation: Callable[..., Any]
     args: tuple[object, ...]
     kwargs: dict[str, object]
-    is_cancelled: bool
     result: object
 
     def __init__(self, operation: Callable[..., Any], *args: object, **kwargs: object) -> None:
@@ -78,7 +77,6 @@ class ProgressWorker(QThread):
         self.operation = operation
         self.args = args
         self.kwargs = kwargs
-        self.is_cancelled = False
         self.result = None
 
     @override
@@ -87,16 +85,12 @@ class ProgressWorker(QThread):
         try:
             # Pass self to operation so it can report progress
             self.result = self.operation(self, *self.args, **self.kwargs)
-            if not self.is_cancelled:
+            if not self.isInterruptionRequested():
                 self.finished.emit(True)
         except Exception as e:
             logger.error(f"Progress operation failed: {e}")
             self.error_occurred.emit(str(e))
             self.finished.emit(False)
-
-    def cancel(self) -> None:
-        """Cancel the operation."""
-        self.is_cancelled = True
 
     def report_progress(self, current: int, total: int = 100, message: str = "") -> bool:
         """Report progress from within the operation.
@@ -104,7 +98,7 @@ class ProgressWorker(QThread):
         Returns:
             False if operation was cancelled, True to continue
         """
-        if self.is_cancelled:
+        if self.isInterruptionRequested():
             return False
 
         percentage = int((current / total) * 100) if total > 0 else 0
@@ -329,7 +323,7 @@ class ProgressManager(QObject):
         _ = worker.error_occurred.connect(lambda msg: self._handle_error(msg, dialog))
 
         if info.cancellable:
-            _ = dialog.canceled.connect(worker.cancel)
+            _ = dialog.canceled.connect(worker.requestInterruption)
 
         # Store worker
         operation_id = f"{info.title}_{time.time()}"
@@ -343,7 +337,7 @@ class ProgressManager(QObject):
         _ = dialog.exec()
 
         # Clean up
-        success = not worker.is_cancelled
+        success = not worker.isInterruptionRequested()
         result = worker.result if success else None
         del self.active_operations[operation_id]
 
@@ -399,7 +393,7 @@ class ProgressManager(QObject):
         _ = worker.finished.connect(on_finished)
 
         if cancellable and self.status_bar_widget:
-            _ = self.status_bar_widget.cancel_button.clicked.connect(worker.cancel)
+            _ = self.status_bar_widget.cancel_button.clicked.connect(worker.requestInterruption)
 
         # Start operation (non-blocking)
         worker.start()

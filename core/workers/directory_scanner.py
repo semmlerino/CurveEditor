@@ -49,12 +49,13 @@ class DirectoryScanWorker(QThread):
         """
         super().__init__()
         self.directory = directory
-        self._cancelled = False
 
-    def cancel(self) -> None:
-        """Request cancellation of the scan operation."""
-        self._cancelled = True
-        logger.debug("Scan cancellation requested")
+    def stop(self) -> None:
+        """Request the worker to stop processing."""
+        self.requestInterruption()
+        if self.isRunning():
+            self.wait(2000)  # Wait up to 2 seconds
+        logger.debug("Scan stop requested")
 
     @override
     def run(self) -> None:
@@ -66,7 +67,7 @@ class DirectoryScanWorker(QThread):
             self.progress.emit(0, 100, "Scanning directory...")
             image_files = self._scan_for_images()
 
-            if self._cancelled:
+            if self.isInterruptionRequested():
                 logger.debug("Scan cancelled after file scanning")
                 return
 
@@ -74,7 +75,7 @@ class DirectoryScanWorker(QThread):
             self.progress.emit(50, 100, "Detecting sequences...")
             sequences = self._detect_sequences(image_files)
 
-            if self._cancelled:
+            if self.isInterruptionRequested():
                 logger.debug("Scan cancelled after sequence detection")
                 return
 
@@ -106,7 +107,7 @@ class DirectoryScanWorker(QThread):
             total_files = len(all_files)
 
             for idx, filename in enumerate(all_files):
-                if self._cancelled:
+                if self.isInterruptionRequested():
                     return []
 
                 file_path = os.path.join(self.directory, filename)
@@ -149,7 +150,7 @@ class DirectoryScanWorker(QThread):
         total_files = len(image_files)
 
         for idx, filename in enumerate(image_files):
-            if self._cancelled:
+            if self.isInterruptionRequested():
                 return []
 
             match = pattern.match(filename)
@@ -176,7 +177,7 @@ class DirectoryScanWorker(QThread):
         sequences = []
 
         for (base_name, padding, extension), files in sequence_groups.items():
-            if self._cancelled:
+            if self.isInterruptionRequested():
                 return []
 
             # Sort by frame number
@@ -198,7 +199,7 @@ class DirectoryScanWorker(QThread):
 
         # Add non-sequence files as single-frame sequences
         for filename in non_sequence_files:
-            if self._cancelled:
+            if self.isInterruptionRequested():
                 return []
 
             base_name, extension = os.path.splitext(filename)
