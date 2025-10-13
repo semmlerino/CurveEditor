@@ -70,7 +70,7 @@ class InsertTrackCommand(Command):
         """
         try:
             # Get tracked data from MultiPointTrackingController
-            if not hasattr(main_window, "multi_point_controller"):
+            if main_window.multi_point_controller is None:
                 logger.error("Main window missing multi_point_controller")
                 return False
 
@@ -364,11 +364,11 @@ class InsertTrackCommand(Command):
             curve_name: Name of modified curve
         """
         # Update tracking panel
-        if hasattr(main_window, "multi_point_controller"):
+        if main_window.multi_point_controller is not None:
             main_window.multi_point_controller.update_tracking_panel()
 
         # If this is the active curve, update the display
-        if hasattr(main_window, "active_timeline_point"):
+        if main_window.active_timeline_point is not None:
             if main_window.active_timeline_point == curve_name:
                 # Update curve display
                 if main_window.curve_widget:
@@ -376,7 +376,7 @@ class InsertTrackCommand(Command):
                     main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline
-        if hasattr(main_window, "update_timeline_tabs") and main_window.update_timeline_tabs is not None:
+        if main_window.update_timeline_tabs is not None:
             main_window.update_timeline_tabs(main_window.multi_point_controller.tracked_data[curve_name])
 
     def _update_ui_new_curve(self, main_window: MainWindowProtocol, curve_name: str) -> None:
@@ -387,11 +387,11 @@ class InsertTrackCommand(Command):
             curve_name: Name of new curve
         """
         # Update tracking panel
-        if hasattr(main_window, "multi_point_controller"):
+        if main_window.multi_point_controller is not None:
             main_window.multi_point_controller.update_tracking_panel()
 
         # Set as active curve
-        if hasattr(main_window, "active_timeline_point"):
+        if main_window.active_timeline_point is not None:
             main_window.active_timeline_point = curve_name
 
         # Get curve data (needed for both curve widget and timeline updates)
@@ -402,7 +402,7 @@ class InsertTrackCommand(Command):
             main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline
-        if hasattr(main_window, "update_timeline_tabs") and main_window.update_timeline_tabs is not None:
+        if main_window.update_timeline_tabs is not None:
             main_window.update_timeline_tabs(curve_data)
 
     @override
@@ -434,7 +434,7 @@ class InsertTrackCommand(Command):
                 self._update_ui(main_window, curve_name)
 
             # Update tracking panel
-            if hasattr(main_window, "multi_point_controller"):
+            if main_window.multi_point_controller is not None:
                 main_window.multi_point_controller.update_tracking_panel()
 
             self.executed = False
@@ -471,7 +471,7 @@ class InsertTrackCommand(Command):
                     self._update_ui(main_window, curve_name)
 
             # Update tracking panel
-            if hasattr(main_window, "multi_point_controller"):
+            if main_window.multi_point_controller is not None:
                 main_window.multi_point_controller.update_tracking_panel()
 
             self.executed = True

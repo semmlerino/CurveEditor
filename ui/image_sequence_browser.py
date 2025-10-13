@@ -12,7 +12,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, override
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QDir, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
@@ -350,7 +350,7 @@ class ImageSequence:
         plural = "s" if frame_count != 1 else ""
 
         # Add metadata if available
-        metadata_parts = []
+        metadata_parts: list[str] = []
         if self.resolution:
             # Common resolution labels
             labels = {
@@ -429,7 +429,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sort_ascending: bool = True
 
         # Determine best starting directory
-        self.start_directory = self._determine_start_directory(parent, start_directory)
+        self.start_directory: str = self._determine_start_directory(parent, start_directory)
 
         self._setup_ui()
         self._connect_signals()
@@ -480,15 +480,15 @@ class ImageSequenceBrowserDialog(QDialog):
             return start_directory
 
         # Priority 2: Last used directory from state manager
-        if hasattr(parent, "state_manager"):
-            state_manager = getattr(parent, "state_manager", None)
-            if state_manager and hasattr(state_manager, "recent_directories"):
-                recent_dirs = state_manager.recent_directories
-                if recent_dirs and len(recent_dirs) > 0:
-                    last_dir = recent_dirs[0]
-                    if Path(last_dir).exists():
+        if parent.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+            if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
+                recent_dirs = state_manager.recent_directories  # pyright: ignore[reportAny]
+                if recent_dirs and len(recent_dirs) > 0:  # pyright: ignore[reportAny]
+                    last_dir = recent_dirs[0]  # pyright: ignore[reportAny]
+                    if Path(last_dir).exists():  # pyright: ignore[reportAny]
                         logger.debug(f"Using last directory from state: {last_dir}")
-                        return last_dir
+                        return last_dir  # pyright: ignore[reportAny]
 
         # Priority 3: Documents folder
         documents_dir = Path.home() / "Documents"
@@ -534,7 +534,7 @@ class ImageSequenceBrowserDialog(QDialog):
         top_nav_bar.addWidget(self.forward_button)
 
         # Up button (go to parent directory)
-        self.up_button = QToolButton()
+        self.up_button: QToolButton = QToolButton()
         self.up_button.setText("↑")
         self.up_button.setToolTip("Go to parent directory (Alt+Up)")
         self.up_button.setFixedSize(32, 32)
@@ -543,7 +543,7 @@ class ImageSequenceBrowserDialog(QDialog):
         top_nav_bar.addWidget(self.up_button)
 
         # Home button
-        self.home_button = QToolButton()
+        self.home_button: QToolButton = QToolButton()
         self.home_button.setText("🏠")
         home_path = str(Path.home())
         self.home_button.setToolTip(f"Go to home directory ({home_path})")
@@ -566,7 +566,7 @@ class ImageSequenceBrowserDialog(QDialog):
             self.drive_selector = None
 
         # Quick Access dropdown
-        self.quick_access_button = QToolButton()
+        self.quick_access_button: QToolButton = QToolButton()
         self.quick_access_button.setText("⚡")
         self.quick_access_button.setToolTip("Quick access to common locations")
         self.quick_access_button.setFixedSize(32, 32)
@@ -598,7 +598,7 @@ class ImageSequenceBrowserDialog(QDialog):
         top_nav_bar.addWidget(self.address_bar, stretch=1)
 
         # Go button for address bar
-        self.go_button = QToolButton()
+        self.go_button: QToolButton = QToolButton()
         self.go_button.setText("Go")
         self.go_button.setToolTip("Navigate to entered path")
         self.go_button.setFixedSize(50, 32)
@@ -607,7 +607,7 @@ class ImageSequenceBrowserDialog(QDialog):
         top_nav_bar.addWidget(self.go_button)
 
         # Add to Favorites button
-        self.favorite_button = QToolButton()
+        self.favorite_button: QToolButton = QToolButton()
         self.favorite_button.setText("★")
         self.favorite_button.setToolTip("Add current directory to favorites")
         self.favorite_button.setFixedSize(32, 32)
@@ -619,7 +619,7 @@ class ImageSequenceBrowserDialog(QDialog):
         main_layout.addLayout(top_nav_bar)
 
         # Create splitter for three-panel layout
-        self.splitter = QSplitter(Qt.Orientation.Horizontal)
+        self.splitter: QSplitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Left panel: Favorites + Directory tree
         left_panel = QWidget()
@@ -687,7 +687,7 @@ class ImageSequenceBrowserDialog(QDialog):
         sequence_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_LARGE}pt;")
         search_layout.addWidget(sequence_label)
 
-        self.sequence_filter = QLineEdit()
+        self.sequence_filter: QLineEdit = QLineEdit()
         self.sequence_filter.setPlaceholderText("Filter sequences... (Ctrl+F)")
         self.sequence_filter.setClearButtonEnabled(True)
         _ = self.sequence_filter.textChanged.connect(self._filter_sequences)
@@ -735,7 +735,7 @@ class ImageSequenceBrowserDialog(QDialog):
         preview_layout = QVBoxLayout(preview_widget)
 
         # Info label
-        self.info_label = QLabel("Select a sequence to preview thumbnails")
+        self.info_label: QLabel = QLabel("Select a sequence to preview thumbnails")
         self.info_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.info_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; padding: {SPACING_SM}px;")
         self.info_label.setAccessibleName("Status message")
@@ -747,7 +747,7 @@ class ImageSequenceBrowserDialog(QDialog):
         progress_layout = QHBoxLayout(progress_container)
         progress_layout.setContentsMargins(SPACING_SM, 0, SPACING_SM, 0)
 
-        self.progress_bar = QProgressBar()
+        self.progress_bar: QProgressBar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
@@ -755,7 +755,7 @@ class ImageSequenceBrowserDialog(QDialog):
         self.progress_bar.setAccessibleDescription("Shows progress of directory scanning operation")
         progress_layout.addWidget(self.progress_bar)
 
-        self.cancel_scan_button = QPushButton("Cancel")
+        self.cancel_scan_button: QPushButton = QPushButton("Cancel")
         self.cancel_scan_button.setVisible(False)
         self.cancel_scan_button.setMaximumWidth(80)
         self.cancel_scan_button.setAccessibleName("Cancel scan")
@@ -765,23 +765,23 @@ class ImageSequenceBrowserDialog(QDialog):
         preview_layout.addWidget(progress_container)
 
         # Scroll area for thumbnails
-        self.scroll_area = QScrollArea()
+        self.scroll_area: QScrollArea = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setMinimumWidth(THUMBNAIL_SIZE * 2 + 50)
 
         # Container widget for thumbnail grid
-        self.thumbnail_container = QWidget()
-        self.thumbnail_layout = QGridLayout(self.thumbnail_container)
+        self.thumbnail_container: QWidget = QWidget()
+        self.thumbnail_layout: QGridLayout = QGridLayout(self.thumbnail_container)
         self.thumbnail_layout.setSpacing(SPACING_SM)
         self.scroll_area.setWidget(self.thumbnail_container)
 
         preview_layout.addWidget(self.scroll_area)
 
         # Metadata panel (shows technical details of selected sequence)
-        self.metadata_panel = Card("Sequence Metadata", collapsible=False)
+        self.metadata_panel: Card = Card("Sequence Metadata", collapsible=False)
 
         # Create metadata labels with enhanced typography
-        self.metadata_labels = {
+        self.metadata_labels: dict[str, QLabel] = {
             "resolution": QLabel("Resolution: -"),
             "bit_depth": QLabel("Bit Depth: -"),
             "color_space": QLabel("Color Space: -"),
@@ -809,7 +809,7 @@ class ImageSequenceBrowserDialog(QDialog):
         button_layout = QHBoxLayout()
         button_layout.addStretch()
 
-        self.load_button = QPushButton("Load Sequence")
+        self.load_button: QPushButton = QPushButton("Load Sequence")
         self.load_button.setEnabled(False)
         self.load_button.setDefault(True)
         self.load_button.setAccessibleName("Load sequence")
@@ -1009,7 +1009,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
                 # Also search in sequence metadata if available
                 if not match:
-                    sequence = item.data(Qt.ItemDataRole.UserRole)
+                    sequence = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
                     if isinstance(sequence, ImageSequence):
                         # Search in directory path
                         if filter_text in sequence.directory.lower():
@@ -1048,14 +1048,14 @@ class ImageSequenceBrowserDialog(QDialog):
         """Populate address bar dropdown with recent directories from state manager."""
         # Get recent directories from parent's state manager if available
         parent_window = self.parent()
-        if hasattr(parent_window, "state_manager"):
-            state_manager = getattr(parent_window, "state_manager", None)
-            if state_manager and hasattr(state_manager, "recent_directories"):
-                recents = state_manager.recent_directories
+        if parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+            state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
+            if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
+                recents = state_manager.recent_directories  # pyright: ignore[reportAny]
                 self.address_bar.clear()
-                for path in recents:
-                    if Path(path).exists():
-                        self.address_bar.addItem(path)
+                for path in recents:  # pyright: ignore[reportAny]
+                    if Path(path).exists():  # pyright: ignore[reportAny]
+                        self.address_bar.addItem(path)  # pyright: ignore[reportAny]
 
     def _on_address_bar_activated(self, index: int) -> None:
         """Handle selection from recent directories dropdown.
@@ -1118,29 +1118,44 @@ class ImageSequenceBrowserDialog(QDialog):
         self.scan_worker.start()
         logger.debug(f"Started async scan of {directory_path}")
 
-    def _on_scan_progress(self, current: int, total: int, message: str) -> None:
+    def _on_scan_progress(self, current: int, _total: int, message: str) -> None:
         """Handle scan progress updates."""
         self.progress_bar.setValue(current)
         self.info_label.setText(f"{message}\n{current}% complete")
 
-    def _on_sequences_found(self, sequence_dicts: list[dict[str, Any]]) -> None:
+    def _on_sequences_found(self, sequence_dicts: list[dict[str, object]]) -> None:
         """
         Handle sequence detection completion.
 
         Args:
             sequence_dicts: List of sequence dictionaries from worker
-        """
-        # Convert dictionaries to ImageSequence objects
+        """  # Convert dictionaries to ImageSequence objects
         sequences: list[ImageSequence] = []
         for seq_dict in sequence_dicts:
-            # Create sequence object
+            # Create sequence object - cast dict values to correct types
+            # Worker sends dict[str, object] but we know the actual types
+            base_name = seq_dict["base_name"]
+            padding_val = seq_dict["padding"]
+            extension = seq_dict["extension"]
+            frames_val = seq_dict["frames"]
+            file_list_val = seq_dict["file_list"]
+            directory = seq_dict["directory"]
+
+            # Type assertions for known structure from DirectoryScanWorker
+            assert isinstance(base_name, str)
+            assert isinstance(padding_val, int)
+            assert isinstance(extension, str)
+            assert isinstance(frames_val, list)
+            assert isinstance(file_list_val, list)
+            assert isinstance(directory, str)
+
             sequence = ImageSequence(
-                base_name=seq_dict["base_name"],
-                padding=seq_dict["padding"],
-                extension=seq_dict["extension"],
-                frames=seq_dict["frames"],
-                file_list=seq_dict["file_list"],
-                directory=seq_dict["directory"],
+                base_name=base_name,
+                padding=padding_val,
+                extension=extension,
+                frames=frames_val,  # type: ignore[arg-type]
+                file_list=file_list_val,  # type: ignore[arg-type]
+                directory=directory,
             )
 
             # Extract metadata from first frame
@@ -1223,7 +1238,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return
 
         # Retrieve stored ImageSequence object
-        sequence = current_item.data(Qt.ItemDataRole.UserRole)
+        sequence = current_item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
         if not isinstance(sequence, ImageSequence):
             logger.warning("Invalid sequence data in list item")
             return
@@ -1248,7 +1263,7 @@ class ImageSequenceBrowserDialog(QDialog):
         if not current_item:
             return
 
-        sequence = current_item.data(Qt.ItemDataRole.UserRole)
+        sequence = current_item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
         if isinstance(sequence, ImageSequence):
             self.selected_sequence = sequence
             self.selected_directory = sequence.directory
@@ -1382,10 +1397,10 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Add to recent directories
         parent_window = self.parent()
-        if hasattr(parent_window, "state_manager"):
-            state_manager = getattr(parent_window, "state_manager", None)
-            if state_manager and hasattr(state_manager, "add_recent_directory"):
-                state_manager.add_recent_directory(normalized_path)
+        if parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+            state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
+            if state_manager and hasattr(state_manager, "add_recent_directory"):  # pyright: ignore[reportAny]
+                state_manager.add_recent_directory(normalized_path)  # pyright: ignore[reportAny]
                 self._populate_recent_directories()  # Refresh dropdown
 
         logger.debug(f"Navigated to: {normalized_path}")
@@ -1453,7 +1468,7 @@ class ImageSequenceBrowserDialog(QDialog):
         Returns:
             Sorted list of image filenames
         """
-        image_files = []
+        image_files: list[str] = []
 
         try:
             if not os.path.isdir(directory):
@@ -1801,9 +1816,9 @@ class ImageSequenceBrowserDialog(QDialog):
         Args:
             item: List widget item that was double-clicked
         """
-        path = item.data(Qt.ItemDataRole.UserRole)
-        if path and Path(path).exists():
-            self._navigate_to_path(path)
+        path = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
+        if path and Path(path).exists():  # pyright: ignore[reportAny]
+            self._navigate_to_path(path)  # pyright: ignore[reportAny]
         else:
             self.info_label.setText(f"Favorite path no longer exists: {path}")
 
@@ -1829,12 +1844,12 @@ class ImageSequenceBrowserDialog(QDialog):
         move_down_action = menu.addAction("Move Down")
 
         action = menu.exec(self.favorites_list.mapToGlobal(pos))
-        path = item.data(Qt.ItemDataRole.UserRole)
+        path = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
 
         if action == rename_action:
             name, ok = QInputDialog.getText(self, "Rename Favorite", "Enter new name:", text=item.text().lstrip("★ "))
             if ok and name:
-                _ = self.favorites_manager.rename(path, name)
+                _ = self.favorites_manager.rename(path, name)  # pyright: ignore[reportAny]
                 self._populate_favorites()
 
         elif action == remove_action:
@@ -1849,16 +1864,16 @@ class ImageSequenceBrowserDialog(QDialog):
                 QMessageBox.StandardButton.No,  # Default to No for safety
             )
             if reply == QMessageBox.StandardButton.Yes:
-                _ = self.favorites_manager.remove(path)
+                _ = self.favorites_manager.remove(path)  # pyright: ignore[reportAny]
                 self._populate_favorites()
                 self._update_favorite_button_state()
 
         elif action == move_up_action:
-            _ = self.favorites_manager.move_up(path)
+            _ = self.favorites_manager.move_up(path)  # pyright: ignore[reportAny]
             self._populate_favorites()
 
         elif action == move_down_action:
-            _ = self.favorites_manager.move_down(path)
+            _ = self.favorites_manager.move_down(path)  # pyright: ignore[reportAny]
             self._populate_favorites()
 
     def _update_favorite_button_state(self) -> None:
@@ -1889,7 +1904,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return
 
         # Get available drives by checking A-Z
-        available_drives = []
+        available_drives: list[str] = []
         for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             drive_path = Path(f"{letter}:/")
             if drive_path.exists():
@@ -1972,12 +1987,12 @@ class ImageSequenceBrowserDialog(QDialog):
 
         return locations
 
-    def _on_quick_access_clicked(self, path: str, checked: bool = False) -> None:
+    def _on_quick_access_clicked(self, path: str, _checked: bool = False) -> None:
         """Handle quick access location click.
 
         Args:
             path: Path to navigate to
-            checked: Signal parameter (unused)
+            _checked: Signal parameter (unused)
         """
         self._navigate_to_path(path)
 
@@ -2114,7 +2129,7 @@ class ImageSequenceBrowserDialog(QDialog):
         for i in range(self.sequence_list.count()):
             item = self.sequence_list.item(i)
             if item:
-                seq = item.data(Qt.ItemDataRole.UserRole)
+                seq = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
                 if isinstance(seq, ImageSequence):
                     sequences.append(seq)
 
@@ -2155,16 +2170,16 @@ class ImageSequenceBrowserDialog(QDialog):
     def _restore_state(self) -> None:
         """Restore dialog state from parent's state manager."""
         parent_window = self.parent()
-        if not hasattr(parent_window, "state_manager"):
+        if parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
-        state_manager = getattr(parent_window, "state_manager", None)
+        state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
         if not state_manager:
             return
 
         # Restore dialog geometry
-        if hasattr(state_manager, "get_value"):
-            saved_geometry = state_manager.get_value("image_browser_geometry")
+        if hasattr(state_manager, "get_value"):  # pyright: ignore[reportAny]
+            saved_geometry = state_manager.get_value("image_browser_geometry")  # pyright: ignore[reportAny]
             if saved_geometry:
                 try:
                     from PySide6.QtCore import QByteArray
@@ -2175,8 +2190,8 @@ class ImageSequenceBrowserDialog(QDialog):
                     logger.warning(f"Failed to restore dialog geometry: {e}")
 
             # Restore splitter state
-            saved_splitter = state_manager.get_value("image_browser_splitter")
-            if saved_splitter and hasattr(self, "splitter"):
+            saved_splitter = state_manager.get_value("image_browser_splitter")  # pyright: ignore[reportAny]
+            if saved_splitter:
                 try:
                     from PySide6.QtCore import QByteArray
 
@@ -2186,7 +2201,7 @@ class ImageSequenceBrowserDialog(QDialog):
                     logger.warning(f"Failed to restore splitter state: {e}")
 
             # Restore sort preferences
-            saved_sort = state_manager.get_value("image_browser_sort")
+            saved_sort = state_manager.get_value("image_browser_sort")  # pyright: ignore[reportAny]
             if saved_sort:
                 self.current_sort = saved_sort
                 sort_map_reverse = {
@@ -2195,12 +2210,12 @@ class ImageSequenceBrowserDialog(QDialog):
                     "size": "File Size",
                     "date": "Date Modified",
                 }
-                display_text = sort_map_reverse.get(saved_sort, "Name")
+                display_text = sort_map_reverse.get(saved_sort, "Name")  # pyright: ignore[reportAny]
                 index = self.sort_combo.findText(display_text)
                 if index >= 0:
                     self.sort_combo.setCurrentIndex(index)
 
-            saved_sort_order = state_manager.get_value("image_browser_sort_ascending")
+            saved_sort_order = state_manager.get_value("image_browser_sort_ascending")  # pyright: ignore[reportAny]
             if saved_sort_order is not None:
                 self.sort_ascending = saved_sort_order
                 self.sort_order_button.setText("↑" if self.sort_ascending else "↓")
@@ -2208,30 +2223,30 @@ class ImageSequenceBrowserDialog(QDialog):
     def _save_state(self) -> None:
         """Save dialog state to parent's state manager."""
         parent_window = self.parent()
-        if not hasattr(parent_window, "state_manager"):
+        if parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
-        state_manager = getattr(parent_window, "state_manager", None)
+        state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
         if not state_manager:
             return
 
         # Save dialog geometry
-        if hasattr(state_manager, "set_value"):
+        if hasattr(state_manager, "set_value"):  # pyright: ignore[reportAny]
             try:
-                state_manager.set_value("image_browser_geometry", self.saveGeometry())
+                state_manager.set_value("image_browser_geometry", self.saveGeometry())  # pyright: ignore[reportAny]
             except Exception as e:
                 logger.warning(f"Failed to save dialog geometry: {e}")
 
             # Save splitter state
             if hasattr(self, "splitter"):
                 try:
-                    state_manager.set_value("image_browser_splitter", self.splitter.saveState())
+                    state_manager.set_value("image_browser_splitter", self.splitter.saveState())  # pyright: ignore[reportAny]
                 except Exception as e:
                     logger.warning(f"Failed to save splitter state: {e}")
 
             # Save sort preferences
-            state_manager.set_value("image_browser_sort", self.current_sort)
-            state_manager.set_value("image_browser_sort_ascending", self.sort_ascending)
+            state_manager.set_value("image_browser_sort", self.current_sort)  # pyright: ignore[reportAny]
+            state_manager.set_value("image_browser_sort_ascending", self.sort_ascending)  # pyright: ignore[reportAny]
 
     @override
     def accept(self) -> None:

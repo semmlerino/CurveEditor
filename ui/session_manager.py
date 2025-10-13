@@ -315,13 +315,13 @@ class SessionManager:
 
             # Restore recent directories
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
-                if hasattr(main_window, "state_manager") and hasattr(
+                if main_window.state_manager is not None and hasattr(
                     main_window.state_manager, "set_recent_directories"
                 ):
                     main_window.state_manager.set_recent_directories(session_data["recent_directories"])
 
             # Load files using background thread if available
-            if hasattr(main_window, "file_load_worker") and main_window.file_load_worker:
+            if main_window.file_load_worker is not None:
                 logger.info("Loading session files via background thread")
                 main_window.file_load_worker.start_work(tracking_file, image_directory)
 
@@ -337,7 +337,7 @@ class SessionManager:
             else:
                 # Fallback to direct loading if no worker available
                 logger.warning("No file load worker available, using direct loading")
-                if tracking_file and hasattr(main_window, "file_operations_manager"):
+                if tracking_file and main_window.file_operations_manager is not None:
                     # Simulate file opened event for session restoration
                     main_window.file_operations_manager.open_file()
 
@@ -352,7 +352,7 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to restore session state: {e}")
             # Fallback to burger data on error
-            if hasattr(main_window, "file_operations_manager"):
+            if main_window.file_operations_manager is not None:
                 main_window.file_operations_manager.load_burger_tracking_data()
 
     def load_session_or_fallback(self, main_window: Any) -> None:
@@ -369,5 +369,5 @@ class SessionManager:
             self.restore_session_state(main_window, session_data)
         else:
             logger.info("No session found, falling back to burger data")
-            if hasattr(main_window, "file_operations_manager"):
+            if main_window.file_operations_manager is not None:
                 main_window.file_operations_manager.load_burger_tracking_data()
