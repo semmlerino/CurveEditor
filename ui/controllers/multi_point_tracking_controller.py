@@ -5,6 +5,7 @@ Multi-Point Tracking Controller for CurveEditor.
 This controller manages multi-point tracking data, including loading,
 selection, and display of multiple tracking trajectories.
 """
+# pyright: reportImportCycles=false
 
 from enum import Enum, auto
 from typing import TYPE_CHECKING, cast
@@ -73,6 +74,22 @@ class MultiPointTrackingController:
         self._previous_active_curve: str | None = None  # Track previous active curve for data persistence
 
         logger.info("MultiPointTrackingController initialized")
+
+    def __del__(self) -> None:
+        """Disconnect all signals to prevent memory leaks.
+
+        MultiPointTrackingController creates 3 signal connections to ApplicationState.
+        Without cleanup, these connections would keep the controller alive,
+        causing memory leaks.
+        """
+        # Disconnect ApplicationState signals (3 connections)
+        try:
+            if hasattr(self, "_app_state"):
+                _ = self._app_state.curves_changed.disconnect(self._on_curves_changed)
+                _ = self._app_state.active_curve_changed.disconnect(self._on_active_curve_changed)
+                _ = self._app_state.selection_state_changed.disconnect(self._on_selection_state_changed)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
 
     @property
     def tracked_data(self) -> dict[str, CurveDataList]:

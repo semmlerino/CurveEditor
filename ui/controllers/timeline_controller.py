@@ -99,6 +99,47 @@ class TimelineController(QObject):
         # Connect signals
         self._connect_signals()
 
+    def __del__(self) -> None:
+        """Disconnect all signals to prevent memory leaks.
+
+        TimelineController creates 9 signal connections to UI widgets and timers.
+        Without cleanup, these connections would keep the controller alive,
+        causing memory leaks.
+        """
+        # Disconnect playback timer
+        try:
+            if hasattr(self, "playback_timer"):
+                _ = self.playback_timer.timeout.disconnect(self._on_playback_timer)
+                self.playback_timer.stop()
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect navigation signals
+        try:
+            if hasattr(self, "frame_spinbox"):
+                _ = self.frame_spinbox.valueChanged.disconnect(self._on_frame_changed)
+            if hasattr(self, "frame_slider"):
+                _ = self.frame_slider.valueChanged.disconnect(self._on_slider_changed)
+            if hasattr(self, "btn_first"):
+                _ = self.btn_first.clicked.disconnect(self._on_first_frame)
+            if hasattr(self, "btn_prev"):
+                _ = self.btn_prev.clicked.disconnect(self._on_prev_frame)
+            if hasattr(self, "btn_next"):
+                _ = self.btn_next.clicked.disconnect(self._on_next_frame)
+            if hasattr(self, "btn_last"):
+                _ = self.btn_last.clicked.disconnect(self._on_last_frame)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect playback signals
+        try:
+            if hasattr(self, "btn_play_pause"):
+                _ = self.btn_play_pause.toggled.disconnect(self._on_play_pause)
+            if hasattr(self, "fps_spinbox"):
+                _ = self.fps_spinbox.valueChanged.disconnect(self._on_fps_changed)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
     def _create_widgets(self) -> None:
         """Create all timeline control widgets."""
         style = QApplication.style()

@@ -74,6 +74,15 @@ class FrameChangeCoordinator:
         self.timeline_controller: TimelineControllerProtocol = main_window.timeline_controller
         self.timeline_tabs: TimelineTabWidget | None = main_window.timeline_tabs
 
+    def __del__(self) -> None:
+        """Ensure signal disconnection during object destruction.
+
+        FrameChangeCoordinator has 1 signal connection to StateManager.frame_changed.
+        The disconnect() method already handles cleanup, but __del__ ensures it's
+        called during object destruction to prevent memory leaks.
+        """
+        self.disconnect()
+
     def connect(self) -> None:
         """Connect to state manager frame_changed signal (idempotent).
 
@@ -83,7 +92,7 @@ class FrameChangeCoordinator:
         """
         # Prevent duplicate connections - disconnect first if already connected
         try:
-            self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+            _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
         except (RuntimeError, TypeError):
             pass  # Not connected yet, that's expected on first call
 
@@ -119,7 +128,7 @@ class FrameChangeCoordinator:
         """
         logger.debug(f"[FRAME-COORDINATOR] Frame changed to {frame}")
 
-        errors = []
+        errors: list[str] = []
 
         # Phase 1: Pre-paint state updates (all must attempt even if one fails)
         try:

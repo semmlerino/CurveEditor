@@ -56,6 +56,41 @@ class UIInitializationController:
         self.main_window = main_window
         logger.info("UIInitializationController initialized")
 
+    def __del__(self) -> None:
+        """Disconnect all signals to prevent memory leaks.
+
+        UIInitializationController creates 7 signal connections to toolbar widgets
+        and tracking panel. Without cleanup, these connections would keep objects
+        alive, causing memory leaks.
+        """
+        # Disconnect toolbar widget signals (2 connections)
+        try:
+            if hasattr(self, "main_window") and hasattr(self.main_window, "ui"):
+                if hasattr(self.main_window.ui.toolbar, "smoothing_type_combo"):
+                    _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.disconnect(
+                        self._on_smoothing_type_changed
+                    )
+                if hasattr(self.main_window.ui.toolbar, "smoothing_size_spinbox"):
+                    _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.disconnect(
+                        self._on_smoothing_size_changed
+                    )
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect tracking panel signals (5 connections)
+        try:
+            if hasattr(self, "main_window") and hasattr(self.main_window, "tracking_panel"):
+                panel = self.main_window.tracking_panel
+                _ = panel.point_visibility_changed.disconnect(self.main_window.on_point_visibility_changed)
+                _ = panel.point_color_changed.disconnect(self.main_window.on_point_color_changed)
+                _ = panel.point_deleted.disconnect(self.main_window.on_point_deleted)
+                _ = panel.point_renamed.disconnect(self.main_window.on_point_renamed)
+                _ = panel.tracking_direction_changed.disconnect(
+                    self.main_window.tracking_controller.on_tracking_direction_changed
+                )
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
     def initialize_ui(self) -> None:
         """Initialize all UI components in the correct order."""
         self._init_actions()

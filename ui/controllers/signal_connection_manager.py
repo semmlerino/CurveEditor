@@ -35,6 +35,89 @@ class SignalConnectionManager:
         self.main_window: MainWindow = main_window
         logger.info("SignalConnectionManager initialized")
 
+    def __del__(self) -> None:
+        """Disconnect all signals to prevent memory leaks.
+
+        SignalConnectionManager creates 28+ signal connections to MainWindow,
+        StateManager, FileOperations, and UI components. Without cleanup,
+        these connections would keep objects alive, causing memory leaks.
+        """
+        # Disconnect file operations signals (8 connections)
+        try:
+            if hasattr(self, "main_window") and hasattr(self.main_window, "file_operations"):
+                file_ops = self.main_window.file_operations
+                _ = file_ops.tracking_data_loaded.disconnect(self.main_window.on_tracking_data_loaded)
+                _ = file_ops.multi_point_data_loaded.disconnect(self.main_window.on_multi_point_data_loaded)
+                _ = file_ops.image_sequence_loaded.disconnect(
+                    self.main_window.view_management_controller.on_image_sequence_loaded
+                )
+                _ = file_ops.progress_updated.disconnect(self.main_window.on_file_load_progress)
+                _ = file_ops.error_occurred.disconnect(self.main_window.on_file_load_error)
+                _ = file_ops.finished.disconnect(self.main_window.on_file_load_finished)
+                _ = file_ops.file_loaded.disconnect(self.main_window.on_file_loaded)
+                _ = file_ops.file_saved.disconnect(self.main_window.on_file_saved)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect state manager signals (5 connections)
+        try:
+            if hasattr(self, "main_window") and hasattr(self.main_window, "state_manager"):
+                state_mgr = self.main_window.state_manager
+                _ = state_mgr.file_changed.disconnect(self.main_window.on_file_changed)
+                _ = state_mgr.modified_changed.disconnect(self.main_window.on_modified_changed)
+                _ = state_mgr.selection_changed.disconnect(self.main_window.on_selection_changed)
+                _ = state_mgr.view_state_changed.disconnect(self.main_window.on_view_state_changed)
+                # Lambda connection cannot be disconnected - will be cleaned up with state_manager
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect timeline controller signals (2 connections)
+        try:
+            if hasattr(self, "main_window") and hasattr(self.main_window, "timeline_controller"):
+                timeline = self.main_window.timeline_controller
+                # TimelineController is QObject with signals at runtime
+                _ = timeline.frame_changed.disconnect(self.main_window.on_frame_changed_from_controller)  # pyright: ignore[reportAttributeAccessIssue]
+                _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect curve widget signals (5 connections)
+        try:
+            if hasattr(self, "main_window") and self.main_window.curve_widget:
+                widget = self.main_window.curve_widget
+                _ = widget.point_selected.disconnect(self.main_window.on_point_selected)
+                _ = widget.point_moved.disconnect(self.main_window.on_point_moved)
+                _ = widget.selection_changed.disconnect(self.main_window.on_curve_selection_changed)
+                _ = widget.view_changed.disconnect(self.main_window.on_curve_view_changed)
+                _ = widget.zoom_changed.disconnect(self.main_window.on_curve_zoom_changed)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
+        # Disconnect view options signals (6 connections)
+        try:
+            if hasattr(self, "main_window"):
+                mw = self.main_window
+                if mw.show_background_cb:
+                    _ = mw.show_background_cb.stateChanged.disconnect(
+                        mw.view_management_controller.update_curve_view_options
+                    )
+                if mw.show_grid_cb:
+                    _ = mw.show_grid_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
+                if mw.show_info_cb:
+                    _ = mw.show_info_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
+                if mw.show_tooltips_cb:
+                    _ = mw.show_tooltips_cb.stateChanged.disconnect(mw.view_management_controller.toggle_tooltips)
+                if mw.point_size_slider:
+                    _ = mw.point_size_slider.valueChanged.disconnect(
+                        mw.view_management_controller.update_curve_point_size
+                    )
+                if mw.line_width_slider:
+                    _ = mw.line_width_slider.valueChanged.disconnect(
+                        mw.view_management_controller.update_curve_line_width
+                    )
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
     def connect_all_signals(self) -> None:
         """Connect all signals in the correct order."""
         self._connect_file_operations_signals()
@@ -89,13 +172,14 @@ class SignalConnectionManager:
 
         # Connect timeline_tabs to StateManager as observer
         if self.main_window.timeline_tabs:
-            self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)  # pyright: ignore[reportUnknownMemberType]
+            self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)
 
         # Connect timeline controller signals (unified playback and navigation)
-        _ = self.main_window.timeline_controller.frame_changed.connect(  # pyright: ignore[reportAny]
+        # TimelineController is QObject with signals at runtime
+        _ = self.main_window.timeline_controller.frame_changed.connect(  # pyright: ignore[reportAttributeAccessIssue]
             self.main_window.on_frame_changed_from_controller
         )
-        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAny]
+        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
 
         # NOTE: timeline_tabs.frame_changed connection REMOVED to prevent circular signal flow
         # With StateManager as single source of truth, timeline_tabs delegates frame changes

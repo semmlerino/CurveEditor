@@ -50,6 +50,24 @@ class PointEditorController:
 
         logger.info("PointEditorController initialized")
 
+    def __del__(self) -> None:
+        """Disconnect all signals to prevent memory leaks.
+
+        PointEditorController creates 2 signal connections to point editor spinboxes.
+        These connections are made conditionally via the _spinbox_connected flag.
+        Without cleanup, these connections would keep objects alive, causing memory leaks.
+        """
+        # Disconnect point editor spinbox signals (2 connections, if connected)
+        try:
+            if hasattr(self, "_spinbox_connected") and self._spinbox_connected:
+                if hasattr(self, "main_window"):
+                    if self.main_window.point_x_spinbox:
+                        _ = self.main_window.point_x_spinbox.valueChanged.disconnect(self._on_point_x_changed)
+                    if self.main_window.point_y_spinbox:
+                        _ = self.main_window.point_y_spinbox.valueChanged.disconnect(self._on_point_y_changed)
+        except (RuntimeError, AttributeError):
+            pass  # Already disconnected or objects destroyed
+
     @Slot(list)
     def on_selection_changed(self, indices: list[int]) -> None:
         """
