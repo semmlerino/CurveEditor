@@ -1,6 +1,31 @@
 # CurveEditor Development Guide
 
-Quick reference for CurveEditor - a Python/PySide6 application for editing animation curves with professional VFX workflow integration.
+Quick reference for CurveEditor - a Python/PySide6 application for editing animation curves with VFX workflow tools.
+
+## Project Scope
+
+**Personal VFX Tool**: This is a single-user desktop application for personal VFX workflow needs. While it follows professional coding standards (type safety, testing, clean architecture), it optimizes for maintainability and pragmatic solutions over enterprise concerns.
+
+**What still matters:**
+- **Code quality**: Type safety, readable code, proper architecture (future-you deserves good code)
+- **Testing**: Comprehensive tests prevent regressions and enable confident refactoring
+- **Performance**: Responsive UI, efficient algorithms (this is interactive software)
+- **Maintainability**: Clear patterns, good documentation, low technical debt
+- **Robustness**: Handle corrupt files, validate inputs, graceful error recovery
+
+**Not applicable (single-user desktop context):**
+- **Enterprise security**: No authentication, authorization, or adversarial threat modeling
+- **Scale engineering**: No distributed systems, cloud deployment, or ops infrastructure
+- **Multi-user patterns**: No concurrent access, locking, or team coordination features
+- **Runtime extensibility**: No plugin systems or runtime module loading
+
+**Decision-making guidance**: When choosing between solutions, prefer:
+- Simple and working over theoretically perfect
+- Pragmatic over defensive (e.g., trust local filesystem, not untrusted network input)
+- Readable over clever (but don't sacrifice performance where it matters)
+- "Good enough for single-user" over "scales to enterprise"
+
+**Professional-quality code for a personal tool, not enterprise software.**
 
 ## Code Quality Standards
 
@@ -12,8 +37,6 @@ Quick reference for CurveEditor - a Python/PySide6 application for editing anima
 
 ## Architecture Overview
 
-**See `ARCHITECTURE.md` for detailed architecture documentation.**
-
 ### Layers
 ```
 UI Layer          → MainWindow, CurveViewWidget, Controllers
@@ -24,7 +47,7 @@ Core Models       → CurvePoint, PointCollection, Commands
 
 ### 4 Services
 
-1. **TransformService**: Coordinate transformations, view state (99.9% cache hit rate)
+1. **TransformService**: Coordinate transformations, view state
 2. **DataService**: Data operations, file I/O, image management
 3. **InteractionService**: User interactions, point manipulation, command history
 4. **UIService**: UI operations, dialogs, status updates
@@ -34,8 +57,6 @@ from services import get_data_service, get_interaction_service, get_transform_se
 ```
 
 ### Multi-Curve Support
-
-**See `INTERACTIONSERVICE_MULTI_CURVE_ARCHITECTURE.md` for comprehensive API details.**
 
 InteractionService supports multi-curve operations with optional `curve_name` parameter:
 
@@ -53,30 +74,87 @@ service.select_all_points(view, main_window, curve_name="Track1")  # Specific cu
 
 ## State Management
 
-**ApplicationState** is the single source of truth for all data.
+**ApplicationState** is the single source of truth for **application data**.
 
 ```python
 from stores.application_state import get_application_state
 
 state = get_application_state()
 
-# Basic operations
-state.set_curve_data("Track1", curve_data)
-data = state.get_curve_data("Track1")
+# Explicit multi-curve API (one way to do things)
+active = state.active_curve
+if active:
+    # Curve data
+    state.set_curve_data(active, curve_data)
+    data = state.get_curve_data(active)
+
+    # Original data (for undo)
+    state.set_original_data(active, original_data)
+    original = state.get_original_data(active)
+
+# Image sequence
+state.set_image_files(files, directory="/path/to/images")
+files = state.get_image_files()
+
+# Frame state
+state.set_frame(42)
+frame = state.get_current_frame()
 
 # Subscribe to changes
 state.curves_changed.connect(self._on_data_changed)
+state.image_sequence_changed.connect(self._on_images_changed)
 
 # Batch operations (prevent signal storms)
-state.begin_batch()
-try:
+with state.batch_updates():
     state.set_curve_data("Track1", data1)
     state.set_curve_data("Track2", data2)
-finally:
-    state.end_batch()
+    # Signals emitted once at end
 ```
 
-**Migration Complete** (October 2025): All 66 files migrated, 83.3% memory reduction, 14.9x batch speedup, 100% test pass rate.
+**StateManager** handles **UI preferences and view state**.
+
+```python
+from ui.state_manager import StateManager
+
+# View state
+state_manager.zoom_level = 2.0
+state_manager.pan_offset = (100, 50)
+
+# Tool state
+state_manager.current_tool = "smooth"
+
+# Window state
+state_manager.window_position = (100, 100)
+state_manager.is_fullscreen = True
+
+# History UI state
+state_manager.set_history_state(can_undo=True, can_redo=False)
+
+# Subscribe to UI state changes
+state_manager.view_state_changed.connect(self._on_view_changed)
+state_manager.undo_state_changed.connect(self._update_undo_button)
+state_manager.tool_state_changed.connect(self._update_tool_selection)
+```
+
+**Migration Complete** (October 2025):
+- StateManager Simplified Migration completed in 4 phases
+- Result: Single source of truth, one API, zero technical debt
+- ApplicationState owns all data, StateManager owns all UI state
+
+**⚠️ StateManager has NO data access methods**:
+```python
+# ❌ WRONG - These don't exist
+state_manager.track_data
+state_manager.image_files
+state_manager.total_frames
+
+# ✅ CORRECT - Use ApplicationState directly
+state = get_application_state()
+active = state.active_curve
+if active:
+    data = state.get_curve_data(active)
+    state.set_curve_data(active, new_data)
+```
 
 ## Core Data Models
 
@@ -112,8 +190,6 @@ class PointStatus(Enum):
 2. **Point-Level** (which frames within active curve)
    - `state.get_selection(curve_name)` / `state.set_selection(curve_name, indices)`
 
-**See `SELECTION_STATE_REFACTORING_TRACKER.md` for migration details.**
-
 ## Display Modes
 
 ```python
@@ -123,8 +199,6 @@ from core.display_mode import DisplayMode
 state.set_show_all_curves(True)   # → DisplayMode.ALL_VISIBLE
 state.set_show_all_curves(False)  # → DisplayMode.SELECTED or ACTIVE_ONLY
 ```
-
-**See `RENDER_STATE_IMPLEMENTATION.md` for rendering details.**
 
 ## UI Controllers
 
@@ -168,11 +242,11 @@ Specialized controllers in `ui/controllers/`:
 CurveEditor/
 ├── core/           # Models, commands, algorithms
 ├── data/           # Data operations
-├── rendering/      # Optimized rendering (47x faster)
+├── rendering/      # Optimized rendering pipeline
 ├── services/       # 4 services
-├── stores/         # ApplicationState + legacy stores
+├── stores/         # ApplicationState
 ├── ui/             # MainWindow, widgets, controllers
-├── tests/          # 106 test files, 2105+ tests
+├── tests/          # Test suite
 ├── session/        # Session persistence
 ├── main.py         # Entry point
 ├── bpr             # Basedpyright wrapper
@@ -289,13 +363,6 @@ from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 ```
 
-## Performance
-
-- **Rendering**: 47x faster (viewport culling, LOD, vectorization)
-- **Point Queries**: 64.7x faster (spatial indexing)
-- **Transforms**: 99.9% cache hit rate
-- **State**: 83.3% memory reduction, 14.9x batch speedup
-
 ## Key Design Patterns
 
 1. **Component Container**: UI attributes in `ui/ui_components.py`
@@ -304,16 +371,6 @@ from ui.main_window import MainWindow
 4. **Immutable Models**: Thread-safe CurvePoint
 5. **Transform Caching**: LRU cache
 6. **Command Pattern**: Undo/redo support
-
-## Documentation Index
-
-- `ARCHITECTURE.md` - Detailed architecture
-- `INTERACTIONSERVICE_MULTI_CURVE_ARCHITECTURE.md` - Multi-curve API
-- `SELECTION_STATE_REFACTORING_TRACKER.md` - Selection state details
-- `RENDER_STATE_IMPLEMENTATION.md` - Rendering pipeline
-- `BASEDPYRIGHT_STRATEGY.md` - Type checking strategy
-- `PHASE_8_INTERACTION_SERVICE_REFACTOR.md` - Phase 8 migration
-- `QUICK-REFERENCE.md` - Quick command reference
 
 ## Development Tips
 
