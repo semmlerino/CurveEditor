@@ -12,12 +12,12 @@ Single source of truth for all application state:
 Key Design Principles:
 - Immutable external interface (returns copies)
 - Qt Signal-based reactivity (no polling needed)
-- Batch operations (prevent signal storms, QMutex-protected)
+- Batch operations (prevent signal storms)
 - Main thread only (enforced by runtime assertions)
 
 Thread Safety:
 - All methods MUST be called from main thread
-- Batch operations protected by QMutex for thread safety
+- Batch operations are main-thread-only (no locking needed)
 - Worker threads should emit signals, handlers then update state
 - _assert_main_thread() validates correct thread usage
 
@@ -81,7 +81,7 @@ class ApplicationState(QObject):
     Thread Safety Contract:
     - All data access methods MUST be called from main thread only
     - _assert_main_thread() enforces this at runtime for all modifications
-    - Batch operations are thread-safe (protected by internal QMutex)
+    - Batch operations are main-thread-only (no locking needed)
     - Signal emission is thread-safe (Qt handles cross-thread automatically)
     - DO NOT access _private attributes directly (no synchronization guarantee)
 
