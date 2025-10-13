@@ -291,9 +291,9 @@ class MultiPointTrackingController:
         if not self.main_window.curve_widget:
             return
 
-        # Get current frame from state manager (gracefully handle missing state manager for tests)
+        # Get current frame from state manager
         current_frame = 1  # Default fallback
-        if hasattr(self.main_window, "state_manager") and self.main_window.state_manager:
+        if self.main_window.state_manager is not None:
             current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
 
         # Try to find and select the point at current frame
@@ -342,7 +342,7 @@ class MultiPointTrackingController:
 
         # Get current frame to find the appropriate point to select
         current_frame = 1  # Default fallback
-        if hasattr(self.main_window, "state_manager") and self.main_window.state_manager:
+        if self.main_window.state_manager is not None:
             current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
 
         # Find the point at the current frame in the active curve

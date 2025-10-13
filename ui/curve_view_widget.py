@@ -657,7 +657,7 @@ class CurveViewWidget(QWidget):
         Args:
             curve_names: List of curve names to select and display
         """
-        if self.main_window and hasattr(self.main_window, "tracking_controller"):
+        if self.main_window is not None:
             self.main_window.tracking_controller.set_selected_curves(curve_names)  # pyright: ignore[reportAttributeAccessIssue]
         else:
             # Fallback for tests or when main_window not available
@@ -711,7 +711,7 @@ class CurveViewWidget(QWidget):
 
         Calculates the bounding box of all selected curves and centers the view on it.
         """
-        if self.main_window and hasattr(self.main_window, "tracking_controller"):
+        if self.main_window is not None:
             self.main_window.tracking_controller.center_on_selected_curves()  # pyright: ignore[reportAttributeAccessIssue]
         else:
             # Fallback for tests or when main_window not available
