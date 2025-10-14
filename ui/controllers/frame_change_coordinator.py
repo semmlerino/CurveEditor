@@ -109,7 +109,7 @@ class FrameChangeCoordinator:
         # This breaks the synchronous nested execution that causes timeline desync bugs
         _ = self.main_window.state_manager.frame_changed.connect(
             self.on_frame_changed,
-            Qt.QueuedConnection,  # Defers coordinator execution, prevents nested calls
+            Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]  # Defers coordinator execution, prevents nested calls
         )
         self._connected = True
         logger.info("FrameChangeCoordinator connected with QueuedConnection")
