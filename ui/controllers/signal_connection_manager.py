@@ -71,12 +71,12 @@ class SignalConnectionManager:
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 
-        # Disconnect timeline controller signals (2 connections)
+        # Disconnect timeline controller signals (1 connection)
+        # REMOVED: timeline.frame_changed disconnect - signal emission removed from TimelineController
         try:
             if hasattr(self, "main_window") and hasattr(self.main_window, "timeline_controller"):
                 timeline = self.main_window.timeline_controller
                 # TimelineController is QObject with signals at runtime
-                _ = timeline.frame_changed.disconnect(self.main_window.on_frame_changed_from_controller)  # pyright: ignore[reportAttributeAccessIssue]
                 _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
@@ -175,10 +175,9 @@ class SignalConnectionManager:
             self.main_window.timeline_tabs.set_state_manager(self.main_window.state_manager)
 
         # Connect timeline controller signals (unified playback and navigation)
-        # TimelineController is QObject with signals at runtime
-        _ = self.main_window.timeline_controller.frame_changed.connect(  # pyright: ignore[reportAttributeAccessIssue]
-            self.main_window.on_frame_changed_from_controller
-        )
+        # REMOVED: timeline_controller.frame_changed connection to dead code
+        # TimelineController no longer emits frame_changed (redundant with ApplicationState)
+        # All frame change handling via ApplicationState → StateManager → FrameChangeCoordinator
         _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
 
         # NOTE: timeline_tabs.frame_changed connection REMOVED to prevent circular signal flow

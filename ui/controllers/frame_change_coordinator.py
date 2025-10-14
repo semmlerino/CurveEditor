@@ -73,6 +73,7 @@ class FrameChangeCoordinator:
         self.view_management: ViewManagementController = main_window.view_management_controller  # pyright: ignore[reportAttributeAccessIssue]
         self.timeline_controller: TimelineControllerProtocol = main_window.timeline_controller
         self.timeline_tabs: TimelineTabWidget | None = main_window.timeline_tabs
+        self._connected: bool = False  # Track connection state to prevent Qt warnings
 
     def __del__(self) -> None:
         """Ensure signal disconnection during object destruction.
@@ -89,25 +90,42 @@ class FrameChangeCoordinator:
         Prevents duplicate connections - disconnect first if already connected.
         Qt allows multiple connections to same slot without error, leading to
         2x-3x update() calls per frame change (existing bug in StateSyncController).
-        """
-        # Prevent duplicate connections - disconnect first if already connected
-        try:
-            _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
-        except (RuntimeError, TypeError):
-            pass  # Not connected yet, that's expected on first call
 
-        # Now connect (guaranteed single connection)
-        _ = self.main_window.state_manager.frame_changed.connect(self.on_frame_changed)
-        logger.info("FrameChangeCoordinator connected")
+        Uses Qt.QueuedConnection to break synchronous nested execution that causes
+        timeline-curve desynchronization. With deferred execution, coordinator runs
+        AFTER input handler completes, preventing widget state machine confusion.
+        """
+        from PySide6.QtCore import Qt
+
+        # Prevent duplicate connections - disconnect first if already connected
+        if self._connected:
+            try:
+                _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+                self._connected = False
+            except (RuntimeError, TypeError):
+                pass  # Disconnect failed, but proceed to connect anyway
+
+        # Connect with QueuedConnection to defer execution until next event loop iteration
+        # This breaks the synchronous nested execution that causes timeline desync bugs
+        _ = self.main_window.state_manager.frame_changed.connect(
+            self.on_frame_changed,
+            Qt.QueuedConnection,  # Defers coordinator execution, prevents nested calls
+        )
+        self._connected = True
+        logger.info("FrameChangeCoordinator connected with QueuedConnection")
 
     def disconnect(self) -> None:
         """Disconnect from state manager (cleanup)."""
+        if not self._connected:
+            return  # Not connected, nothing to do
+
         try:
             _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+            self._connected = False
             logger.info("FrameChangeCoordinator disconnected")
         except (RuntimeError, TypeError):
             # Signal already disconnected or connection never made
-            pass
+            self._connected = False
 
     def on_frame_changed(self, frame: int) -> None:
         """

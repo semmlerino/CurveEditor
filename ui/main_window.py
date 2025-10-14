@@ -429,18 +429,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== Timeline Control Handlers ====================
 
-    @Slot(int)
-    @Slot(int)
-    def on_frame_changed_from_controller(self, frame: int) -> None:
-        """Handle frame change from the navigation controller.
-
-        The controller has already updated the spinbox/slider and state manager,
-        so we just need to update other dependent components.
-        """
-        logger.debug(f"[FRAME] Frame changed via controller to: {frame}")
-        # Update dependent components using simplified Observer pattern
-        # Note: StateManager already updated by controller, so we skip duplicate update
-        # All observers will be notified via existing signals
+    # REMOVED: on_frame_changed_from_controller(self, frame: int) method (dead code)
+    # This method did nothing except log a debug message. It was connected to
+    # TimelineController.frame_changed signal which has been removed (redundant).
+    # All frame change handling is now done via ApplicationState → StateManager
+    # → FrameChangeCoordinator with proper QueuedConnection timing.
 
     def _update_frame_display(self, frame: int) -> None:
         """
@@ -1227,6 +1220,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
         logger.info("[PYTHON-THREAD] Application closing, stopping Python thread if running")
+
+        # Disconnect frame change coordinator to prevent signal warnings
+        if getattr(self, "frame_change_coordinator", None) is not None:
+            self.frame_change_coordinator.disconnect()
+            logger.info("Disconnected frame change coordinator")
 
         # Remove global event filter to prevent accumulation
         app = QApplication.instance()

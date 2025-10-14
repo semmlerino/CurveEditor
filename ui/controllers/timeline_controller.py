@@ -237,8 +237,11 @@ class TimelineController(QObject):
         self.state_manager.current_frame = frame
         logger.debug(f"[FRAME] Current frame set to: {frame}")
 
-        # Emit signal for other components
-        self.frame_changed.emit(frame)
+        # REMOVED: self.frame_changed.emit(frame)
+        # Reason: ApplicationState already emits frame_changed signal via StateManager.
+        # This emission was redundant and only connected to dead code in MainWindow.
+        # All real frame change handling is done via ApplicationState → StateManager
+        # → FrameChangeCoordinator (with QueuedConnection for proper timing).
 
         # Update status
         total = self.frame_spinbox.maximum()

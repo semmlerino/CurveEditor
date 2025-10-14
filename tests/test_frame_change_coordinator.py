@@ -32,29 +32,26 @@ class TestFrameChangeCoordinator:
         assert coordinator.view_management is not None
         assert coordinator.timeline_controller is not None
 
-    def test_single_connection_to_frame_changed(self, main_window, coordinator, qtbot):
-        """Test only coordinator connects to frame_changed signal."""
-        # Connect coordinator
-        coordinator.connect()
+    def test_single_connection_to_frame_changed(self, main_window, qtbot):
+        """Test coordinator's _trigger_repaint is only called once per frame change."""
+        # Use MainWindow's own coordinator (don't create a separate one)
+        coordinator = main_window.frame_change_coordinator
 
-        # Mock the update method to count calls
-        original_update = main_window.curve_widget.update
-        update_count = [0]
+        # Mock the coordinator's _trigger_repaint method to count calls
+        # This is more specific than mocking curve_widget.update() which may be
+        # called by many other components
+        with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
+            # Set total_frames first (required for frame change to work)
+            main_window.state_manager.total_frames = 100
 
-        def mock_update():
-            update_count[0] += 1
-            original_update()
+            # Trigger frame change
+            main_window.state_manager.current_frame = 42
 
-        main_window.curve_widget.update = mock_update
+            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
+            qtbot.wait(50)  # Allow Qt event loop to process queued signal
 
-        # Set total_frames first (required for frame change to work)
-        main_window.state_manager.total_frames = 100
-
-        # Trigger frame change
-        main_window.state_manager.current_frame = 42
-
-        # Should have exactly one update call
-        assert update_count[0] == 1
+            # Coordinator should call _trigger_repaint exactly once
+            assert repaint_mock.call_count == 1
 
     def test_update_order_is_deterministic(self, main_window, coordinator, qtbot):
         """Test updates happen in correct order."""
@@ -83,20 +80,25 @@ class TestFrameChangeCoordinator:
             # Verify exact order
             assert call_order == ["background", "centering", "cache", "timeline", "repaint"]
 
-    def test_single_repaint_per_frame_change(self, main_window, coordinator, qtbot):
-        """Test only one update() call per frame change."""
-        # Mock update method
-        with patch.object(main_window.curve_widget, "update") as update_mock:
-            # Connect and trigger frame change
-            coordinator.connect()
+    def test_single_repaint_per_frame_change(self, main_window, qtbot):
+        """Test coordinator triggers repaint exactly once per frame change."""
+        # Use MainWindow's own coordinator
+        coordinator = main_window.frame_change_coordinator
 
+        # Mock coordinator's _trigger_repaint method
+        # This is more specific than mocking curve_widget.update() which may be
+        # called by other components
+        with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Set total_frames first (required for frame change to work)
             main_window.state_manager.total_frames = 100
 
             main_window.state_manager.current_frame = 42
 
-            # Verify single update call
-            assert update_mock.call_count == 1
+            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
+            qtbot.wait(50)  # Allow Qt event loop to process queued signal
+
+            # Verify coordinator called _trigger_repaint once
+            assert repaint_mock.call_count == 1
 
     def test_centering_before_repaint(self, main_window, coordinator, qtbot):
         """Test centering updates pan_offset before repaint."""
@@ -202,8 +204,8 @@ class TestFrameChangeCoordinator:
         If connect() called twice (testing, error recovery, window reinit),
         Qt creates multiple connections → 2x-3x updates per frame.
         """
-        # Mock update to count calls
-        with patch.object(main_window.curve_widget, "update") as update_mock:
+        # Mock coordinator's _trigger_repaint to count calls
+        with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Connect twice
             coordinator.connect()
             coordinator.connect()  # Second call should not create duplicate
@@ -214,8 +216,11 @@ class TestFrameChangeCoordinator:
             # Trigger frame change
             main_window.state_manager.current_frame = 42
 
-            # Verify only ONE update() call (not 2x)
-            assert update_mock.call_count == 1
+            # UPDATED: Wait for QueuedConnection to execute (asynchronous)
+            qtbot.wait(50)  # Allow Qt event loop to process queued signal
+
+            # Verify only ONE _trigger_repaint() call (not 2x)
+            assert repaint_mock.call_count == 1
 
     def test_disconnect_before_connect(self, main_window, qtbot):
         """Test disconnect() works even if never connected."""
