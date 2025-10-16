@@ -10,6 +10,7 @@ the current frame indicator should update properly on the selected points.
 import pytest
 
 from core.models import PointStatus
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
 
@@ -46,9 +47,18 @@ class TestFrameSelectionSync:
         """Test that frame indicators update correctly after selecting points and navigating timeline."""
         curve_widget = main_window.curve_widget
 
-        # Initial state: no selection, frame 1
-        assert len(curve_widget.selected_indices) == 0
+        # Initial state: point at frame 1 is auto-selected (application behavior)
+        # The fixture sets curve data, which triggers auto-selection of point at current frame
         assert curve_widget.current_frame == 1
+        # Clear auto-selection to start fresh
+        from stores.application_state import get_application_state
+
+        state = get_application_state()
+        active = state.active_curve
+        if active:
+            state.set_selection(active, set())
+        qtbot.wait(20)
+        assert len(curve_widget.selected_indices) == 0
 
         # Step 1: Select a point (index 0 at frame 1)
         print("=== Selecting point at frame 1 ===")
@@ -66,7 +76,7 @@ class TestFrameSelectionSync:
 
         # Verify frame has been updated in the curve widget
         assert curve_widget.current_frame == 5, f"Expected frame 5, got {curve_widget.current_frame}"
-        assert main_window.state_manager.current_frame == 5
+        assert get_application_state().current_frame == 5
 
         # Step 3: Navigate to frame 10
         print("=== Navigating to frame 10 ===")
@@ -75,7 +85,7 @@ class TestFrameSelectionSync:
 
         # Verify frame has been updated
         assert curve_widget.current_frame == 10, f"Expected frame 10, got {curve_widget.current_frame}"
-        assert main_window.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
         # Step 4: Select another point (index 1 at frame 5) while at frame 10
         print("=== Selecting another point while at frame 10 ===")
@@ -93,7 +103,7 @@ class TestFrameSelectionSync:
 
         # Verify frame has been updated despite having selected points
         assert curve_widget.current_frame == 1, f"Expected frame 1, got {curve_widget.current_frame}"
-        assert main_window.state_manager.current_frame == 1
+        assert get_application_state().current_frame == 1
         assert {0, 1} == set(curve_widget.selected_indices)  # Selection should be preserved
 
         print("✓ Frame indicator synchronization test passed!")
@@ -113,7 +123,7 @@ class TestFrameSelectionSync:
 
             assert curve_widget.current_frame == frame, f"current_frame property mismatch at frame {frame}"
             assert curve_widget.get_current_frame() == frame, f"get_current_frame() mismatch at frame {frame}"
-            assert main_window.state_manager.current_frame == frame, f"state_manager mismatch at frame {frame}"
+            assert get_application_state().current_frame == frame, f"ApplicationState mismatch at frame {frame}"
 
         print("✓ Frame property consistency test passed!")
 
