@@ -14,9 +14,13 @@ import pytest
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import QApplication
 
+from stores.application_state import get_application_state
 from ui.curve_view_widget import CurveViewWidget
 from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
+
+# Phase 4 TODO: Migrate StateManager current_frame setters (8 occurrences)
+# Test file uses setters for fixture setup - defer migration to Phase 4
 
 
 class TestFramePointHighlighting:
@@ -139,13 +143,13 @@ class TestFramePointHighlighting:
         main_window.frame_spinbox.setValue(initial_frame)
 
         # Check initial state
-        assert main_window.state_manager.current_frame == initial_frame
+        assert get_application_state().current_frame == initial_frame
 
         # Change to frame 10 which has a point
         main_window.frame_spinbox.setValue(10)
 
         # Verify state was updated
-        assert main_window.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
         # Verify curve widget was told to update
         # The _on_frame_changed method should have called:
@@ -154,7 +158,7 @@ class TestFramePointHighlighting:
 
         # Change to frame 5 which has an interpolated point
         main_window.frame_spinbox.setValue(5)
-        assert main_window.state_manager.current_frame == 5
+        assert get_application_state().current_frame == 5
 
     def test_frame_slider_change_updates_highlight(self, main_window, qtbot):
         """Test that changing frame via slider updates point highlighting."""
@@ -165,13 +169,13 @@ class TestFramePointHighlighting:
         main_window.frame_slider.setValue(15)
 
         # This should trigger _on_slider_changed which now includes:
-        # - Update state_manager.current_frame
+        # - Update ApplicationState.current_frame
         # - Call curve_widget.invalidate_caches() and update()
-        assert main_window.state_manager.current_frame == 15
+        assert get_application_state().current_frame == 15
 
         # Change to frame 20
         main_window.frame_slider.setValue(20)
-        assert main_window.state_manager.current_frame == 20
+        assert get_application_state().current_frame == 20
 
     def test_keyboard_navigation_updates_highlight(self, main_window, qtbot):
         """Test that keyboard navigation updates point highlighting."""
@@ -180,16 +184,16 @@ class TestFramePointHighlighting:
 
         # Navigate with keyboard shortcuts using the controller
         main_window.timeline_controller._on_next_frame()
-        assert main_window.state_manager.current_frame == 11
+        assert get_application_state().current_frame == 11
 
         main_window.timeline_controller._on_prev_frame()
-        assert main_window.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
         main_window.timeline_controller._on_first_frame()
-        assert main_window.state_manager.current_frame == 1
+        assert get_application_state().current_frame == 1
 
         main_window.timeline_controller._on_last_frame()
-        assert main_window.state_manager.current_frame == 20
+        assert get_application_state().current_frame == 20
 
     def test_timeline_click_updates_highlight(self, main_window, qtbot):
         """Test that clicking timeline tab updates point highlighting."""
@@ -200,7 +204,7 @@ class TestFramePointHighlighting:
         main_window._on_timeline_tab_clicked(15)
 
         # This sets the spinbox value, which triggers _on_frame_changed
-        assert main_window.state_manager.current_frame == 15
+        assert get_application_state().current_frame == 15
         assert main_window.frame_spinbox.value() == 15
 
     def test_playback_updates_highlight(self, main_window, qtbot):
@@ -219,11 +223,11 @@ class TestFramePointHighlighting:
         main_window.timeline_controller._on_playback_timer()
 
         # Should advance to frame 2
-        assert main_window.state_manager.current_frame == 2
+        assert get_application_state().current_frame == 2
 
         # Another tick
         main_window.timeline_controller._on_playback_timer()
-        assert main_window.state_manager.current_frame == 3
+        assert get_application_state().current_frame == 3
 
     def test_multiple_points_on_same_frame(self, curve_widget):
         """Test highlighting when multiple points exist on the same frame."""
