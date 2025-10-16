@@ -17,6 +17,7 @@ if TYPE_CHECKING:
 
 from core.logger_utils import get_logger
 from core.point_types import safe_extract_point
+from stores.application_state import get_application_state
 
 logger = get_logger("point_editor_controller")
 
@@ -59,8 +60,8 @@ class PointEditorController:
         """
         # Disconnect point editor spinbox signals (2 connections, if connected)
         try:
-            if hasattr(self, "_spinbox_connected") and self._spinbox_connected:
-                if hasattr(self, "main_window"):
+            if self._spinbox_connected is not None and self._spinbox_connected:
+                if self.main_window is not None:
                     if self.main_window.point_x_spinbox:
                         _ = self.main_window.point_x_spinbox.valueChanged.disconnect(self._on_point_x_changed)
                     if self.main_window.point_y_spinbox:
@@ -230,7 +231,13 @@ class PointEditorController:
         Args:
             value: New X coordinate value
         """
-        selected_indices = self.state_manager.selected_points
+        # Get selected points from ApplicationState
+        state = get_application_state()
+        active = state.active_curve
+        if not active:
+            return
+        selected_indices = sorted(state.get_selection(active))  # Convert set to list
+
         if len(selected_indices) == 1 and self.main_window.curve_widget:
             idx = selected_indices[0]
             curve_data = self.main_window.curve_widget.curve_data
@@ -248,7 +255,13 @@ class PointEditorController:
         Args:
             value: New Y coordinate value
         """
-        selected_indices = self.state_manager.selected_points
+        # Get selected points from ApplicationState
+        state = get_application_state()
+        active = state.active_curve
+        if not active:
+            return
+        selected_indices = sorted(state.get_selection(active))  # Convert set to list
+
         if len(selected_indices) == 1 and self.main_window.curve_widget:
             idx = selected_indices[0]
             curve_data = self.main_window.curve_widget.curve_data
