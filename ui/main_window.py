@@ -56,6 +56,7 @@ from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList
 from services import get_data_service
 from stores import StoreManager, get_store_manager
+from stores.application_state import get_application_state
 
 # Import local modules
 # CurveView removed - using CurveViewWidget
@@ -439,12 +440,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """
         Update frame display using KISS/SOLID Observer pattern.
 
-        Simply updates StateManager - all observers react automatically via signals.
+        Simply updates ApplicationState - all observers react automatically via signals.
         This eliminates cascade calls and tight coupling.
         """
         # Single source of truth update - observers handle the rest
-        self.state_manager.current_frame = frame
-        logger.debug(f"[FRAME] StateManager updated to frame {frame} - signals will notify observers")
+        get_application_state().set_frame(frame)
+        logger.debug(f"[FRAME] ApplicationState updated to frame {frame} - signals will notify observers")
 
     # Frame navigation and playback methods removed - now handled by TimelineController
     # The controller manages play/pause, FPS changes, and oscillating playback
@@ -482,7 +483,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @property
     def selected_indices(self) -> list[int]:
         """Get the currently selected point indices."""
-        return self.state_manager.selected_points
+        state = get_application_state()
+        active = state.active_curve
+        if not active:
+            return []
+        return sorted(state.get_selection(active))
 
     @selected_indices.setter
     def selected_indices(self, value: list[int]) -> None:
@@ -498,8 +503,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @curve_data.setter
     def curve_data(self, value: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """Set the curve data via ApplicationState."""
-        from stores.application_state import get_application_state
-
         state = get_application_state()
         active_curve = state.active_curve
         if active_curve:
@@ -579,8 +582,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         Args:
             data: Dictionary mapping curve names to curve data
         """
-        from stores.application_state import get_application_state
-
         state = get_application_state()
 
         # Use batch mode to set all curves atomically
@@ -781,7 +782,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self.action_redo.setEnabled(self.state_manager.can_redo)
 
         # Update frame controls via controller
-        total_frames = self.state_manager.total_frames
+        total_frames = get_application_state().get_total_frames()
         # Use controller's set_frame_range instead of direct manipulation
         self.timeline_controller.set_frame_range(1, total_frames)
         if self.total_frames_label:
@@ -815,8 +816,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     self.bounds_label.setText("Bounds: N/A")
         else:
             # Fallback to ApplicationState
-            from stores.application_state import get_application_state
-
             app_state = get_application_state()
             active_curve = app_state.active_curve
 
@@ -830,7 +829,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 self.point_count_label.setText(f"Points: {point_count}")
 
             if point_count > 0 and active_curve:
-                bounds = self.state_manager.data_bounds
+                # Calculate bounds from curve data (migrated from StateManager.data_bounds)
+                curve_data = app_state.get_curve_data(active_curve)
+                if not curve_data:
+                    bounds = (0.0, 0.0, 1.0, 1.0)
+                else:
+                    # Extract x and y coordinates (indices 1 and 2 in CurveDataList)
+                    x_coords = [float(point[1]) for point in curve_data]
+                    y_coords = [float(point[2]) for point in curve_data]
+                    bounds = (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+
                 if self.bounds_label:
                     self.bounds_label.setText(
                         f"Bounds:\nX: [{bounds[0]:.2f}, {bounds[2]:.2f}]\nY: [{bounds[1]:.2f}, {bounds[3]:.2f}]"
@@ -1080,7 +1088,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _navigate_to_prev_keyframe(self) -> None:
         """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
-        current_frame = self.state_manager.current_frame
+        current_frame = get_application_state().current_frame
         curve_data = self.curve_widget.curve_data if self.curve_widget else []
 
         if not curve_data:
@@ -1125,7 +1133,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _navigate_to_next_keyframe(self) -> None:
         """Navigate to the next keyframe, endframe, or startframe relative to current frame."""
-        current_frame = self.state_manager.current_frame
+        current_frame = get_application_state().current_frame
         curve_data = self.curve_widget.curve_data if self.curve_widget else []
 
         if not curve_data:
