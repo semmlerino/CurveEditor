@@ -7,7 +7,7 @@ with color coding to indicate tracking point status at each frame.
 Supports horizontal scrolling for many frames with performance optimizations.
 """
 
-from typing import override
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import Qt, QTimer, Signal
 from PySide6.QtGui import QKeyEvent, QMouseEvent, QResizeEvent, QWheelEvent
@@ -22,11 +22,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from core.frame_utils import clamp_frame, get_frame_range_with_limits
 from core.logger_utils import get_logger
-from core.models import FrameNumber
+from core.models import FrameNumber, FrameStatus
 from core.type_aliases import CurveDataList
 from stores import get_store_manager
-from stores.application_state import get_application_state
+from stores.application_state import ApplicationState, get_application_state
+from stores.store_manager import StoreManager
+
+if TYPE_CHECKING:
+    from ui.state_manager import StateManager
 
 # animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
@@ -72,7 +77,7 @@ class FrameStatusCache:
     """Cache for frame point status to improve performance."""
 
     # Attributes - initialized in __init__
-    _cache: dict[FrameNumber, tuple[int, int, int, int, int, bool, bool, bool]]
+    _cache: dict[FrameNumber, FrameStatus]
     _dirty_frames: set[FrameNumber]
 
     def __init__(self) -> None:
@@ -80,15 +85,14 @@ class FrameStatusCache:
         self._cache = {}
         self._dirty_frames = set()
 
-    def get_status(self, frame: FrameNumber) -> tuple[int, int, int, int, int, bool, bool, bool] | None:
+    def get_status(self, frame: FrameNumber) -> FrameStatus | None:
         """Get cached status for frame.
 
         Args:
             frame: Frame number
 
         Returns:
-            Tuple of (keyframe_count, interpolated_count, tracked_count, endframe_count,
-                     normal_count, is_startframe, is_inactive, has_selected) or None if not cached
+            FrameStatus named tuple or None if not cached
         """
         return self._cache.get(frame)
 
@@ -117,15 +121,15 @@ class FrameStatusCache:
             is_inactive: Whether frame is in an inactive segment
             has_selected: Whether frame has selected points
         """
-        self._cache[frame] = (
-            keyframe_count,
-            interpolated_count,
-            tracked_count,
-            endframe_count,
-            normal_count,
-            is_startframe,
-            is_inactive,
-            has_selected,
+        self._cache[frame] = FrameStatus(
+            keyframe_count=keyframe_count,
+            interpolated_count=interpolated_count,
+            tracked_count=tracked_count,
+            endframe_count=endframe_count,
+            normal_count=normal_count,
+            is_startframe=is_startframe,
+            is_inactive=is_inactive,
+            has_selected=has_selected,
         )
         self._dirty_frames.discard(frame)
 
@@ -165,7 +169,7 @@ class TimelineTabWidget(QWidget):
     _update_timer: QTimer
 
     # UI components - initialized in _setup_ui (called from __init__)
-    main_layout: QVBoxLayout  # pyright: ignore[reportUninitializedInstanceVariable]
+    main_layout: QVBoxLayout
     first_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     prev_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
     next_group_btn: QPushButton  # pyright: ignore[reportUninitializedInstanceVariable]
@@ -207,8 +211,8 @@ class TimelineTabWidget(QWidget):
         """)
 
         # State - start with minimal range, will be updated when data is loaded
-        self._state_manager = None
-        self._current_frame = 1  # Only for tracking old frame for visual updates
+        self._state_manager: "StateManager | None" = None
+        self._current_frame: int = 1  # Only for tracking old frame for visual updates
         self.total_frames = 1
         self.min_frame = 1
         self.max_frame = 1
@@ -233,8 +237,8 @@ class TimelineTabWidget(QWidget):
         self.setMouseTracking(True)
 
         # Connect to ApplicationState
-        self._store_manager = get_store_manager()
-        self._app_state = get_application_state()
+        self._store_manager: StoreManager = get_store_manager()
+        self._app_state: ApplicationState = get_application_state()
         self._connect_signals()
 
         # Initialize timeline from current ApplicationState data
@@ -249,65 +253,66 @@ class TimelineTabWidget(QWidget):
         """
         # Disconnect ApplicationState signals
         try:
-            if hasattr(self, "_app_state") and self._app_state is not None:
-                self._app_state.curves_changed.disconnect(self._on_curves_changed)
-                self._app_state.active_curve_changed.disconnect(self._on_active_curve_changed)
-                self._app_state.selection_changed.disconnect(self._on_selection_changed)
+            # Defensive check for __del__ edge cases during widget destruction
+            if self._app_state is not None:  # pyright: ignore[reportUnnecessaryComparison]
+                _ = self._app_state.curves_changed.disconnect(self._on_curves_changed)
+                _ = self._app_state.active_curve_changed.disconnect(self._on_active_curve_changed)
+                _ = self._app_state.selection_changed.disconnect(self._on_selection_changed)
         except (RuntimeError, AttributeError):
             # Already disconnected or objects destroyed
             pass
 
         # Disconnect StateManager signals
         try:
-            if hasattr(self, "_state_manager") and self._state_manager is not None:
-                self._state_manager.frame_changed.disconnect(self._on_frame_changed)
-                self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
+            if self._state_manager is not None:
+                _ = self._state_manager.frame_changed.disconnect(self._on_frame_changed)
+                _ = self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
         except (RuntimeError, AttributeError):
             # Already disconnected or objects destroyed
             pass
 
     @property
     def current_frame(self) -> int:
-        """Get current frame from StateManager (single source of truth)."""
-        if self._state_manager:
-            return self._state_manager.current_frame
-        return 1  # Default during initialization before StateManager connected
+        """Get current frame from ApplicationState (single source of truth)."""
+        return get_application_state().current_frame
 
     @current_frame.setter
     def current_frame(self, value: int) -> None:
-        """Redirect frame changes through StateManager."""
-        if self._state_manager:
-            self._state_manager.current_frame = value
-            # Visual update happens via signal callback
-        else:
-            # No fallback - StateManager must be connected for frame changes
-            import warnings
+        """Redirect frame changes through ApplicationState."""
+        get_application_state().set_frame(value)
+        # Visual update happens via signal callback
 
-            warnings.warn(
-                (
-                    "timeline_tabs.current_frame setter called without StateManager connection. "
-                    "This violates Single Source of Truth architecture."
-                ),
-                UserWarning,
-                stacklevel=2,
-            )
-
-    def set_state_manager(self, state_manager) -> None:
+    def set_state_manager(self, state_manager: "StateManager") -> None:
         """Connect to StateManager for frame synchronization."""
+        # Disconnect from previous StateManager if exists (prevent duplicate connections)
+        if self._state_manager is not None:
+            try:
+                _ = self._state_manager.frame_changed.disconnect(self._on_frame_changed)
+                _ = self._state_manager.active_timeline_point_changed.disconnect(self._on_active_timeline_point_changed)
+            except (RuntimeError, TypeError):
+                pass  # Already disconnected
+
         self._state_manager = state_manager
+
+        # Connect to frame changes with DirectConnection (default for same-thread)
+        # Visual update is lightweight (tab highlight + label text) with no re-entrancy risk
+        # DirectConnection prevents queue accumulation during rapid playback
+        _ = state_manager.frame_changed.connect(self._on_frame_changed)
+
         # Connect to active timeline point changes
-        state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
+        _ = state_manager.active_timeline_point_changed.connect(self._on_active_timeline_point_changed)
 
         # Sync initial state
-        if self._state_manager.current_frame != self._current_frame:
-            self._on_frame_changed(self._state_manager.current_frame)
+        actual_frame = get_application_state().current_frame
+        if actual_frame != self._current_frame:
+            self._on_frame_changed(actual_frame)
         # Sync initial active timeline point
         self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
 
     def _on_frame_changed(self, frame: int) -> None:
         """React to StateManager frame changes (visual updates only)."""
         # Clamp to valid range
-        frame = max(self.min_frame, min(self.max_frame, frame))
+        frame = clamp_frame(frame, self.min_frame, self.max_frame)
 
         # Update old frame tab visual state
         old_frame = self._current_frame  # Always use internal tracking for old frame
@@ -354,9 +359,9 @@ class TimelineTabWidget(QWidget):
     def _connect_signals(self) -> None:
         """Connect to ApplicationState signals for reactive updates."""
         # Connect to ApplicationState signals
-        self._app_state.curves_changed.connect(self._on_curves_changed)
-        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
-        self._app_state.selection_changed.connect(self._on_selection_changed)
+        _ = self._app_state.curves_changed.connect(self._on_curves_changed)
+        _ = self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+        _ = self._app_state.selection_changed.connect(self._on_selection_changed)
 
         logger.info("TimelineTabWidget connected to ApplicationState signals")
 
@@ -374,11 +379,10 @@ class TimelineTabWidget(QWidget):
         active_curve = self._app_state.active_curve
         if not active_curve or active_curve not in curves:
             # Check if image sequence is loaded even without tracking data
-            if self._state_manager and self._state_manager.total_frames > 1:
-                logger.debug(
-                    f"_on_curves_changed: No tracking data, using image sequence range 1-{self._state_manager.total_frames}"
-                )
-                self.set_frame_range(1, self._state_manager.total_frames)
+            total_frames = get_application_state().get_total_frames()
+            if total_frames > 1:
+                logger.debug(f"_on_curves_changed: No tracking data, using image sequence range 1-{total_frames}")
+                self.set_frame_range(1, total_frames)
             else:
                 logger.debug("_on_curves_changed: No data, setting frame range to 1-1")
                 self.set_frame_range(1, 1)
@@ -388,28 +392,28 @@ class TimelineTabWidget(QWidget):
         logger.debug(f"_on_curves_changed: got {len(curve_data) if curve_data else 0} points from ApplicationState")
 
         if not curve_data:
-            if self._state_manager and self._state_manager.total_frames > 1:
-                self.set_frame_range(1, self._state_manager.total_frames)
+            total_frames = get_application_state().get_total_frames()
+            if total_frames > 1:
+                self.set_frame_range(1, total_frames)
             else:
                 self.set_frame_range(1, 1)
             return
 
-        # Calculate frame range from data
-        frames = [int(point[0]) for point in curve_data if len(point) >= 3]
-        if frames:
-            min_frame = min(frames)
-            max_frame = max(frames)
+        # Calculate frame range from data (with performance limits)
+        frame_range = get_frame_range_with_limits(curve_data, max_range=200)
+        if frame_range:
+            min_frame, max_frame = frame_range
 
-            # Also consider image sequence length from StateManager
-            if self._state_manager:
-                image_sequence_frames = self._state_manager.total_frames
-                max_frame = max(max_frame, image_sequence_frames)
+            # Also consider image sequence length from ApplicationState
+            image_sequence_frames = get_application_state().get_total_frames()
+            max_frame = max(max_frame, image_sequence_frames)
 
-            # Limit to reasonable number for performance
-            max_timeline_frames = 200
-            if max_frame - min_frame + 1 > max_timeline_frames:
-                max_frame = min_frame + max_timeline_frames - 1
-                logger.warning(f"Timeline limited to {max_timeline_frames} frames for performance")
+            # Check if we actually limited the range
+            original_max = max([int(point[0]) for point in curve_data if len(point) >= 3])
+            if max_frame < original_max:
+                logger.warning(
+                    f"Timeline limited to 200 frames for performance (actual range: {min_frame}-{original_max})"
+                )
 
             # Update frame range
             self.set_frame_range(min_frame, max_frame)
@@ -418,32 +422,22 @@ class TimelineTabWidget(QWidget):
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
 
-            for frame, status_data in frame_status.items():
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = status_data
+            for frame, status in frame_status.items():
                 self.update_frame_status(
                     frame,
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    normal_count=normal_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
+                    keyframe_count=status.keyframe_count,
+                    interpolated_count=status.interpolated_count,
+                    tracked_count=status.tracked_count,
+                    endframe_count=status.endframe_count,
+                    normal_count=status.normal_count,
+                    is_startframe=status.is_startframe,
+                    is_inactive=status.is_inactive,
+                    has_selected=status.has_selected,
                 )
 
             logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
-    def _on_active_curve_changed(self, curve_name: str) -> None:
+    def _on_active_curve_changed(self, _curve_name: str) -> None:
         """Handle ApplicationState active_curve_changed signal."""
         # Refresh timeline with new active curve data
         self._on_curves_changed(self._app_state.get_all_curves())
@@ -487,32 +481,27 @@ class TimelineTabWidget(QWidget):
             has_selected = frame in selected_frames
 
             # Get existing status from cache or calculate defaults
-            cached_status = self.status_cache.get_status(frame)
-            if cached_status:
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    _,
-                ) = cached_status
+            status = self.status_cache.get_status(frame)
+            if status:
+                # Use cached status
+                keyframe_count = status.keyframe_count
+                interpolated_count = status.interpolated_count
+                tracked_count = status.tracked_count
+                endframe_count = status.endframe_count
+                normal_count = status.normal_count
+                is_startframe = status.is_startframe
+                is_inactive = status.is_inactive
             else:
                 # Get status from data service if not cached
                 if frame in frame_status:
-                    status_data = frame_status[frame]
-                    (
-                        keyframe_count,
-                        interpolated_count,
-                        tracked_count,
-                        endframe_count,
-                        normal_count,
-                        is_startframe,
-                        is_inactive,
-                        _,
-                    ) = status_data
+                    status = frame_status[frame]
+                    keyframe_count = status.keyframe_count
+                    interpolated_count = status.interpolated_count
+                    tracked_count = status.tracked_count
+                    endframe_count = status.endframe_count
+                    normal_count = status.normal_count
+                    is_startframe = status.is_startframe
+                    is_inactive = status.is_inactive
                 else:
                     # Default values for frames with no points
                     keyframe_count = interpolated_count = tracked_count = 0
@@ -624,15 +613,33 @@ class TimelineTabWidget(QWidget):
         self.max_frame = max_frame
         self.total_frames = max_frame - min_frame + 1
 
-        # Update StateManager's total_frames to match (if connected)
-        # This ensures current_frame clamping works correctly
+        # Phase 4 TODO: Remove StateManager total_frames setter
+        # This setter creates synthetic image_files (deprecated pattern)
+        # Defer migration until Phase 4 determines replacement strategy
         if self._state_manager is not None:
             self._state_manager.total_frames = max_frame
 
+        # Sync internal tracking with ApplicationState (in case they got out of sync)
+        # This can happen during initialization
+        actual_frame = get_application_state().current_frame
+        if self._current_frame != actual_frame:
+            # Update internal tracking to match reality
+            self._current_frame = actual_frame
+
         # Update current frame if out of range
         if self.current_frame < min_frame:
+            # Update internal tracking FIRST
+            self._current_frame = min_frame
+            # Update visual state FIRST
+            self._on_frame_changed(min_frame)
+            # Then delegate
             self.current_frame = min_frame
         elif self.current_frame > max_frame:
+            # Update internal tracking FIRST
+            self._current_frame = max_frame
+            # Update visual state FIRST
+            self._on_frame_changed(max_frame)
+            # Then delegate
             self.current_frame = max_frame
 
         # Only recreate tabs if range changed (but don't clear cache)
@@ -648,15 +655,25 @@ class TimelineTabWidget(QWidget):
 
         Args:
             frame: Frame number to set as current
+
+        Implementation Note:
+            Updates visual state IMMEDIATELY before delegating to StateManager.
+            This prevents race conditions where ApplicationState updates synchronously
+            but timeline_tabs visual state waits for queued coordinator callback.
         """
         # Clamp to valid range
-        frame = max(self.min_frame, min(self.max_frame, frame))
+        frame = clamp_frame(frame, self.min_frame, self.max_frame)
 
-        # Store old frame before setting new one
-        old_frame = self.current_frame
+        # Use internal tracking for old frame (not property, which reads from StateManager)
+        old_frame = self._current_frame
 
         if frame != old_frame:
-            # Set through StateManager (triggers _on_frame_changed for visual updates)
+            # Update visual state IMMEDIATELY (before ApplicationState changes)
+            # This ensures timeline_tabs is always in sync with curve_view
+            self._on_frame_changed(frame)
+
+            # Then delegate to StateManager (triggers ApplicationState update)
+            # Coordinator will run later via queued callback (but timeline already updated)
             self.current_frame = frame
 
     def update_frame_status(
@@ -798,7 +815,7 @@ class TimelineTabWidget(QWidget):
             # Check if tab was actually created (FrameTab.__init__ can return early)
             # Type-safe check without hasattr
             set_tab_width_method = getattr(tab, "set_tab_width", None)
-            if set_tab_width_method is None or not callable(set_tab_width_method):
+            if not callable(set_tab_width_method):
                 continue
 
             tab.set_tab_width(tab_width)
@@ -810,26 +827,16 @@ class TimelineTabWidget(QWidget):
                 tab.set_current_frame(True)
 
             # Apply cached status if available with all fields
-            cached_status = self.status_cache.get_status(frame)
-            if cached_status:
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = cached_status
+            status = self.status_cache.get_status(frame)
+            if status:
                 tab.set_point_status(
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
+                    keyframe_count=status.keyframe_count,
+                    interpolated_count=status.interpolated_count,
+                    tracked_count=status.tracked_count,
+                    endframe_count=status.endframe_count,
+                    is_startframe=status.is_startframe,
+                    is_inactive=status.is_inactive,
+                    has_selected=status.has_selected,
                 )
 
             self.frame_tabs[frame] = tab
@@ -844,7 +851,7 @@ class TimelineTabWidget(QWidget):
         total_width = tab_width * len(self.frame_tabs) + 4
         self.tabs_container.setMinimumWidth(total_width)
 
-    def _ensure_frame_visible(self, frame: int) -> None:
+    def _ensure_frame_visible(self, _frame: int) -> None:
         """Ensure the specified frame is visible (no-op since all frames are visible)."""
         # All frames are always visible with dynamic width
         pass
@@ -906,51 +913,31 @@ class TimelineTabWidget(QWidget):
             frame_status = data_service.get_frame_range_point_status(curve_data)
 
             # Update cache for all frames with data
-            for frame, status_data in frame_status.items():
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = status_data
+            for frame, status in frame_status.items():
                 self.status_cache.set_status(
                     frame,
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    normal_count=normal_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
+                    keyframe_count=status.keyframe_count,
+                    interpolated_count=status.interpolated_count,
+                    tracked_count=status.tracked_count,
+                    endframe_count=status.endframe_count,
+                    normal_count=status.normal_count,
+                    is_startframe=status.is_startframe,
+                    is_inactive=status.is_inactive,
+                    has_selected=status.has_selected,
                 )
 
         # Now refresh visible tabs with updated status
         for frame, tab in self.frame_tabs.items():
-            cached_status = self.status_cache.get_status(frame)
-            if cached_status:
-                (
-                    keyframe_count,
-                    interpolated_count,
-                    tracked_count,
-                    endframe_count,
-                    normal_count,
-                    is_startframe,
-                    is_inactive,
-                    has_selected,
-                ) = cached_status
+            status = self.status_cache.get_status(frame)
+            if status:
                 tab.set_point_status(
-                    keyframe_count=keyframe_count,
-                    interpolated_count=interpolated_count,
-                    tracked_count=tracked_count,
-                    endframe_count=endframe_count,
-                    is_startframe=is_startframe,
-                    is_inactive=is_inactive,
-                    has_selected=has_selected,
+                    keyframe_count=status.keyframe_count,
+                    interpolated_count=status.interpolated_count,
+                    tracked_count=status.tracked_count,
+                    endframe_count=status.endframe_count,
+                    is_startframe=status.is_startframe,
+                    is_inactive=status.is_inactive,
+                    has_selected=status.has_selected,
                 )
 
     @override
@@ -973,25 +960,22 @@ class TimelineTabWidget(QWidget):
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
         """Handle keyboard navigation."""
+        state = get_application_state()
         if event.key() == Qt.Key.Key_Left:
-            # Delegate to StateManager (single source of truth)
-            if self._state_manager:
-                self._state_manager.current_frame = max(self.min_frame, self._state_manager.current_frame - 1)
+            # Delegate to ApplicationState (single source of truth)
+            state.set_frame(max(self.min_frame, state.current_frame - 1))
             event.accept()
         elif event.key() == Qt.Key.Key_Right:
-            # Delegate to StateManager (single source of truth)
-            if self._state_manager:
-                self._state_manager.current_frame = min(self.max_frame, self._state_manager.current_frame + 1)
+            # Delegate to ApplicationState (single source of truth)
+            state.set_frame(min(self.max_frame, state.current_frame + 1))
             event.accept()
         elif event.key() == Qt.Key.Key_Home:
-            # Delegate to StateManager (single source of truth)
-            if self._state_manager:
-                self._state_manager.current_frame = self.min_frame
+            # Delegate to ApplicationState (single source of truth)
+            state.set_frame(self.min_frame)
             event.accept()
         elif event.key() == Qt.Key.Key_End:
-            # Delegate to StateManager (single source of truth)
-            if self._state_manager:
-                self._state_manager.current_frame = self.max_frame
+            # Delegate to ApplicationState (single source of truth)
+            state.set_frame(self.max_frame)
             event.accept()
         else:
             # Properly propagate unhandled events up the widget hierarchy
@@ -1003,11 +987,11 @@ class TimelineTabWidget(QWidget):
         if event.button() == Qt.MouseButton.LeftButton:
             # Calculate which frame was clicked based on mouse position
             frame = self._get_frame_from_position(event.pos().x())
-            if frame is not None and self._state_manager:
+            if frame is not None:
                 self.is_scrubbing = True
                 self.scrub_start_frame = frame
-                # Delegate to StateManager (single source of truth)
-                self._state_manager.current_frame = frame
+                # Delegate to ApplicationState (single source of truth)
+                get_application_state().set_frame(frame)
                 event.accept()
                 return
         super().mousePressEvent(event)
@@ -1018,9 +1002,9 @@ class TimelineTabWidget(QWidget):
         if self.is_scrubbing:
             # Calculate frame from mouse position
             frame = self._get_frame_from_position(event.pos().x())
-            if frame is not None and frame != self.current_frame and self._state_manager:
-                # Delegate to StateManager (single source of truth)
-                self._state_manager.current_frame = frame
+            if frame is not None and frame != self.current_frame:
+                # Delegate to ApplicationState (single source of truth)
+                get_application_state().set_frame(frame)
             event.accept()
         else:
             super().mouseMoveEvent(event)
