@@ -21,7 +21,9 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from ui.state_manager import StateManager
 
+from core.frame_utils import clamp_frame
 from core.logger_utils import get_logger
+from stores.application_state import get_application_state
 
 logger = get_logger(__name__)
 
@@ -108,7 +110,7 @@ class TimelineController(QObject):
         """
         # Disconnect playback timer
         try:
-            if hasattr(self, "playback_timer"):
+            if self.playback_timer is not None:
                 _ = self.playback_timer.timeout.disconnect(self._on_playback_timer)
                 self.playback_timer.stop()
         except (RuntimeError, AttributeError):
@@ -116,26 +118,26 @@ class TimelineController(QObject):
 
         # Disconnect navigation signals
         try:
-            if hasattr(self, "frame_spinbox"):
+            if self.frame_spinbox is not None:
                 _ = self.frame_spinbox.valueChanged.disconnect(self._on_frame_changed)
-            if hasattr(self, "frame_slider"):
+            if self.frame_slider is not None:
                 _ = self.frame_slider.valueChanged.disconnect(self._on_slider_changed)
-            if hasattr(self, "btn_first"):
+            if self.btn_first is not None:
                 _ = self.btn_first.clicked.disconnect(self._on_first_frame)
-            if hasattr(self, "btn_prev"):
+            if self.btn_prev is not None:
                 _ = self.btn_prev.clicked.disconnect(self._on_prev_frame)
-            if hasattr(self, "btn_next"):
+            if self.btn_next is not None:
                 _ = self.btn_next.clicked.disconnect(self._on_next_frame)
-            if hasattr(self, "btn_last"):
+            if self.btn_last is not None:
                 _ = self.btn_last.clicked.disconnect(self._on_last_frame)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 
         # Disconnect playback signals
         try:
-            if hasattr(self, "btn_play_pause"):
+            if self.btn_play_pause is not None:
                 _ = self.btn_play_pause.toggled.disconnect(self._on_play_pause)
-            if hasattr(self, "fps_spinbox"):
+            if self.fps_spinbox is not None:
                 _ = self.fps_spinbox.valueChanged.disconnect(self._on_fps_changed)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
@@ -233,8 +235,8 @@ class TimelineController(QObject):
 
     def _update_frame(self, frame: int) -> None:
         """Update the current frame and notify listeners."""
-        # Update state manager (single source of truth)
-        self.state_manager.current_frame = frame
+        # Update ApplicationState (single source of truth)
+        get_application_state().set_frame(frame)
         logger.debug(f"[FRAME] Current frame set to: {frame}")
 
         # REMOVED: self.frame_changed.emit(frame)
@@ -253,13 +255,13 @@ class TimelineController(QObject):
 
     def _on_prev_frame(self) -> None:
         """Go to previous frame."""
-        current = self.state_manager.current_frame
+        current = get_application_state().current_frame
         if current > 1:
             self.set_frame(current - 1)
 
     def _on_next_frame(self) -> None:
         """Go to next frame."""
-        current = self.state_manager.current_frame
+        current = get_application_state().current_frame
         if current < self.frame_spinbox.maximum():
             self.set_frame(current + 1)
 
@@ -275,7 +277,7 @@ class TimelineController(QObject):
             frame: Frame number to set
         """
         # Clamp to valid range
-        frame = max(1, min(frame, self.frame_spinbox.maximum()))
+        frame = clamp_frame(frame, 1, self.frame_spinbox.maximum())
 
         # Update spinbox (will trigger the chain of updates)
         self.frame_spinbox.setValue(frame)
@@ -298,12 +300,12 @@ class TimelineController(QObject):
         _ = self.frame_slider.blockSignals(False)
 
         if update_state:
-            self.state_manager.current_frame = frame
+            get_application_state().set_frame(frame)
             logger.debug(f"[FRAME] Display updated to: {frame}")
 
     def get_current_frame(self) -> int:
         """Get the current frame number."""
-        return self.state_manager.current_frame
+        return get_application_state().current_frame
 
     # Navigation Protocol API
     def next_frame(self) -> None:
@@ -423,7 +425,7 @@ class TimelineController(QObject):
         if self.playback_state.mode == PlaybackMode.STOPPED:
             return
 
-        current = self.state_manager.current_frame
+        current = get_application_state().current_frame
 
         # Handle forward playback
         if self.playback_state.mode == PlaybackMode.PLAYING_FORWARD:
@@ -491,7 +493,9 @@ class TimelineController(QObject):
         self.frame_slider.setMinimum(min_frame)
         self.frame_slider.setMaximum(max_frame)
 
-        # Update state manager total_frames to match maximum
+        # Phase 4 TODO: Remove StateManager total_frames setter
+        # This setter creates synthetic image_files (deprecated pattern)
+        # Defer migration until Phase 4 determines replacement strategy
         self.state_manager.total_frames = max_frame
 
         # Update playback bounds
@@ -499,7 +503,7 @@ class TimelineController(QObject):
         self.playback_state.max_frame = max_frame
 
         # Ensure current value is within range
-        current = self.state_manager.current_frame
+        current = get_application_state().current_frame
         if current < min_frame:
             self.set_frame(min_frame)
         elif current > max_frame:
