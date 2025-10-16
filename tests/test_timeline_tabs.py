@@ -17,6 +17,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from stores.application_state import get_application_state
 from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
 
@@ -65,7 +66,7 @@ class TestTimelineControls:
                 window.frame_slider.setMaximum(37)
             if window.total_frames_label:
                 window.total_frames_label.setText("37")
-            # Also update state manager's total frames
+            # Phase 4 TODO: Remove StateManager total_frames setter (deprecated pattern)
             window.state_manager.total_frames = 37
 
             qtbot.addWidget(window)
@@ -87,14 +88,14 @@ class TestTimelineControls:
 
         # The frame navigation controller should have updated the state
         # through its valueChanged handler
-        assert main_window.state_manager.current_frame == target_frame
+        assert get_application_state().current_frame == target_frame
 
         # Test another frame
         target_frame_2 = 15
         main_window.frame_spinbox.setValue(target_frame_2)
         # Controller handles synchronization automatically
         assert main_window.frame_spinbox.value() == target_frame_2
-        assert main_window.state_manager.current_frame == target_frame_2
+        assert get_application_state().current_frame == target_frame_2
 
     def test_frame_spinbox_slider_synchronization(self, main_window):
         """Test that frame spinbox and slider stay synchronized."""
@@ -157,8 +158,8 @@ class TestTimelineControls:
 
         # The frame navigation controller handles the update automatically
 
-        # Check state manager is updated
-        assert main_window.state_manager.current_frame == target_frame
+        # Check ApplicationState is updated
+        assert get_application_state().current_frame == target_frame
 
         # Check frame spinbox is updated
         assert main_window.frame_spinbox.value() == target_frame
