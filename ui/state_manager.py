@@ -66,7 +66,9 @@ class StateManager(QObject):
 
         self._app_state: ApplicationState = get_application_state()
 
-        # Forward ApplicationState signals
+        # Forward ApplicationState signals (subscribers use Qt.QueuedConnection)
+        # StateManager forwards immediately; subscribers defer with QueuedConnection
+        # to prevent synchronous nested execution
         _ = self._app_state.frame_changed.connect(self.frame_changed.emit)
         _ = self._app_state.selection_changed.connect(self._on_app_state_selection_changed)
 
@@ -449,7 +451,9 @@ class StateManager(QObject):
 
             # Clamp current frame if it exceeds new total (for backward compatibility)
             if self.current_frame > count:
-                self.current_frame = count
+                # Explicit clamping before direct state update (preserves 1-based frame invariant)
+                clamped_frame = max(1, count)
+                self._app_state.set_frame(clamped_frame)  # ✅ FIXED: Direct state update with clamping
 
             # Emit signal for backward compatibility
             self.total_frames_changed.emit(count)
@@ -531,7 +535,9 @@ class StateManager(QObject):
 
         # Clamp current frame if it exceeds new total (for backward compatibility)
         if self.current_frame > new_total:
-            self.current_frame = new_total
+            # Explicit clamping before direct state update (preserves 1-based frame invariant)
+            clamped_frame = max(1, new_total)
+            self._app_state.set_frame(clamped_frame)  # ✅ FIXED: Direct state update with clamping
 
         # ApplicationState automatically updates total_frames based on image_files length
         # Emit signal so UI can update frame range (for backward compatibility)
@@ -705,7 +711,7 @@ class StateManager(QObject):
 
         Example:
             with state_manager.batch_update():
-                state_manager.current_frame = 10
+                get_application_state().current_frame = 10
                 state_manager.set_selected_points([1, 2, 3])
                 # Signals are emitted here when context exits
         """
