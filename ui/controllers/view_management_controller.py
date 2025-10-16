@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
+from stores.application_state import get_application_state
 
 logger = get_logger("view_management_controller")
 
@@ -64,6 +65,11 @@ class ViewManagementController:
         self.image_directory: str | None = None
         self.image_filenames: list[str] = []
         self.current_image_idx: int = 0
+
+        # Image cache for playback performance (LRU cache)
+        self._image_cache: dict[str, QPixmap] = {}
+        self._cache_max_size: int = 100  # Keep last 100 frames in RAM
+        self._cache_access_order: list[str] = []  # Track LRU order
 
         logger.info("ViewManagementController initialized")
 
@@ -227,9 +233,8 @@ class ViewManagementController:
             num_images = len(image_files)
             self._update_frame_range_for_images(num_images)
 
-            # Update state manager
-            if self.main_window.state_manager:
-                self.main_window.state_manager.set_image_files(image_files)
+            # Update ApplicationState with image sequence
+            get_application_state().set_image_files(image_files, directory=image_dir)
 
             # Load the first image as background
             self._load_initial_background(image_dir, image_files)
@@ -241,9 +246,77 @@ class ViewManagementController:
                 self.main_window.show_background_cb.setChecked(True)
                 logger.info("Enabled background display for loaded images")
 
+    def _load_image_from_disk(self, image_path: Path) -> QPixmap | None:
+        """
+        Load image from disk (helper for caching).
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Loaded QPixmap or None if loading fails
+        """
+        # Check if this is an EXR file (requires special loader)
+        if image_path.suffix.lower() == ".exr":
+            from io_utils.exr_loader import load_exr_as_qpixmap
+
+            pixmap = load_exr_as_qpixmap(str(image_path))
+        else:
+            pixmap = QPixmap(str(image_path))
+
+        if pixmap is not None and not pixmap.isNull():
+            return pixmap
+        return None
+
+    def _get_cached_image(self, image_path: str) -> QPixmap | None:
+        """
+        Get image from cache or load from disk (LRU cache).
+
+        Args:
+            image_path: Path to image file
+
+        Returns:
+            Cached or newly loaded QPixmap, or None if loading fails
+        """
+        # Check if already in cache
+        if image_path in self._image_cache:
+            # Move to end of access order (most recently used)
+            self._cache_access_order.remove(image_path)
+            self._cache_access_order.append(image_path)
+            logger.debug(f"Cache HIT: {Path(image_path).name}")
+            return self._image_cache[image_path]
+
+        # Load from disk
+        logger.debug(f"Cache MISS: {Path(image_path).name} - loading from disk")
+        pixmap = self._load_image_from_disk(Path(image_path))
+
+        if pixmap is None:
+            return None
+
+        # Add to cache
+        self._image_cache[image_path] = pixmap
+        self._cache_access_order.append(image_path)
+
+        # Evict oldest if cache too large (LRU eviction)
+        while len(self._image_cache) > self._cache_max_size:
+            oldest_path = self._cache_access_order.pop(0)
+            del self._image_cache[oldest_path]
+            logger.debug(f"Cache EVICT: {Path(oldest_path).name} (cache size: {len(self._image_cache)})")
+
+        return pixmap
+
+    def clear_image_cache(self) -> None:
+        """Clear the image cache (useful when loading new sequence)."""
+        self._image_cache.clear()
+        self._cache_access_order.clear()
+        logger.info("Image cache cleared")
+
     def update_background_for_frame(self, frame: int) -> None:
         """
         Update the background image based on the current frame.
+
+        Uses LRU cache for smooth playback performance. First playthrough loads
+        from disk, subsequent playback uses cached images (instant).
 
         Args:
             frame: Frame number to display (1-based indexing)
@@ -261,17 +334,11 @@ class ViewManagementController:
         if 0 <= image_idx < len(self.image_filenames):
             if self.image_directory:
                 image_path = Path(self.image_directory) / self.image_filenames[image_idx]
-                logger.debug(f"[THREAD-DEBUG] Creating QPixmap for frame {frame}")
 
-                # Check if this is an EXR file (requires special loader)
-                if image_path.suffix.lower() == ".exr":
-                    from io_utils.exr_loader import load_exr_as_qpixmap
+                # Use cached image (instant after first load)
+                pixmap = self._get_cached_image(str(image_path))
 
-                    pixmap = load_exr_as_qpixmap(str(image_path))
-                else:
-                    pixmap = QPixmap(str(image_path))
-
-                if pixmap is not None and not pixmap.isNull():
+                if pixmap is not None:
                     self.main_window.curve_widget.background_image = pixmap
                     # NOTE: Don't call update() here - FrameChangeCoordinator handles the repaint
                     # in phase 3 after centering, preventing visual jumps during playback
@@ -280,10 +347,13 @@ class ViewManagementController:
                 logger.warning("Image directory not set")
 
     def clear_background_images(self) -> None:
-        """Clear all background image data."""
+        """Clear all background image data and cache."""
         self.image_directory = None
         self.image_filenames = []
         self.current_image_idx = 0
+
+        # Clear the image cache
+        self.clear_image_cache()
 
         if self.main_window.curve_widget:
             self.main_window.curve_widget.background_image = None
