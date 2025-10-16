@@ -16,7 +16,11 @@ from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
 from core.type_aliases import CurveDataList
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
+
+# Phase 4 TODO: Migrate StateManager current_frame setters (7 occurrences)
+# Test file uses setters for test setup - defer migration to Phase 4
 
 
 class TestEventFilterNavigation:
@@ -87,7 +91,7 @@ class TestEventFilterNavigation:
         qtbot.wait(10)
 
         # Verify navigation happened (should be at frame 5)
-        assert window.state_manager.current_frame == 5
+        assert get_application_state().current_frame == 5
         status_msg = window.statusBar().currentMessage().lower()
         assert "frame" in status_msg and "5" in status_msg
 
@@ -113,7 +117,7 @@ class TestEventFilterNavigation:
         qtbot.wait(10)
 
         # Verify navigation happened (should be at frame 5)
-        assert window.state_manager.current_frame == 5
+        assert get_application_state().current_frame == 5
         status_msg = window.statusBar().currentMessage().lower()
         assert "frame" in status_msg and "5" in status_msg
 
@@ -136,7 +140,7 @@ class TestEventFilterNavigation:
         qtbot.wait(10)
 
         # Should navigate to frame 10
-        assert window.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
     def test_navigation_with_spinbox_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation works when frame spinbox has focus."""
@@ -159,7 +163,7 @@ class TestEventFilterNavigation:
         qtbot.wait(10)
 
         # Should navigate to frame 10
-        assert window.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
     def test_eventfilter_consumes_navigation_events(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test that eventFilter properly consumes Page Up/Down events."""
@@ -205,7 +209,7 @@ class TestEventFilterNavigation:
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(10)
 
-        assert window.state_manager.current_frame == 1
+        assert get_application_state().current_frame == 1
         assert "first" in window.statusBar().currentMessage().lower()
 
         # Go to last keyframe
@@ -216,7 +220,7 @@ class TestEventFilterNavigation:
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(10)
 
-        assert window.state_manager.current_frame == 20
+        assert get_application_state().current_frame == 20
         assert "last" in window.statusBar().currentMessage().lower()
 
     def test_mixed_navigation_frames(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
@@ -248,13 +252,13 @@ class TestEventFilterNavigation:
         QApplication.sendEvent(main_window_with_data.timeline_tabs or main_window_with_data, key_event)
         qtbot.wait(10)
 
-        assert main_window_with_data.state_manager.current_frame == 5
+        assert get_application_state().current_frame == 5
 
         # Page Down again should go to keyframe at 10
         QApplication.sendEvent(main_window_with_data.timeline_tabs or main_window_with_data, key_event)
         qtbot.wait(10)
 
-        assert main_window_with_data.state_manager.current_frame == 10
+        assert get_application_state().current_frame == 10
 
 
 if __name__ == "__main__":
