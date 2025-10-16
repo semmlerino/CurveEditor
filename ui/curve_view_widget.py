@@ -1341,7 +1341,7 @@ class CurveViewWidget(QWidget):
 
         # Extract index from PointSearchResult (Increment 4 changed return type)
         # PointSearchResult has .index attribute for accessing the point index
-        if hasattr(result, "index"):
+        if result.index is not None:
             point_index: int = result.index
         else:
             point_index = result  # pyright: ignore[reportAssignmentType]
@@ -1496,24 +1496,20 @@ class CurveViewWidget(QWidget):
             self.main_window.status_bar.showMessage(message, timeout)
 
     def get_current_frame(self) -> int | None:
-        """Get the current frame from state manager if available.
+        """Get the current frame from ApplicationState if available.
         Used by renderer for frame highlighting.
-        Returns None if state manager is not accessible.
+        Returns None if ApplicationState is not accessible.
         """
         try:
-            if self._state_manager is not None:
-                return self._state_manager.current_frame
-            return None
+            return get_application_state().current_frame
         except (AttributeError, RuntimeError):
             return None
 
     @property
     def current_frame(self) -> int:
-        """Current frame property - reads from state manager."""
+        """Current frame property - reads from ApplicationState."""
         try:
-            if self._state_manager is not None:
-                return self._state_manager.current_frame
-            return 1  # Default fallback
+            return get_application_state().current_frame
         except (AttributeError, RuntimeError):
             return 1  # Default fallback
 
