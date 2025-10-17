@@ -421,44 +421,6 @@ class StateManager(QObject):
         """
         return self._app_state.get_total_frames()
 
-    @total_frames.setter
-    def total_frames(self, count: int) -> None:
-        """Set total frames by creating synthetic image_files list (DEPRECATED).
-
-        DEPRECATED: This setter exists for backward compatibility only.
-        Phase 2: total_frames is derived from image_files length in ApplicationState.
-
-        This setter creates a synthetic empty image_files list of the requested length
-        to maintain the "derived from image_files" invariant.
-
-        New code should use ApplicationState.set_image_files() directly or accept
-        that total_frames is derived from actual image files.
-
-        TODO(Phase 4): Remove this setter after migrating tests to use set_image_files().
-        Currently used by 14 test files - migrate them to ApplicationState.set_image_files().
-
-        Args:
-            count: Desired total frame count (will be clamped to >= 1)
-        """
-        count = max(1, count)
-        current_total = self._app_state.get_total_frames()
-
-        if current_total != count:
-            # Create synthetic image_files list to achieve desired total_frames
-            # This maintains the invariant that total_frames = len(image_files)
-            synthetic_files = [f"<synthetic_frame_{i+1}>" for i in range(count)]
-            self._app_state.set_image_files(synthetic_files)
-
-            # Clamp current frame if it exceeds new total (for backward compatibility)
-            if self.current_frame > count:
-                # Explicit clamping before direct state update (preserves 1-based frame invariant)
-                clamped_frame = max(1, count)
-                self._app_state.set_frame(clamped_frame)  # ✅ FIXED: Direct state update with clamping
-
-            # Emit signal for backward compatibility
-            self.total_frames_changed.emit(count)
-            logger.debug(f"Total frames set to {count} via synthetic image_files (DEPRECATED)")
-
     @property
     def zoom_level(self) -> float:
         """Get the current zoom level."""
