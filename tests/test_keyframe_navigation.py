@@ -18,9 +18,6 @@ from services import get_data_service
 from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
-# Phase 4 TODO: Migrate StateManager current_frame setters (12 occurrences)
-# Test file uses setters for test setup - defer migration to Phase 4
-
 # ============================================================================
 # FACTORY FIXTURES
 # ============================================================================
@@ -231,7 +228,7 @@ class TestMainWindowNavigation:
         window = main_window_with_data("basic")
 
         # Set initial frame
-        window.state_manager.current_frame = 3
+        get_application_state().set_frame(3)
 
         # Simulate PageDown key press
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -248,7 +245,7 @@ class TestMainWindowNavigation:
         window = main_window_with_data("basic")
 
         # Set initial frame
-        window.state_manager.current_frame = 12
+        get_application_state().set_frame(12)
 
         # Simulate PageUp key press
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -265,7 +262,7 @@ class TestMainWindowNavigation:
         window = main_window_with_data("with_endframes")
 
         # Set frame before endframe
-        window.state_manager.current_frame = 7
+        get_application_state().set_frame(7)
 
         # Simulate PageDown
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -282,7 +279,7 @@ class TestMainWindowNavigation:
         window = main_window_with_data("with_endframes")
 
         # Set frame after the startframe (frame 20)
-        window.state_manager.current_frame = 22
+        get_application_state().set_frame(22)
 
         # Simulate PageUp
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -325,7 +322,7 @@ class TestNavigationEdgeCases:
         window = main_window_with_data("basic")
 
         # Navigate to last keyframe
-        window.state_manager.current_frame = 15
+        get_application_state().set_frame(15)
 
         # Try to go further with PageDown
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -343,7 +340,7 @@ class TestNavigationEdgeCases:
         window = main_window_with_data("basic")
 
         # Navigate to first frame with data
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Try to go back with PageUp
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -361,7 +358,7 @@ class TestNavigationEdgeCases:
         window = main_window_with_data("single")
 
         # Start before the single keyframe
-        window.state_manager.current_frame = 5
+        get_application_state().set_frame(5)
 
         # PageDown should go to frame 10 (the only keyframe)
         key_event_down = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -373,7 +370,7 @@ class TestNavigationEdgeCases:
         assert get_application_state().current_frame == 10
 
         # Set frame after keyframe and try PageUp
-        window.state_manager.current_frame = 15
+        get_application_state().set_frame(15)
         key_event_up = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event_up)
         # Should go back to frame 10 (the only keyframe)
@@ -402,7 +399,7 @@ class TestParametrizedNavigation:
     ):
         """Test navigation from different starting positions."""
         window = main_window_with_data("basic")
-        window.state_manager.current_frame = current_frame
+        get_application_state().set_frame(current_frame)
 
         # Create appropriate key event
         key = Qt.Key.Key_PageDown if direction == "down" else Qt.Key.Key_PageUp
@@ -477,7 +474,7 @@ class TestNavigationPerformance:
         qtbot.waitExposed(window)
 
         # Start at frame 50
-        window.state_manager.current_frame = 50
+        get_application_state().set_frame(50)
 
         import time
 
@@ -511,7 +508,7 @@ class TestNavigationStatusMessages:
     def test_successful_navigation_shows_frame_number(self, qtbot, main_window_with_data):
         """Successful navigation should show the frame number in status."""
         window = main_window_with_data("basic")
-        window.state_manager.current_frame = 3
+        get_application_state().set_frame(3)
 
         # Navigate to next frame
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -569,7 +566,7 @@ class TestRealFileNavigation:
         qtbot.waitExposed(window)
 
         # Start at frame 1
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Discover navigation frames dynamically from the loaded data
         data_service = get_data_service()

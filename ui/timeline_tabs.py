@@ -613,11 +613,8 @@ class TimelineTabWidget(QWidget):
         self.max_frame = max_frame
         self.total_frames = max_frame - min_frame + 1
 
-        # Phase 4 TODO: Remove StateManager total_frames setter
-        # This setter creates synthetic image_files (deprecated pattern)
-        # Defer migration until Phase 4 determines replacement strategy
-        if self._state_manager is not None:
-            self._state_manager.total_frames = max_frame
+        # Establish frame count via ApplicationState (clean architecture)
+        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
 
         # Sync internal tracking with ApplicationState (in case they got out of sync)
         # This can happen during initialization
