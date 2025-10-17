@@ -4,14 +4,20 @@ Multi-Point Tracking Controller for CurveEditor.
 
 This controller manages multi-point tracking data, including loading,
 selection, and display of multiple tracking trajectories.
+
+Phase 3.1: Refactored to delegate to specialized sub-controllers:
+- TrackingDataController: Data operations (loading, deletion, renaming)
+- TrackingDisplayController: Display updates (panel, curves, centering)
+- TrackingSelectionController: Selection synchronization (tracking panel ↔ curve store)
+
+This facade provides backward-compatible API while maintaining separation of concerns.
 """
 # pyright: reportImportCycles=false
 
 from enum import Enum, auto
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QThread, QTimer, Slot  # pyright: ignore[reportUnknownVariableType]
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QObject
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -19,10 +25,13 @@ if TYPE_CHECKING:
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataInput, CurveDataList
-from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
-from protocols.ui import MainWindowProtocol
+from core.type_aliases import CurveDataList
 from stores.application_state import ApplicationState, get_application_state
+
+# Import sub-controllers
+from ui.controllers.tracking_data_controller import TrackingDataController
+from ui.controllers.tracking_display_controller import TrackingDisplayController
+from ui.controllers.tracking_selection_controller import TrackingSelectionController
 
 
 class SelectionContext(Enum):
@@ -37,13 +46,16 @@ class SelectionContext(Enum):
 logger = get_logger("multi_point_tracking_controller")
 
 
-class MultiPointTrackingController:
+class MultiPointTrackingController(QObject):
     """
-    Controller for managing multi-point tracking data.
+    Facade controller for multi-point tracking operations.
 
-    Extracted from MainWindow to centralize all multi-point tracking logic,
-    including loading tracking data, managing active points, and updating
-    the tracking panel display.
+    Delegates to specialized sub-controllers:
+    - data_controller: Data operations
+    - display_controller: Display updates
+    - selection_controller: Selection synchronization
+
+    Phase 3.1: Refactored from 1,166 lines to thin delegation layer.
     """
 
     def __init__(self, main_window: "MainWindow"):
@@ -53,70 +65,56 @@ class MultiPointTrackingController:
         Args:
             main_window: Reference to the main window for UI access
         """
+        super().__init__()
         self.main_window: MainWindow = main_window
 
-        # Get centralized ApplicationState (Week 4 migration)
+        # Get centralized ApplicationState
         self._app_state: ApplicationState = get_application_state()
 
-        # Connect to ApplicationState signals for reactive updates
-        _ = self._app_state.curves_changed.connect(self._on_curves_changed)
-        _ = self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
-        _ = self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
+        # Create sub-controllers
+        self.data_controller = TrackingDataController(main_window)
+        self.display_controller = TrackingDisplayController(main_window)
+        self.selection_controller = TrackingSelectionController(main_window)
 
-        # Recursion protection for signal handlers
-        self._handling_signal: bool = False
+        # Wire sub-controllers together
+        self._connect_sub_controllers()
 
-        # Tracking data storage
-        # REMOVED: self.tracked_data - migrated to ApplicationState (Week 4)
-        # NOTE: active_timeline_point is now managed by StateManager (via main_window.active_timeline_point)
-        # This determines which tracking point's timeline is being displayed
+        # Tracking data storage (kept at facade level for backward compatibility)
         self.point_tracking_directions: dict[str, TrackingDirection] = {}  # Track previous directions
-        self._previous_active_curve: str | None = None  # Track previous active curve for data persistence
 
-        logger.info("MultiPointTrackingController initialized")
+        logger.info("MultiPointTrackingController initialized with sub-controllers")
+
+    def _connect_sub_controllers(self) -> None:
+        """Wire sub-controller signals for coordinated behavior."""
+        # Data loaded → Update display
+        _ = self.data_controller.data_loaded.connect(self.display_controller.on_data_loaded)
+
+        # Data loaded → Auto-select point
+        _ = self.data_controller.data_loaded.connect(self.selection_controller.on_data_loaded)
+
+        # Data changed → Update display
+        _ = self.data_controller.data_changed.connect(self.display_controller.on_data_changed)
+
+        logger.debug("Sub-controller signals wired")
 
     def __del__(self) -> None:
-        """Disconnect all signals to prevent memory leaks.
+        """Cleanup is now handled by sub-controllers."""
+        pass
 
-        MultiPointTrackingController creates 3 signal connections to ApplicationState.
-        Without cleanup, these connections would keep the controller alive,
-        causing memory leaks.
-        """
-        # Disconnect ApplicationState signals (3 connections)
-        try:
-            if hasattr(self, "_app_state"):
-                _ = self._app_state.curves_changed.disconnect(self._on_curves_changed)
-                _ = self._app_state.active_curve_changed.disconnect(self._on_active_curve_changed)
-                _ = self._app_state.selection_state_changed.disconnect(self._on_selection_state_changed)
-        except (RuntimeError, AttributeError):
-            pass  # Already disconnected or objects destroyed
+    # ==================== Property Delegation ====================
 
     @property
     def tracked_data(self) -> dict[str, CurveDataList]:
-        """Get all tracked curve data from ApplicationState.
-
-        Phase 4: Removed __default__ filtering - all curves are real named curves.
-        """
-        result: dict[str, CurveDataList] = {}
-        for curve_name in self._app_state.get_all_curve_names():
-            result[curve_name] = self._app_state.get_curve_data(curve_name)
-        return result
+        """Delegate to data controller."""
+        return self.data_controller.tracked_data
 
     @tracked_data.setter
     def tracked_data(self, value: dict[str, CurveDataList]) -> None:
-        """Set all tracked curve data in ApplicationState.
+        """Delegate to data controller."""
+        self.data_controller.tracked_data = value
 
-        Phase 4: Removed __default__ special handling - all curves treated equally.
-        """
-        # Clear existing curves
-        for curve_name in list(self._app_state.get_all_curve_names()):
-            self._app_state.delete_curve(curve_name)
+    # ==================== Data Operations - Delegate to TrackingDataController ====================
 
-        # Add all curves from the input dict
-        for curve_name, curve_data in value.items():
-            self._app_state.set_curve_data(curve_name, curve_data)
-
-    @Slot(list)
     def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
         """
         Handle single tracking trajectory loaded in background thread.
@@ -124,63 +122,8 @@ class MultiPointTrackingController:
         Args:
             data: Single trajectory data loaded from file
         """
-        current_thread = QThread.currentThread()
-        app_instance = QApplication.instance()
-        main_thread = app_instance.thread() if app_instance is not None else None
-        logger.info(
-            f"[THREAD-DEBUG] on_tracking_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
+        self.data_controller.on_tracking_data_loaded(data)
 
-        if data and self.main_window.curve_widget:
-            logger.debug(f"[DATA] Loaded {len(data)} points from background thread")
-            # Log first few points for debugging
-            for i in range(min(3, len(data))):
-                logger.debug(f"[DATA] Point {i}: {data[i]}")
-
-            # Add as a new tracking point to multi-point data
-            existing_curves = self._app_state.get_all_curve_names()
-            if existing_curves:
-                # We have existing data - add this as a new point
-                base_name = "Track"
-                point_name = self._get_unique_point_name(base_name)
-                self._app_state.set_curve_data(point_name, data)
-                self.main_window.active_timeline_point = point_name  # Set as active timeline point
-                # Initialize with default tracking direction
-                self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
-                logger.info(f"Added single trajectory as '{point_name}' to existing {len(existing_curves)} points")
-
-                # Update the tracking panel to show the new point
-                self.update_tracking_panel()
-            else:
-                # No existing data - create initial data with this trajectory
-                self._app_state.set_curve_data("Track1", data)
-                self.main_window.active_timeline_point = "Track1"
-                # Sync table selection for file loading case
-                if self.main_window.tracking_panel:
-                    self.main_window.tracking_panel.set_selected_points(["Track1"])
-                # Initialize with default tracking direction
-                self.point_tracking_directions["Track1"] = TrackingDirection.TRACKING_FW
-                logger.info("Loaded single trajectory as 'Track1'")
-
-                # Update the tracking panel
-                self.update_tracking_panel()
-
-            # Set up view for pixel-coordinate tracking data BEFORE setting data
-            self.main_window.curve_widget.setup_for_pixel_tracking()
-            # Use the superior point-level selection system
-            self.main_window.curve_widget.set_curve_data(data)
-
-            # ALSO update the multi-curve display to maintain proper side pane synchronization
-            # This ensures both the superior point-level system AND the tracking panel stay in sync
-            self.update_curve_display(SelectionContext.DATA_LOADING)
-
-            # AUTO-SELECT point at current frame for immediate superior selection experience
-            self._auto_select_point_at_current_frame()
-
-            # Update frame range based on data
-            self._update_frame_range_from_data(data)
-
-    @Slot(dict)
     def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """
         Handle multi-point tracking data loaded in background thread.
@@ -188,79 +131,77 @@ class MultiPointTrackingController:
         Args:
             multi_data: Dictionary of point names to trajectory data
         """
-        current_thread = QThread.currentThread()
-        app_instance = QApplication.instance()
-        main_thread = app_instance.thread() if app_instance is not None else None
-        logger.info(
-            f"[THREAD-DEBUG] on_multi_point_data_loaded executing in thread: {current_thread} (main={current_thread == main_thread})"
-        )
+        self.data_controller.on_multi_point_data_loaded(multi_data)
 
-        if multi_data:
-            # Merge with existing data instead of replacing
-            existing_curves = self._app_state.get_all_curve_names()
-            if existing_curves:
-                # We have existing data - merge the new points
-                logger.info(f"Merging {len(multi_data)} new points with {len(existing_curves)} existing points")
+    def on_point_deleted(self, point_name: str) -> None:
+        """
+        Handle deletion of a tracking point.
 
-                # Track newly added points for selection
-                new_point_names: list[str] = []
+        Args:
+            point_name: Name of the tracking point to delete
+        """
+        self.data_controller.on_point_deleted(point_name)
+        # Clean up tracking direction mapping (kept at facade level)
+        if point_name in self.point_tracking_directions:
+            del self.point_tracking_directions[point_name]
 
-                for point_name, trajectory in multi_data.items():
-                    # Check for naming conflicts and resolve them
-                    unique_name = self._get_unique_point_name(point_name)
-                    self._app_state.set_curve_data(unique_name, trajectory)
-                    new_point_names.append(unique_name)
-                    # Initialize with default tracking direction
-                    self.point_tracking_directions[unique_name] = TrackingDirection.TRACKING_FW
+    def on_point_renamed(self, old_name: str, new_name: str) -> None:
+        """
+        Handle renaming of a tracking point.
 
-                    if unique_name != point_name:
-                        logger.info(f"Renamed duplicate point '{point_name}' to '{unique_name}'")
+        Args:
+            old_name: Current name of the tracking point
+            new_name: New name for the tracking point
+        """
+        self.data_controller.on_point_renamed(old_name, new_name)
+        # Update tracking direction mapping (kept at facade level)
+        if old_name in self.point_tracking_directions:
+            self.point_tracking_directions[new_name] = self.point_tracking_directions.pop(old_name)
 
-                # If no timeline point is active, select the first new point
-                if not self.main_window.active_timeline_point and new_point_names:
-                    self.main_window.active_timeline_point = new_point_names[0]
-                    # Sync table selection for file loading case
-                    if self.main_window.tracking_panel:
-                        self.main_window.tracking_panel.set_selected_points([new_point_names[0]])
+    def on_tracking_direction_changed(self, point_name: str, new_direction: object) -> None:
+        """
+        Handle tracking direction change for a point.
 
-                all_curves_after_merge = self._app_state.get_all_curve_names()
-                logger.info(f"Total points after merge: {len(all_curves_after_merge)}")
-            else:
-                # No existing data - use the new data directly
-                for point_name, trajectory in multi_data.items():
-                    self._app_state.set_curve_data(point_name, trajectory)
-                # Set first point as active timeline point by default
-                first_point = list(multi_data.keys())[0] if multi_data else None
-                self.main_window.active_timeline_point = first_point
-                # Sync table selection for file loading case
-                if self.main_window.tracking_panel and first_point:
-                    self.main_window.tracking_panel.set_selected_points([first_point])
-                # Initialize all points with default tracking direction
-                for point_name in multi_data.keys():
-                    self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
-                logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
+        Args:
+            point_name: Name of the tracking point
+            new_direction: New tracking direction (passed as object from signal)
+        """
+        self.data_controller.on_tracking_direction_changed(point_name, new_direction)
+        # Update tracking direction mapping (kept at facade level)
+        if isinstance(new_direction, TrackingDirection):
+            self.point_tracking_directions[point_name] = new_direction
 
-            # Update the tracking panel with the multi-point data
-            self.update_tracking_panel()
+    def clear_tracking_data(self) -> None:
+        """Clear all tracking data."""
+        self.data_controller.clear_tracking_data()
+        self.point_tracking_directions.clear()
 
-            # Display the active timeline point's trajectory (could be existing or newly loaded)
-            active_point: str | None = self.main_window.active_timeline_point
-            if active_point and self.main_window.curve_widget:
-                if active_point in self._app_state.get_all_curve_names():
-                    # CRITICAL: Set active_curve BEFORE calling set_curve_data
-                    # Otherwise facade creates "Curve1" duplicate
-                    self._app_state.set_active_curve(active_point)
+    def get_active_trajectory(self) -> CurveDataList | None:
+        """
+        Get the currently active trajectory data.
 
-                    # Set up view for pixel-coordinate tracking data
-                    self.main_window.curve_widget.setup_for_pixel_tracking()
-                    trajectory = self._app_state.get_curve_data(active_point)
-                    self.main_window.curve_widget.set_curve_data(trajectory)
+        Returns:
+            Active trajectory data or None if no active timeline point
+        """
+        return self.data_controller.get_active_trajectory()
 
-                    # AUTO-SELECT point at current frame for immediate superior selection experience
-                    self._auto_select_point_at_current_frame()
+    def has_tracking_data(self) -> bool:
+        """
+        Check if any tracking data is loaded.
 
-                    # Update frame range based on all trajectories
-                    self._update_frame_range_from_multi_data()
+        Returns:
+            True if tracking data exists, False otherwise
+        """
+        return self.data_controller.has_tracking_data()
+
+    def get_tracking_point_names(self) -> list[str]:
+        """
+        Get list of all tracking point names.
+
+        Returns:
+            List of tracking point names
+        """
+        return self.data_controller.get_tracking_point_names()
 
     def _get_unique_point_name(self, base_name: str) -> str:
         """
@@ -272,170 +213,37 @@ class MultiPointTrackingController:
         Returns:
             A unique point name that doesn't conflict with existing names
         """
-        curve_names = self._app_state.get_all_curve_names()
-        if base_name not in curve_names:
-            return base_name
+        return self.data_controller._get_unique_point_name(base_name)
 
-        # Find a unique suffix
-        suffix = 2
-        while f"{base_name}_{suffix}" in curve_names:
-            suffix += 1
+    # ==================== Display Operations - Delegate to TrackingDisplayController ====================
 
-        return f"{base_name}_{suffix}"
+    def update_tracking_panel(self) -> None:
+        """Update tracking panel with current tracking data."""
+        self.display_controller.update_tracking_panel()
 
-    def _auto_select_point_at_current_frame(self) -> None:
+    def update_curve_display(
+        self, context: SelectionContext | None = None, selected_points: list[str] | None = None
+    ) -> None:
         """
-        Auto-select the point at the current frame to provide immediate superior selection experience.
-        If no point exists at current frame, select the first point as fallback.
-        """
-        if not self.main_window.curve_widget:
-            return
+        Update curve display with selected tracking points.
 
-        # Get current frame from state manager
-        current_frame = 1  # Default fallback
-        if self.main_window.state_manager is not None:
-            current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
-
-        # Try to find and select the point at current frame
-        curve_data = self.main_window.curve_widget.curve_data
-        if curve_data:
-            # Look for point at current frame
-            # Get active curve name
-            from stores.application_state import get_application_state
-
-            state = get_application_state()
-            active_curve = state.active_curve
-
-            if not active_curve:
-                return
-
-            for i, point in enumerate(curve_data):
-                frame = point[0]  # First element is frame number
-                if frame == current_frame:
-                    # Found point at current frame - select it via ApplicationState
-                    state.set_selection(active_curve, {i})
-                    logger.debug(f"Auto-selected point at frame {current_frame} (index {i})")
-                    return
-
-            # No point at current frame - select first point as fallback
-            if len(curve_data) > 0:
-                state.set_selection(active_curve, {0})
-                logger.debug(f"No point at frame {current_frame}, auto-selected first point (index 0)")
-
-    def _sync_tracking_selection_to_curve_store(self, point_names: list[str]) -> None:
-        """
-        Synchronize TrackingPanel selection to CurveDataStore selection state.
-
-        This fixes the TrackingPanel→CurveDataStore gap by ensuring manual selections
-        in the tracking panel are reflected in the curve store's selection state.
+        Backward compatible API that maps old SelectionContext to new display methods.
 
         Args:
-            point_names: List of selected point names from TrackingPanel
+            context: DEPRECATED - Selection context (for backward compatibility)
+            selected_points: Optional list of selected point names
         """
-        if not self.main_window.curve_widget or not point_names:
-            return
-
-        # Get the active curve (last selected point)
-        active_curve_name = point_names[-1] if point_names else None
-        if not active_curve_name or active_curve_name not in self._app_state.get_all_curve_names():
-            return
-
-        # Get current frame to find the appropriate point to select
-        current_frame = 1  # Default fallback
-        if self.main_window.state_manager is not None:
-            current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
-
-        # Find the point at the current frame in the active curve
-        curve_data = self._app_state.get_curve_data(active_curve_name)
-        for i, point in enumerate(curve_data):
-            frame = point[0]
-            if frame == current_frame:
-                # Select this point via ApplicationState
-                self._app_state.set_selection(active_curve_name, {i})
-                logger.debug(f"Synced TrackingPanel selection to ApplicationState: point {i} at frame {frame}")
-                return
-
-        # If no point at current frame, select the first point as fallback
-        if len(curve_data) > 0:
-            self._app_state.set_selection(active_curve_name, {0})
-            logger.debug("Synced TrackingPanel selection to ApplicationState: fallback to first point (index 0)")
-
-    def on_tracking_points_selected(self, point_names: list[str]) -> None:
-        """
-        Handle selection of tracking points from panel.
-
-        Args:
-            point_names: List of selected point names (for multi-selection in panel)
-        """
-        # Set the last selected point as the active timeline point (last clicked becomes active)
-        # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
-        self.main_window.active_timeline_point = point_names[-1] if point_names else None
-
-        # REMOVED: Synchronization loop (Phase 5.1)
-        # TrackingPanel already updates ApplicationState directly (Phase 2)
-        # No need to call set_selected_points() back to panel (causes race condition)
-
-        # Synchronize selection state to CurveDataStore (fix TrackingPanel→CurveDataStore gap)
-        self._sync_tracking_selection_to_curve_store(point_names)
-
-        # Update the curve display with MANUAL_SELECTION context to preserve user selection intent
-        # Pass point_names to avoid race condition with get_selected_points()
-        self.update_curve_display(SelectionContext.MANUAL_SELECTION, selected_points=point_names)
-
-        # Center view on selected point at current frame
-        # Small delay to ensure curve data and point selection are processed
-        if self.main_window.curve_widget and point_names:
-            if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
-                # Use small delay to allow widget updates to complete
-                def safe_center_on_selection() -> None:
-                    if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
-                        self.main_window.curve_widget.center_on_selection()
-
-                QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
-                logger.debug("Scheduled centering on selected point after 10ms delay")
-
-        logger.debug(f"Selected tracking points: {point_names}")
-
-    def on_curve_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
-        """Handle selection changes from CurveDataStore (bidirectional synchronization).
-
-        This provides visual feedback in the tracking panel when point selection changes
-        in the curve view, completing the bidirectional sync between systems.
-
-        Phase 4: Removed __default__ special handling - use curve_name or active_timeline_point.
-
-        Args:
-            selection: Set of selected point indices from CurveDataStore
-            curve_name: Name of curve with selection change (None uses active_timeline_point)
-        """
-        if not self.main_window.tracking_panel:
-            return
-
-        # If no selection, clear TrackingPanel selection
-        if not selection:
-            self.main_window.tracking_panel.set_selected_points([])
-            return
-
-        # Use explicit curve_name or fallback to active_timeline_point
-        active_curve_name = curve_name if curve_name else self.main_window.active_timeline_point
-
-        if active_curve_name and active_curve_name in self._app_state.get_all_curve_names():
-            # Update TrackingPanel to highlight the curve that contains the selected points
-            # This bridges point-level selection (CurveDataStore) with curve-level selection (TrackingPanel)
-            selected_curves = [active_curve_name]
-
-            # Ensure active_timeline_point is set (it should already be, but verify consistency)
-            if not self.main_window.active_timeline_point:
-                self.main_window.active_timeline_point = active_curve_name
-
-            # Update TrackingPanel visual state
-            self.main_window.tracking_panel.set_selected_points(selected_curves)
-
-            logger.debug(
-                f"Updated tracking panel for curve selection: {len(selection)} points selected in '{active_curve_name}'"
-            )
+        # Map old SelectionContext API to new display controller methods
+        if context == SelectionContext.MANUAL_SELECTION or selected_points is not None:
+            # Explicit selection - use with_selection
+            points = selected_points if selected_points is not None else []
+            self.display_controller.update_display_with_selection(points)
+        elif context == SelectionContext.DATA_LOADING or context == SelectionContext.CURVE_SWITCHING:
+            # Reset selection on major context change
+            self.display_controller.update_display_reset_selection()
         else:
-            logger.debug(f"Could not determine curve for selection: {len(selection)} points selected, no active curve")
+            # Default or None - preserve existing selection
+            self.display_controller.update_display_preserve_selection()
 
     def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
         """
@@ -445,15 +253,7 @@ class MultiPointTrackingController:
             point_name: Name of the tracking point
             visible: Whether the point should be visible
         """
-        # Update curve visibility directly if multi-curve is supported
-        if self.main_window.curve_widget is not None and callable(
-            getattr(self.main_window.curve_widget, "update_curve_visibility", None)
-        ):
-            self.main_window.curve_widget.update_curve_visibility(point_name, visible)
-        else:
-            # Fallback to full display update
-            self.update_curve_display(SelectionContext.DEFAULT)
-        logger.debug(f"Point {point_name} visibility changed to {visible}")
+        self.display_controller.on_point_visibility_changed(point_name, visible)
 
     def on_point_color_changed(self, point_name: str, color: str) -> None:
         """
@@ -463,453 +263,7 @@ class MultiPointTrackingController:
             point_name: Name of the tracking point
             color: New color for the point
         """
-        # Update curve color directly if multi-curve is supported
-        if self.main_window.curve_widget is not None and callable(
-            getattr(self.main_window.curve_widget, "update_curve_color", None)
-        ):
-            self.main_window.curve_widget.update_curve_color(point_name, color)
-        else:
-            # Fallback to full display update
-            self.update_curve_display(SelectionContext.DEFAULT)
-        logger.debug(f"Point {point_name} color changed to {color}")
-
-    def on_point_deleted(self, point_name: str) -> None:
-        """
-        Handle deletion of a tracking point.
-
-        Args:
-            point_name: Name of the tracking point to delete
-        """
-        if point_name in self._app_state.get_all_curve_names():
-            self._app_state.delete_curve(point_name)
-            # If this was the active timeline point, clear it
-            if self.main_window.active_timeline_point == point_name:
-                self.main_window.active_timeline_point = None
-            # Clean up tracking direction mapping
-            if point_name in self.point_tracking_directions:
-                del self.point_tracking_directions[point_name]
-            self.update_tracking_panel()
-            self.update_curve_display(SelectionContext.DEFAULT)
-            logger.info(f"Deleted tracking point: {point_name}")
-
-    def on_point_renamed(self, old_name: str, new_name: str) -> None:
-        """
-        Handle renaming of a tracking point.
-
-        Args:
-            old_name: Current name of the tracking point
-            new_name: New name for the tracking point
-        """
-        if old_name in self._app_state.get_all_curve_names():
-            # Get the curve data before deleting
-            curve_data = self._app_state.get_curve_data(old_name)
-            curve_metadata = self._app_state.get_curve_metadata(old_name)
-            # Delete old name and create new name
-            self._app_state.delete_curve(old_name)
-            self._app_state.set_curve_data(new_name, curve_data, curve_metadata)
-            # If this was the active timeline point, update to new name
-            if self.main_window.active_timeline_point == old_name:
-                self.main_window.active_timeline_point = new_name
-            # Update tracking direction mapping
-            if old_name in self.point_tracking_directions:
-                self.point_tracking_directions[new_name] = self.point_tracking_directions.pop(old_name)
-            self.update_tracking_panel()
-            logger.info(f"Renamed tracking point: {old_name} -> {new_name}")
-
-    @Slot(str, object)
-    def on_tracking_direction_changed(self, point_name: str, new_direction: object) -> None:
-        """
-        Handle tracking direction change for a point.
-
-        Updates keyframe statuses based on the new tracking direction,
-        mirroring 3DEqualizer's behavior patterns. Creates an undoable
-        command for status changes.
-
-        Args:
-            point_name: Name of the tracking point
-            new_direction: New tracking direction (passed as object from signal)
-        """
-        if point_name not in self._app_state.get_all_curve_names():
-            logger.warning(f"Tracking direction changed for unknown point: {point_name}")
-            return
-
-        # Convert object back to TrackingDirection (signal passes as object)
-        if not isinstance(new_direction, TrackingDirection):
-            logger.error(f"Invalid tracking direction type: {type(new_direction)}")
-            return
-
-        # Get previous direction (default to forward if unknown)
-        previous_direction = self.point_tracking_directions.get(point_name, TrackingDirection.TRACKING_FW)
-
-        # Skip update if direction hasn't actually changed
-        if previous_direction == new_direction:
-            logger.debug(f"Tracking direction unchanged for {point_name}: {new_direction.value}")
-            return
-
-        logger.info(f"Tracking direction changed for {point_name}: {previous_direction.value} -> {new_direction.value}")
-
-        # Get curve data and calculate what will change
-        curve_data = self._app_state.get_curve_data(point_name)
-        updated_data = update_keyframe_status_for_tracking_direction(curve_data, new_direction, previous_direction)
-
-        # Detect status changes - build list of (index, old_status, new_status)
-        status_changes: list[tuple[int, str, str]] = []
-        for i, (old_point, new_point) in enumerate(zip(curve_data, updated_data)):
-            old_status = str(old_point[3]) if len(old_point) > 3 else "keyframe"
-            new_status = str(new_point[3]) if len(new_point) > 3 else "keyframe"
-            if old_status != new_status:
-                status_changes.append((i, old_status, new_status))
-
-        logger.debug(f"Detected {len(status_changes)} status changes for direction change")
-
-        # Create and execute command for undo support (only for active curve)
-        if status_changes and self.main_window.active_timeline_point == point_name:
-            from core.commands.curve_commands import SetPointStatusCommand
-            from services import get_interaction_service
-
-            command = SetPointStatusCommand(
-                description=f"Change tracking direction to {new_direction.value}",
-                changes=status_changes,
-            )
-
-            interaction_service = get_interaction_service()
-            if interaction_service:
-                success = interaction_service.command_manager.execute_command(
-                    command, cast(MainWindowProtocol, cast(object, self.main_window))
-                )
-
-                if success:
-                    # Sync ApplicationState from curve widget after command executes
-                    if self.main_window.curve_widget:
-                        updated_curve_data = self.main_window.curve_widget.curve_data
-                        self._app_state.set_curve_data(point_name, updated_curve_data)
-                        logger.info("Synced ApplicationState from curve widget after direction change")
-                else:
-                    logger.error("Failed to execute direction change command")
-                    return
-            else:
-                logger.warning("InteractionService not available, updating data directly")
-                self._app_state.set_curve_data(point_name, updated_data)
-        else:
-            # Not active curve or no changes - just update ApplicationState
-            self._app_state.set_curve_data(point_name, updated_data)
-
-        # Store the new direction
-        self.point_tracking_directions[point_name] = new_direction
-
-        # Update the curve display if this is the active timeline point
-        if self.main_window.active_timeline_point == point_name:
-            # Force repaint to update colors immediately
-            if self.main_window.curve_widget:
-                self.main_window.curve_widget.update()
-
-        # Update the tracking panel to reflect any status changes
-        self.update_tracking_panel()
-
-        logger.info(f"Keyframe status update completed for {point_name}")
-
-    def _should_update_curve_store_data(self, active_curve: str, context: SelectionContext) -> bool:
-        """
-        Determine if we should overwrite the curve store data with tracking controller data.
-
-        This prevents overwriting curve store data that may have updated status information
-        with stale data from the tracking controller.
-
-        Args:
-            active_curve: Name of the active curve
-            context: Selection context
-
-        Returns:
-            True if curve store should be updated, False to preserve existing data
-        """
-        # Always update for these contexts (switching trajectories or loading new data)
-        if context in (SelectionContext.DATA_LOADING, SelectionContext.CURVE_SWITCHING):
-            return True
-
-        # For manual selection and default contexts, check if we should preserve existing data
-        if not self.main_window.curve_widget:
-            return True  # Fallback to update if curve widget not available
-
-        # Get current curve widget data
-        current_store_data = self.main_window.curve_widget.curve_data
-        tracking_data = (
-            self._app_state.get_curve_data(active_curve)
-            if active_curve in self._app_state.get_all_curve_names()
-            else []
-        )
-
-        # Handle Mock objects in tests and validate data types
-        try:
-            if not current_store_data:
-                return True
-
-            # Ensure we have list-like objects with len() method
-            if not hasattr(current_store_data, "__len__") or not hasattr(tracking_data, "__len__"):
-                return True
-
-            # If curve store has different number of points, update it
-            if len(current_store_data) != len(tracking_data):
-                return True
-        except (TypeError, AttributeError):
-            # Handle cases where objects don't support len() or comparison
-            logger.debug(f"Data comparison failed for trajectory '{active_curve}', defaulting to update")
-            return True
-
-        # Check if curve store has the same trajectory (same frame numbers)
-        # If so, preserve it to maintain status changes made by user
-        try:
-            store_frames = set(point[0] for point in current_store_data if len(point) >= 1)
-            tracking_frames = set(point[0] for point in tracking_data if len(point) >= 1)
-
-            if store_frames == tracking_frames:
-                # Same trajectory - preserve store data to maintain status changes
-                logger.debug(
-                    f"Trajectory '{active_curve}' already in curve store with same frames, preserving status changes"
-                )
-                return False
-            else:
-                # Different trajectory - update with tracking data
-                logger.debug("Different trajectory detected, updating curve store")
-                return True
-
-        except (IndexError, TypeError, AttributeError) as e:
-            logger.warning(f"Error comparing trajectory data: {e}, defaulting to update")
-            return True
-
-    def update_tracking_panel(self) -> None:
-        """Update tracking panel with current tracking data."""
-        if self.main_window.tracking_panel:
-            # Build dict from ApplicationState for tracking panel
-            # Cast to Mapping to handle dict invariance (list is Sequence subtype)
-            all_tracked_data: dict[str, CurveDataInput] = {}
-            for curve_name in self._app_state.get_all_curve_names():
-                all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
-            self.main_window.tracking_panel.set_tracked_data(all_tracked_data)
-
-    def update_curve_display(
-        self, context: SelectionContext = SelectionContext.DEFAULT, selected_points: list[str] | None = None
-    ) -> None:
-        """Update curve display with selected tracking points.
-
-        Args:
-            context: Context for this update to control auto-selection behavior
-            selected_points: Optional list of selected point names (avoids race condition with get_selected_points())
-        """
-        if not self.main_window.curve_widget:
-            return
-
-        # CRITICAL: Save PREVIOUS curve data back to ApplicationState before switching
-        # This ensures modifications (endframes, nudges, etc.) are preserved
-        if self._previous_active_curve and self._previous_active_curve in self._app_state.get_all_curve_names():
-            # Get current data from curve widget (contains previous curve's data)
-            current_data = self.main_window.curve_widget.curve_data
-            if current_data:
-                self._app_state.set_curve_data(self._previous_active_curve, current_data)
-                logger.debug(f"Saved modifications for '{self._previous_active_curve}' back to ApplicationState")
-
-        # Update previous active curve for next switch
-        self._previous_active_curve = self.main_window.active_timeline_point
-
-        # Check if curve widget supports multi-curve display (curve_widget guaranteed non-None by line 683 hasattr check)
-        if callable(getattr(self.main_window.curve_widget, "set_curves_data", None)):
-            # Get metadata from tracking panel if available
-            metadata: dict[str, dict[str, object]] = {}
-            if self.main_window.tracking_panel is not None:
-                # Use public interface for getting point metadata
-                for name in self._app_state.get_all_curve_names():
-                    metadata[name] = {
-                        "visible": self.main_window.tracking_panel.get_point_visibility(name),
-                        "color": self.main_window.tracking_panel.get_point_color(name),
-                    }
-
-            # Build curves dict from ApplicationState
-            all_curves_data: dict[str, CurveDataList] = {}
-            for curve_name in self._app_state.get_all_curve_names():
-                all_curves_data[curve_name] = self._app_state.get_curve_data(curve_name)
-
-            # Set all curves with the active timeline point - UNIFIED APPROACH
-            active_curve = self.main_window.active_timeline_point
-
-            # Only preserve selection for DEFAULT context (general updates like color/visibility changes)
-            # For explicit actions (MANUAL_SELECTION, DATA_LOADING, CURVE_SWITCHING), reset selection
-            if context == SelectionContext.DEFAULT:
-                # Preserve existing selection by not passing selected_curves parameter
-                # This supports Ctrl+click multi-curve selection in curve view
-                self.main_window.curve_widget.set_curves_data(
-                    all_curves_data,
-                    metadata,
-                    active_curve,
-                    # selected_curves omitted - preserves existing selection
-                )
-            elif context == SelectionContext.MANUAL_SELECTION:
-                # For tracking panel selection, use ALL selected curves
-                # Use provided selected_points parameter if available (avoids race condition)
-                if selected_points is not None:
-                    selected_curves_list = selected_points
-                    logger.info(f"[MULTI-CURVE-DEBUG] Using provided selected_points: {selected_curves_list}")
-                elif self.main_window.tracking_panel:
-                    selected_curves_list = self.main_window.tracking_panel.get_selected_points()
-                    logger.info(f"[MULTI-CURVE-DEBUG] Got selected curves from panel: {selected_curves_list}")
-                else:
-                    selected_curves_list = []
-
-                # Fallback to active curve if no selection available
-                if not selected_curves_list and active_curve:
-                    selected_curves_list = [active_curve]
-                    logger.info(f"[MULTI-CURVE-DEBUG] No selection, using active curve: {selected_curves_list}")
-
-                logger.info(
-                    f"[MULTI-CURVE-DEBUG] About to call set_curves_data with selected_curves={selected_curves_list}"
-                )
-                self.main_window.curve_widget.set_curves_data(
-                    all_curves_data,
-                    metadata,
-                    active_curve,
-                    selected_curves=selected_curves_list,
-                )
-            else:
-                # Reset selection for other explicit actions (DATA_LOADING, CURVE_SWITCHING)
-                self.main_window.curve_widget.set_curves_data(
-                    all_curves_data,
-                    metadata,
-                    active_curve,
-                    selected_curves=[active_curve] if active_curve else [],  # Reset to active curve
-                )
-
-            # CONDITIONAL AUTO-SELECT: Only auto-select in appropriate contexts for the active curve
-            # This provides point-level selection within the multi-curve system
-            if (
-                active_curve
-                and active_curve in self._app_state.get_all_curve_names()
-                and context
-                in (
-                    SelectionContext.DATA_LOADING,
-                    SelectionContext.CURVE_SWITCHING,
-                    SelectionContext.DEFAULT,
-                    SelectionContext.MANUAL_SELECTION,
-                )
-            ):
-                # CRITICAL FIX: Avoid overwriting curve store data with stale data
-                # Check if curve store already has the correct trajectory before overwriting
-                should_update_curve_data = self._should_update_curve_store_data(active_curve, context)
-
-                if should_update_curve_data:
-                    # Switch to single-curve mode for point-level selection
-                    active_curve_data = self._app_state.get_curve_data(active_curve)
-                    self.main_window.curve_widget.set_curve_data(active_curve_data)
-                    logger.debug(f"Updated curve store data for trajectory '{active_curve}' in context {context.name}")
-                else:
-                    logger.debug(
-                        f"Preserved existing curve store data for trajectory '{active_curve}' to maintain status changes"
-                    )
-
-                self._auto_select_point_at_current_frame()
-        else:
-            # Fallback to single curve display for backward compatibility
-            active_point = self.main_window.active_timeline_point
-            if active_point and active_point in self._app_state.get_all_curve_names():
-                trajectory = self._app_state.get_curve_data(active_point)
-                self.main_window.curve_widget.set_curve_data(trajectory)
-
-                # CONDITIONAL AUTO-SELECT: Only auto-select in appropriate contexts
-                if context in (
-                    SelectionContext.DATA_LOADING,
-                    SelectionContext.CURVE_SWITCHING,
-                    SelectionContext.DEFAULT,
-                ):
-                    self._auto_select_point_at_current_frame()
-            else:
-                self.main_window.curve_widget.set_curve_data([])
-
-    def _update_frame_range_from_data(
-        self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]
-    ) -> None:
-        """
-        Update frame range UI elements based on single trajectory data.
-
-        Args:
-            data: Trajectory data
-        """
-        if data:
-            max_frame = max(point[0] for point in data)
-            try:
-                if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)
-                if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)
-                if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))
-                # Update frame count via ApplicationState
-                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
-            except RuntimeError:
-                # Widgets may have been deleted during application shutdown
-                pass
-
-    def _update_frame_range_from_multi_data(self) -> None:
-        """Update frame range based on all trajectories in multi-point data."""
-        max_frame = 0
-        for curve_name in self._app_state.get_all_curve_names():
-            traj = self._app_state.get_curve_data(curve_name)
-            if traj:
-                traj_max = max(point[0] for point in traj)
-                max_frame = max(max_frame, traj_max)
-
-        if max_frame > 0:
-            try:
-                if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)
-                if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)
-                if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))
-                # Update frame count via ApplicationState
-                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
-            except RuntimeError:
-                # Widgets may have been deleted during application shutdown
-                pass
-
-    def clear_tracking_data(self) -> None:
-        """Clear all tracking data."""
-        # Delete all curves from ApplicationState
-        for curve_name in list(self._app_state.get_all_curve_names()):
-            self._app_state.delete_curve(curve_name)
-        self.main_window.active_timeline_point = None
-        self.point_tracking_directions.clear()
-        self.update_tracking_panel()
-        self.update_curve_display(SelectionContext.DEFAULT)
-        logger.info("Cleared all tracking data")
-
-    def get_active_trajectory(self) -> CurveDataList | None:
-        """
-        Get the currently active trajectory data.
-
-        Returns:
-            Active trajectory data or None if no active timeline point
-        """
-        active_point = self.main_window.active_timeline_point
-        if active_point and active_point in self._app_state.get_all_curve_names():
-            return self._app_state.get_curve_data(active_point)
-        return None
-
-    def has_tracking_data(self) -> bool:
-        """
-        Check if any tracking data is loaded.
-
-        Returns:
-            True if tracking data exists, False otherwise
-        """
-        return len(self._app_state.get_all_curve_names()) > 0
-
-    def get_tracking_point_names(self) -> list[str]:
-        """
-        Get list of all tracking point names.
-
-        Returns:
-            List of tracking point names
-        """
-        return list(self._app_state.get_all_curve_names())
-
-    # ==================== Multi-Curve Display Methods (Phase 6) ====================
+        self.display_controller.on_point_color_changed(point_name, color)
 
     def set_display_mode(self, mode: DisplayMode) -> None:
         """
@@ -918,249 +272,38 @@ class MultiPointTrackingController:
         Args:
             mode: DisplayMode enum value (ALL_VISIBLE, SELECTED, ACTIVE_ONLY)
         """
-        if not self.main_window.curve_widget:
-            return
-
-        # Handle mode-specific logic BEFORE updating ApplicationState
-        if mode == DisplayMode.SELECTED:
-            # If no curves selected, auto-select the active curve
-            selected = self._app_state.get_selected_curves()
-            active_curve = self._app_state.active_curve
-
-            if not selected and active_curve:
-                # Auto-select active curve when switching to SELECTED mode with no selection
-                self._app_state.set_selected_curves({active_curve})
-                logger.debug(f"Auto-selected active curve '{active_curve}' for SELECTED mode")
-            elif not selected and not active_curve:
-                # Edge case: No selection and no active curve
-                logger.warning(
-                    "Cannot switch to SELECTED mode: no curves available. "
-                    + "Load curves before using SELECTED display mode."
-                )
-                return
-        elif mode == DisplayMode.ACTIVE_ONLY:
-            # Clear selection in ACTIVE_ONLY mode
-            self._app_state.set_selected_curves(set())
-
-            # Validation logging
-            if not self._app_state.active_curve:
-                logger.debug("Switched to ACTIVE_ONLY mode with no active curve (nothing to display)")
-
-        # Update ApplicationState (single source of truth)
-        # display_mode is computed from _selected_curves and _show_all_curves
-        if mode == DisplayMode.ALL_VISIBLE:
-            self._app_state.set_show_all_curves(True)
-        elif mode == DisplayMode.SELECTED:
-            self._app_state.set_show_all_curves(False)
-            # Ensure we have a selection (already handled above)
-        elif mode == DisplayMode.ACTIVE_ONLY:
-            self._app_state.set_show_all_curves(False)
-            # Selection already cleared above
-
-        # Trigger widget update
-        self.main_window.curve_widget.update()
-        logger.debug(f"Display mode set to: {self._app_state.display_mode}")
+        self.display_controller.set_display_mode(mode)
 
     def set_selected_curves(self, curve_names: list[str]) -> None:
         """
         Set which curves are currently selected for display.
 
-        In SELECTED display mode, only these selected curves will be displayed.
-        The last curve in the list becomes the active curve for editing.
-
         Args:
             curve_names: List of curve names to select and display
         """
-        if not self.main_window.curve_widget:
-            return
-
-        # Update ApplicationState (single source of truth)
-        self._app_state.set_selected_curves(set(curve_names))
-
-        # Widget fields updated automatically via selection_state_changed signal
-        # (No manual sync needed - signal handler updates widget._selected_curve_names)
-        widget = self.main_window.curve_widget
-
-        # Set the last selected as the active curve for editing
-        all_curve_names = self._app_state.get_all_curve_names()
-        if curve_names and curve_names[-1] in all_curve_names:
-            widget.set_active_curve(curve_names[-1])
-
-        widget.update()
-        logger.debug(
-            f"Selected curves: {self._app_state.get_selected_curves()}, "
-            + f"Active: {self._app_state.active_curve}, "
-            + f"Mode: {self._app_state.display_mode}"
-        )
+        self.display_controller.set_selected_curves(curve_names)
 
     def center_on_selected_curves(self) -> None:
+        """Center the view on all selected curves."""
+        self.display_controller.center_on_selected_curves()
+
+    # ==================== Selection Operations - Delegate to TrackingSelectionController ====================
+
+    def on_tracking_points_selected(self, point_names: list[str]) -> None:
         """
-        Center the view on all selected curves.
-
-        Calculates the bounding box of all selected curves and centers the view on it.
-        """
-        if not self.main_window.curve_widget:
-            return
-
-        widget = self.main_window.curve_widget
-
-        # Get all curve names from ApplicationState
-        all_curve_names = self._app_state.get_all_curve_names()
-        logger.debug(
-            f"center_on_selected_curves called with selected: {widget.selected_curve_names}, ApplicationState curves: {all_curve_names}"
-        )
-        if not widget.selected_curve_names or not all_curve_names:
-            logger.debug("Early return - no selected curves or no data")
-            return
-
-        # Collect all points from selected curves
-        all_points: list[tuple[float, float]] = []
-        for curve_name in widget.selected_curve_names:
-            if curve_name in all_curve_names:
-                curve_data = self._app_state.get_curve_data(curve_name)
-                logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
-                for point in curve_data:
-                    if len(point) >= 3:
-                        all_points.append((float(point[1]), float(point[2])))
-
-        if not all_points:
-            logger.debug("No points found in selected curves")
-            return
-        logger.debug(f"Collected {len(all_points)} points for centering")
-
-        # Calculate bounding box
-        x_coords = [p[0] for p in all_points]
-        y_coords = [p[1] for p in all_points]
-
-        min_x, max_x = min(x_coords), max(x_coords)
-        min_y, max_y = min(y_coords), max(y_coords)
-
-        # Calculate center point
-        center_x = (min_x + max_x) / 2
-        center_y = (min_y + max_y) / 2
-
-        # Calculate required zoom to fit all points with some padding
-        from ui.ui_constants import MAX_ZOOM_FACTOR, MIN_ZOOM_FACTOR
-
-        padding_factor = 1.2
-        width_needed = (max_x - min_x) * padding_factor
-        height_needed = (max_y - min_y) * padding_factor
-
-        if width_needed > 0 and height_needed > 0:
-            zoom_x = widget.width() / width_needed
-            zoom_y = widget.height() / height_needed
-            optimal_zoom = min(zoom_x, zoom_y, MAX_ZOOM_FACTOR)
-
-            # Apply zoom
-            widget.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
-
-        # Use the proper centering method that handles coordinate transformation and Y-flip
-        widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportPrivateUsage]
-
-        widget.invalidate_caches()
-        widget.update()
-        widget.view_changed.emit()
-
-    # ==================== ApplicationState Signal Handlers ====================
-
-    def _on_curves_changed(self, _curves: dict[str, CurveDataList]) -> None:
-        """
-        React to curve data changes from ApplicationState.
-
-        This handler is called when any curve data is modified through ApplicationState,
-        ensuring the tracking panel and curve display stay synchronized.
+        Handle selection of tracking points from panel.
 
         Args:
-            curves: Dictionary of all curves in ApplicationState
+            point_names: List of selected point names (for multi-selection in panel)
         """
-        # Prevent recursion: If we're already handling a signal, don't process nested signals
-        if self._handling_signal:
-            return
+        self.selection_controller.on_tracking_points_selected(point_names, self.display_controller)
 
-        try:
-            self._handling_signal = True
-
-            # Update tracking panel to reflect data changes
-            self.update_tracking_panel()
-
-            # NOTE: Do NOT call update_curve_display() here as it can trigger more
-            # set_curve_data() calls, creating a signal loop. The tracking panel
-            # update is sufficient for reactive updates.
-
-        finally:
-            self._handling_signal = False
-
-    def _on_active_curve_changed(self, curve_name: str) -> None:
+    def on_curve_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
         """
-        React to active curve changes from ApplicationState.
-
-        This handler is called when the active curve is changed through ApplicationState,
-        ensuring the UI reflects the new active state.
+        Handle selection changes from CurveDataStore (bidirectional synchronization).
 
         Args:
-            curve_name: Name of the newly active curve (empty string if None)
+            selection: Set of selected point indices from CurveDataStore
+            curve_name: Name of curve with selection change (None uses active_timeline_point)
         """
-        # Prevent recursion: If we're already handling a signal, don't process nested signals
-        if self._handling_signal:
-            return
-
-        try:
-            self._handling_signal = True
-
-            # Update active timeline point to match ApplicationState
-            if curve_name:
-                self.main_window.active_timeline_point = curve_name
-                # NOTE: Do NOT call update_curve_display() here to avoid signal loops
-
-        finally:
-            self._handling_signal = False
-
-    def _on_selection_state_changed(self, selected_curves: set[str], _show_all: bool) -> None:
-        """
-        React to selection state changes from ApplicationState.
-
-        Replaces legacy points_selected signal pathway. Handles:
-        - Setting active timeline point
-        - Syncing to CurveDataStore
-        - Updating curve display
-        - Centering view on selection
-
-        Args:
-            selected_curves: Set of selected curve names
-            show_all: Whether show-all mode is enabled
-        """
-        # Prevent recursion
-        if self._handling_signal:
-            return
-
-        try:
-            self._handling_signal = True
-
-            point_names = list(selected_curves)
-
-            # Set the last selected point as active timeline point
-            if point_names:
-                self.main_window.active_timeline_point = point_names[-1]
-            else:
-                self.main_window.active_timeline_point = None
-
-            # Sync to CurveDataStore
-            self._sync_tracking_selection_to_curve_store(point_names)
-
-            # Update curve display
-            self.update_curve_display(SelectionContext.MANUAL_SELECTION, selected_points=point_names)
-
-            # Center view on selection (with small delay for widget updates)
-            if self.main_window.curve_widget and point_names:
-                if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
-
-                    def safe_center_on_selection() -> None:
-                        if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
-                            self.main_window.curve_widget.center_on_selection()
-
-                    QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
-
-            logger.debug(f"Selection state changed: {point_names}")
-
-        finally:
-            self._handling_signal = False
+        self.selection_controller.on_curve_selection_changed(selection, curve_name)

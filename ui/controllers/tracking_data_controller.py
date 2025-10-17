@@ -5,7 +5,6 @@ TrackingDataController - Handles loading and managing tracking data.
 Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
-from pathlib import Path
 from typing import cast
 
 from PySide6.QtCore import QObject, QThread, Signal, Slot
@@ -13,11 +12,10 @@ from PySide6.QtWidgets import QApplication
 
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataInput, CurveDataList
+from core.type_aliases import CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
 from stores.application_state import ApplicationState, get_application_state
-from ui.protocols.controller_protocols import MainWindowProtocol as ControllerMainWindowProtocol
 
 logger = get_logger("tracking_data_controller")
 
@@ -43,7 +41,7 @@ class TrackingDataController(QObject):
     load_error = Signal(str)
     data_changed = Signal()
 
-    def __init__(self, main_window: ControllerMainWindowProtocol) -> None:
+    def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initialize tracking data controller.
 
         Args:

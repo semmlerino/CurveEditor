@@ -13,8 +13,8 @@ from PySide6.QtCore import QObject, Signal, Slot
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
+from protocols.ui import MainWindowProtocol
 from stores.application_state import ApplicationState, get_application_state
-from ui.protocols.controller_protocols import MainWindowProtocol
 
 logger = get_logger("tracking_display_controller")
 

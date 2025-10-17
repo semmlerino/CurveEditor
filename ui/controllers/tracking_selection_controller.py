@@ -8,8 +8,8 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 from PySide6.QtCore import QObject, QTimer, Slot
 
 from core.logger_utils import get_logger
+from protocols.ui import MainWindowProtocol
 from stores.application_state import ApplicationState, get_application_state
-from ui.protocols.controller_protocols import MainWindowProtocol
 
 logger = get_logger("tracking_selection_controller")
 
