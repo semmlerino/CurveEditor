@@ -52,9 +52,9 @@ class TestInteractionServiceCore:  # pyright: ignore[reportUninitializedInstance
         """Setup test environment."""
         self.service = get_interaction_service()
         self.transform_service = get_transform_service()
-        # Clear any cached state
-        self.service._history = []
-        self.service._current_index = -1
+        # Clear any cached state (now in _commands helper)
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_singleton_pattern(self) -> None:
         """Verify InteractionService uses singleton pattern correctly."""
@@ -245,9 +245,9 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        # Clear history
-        self.service._history = []
-        self.service._current_index = -1
+        # Clear history (now in _commands helper)
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_add_to_history(self) -> None:
         """Test adding states to history."""
@@ -970,8 +970,8 @@ class TestMouseReleaseEvents:  # pyright: ignore[reportUninitializedInstanceVari
         main_window = MockMainWindow()
         view.main_window = main_window  # pyright: ignore[reportAttributeAccessIssue]
 
-        # Set original positions
-        self.service._drag_original_positions = {0: (100.0, 100.0)}
+        # Set original positions (now in _mouse helper)
+        self.service._mouse._drag_original_positions = {0: (100.0, 100.0)}
 
         # Modify point position to simulate drag
         view.curve_data[0] = (1, 110.0, 95.0)
@@ -1101,9 +1101,9 @@ class TestStateManagement:  # pyright: ignore[reportUninitializedInstanceVariabl
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        # Clear history
-        self.service._history = []
-        self.service._current_index = -1
+        # Clear history (now in _commands helper)
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_save_state(self) -> None:
         """Test save_state method (alias for add_to_history)."""
@@ -1125,7 +1125,7 @@ class TestStateManagement:  # pyright: ignore[reportUninitializedInstanceVariabl
         self.service.save_state(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should have added to internal history
-        assert len(self.service._history) > 0
+        assert len(self.service._commands._history) > 0
 
     def test_restore_state_with_curve_data(self) -> None:
         """Test restoring state with curve data."""
@@ -1245,9 +1245,9 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        # Clear history
-        self.service._history = []
-        self.service._current_index = -1
+        # Clear history (now in _commands helper)
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_clear_history(self) -> None:
         """Test clearing history."""
@@ -1265,8 +1265,8 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
         self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # History should be empty
-        assert len(self.service._history) == 0
-        assert self.service._current_index == -1
+        assert len(self.service._commands._history) == 0
+        assert self.service._commands._current_index == -1
         assert not self.service.can_undo()
         assert not self.service.can_redo()
 

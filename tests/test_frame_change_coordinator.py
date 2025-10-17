@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
+from stores.application_state import get_application_state
 from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
 
 
@@ -43,6 +44,7 @@ class TestFrameChangeCoordinator:
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Set total_frames first (required for frame change to work)
             from stores.application_state import get_application_state
+
             get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
             # Trigger frame change
@@ -91,7 +93,6 @@ class TestFrameChangeCoordinator:
         # called by other components
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Set total_frames first (required for frame change to work)
-            from stores.application_state import get_application_state
             get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
             get_application_state().set_frame(42)
@@ -213,7 +214,6 @@ class TestFrameChangeCoordinator:
             coordinator.connect()  # Second call should not create duplicate
 
             # Set total_frames first (required for frame change to work)
-            from stores.application_state import get_application_state
             get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
             # Trigger frame change
@@ -275,4 +275,4 @@ class TestFrameChangeCoordinator:
 
         # Trigger frame change while coordinator not connected
         # This should be handled by other handlers (if any remain)
-        get_application_state().set_frame(42  # Should not crash)
+        get_application_state().set_frame(42)  # Should not crash

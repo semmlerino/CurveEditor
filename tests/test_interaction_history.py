@@ -37,9 +37,9 @@ class TestHistoryOperations:
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        # Clear history
-        self.service._history = []
-        self.service._current_index = -1
+        # Clear history (now in _commands helper)
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
         # Clear command manager
         self.service.command_manager._history = []
         self.service.command_manager._current_index = -1
@@ -61,9 +61,9 @@ class TestHistoryOperations:
         self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should have at least one history entry (might start at 1 if add_to_history was called before)
-        assert len(self.service._history) >= 1
-        if len(self.service._history) > 0:
-            history_entry = self.service._history[-1]
+        assert len(self.service._commands._history) >= 1
+        if len(self.service._commands._history) > 0:
+            history_entry = self.service._commands._history[-1]
             assert "curve_data" in history_entry
             # point_name and point_color are optional
             if "point_name" in history_entry:
@@ -99,7 +99,7 @@ class TestHistoryOperations:
             self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should not exceed max size
-        assert len(self.service._history) <= self.service._max_history_size
+        assert len(self.service._commands._history) <= self.service._commands._max_history_size
 
     def test_can_undo_with_command_manager(self) -> None:
         """Test can_undo returns True when commands are available."""
@@ -220,8 +220,8 @@ class TestHistoryOperations:
         self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
 
         # Should be empty
-        assert len(self.service._history) == 0
-        assert self.service._current_index == -1
+        assert len(self.service._commands._history) == 0
+        assert self.service._commands._current_index == -1
 
     def test_update_history_buttons(self) -> None:
         """Test update_history_buttons doesn't crash with command manager."""
@@ -255,8 +255,8 @@ class TestMemoryAndStats:
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        self.service._history = []
-        self.service._current_index = -1
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_get_memory_stats(self) -> None:
         """Test get_memory_stats returns statistics."""
@@ -292,5 +292,5 @@ class TestMemoryAndStats:
         # Clear index
         self.service.clear_spatial_index()
 
-        # Index should be reset (verified by internal state)
-        assert self.service._point_index._last_point_count == 0
+        # Index should be reset (verified by internal state, now in _selection helper)
+        assert self.service._selection._point_index._last_point_count == 0
