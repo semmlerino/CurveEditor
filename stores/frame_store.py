@@ -12,6 +12,7 @@ from PySide6.QtCore import QObject, Signal
 
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
+from stores.application_state import get_application_state
 
 if TYPE_CHECKING:
     from ui.state_manager import StateManager
@@ -101,11 +102,11 @@ class FrameStore(QObject):
         # Get current frame from StateManager for comparison
         current = self._state_manager.current_frame
         if current != frame:
-            # Update StateManager (single source of truth)
-            self._state_manager.current_frame = frame
+            # Update ApplicationState (single source of truth)
+            get_application_state().set_frame(frame)
             # Emit our signal for components that depend on FrameStore
             self.current_frame_changed.emit(frame)
-            logger.debug(f"Current frame set via StateManager to: {frame}")
+            logger.debug(f"Current frame set via ApplicationState to: {frame}")
 
     def set_playback_state(self, is_playing: bool) -> None:
         """
@@ -188,10 +189,9 @@ class FrameStore(QObject):
             self._min_frame = min_frame
             self._max_frame = max_frame
 
-            # Update StateManager's total_frames to accommodate new range
-            if self._state_manager is not None:
-                # Set total_frames to max_frame to allow current_frame to be set anywhere in range
-                self._state_manager.total_frames = max_frame
+            # NOTE: Frame range is derived from curve data, not set synthetically.
+            # ApplicationState manages total_frames via image_files or actual curve data.
+            # FrameStore enforces valid frame range for UI navigation only.
 
             # Ensure current frame is within new range
             current = self.current_frame
@@ -210,9 +210,8 @@ class FrameStore(QObject):
         self._max_frame = 1
         self._is_playing = False
 
-        # Reset current frame via StateManager
-        if self._state_manager is not None:
-            self._state_manager.current_frame = 1
+        # Reset current frame via ApplicationState
+        get_application_state().set_frame(1)
 
         # Emit signals for reset
         self.current_frame_changed.emit(1)
