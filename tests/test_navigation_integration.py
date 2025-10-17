@@ -16,6 +16,7 @@ from PySide6.QtTest import QSignalSpy
 from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 
 
@@ -96,7 +97,7 @@ class TestNavigationIntegration:
         window = fully_configured_window
 
         # Start at frame 1
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
         assert window.frame_spinbox is not None
         assert window.frame_spinbox.value() == 1
 
@@ -107,51 +108,51 @@ class TestNavigationIntegration:
 
             # Right arrow moves forward one frame
             qtbot.keyClick(window.timeline_tabs, Qt.Key.Key_Right)
-            assert window.state_manager.current_frame == 2
+            assert get_application_state().set_frame(= 2)
 
             # Left arrow moves back
             qtbot.keyClick(window.timeline_tabs, Qt.Key.Key_Left)
-            assert window.state_manager.current_frame == 1
+            assert get_application_state().set_frame(= 1)
 
         # 2. Test Page Down navigation to next keyframe (via eventFilter)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(10)
         # Should jump to next keyframe at frame 5
-        assert window.state_manager.current_frame == 5
+        assert get_application_state().set_frame(= 5)
 
         # 3. Continue Page Down through navigation points
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(10)
-        assert window.state_manager.current_frame == 10  # Next keyframe
+        assert get_application_state().set_frame(= 10  # Next keyframe)
 
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(10)
-        assert window.state_manager.current_frame == 15  # Endframe
+        assert get_application_state().set_frame(= 15  # Endframe)
 
         # 4. Test Page Up navigation backwards
         page_up = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, page_up)
         qtbot.wait(10)
-        assert window.state_manager.current_frame == 10  # Back to keyframe
+        assert get_application_state().set_frame(= 10  # Back to keyframe)
 
         # 5. Test Home/End navigation
         if window.timeline_tabs:
             qtbot.keyClick(window.timeline_tabs, Qt.Key.Key_End)
-            assert window.state_manager.current_frame == 30  # Last frame
+            assert get_application_state().set_frame(= 30  # Last frame)
 
             qtbot.keyClick(window.timeline_tabs, Qt.Key.Key_Home)
-            assert window.state_manager.current_frame == 1  # First frame
+            assert get_application_state().set_frame(= 1  # First frame)
 
         # 6. Test navigation with curve widget focused
         assert window.curve_widget is not None
         window.curve_widget.setFocus()
         qtbot.wait(10)
 
-        window.state_manager.current_frame = 20
+        get_application_state().set_frame(20)
         QApplication.sendEvent(window.curve_widget, key_event)  # Page Down
         qtbot.wait(10)
-        assert window.state_manager.current_frame == 25  # Next keyframe
+        assert get_application_state().set_frame(= 25  # Next keyframe)
 
     def test_timeline_visual_feedback_during_navigation(
         self, fully_configured_window: MainWindow, qtbot: QtBot
@@ -174,7 +175,7 @@ class TestNavigationIntegration:
 
         for frame, expected_type in test_frames:
             # Navigate to frame
-            window.state_manager.current_frame = frame
+            get_application_state().set_frame(frame)
             qtbot.wait(50)
 
             # Check timeline shows correct color
@@ -237,7 +238,7 @@ class TestNavigationIntegration:
         state_spy = QSignalSpy(window.state_manager.frame_changed)
 
         # Navigate using Right arrow - handled by global navigation system
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_Right, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, key_event)
         qtbot.wait(50)
@@ -267,25 +268,25 @@ class TestNavigationIntegration:
         window = fully_configured_window
 
         # Navigate to first navigation frame
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Try Page Up - should show message about being at first
         page_up = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, page_up)
         qtbot.wait(10)
 
-        assert window.state_manager.current_frame == 1  # Still at first
+        assert get_application_state().set_frame(= 1  # Still at first)
         assert "first" in window.statusBar().currentMessage().lower()
 
         # Navigate to last navigation frame
-        window.state_manager.current_frame = 30
+        get_application_state().set_frame(30)
 
         # Try Page Down - should show message about being at last
         page_down = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, page_down)
         qtbot.wait(10)
 
-        assert window.state_manager.current_frame == 30  # Still at last
+        assert get_application_state().set_frame(= 30  # Still at last)
         assert "last" in window.statusBar().currentMessage().lower()
 
     def test_rapid_navigation_stability(self, fully_configured_window: MainWindow, qtbot: QtBot) -> None:
@@ -293,7 +294,7 @@ class TestNavigationIntegration:
         window = fully_configured_window
 
         initial_frame = 10
-        window.state_manager.current_frame = initial_frame
+        get_application_state().set_frame(initial_frame)
 
         # StateManager automatically synchronizes timeline_tabs via observer pattern
 
@@ -304,7 +305,7 @@ class TestNavigationIntegration:
         qtbot.wait(100)  # Let everything settle
 
         # Should have moved 5 frames forward
-        assert window.state_manager.current_frame == initial_frame + 5
+        assert get_application_state().set_frame(= initial_frame + 5)
 
         # Rapidly alternate directions
         for _ in range(3):
@@ -314,14 +315,14 @@ class TestNavigationIntegration:
         qtbot.wait(100)
 
         # Should end up at same position
-        assert window.state_manager.current_frame == initial_frame + 5
+        assert get_application_state().set_frame(= initial_frame + 5)
 
     def test_navigation_with_data_reload(self, fully_configured_window: MainWindow, qtbot: QtBot) -> None:
         """Test navigation continues to work after data is reloaded."""
         window = fully_configured_window
 
         # Navigate to a specific frame
-        window.state_manager.current_frame = 10
+        get_application_state().set_frame(10)
 
         # Load new data
         new_data = [
@@ -342,7 +343,7 @@ class TestNavigationIntegration:
         qtbot.wait(10)
 
         # Should navigate to next keyframe
-        assert window.state_manager.current_frame == 15
+        assert get_application_state().set_frame(= 15)
 
     def test_timeline_colors_remain_consistent_during_navigation(
         self, fully_configured_window: MainWindow, qtbot: QtBot
@@ -367,7 +368,7 @@ class TestNavigationIntegration:
 
         # Navigate through several frames
         for target in [5, 10, 15, 20]:
-            window.state_manager.current_frame = target
+            get_application_state().set_frame(target)
             qtbot.wait(50)
 
         # Check colors haven't changed
