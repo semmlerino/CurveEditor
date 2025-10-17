@@ -58,10 +58,8 @@ class FrameStore(QObject):
 
     @property
     def current_frame(self) -> int:
-        """Get the current frame from StateManager (single source of truth)."""
-        if self._state_manager is not None:
-            return self._state_manager.current_frame
-        return 1  # Fallback if StateManager not set yet
+        """Get the current frame from ApplicationState (single source of truth)."""
+        return get_application_state().current_frame
 
     @property
     def min_frame(self) -> int:
@@ -99,11 +97,12 @@ class FrameStore(QObject):
         # Clamp to valid range
         frame = max(self._min_frame, min(frame, self._max_frame))
 
-        # Get current frame from StateManager for comparison
-        current = self._state_manager.current_frame
+        # Get current frame from ApplicationState for comparison
+        app_state = get_application_state()
+        current = app_state.current_frame
         if current != frame:
             # Update ApplicationState (single source of truth)
-            get_application_state().set_frame(frame)
+            app_state.set_frame(frame)
             # Emit our signal for components that depend on FrameStore
             self.current_frame_changed.emit(frame)
             logger.debug(f"Current frame set via ApplicationState to: {frame}")

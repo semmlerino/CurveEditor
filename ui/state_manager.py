@@ -212,89 +212,6 @@ class StateManager(QObject):
 
         return title
 
-    # ==================== Data State Properties ====================
-
-    @property
-    def track_data(self) -> list[tuple[float, float]]:
-        """Get the current track data (delegated to ApplicationState).
-
-        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
-        New code should use ApplicationState.get_curve_data() directly.
-        """
-        active_curve = self._app_state.active_curve
-        if not active_curve:
-            return []
-
-        curve_data = self._app_state.get_curve_data(active_curve)
-        if not curve_data:
-            return []
-
-        # Convert from CurveDataList (with optional status) to (x, y) tuples
-        return [(float(point[1]), float(point[2])) for point in curve_data]
-
-    def set_track_data(self, data: list[tuple[float, float]], mark_modified: bool = True) -> None:
-        """Set new track data (delegated to ApplicationState).
-
-        DEPRECATED: This method delegates to ApplicationState for backward compatibility.
-        New code should use ApplicationState.set_curve_data() directly.
-
-        Args:
-            data: List of (x, y) coordinate tuples
-            mark_modified: Whether to mark the document as modified
-        """
-        active_curve = self._app_state.active_curve
-
-        # Create default curve if none exists (for backward compatibility with tests)
-        if not active_curve:
-            default_curve = "__default__"
-            self._app_state.set_active_curve(default_curve)
-            active_curve = default_curve
-            logger.debug(f"Created default curve '{default_curve}' for backward compatibility")
-
-        # Convert from (x, y) tuples to CurveDataList format (frame, x, y)
-        # Generate sequential frame numbers starting from 1
-        curve_data_list = [(i + 1, data[i][0], data[i][1]) for i in range(len(data))]
-
-        self._app_state.set_curve_data(active_curve, curve_data_list)
-
-        if mark_modified:
-            self.is_modified = True
-
-        logger.debug(f"Track data updated via ApplicationState: {len(data)} points")
-
-    @property
-    def has_data(self) -> bool:
-        """Check if track data is loaded (delegated to ApplicationState).
-
-        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
-        """
-        active_curve = self._app_state.active_curve
-        if not active_curve:
-            return False
-
-        curve_data = self._app_state.get_curve_data(active_curve)
-        return len(curve_data) > 0 if curve_data else False
-
-    @property
-    def data_bounds(self) -> tuple[float, float, float, float]:
-        """Get data bounds as (min_x, min_y, max_x, max_y) (delegated to ApplicationState).
-
-        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
-        """
-        active_curve = self._app_state.active_curve
-        if not active_curve:
-            return (0.0, 0.0, 1.0, 1.0)
-
-        curve_data = self._app_state.get_curve_data(active_curve)
-        if not curve_data:
-            return (0.0, 0.0, 1.0, 1.0)
-
-        # Extract x and y coordinates (indices 1 and 2 in CurveDataList)
-        x_coords = [float(point[1]) for point in curve_data]
-        y_coords = [float(point[2]) for point in curve_data]
-
-        return (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
-
     # ==================== Selection State Properties ====================
 
     def _get_curve_name_for_selection(self) -> str | None:
@@ -390,38 +307,6 @@ class StateManager(QObject):
     # ==================== View State Properties ====================
 
     @property
-    def current_frame(self) -> int:
-        """Get the current frame number (delegated to ApplicationState)."""
-        return self._app_state.current_frame
-
-    @current_frame.setter
-    def current_frame(self, frame: int) -> None:
-        """Set the current frame number (with clamping to valid range).
-
-        Note: Signal emission happens before frame clamping in set_image_files(),
-        creating a brief window where current_frame may exceed total_frames.
-        Observers should clamp defensively if needed.
-        """
-        # Phase 2: Now total_frames is fully migrated, use ApplicationState directly
-        total = self._app_state.get_total_frames()
-        frame = max(1, min(frame, total))
-
-        # Delegate to ApplicationState for storage
-        self._app_state.set_frame(frame)
-        logger.debug(f"Current frame changed to: {frame}")
-
-    @property
-    def total_frames(self) -> int:
-        """Get the total number of frames (delegated to ApplicationState).
-
-        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
-        New code should use ApplicationState.get_total_frames() directly.
-
-        Note: total_frames is derived from image_files length, not set directly.
-        """
-        return self._app_state.get_total_frames()
-
-    @property
     def zoom_level(self) -> float:
         """Get the current zoom level."""
         return self._zoom_level
@@ -474,46 +359,6 @@ class StateManager(QObject):
         if self._image_directory != directory:
             self._image_directory = directory
             logger.debug(f"Image directory changed to: {directory}")
-
-    @property
-    def image_files(self) -> list[str]:
-        """Get the list of image files (delegated to ApplicationState).
-
-        DEPRECATED: This property delegates to ApplicationState for backward compatibility.
-        New code should use ApplicationState.get_image_files() directly.
-        """
-        return self._app_state.get_image_files().copy()  # Defensive copy
-
-    def set_image_files(self, files: list[str]) -> None:
-        """Set the list of image files (delegated to ApplicationState).
-
-        DEPRECATED: This method delegates to ApplicationState for backward compatibility.
-        New code should use ApplicationState.set_image_files() directly.
-
-        Note: This also updates total_frames automatically in ApplicationState.
-        """
-        self._app_state.set_image_files(files)
-        new_total = self._app_state.get_total_frames()
-
-        # Clamp current frame if it exceeds new total (for backward compatibility)
-        if self.current_frame > new_total:
-            # Explicit clamping before direct state update (preserves 1-based frame invariant)
-            clamped_frame = max(1, new_total)
-            self._app_state.set_frame(clamped_frame)  # ✅ FIXED: Direct state update with clamping
-
-        # ApplicationState automatically updates total_frames based on image_files length
-        # Emit signal so UI can update frame range (for backward compatibility)
-        self.total_frames_changed.emit(new_total)
-        logger.debug(f"Set image files: {len(files)} files")
-
-    @property
-    def current_image(self) -> str | None:
-        """Get the current image file path (uses ApplicationState for both frame and image_files)."""
-        current_frame = self.current_frame  # Use property (delegated to ApplicationState)
-        image_files = self._app_state.get_image_files()  # Phase 2: Get from ApplicationState
-        if image_files and 1 <= current_frame <= len(image_files):
-            return image_files[current_frame - 1]
-        return None
 
     @property
     def recent_directories(self) -> list[str]:
@@ -761,7 +606,30 @@ class StateManager(QObject):
         logger.info("State manager reset to defaults")
 
     def get_state_summary(self) -> dict[str, object]:
-        """Get a summary of the current state for debugging."""
+        """Get a summary of the current state for debugging (Phase 3.3: Updated to use ApplicationState)."""
+        # Get data from ApplicationState for active curve
+        active_curve = self._app_state.active_curve
+        has_data = False
+        point_count = 0
+        data_bounds = None
+
+        if active_curve:
+            curve_data = self._app_state.get_curve_data(active_curve)
+            if curve_data:
+                has_data = True
+                point_count = len(curve_data)
+                # Calculate bounds
+                x_coords = [float(point[1]) for point in curve_data]
+                y_coords = [float(point[2]) for point in curve_data]
+                data_bounds = (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+
+        # Get image info from ApplicationState
+        image_files = self._app_state.get_image_files()
+        current_frame = self._app_state.current_frame
+        current_image = None
+        if image_files and 1 <= current_frame <= len(image_files):
+            current_image = image_files[current_frame - 1]
+
         return {
             "file": {
                 "current_file": self._current_file,
@@ -769,24 +637,24 @@ class StateManager(QObject):
                 "file_format": self._file_format,
             },
             "data": {
-                "has_data": self.has_data,  # Use property (delegated to ApplicationState)
-                "point_count": len(self.track_data),  # Use property (delegated to ApplicationState)
-                "data_bounds": self.data_bounds if self.has_data else None,  # Use property
+                "has_data": has_data,
+                "point_count": point_count,
+                "data_bounds": data_bounds,
             },
             "selection": {
-                "selected_count": len(self.selected_points),  # Use property (delegated to ApplicationState)
+                "selected_count": len(self.selected_points),  # Uses ApplicationState via delegated property
                 "hover_point": self._hover_point,
             },
             "view": {
-                "current_frame": self.current_frame,  # Use property (delegated to ApplicationState)
-                "total_frames": self.total_frames,  # Use property (delegated to ApplicationState - Phase 2)
+                "current_frame": current_frame,
+                "total_frames": self._app_state.get_total_frames(),
                 "zoom_level": self._zoom_level,
                 "pan_offset": self._pan_offset,
             },
             "images": {
                 "image_directory": self._image_directory,
-                "image_count": len(self.image_files),  # Use property (delegated to ApplicationState - Phase 2)
-                "current_image": self.current_image,
+                "image_count": len(image_files),
+                "current_image": current_image,
             },
             "history": {
                 "can_undo": self._can_undo,

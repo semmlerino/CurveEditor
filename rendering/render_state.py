@@ -123,14 +123,14 @@ class RenderState:
 
         app_state = get_application_state()
 
-        # Get current frame and selected points from state manager
-        current_frame = 1  # Default fallback
-        selected_points: set[int] = set()  # Default fallback
+        # Get current frame from ApplicationState
+        current_frame = app_state.current_frame
 
-        if hasattr(widget, "_state_manager") and widget._state_manager is not None:
-            state_manager = widget._state_manager
-            current_frame = state_manager.current_frame
-            selected_points = set(state_manager.selected_points)
+        # Get selected points from ApplicationState for active curve
+        selected_points: set[int] = set()
+        active_curve = app_state.active_curve
+        if active_curve:
+            selected_points = app_state.get_selection(active_curve)
 
         # Pre-compute visible curves based on display mode and metadata visibility
         visible_curves: set[str] = set()

@@ -33,6 +33,7 @@ Utilities:
 from __future__ import annotations
 
 import math
+from collections import namedtuple
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
@@ -46,6 +47,21 @@ PointIndex = int
 # Legacy type definitions for migration
 LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str | bool]
 PointsList = list[LegacyPointTuple]
+
+# Frame status information for timeline display
+FrameStatus = namedtuple(
+    "FrameStatus",
+    [
+        "keyframe_count",
+        "interpolated_count",
+        "tracked_count",
+        "endframe_count",
+        "normal_count",
+        "is_startframe",
+        "is_inactive",
+        "has_selected",
+    ],
+)
 
 
 class PointStatus(Enum):
