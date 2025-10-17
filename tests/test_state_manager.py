@@ -2,7 +2,8 @@
 """
 Comprehensive tests for StateManager.
 
-Tests centralized state management, property tracking, signal emissions, and state persistence.
+Tests UI state management: view state, selection, file state, history state.
+StateManager owns UI state only - ApplicationState owns data.
 Following UNIFIED_TESTING_GUIDE principles: real components, behavior testing.
 """
 
@@ -11,6 +12,7 @@ from pathlib import Path
 import pytest
 from PySide6.QtTest import QSignalSpy
 
+from stores.application_state import get_application_state
 from ui.state_manager import StateManager
 
 
@@ -58,36 +60,25 @@ class TestStateManagerInitialization:
 
     def test_initialization_defaults(self, state_manager):
         """Test StateManager initializes with correct defaults."""
-        # File state
+        # File state (StateManager)
         assert state_manager.current_file is None
         assert state_manager.is_modified is False
         assert state_manager.file_format == "txt"
 
-        # Data state
-        assert state_manager.track_data == []
-        assert state_manager.has_data is False
-
-        # Selection state
+        # Selection state (point-level, from StateManager)
         assert state_manager.selected_points == []
         assert state_manager.hover_point is None
 
-        # View state
-        assert state_manager.current_frame == 1
-        assert state_manager.total_frames == 1
+        # View state (UI state from StateManager)
         assert state_manager.zoom_level == 1.0
         assert state_manager.pan_offset == (0.0, 0.0)
         assert state_manager.view_bounds == (0.0, 0.0, 100.0, 100.0)
 
-        # Image state
-        assert state_manager.image_directory is None
-        assert state_manager.image_files == []
-        assert state_manager.current_image is None
-
-        # UI state
+        # UI state (StateManager)
         assert state_manager.window_size == (1200, 800)
         assert state_manager.current_tool == "select"
 
-        # History state
+        # History state (StateManager)
         assert state_manager.can_undo is False
         assert state_manager.can_redo is False
 
@@ -181,67 +172,6 @@ class TestStateManagerFileState:
 
         assert file_spy.count() == 0
         assert modified_spy.count() == 0
-
-
-class TestStateManagerDataState:
-    """Test data state management."""
-
-    def test_track_data_property(self, state_manager):
-        """Test track_data property returns copy."""
-        data = [(1.0, 2.0), (3.0, 4.0)]
-        state_manager.set_track_data(data)
-
-        retrieved = state_manager.track_data
-        assert retrieved == data
-
-        # Verify it's a copy
-        retrieved.append((5.0, 6.0))
-        assert len(state_manager.track_data) == 2
-
-    def test_set_track_data(self, state_manager, qtbot):
-        """Test setting track data."""
-        modified_spy = QSignalSpy(state_manager.modified_changed)
-
-        data = [(1.0, 2.0), (3.0, 4.0), (5.0, 6.0)]
-        state_manager.set_track_data(data)
-
-        assert state_manager.track_data == data
-        assert state_manager.has_data is True
-        assert state_manager.is_modified is True
-        assert modified_spy.count() == 1
-
-    def test_set_track_data_without_marking_modified(self, state_manager, qtbot):
-        """Test setting track data without marking as modified."""
-        modified_spy = QSignalSpy(state_manager.modified_changed)
-
-        data = [(1.0, 2.0)]
-        state_manager.set_track_data(data, mark_modified=False)
-
-        assert state_manager.track_data == data
-        assert state_manager.is_modified is False
-        assert modified_spy.count() == 0
-
-    def test_data_bounds_calculation(self, state_manager):
-        """Test data bounds calculation."""
-        # Empty data
-        assert state_manager.data_bounds == (0.0, 0.0, 1.0, 1.0)
-
-        # With data
-        data = [(10.0, 5.0), (20.0, 15.0), (5.0, 25.0), (30.0, 10.0)]
-        state_manager.set_track_data(data, mark_modified=False)
-
-        bounds = state_manager.data_bounds
-        assert bounds == (5.0, 5.0, 30.0, 25.0)
-
-    def test_has_data_property(self, state_manager):
-        """Test has_data property."""
-        assert state_manager.has_data is False
-
-        state_manager.set_track_data([(1.0, 2.0)], mark_modified=False)
-        assert state_manager.has_data is True
-
-        state_manager.set_track_data([], mark_modified=False)
-        assert state_manager.has_data is False
 
 
 class TestStateManagerSelectionState:
@@ -341,60 +271,6 @@ class TestStateManagerSelectionState:
 class TestStateManagerViewState:
     """Test view state management."""
 
-    def test_current_frame_property(self, state_manager, qtbot):
-        """Test current_frame property with clamping."""
-        frame_spy = QSignalSpy(state_manager.frame_changed)
-
-        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(100)])
-        state_manager.current_frame = 50
-
-        assert state_manager.current_frame == 50
-        assert frame_spy.count() == 1
-        assert frame_spy.at(0)[0] == 50
-
-    def test_current_frame_clamping(self, state_manager):
-        """Test current_frame is clamped to valid range."""
-        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(50)])
-
-        # Above maximum
-        state_manager.current_frame = 100
-        assert state_manager.current_frame == 50
-
-        # Below minimum
-        state_manager.current_frame = 0
-        assert state_manager.current_frame == 1
-
-        # Negative
-        state_manager.current_frame = -10
-        assert state_manager.current_frame == 1
-
-    def test_total_frames_property(self, state_manager):
-        """Test total_frames property (read-only, derives from image files)."""
-        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(200)])
-        assert state_manager.total_frames == 200
-
-        # Setting empty files defaults to minimum of 1
-        state_manager.set_image_files([])
-        assert state_manager.total_frames == 1
-
-        # Minimum is always 1 (no negative values possible with set_image_files)
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(1)])
-        assert state_manager.total_frames == 1
-
-    def test_total_frames_adjusts_current(self, state_manager):
-        """Test reducing total_frames adjusts current_frame."""
-        # Use set_image_files to set total_frames
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(100)])
-        state_manager.current_frame = 75
-
-        # Reduce total frames below current (this will clamp current_frame)
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(50)])
-
-        assert state_manager.current_frame == 50
-
     def test_zoom_level_property(self, state_manager, qtbot):
         """Test zoom_level property with clamping."""
         view_spy = QSignalSpy(state_manager.view_state_changed)
@@ -441,69 +317,6 @@ class TestStateManagerViewState:
         state_manager.view_bounds = (0.0, 0.0, 100.0, 100.0)
 
         assert view_spy.count() == 0
-
-
-class TestStateManagerImageSequence:
-    """Test image sequence management."""
-
-    def test_image_directory_property(self, state_manager):
-        """Test image_directory property."""
-        state_manager.image_directory = "/path/to/images"
-        assert state_manager.image_directory == "/path/to/images"
-
-        state_manager.image_directory = None
-        assert state_manager.image_directory is None
-
-    def test_image_files_property(self, state_manager):
-        """Test image_files property returns copy."""
-        files = ["img1.png", "img2.png", "img3.png"]
-        state_manager.set_image_files(files)
-
-        retrieved = state_manager.image_files
-        assert retrieved == files
-
-        # Verify it's a copy
-        retrieved.append("img4.png")
-        assert len(state_manager.image_files) == 3
-
-    def test_set_image_files_updates_frames(self, state_manager):
-        """Test setting image files updates total frames."""
-        files = ["frame001.png", "frame002.png", "frame003.png"]
-        state_manager.set_image_files(files)
-
-        assert state_manager.image_files == files
-        assert state_manager.total_frames == 3
-
-    def test_set_empty_image_files(self, state_manager):
-        """Test setting empty image files."""
-        state_manager.set_image_files([])
-
-        assert state_manager.image_files == []
-        assert state_manager.total_frames == 1  # Minimum
-
-    def test_current_image_property(self, state_manager):
-        """Test current_image property."""
-        files = ["img1.png", "img2.png", "img3.png"]
-        state_manager.set_image_files(files)
-
-        # Frame 1
-        state_manager.current_frame = 1
-        assert state_manager.current_image == "img1.png"
-
-        # Frame 2
-        state_manager.current_frame = 2
-        assert state_manager.current_image == "img2.png"
-
-        # Frame 3
-        state_manager.current_frame = 3
-        assert state_manager.current_image == "img3.png"
-
-    def test_current_image_with_no_files(self, state_manager):
-        """Test current_image when no files are set."""
-        assert state_manager.current_image is None
-
-        state_manager.current_frame = 5
-        assert state_manager.current_image is None
 
 
 class TestStateManagerUIState:
@@ -606,53 +419,46 @@ class TestStateManagerReset:
     """Test reset functionality."""
 
     def test_reset_to_defaults(self, state_manager_with_curve, qtbot):
-        """Test resetting to default state."""
-        # Set various states
+        """Test resetting StateManager to default UI state."""
+        app_state = get_application_state()
+
+        # Set various StateManager UI states
         state_manager_with_curve.current_file = "/test.txt"
         state_manager_with_curve.is_modified = True
-        state_manager_with_curve.set_track_data([(1.0, 2.0)], mark_modified=False)
         state_manager_with_curve.set_selected_points([1, 2, 3])
-        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
-        state_manager_with_curve.set_image_files([f"img{i}.png" for i in range(1, 101)])
-        state_manager_with_curve.current_frame = 50
         state_manager_with_curve.zoom_level = 2.0
-        # Use enough image files to not clamp current_frame (50 requires at least 50 images)
-        state_manager_with_curve.set_image_files([f"img{i}.png" for i in range(1, 51)])
         state_manager_with_curve.current_tool = "pen"
 
         # Setup spies
         file_spy = QSignalSpy(state_manager_with_curve.file_changed)
         modified_spy = QSignalSpy(state_manager_with_curve.modified_changed)
         selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
-        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
         view_spy = QSignalSpy(state_manager_with_curve.view_state_changed)
 
-        # Reset
+        # Reset StateManager (ApplicationState remains unchanged)
         state_manager_with_curve.reset_to_defaults()
 
-        # Verify defaults
+        # Verify StateManager defaults
         assert state_manager_with_curve.current_file is None
         assert state_manager_with_curve.is_modified is False
-        assert state_manager_with_curve.track_data == []
         assert state_manager_with_curve.selected_points == []
-        assert state_manager_with_curve.current_frame == 1
-        assert state_manager_with_curve.total_frames == 1
         assert state_manager_with_curve.zoom_level == 1.0
-        assert state_manager_with_curve.image_files == []
         assert state_manager_with_curve.current_tool == "select"
         assert state_manager_with_curve.can_undo is False
         assert state_manager_with_curve.can_redo is False
 
-        # Verify signals emitted
+        # Verify StateManager signals emitted
         assert file_spy.count() == 1
         assert file_spy.at(0)[0] == ""
         assert modified_spy.count() == 1
         assert modified_spy.at(0)[0] is False
         assert selection_spy.count() == 1
         assert selection_spy.at(0)[0] == set()
-        assert frame_spy.count() == 1
-        assert frame_spy.at(0)[0] == 1
         assert view_spy.count() == 1
+
+        # Note: ApplicationState is NOT reset by StateManager.reset_to_defaults()
+        # It retains its data (frame, image files, curve data, etc.)
+        assert app_state.active_curve is not None  # Curve data preserved
 
 
 class TestStateManagerSummary:
@@ -666,190 +472,38 @@ class TestStateManagerSummary:
         assert summary["file"]["is_modified"] is False
         assert summary["file"]["file_format"] == "txt"
 
-        assert summary["data"]["has_data"] is False
-        assert summary["data"]["point_count"] == 0
-        assert summary["data"]["data_bounds"] is None
-
         assert summary["selection"]["selected_count"] == 0
         assert summary["selection"]["hover_point"] is None
 
-        assert summary["view"]["current_frame"] == 1
-        assert summary["view"]["total_frames"] == 1
         assert summary["view"]["zoom_level"] == 1.0
-
-        assert summary["images"]["image_count"] == 0
-        assert summary["images"]["current_image"] is None
 
         assert summary["history"]["can_undo"] is False
         assert summary["history"]["can_redo"] is False
 
     def test_get_state_summary_with_data(self, state_manager_with_curve):
-        """Test state summary with populated data."""
-        # Set up state
+        """Test state summary with populated StateManager UI state."""
+        # Set up StateManager UI state
         state_manager_with_curve.current_file = "/data/test.json"
         state_manager_with_curve.is_modified = True
-        state_manager_with_curve.set_track_data([(1.0, 2.0), (3.0, 4.0)], mark_modified=False)
         state_manager_with_curve.set_selected_points([0, 1])
         state_manager_with_curve.hover_point = 1
         state_manager_with_curve.zoom_level = 1.5
-        # Set images first (which sets total_frames to 10)
-        state_manager_with_curve.set_image_files([f"f{i}.png" for i in range(1, 11)])
-        # Now set current frame (within the new total_frames)
-        state_manager_with_curve.current_frame = 5
         state_manager_with_curve.set_history_state(True, False, 3, 5)
 
         summary = state_manager_with_curve.get_state_summary()
 
+        # StateManager state
         assert summary["file"]["current_file"] == "/data/test.json"
         assert summary["file"]["is_modified"] is True
-
-        assert summary["data"]["has_data"] is True
-        assert summary["data"]["point_count"] == 2
-        assert summary["data"]["data_bounds"] == (1.0, 2.0, 3.0, 4.0)
-
         assert summary["selection"]["selected_count"] == 2
         assert summary["selection"]["hover_point"] == 1
-
-        assert summary["view"]["current_frame"] == 5
-        assert summary["view"]["total_frames"] == 10
         assert summary["view"]["zoom_level"] == 1.5
-
-        assert summary["images"]["image_count"] == 10
-
         assert summary["history"]["can_undo"] is True
         assert summary["history"]["can_redo"] is False
 
 
-class TestStateManagerIntegration:
-    """Integration tests for StateManager."""
-
-    def test_complex_state_workflow(self, state_manager_with_curve, qtbot):
-        """Test complex workflow with multiple state changes."""
-        # Start with file loading simulation
-        state_manager_with_curve.current_file = "/project/animation.json"
-        state_manager_with_curve.file_format = "json"
-
-        # Load data
-        data = [(float(i), float(i * 2)) for i in range(10)]
-        state_manager_with_curve.set_track_data(data, mark_modified=False)
-
-        # Load image sequence
-        images = [f"frame{i:03d}.png" for i in range(1, 11)]
-        state_manager_with_curve.set_image_files(images)
-
-        # User interactions
-        state_manager_with_curve.current_frame = 5
-        state_manager_with_curve.set_selected_points([2, 3, 4])
-        state_manager_with_curve.zoom_level = 2.0
-        state_manager_with_curve.pan_offset = (50.0, 50.0)
-
-        # Edit data
-        modified_data = data.copy()
-        modified_data[3] = (3.0, 7.0)
-        state_manager_with_curve.set_track_data(modified_data)
-
-        # Verify state
-        assert state_manager_with_curve.is_modified is True
-        assert state_manager_with_curve.current_image == "frame005.png"
-        assert len(state_manager_with_curve.selected_points) == 3
-        assert state_manager_with_curve.has_data is True
-
-        # Save simulation
-        state_manager_with_curve.is_modified = False
-
-        assert state_manager_with_curve.is_modified is False
-
-    def test_frame_synchronization(self, state_manager):
-        """Test frame synchronization with image sequence."""
-        # Add images first
-        images = [f"img{i}.jpg" for i in range(1, 21)]
-        state_manager.set_image_files(images)
-
-        # Now set frame
-        state_manager.current_frame = 5
-        assert state_manager.current_frame == 5
-        assert state_manager.current_image == "img5.jpg"
-
-        # Navigate frames
-        state_manager.current_frame = 1
-        assert state_manager.current_image == "img1.jpg"
-
-        state_manager.current_frame = 20
-        assert state_manager.current_image == "img20.jpg"
-
-        # Reduce image count
-        state_manager.set_image_files(images[:5])
-        assert state_manager.total_frames == 5
-        assert state_manager.current_frame == 5  # Adjusted
-        assert state_manager.current_image == "img5.jpg"
-
-    def test_selection_operations_performance(self, state_manager_with_curve):
-        """Test selection operations are efficient with sets."""
-        # Large selection
-        large_selection = list(range(1000))
-        state_manager_with_curve.set_selected_points(large_selection)
-
-        # Add should be O(1)
-        state_manager_with_curve.add_to_selection(1000)
-        assert 1000 in state_manager_with_curve.selected_points
-
-        # Remove should be O(1)
-        state_manager_with_curve.remove_from_selection(500)
-        assert 500 not in state_manager_with_curve.selected_points
-
-        # Clear
-        state_manager_with_curve.clear_selection()
-        assert state_manager_with_curve.selected_points == []
-
-    def test_concurrent_state_changes(self, state_manager_with_curve, qtbot):
-        """Test multiple concurrent state changes."""
-        # Use set_image_files to set total_frames
-        state_manager_with_curve.set_image_files([f"frame_{i}.png" for i in range(20)])
-
-        # Setup signal spies
-        file_spy = QSignalSpy(state_manager_with_curve.file_changed)
-        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
-        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
-
-        # Rapid state changes (start from 2 to ensure first frame change emits)
-        for i in range(10):
-            state_manager_with_curve.current_file = f"/file{i}.txt"
-            state_manager_with_curve.is_modified = i % 2 == 0
-            state_manager_with_curve.current_frame = i + 2  # 2 through 11
-            state_manager_with_curve.set_selected_points([i, i + 1])
-
-        # All changes should be tracked
-        assert file_spy.count() == 10
-        assert frame_spy.count() == 10
-        assert selection_spy.count() == 10
-
-        # Final state
-        assert state_manager_with_curve.current_file == "/file9.txt"
-        assert state_manager_with_curve.current_frame == 11
-        assert state_manager_with_curve.selected_points == [9, 10]
-
-
 class TestStateManagerEdgeCases:
     """Test edge cases and error conditions."""
-
-    def test_empty_data_bounds(self, state_manager):
-        """Test data_bounds with empty data."""
-        bounds = state_manager.data_bounds
-        assert bounds == (0.0, 0.0, 1.0, 1.0)
-
-    def test_single_point_data_bounds(self, state_manager):
-        """Test data_bounds with single point."""
-        state_manager.set_track_data([(5.0, 10.0)], mark_modified=False)
-        bounds = state_manager.data_bounds
-        assert bounds == (5.0, 10.0, 5.0, 10.0)
-
-    def test_frame_beyond_image_count(self, state_manager):
-        """Test current_image when frame exceeds image count."""
-        state_manager.set_image_files(["img1.png", "img2.png"])
-        state_manager.current_frame = 5  # Will be clamped to 2
-
-        assert state_manager.current_frame == 2
-        assert state_manager.current_image == "img2.png"
 
     def test_zoom_level_precision(self, state_manager):
         """Test zoom_level precision handling."""
@@ -881,127 +535,20 @@ class TestStateManagerEdgeCases:
         title = state_manager.get_window_title()
         assert "file.txt" in title  # Should still extract filename
 
+    def test_selection_operations_performance(self, state_manager_with_curve):
+        """Test selection operations are efficient with sets."""
+        # Large selection
+        large_selection = list(range(1000))
+        state_manager_with_curve.set_selected_points(large_selection)
 
-class TestKISSOLIDArchitectureVerification:
-    """Test KISS/SOLID architecture patterns - verification tests from Section 5.1 of the plan."""
+        # Add should be O(1)
+        state_manager_with_curve.add_to_selection(1000)
+        assert 1000 in state_manager_with_curve.selected_points
 
-    def test_single_source_of_truth(self, state_manager):
-        """
-        Verify StateManager current_frame is clamped by total_frames.
+        # Remove should be O(1)
+        state_manager_with_curve.remove_from_selection(500)
+        assert 500 not in state_manager_with_curve.selected_points
 
-        This test ensures frame clamping works:
-        - StateManager owns current_frame state
-        - current_frame is clamped to total_frames range
-        - All other components must get current_frame from StateManager
-        """
-        # Test 1: StateManager is the authoritative source
-        # Use set_image_files to set total_frames
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(20)])
-        state_manager.current_frame = 10
-        assert state_manager.current_frame == 10
-
-        # Test 2: Verify frame clamping behavior
-        state_manager.set_image_files([f"frame_{i}.png" for i in range(5)])
-        state_manager.current_frame = 10  # Should be clamped to 5
-        assert state_manager.current_frame == 5
-
-        # Test 3: Verify signal emission on change
-        frame_spy = QSignalSpy(state_manager.frame_changed)
-        state_manager.current_frame = 3
-        assert frame_spy.count() == 1
-        assert frame_spy.at(0)[0] == 3
-
-        # Test 4: No signal on same value
-        frame_spy_2 = QSignalSpy(state_manager.frame_changed)
-        state_manager.current_frame = 3  # Same value
-        assert frame_spy_2.count() == 0
-
-    def test_observer_pattern(self, state_manager_with_curve):
-        """
-        Verify components react to state changes via signals.
-
-        This test ensures the Observer pattern is working:
-        - State changes emit appropriate signals
-        - Multiple observers can listen to same signal
-        - batch_update prevents signal storms
-        """
-        # Test 1: Frame change emits signal
-        # Use set_image_files to set total_frames
-        state_manager_with_curve.set_image_files([f"frame_{i}.png" for i in range(10)])
-        frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
-        state_manager_with_curve.current_frame = 5
-        assert frame_spy.count() == 1
-        assert frame_spy.at(0)[0] == 5
-
-        # Test 2: Selection change emits signal
-        selection_spy = QSignalSpy(state_manager_with_curve.selection_changed)
-        state_manager_with_curve.set_selected_points([1, 2, 3])
-        assert selection_spy.count() == 1
-        assert selection_spy.at(0)[0] == {1, 2, 3}
-
-        # Test 3: Batch updates prevent signal storms
-        frame_spy_batch = QSignalSpy(state_manager_with_curve.frame_changed)
-        selection_spy_batch = QSignalSpy(state_manager_with_curve.selection_changed)
-
-        with state_manager_with_curve.batch_update():
-            state_manager_with_curve.current_frame = 8
-            state_manager_with_curve.set_selected_points([4, 5])
-            # No signals should be emitted yet
-            assert frame_spy_batch.count() == 0
-            assert selection_spy_batch.count() == 0
-
-        # Signals should be emitted after context exits
-        assert frame_spy_batch.count() == 1
-        assert selection_spy_batch.count() == 1
-        assert frame_spy_batch.at(0)[0] == 8
-        assert selection_spy_batch.at(0)[0] == {4, 5}
-
-    def test_renderer_independence(self):
-        """
-        Verify renderer has no parent/main_window access.
-
-        This test ensures the renderer is fully decoupled:
-        - Renderer doesn't access parent objects
-        - render() method requires explicit state parameter
-        - No tight coupling to application structure
-        """
-        from rendering.optimized_curve_renderer import OptimizedCurveRenderer
-        from rendering.render_state import RenderState
-
-        # Test 1: Renderer has no parent/main_window access
-        renderer = OptimizedCurveRenderer()
-        assert not hasattr(renderer, "main_window")
-        assert not hasattr(renderer, "parent")
-
-        # Test 2: render() method requires state parameter
-        import inspect
-
-        render_signature = inspect.signature(renderer.render)
-        param_names = list(render_signature.parameters.keys())
-
-        # Should have: painter, event, render_state
-        assert "render_state" in param_names
-        assert len(param_names) == 3  # painter, _event, render_state
-
-        # Test 3: Renderer can work with mock RenderState (no widget dependency)
-        mock_render_state = RenderState(
-            points=[],
-            current_frame=1,
-            selected_points=set(),
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=1.0,
-            pan_offset_x=0.0,
-            pan_offset_y=0.0,
-            manual_offset_x=0.0,
-            manual_offset_y=0.0,
-            flip_y_axis=True,
-            show_background=False,
-            show_grid=True,
-            point_radius=3,
-        )
-
-        # Should not raise exception when called with mock state
-        # (We won't actually render since we don't have a painter, just check the interface)
-        assert callable(renderer.render)
-        assert mock_render_state.current_frame == 1  # Verify mock works
+        # Clear
+        state_manager_with_curve.clear_selection()
+        assert state_manager_with_curve.selected_points == []

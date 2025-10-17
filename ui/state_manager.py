@@ -555,55 +555,61 @@ class StateManager(QObject):
     # ==================== Utility Methods ====================
 
     def reset_to_defaults(self) -> None:
-        """Reset all state to default values."""
+        """Reset StateManager UI state to default values.
+
+        NOTE: This does NOT reset ApplicationState data (curves, images, frame).
+        ApplicationState is the single source of truth for data and must be reset separately.
+        StateManager only owns UI preferences and view state.
+        """
         # File state
         self._current_file = None
         self._is_modified = False
         self._file_format = "txt"
 
-        # Data state - now managed by ApplicationState, clear all curves
-        for curve in list(self._app_state.get_all_curve_names()):
-            self._app_state.delete_curve(curve)
-        self._app_state.set_active_curve(None)
-
-        # Selection state - emit signal since curves were deleted
+        # Selection state (UI concern only - clear hover and local selection state)
         self._hover_point = None
-        self.selection_changed.emit(set())  # Emit empty selection
+        # Clear selection for active curve (if any) - this will emit signal via forwarding
+        curve_name = self._get_curve_name_for_selection()
+        if curve_name:
+            self._app_state.clear_selection(curve_name)
+            # Signal already forwarded from ApplicationState, don't emit again
+        else:
+            # No active curve, emit empty selection directly
+            self.selection_changed.emit(set())
 
-        # View state (delegated to ApplicationState for frame)
-        self._app_state.set_frame(1)
+        # View state (UI preferences only - zoom, pan, view bounds)
+        # NOTE: current_frame is NOT reset - that's ApplicationState data
         self._zoom_level = 1.0
         self._pan_offset = (0.0, 0.0)
 
-        # Image sequence state (delegated to ApplicationState for image_files - Phase 2)
+        # Image directory (UI preference, not the image files themselves)
         self._image_directory = None
-        self._app_state.set_image_files([])
 
-        # Recent directories
+        # Recent directories (UI preference)
         self._recent_directories.clear()
 
-        # Tools state (use setter to emit signal - Phase 4)
+        # Tools state (use setter to emit signal)
         self.current_tool = "select"
         self._tool_options.clear()
 
-        # Smoothing state
+        # Smoothing state (UI preference)
         self._smoothing_window_size = 5
         self._smoothing_filter_type = "moving_average"
 
-        # History state (use method to emit signals - Phase 4)
+        # History state (use method to emit signals)
         self.set_history_state(can_undo=False, can_redo=False, position=0, size=0)
 
-        # Reset playback mode
+        # Reset playback mode (UI state)
         self._playback_mode = PlaybackMode.STOPPED
 
-        # Emit relevant signals (frame_changed and selection_changed forwarded from ApplicationState)
+        # Emit relevant signals for changed UI state
         # Note: tool_state_changed, undo_state_changed, redo_state_changed emitted above via setters
         self.file_changed.emit("")
         self.modified_changed.emit(False)
         self.view_state_changed.emit()
         self.playback_state_changed.emit(PlaybackMode.STOPPED)
 
-        logger.info("State manager reset to defaults")
+        logger.info("StateManager UI state reset to defaults (ApplicationState data preserved)")
 
     def get_state_summary(self) -> dict[str, object]:
         """Get a summary of the current state for debugging (Phase 3.3: Updated to use ApplicationState)."""

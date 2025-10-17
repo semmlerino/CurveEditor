@@ -217,7 +217,7 @@ class TestNavigationIntegration:
             # assert widget.hasFocus(), f"{widget.__class__.__name__} should have focus"
 
             # Page Down should still work via eventFilter
-            initial_frame = window.state_manager.current_frame
+            initial_frame = get_application_state().current_frame
             key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
             QApplication.sendEvent(widget, key_event)
             qtbot.wait(10)
@@ -225,7 +225,7 @@ class TestNavigationIntegration:
             # Should have navigated (unless at last nav frame)
             if initial_frame < 30:  # Not at last frame
                 assert (
-                    window.state_manager.current_frame > initial_frame
+                    get_application_state().current_frame > initial_frame
                 ), f"Navigation should work with {widget.__class__.__name__} focused"
 
     def test_navigation_signals_and_updates(self, fully_configured_window: MainWindow, qtbot: QtBot) -> None:
@@ -256,9 +256,9 @@ class TestNavigationIntegration:
 
         # Check UI elements updated
         assert window.frame_spinbox is not None
-        assert window.frame_spinbox.value() == window.state_manager.current_frame
+        assert window.frame_spinbox.value() == get_application_state().current_frame
         if window.timeline_tabs:
-            assert window.timeline_tabs.current_frame == window.state_manager.current_frame
+            assert window.timeline_tabs.current_frame == get_application_state().current_frame
 
         # Check status bar shows navigation message
         status_message = window.statusBar().currentMessage().lower()

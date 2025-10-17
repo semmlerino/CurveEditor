@@ -42,8 +42,10 @@ class TestTimelineFocusBehavior:
         # Create and connect StateManager for Single Source of Truth architecture
         state_manager = StateManager()
         from stores.application_state import get_application_state
-        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])  # Set total frames first
-        state_manager.current_frame = 50  # Then set current frame
+
+        app_state = get_application_state()
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])  # Set total frames first
+        app_state.set_frame(50)  # Then set current frame
         widget.set_state_manager(state_manager)
 
         # Set up a frame range
@@ -109,12 +111,14 @@ class TestTimelineFocusBehavior:
         assert timeline_widget.current_frame == initial_frame
 
     def test_frame_changed_signal_on_navigation(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
-        """Test that StateManager's frame_changed signal is emitted on keyboard navigation (Single Source of Truth)."""
+        """Test that ApplicationState's frame_changed signal is emitted on keyboard navigation (Single Source of Truth)."""
         timeline_widget.setFocus()
 
-        # Use qtbot.waitSignal to test StateManager's signal (Single Source of Truth)
-        assert timeline_widget._state_manager is not None
-        with qtbot.waitSignal(timeline_widget._state_manager.frame_changed, timeout=1000) as blocker:
+        # Use qtbot.waitSignal to test ApplicationState's signal (Single Source of Truth)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        with qtbot.waitSignal(app_state.frame_changed, timeout=1000) as blocker:
             qtbot.keyClick(timeline_widget, Qt.Key.Key_Right)
 
         # Verify signal was emitted with correct frame
