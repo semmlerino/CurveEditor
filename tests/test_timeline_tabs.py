@@ -67,7 +67,8 @@ class TestTimelineControls:
             if window.total_frames_label:
                 window.total_frames_label.setText("37")
             # Phase 4 TODO: Remove StateManager total_frames setter (deprecated pattern)
-            window.state_manager.total_frames = 37
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 38)])
 
             qtbot.addWidget(window)
             yield window

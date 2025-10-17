@@ -54,7 +54,7 @@ class TestFramePointHighlighting:
         # Create mock main window with state manager
         widget.main_window = Mock()
         widget.main_window.state_manager = Mock()
-        widget.main_window.state_manager.current_frame = 1
+        widget.get_application_state().set_frame(1)
 
         return widget
 
@@ -99,7 +99,8 @@ class TestFramePointHighlighting:
                 window.frame_slider.setMaximum(20)
             if window.total_frames_label:
                 window.total_frames_label.setText("20")
-            window.state_manager.total_frames = 20
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 21)])
 
             # Set up timeline if available
             if window.timeline_tabs:
@@ -119,7 +120,7 @@ class TestFramePointHighlighting:
     def test_paint_event_highlights_current_frame_point(self, curve_widget, qtbot):
         """Test that paintEvent correctly identifies and highlights current frame points."""
         # Set current frame to 10 (which has a keyframe point)
-        curve_widget.main_window.state_manager.current_frame = 10
+        curve_widget.get_application_state().set_frame(10)
 
         # Force a repaint
         curve_widget.invalidate_caches()
@@ -241,7 +242,7 @@ class TestFramePointHighlighting:
         )
 
         # Set current frame to 10
-        curve_widget.main_window.state_manager.current_frame = 10
+        curve_widget.get_application_state().set_frame(10)
 
         # Force a repaint
         curve_widget.invalidate_caches()
@@ -252,7 +253,7 @@ class TestFramePointHighlighting:
     def test_no_point_on_current_frame(self, curve_widget):
         """Test behavior when no point exists on the current frame."""
         # Set current frame to a frame with no points
-        curve_widget.main_window.state_manager.current_frame = 3
+        curve_widget.get_application_state().set_frame(3)
 
         # Force a repaint
         curve_widget.invalidate_caches()
@@ -267,7 +268,7 @@ class TestFramePointHighlighting:
         curve_widget.selected_indices.add(2)
 
         # Set current frame to 10
-        curve_widget.main_window.state_manager.current_frame = 10
+        curve_widget.get_application_state().set_frame(10)
 
         # The point should show both selection and current frame indicators
         # Current implementation: current frame color overrides selection color
@@ -276,10 +277,10 @@ class TestFramePointHighlighting:
     def test_cache_invalidation_on_frame_change(self, curve_widget):
         """Test that caches are properly invalidated when frame changes."""
         # Initial frame
-        curve_widget.main_window.state_manager.current_frame = 1
+        curve_widget.get_application_state().set_frame(1)
 
         # Change frame (simulating what main_window does)
-        curve_widget.main_window.state_manager.current_frame = 10
+        curve_widget.get_application_state().set_frame(10)
         curve_widget.invalidate_caches()
 
         # Caches should be cleared

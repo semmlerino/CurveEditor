@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (35.1MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 193 files to bundle
+Skipping large file (53.0MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 258 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .pytest_tips.md
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -20,30 +20,78 @@ Bundled: baseline_types.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
 Bundled: curveview_method_categorization.txt
+Bundled: HASATTR_REPLACEMENT_PLAN.md
 Bundled: KeyFrameTest.txt
 Bundled: main.py
 Bundled: mainwindow_diff.txt
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
+Bundled: phase3_task33_analysis.txt
+Bundled: phase3_task33_analysis_corrected.txt
+Bundled: phase3_task33_files.txt
+Bundled: phase3_task33_files_corrected.txt
+Bundled: phase3_task33_inventory.txt
+Bundled: phase3_task33_inventory_corrected.txt
+Bundled: phase3_task33_verification_report.txt
+Bundled: PHASE4_EXECUTIVE_SUMMARY.txt
+Bundled: PHASE4_IMPLEMENTATION_READINESS.md
+Bundled: PHASE4_SETTER_INVENTORY.md
 Bundled: phase6_type_check.txt
+Bundled: PLAN_TAU_AMENDMENTS.md
+Bundled: PLAN_TAU_AMENDMENTS_2025-10-15.md
+Bundled: PLAN_TAU_AMENDMENTS_APPLIED.md
+Bundled: PLAN_TAU_AMENDMENTS_FINAL_2025-10-15.md
+Bundled: PLAN_TAU_ARCHITECTURAL_ASSESSMENT.md
+Bundled: PLAN_TAU_ARCHITECTURAL_COMPLIANCE_REPORT.md
+Bundled: PLAN_TAU_ARCHITECTURE_EXPERT_ASSESSMENT.md
+Bundled: PLAN_TAU_ARCHITECTURE_REALITY_CHECK.md
+Bundled: PLAN_TAU_ARCHITECTURE_VERIFICATION_REPORT.md
+Bundled: PLAN_TAU_DEEP_DEBUG_REPORT.md
+Bundled: PLAN_TAU_FINAL_CONSOLIDATED_ASSESSMENT.md
+Bundled: PLAN_TAU_FIXES_APPLIED.md
+Bundled: PLAN_TAU_IMPLEMENTATION_VERIFICATION.md
+Bundled: PLAN_TAU_IMPLEMENTATION_VERIFICATION_REPORT.md
+Bundled: PLAN_TAU_PHASE3_ARCHITECTURAL_ASSESSMENT.md
+Bundled: PLAN_TAU_PHASE4_SETTER_MIGRATIONS.md
+Bundled: PLAN_TAU_PHASE4_SETTER_MIGRATION_STRATEGY.md
+Bundled: PLAN_TAU_REFACTORING_EXPERT_ASSESSMENT.md
+Bundled: PLAN_TAU_REFACTORING_VERIFICATION_REPORT.md
+Bundled: PLAN_TAU_SECOND_PASS_COMPREHENSIVE_ASSESSMENT.md
+Bundled: PLAN_TAU_TASK33_ARCHITECTURAL_ASSESSMENT.md
+Bundled: PLAN_TAU_VERIFICATION_REPORT.md
 Bundled: Point01.txt
 Bundled: Point01_only.txt
 Bundled: post_phase6.0_types.txt
 Bundled: pre_phase6_types.txt
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
+Bundled: QTHREAD_REFACTORING_PLAN.md
 Bundled: QT_SIGNAL_TIMING_ANALYSIS.md
 Bundled: QUICK-REFERENCE.md
 Bundled: README.md
 Bundled: requirements.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
+Bundled: SESSION_SUMMARY_2025-10-13.md
 Bundled: SetTrackingBwd.py
 Bundled: SetTrackingFwd.py
 Bundled: SetTrackingFwdBwd.py
+Bundled: TASK33_IMPLEMENTATION_BLOCKERS.md
+Bundled: TESTING_ROADMAP_ASSESSMENT.md
 Bundled: testspline.txt
 Bundled: test_normalized_3de.txt
 Bundled: test_results.txt
+Bundled: TIMELINE_DESYNC_CORRECTION.md
+Bundled: TIMELINE_DESYNC_FIX_SUMMARY.md
+Bundled: TIMELINE_DESYNC_ROOT_CAUSE_ANALYSIS.md
+Bundled: TIMELINE_SIGNAL_CONNECTION_FIX.md
+Bundled: TIMELINE_SYNC_FIX_IMPLEMENTATION_PLAN.md
 Bundled: transfer_config.json
+Bundled: TYPE_SAFETY_PHASE1_VERIFICATION_REPORT.md
+Bundled: TYPE_SAFETY_PHASE2_VERIFICATION_REPORT.md
+Bundled: TYPE_SAFETY_SECOND_PASS_VERIFICATION.md
+Bundled: TYPE_SAFETY_VERIFICATION_2025-10-15.md
+Bundled: TYPE_SAFETY_VERIFICATION_REPORT.md
+Bundled: TYPE_SYSTEM_EXPERT_PLAN_TAU_ASSESSMENT.md
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
 Bundled: .serena/project.yml
@@ -75,6 +123,7 @@ Bundled: core/DISPLAY_MODE_MIGRATION.md
 Bundled: core/error_handlers.py
 Bundled: core/error_messages.py
 Bundled: core/favorites_manager.py
+Bundled: core/frame_utils.py
 Bundled: core/image_state.py
 Bundled: core/insert_track_algorithm.py
 Bundled: core/logger_utils.py
@@ -118,6 +167,19 @@ Bundled: io_utils/__init__.py
 Bundled: LogicExamples/SetTrackingBwd.py
 Bundled: LogicExamples/SetTrackingFwd.py
 Bundled: LogicExamples/SetTrackingFwdBwd.py
+Bundled: plan_tau/00_executive_summary.md
+Bundled: plan_tau/AMENDMENTS.md
+Bundled: plan_tau/implementation_guide.md
+Bundled: plan_tau/ORIGINAL_PLAN_TAU.md
+Bundled: plan_tau/phase1_critical_safety_fixes.md
+Bundled: plan_tau/phase2_quick_wins.md
+Bundled: plan_tau/phase3_architectural_refactoring.md
+Bundled: plan_tau/phase4_polish_optimization.md
+Bundled: plan_tau/QUICK_START.md
+Bundled: plan_tau/README.md
+Bundled: plan_tau/risk_and_rollback.md
+Bundled: plan_tau/verification_and_testing.md
+Bundled: plan_tau/verify_implementation.sh
 Bundled: profiling/cache_analysis.py
 Bundled: profiling/cache_profiler.py
 Bundled: profiling/zoom_cache_performance_fix.py
@@ -184,6 +246,9 @@ Bundled: ui/controllers/multi_point_tracking_controller.py
 Bundled: ui/controllers/point_editor_controller.py
 Bundled: ui/controllers/signal_connection_manager.py
 Bundled: ui/controllers/timeline_controller.py
+Bundled: ui/controllers/tracking_data_controller.py
+Bundled: ui/controllers/tracking_display_controller.py
+Bundled: ui/controllers/tracking_selection_controller.py
 Bundled: ui/controllers/ui_initialization_controller.py
 Bundled: ui/controllers/view_camera_controller.py
 Bundled: ui/controllers/view_management_controller.py
@@ -199,9 +264,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.38 MB
+Folder size: 3.45 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 736456 bytes
+Encoded size: 1143752 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

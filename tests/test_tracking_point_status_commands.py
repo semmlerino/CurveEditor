@@ -111,7 +111,7 @@ class TestTrackingPointStatusCommands:
         assert "Point1" in main_window.tracking_controller.tracked_data
 
         # Step 2: Set current frame to a frame with tracking data
-        main_window.state_manager.current_frame = 12
+        get_application_state().set_frame(12)
 
         # Verify curve widget has data (first active point should be displayed)
         assert main_window.curve_widget is not None
@@ -201,7 +201,7 @@ class TestTrackingPointStatusCommands:
         test_frames = [1, 5, 12, 20]
 
         for frame in test_frames:
-            main_window.state_manager.current_frame = frame
+            get_application_state().set_frame(frame)
 
             # Create E key context
             key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
@@ -265,7 +265,7 @@ class TestTrackingPointStatusCommands:
         frames_to_test = [1, 12, 1, 12]  # Pattern seen in log
 
         for frame in frames_to_test:
-            main_window.state_manager.current_frame = frame
+            get_application_state().set_frame(frame)
 
             # Press E key multiple times (as seen in log)
             for _ in range(2):  # Multiple presses per frame
@@ -310,7 +310,7 @@ class TestTrackingPointStatusCommands:
         assert len(main_window.tracking_controller.tracked_data) == len(multi_point_data)
         assert main_window.active_timeline_point is not None, "Active timeline point should be set"
 
-        main_window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         data_service = get_data_service()
 

@@ -12,6 +12,7 @@ Following the UNIFIED_TESTING_GUIDE to avoid Qt threading violations.
 from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
+from stores.application_state import get_application_state
 import pytest
 from PySide6.QtGui import QColor
 
@@ -40,7 +41,7 @@ class TestUnifiedCurveRendering:
 
         # Mock main window with current frame
         mock_view.main_window = Mock()
-        mock_view.main_window.state_manager.current_frame = 10
+        mock_view.get_application_state().set_frame(10)
 
         # Mock multi-curve data
         mock_view.curves_data = {
@@ -431,7 +432,7 @@ class TestUnifiedCurveRendering:
         mock_curve_view.point_radius = 5
         mock_curve_view.selected_points = {0}
         mock_curve_view.main_window = Mock()
-        mock_curve_view.main_window.state_manager.current_frame = 10
+        mock_curve_view.get_application_state().set_frame(10)
 
         import numpy as np
 
@@ -466,7 +467,7 @@ class TestUnifiedRenderingLogic:
             mock_curve_view.point_radius = 5
             mock_curve_view.selected_points = set()
             mock_curve_view.main_window = Mock()
-            mock_curve_view.main_window.state_manager.current_frame = 1
+            mock_curve_view.get_application_state().set_frame(1)
 
             import numpy as np
 

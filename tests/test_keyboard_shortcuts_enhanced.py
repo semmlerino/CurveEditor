@@ -575,7 +575,7 @@ class TestRealComponentIntegration:
         window = main_window_with_data
 
         # Frame-based operation: Set current frame to 1 (index 0)
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Create real context with real widgets (frame-based operation)
         cmd = SetEndframeCommand()
@@ -602,7 +602,7 @@ class TestRealComponentIntegration:
         assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
 
         # Now test frame 3 (index 2)
-        window.state_manager.current_frame = 3
+        get_application_state().set_frame(3)
         context2 = ShortcutContext(
             main_window=window,
             focused_widget=window.curve_widget,

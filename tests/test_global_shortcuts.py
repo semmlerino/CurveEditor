@@ -71,7 +71,7 @@ class TestGlobalShortcuts:
             pytest.skip("Curve widget not available")
 
         # Set current frame to frame 1 (index 0 in curve data)
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Set focus to timeline tabs
         if hasattr(window, "timeline_tabs") and window.timeline_tabs:
@@ -91,7 +91,7 @@ class TestGlobalShortcuts:
             assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
 
             # Now test with frame 3 (index 2)
-            window.state_manager.current_frame = 3
+            get_application_state().set_frame(3)
             QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
 
             # Verify point at frame 3 (index 2) was toggled to ENDFRAME

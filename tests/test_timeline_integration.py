@@ -54,7 +54,8 @@ class TestTimelineMainWindowIntegration:
 
             # Create and connect StateManager for Single Source of Truth architecture
             state_manager = StateManager()
-            state_manager.total_frames = 10000  # Set high enough for large range tests
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 10001)])  # Set high enough for large range tests
             widget.set_state_manager(state_manager)
 
             return widget

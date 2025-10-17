@@ -162,11 +162,11 @@ def __del__(self):
 def verify_attribute_initialization(file_path: Path, attribute_name: str) -> bool:
     """Verify attribute is initialized in __init__."""
     content = file_path.read_text()
-    
+
     # Find class definition
     # Find __init__ method
     # Check for self.{attribute_name} = assignment
-    
+
     return attribute_is_initialized
 ```
 
@@ -305,7 +305,7 @@ TrackingDataController.load_data()
 ```python
 class TrackingDataController(QObject):
     data_loaded = Signal(str, list)  # curve_name, curve_data
-    
+
     def load_single_point_data(self, file_path: Path) -> bool:
         # Load data
         # Update ApplicationState
@@ -327,7 +327,7 @@ class TrackingDisplayController(QObject):
 
 **Critical Missing Detail:** The plan proposes splitting into:
 - MouseInteractionService
-- SelectionService  
+- SelectionService
 - CommandService
 - PointManipulationService
 
@@ -394,7 +394,7 @@ class SelectionService:
 - Codebase isn't large enough to require gradual migration
 - Atomic migration (update all callers at once) is simpler
 
-**Recommendation:** 
+**Recommendation:**
 
 **Option A (Recommended for single-user project):**
 1. Create new sub-controllers
@@ -439,9 +439,9 @@ data = get_application_state().get_curve_data(active)
 ```python
 # Full API migration map
 MIGRATION_MAP = {
-    'state_manager.track_data': 
+    'state_manager.track_data':
         'get_application_state().get_curve_data(get_application_state().active_curve)',
-    'state_manager.current_frame': 
+    'state_manager.current_frame':
         'get_application_state().current_frame',
     'state_manager.has_data':
         'get_application_state().get_curve_data(get_application_state().active_curve) is not None',
@@ -487,12 +487,12 @@ if 'curves_changed' in self._batch_signals:
 def batch_updates(self):
     self._batching = True
     self._pending_signals: list[tuple[SignalInstance, tuple]] = []
-    
+
     try:
         yield
     finally:
         self._batching = False
-        
+
         # Deduplicate and emit
         seen = set()
         for signal, args in self._pending_signals:
@@ -500,7 +500,7 @@ def batch_updates(self):
             if key not in seen:
                 signal.emit(*args)
                 seen.add(key)
-        
+
         self._pending_signals.clear()
 ```
 
@@ -526,9 +526,9 @@ def safe_slot(func):
                 logger.debug(f"Skipped {func.__name__} - object destroyed")
                 return None
             raise  # Re-raise if it's a different RuntimeError
-        
+
         return func(self, *args, **kwargs)
-    
+
     return wrapper
 ```
 
@@ -540,18 +540,18 @@ def safe_slot(func):
 def test_widget_being_destroyed(qtbot):
     widget = TestWidget()
     qtbot.addWidget(widget)
-    
+
     # Force C++ object deletion
     widget.setParent(None)
     widget.deleteLater()
     qtbot.wait(100)  # Let deletion process
-    
+
     # Directly delete the C++ object (if possible)
     import shiboken6
     if shiboken6.isValid(widget):
         # Can't force deletion in test, skip
         pytest.skip("Can't force Qt object deletion in test")
-    
+
     result = widget.handler()
     assert result is None
 ```
@@ -683,17 +683,17 @@ def set_current_frame(self, value: int) -> None:
 ```python
 class InteractionCoordinator(QObject):
     """Central coordinator for user interactions."""
-    
+
     def __init__(self):
         self.mouse_handler = MouseInteractionService()
         self.selection = SelectionService()
         self.commands = CommandService()
         self.manipulation = PointManipulationService()
-        
+
         # Wire up event flow
         self.mouse_handler.point_clicked.connect(self._on_point_clicked)
         self.selection.selection_changed.connect(self._on_selection_changed)
-    
+
     def _on_point_clicked(self, view_pos: QPointF, modifiers: Qt.KeyboardModifiers):
         # Coordinate between services
         point = self.selection.find_point_at(view_pos)

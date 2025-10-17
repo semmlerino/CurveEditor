@@ -80,7 +80,7 @@ class TestEventFilterNavigation:
             # But the event should still work
 
         # Start at frame 1
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Create Page Down key event
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -106,7 +106,7 @@ class TestEventFilterNavigation:
             # Note: hasFocus() may return False in test environment
 
         # Start at frame 10
-        window.state_manager.current_frame = 10
+        get_application_state().set_frame(10)
 
         # Create Page Up key event
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -132,7 +132,7 @@ class TestEventFilterNavigation:
         # Note: hasFocus() may return False in test environment
 
         # Start at frame 5
-        window.state_manager.current_frame = 5
+        get_application_state().set_frame(5)
 
         # Page Down
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -155,7 +155,7 @@ class TestEventFilterNavigation:
         # Note: hasFocus() may return False in test environment
 
         # Start at frame 15
-        window.state_manager.current_frame = 15
+        get_application_state().set_frame(15)
 
         # Page Up
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -202,7 +202,7 @@ class TestEventFilterNavigation:
             window.timeline_tabs.setFocus()
 
         # Start at first keyframe
-        window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Try Page Up (should show message, stay at frame 1)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
@@ -213,7 +213,7 @@ class TestEventFilterNavigation:
         assert "first" in window.statusBar().currentMessage().lower()
 
         # Go to last keyframe
-        window.state_manager.current_frame = 20
+        get_application_state().set_frame(20)
 
         # Try Page Down (should show message, stay at frame 20)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
@@ -245,7 +245,7 @@ class TestEventFilterNavigation:
             main_window_with_data.timeline_tabs.setFocus()
 
         # Start at frame 2 (interpolated)
-        main_window_with_data.state_manager.current_frame = 2
+        get_application_state().set_frame(2)
 
         # Page Down should go to endframe at 5
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)

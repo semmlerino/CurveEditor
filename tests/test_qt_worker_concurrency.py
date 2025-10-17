@@ -77,7 +77,7 @@ class TestFileLoadWorkerCancellation:
         Stress test for race conditions in worker lifecycle management.
         """
         worker = FileLoadWorker()
-        
+
 
         # Perform 10 rapid start/stop cycles
         for _ in range(10):
@@ -109,7 +109,7 @@ class TestFileLoadWorkerCancellation:
                 f.write(f"{i} {float(i)} {float(i * 2)} normal\n")
 
         worker = FileLoadWorker()
-        
+
 
         progress_spy = QSignalSpy(worker.progress_updated)
 
@@ -130,7 +130,7 @@ class TestFileLoadWorkerCancellation:
         Validates that cancellation properly prevents queued signal emissions.
         """
         worker = FileLoadWorker()
-        
+
 
         tracking_spy = QSignalSpy(worker.tracking_data_loaded)
         finished_spy = QSignalSpy(worker.finished)
@@ -170,7 +170,7 @@ class TestDirectoryScanWorkerInterruption:
         Validates isInterruptionRequested() checks in scan loops.
         """
         worker = DirectoryScanWorker(image_directory)
-        
+
 
         progress_spy = QSignalSpy(worker.progress)
 
@@ -192,7 +192,7 @@ class TestDirectoryScanWorkerInterruption:
         """
         for _ in range(5):
             worker = DirectoryScanWorker(image_directory)
-            
+
 
             worker.start()
             qtbot.wait(10)
@@ -212,7 +212,7 @@ class TestDirectoryScanWorkerInterruption:
         empty_dir.mkdir()
 
         worker = DirectoryScanWorker(str(empty_dir))
-        
+
 
         sequences_spy = QSignalSpy(worker.sequences_found)
         error_spy = QSignalSpy(worker.error_occurred)
@@ -243,7 +243,7 @@ class TestDirectoryScanWorkerInterruption:
             (many_files_dir / f"image_{i:05d}.png").write_text("")
 
         worker = DirectoryScanWorker(str(many_files_dir))
-        
+
 
         worker.start()
 
@@ -269,7 +269,7 @@ class TestProgressWorkerSafety:
             return value * 2
 
         worker = ProgressWorker(simple_operation, 42)
-        
+
 
         finished_spy = QSignalSpy(worker.finished)
 
@@ -287,7 +287,7 @@ class TestProgressWorkerSafety:
             raise ValueError("Test exception")
 
         worker = ProgressWorker(failing_operation)
-        
+
 
         error_spy = QSignalSpy(worker.error_occurred)
 
@@ -318,7 +318,7 @@ class TestSignalStormResilience:
         # Start multiple workers rapidly
         for _ in range(5):
             worker = DirectoryScanWorker(str(test_dir))
-            
+
             worker.start()
             workers.append(worker)
 
@@ -358,7 +358,7 @@ class TestSignalStormResilience:
         # Start all workers concurrently
         for file_path in tracking_files:
             worker = FileLoadWorker()
-            
+
 
             finished_spy = QSignalSpy(worker.finished)
             spies.append(finished_spy)
@@ -389,7 +389,7 @@ class TestWorkerResourceCleanup:
                 f.write(f"{i} {float(i)} {float(i * 2)}\n")
 
         worker = FileLoadWorker()
-        
+
 
         worker.start_work(str(file_path), None)
         worker.wait(3000)
@@ -409,7 +409,7 @@ class TestWorkerResourceCleanup:
                 f.write(f"{i} {float(i)} {float(i * 2)}\n")
 
         worker = FileLoadWorker()
-        
+
 
         worker.start_work(str(file_path), None)
         qtbot.wait(20)

@@ -188,7 +188,7 @@ class TestMultiPointTrackingController:
 
         # Add state manager mock for auto-selection
         mock.state_manager = Mock()
-        mock.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         mock.tracking_panel = Mock(spec=TrackingPointsPanel)
         mock.tracking_panel._point_metadata = {}
@@ -563,7 +563,7 @@ def test_selection_bug_fix_tdd():
 
     # Add state manager mock for auto-selection
     main_window.state_manager = Mock()
-    main_window.state_manager.current_frame = 1
+    get_application_state().set_frame(1)
 
     main_window.curve_widget = curve_widget
     main_window.tracking_panel = Mock()

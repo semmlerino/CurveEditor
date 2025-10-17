@@ -160,7 +160,7 @@ class TestDataServiceSynchronization:
             main_window.curve_widget.set_curve_data(test_tracking_data)
 
         # Set current frame to a frame with data
-        main_window.state_manager.current_frame = 1
+        get_application_state().set_frame(1)
 
         # Create shortcut context for E key press
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)

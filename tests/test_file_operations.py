@@ -210,9 +210,11 @@ class TestFileOperations:
     @pytest.fixture
     def state_manager(self, qtbot) -> StateManager:
         """Create StateManager for testing."""
+        from stores.application_state import get_application_state
+
         state_manager = StateManager()
         # StateManager is QObject, not QWidget, so no addWidget needed
-        state_manager.total_frames = 100
+        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
         return state_manager
 
     @pytest.fixture

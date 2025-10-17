@@ -42,10 +42,11 @@ class TestFrameChangeCoordinator:
         # called by many other components
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Set total_frames first (required for frame change to work)
-            main_window.state_manager.total_frames = 100
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
             # Trigger frame change
-            main_window.state_manager.current_frame = 42
+            get_application_state().set_frame(42)
 
             # UPDATED: Wait for QueuedConnection to execute (asynchronous)
             qtbot.wait(50)  # Allow Qt event loop to process queued signal
@@ -90,9 +91,10 @@ class TestFrameChangeCoordinator:
         # called by other components
         with patch.object(coordinator, "_trigger_repaint") as repaint_mock:
             # Set total_frames first (required for frame change to work)
-            main_window.state_manager.total_frames = 100
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
-            main_window.state_manager.current_frame = 42
+            get_application_state().set_frame(42)
 
             # UPDATED: Wait for QueuedConnection to execute (asynchronous)
             qtbot.wait(50)  # Allow Qt event loop to process queued signal
@@ -191,7 +193,7 @@ class TestFrameChangeCoordinator:
         # Simulate rapid frame changes (playback)
         coordinator.connect()
         for frame in range(1, 11):
-            main_window.state_manager.current_frame = frame
+            get_application_state().set_frame(frame)
 
         # If we got here without crashes, the coordinator handled rapid changes
 
@@ -211,10 +213,11 @@ class TestFrameChangeCoordinator:
             coordinator.connect()  # Second call should not create duplicate
 
             # Set total_frames first (required for frame change to work)
-            main_window.state_manager.total_frames = 100
+            from stores.application_state import get_application_state
+            get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])
 
             # Trigger frame change
-            main_window.state_manager.current_frame = 42
+            get_application_state().set_frame(42)
 
             # UPDATED: Wait for QueuedConnection to execute (asynchronous)
             qtbot.wait(50)  # Allow Qt event loop to process queued signal
@@ -272,4 +275,4 @@ class TestFrameChangeCoordinator:
 
         # Trigger frame change while coordinator not connected
         # This should be handled by other handlers (if any remain)
-        main_window.state_manager.current_frame = 42  # Should not crash
+        get_application_state().set_frame(42  # Should not crash)

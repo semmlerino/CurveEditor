@@ -41,7 +41,8 @@ class TestTimelineFocusBehavior:
 
         # Create and connect StateManager for Single Source of Truth architecture
         state_manager = StateManager()
-        state_manager.total_frames = 100  # Set total frames first
+        from stores.application_state import get_application_state
+        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 101)])  # Set total frames first
         state_manager.current_frame = 50  # Then set current frame
         widget.set_state_manager(state_manager)
 
