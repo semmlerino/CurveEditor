@@ -1,0 +1,37 @@
+SOURCE FILES (11 files):
+ui/controllers/point_editor_controller.py
+ui/controllers/signal_connection_manager.py
+ui/controllers/timeline_controller.py
+ui/controllers/tracking_display_controller.py
+ui/controllers/tracking_selection_controller.py
+ui/controllers/view_management_controller.py
+ui/controllers/frame_change_coordinator.py
+ui/curve_view_widget.py
+ui/main_window.py
+ui/state_manager.py
+ui/timeline_tabs.py
+
+TEST FILES (19 files):
+tests/stores/test_application_state_phase0a.py
+tests/test_data_service_synchronization.py
+tests/test_event_filter_navigation.py
+tests/test_file_operations.py
+tests/test_frame_change_coordinator.py
+tests/test_frame_highlight.py
+tests/test_frame_selection_sync.py
+tests/test_global_shortcuts.py
+tests/test_keyboard_shortcuts_enhanced.py
+tests/test_keyframe_navigation.py
+tests/test_multi_point_selection.py
+tests/test_state_manager.py
+tests/test_timeline_focus_behavior.py
+tests/test_timeline_functionality.py
+tests/test_timeline_integration.py
+tests/test_timeline_scrubbing.py
+tests/test_timeline_tabs.py
+tests/test_tracking_point_status_commands.py
+tests/test_unified_curve_rendering.py
+
+TOTAL: 30 files (28 unique, 2 overlap)
+Note: signal_connection_manager.py and frame_change_coordinator.py
+      appear in both source and signal lists.

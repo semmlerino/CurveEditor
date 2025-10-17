@@ -1,0 +1,145 @@
+
+======================================================================
+ 3DEQUALIZER TRACKING DATA ANALYZER
+======================================================================
+
+Analysis Date: 2025-09-11 08:44:52
+Output File: c:\footage\Burger\3de_tracking_analysis_20250911_084452.txt
+
+======================================================================
+ PROJECT INFORMATION
+======================================================================
+Project path: c:\footage\Burger\Burger.3de
+3DEqualizer version: 3DEqualizer4 Release 5
+Default start frame: 1
+
+======================================================================
+ CAMERA ANALYSIS
+======================================================================
+Total cameras: 1
+
+Camera 1: Burger
+  Type: SURVEY
+  Image dimensions: 1280 x 720
+  Aspect ratio: 1.778
+  Film back: 3.319mm x 1.867mm
+  Lens: default lens
+
+======================================================================
+ COORDINATE SYSTEM
+======================================================================
+Image dimensions: 1280 x 720
+
+3DEqualizer 2D Coordinate Convention:
+  Origin: Bottom-left corner of image
+  X-axis: Increases to the right (0 to width)
+  Y-axis: Increases upward (0 to height)
+  Units: Pixels
+
+Coordinate ranges:
+  X: 0.0 to 1280.0
+  Y: 0.0 to 720.0
+  Center: (640.0, 360.0)
+
+Conversion to other systems:
+  Qt/Screen coords: y_screen = height - y_3de
+  Normalized coords: x_norm = x_3de / width, y_norm = y_3de / height
+  Film back coords: Use tde4.convertImageTo* functions
+
+======================================================================
+ POINT GROUPS
+======================================================================
+Total point groups: 1
+
+Group 1: pgroup#1
+  Type: Camera tracking
+  Total points: 26
+  3D enabled: Yes
+
+======================================================================
+ TRACKING POINTS ANALYSIS
+======================================================================
+Analyzing 3 of 26 points
+Image: 1280 x 720, Frames: 37
+
+==================================================
+Point 1: 01
+  Color index: 0
+  Tracked frames: 37/37
+  Frame range: 1 to 37
+  X range: 0.53 to 0.54 (span: 0.01 pixels)
+  Y range: 0.29 to 0.46 (span: 0.16 pixels)
+  Center: (0.54, 0.38)
+
+  Sample positions (3DE coordinates, Y=0 at bottom):
+    Frame   1: (   0.53,    0.29)
+    Frame  19: (   0.54,    0.36)
+    Frame  37: (   0.54,    0.46)
+
+  Same positions in Qt/screen coords (Y=0 at top):
+    Frame   1: (   0.53,  719.71)
+    Frame  19: (   0.54,  719.64)
+    Frame  37: (   0.54,  719.54)
+
+==================================================
+Point 2: 02
+  Color index: 0
+  Tracked frames: 37/37
+  Frame range: 1 to 37
+  X range: 0.52 to 0.53 (span: 0.01 pixels)
+  Y range: 0.53 to 0.65 (span: 0.12 pixels)
+  Center: (0.53, 0.59)
+
+  Sample positions (3DE coordinates, Y=0 at bottom):
+    Frame   1: (   0.52,    0.53)
+    Frame  19: (   0.53,    0.58)
+    Frame  37: (   0.53,    0.65)
+
+  Same positions in Qt/screen coords (Y=0 at top):
+    Frame   1: (   0.52,  719.47)
+    Frame  19: (   0.53,  719.42)
+    Frame  37: (   0.53,  719.35)
+
+==================================================
+Point 3: 03
+  Color index: 0
+  Tracked frames: 37/37
+  Frame range: 1 to 37
+  X range: 0.22 to 0.27 (span: 0.05 pixels)
+  Y range: 0.22 to 0.39 (span: 0.17 pixels)
+  Center: (0.25, 0.31)
+
+  Sample positions (3DE coordinates, Y=0 at bottom):
+    Frame   1: (   0.22,    0.22)
+    Frame  19: (   0.24,    0.29)
+    Frame  37: (   0.27,    0.39)
+
+  Same positions in Qt/screen coords (Y=0 at top):
+    Frame   1: (   0.22,  719.78)
+    Frame  19: (   0.24,  719.71)
+    Frame  37: (   0.27,  719.61)
+
+======================================================================
+ 3D/SURVEY POINTS
+======================================================================
+No survey points found in project
+
+======================================================================
+ EXPORT OPTIONS
+======================================================================
+
+To export tracking data:
+  export_text = export_tracking_data(cam, pg)
+  # Or save to file:
+  export_tracking_data(cam, pg, "/path/to/output.txt")
+
+======================================================================
+ ANALYSIS COMPLETE
+======================================================================
+
+Key findings:
+  - 3DE uses bottom-left origin (Y=0 at bottom)
+  - Coordinates are in pixels
+  - To convert to Qt/screen: y_screen = height - y_3de
+  - Points are tracked per frame with POINT_VALID status
+  - Export format preserves pixel coordinates

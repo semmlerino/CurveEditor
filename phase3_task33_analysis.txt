@@ -1,0 +1,209 @@
+====================================================================
+TASK 3.3 PREPARATION: IMPACT ANALYSIS & MIGRATION CHECKLIST
+====================================================================
+Generated: $(date)
+
+EXECUTIVE SUMMARY
+====================================================================
+Total Callsites: 41
+Files Impacted: 9
+Estimated Time: 4.5-9 hours (30-60 min per file)
+
+ASSESSMENT: MANAGEABLE SCOPE ✅
+- Much better than feared 100+ files
+- Most usage concentrated in UI layer (expected)
+- Clear migration patterns identified
+
+BREAKDOWN BY PROPERTY
+====================================================================
+
+1. current_frame (25 callsites, 7 files) - HIGHEST IMPACT
+   - timeline_controller.py: 7 usages
+   - timeline_tabs.py: 11 usages
+   - curve_view_widget.py: 2 usages
+   - main_window.py: 3 usages
+   - state_manager.py: 1 usage (example code)
+
+   Migration Pattern:
+   Before: state_manager.current_frame
+   After:  get_application_state().current_frame
+
+   Complexity: LOW (direct property replacement)
+
+2. total_frames (9 callsites, 5 files)
+   - timeline_tabs.py: 5 usages
+   - tracking_display_controller.py: 2 usages
+   - timeline_controller.py: 1 usage
+   - main_window.py: 1 usage
+   - signal_connection_manager.py: 1 usage (signal connection)
+
+   Migration Pattern:
+   Before: state_manager.total_frames
+   After:  get_application_state().total_frames
+
+   Complexity: LOW (direct property replacement)
+   Note: Signal connection also needs updating
+
+3. selected_points (3 callsites, 2 files) - MODERATE COMPLEXITY
+   - point_editor_controller.py: 2 usages
+   - main_window.py: 1 usage
+
+   Migration Pattern:
+   Before: state_manager.selected_points
+   After:  state = get_application_state()
+           active = state.active_curve
+           selection = state.get_selection(active) if active else set()
+
+   Complexity: MODERATE (requires active curve check)
+
+4. data_bounds (1 callsite, 1 file)
+   - main_window.py: 1 usage
+
+   Migration Pattern:
+   Before: state_manager.data_bounds
+   After:  Calculate from get_application_state().get_curve_data(active)
+
+   Complexity: MODERATE (requires calculation)
+
+5. set_image_files (1 callsite, 1 file)
+   - view_management_controller.py: 1 usage
+
+   Migration Pattern:
+   Before: state_manager.set_image_files(files)
+   After:  get_application_state().set_image_files(files, directory)
+
+   Complexity: LOW (direct method call)
+
+MIGRATION PRIORITY ORDER
+====================================================================
+
+Priority 1 (Simple, High Volume):
+  1. current_frame replacements (25 callsites) - ~2 hours
+  2. total_frames replacements (9 callsites) - ~1 hour
+
+Priority 2 (Moderate Complexity):
+  3. selected_points replacements (3 callsites) - ~1 hour
+  4. data_bounds replacement (1 callsite) - ~30 min
+  5. set_image_files replacement (1 callsite) - ~15 min
+
+Priority 3 (Cleanup):
+  6. Remove delegation properties from StateManager
+  7. Update tests
+  8. Run verification
+
+FILE-BY-FILE MIGRATION PLAN
+====================================================================
+
+File 1: ui/timeline_tabs.py (16 callsites) - ~1.5 hours
+  - current_frame: 11 usages (lines 278, 285, 321, 322, 637, 979, 984, 989, 994, 1010, 1023)
+  - total_frames: 5 usages (lines 396, 398, 400, 410, 411, 423, 632)
+  Strategy: Add get_application_state() import at top
+            Refactor all usages to direct ApplicationState access
+
+File 2: ui/controllers/timeline_controller.py (8 callsites) - ~1 hour
+  - current_frame: 7 usages (lines 238, 257, 263, 302, 307, 427, 503)
+  - total_frames: 1 usage (line 496)
+  Strategy: Add state = get_application_state() at method starts
+            Replace all state_manager.current_frame with state.current_frame
+
+File 3: ui/main_window.py (5 callsites) - ~45 minutes
+  - current_frame: 3 usages (lines 446, 1083, 1128)
+  - total_frames: 1 usage (line 784)
+  - data_bounds: 1 usage (line 833)
+  - selected_points: 1 usage (line 485)
+  Strategy: Add state = get_application_state() helper
+            Replace all delegations with direct ApplicationState access
+
+File 4: ui/curve_view_widget.py (2 callsites) - ~30 minutes
+  - current_frame: 2 usages (lines 1505, 1515)
+  Strategy: Replace with get_application_state().current_frame
+
+File 5: ui/controllers/point_editor_controller.py (2 callsites) - ~30 minutes
+  - selected_points: 2 usages (lines 233, 251)
+  Strategy: Add active curve check pattern:
+            state = get_application_state()
+            active = state.active_curve
+            selection = state.get_selection(active) if active else set()
+
+File 6: ui/controllers/tracking_display_controller.py (2 callsites) - ~30 minutes
+  - total_frames: 2 usages (lines 241, 263)
+  Strategy: Replace with get_application_state().total_frames
+
+File 7: ui/controllers/view_management_controller.py (1 callsite) - ~15 minutes
+  - set_image_files: 1 usage (line 237)
+  Strategy: Replace with get_application_state().set_image_files(files, directory)
+
+File 8: ui/controllers/signal_connection_manager.py (1 callsite) - ~15 minutes
+  - total_frames_changed signal: 1 usage (line 169)
+  Strategy: Update signal connection from state_manager to application_state
+
+File 9: ui/state_manager.py (1 callsite) - ~15 minutes
+  - current_frame: 1 usage (line 714, example code)
+  Strategy: Remove example code or update to use ApplicationState
+
+MIGRATION STEPS
+====================================================================
+
+Step 1: Backup (5 minutes)
+  git checkout -b phase3-task33-statemanager-removal
+  git add -A
+  git commit -m "Checkpoint before Task 3.3"
+
+Step 2: Simple Replacements (3 hours)
+  - Files 4, 6, 7, 8, 9 (low complexity)
+  - Pattern: Direct property replacement
+  - Test after each file
+
+Step 3: Complex Replacements (2 hours)
+  - Files 1, 2, 3, 5 (moderate complexity)
+  - Pattern: Context-aware refactoring with state variable
+  - Test after each file
+
+Step 4: StateManager Cleanup (1 hour)
+  - Remove delegation properties
+  - Update type hints
+  - Update tests
+
+Step 5: Verification (1 hour)
+  - Run full test suite
+  - Type check all modified files
+  - Verify no StateManager data access remains
+
+RISK ASSESSMENT
+====================================================================
+
+Low Risk:
+  - Small scope (9 files vs feared 100+)
+  - Clear migration patterns
+  - Good test coverage
+
+Medium Risk:
+  - selected_points requires active curve handling
+  - data_bounds calculation logic needs care
+
+Mitigation:
+  - Manual migration (not automated regex)
+  - Test after each file
+  - Git checkpoint for rollback
+
+ADJUSTED TIME ESTIMATE
+====================================================================
+
+Original Estimate: 3-4 days
+Preparation Time: 4-8 hours (COMPLETE ✅)
+Adjusted Estimate: 1-1.5 days
+
+Breakdown:
+  - Migration: 6 hours (9 files × 40 min avg)
+  - Testing: 2 hours
+  - Cleanup: 1 hour
+  - Buffer: 1 hour
+  Total: 10 hours = 1.25 days
+
+RECOMMENDATION
+====================================================================
+
+✅ PROCEED WITH TASK 3.3 IMPLEMENTATION
+
+Scope is manageable and well-understood. Migration patterns are clear.
+Estimated completion: 1-1.5 days.

@@ -1,0 +1,9 @@
+ui/controllers/point_editor_controller.py
+ui/controllers/signal_connection_manager.py
+ui/controllers/timeline_controller.py
+ui/controllers/tracking_display_controller.py
+ui/controllers/view_management_controller.py
+ui/curve_view_widget.py
+ui/main_window.py
+ui/state_manager.py
+ui/timeline_tabs.py

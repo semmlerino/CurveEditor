@@ -1,0 +1,183 @@
+====================================================================
+TASK 3.3 AGENT REVIEW VERIFICATION REPORT
+====================================================================
+Generated: Thu Oct 16 08:30:21 BST 2025
+Status: ALL CRITICAL FINDINGS CONFIRMED ✅
+
+VERIFICATION METHODOLOGY
+====================================================================
+Two specialized agents reviewed the Task 3.3 preparation:
+- python-code-reviewer (Score: 3.8/10, Grade F)
+- python-expert-architect (Grade: B+, Approve with corrections)
+
+All critical findings verified against actual codebase using grep/Read tools.
+
+CRITICAL FINDING #1: TEST SUITE MISSING ✅ CONFIRMED
+====================================================================
+Agent Claim: 177 callsites in 19 test files (not inventoried)
+Verification: grep -rn "state_manager\." tests/ --include="*.py" | grep -E properties
+
+Result: CONFIRMED
+- Found: 177 callsites in 19 test files
+- Original inventory: 41 callsites in 9 source files
+- Actual scope: 218 callsites in 28 files (9 source + 19 test)
+
+Test Files Identified:
+1. test_application_state_phase0a.py
+2. test_data_service_synchronization.py
+3. test_event_filter_navigation.py
+4. test_file_operations.py
+5. test_frame_change_coordinator.py
+6. test_frame_highlight.py
+7. test_frame_selection_sync.py
+8. test_global_shortcuts.py
+9. test_keyboard_shortcuts_enhanced.py
+10. test_keyframe_navigation.py
+11. test_multi_point_selection.py
+12. test_state_manager.py (49 callsites)
+13. test_timeline_focus_behavior.py
+14. test_timeline_functionality.py
+15. test_timeline_integration.py
+16. test_timeline_scrubbing.py
+17. test_timeline_tabs.py
+18. test_tracking_point_status_commands.py
+19. test_unified_curve_rendering.py
+
+CRITICAL FINDING #2: MIGRATION PATTERN ERROR ✅ CONFIRMED
+====================================================================
+Agent Claim: total_frames migration pattern is wrong (property vs method)
+Verification: grep -n "def total_frames\|def get_total_frames" stores/application_state.py
+
+Result: CONFIRMED
+- ApplicationState line 705: def get_total_frames(self) -> int:
+- It's a METHOD, not a property
+
+Preparation Says (WRONG):
+    Before: state_manager.total_frames
+    After:  get_application_state().total_frames  ❌
+
+Correct Pattern:
+    Before: state_manager.total_frames
+    After:  get_application_state().get_total_frames()  ✅
+
+Impact: 9 source callsites + ~50 test callsites would fail with AttributeError
+
+CRITICAL FINDING #3: SIGNAL CONNECTIONS NOT INVENTORIED ✅ CONFIRMED
+====================================================================
+Agent Claim: 8 signal connections need migration
+Verification: grep -rn "frame_changed\.connect\|selection_changed\.connect" ui/
+
+Result: CONFIRMED (found 10 signal connections, even more than reported)
+
+Signal Connections Found:
+- frame_changed: 6 connections
+  * ui/controllers/frame_change_coordinator.py:107 (disconnect)
+  * ui/controllers/frame_change_coordinator.py:114 (connect)
+  * ui/controllers/frame_change_coordinator.py:130 (disconnect)
+  * ui/state_manager.py:72 (forwarding connect)
+  * ui/timeline_tabs.py:268 (disconnect)
+  * ui/timeline_tabs.py:305 (disconnect)
+  * ui/timeline_tabs.py:315 (connect)
+
+- selection_changed: 2 connections
+  * ui/controllers/signal_connection_manager.py:165 (connect)
+  * ui/state_manager.py:73 (forwarding connect)
+
+- total_frames_changed: 2 connections
+  * ui/controllers/signal_connection_manager.py:169 (connect)
+  * (StateManager forwarding, not direct)
+
+Total: 10 signal connections (not inventoried in preparation)
+
+CRITICAL FINDING #4: MISSED SOURCE FILE ✅ CONFIRMED
+====================================================================
+Agent Claim: tracking_selection_controller.py has getattr patterns
+Verification: ls ui/controllers/tracking_selection_controller.py && grep -n "getattr.*state_manager"
+
+Result: CONFIRMED
+- File exists: ui/controllers/tracking_selection_controller.py
+- Line 61: current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
+- Line 106: current_frame = getattr(self.main_window.state_manager, "current_frame", 1)
+
+Impact: 2 additional callsites, file count should be 11 (not 9)
+
+ADDITIONAL FINDING #5: DATA_BOUNDS CONTAINS LOGIC ✅ CONFIRMED
+====================================================================
+Agent Claim: data_bounds is 17 lines of business logic, not simple delegation
+Verification: Read ui/state_manager.py lines 279-296
+
+Result: CONFIRMED
+Code (ui/state_manager.py:279-296):
+    def data_bounds(self) -> tuple[float, float, float, float]:
+        active_curve = self._app_state.active_curve
+        if not active_curve:
+            return (0.0, 0.0, 1.0, 1.0)
+
+        curve_data = self._app_state.get_curve_data(active_curve)
+        if not curve_data:
+            return (0.0, 0.0, 1.0, 1.0)
+
+        # Extract x and y coordinates
+        x_coords = [float(point[1]) for point in curve_data]
+        y_coords = [float(point[2]) for point in curve_data]
+
+        return (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+
+Migration: Cannot just "change the call" - must move this logic to call site
+
+ADDITIONAL FINDING #6: TYPE MISMATCH (list vs set) ✅ CONFIRMED
+====================================================================
+Agent Claim: selected_points returns list[int] but ApplicationState uses set[int]
+Verification: Read ui/state_manager.py line 322 and ApplicationState API
+
+Result: CONFIRMED
+- StateManager.selected_points (line 322): return sorted(self._app_state.get_selection(...))
+  Returns: list[int]
+- ApplicationState.get_selection(): Returns set[int]
+- Migration must handle conversion: list(state.get_selection(...)) or sorted(...)
+
+CORRECTED SCOPE
+====================================================================
+Original Preparation:
+- 41 callsites
+- 9 files
+- 10 hours (1.25 days)
+- Risk: LOW
+
+Actual Verified Scope:
+- 218+ callsites (41 source + 177 test + signals)
+- 28 files (11 source + 19 test, includes 1 missed file)
+- 10 signal connections
+- 20-25 hours (2.5-3 days)
+- Risk: HIGH (breaking changes, extensive test migration)
+
+CORRECTED TIME ESTIMATE
+====================================================================
+Source Files (11 files):
+  - Simple files (6): 3 hours (30 min each)
+  - Complex files (5): 4.5 hours (50 min each)
+  Subtotal: 7.5 hours
+
+Test Files (19 files):
+  - test_state_manager.py (49 calls): 3 hours
+  - Heavy users (6 files, 60 calls): 3 hours
+  - Light users (12 files, 68 calls): 3.5 hours
+  Subtotal: 9.5 hours
+
+Signal Connections (10): 1.5 hours
+
+Cleanup & Verification: 2 hours
+
+Buffer (10%): 2 hours
+
+TOTAL: 22.5 hours (2.8 days) → Round to 3 days
+
+RECOMMENDATION
+====================================================================
+✅ Agent findings are ACCURATE and CONFIRMED
+✅ Preparation documents must be corrected before implementation
+✅ Risk assessment must be upgraded from LOW to HIGH
+✅ Time estimate must be doubled from 1.25 days to 3 days
+
+The agents identified legitimate blockers. Do not proceed with
+implementation until corrected preparation documents are generated.

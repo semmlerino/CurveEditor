@@ -1,0 +1,63 @@
+=== StateManager Data Delegation Callsite Inventory ===
+Generated: Thu Oct 16 08:03:44 BST 2025
+
+## track_data access:
+  (none found)
+
+## has_data access:
+  (none found)
+
+## data_bounds access:
+ui/main_window.py:833:                bounds = self.state_manager.data_bounds
+
+## selected_points access:
+ui/controllers/point_editor_controller.py:233:        selected_indices = self.state_manager.selected_points
+ui/controllers/point_editor_controller.py:251:        selected_indices = self.state_manager.selected_points
+ui/main_window.py:485:        return self.state_manager.selected_points
+
+## image_files access:
+ui/controllers/view_management_controller.py:237:                self.main_window.state_manager.set_image_files(image_files)
+
+## current_frame delegation:
+ui/controllers/timeline_controller.py:238:        self.state_manager.current_frame = frame
+ui/controllers/timeline_controller.py:257:        current = self.state_manager.current_frame
+ui/controllers/timeline_controller.py:263:        current = self.state_manager.current_frame
+ui/controllers/timeline_controller.py:302:            self.state_manager.current_frame = frame
+ui/controllers/timeline_controller.py:307:        return self.state_manager.current_frame
+ui/controllers/timeline_controller.py:427:        current = self.state_manager.current_frame
+ui/controllers/timeline_controller.py:503:        current = self.state_manager.current_frame
+ui/curve_view_widget.py:1505:                return self._state_manager.current_frame
+ui/curve_view_widget.py:1515:                return self._state_manager.current_frame
+ui/main_window.py:446:        self.state_manager.current_frame = frame
+ui/main_window.py:1083:        current_frame = self.state_manager.current_frame
+ui/main_window.py:1128:        current_frame = self.state_manager.current_frame
+ui/state_manager.py:714:                state_manager.current_frame = 10
+ui/timeline_tabs.py:278:            return self._state_manager.current_frame
+ui/timeline_tabs.py:285:            self._state_manager.current_frame = value
+ui/timeline_tabs.py:321:        if self._state_manager.current_frame != self._current_frame:
+ui/timeline_tabs.py:322:            self._on_frame_changed(self._state_manager.current_frame)
+ui/timeline_tabs.py:637:            actual_frame = self._state_manager.current_frame
+ui/timeline_tabs.py:979:                self._state_manager.current_frame = max(self.min_frame, self._state_manager.current_frame - 1)
+ui/timeline_tabs.py:984:                self._state_manager.current_frame = min(self.max_frame, self._state_manager.current_frame + 1)
+ui/timeline_tabs.py:989:                self._state_manager.current_frame = self.min_frame
+ui/timeline_tabs.py:994:                self._state_manager.current_frame = self.max_frame
+ui/timeline_tabs.py:1010:                self._state_manager.current_frame = frame
+ui/timeline_tabs.py:1023:                self._state_manager.current_frame = frame
+
+## total_frames delegation:
+ui/controllers/signal_connection_manager.py:169:        _ = self.main_window.state_manager.total_frames_changed.connect(
+ui/controllers/timeline_controller.py:496:        self.state_manager.total_frames = max_frame
+ui/controllers/tracking_display_controller.py:241:                self.main_window.state_manager.total_frames = max_frame
+ui/controllers/tracking_display_controller.py:263:                self.main_window.state_manager.total_frames = max_frame
+ui/main_window.py:784:        total_frames = self.state_manager.total_frames
+ui/timeline_tabs.py:396:            if self._state_manager and self._state_manager.total_frames > 1:
+ui/timeline_tabs.py:398:                    f"_on_curves_changed: No tracking data, using image sequence range 1-{self._state_manager.total_frames}"
+ui/timeline_tabs.py:400:                self.set_frame_range(1, self._state_manager.total_frames)
+ui/timeline_tabs.py:410:            if self._state_manager and self._state_manager.total_frames > 1:
+ui/timeline_tabs.py:411:                self.set_frame_range(1, self._state_manager.total_frames)
+ui/timeline_tabs.py:423:                image_sequence_frames = self._state_manager.total_frames
+ui/timeline_tabs.py:632:            self._state_manager.total_frames = max_frame
+
+## IMPACT SUMMARY:
+Total callsites: 41
+Files impacted: 9
