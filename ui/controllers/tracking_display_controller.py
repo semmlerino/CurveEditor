@@ -5,9 +5,10 @@ TrackingDisplayController - Handles visual display of tracking data.
 Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
-from PySide6.QtCore import QObject, Signal, Slot
+from collections.abc import Sequence
+from typing import Any
 
-from typing import Any, Sequence
+from PySide6.QtCore import QObject, Signal, Slot
 
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
@@ -220,9 +221,7 @@ class TrackingDisplayController(QObject):
             selected_curves=[active] if active else [],
         )
 
-    def _update_frame_range_from_data(
-        self, data: Sequence[LegacyPointData]
-    ) -> None:
+    def _update_frame_range_from_data(self, data: Sequence[LegacyPointData]) -> None:
         """Update frame range UI elements based on single trajectory data.
 
         Args:
@@ -237,8 +236,8 @@ class TrackingDisplayController(QObject):
                     self.main_window.frame_spinbox.setMaximum(max_frame)
                 if self.main_window.total_frames_label:
                     self.main_window.total_frames_label.setText(str(max_frame))
-                # Update state manager's total frames
-                self.main_window.state_manager.total_frames = max_frame
+                # Update frame count via ApplicationState
+                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass
@@ -260,7 +259,8 @@ class TrackingDisplayController(QObject):
                     self.main_window.frame_spinbox.setMaximum(max_frame)
                 if self.main_window.total_frames_label:
                     self.main_window.total_frames_label.setText(str(max_frame))
-                self.main_window.state_manager.total_frames = max_frame
+                # Update frame count via ApplicationState
+                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass
