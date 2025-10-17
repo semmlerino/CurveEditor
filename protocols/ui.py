@@ -75,12 +75,7 @@ class StateManagerProtocol(Protocol):
 
     @property
     def total_frames(self) -> int:
-        """Get total frames."""
-        ...
-
-    @total_frames.setter
-    def total_frames(self, value: int) -> None:
-        """Set total frames."""
+        """Get total frames (read-only, delegates to ApplicationState)."""
         ...
 
     def reset_to_defaults(self) -> None:

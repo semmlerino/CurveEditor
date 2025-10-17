@@ -345,7 +345,8 @@ class TestStateManagerViewState:
         """Test current_frame property with clamping."""
         frame_spy = QSignalSpy(state_manager.frame_changed)
 
-        state_manager.total_frames = 100
+        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(100)])
         state_manager.current_frame = 50
 
         assert state_manager.current_frame == 50
@@ -354,7 +355,8 @@ class TestStateManagerViewState:
 
     def test_current_frame_clamping(self, state_manager):
         """Test current_frame is clamped to valid range."""
-        state_manager.total_frames = 50
+        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(50)])
 
         # Above maximum
         state_manager.current_frame = 100
@@ -369,24 +371,27 @@ class TestStateManagerViewState:
         assert state_manager.current_frame == 1
 
     def test_total_frames_property(self, state_manager):
-        """Test total_frames property."""
-        state_manager.total_frames = 200
+        """Test total_frames property (read-only, derives from image files)."""
+        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(200)])
         assert state_manager.total_frames == 200
 
-        # Minimum is 1
-        state_manager.total_frames = 0
+        # Setting empty files defaults to minimum of 1
+        state_manager.set_image_files([])
         assert state_manager.total_frames == 1
 
-        state_manager.total_frames = -5
+        # Minimum is always 1 (no negative values possible with set_image_files)
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(1)])
         assert state_manager.total_frames == 1
 
     def test_total_frames_adjusts_current(self, state_manager):
         """Test reducing total_frames adjusts current_frame."""
-        state_manager.total_frames = 100
+        # Use set_image_files to set total_frames
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(100)])
         state_manager.current_frame = 75
 
-        # Reduce total frames below current
-        state_manager.total_frames = 50
+        # Reduce total frames below current (this will clamp current_frame)
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(50)])
 
         assert state_manager.current_frame == 50
 
@@ -607,7 +612,8 @@ class TestStateManagerReset:
         state_manager_with_curve.is_modified = True
         state_manager_with_curve.set_track_data([(1.0, 2.0)], mark_modified=False)
         state_manager_with_curve.set_selected_points([1, 2, 3])
-        state_manager_with_curve.total_frames = 100  # Set total_frames BEFORE current_frame
+        # Use set_image_files to set total_frames (StateManager.total_frames is read-only)
+        state_manager_with_curve.set_image_files([f"img{i}.png" for i in range(1, 101)])
         state_manager_with_curve.current_frame = 50
         state_manager_with_curve.zoom_level = 2.0
         # Use enough image files to not clamp current_frame (50 requires at least 50 images)
@@ -797,8 +803,8 @@ class TestStateManagerIntegration:
 
     def test_concurrent_state_changes(self, state_manager_with_curve, qtbot):
         """Test multiple concurrent state changes."""
-        # Set total frames first to allow frame changes
-        state_manager_with_curve.total_frames = 20
+        # Use set_image_files to set total_frames
+        state_manager_with_curve.set_image_files([f"frame_{i}.png" for i in range(20)])
 
         # Setup signal spies
         file_spy = QSignalSpy(state_manager_with_curve.file_changed)
@@ -881,20 +887,21 @@ class TestKISSOLIDArchitectureVerification:
 
     def test_single_source_of_truth(self, state_manager):
         """
-        Verify only StateManager can set current_frame.
+        Verify StateManager current_frame is clamped by total_frames.
 
-        This test ensures the Single Source of Truth pattern is enforced:
-        - StateManager is the only component that owns current_frame state
+        This test ensures frame clamping works:
+        - StateManager owns current_frame state
+        - current_frame is clamped to total_frames range
         - All other components must get current_frame from StateManager
-        - No component caches application state locally
         """
         # Test 1: StateManager is the authoritative source
-        state_manager.total_frames = 20  # Set enough frames first
+        # Use set_image_files to set total_frames
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(20)])
         state_manager.current_frame = 10
         assert state_manager.current_frame == 10
 
         # Test 2: Verify frame clamping behavior
-        state_manager.total_frames = 5
+        state_manager.set_image_files([f"frame_{i}.png" for i in range(5)])
         state_manager.current_frame = 10  # Should be clamped to 5
         assert state_manager.current_frame == 5
 
@@ -919,7 +926,8 @@ class TestKISSOLIDArchitectureVerification:
         - batch_update prevents signal storms
         """
         # Test 1: Frame change emits signal
-        state_manager_with_curve.total_frames = 10  # Set enough frames first
+        # Use set_image_files to set total_frames
+        state_manager_with_curve.set_image_files([f"frame_{i}.png" for i in range(10)])
         frame_spy = QSignalSpy(state_manager_with_curve.frame_changed)
         state_manager_with_curve.current_frame = 5
         assert frame_spy.count() == 1
