@@ -716,7 +716,7 @@ class TrackingPointsPanel(QWidget):
         setStyleSheet() triggers events through all accumulated filters.
         """
         # Remove event filter from table
-        if hasattr(self, "_table_event_filter") and hasattr(self, "table"):
+        if self._table_event_filter is not None and self.table is not None:
             try:
                 self.table.removeEventFilter(self._table_event_filter)
                 self._table_event_filter.deleteLater()

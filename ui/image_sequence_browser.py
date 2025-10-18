@@ -482,7 +482,7 @@ class ImageSequenceBrowserDialog(QDialog):
         # Priority 2: Last used directory from state manager
         if parent is not None and parent.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-            if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
+            if state_manager is not None:
                 recent_dirs = state_manager.recent_directories  # pyright: ignore[reportAny]
                 if recent_dirs and len(recent_dirs) > 0:  # pyright: ignore[reportAny]
                     last_dir = recent_dirs[0]  # pyright: ignore[reportAny]
@@ -1050,7 +1050,7 @@ class ImageSequenceBrowserDialog(QDialog):
         parent_window = self.parent()
         if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
             state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
-            if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
+            if state_manager is not None:
                 recents = state_manager.recent_directories  # pyright: ignore[reportAny]
                 self.address_bar.clear()
                 for path in recents:  # pyright: ignore[reportAny]
@@ -1399,7 +1399,7 @@ class ImageSequenceBrowserDialog(QDialog):
         parent_window = self.parent()
         if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
             state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
-            if state_manager and hasattr(state_manager, "add_recent_directory"):  # pyright: ignore[reportAny]
+            if state_manager is not None:
                 state_manager.add_recent_directory(normalized_path)  # pyright: ignore[reportAny]
                 self._populate_recent_directories()  # Refresh dropdown
 
@@ -1900,7 +1900,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return
 
         # Defensive guard: tree_view must be initialized before calling this method
-        if not hasattr(self, "tree_view"):
+        if self.tree_view is None:
             return
 
         # Get available drives by checking A-Z
@@ -2238,7 +2238,7 @@ class ImageSequenceBrowserDialog(QDialog):
                 logger.warning(f"Failed to save dialog geometry: {e}")
 
             # Save splitter state
-            if hasattr(self, "splitter"):
+            if self.splitter is not None:
                 try:
                     state_manager.set_value("image_browser_splitter", self.splitter.saveState())  # pyright: ignore[reportAny]
                 except Exception as e:

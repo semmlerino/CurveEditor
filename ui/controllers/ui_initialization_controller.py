@@ -65,12 +65,12 @@ class UIInitializationController:
         """
         # Disconnect toolbar widget signals (2 connections)
         try:
-            if hasattr(self, "main_window") and hasattr(self.main_window, "ui"):
-                if hasattr(self.main_window.ui.toolbar, "smoothing_type_combo"):
+            if self.main_window.ui is not None:
+                if self.main_window.ui.toolbar.smoothing_type_combo is not None:
                     _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.disconnect(
                         self._on_smoothing_type_changed
                     )
-                if hasattr(self.main_window.ui.toolbar, "smoothing_size_spinbox"):
+                if self.main_window.ui.toolbar.smoothing_size_spinbox is not None:
                     _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.disconnect(
                         self._on_smoothing_size_changed
                     )
@@ -79,7 +79,7 @@ class UIInitializationController:
 
         # Disconnect tracking panel signals (5 connections)
         try:
-            if hasattr(self, "main_window") and hasattr(self.main_window, "tracking_panel"):
+            if self.main_window.tracking_panel is not None:
                 panel = self.main_window.tracking_panel
                 _ = panel.point_visibility_changed.disconnect(self.main_window.on_point_visibility_changed)
                 _ = panel.point_color_changed.disconnect(self.main_window.on_point_color_changed)

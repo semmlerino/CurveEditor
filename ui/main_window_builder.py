@@ -384,7 +384,7 @@ class MainWindowBuilder:
         # Set focus to curve widget after creation
         def set_focus_safe() -> None:
             try:
-                if hasattr(window, "curve_widget") and window.curve_widget:
+                if window.curve_widget is not None:
                     window.curve_widget.setFocus()
             except RuntimeError:
                 # Widget was deleted (C++ object destroyed)

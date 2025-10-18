@@ -312,14 +312,10 @@ class FileOperations(QObject):
 
         # Remember the selected directory for next time
         if self.state_manager is not None:
-            # Use getattr/setattr for dynamic attributes
-            if getattr(self.state_manager, "image_directory", None) is not None or hasattr(
-                self.state_manager, "image_directory"
-            ):
-                self.state_manager.image_directory = selected_directory
-            add_recent_dir = getattr(self.state_manager, "add_recent_directory", None)
-            if callable(add_recent_dir):
-                _ = add_recent_dir(selected_directory)
+            # StateManager always has image_directory property
+            self.state_manager.image_directory = selected_directory
+            # StateManager always has add_recent_directory method
+            self.state_manager.add_recent_directory(selected_directory)
 
         # Start background loading of image sequence
         self.file_load_worker.start_work(tracking_file_path=None, image_dir_path=selected_directory)

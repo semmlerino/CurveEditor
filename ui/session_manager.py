@@ -315,9 +315,7 @@ class SessionManager:
 
             # Restore recent directories
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
-                if main_window.state_manager is not None and hasattr(
-                    main_window.state_manager, "set_recent_directories"
-                ):
+                if main_window.state_manager is not None:
                     main_window.state_manager.set_recent_directories(session_data["recent_directories"])
 
             # Load files using background thread if available

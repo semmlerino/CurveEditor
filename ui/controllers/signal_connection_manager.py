@@ -44,7 +44,7 @@ class SignalConnectionManager:
         """
         # Disconnect file operations signals (8 connections)
         try:
-            if hasattr(self, "main_window") and hasattr(self.main_window, "file_operations"):
+            if self.main_window.file_operations is not None:
                 file_ops = self.main_window.file_operations
                 _ = file_ops.tracking_data_loaded.disconnect(self.main_window.on_tracking_data_loaded)
                 _ = file_ops.multi_point_data_loaded.disconnect(self.main_window.on_multi_point_data_loaded)
@@ -61,7 +61,7 @@ class SignalConnectionManager:
 
         # Disconnect state manager signals (5 connections)
         try:
-            if hasattr(self, "main_window") and hasattr(self.main_window, "state_manager"):
+            if self.main_window.state_manager is not None:
                 state_mgr = self.main_window.state_manager
                 _ = state_mgr.file_changed.disconnect(self.main_window.on_file_changed)
                 _ = state_mgr.modified_changed.disconnect(self.main_window.on_modified_changed)
@@ -74,7 +74,7 @@ class SignalConnectionManager:
         # Disconnect timeline controller signals (1 connection)
         # REMOVED: timeline.frame_changed disconnect - signal emission removed from TimelineController
         try:
-            if hasattr(self, "main_window") and hasattr(self.main_window, "timeline_controller"):
+            if self.main_window.timeline_controller is not None:
                 timeline = self.main_window.timeline_controller
                 # TimelineController is QObject with signals at runtime
                 _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
@@ -83,7 +83,7 @@ class SignalConnectionManager:
 
         # Disconnect curve widget signals (5 connections)
         try:
-            if hasattr(self, "main_window") and self.main_window.curve_widget:
+            if self.main_window.curve_widget is not None:
                 widget = self.main_window.curve_widget
                 _ = widget.point_selected.disconnect(self.main_window.on_point_selected)
                 _ = widget.point_moved.disconnect(self.main_window.on_point_moved)
@@ -95,26 +95,21 @@ class SignalConnectionManager:
 
         # Disconnect view options signals (6 connections)
         try:
-            if hasattr(self, "main_window"):
-                mw = self.main_window
-                if mw.show_background_cb:
-                    _ = mw.show_background_cb.stateChanged.disconnect(
-                        mw.view_management_controller.update_curve_view_options
-                    )
-                if mw.show_grid_cb:
-                    _ = mw.show_grid_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
-                if mw.show_info_cb:
-                    _ = mw.show_info_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
-                if mw.show_tooltips_cb:
-                    _ = mw.show_tooltips_cb.stateChanged.disconnect(mw.view_management_controller.toggle_tooltips)
-                if mw.point_size_slider:
-                    _ = mw.point_size_slider.valueChanged.disconnect(
-                        mw.view_management_controller.update_curve_point_size
-                    )
-                if mw.line_width_slider:
-                    _ = mw.line_width_slider.valueChanged.disconnect(
-                        mw.view_management_controller.update_curve_line_width
-                    )
+            mw = self.main_window
+            if mw.show_background_cb is not None:
+                _ = mw.show_background_cb.stateChanged.disconnect(
+                    mw.view_management_controller.update_curve_view_options
+                )
+            if mw.show_grid_cb is not None:
+                _ = mw.show_grid_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
+            if mw.show_info_cb is not None:
+                _ = mw.show_info_cb.stateChanged.disconnect(mw.view_management_controller.update_curve_view_options)
+            if mw.show_tooltips_cb is not None:
+                _ = mw.show_tooltips_cb.stateChanged.disconnect(mw.view_management_controller.toggle_tooltips)
+            if mw.point_size_slider is not None:
+                _ = mw.point_size_slider.valueChanged.disconnect(mw.view_management_controller.update_curve_point_size)
+            if mw.line_width_slider is not None:
+                _ = mw.line_width_slider.valueChanged.disconnect(mw.view_management_controller.update_curve_line_width)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 

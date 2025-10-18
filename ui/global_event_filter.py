@@ -137,7 +137,7 @@ class GlobalEventFilter(QObject):
         # in MultiPointTrackingController, not during shortcut context building
         selected_tracking_points = []
         tracking_panel = getattr(self.main_window, "tracking_panel", None)
-        if tracking_panel is not None and hasattr(tracking_panel, "get_selected_points"):
+        if tracking_panel is not None:
             selected_tracking_points = tracking_panel.get_selected_points()
 
         # Get current frame
