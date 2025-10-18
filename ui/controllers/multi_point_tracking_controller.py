@@ -14,7 +14,6 @@ This facade provides backward-compatible API while maintaining separation of con
 """
 # pyright: reportImportCycles=false
 
-from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject
@@ -32,16 +31,6 @@ from stores.application_state import ApplicationState, get_application_state
 from ui.controllers.tracking_data_controller import TrackingDataController
 from ui.controllers.tracking_display_controller import TrackingDisplayController
 from ui.controllers.tracking_selection_controller import TrackingSelectionController
-
-
-class SelectionContext(Enum):
-    """Context for curve display updates to control auto-selection behavior."""
-
-    DATA_LOADING = auto()  # Auto-select during data loading
-    MANUAL_SELECTION = auto()  # Don't auto-select, preserve user selection
-    CURVE_SWITCHING = auto()  # Auto-select when switching between curves
-    DEFAULT = auto()  # Default behavior (auto-select)
-
 
 logger = get_logger("multi_point_tracking_controller")
 
@@ -221,29 +210,25 @@ class MultiPointTrackingController(QObject):
         """Update tracking panel with current tracking data."""
         self.display_controller.update_tracking_panel()
 
-    def update_curve_display(
-        self, context: SelectionContext | None = None, selected_points: list[str] | None = None
-    ) -> None:
-        """
-        Update curve display with selected tracking points.
+    def update_curve_display(self) -> None:
+        """Update curve display, preserving current selection."""
+        self.display_controller.update_display_preserve_selection()
 
-        Backward compatible API that maps old SelectionContext to new display methods.
+    def update_display_preserve_selection(self) -> None:
+        """Update display, preserving current curve selection."""
+        self.display_controller.update_display_preserve_selection()
+
+    def update_display_with_selection(self, selected: list[str]) -> None:
+        """Update display with explicit curve selection.
 
         Args:
-            context: DEPRECATED - Selection context (for backward compatibility)
-            selected_points: Optional list of selected point names
+            selected: List of curve names to select
         """
-        # Map old SelectionContext API to new display controller methods
-        if context == SelectionContext.MANUAL_SELECTION or selected_points is not None:
-            # Explicit selection - use with_selection
-            points = selected_points if selected_points is not None else []
-            self.display_controller.update_display_with_selection(points)
-        elif context == SelectionContext.DATA_LOADING or context == SelectionContext.CURVE_SWITCHING:
-            # Reset selection on major context change
-            self.display_controller.update_display_reset_selection()
-        else:
-            # Default or None - preserve existing selection
-            self.display_controller.update_display_preserve_selection()
+        self.display_controller.update_display_with_selection(selected)
+
+    def update_display_reset_selection(self) -> None:
+        """Update display, resetting selection to active curve only."""
+        self.display_controller.update_display_reset_selection()
 
     def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
         """

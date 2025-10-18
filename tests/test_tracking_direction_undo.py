@@ -17,7 +17,7 @@ import pytest
 
 from core.models import TrackingDirection
 from services import get_interaction_service
-from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController, SelectionContext
+from ui.controllers.multi_point_tracking_controller import MultiPointTrackingController
 from ui.file_operations import FileOperations
 from ui.main_window import MainWindow
 
@@ -70,7 +70,7 @@ class TestTrackingDirectionUndo:
         main_window.tracking_controller.update_tracking_panel()
         # Cast through object to avoid protocol overlap check
         controller = cast(MultiPointTrackingController, cast(object, main_window.tracking_controller))
-        controller.update_curve_display(SelectionContext.DATA_LOADING)
+        controller.update_display_reset_selection()
 
         yield main_window
 
