@@ -130,14 +130,18 @@ def main_window_with_data(qtbot, make_navigation_dataset):
             app_state.set_active_curve("__default__")  # Set active curve for navigation
 
         # NOW create window - it will see the data already set
-        window = MainWindow()
+        # Pass auto_load_data=False to prevent loading default data
+        window = MainWindow(auto_load_data=False)
         qtbot.addWidget(window)
 
         # Update frame range via timeline controller (updates spinbox max)
         if test_data:
             if processed_data:
                 max_frame = max(point[0] for point in processed_data)
-                window.timeline_controller.set_frame_range(1, max_frame)
+                # Extend frame range to 30 to allow testing beyond the data (navigation tests may go beyond)
+                window.timeline_controller.set_frame_range(1, max(max_frame, 30))
+                # Ensure curve_widget has the data for navigation purposes
+                window.curve_widget.set_curve_data(processed_data)
 
         # Show and wait for exposure
         window.show()

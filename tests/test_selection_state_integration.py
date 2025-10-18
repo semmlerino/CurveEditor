@@ -100,7 +100,7 @@ class TestSelectionStateIntegration:
 
         The test verifies that updates stabilize quickly (finite calls) vs looping forever.
         """
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)
         assert window.tracking_panel is not None
         panel = window.tracking_panel
         app_state = get_application_state()
@@ -142,7 +142,7 @@ class TestSelectionStateIntegration:
         Original bug: selected_curve_names updated but display_mode not set to SELECTED.
         With new architecture, display_mode always correct (computed property).
         """
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)
         app_state = get_application_state()
 
         # Simulate the exact user action that caused the bug

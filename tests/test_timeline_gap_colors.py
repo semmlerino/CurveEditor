@@ -29,7 +29,7 @@ class TestTimelineGapColors:
     @pytest.fixture
     def main_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create MainWindow for testing."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
         qtbot.addWidget(window)
         return window
 

@@ -572,6 +572,8 @@ class TestRealComponentIntegration:
 
     def test_endframe_command_with_real_main_window(self, main_window_with_data, qtbot):
         """Test E key with real MainWindow and real Qt signals."""
+        from stores.application_state import get_application_state
+
         window = main_window_with_data
 
         # Frame-based operation: Set current frame to 1 (index 0)
@@ -594,8 +596,6 @@ class TestRealComponentIntegration:
         assert cmd.execute(context)
 
         # Verify point at frame 1 (index 0) was toggled to ENDFRAME (Phase 6: use ApplicationState)
-        from stores.application_state import get_application_state
-
         app_state = get_application_state()
         curve_data = list(app_state.get_curve_data())
         point0 = curve_data[0] if curve_data else None

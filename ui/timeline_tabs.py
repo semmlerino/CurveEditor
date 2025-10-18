@@ -613,9 +613,6 @@ class TimelineTabWidget(QWidget):
         self.max_frame = max_frame
         self.total_frames = max_frame - min_frame + 1
 
-        # Establish frame count via ApplicationState (clean architecture)
-        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
-
         # Sync internal tracking with ApplicationState (in case they got out of sync)
         # This can happen during initialization
         actual_frame = get_application_state().current_frame

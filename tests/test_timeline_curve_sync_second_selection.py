@@ -24,7 +24,7 @@ class TestTimelineCurveSyncSecondSelection:
     @pytest.fixture
     def main_window(self, qtbot, qapp):
         """Create MainWindow with test data."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
         qtbot.addWidget(window)
         window.show()
         qtbot.waitExposed(window)

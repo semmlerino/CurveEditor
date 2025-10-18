@@ -390,9 +390,8 @@ class InsertTrackCommand(Command):
         if main_window.multi_point_controller is not None:
             main_window.multi_point_controller.update_tracking_panel()
 
-        # Set as active curve
-        if main_window.active_timeline_point is not None:
-            main_window.active_timeline_point = curve_name
+        # Set as active curve - always do this for newly created curves
+        main_window.active_timeline_point = curve_name
 
         # Get curve data (needed for both curve widget and timeline updates)
         curve_data = main_window.multi_point_controller.tracked_data[curve_name]

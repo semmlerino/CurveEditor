@@ -182,8 +182,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     tracking_controller: MultiPointTrackingProtocol
     signal_manager: SignalConnectionProtocol
 
-    def __init__(self, parent: QWidget | None = None):
-        """Initialize the MainWindow with enhanced UI functionality."""
+    def __init__(self, parent: QWidget | None = None, auto_load_data: bool = True):
+        """Initialize the MainWindow with enhanced UI functionality.
+
+        Args:
+            parent: Optional parent widget
+            auto_load_data: If True, automatically load burger footage/tracking data. Set to False in tests.
+        """
         super().__init__(parent)
 
         # Setup basic window properties
@@ -292,7 +297,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._setup_tab_order()
 
         # Auto-load burger footage and tracking data if available
-        self.file_operations.load_burger_data_async()
+        if auto_load_data:
+            self.file_operations.load_burger_data_async()
 
         # Initialize tooltips as disabled by default
         self.view_management_controller.toggle_tooltips()

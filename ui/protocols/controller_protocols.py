@@ -214,6 +214,26 @@ class TimelineControllerProtocol(Protocol):
         """Stop playback if active."""
         ...
 
+    def toggle_playback(self) -> None:
+        """Toggle playback."""
+        ...
+
+    def _on_next_frame(self) -> None:
+        """Handle next frame button click."""
+        ...
+
+    def _on_prev_frame(self) -> None:
+        """Handle previous frame button click."""
+        ...
+
+    def _on_first_frame(self) -> None:
+        """Handle first frame button click."""
+        ...
+
+    def _on_last_frame(self) -> None:
+        """Handle last frame button click."""
+        ...
+
     # Playback timer attribute
     playback_timer: Any  # QTimer for playback control
 

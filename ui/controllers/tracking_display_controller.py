@@ -236,8 +236,6 @@ class TrackingDisplayController(QObject):
                     self.main_window.frame_spinbox.setMaximum(max_frame)
                 if self.main_window.total_frames_label:
                     self.main_window.total_frames_label.setText(str(max_frame))
-                # Update frame count via ApplicationState
-                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass
@@ -259,8 +257,6 @@ class TrackingDisplayController(QObject):
                     self.main_window.frame_spinbox.setMaximum(max_frame)
                 if self.main_window.total_frames_label:
                     self.main_window.total_frames_label.setText(str(max_frame))
-                # Update frame count via ApplicationState
-                get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass

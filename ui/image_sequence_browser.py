@@ -480,7 +480,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return start_directory
 
         # Priority 2: Last used directory from state manager
-        if parent.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        if parent is not None and parent.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
             if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
                 recent_dirs = state_manager.recent_directories  # pyright: ignore[reportAny]
@@ -1048,7 +1048,7 @@ class ImageSequenceBrowserDialog(QDialog):
         """Populate address bar dropdown with recent directories from state manager."""
         # Get recent directories from parent's state manager if available
         parent_window = self.parent()
-        if parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
             state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
             if state_manager and hasattr(state_manager, "recent_directories"):  # pyright: ignore[reportAny]
                 recents = state_manager.recent_directories  # pyright: ignore[reportAny]
@@ -1397,7 +1397,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Add to recent directories
         parent_window = self.parent()
-        if parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
             state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
             if state_manager and hasattr(state_manager, "add_recent_directory"):  # pyright: ignore[reportAny]
                 state_manager.add_recent_directory(normalized_path)  # pyright: ignore[reportAny]
@@ -2170,7 +2170,7 @@ class ImageSequenceBrowserDialog(QDialog):
     def _restore_state(self) -> None:
         """Restore dialog state from parent's state manager."""
         parent_window = self.parent()
-        if parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is None or parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
         state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
@@ -2223,7 +2223,7 @@ class ImageSequenceBrowserDialog(QDialog):
     def _save_state(self) -> None:
         """Save dialog state to parent's state manager."""
         parent_window = self.parent()
-        if parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is None or parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
             return
 
         state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]

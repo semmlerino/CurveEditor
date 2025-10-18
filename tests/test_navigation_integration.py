@@ -37,7 +37,7 @@ class TestNavigationIntegration:
     @pytest.fixture
     def fully_configured_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create fully configured MainWindow with realistic data."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
         qtbot.addWidget(window)
 
         # Load realistic test data with various frame types
@@ -251,6 +251,7 @@ class TestNavigationIntegration:
         # Test direct timeline_tabs interaction
         assert window.timeline_tabs is not None
         window.timeline_tabs.set_current_frame(5)
+        qtbot.wait(100)  # Wait for signals to propagate to UI elements
         # Timeline updates its display but doesn't emit its own signal (avoids loops)
         assert window.timeline_tabs.current_frame == 5, "timeline_tabs should update to frame 5"
 

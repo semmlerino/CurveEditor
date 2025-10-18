@@ -31,7 +31,7 @@ class TestTimelineAutomaticUpdates:
     @pytest.fixture
     def main_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create MainWindow for testing."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
         qtbot.addWidget(window)
 
         # Get application state and reset
@@ -40,6 +40,10 @@ class TestTimelineAutomaticUpdates:
         # Reset state to clear any image sequence
         window.state_manager.reset_to_defaults()
         window.view_management_controller.clear_background_images()
+
+        # Clear image sequence from ApplicationState to ensure clean state
+        app_state.set_image_files([], directory="")
+        qtbot.wait(50)  # Let image_sequence_changed signal propagate
 
         # Create and set an active curve for testing
         test_curve_name = "__default__"

@@ -24,7 +24,7 @@ class TestEndToEndSmoothing:
     @pytest.fixture
     def window_with_real_data(self, qtbot):
         """Create a MainWindow with real test data and services."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Add real test data
@@ -114,7 +114,7 @@ class TestEndToEndSmoothing:
 
     def test_real_smoothing_with_partial_selection(self, qtbot):
         """Test smoothing only affects selected points."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Create data with more variation so smoothing will have effect
@@ -162,7 +162,7 @@ class TestSmoothingUndoRedo:
     @pytest.fixture
     def window_with_history(self, qtbot):
         """Create window with undo/redo capability."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Add test data
@@ -275,7 +275,7 @@ class TestSmoothingFileIO:
     @pytest.fixture
     def window_for_file_io(self, qtbot):
         """Create window for file I/O testing."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Add test data
@@ -363,7 +363,7 @@ class TestSmoothingWithOtherFeatures:
     @pytest.fixture
     def full_featured_window(self, qtbot):
         """Create window with all features enabled."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Add animated curve data
@@ -490,7 +490,7 @@ class TestSmoothingPerformance:
 
     def test_smoothing_large_dataset_performance(self, qtbot, benchmark):
         """Test smoothing performance with large curve data."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
 
         # Create large dataset
@@ -525,7 +525,7 @@ class TestSmoothingEdgeCases:
     @pytest.fixture
     def edge_case_window(self, qtbot):
         """Create window for edge case testing."""
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests
         qtbot.addWidget(window)
         return window
 

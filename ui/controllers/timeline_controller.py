@@ -493,9 +493,6 @@ class TimelineController(QObject):
         self.frame_slider.setMinimum(min_frame)
         self.frame_slider.setMaximum(max_frame)
 
-        # Establish frame count via ApplicationState (clean architecture)
-        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, max_frame + 1)])
-
         # Update playback bounds
         self.playback_state.min_frame = min_frame
         self.playback_state.max_frame = max_frame
