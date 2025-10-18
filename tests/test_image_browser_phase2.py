@@ -360,46 +360,40 @@ class TestImageBrowserStatePersistence:
             pass  # Already deleted
 
     def test_restore_state_called_on_init(self, dialog_with_state):
-        """Test _restore_state is called during initialization."""
-        # Get the state manager from the dialog's parent
-        try:
-            parent = dialog_with_state.parent()
-            if parent:
-                state_manager = parent.state_manager
-                # Should have called get_value for geometry, splitter, sort
-                assert state_manager.get_value.called
-        except RuntimeError:
-            # Dialog was deleted - this is ok
-            pass
+        """Test _restore_state initialization (no-op since persistence disabled)."""
+        # State persistence is not implemented.
+        # The dialog should initialize with default state.
+        # This test verifies dialog is created successfully without errors.
+        assert dialog_with_state is not None
+        assert dialog_with_state.current_sort == "name"  # Default sort
+        assert dialog_with_state.sort_ascending is True  # Default order
 
     def test_save_state(self, dialog_with_state):
-        """Test state saving functionality."""
-        # Get state manager from parent
+        """Test state saving functionality (no-op since persistence disabled)."""
+        # State persistence is not implemented.
+        # _save_state() is a no-op that doesn't call set_value.
+        # This test verifies the method doesn't raise errors.
         parent = dialog_with_state.parent()
         if parent and hasattr(parent, "state_manager"):
             state_manager = parent.state_manager
             # Reset mock to check calls
             state_manager.set_value.reset_mock()
 
-            # Call _save_state directly (don't use accept/reject which delete the dialog)
+            # Call _save_state directly - should not call set_value
             dialog_with_state._save_state()
 
-            # Should have saved geometry, splitter state, and sort preferences
-            assert state_manager.set_value.call_count >= 3
-            call_args = [call[0][0] for call in state_manager.set_value.call_args_list]
-            assert "image_browser_geometry" in call_args
-            assert "image_browser_sort" in call_args
-            assert "image_browser_sort_ascending" in call_args
+            # Verify no calls were made (persistence disabled)
+            assert state_manager.set_value.call_count == 0
 
     def test_restore_sort_preferences(self, qtbot, tmp_path):
-        """Test restoring saved sort preferences."""
+        """Test sort preferences use defaults (persistence disabled)."""
         from PySide6.QtWidgets import QWidget
 
         # Create parent widget with state manager
         parent = QWidget()
         qtbot.addWidget(parent)
 
-        # Set up mock state manager with saved state
+        # Set up mock state manager (not used for persistence anymore)
         parent.state_manager = Mock()  # pyright: ignore[reportAttributeAccessIssue]
         parent.state_manager.get_value = Mock(  # pyright: ignore[reportAttributeAccessIssue]
             side_effect=lambda key: {
@@ -412,10 +406,10 @@ class TestImageBrowserStatePersistence:
         dialog = ImageSequenceBrowserDialog(parent, str(tmp_path))
         qtbot.addWidget(dialog)
 
-        # Check restored values
-        assert dialog.current_sort == "frame_count"
-        assert dialog.sort_ascending is False
-        assert dialog.sort_combo.currentText() == "Frame Count"
+        # Verify dialog uses default values (get_value not called for persistence)
+        assert dialog.current_sort == "name"  # Default sort
+        assert dialog.sort_ascending is True  # Default order
+        assert dialog.sort_combo.currentText() == "Name"
 
 
 class TestImageBrowserHistoryIntegration:

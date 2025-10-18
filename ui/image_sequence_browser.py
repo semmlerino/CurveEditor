@@ -2168,85 +2168,20 @@ class ImageSequenceBrowserDialog(QDialog):
             self.sequence_list.addItem(item)
 
     def _restore_state(self) -> None:
-        """Restore dialog state from parent's state manager."""
-        parent_window = self.parent()
-        if parent_window is None or parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
-            return
+        """Restore dialog state from parent's state manager.
 
-        state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
-        if not state_manager:
-            return
-
-        # Restore dialog geometry
-        if hasattr(state_manager, "get_value"):  # pyright: ignore[reportAny]
-            saved_geometry = state_manager.get_value("image_browser_geometry")  # pyright: ignore[reportAny]
-            if saved_geometry:
-                try:
-                    from PySide6.QtCore import QByteArray
-
-                    if isinstance(saved_geometry, bytes | QByteArray):
-                        _ = self.restoreGeometry(saved_geometry)
-                except Exception as e:
-                    logger.warning(f"Failed to restore dialog geometry: {e}")
-
-            # Restore splitter state
-            saved_splitter = state_manager.get_value("image_browser_splitter")  # pyright: ignore[reportAny]
-            if saved_splitter:
-                try:
-                    from PySide6.QtCore import QByteArray
-
-                    if isinstance(saved_splitter, bytes | QByteArray):
-                        _ = self.splitter.restoreState(saved_splitter)
-                except Exception as e:
-                    logger.warning(f"Failed to restore splitter state: {e}")
-
-            # Restore sort preferences
-            saved_sort = state_manager.get_value("image_browser_sort")  # pyright: ignore[reportAny]
-            if saved_sort:
-                self.current_sort = saved_sort
-                sort_map_reverse = {
-                    "name": "Name",
-                    "frame_count": "Frame Count",
-                    "size": "File Size",
-                    "date": "Date Modified",
-                }
-                display_text = sort_map_reverse.get(saved_sort, "Name")  # pyright: ignore[reportAny]
-                index = self.sort_combo.findText(display_text)
-                if index >= 0:
-                    self.sort_combo.setCurrentIndex(index)
-
-            saved_sort_order = state_manager.get_value("image_browser_sort_ascending")  # pyright: ignore[reportAny]
-            if saved_sort_order is not None:
-                self.sort_ascending = saved_sort_order
-                self.sort_order_button.setText("↑" if self.sort_ascending else "↓")
+        Note: Persistence not implemented. Dialog uses default state on each open.
+        """
+        # State persistence not implemented - StateManager lacks get_value/set_value
+        pass
 
     def _save_state(self) -> None:
-        """Save dialog state to parent's state manager."""
-        parent_window = self.parent()
-        if parent_window is None or parent_window.state_manager is None:  # pyright: ignore[reportAttributeAccessIssue]
-            return
+        """Save dialog state to parent's state manager.
 
-        state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
-        if not state_manager:
-            return
-
-        # Save dialog geometry
-        if hasattr(state_manager, "set_value"):  # pyright: ignore[reportAny]
-            try:
-                state_manager.set_value("image_browser_geometry", self.saveGeometry())  # pyright: ignore[reportAny]
-            except Exception as e:
-                logger.warning(f"Failed to save dialog geometry: {e}")
-
-            # Save splitter state
-            if self.splitter is not None:
-                try:
-                    state_manager.set_value("image_browser_splitter", self.splitter.saveState())  # pyright: ignore[reportAny]
-                except Exception as e:
-                    logger.warning(f"Failed to save splitter state: {e}")
-
-            # Save sort preferences
-            state_manager.set_value("image_browser_sort", self.current_sort)  # pyright: ignore[reportAny]
-            state_manager.set_value("image_browser_sort_ascending", self.sort_ascending)  # pyright: ignore[reportAny]
+        Note: Persistence not implemented. See _restore_state() for details.
+        """
+        # State persistence not implemented - StateManager lacks get_value/set_value
+        pass
 
     @override
     def accept(self) -> None:
