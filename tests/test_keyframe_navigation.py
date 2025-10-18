@@ -189,8 +189,8 @@ class TestNavigationLogic:
 
         frame_status = data_service.get_frame_range_point_status(data)
 
-        # Check for startframes (index 5 in status tuple)
-        startframes = [frame for frame, status in frame_status.items() if status[5]]
+        # Check for startframes using FrameStatus named attribute
+        startframes = [frame for frame, status in frame_status.items() if status.is_startframe]
 
         # Frame 1 should be startframe (first with tracked)
         # Frame 20 should be startframe (keyframe after endframe at 10)
@@ -211,7 +211,7 @@ class TestNavigationLogic:
         data_service = get_data_service()
         frame_status = data_service.get_frame_range_point_status(data)
         for frame, status in frame_status.items():
-            if status[5] and frame not in nav_frames:
+            if status.is_startframe and frame not in nav_frames:
                 nav_frames.append(frame)
 
         nav_frames.sort()
@@ -439,7 +439,7 @@ class TestParametrizedNavigation:
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(data)
             for frame, status in frame_status.items():
-                if status[5] and frame not in nav_frames:
+                if status.is_startframe and frame not in nav_frames:
                     nav_frames.append(frame)
 
         # Should have at least the expected number of navigation frames
@@ -584,7 +584,7 @@ class TestRealFileNavigation:
 
         # Add startframes
         for frame, status in frame_status.items():
-            if status[5] and frame not in nav_frames:  # status[5] is startframe
+            if status.is_startframe and frame not in nav_frames:
                 nav_frames.append(frame)
 
         nav_frames = sorted(set(nav_frames))

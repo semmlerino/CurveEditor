@@ -33,11 +33,10 @@ Utilities:
 from __future__ import annotations
 
 import math
-from collections import namedtuple
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import TypeGuard, overload, override
+from typing import NamedTuple, TypeGuard, overload, override
 
 # Type aliases for backward compatibility and clarity
 FrameNumber = int
@@ -48,20 +47,41 @@ PointIndex = int
 LegacyPointTuple = tuple[int, float, float] | tuple[int, float, float, str | bool]
 PointsList = list[LegacyPointTuple]
 
-# Frame status information for timeline display
-FrameStatus = namedtuple(
-    "FrameStatus",
-    [
-        "keyframe_count",
-        "interpolated_count",
-        "tracked_count",
-        "endframe_count",
-        "normal_count",
-        "is_startframe",
-        "is_inactive",
-        "has_selected",
-    ],
-)
+
+class FrameStatus(NamedTuple):
+    """Status information for a single frame in timeline.
+
+    Attributes:
+        keyframe_count: Number of keyframe points
+        interpolated_count: Number of interpolated points
+        tracked_count: Number of tracked points
+        endframe_count: Number of endframe points
+        normal_count: Number of normal points
+        is_startframe: True if this is the first frame with data
+        is_inactive: True if frame has no active tracking
+        has_selected: True if any points are selected in this frame
+    """
+
+    keyframe_count: int
+    interpolated_count: int
+    tracked_count: int
+    endframe_count: int
+    normal_count: int
+    is_startframe: bool
+    is_inactive: bool
+    has_selected: bool
+
+    @property
+    def total_points(self) -> int:
+        """Total number of points in this frame."""
+        return (
+            self.keyframe_count + self.interpolated_count + self.tracked_count + self.endframe_count + self.normal_count
+        )
+
+    @property
+    def is_empty(self) -> bool:
+        """True if frame has no points."""
+        return self.total_points == 0
 
 
 class PointStatus(Enum):

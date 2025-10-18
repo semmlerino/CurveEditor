@@ -387,8 +387,8 @@ class TestDataFlowIntegration:
         for i in range(1, 11):
             # Test behavior: each frame should be marked
             status = timeline.status_cache.get_status(i)
-            # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
-            assert status is not None and status[4] == 1  # normal_count - Each point is normal by default
+            # get_status returns FrameStatus namedtuple
+            assert status is not None and status.normal_count == 1  # Each point is normal by default
 
     def test_no_manual_updates_override_store(self, qtbot):
         """Test that ApplicationState data updates propagate to timeline.
@@ -507,8 +507,8 @@ class TestDataFlowIntegration:
         # Verify status cache is consistent
         for i in range(1, 4):
             status = timeline.status_cache.get_status(i)
-            # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
-            assert status is not None and status[4] == 1  # normal_count
+            # get_status returns FrameStatus namedtuple
+            assert status is not None and status.normal_count == 1  # normal_count
 
 
 class TestMultiControllerSignalChains:

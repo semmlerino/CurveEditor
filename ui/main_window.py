@@ -1112,7 +1112,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
             for frame, status in frame_status.items():
-                if status[5]:  # is_startframe flag at index 5
+                if status.is_startframe:
                     if frame not in nav_frames:
                         nav_frames.append(frame)
         except Exception as e:
@@ -1157,7 +1157,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
             for frame, status in frame_status.items():
-                if status[5]:  # is_startframe flag at index 5
+                if status.is_startframe:
                     if frame not in nav_frames:
                         nav_frames.append(frame)
         except Exception as e:

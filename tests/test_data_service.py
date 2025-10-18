@@ -632,13 +632,13 @@ class TestPointStatusAnalysis:
 
         result = service.get_frame_range_point_status(points)
 
-        # Format: (keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, has_selected)
-        assert result[1][0] == 1  # Frame 1: 1 keyframe
-        assert result[1][1] == 1  # Frame 1: 1 interpolated
-        assert result[2][0] == 1  # Frame 2: 1 keyframe
-        assert result[2][1] == 0  # Frame 2: 0 interpolated
-        assert result[3][0] == 0  # Frame 3: 0 keyframes
-        assert result[3][1] == 1  # Frame 3: 1 interpolated
+        # Check using FrameStatus named attributes
+        assert result[1].keyframe_count == 1  # Frame 1: 1 keyframe
+        assert result[1].interpolated_count == 1  # Frame 1: 1 interpolated
+        assert result[2].keyframe_count == 1  # Frame 2: 1 keyframe
+        assert result[2].interpolated_count == 0  # Frame 2: 0 interpolated
+        assert result[3].keyframe_count == 0  # Frame 3: 0 keyframes
+        assert result[3].interpolated_count == 1  # Frame 3: 1 interpolated
 
 
 class TestThreadSafety:

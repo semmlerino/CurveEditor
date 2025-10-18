@@ -168,8 +168,7 @@ class TestGapWorkflow:
         status_dict = data_service.get_frame_range_point_status(curve_data_with_gap)
         if 10 in status_dict:
             frame10_status = status_dict[10]
-            _, _, _, _, _, is_startframe, is_inactive, _ = frame10_status
-            assert is_startframe is True  # Should be detected as startframe
+            assert frame10_status.is_startframe is True  # Should be detected as startframe
 
     def test_multiple_gaps_workflow(self):
         """Test workflow with multiple gaps in sequence."""
