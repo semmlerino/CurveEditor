@@ -48,15 +48,15 @@ class InsertTrackShortcutCommand(ShortcutCommand):
 
         # Check for multi-point controller
         main_window = context.main_window
-        if not hasattr(main_window, "multi_point_controller"):
+        multi_point_controller = getattr(main_window, "multi_point_controller", None)
+        if multi_point_controller is None:
             return False
 
         # Check for selected curves (via tracking panel)
-        if hasattr(main_window, "tracking_panel"):
-            tracking_panel = main_window.tracking_panel
-            if tracking_panel:
-                selected = tracking_panel.get_selected_points()
-                return len(selected) > 0
+        tracking_panel = getattr(main_window, "tracking_panel", None)
+        if tracking_panel is not None:
+            selected = tracking_panel.get_selected_points()
+            return len(selected) > 0
 
         return False
 
@@ -74,8 +74,9 @@ class InsertTrackShortcutCommand(ShortcutCommand):
 
             # Get selected curves
             selected_curves = []
-            if hasattr(main_window, "tracking_panel") and main_window.tracking_panel:
-                selected_curves = main_window.tracking_panel.get_selected_points()
+            tracking_panel = getattr(main_window, "tracking_panel", None)
+            if tracking_panel is not None:
+                selected_curves = tracking_panel.get_selected_points()
 
             if not selected_curves:
                 logger.warning("No curves selected for Insert Track")

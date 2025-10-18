@@ -1295,8 +1295,9 @@ class _PointManipulator:
         self._owner._selection.clear_spatial_index()
 
         # Update view
-        if hasattr(view, "update"):
-            view.update()
+        update_method = getattr(view, "update", None)
+        if update_method is not None and callable(update_method):
+            update_method()
 
     def on_selection_changed(self, indices: set[int], curve_name: str | None = None) -> None:
         """
@@ -1368,7 +1369,7 @@ class _PointManipulator:
         adjusted_delta = delta_y * y_multiplier
 
         # Update pan offset
-        if hasattr(view, "pan_offset_y"):
+        if getattr(view, "pan_offset_y", None) is not None:
             view.pan_offset_y = current_pan_y + adjusted_delta
             view.update()
 

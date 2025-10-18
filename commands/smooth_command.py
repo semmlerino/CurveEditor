@@ -86,10 +86,13 @@ class SmoothCommand(Command):
             self.curve_widget.set_curve_data(new_curve_data)
 
             # Mark as modified
-            if hasattr(self.curve_widget, "parent"):
-                parent = self.curve_widget.parent()
-                if parent and hasattr(parent, "state_manager"):
-                    parent.state_manager.is_modified = True
+            parent_method = getattr(self.curve_widget, "parent", None)
+            if parent_method is not None and callable(parent_method):
+                parent = parent_method()
+                if parent is not None:
+                    state_manager = getattr(parent, "state_manager", None)
+                    if state_manager is not None:
+                        state_manager.is_modified = True
 
             logger.info(f"Applied smoothing to {len(self.selected_indices)} points (window size: {self.window_size})")
             return True
@@ -117,10 +120,13 @@ class SmoothCommand(Command):
             self.curve_widget.set_curve_data(self.original_data)
 
             # Mark as modified
-            if hasattr(self.curve_widget, "parent"):
-                parent = self.curve_widget.parent()
-                if parent and hasattr(parent, "state_manager"):
-                    parent.state_manager.is_modified = True
+            parent_method = getattr(self.curve_widget, "parent", None)
+            if parent_method is not None and callable(parent_method):
+                parent = parent_method()
+                if parent is not None:
+                    state_manager = getattr(parent, "state_manager", None)
+                    if state_manager is not None:
+                        state_manager.is_modified = True
 
             logger.info(f"Undid smoothing of {len(self.selected_indices)} points")
             return True
@@ -148,10 +154,13 @@ class SmoothCommand(Command):
             self.curve_widget.set_curve_data(self.smoothed_data)
 
             # Mark as modified
-            if hasattr(self.curve_widget, "parent"):
-                parent = self.curve_widget.parent()
-                if parent and hasattr(parent, "state_manager"):
-                    parent.state_manager.is_modified = True
+            parent_method = getattr(self.curve_widget, "parent", None)
+            if parent_method is not None and callable(parent_method):
+                parent = parent_method()
+                if parent is not None:
+                    state_manager = getattr(parent, "state_manager", None)
+                    if state_manager is not None:
+                        state_manager.is_modified = True
 
             logger.info(f"Redid smoothing of {len(self.selected_indices)} points")
             return True
