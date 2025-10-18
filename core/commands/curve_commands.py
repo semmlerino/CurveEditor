@@ -45,8 +45,8 @@ class SetCurveDataCommand(Command):
             old_data: The previous curve data (captured during execution if None)
         """
         super().__init__(description)
-        self.new_data: list[LegacyPointData] = copy.deepcopy(list(new_data))
-        self.old_data: list[LegacyPointData] | None = copy.deepcopy(list(old_data)) if old_data is not None else None
+        self.new_data: list[LegacyPointData] = list(copy.deepcopy(new_data))
+        self.old_data: list[LegacyPointData] | None = list(copy.deepcopy(old_data)) if old_data is not None else None
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -130,8 +130,8 @@ class SmoothCommand(Command):
         self.indices: list[int] = list(indices)
         self.filter_type: str = filter_type
         self.window_size: int = window_size
-        self.old_points: list[LegacyPointData] | None = copy.deepcopy(list(old_points)) if old_points else None
-        self.new_points: list[LegacyPointData] | None = copy.deepcopy(list(new_points)) if new_points else None
+        self.old_points: list[LegacyPointData] | None = list(copy.deepcopy(old_points)) if old_points else None
+        self.new_points: list[LegacyPointData] | None = list(copy.deepcopy(new_points)) if new_points else None
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -409,7 +409,7 @@ class DeletePointsCommand(Command):
         super().__init__(description)
         self.indices: list[int] = sorted(indices, reverse=True)  # Delete in reverse order to maintain indices
         self.deleted_points: list[tuple[int, LegacyPointData]] | None = (
-            copy.deepcopy(list(deleted_points)) if deleted_points else None
+            list(copy.deepcopy(deleted_points)) if deleted_points else None
         )
 
     @override
