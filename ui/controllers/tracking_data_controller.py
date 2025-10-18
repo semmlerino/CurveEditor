@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QApplication
 
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
 from stores.application_state import ApplicationState, get_application_state
@@ -82,7 +82,7 @@ class TrackingDataController(QObject):
             self._app_state.set_curve_data(curve_name, curve_data)
 
     @Slot(list)
-    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+    def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle single tracking trajectory loaded in background thread.
 
         This is a simplified version that only handles data storage.

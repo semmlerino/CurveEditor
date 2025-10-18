@@ -648,7 +648,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         return
 
     @Slot(list)
-    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+    def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle tracking data loaded (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_tracking_data_loaded(data)
 

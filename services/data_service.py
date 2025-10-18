@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
-from core.models import PointStatus
+from core.models import FrameStatus, PointStatus
 from core.type_aliases import CurveDataInput, CurveDataList
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
@@ -420,16 +420,14 @@ class DataService:
         except Exception as e:
             logger.error(f"Error updating segment activity: {e}")
 
-    def get_frame_range_point_status(
-        self, points: CurveDataList
-    ) -> dict[int, tuple[int, int, int, int, int, bool, bool, bool]]:
+    def get_frame_range_point_status(self, points: CurveDataList) -> dict[int, FrameStatus]:
         """Get comprehensive point status for all frames that have points.
 
         Args:
             points: List of curve data points to analyze
 
         Returns:
-            Dictionary mapping frame numbers to tuples containing:
+            Dictionary mapping frame numbers to FrameStatus namedtuples containing:
             (keyframe_count, interpolated_count, tracked_count, endframe_count, normal_count,
              is_startframe, is_inactive, has_selected)
         """
@@ -576,8 +574,20 @@ class DataService:
                         # Normal gap between keyframes - NOT inactive
                         frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
-        # Convert lists to tuples
-        return {frame: tuple(counts) for frame, counts in frame_status.items()}
+        # Convert lists to FrameStatus namedtuples
+        return {
+            frame: FrameStatus(
+                keyframe_count=counts[0],
+                interpolated_count=counts[1],
+                tracked_count=counts[2],
+                endframe_count=counts[3],
+                normal_count=counts[4],
+                is_startframe=counts[5],
+                is_inactive=counts[6],
+                has_selected=counts[7],
+            )
+            for frame, counts in frame_status.items()
+        }
 
     def add_track_data(self, data: CurveDataList, label: str = "Track", _color: str = "#FF0000") -> None:
         """Add track data (for compatibility)."""

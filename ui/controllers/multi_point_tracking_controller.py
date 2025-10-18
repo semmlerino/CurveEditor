@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 from stores.application_state import ApplicationState, get_application_state
 
 # Import sub-controllers
@@ -115,7 +115,7 @@ class MultiPointTrackingController(QObject):
 
     # ==================== Data Operations - Delegate to TrackingDataController ====================
 
-    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+    def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """
         Handle single tracking trajectory loaded in background thread.
 

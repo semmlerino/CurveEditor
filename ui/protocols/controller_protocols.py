@@ -8,7 +8,7 @@ enabling type-safe programming and reducing coupling between MainWindow and cont
 
 from typing import Any, Protocol, runtime_checkable
 
-from core.type_aliases import CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList
 
 
 @runtime_checkable
@@ -265,7 +265,7 @@ class MultiPointTrackingProtocol(Protocol):
 
     tracked_data: dict[str, CurveDataList]
 
-    def on_tracking_data_loaded(self, data: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+    def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle tracking data loaded."""
         ...
 

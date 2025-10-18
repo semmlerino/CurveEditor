@@ -421,7 +421,7 @@ class MainWindowProtocol(Protocol):
         """Set curve data."""
         ...
 
-    curve_widget: CurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
+    curve_widget: MultiCurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
 
     # Frame management
     @property
@@ -540,6 +540,7 @@ class MainWindowProtocol(Protocol):
     fps_spinbox: object | None  # QSpinBox
     btn_play_pause: object | None  # QPushButton
     timeline_tabs: object | None  # QTabWidget
+    tracking_panel: object | None  # TrackingPointsPanel
 
     @property
     def curve_view(self) -> "CurveViewProtocol | None":
