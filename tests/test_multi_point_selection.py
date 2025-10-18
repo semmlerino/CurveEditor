@@ -207,7 +207,7 @@ class TestMultiPointTrackingController:
         app_state.set_curve_data("Track3", [(0, 300.0, 200.0), (10, 310.0, 205.0)])
         return controller
 
-    @patch("ui.controllers.multi_point_tracking_controller.QTimer")
+    @patch("ui.controllers.tracking_selection_controller.QTimer")
     def test_on_tracking_points_selected_single(self, mock_qtimer, controller, mock_main_window):
         """Test selecting a single tracking point."""
         # Configure tracking_panel.get_selected_points() to return the selected point
@@ -235,7 +235,7 @@ class TestMultiPointTrackingController:
             call_args = mock_qtimer.singleShot.call_args
             assert call_args[0][0] == 10  # First argument should be the delay
 
-    @patch("ui.controllers.multi_point_tracking_controller.QTimer")
+    @patch("ui.controllers.tracking_selection_controller.QTimer")
     def test_on_tracking_points_selected_multiple(self, mock_qtimer, controller, mock_main_window):
         """Test selecting multiple tracking points."""
         # Mock the necessary methods
@@ -277,6 +277,11 @@ class TestMultiPointTrackingController:
 
         # Set active timeline point (simulates selecting multiple points where Track2 is last/active)
         mock_main_window.active_timeline_point = "Track2"
+
+        # Set active curve in ApplicationState
+        from stores.application_state import get_application_state
+
+        get_application_state().set_active_curve("Track2")
 
         # Call update_curve_display with DEFAULT context (preserves existing selection)
         controller.update_curve_display()

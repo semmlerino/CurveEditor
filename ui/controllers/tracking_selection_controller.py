@@ -139,7 +139,12 @@ class TrackingSelectionController(QObject):
 
         # Set the last selected point as the active timeline point (last clicked becomes active)
         # Note: point_names can be multiple for visual selection, but only one is "active" for timeline
-        self.main_window.active_timeline_point = point_names[-1] if point_names else None
+        active_curve = point_names[-1] if point_names else None
+        self.main_window.active_timeline_point = active_curve
+
+        # Set active curve in ApplicationState so display knows which curve is active
+        if active_curve:
+            self._app_state.set_active_curve(active_curve)
 
         # REMOVED: Synchronization loop (Phase 5.1)
         # TrackingPanel already updates ApplicationState directly (Phase 2)
