@@ -396,8 +396,8 @@ class TestDataFlowIntegration:
         Verifies that when ApplicationState is updated, the timeline
         automatically reflects the changes.
         """
-        # Create main window
-        window = MainWindow()
+        # Create main window (disable auto-loading to prevent test data override)
+        window = MainWindow(auto_load_data=False)
         qtbot.addWidget(window)
 
         # Get ApplicationState and timeline
