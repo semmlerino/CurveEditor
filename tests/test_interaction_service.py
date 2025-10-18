@@ -251,6 +251,12 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
     def test_add_to_history(self) -> None:
         """Test adding states to history."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100, 100)])
+
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -259,12 +265,11 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
-        # Set up actual curve data that will be captured by add_to_history
-        view.curve_data = [(1, 100, 100)]
+        # Add initial state
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Modify data and add another state
-        view.curve_data = [(1, 100, 100), (2, 200, 200)]
+        app_state.set_curve_data("test_curve", [(1, 100, 100), (2, 200, 200)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Now we should have 2 states in history and can undo
@@ -272,6 +277,12 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
     def test_undo_operation(self) -> None:
         """Test undo functionality."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100, 100)])
+
         view = MockCurveView([(1, 100, 100)])
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -284,7 +295,7 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Modify and add new state
-        view.curve_data = [(1, 150, 150)]
+        app_state.set_curve_data("test_curve", [(1, 150, 150)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Perform undo
@@ -296,6 +307,12 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
     def test_redo_operation(self) -> None:
         """Test redo functionality."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100, 100)])
+
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -305,14 +322,15 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         main_window.curve_view = view  # Backward compatibility
 
         # Add multiple states by modifying curve_data
-        view.curve_data = [(1, 100, 100)]
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
-        view.curve_data = [(1, 150, 150)]
+        app_state.set_curve_data("test_curve", [(1, 150, 150)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
+        app_state.set_curve_data("test_curve", [(1, 150, 150)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
-        view.curve_data = [(1, 200, 200)]
+
+        app_state.set_curve_data("test_curve", [(1, 200, 200)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Undo twice
@@ -328,6 +346,12 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
     def test_history_branching(self) -> None:
         """Test that new action after undo creates new branch."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100, 100)])
+
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -337,20 +361,19 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         main_window.curve_view = view  # Backward compatibility
 
         # Add states
-        view.curve_data = [(1, 100, 100)]
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
-        view.curve_data = [(1, 150, 150)]
+        app_state.set_curve_data("test_curve", [(1, 150, 150)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
-        view.curve_data = [(1, 200, 200)]
+        app_state.set_curve_data("test_curve", [(1, 200, 200)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Undo once
         self.service.undo(main_window)  # pyright: ignore[reportArgumentType]
 
         # Add new state (should clear redo history)
-        view.curve_data = [(1, 175, 175)]
+        app_state.set_curve_data("test_curve", [(1, 175, 175)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Can't redo anymore
@@ -358,6 +381,11 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
     def test_history_max_size(self) -> None:
         """Test history respects maximum size limit."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -368,7 +396,7 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
 
         # Add many states
         for i in range(150):  # More than typical max
-            view.curve_data = [(1, i, i)]
+            app_state.set_curve_data("test_curve", [(1, i, i)])
             self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # History size check through public API
@@ -620,6 +648,12 @@ class TestInteractionServiceKeyboardEvents:  # pyright: ignore[reportUninitializ
 
     def test_handle_undo_redo_shortcuts(self) -> None:
         """Test Ctrl+Z/Ctrl+Y shortcuts."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100, 100)])
+
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
@@ -629,10 +663,9 @@ class TestInteractionServiceKeyboardEvents:  # pyright: ignore[reportUninitializ
         main_window.curve_view = view  # Backward compatibility
 
         # Add some history by setting actual curve data
-        view.curve_data = [(1, 100, 100)]
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
-        view.curve_data = [(1, 150, 150)]
+        app_state.set_curve_data("test_curve", [(1, 150, 150)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Test that undo/redo capability exists
@@ -1251,14 +1284,23 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
 
     def test_clear_history(self) -> None:
         """Test clearing history."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100.0, 100.0)])
+
         view = MockCurveView([(1, 100.0, 100.0)])
         main_window = MockMainWindow()
-        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+        main_window.history = None
         main_window.history_index = None
         main_window.curve_widget = view
-        self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
-        # Add some states
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+
+        # Add some states
+        app_state.set_curve_data("test_curve", [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
+        app_state.set_curve_data("test_curve", [(1, 100.0, 100.0), (2, 200.0, 200.0), (3, 300.0, 300.0)])
         self.service.add_to_history(main_window, None)  # pyright: ignore[reportArgumentType]
 
         # Clear history
@@ -1290,6 +1332,12 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
 
     def test_get_memory_stats(self) -> None:
         """Test getting memory statistics."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
+        app_state.set_curve_data("test_curve", [(1, 100.0, 100.0)])
+
         view = MockCurveView([(1, 100.0, 100.0)])
         main_window = MockMainWindow()
         main_window.history = None

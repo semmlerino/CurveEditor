@@ -304,6 +304,21 @@ class StateManager(QObject):
             self._hover_point = index
             # No signal emission for hover to avoid excessive updates
 
+    # ==================== Frame State Properties ====================
+
+    @property
+    def current_frame(self) -> int:
+        """Get the current frame number (delegated to ApplicationState)."""
+        return self._app_state.current_frame
+
+    @current_frame.setter
+    def current_frame(self, frame: int) -> None:
+        """Set the current frame number with clamping to [1, total_frames]."""
+        total_frames = self._app_state.get_total_frames()
+        clamped_frame = max(1, min(frame, total_frames))
+        self._app_state.set_frame(clamped_frame)
+        logger.debug(f"Frame set (clamped): {frame} → {clamped_frame}")
+
     # ==================== View State Properties ====================
 
     @property

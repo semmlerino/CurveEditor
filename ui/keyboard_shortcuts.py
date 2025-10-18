@@ -323,31 +323,32 @@ class ShortcutManager(QObject):
             main_window: The MainWindow instance to connect to
         """
         # File actions
-        _ = self.action_new.triggered.connect(main_window._on_action_new)
-        _ = self.action_open.triggered.connect(main_window._on_action_open)
-        _ = self.action_save.triggered.connect(main_window._on_action_save)
-        _ = self.action_save_as.triggered.connect(main_window._on_action_save_as)
-        _ = self.action_load_images.triggered.connect(main_window._on_load_images)
-        _ = self.action_export_data.triggered.connect(main_window._on_export_data)
+        _ = self.action_new.triggered.connect(main_window.on_action_new)
+        _ = self.action_open.triggered.connect(main_window.on_action_open)
+        _ = self.action_save.triggered.connect(main_window.on_action_save)
+        _ = self.action_save_as.triggered.connect(main_window.on_action_save_as)
+        _ = self.action_load_images.triggered.connect(main_window.on_load_images)
+        _ = self.action_export_data.triggered.connect(main_window.on_export_data)
         _ = self.action_quit.triggered.connect(main_window.close)
 
         # Edit actions
-        _ = self.action_undo.triggered.connect(main_window._on_action_undo)
-        _ = self.action_redo.triggered.connect(main_window._on_action_redo)
-        _ = self.action_select_all.triggered.connect(main_window._on_select_all)
-        _ = self.action_add_point.triggered.connect(main_window._on_add_point)
+        _ = self.action_undo.triggered.connect(main_window.on_action_undo)
+        _ = self.action_redo.triggered.connect(main_window.on_action_redo)
+        _ = self.action_select_all.triggered.connect(main_window.on_select_all)
+        _ = self.action_add_point.triggered.connect(main_window.on_add_point)
 
         # View actions
-        _ = self.action_zoom_in.triggered.connect(main_window._on_action_zoom_in)
-        _ = self.action_zoom_out.triggered.connect(main_window._on_action_zoom_out)
-        _ = self.action_zoom_fit.triggered.connect(main_window._on_zoom_fit)
-        _ = self.action_reset_view.triggered.connect(main_window._on_action_reset_view)
-        _ = self.action_toggle_grid.triggered.connect(main_window._on_toggle_grid)
+        _ = self.action_zoom_in.triggered.connect(main_window.on_action_zoom_in)
+        _ = self.action_zoom_out.triggered.connect(main_window.on_action_zoom_out)
+        _ = self.action_zoom_fit.triggered.connect(main_window.on_zoom_fit)
+        _ = self.action_reset_view.triggered.connect(main_window.on_action_reset_view)
+        # TODO: Implement toggle_grid handler in MainWindow
+        # _ = self.action_toggle_grid.triggered.connect(main_window.on_toggle_grid)
 
         # Curve actions
-        _ = self.action_smooth_curve.triggered.connect(main_window._on_smooth_curve)
-        _ = self.action_filter_curve.triggered.connect(main_window._on_filter_curve)
-        _ = self.action_analyze_curve.triggered.connect(main_window._on_analyze_curve)
+        _ = self.action_smooth_curve.triggered.connect(main_window.on_smooth_curve)
+        _ = self.action_filter_curve.triggered.connect(main_window.on_filter_curve)
+        _ = self.action_analyze_curve.triggered.connect(main_window.on_analyze_curve)
 
         # Add actions to window for keyboard shortcuts to work globally
         main_window.addAction(self.action_undo)
