@@ -20,6 +20,7 @@ from core.commands.shortcut_command import ShortcutContext
 from core.commands.shortcut_commands import SetEndframeCommand
 from core.models import PointStatus
 from services import get_data_service
+from stores.application_state import get_application_state
 from ui.curve_view_widget import CurveViewWidget
 from ui.file_operations import FileOperations
 from ui.main_window import MainWindow

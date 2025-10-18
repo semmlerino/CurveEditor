@@ -21,6 +21,7 @@ from core.commands.shortcut_commands import (
 )
 from core.models import PointStatus, TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
+from stores.application_state import get_application_state
 from ui.main_window import MainWindow
 from ui.shortcut_registry import ShortcutRegistry
 
@@ -83,8 +84,6 @@ class TestGlobalShortcuts:
             QTest.keyClick(window.timeline_tabs, Qt.Key.Key_E)
 
             # Verify point at frame 1 (index 0) was toggled to ENDFRAME (Phase 6: Use ApplicationState)
-            from stores.application_state import get_application_state
-
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data())
             point0 = curve_data[0] if curve_data else None
