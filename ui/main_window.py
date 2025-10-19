@@ -775,79 +775,77 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     # ==================== UI Update Methods ====================
 
-    def update_ui_state(self) -> None:
-        """Update UI elements based on current state."""
-        # Update history actions
+    def _safe_set_label(self, label: QLabel | None, text: str) -> None:
+        """Set label text if label exists."""
+        if label:
+            label.setText(text)
+
+    def _format_bounds_text(self, bounds: tuple[float, float, float, float] | None) -> str:
+        """Format bounds tuple as display text."""
+        if not bounds:
+            return "Bounds: N/A"
+        min_x, min_y, max_x, max_y = bounds
+        return f"Bounds:\nX: [{min_x:.2f}, {max_x:.2f}]\nY: [{min_y:.2f}, {max_y:.2f}]"
+
+    def _get_current_point_count_and_bounds(self) -> tuple[int, tuple[float, float, float, float] | None]:
+        """Get current curve point count and bounds."""
+        if self.curve_widget:
+            curve_data = self.curve_widget.curve_data
+            analysis = self.services.analyze_curve_bounds(curve_data)  # pyright: ignore[reportArgumentType]
+            count = analysis["count"]
+            bounds_dict = analysis.get("bounds")
+
+            if isinstance(bounds_dict, dict) and isinstance(count, int | float) and count > 0:
+                bounds = (
+                    float(bounds_dict.get("min_x", 0)),
+                    float(bounds_dict.get("min_y", 0)),
+                    float(bounds_dict.get("max_x", 0)),
+                    float(bounds_dict.get("max_y", 0)),
+                )
+                return int(count), bounds
+            return int(count) if isinstance(count, int | float) else 0, None
+
+        # Fallback to ApplicationState
+        app_state = get_application_state()
+        active_curve = app_state.active_curve
+
+        if not active_curve:
+            return 0, None
+
+        curve_data = app_state.get_curve_data(active_curve)
+        if not curve_data:
+            return 0, None
+
+        x_coords = [float(point[1]) for point in curve_data]
+        y_coords = [float(point[2]) for point in curve_data]
+        bounds = (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+        return len(curve_data), bounds
+
+    def _update_history_actions(self) -> None:
+        """Update undo/redo action states."""
         if self.action_undo:
             self.action_undo.setEnabled(self.state_manager.can_undo)
         if self.action_redo:
             self.action_redo.setEnabled(self.state_manager.can_redo)
 
-        # Update frame controls via controller
+    def _update_frame_controls(self) -> None:
+        """Update frame spinbox and total frames label."""
         total_frames = get_application_state().get_total_frames()
-        # Use controller's set_frame_range instead of direct manipulation
         self.timeline_controller.set_frame_range(1, total_frames)
-        if self.total_frames_label:
-            self.total_frames_label.setText(str(total_frames))
+        self._safe_set_label(self.total_frames_label, str(total_frames))
 
-        # Update info labels - use curve widget data if available
-        if self.curve_widget:
-            curve_data = self.curve_widget.curve_data
-            analysis = self.services.analyze_curve_bounds(curve_data)
+    def _update_point_info_labels(self) -> None:
+        """Update point count and bounds labels."""
+        point_count, bounds = self._get_current_point_count_and_bounds()
 
-            point_count = analysis["count"]
-            if self.point_count_label:
-                self.point_count_label.setText(f"Points: {point_count}")
+        self._safe_set_label(self.point_count_label, f"Points: {point_count}")
+        self._safe_set_label(self.bounds_label, self._format_bounds_text(bounds))
 
-            if isinstance(point_count, int | float) and point_count > 0:
-                bounds = analysis["bounds"]
-                if isinstance(bounds, dict):
-                    min_x = bounds.get("min_x", 0)
-                    max_x = bounds.get("max_x", 0)
-                    min_y = bounds.get("min_y", 0)
-                    max_y = bounds.get("max_y", 0)
-                    if self.bounds_label:
-                        self.bounds_label.setText(
-                            f"Bounds:\nX: [{min_x:.2f}, {max_x:.2f}]\nY: [{min_y:.2f}, {max_y:.2f}]"
-                        )
-                else:
-                    if self.bounds_label:
-                        self.bounds_label.setText("Bounds: N/A")
-            else:
-                if self.bounds_label:
-                    self.bounds_label.setText("Bounds: N/A")
-        else:
-            # Fallback to ApplicationState
-            app_state = get_application_state()
-            active_curve = app_state.active_curve
-
-            if active_curve:
-                curve_data = app_state.get_curve_data(active_curve)
-                point_count = len(curve_data) if curve_data else 0
-            else:
-                point_count = 0
-
-            if self.point_count_label:
-                self.point_count_label.setText(f"Points: {point_count}")
-
-            if point_count > 0 and active_curve:
-                # Calculate bounds from curve data (migrated from StateManager.data_bounds)
-                curve_data = app_state.get_curve_data(active_curve)
-                if not curve_data:
-                    bounds = (0.0, 0.0, 1.0, 1.0)
-                else:
-                    # Extract x and y coordinates (indices 1 and 2 in CurveDataList)
-                    x_coords = [float(point[1]) for point in curve_data]
-                    y_coords = [float(point[2]) for point in curve_data]
-                    bounds = (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
-
-                if self.bounds_label:
-                    self.bounds_label.setText(
-                        f"Bounds:\nX: [{bounds[0]:.2f}, {bounds[2]:.2f}]\nY: [{bounds[1]:.2f}, {bounds[3]:.2f}]"
-                    )
-            else:
-                if self.bounds_label:
-                    self.bounds_label.setText("Bounds: N/A")
+    def update_ui_state(self) -> None:
+        """Update UI elements based on current state."""
+        self._update_history_actions()
+        self._update_frame_controls()
+        self._update_point_info_labels()
 
     def update_zoom_label(self) -> None:
         """Update zoom label (delegated to ActionHandlerController)."""

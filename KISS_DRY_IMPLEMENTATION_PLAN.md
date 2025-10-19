@@ -611,8 +611,8 @@ raise RuntimeError("Test exception")
 **Risk**: Low
 
 #### Prerequisites
-- [ ] Review `update_ui_state()` (lines 777-850)
-- [ ] Note maximum nesting depth (5 levels)
+- [x] Review `update_ui_state()` (lines 777-850)
+- [x] Note maximum nesting depth (5 levels)
 
 #### Code Changes
 
@@ -732,15 +732,15 @@ def update_ui_state(self) -> None:
 #### Success Metrics
 
 **Quantitative**:
-- [ ] 6 helper methods created
-- [ ] `update_ui_state()` reduced from 74 to ~8 lines
-- [ ] Maximum nesting depth reduced from 5 to 2
-- [ ] `if self.bounds_label:` reduced from 5 occurrences to 0 (in `_safe_set_label`)
+- [x] 6 helper methods created
+- [x] `update_ui_state()` reduced from 74 to 7 lines (90.5% reduction)
+- [x] Maximum nesting depth reduced from 5 to 0 (main method)
+- [x] `if self.bounds_label:` reduced from 5 occurrences to 0 (in `_safe_set_label`)
 
 **Qualitative**:
-- [ ] Each method has single responsibility
-- [ ] Method names clearly describe intent
-- [ ] No duplicate bounds calculation logic
+- [x] Each method has single responsibility
+- [x] Method names clearly describe intent
+- [x] No duplicate bounds calculation logic
 
 #### Verification Steps
 
