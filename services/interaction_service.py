@@ -72,346 +72,382 @@ class _MouseHandler:
 
     def handle_mouse_press(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Handle mouse press events."""
-        from PySide6.QtCore import QPoint, QRect, QSize, Qt
-        from PySide6.QtWidgets import QRubberBand
+        self._owner._assert_main_thread()
 
-        pos_f = event.position()
-        # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
-        pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
+        try:
+            from PySide6.QtCore import QPoint, QRect, QSize, Qt
+            from PySide6.QtWidgets import QRubberBand
 
-        # Check for point selection first
-        point_result = self._owner._selection.find_point_at(view, pos.x(), pos.y())
+            pos_f = event.position()
+            # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
+            pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
-        if point_result.found:
-            # Point clicked
-            point_idx = point_result.index
-            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                # Toggle selection (no drag for Ctrl+click)
-                # Get current selection
-                current_selection = view.selected_points if view.selected_points else set()
-                # Toggle the point
-                if point_idx in current_selection:
-                    # Deselecting
-                    current_selection = current_selection - {point_idx}
-                    view.selected_points = current_selection
-                    # Set selected_point_idx to first remaining, or -1 if none
-                    view.selected_point_idx = min(current_selection) if current_selection else -1
-                else:
-                    # Selecting
-                    current_selection = current_selection | {point_idx}
-                    view.selected_points = current_selection
+            # Check for point selection first
+            point_result = self._owner._selection.find_point_at(view, pos.x(), pos.y())
+
+            if point_result.found:
+                # Point clicked
+                point_idx = point_result.index
+                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    # Toggle selection (no drag for Ctrl+click)
+                    # Get current selection
+                    current_selection = view.selected_points if view.selected_points else set()
+                    # Toggle the point
+                    if point_idx in current_selection:
+                        # Deselecting
+                        current_selection = current_selection - {point_idx}
+                        view.selected_points = current_selection
+                        # Set selected_point_idx to first remaining, or -1 if none
+                        view.selected_point_idx = min(current_selection) if current_selection else -1
+                    else:
+                        # Selecting
+                        current_selection = current_selection | {point_idx}
+                        view.selected_points = current_selection
+                        view.selected_point_idx = point_idx
+                elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
+                    # Range selection (simplified - just add to selection, no drag)
+                    current_selection = view.selected_points if view.selected_points else set()
+                    # Add point to selection
+                    view.selected_points = current_selection | {point_idx}
                     view.selected_point_idx = point_idx
-            elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
-                # Range selection (simplified - just add to selection, no drag)
-                current_selection = view.selected_points if view.selected_points else set()
-                # Add point to selection
-                view.selected_points = current_selection | {point_idx}
-                view.selected_point_idx = point_idx
-            else:
-                # Single selection - start drag for normal click
-                view.selected_points = {point_idx}
-                view.selected_point_idx = point_idx
+                else:
+                    # Single selection - start drag for normal click
+                    view.selected_points = {point_idx}
+                    view.selected_point_idx = point_idx
 
-                # Start drag - capture original positions for undo
-                view.drag_active = True
-                view.last_drag_pos = pos
-                self._owner.drag_point_idx = point_idx
+                    # Start drag - capture original positions for undo
+                    view.drag_active = True
+                    view.last_drag_pos = pos
+                    self._owner.drag_point_idx = point_idx
 
-                # Capture original positions of all selected points
-                self._drag_original_positions = {}
-                if view.selected_points:
-                    # Use ApplicationState for active curve data
-                    active_curve_data = self._app_state.get_curve_data()  # No param = active curve
-                    for idx in view.selected_points:
-                        if 0 <= idx < len(active_curve_data):
-                            point = active_curve_data[idx]
-                            self._drag_original_positions[idx] = (point[1], point[2])
+                    # Capture original positions of all selected points
+                    self._drag_original_positions = {}
+                    if view.selected_points:
+                        # Use ApplicationState for active curve data
+                        active_curve_data = self._app_state.get_curve_data()  # No param = active curve
+                        for idx in view.selected_points:
+                            if 0 <= idx < len(active_curve_data):
+                                point = active_curve_data[idx]
+                                self._drag_original_positions[idx] = (point[1], point[2])
 
-        elif event.button() == Qt.MouseButton.LeftButton:
-            if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                # Start rectangle selection
-                # rubber_band is Optional in CurveViewProtocol
-                if view.rubber_band is None:
-                    # Create rubber band with parent widget workaround
-                    parent_widget = getattr(view, "parentWidget", lambda: None)() or None
-                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)
-                view.rubber_band_origin = pos
-                view.rubber_band_active = True
-                view.rubber_band.setGeometry(QRect(pos, QSize()))
-                view.rubber_band.show()
-            else:
-                # Clear selection and start pan
-                view.selected_points = set()
-                view.selected_point_idx = -1
+            elif event.button() == Qt.MouseButton.LeftButton:
+                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    # Start rectangle selection
+                    # rubber_band is Optional in CurveViewProtocol
+                    if view.rubber_band is None:
+                        # Create rubber band with parent widget workaround
+                        parent_widget = getattr(view, "parentWidget", lambda: None)() or None
+                        view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)
+                    view.rubber_band_origin = pos
+                    view.rubber_band_active = True
+                    view.rubber_band.setGeometry(QRect(pos, QSize()))
+                    view.rubber_band.show()
+                else:
+                    # Clear selection and start pan
+                    view.selected_points = set()
+                    view.selected_point_idx = -1
+                    view.pan_active = True
+                    view.last_pan_pos = pos
+                    view.setCursor(Qt.CursorShape.ClosedHandCursor)
+            elif event.button() == Qt.MouseButton.MiddleButton:
+                # Middle button always pans
                 view.pan_active = True
                 view.last_pan_pos = pos
                 view.setCursor(Qt.CursorShape.ClosedHandCursor)
-        elif event.button() == Qt.MouseButton.MiddleButton:
-            # Middle button always pans
-            view.pan_active = True
-            view.last_pan_pos = pos
-            view.setCursor(Qt.CursorShape.ClosedHandCursor)
 
-        view.update()
+            view.update()
+
+        except Exception as e:
+            logger.error(f"Error in mouse press handler: {e}", exc_info=True)
+            # Don't propagate to Qt event loop - prevents UI crash
 
     def handle_mouse_move(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Handle mouse move events."""
         self._owner._assert_main_thread()
 
-        from PySide6.QtCore import QPoint, QRect
+        try:
+            from PySide6.QtCore import QPoint, QRect
 
-        pos_f = event.position()
-        # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
-        pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
+            pos_f = event.position()
+            # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
+            pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
-        # drag_active is bool, last_drag_pos is Optional in CurveViewProtocol
-        if view.drag_active and view.last_drag_pos is not None:
-            # Drag selected points
-            # selected_points is defined in CurveViewProtocol
-            if view.selected_points:
-                delta_x = pos.x() - view.last_drag_pos.x()
-                delta_y = pos.y() - view.last_drag_pos.y()
+            # drag_active is bool, last_drag_pos is Optional in CurveViewProtocol
+            if view.drag_active and view.last_drag_pos is not None:
+                # Drag selected points
+                # selected_points is defined in CurveViewProtocol
+                if view.selected_points:
+                    delta_x = pos.x() - view.last_drag_pos.x()
+                    delta_y = pos.y() - view.last_drag_pos.y()
 
-                # Convert screen delta to curve coordinates
-                transform_service = _get_transform_service()
-                transform = transform_service.get_transform(view)
-
-                # Transform has a single scale, not scale_x/scale_y
-                curve_delta_x = delta_x / transform.scale
-                # Y-FLIP BUG FIX: Respect view.flip_y_axis
-                y_multiplier = -1.0 if view.flip_y_axis else 1.0
-                curve_delta_y = (delta_y * y_multiplier) / transform.scale
-
-                # Use ApplicationState with batch mode for performance
-                active_curve_name = self._app_state.active_curve
-                if active_curve_name:
-                    active_curve_data = list(self._app_state.get_curve_data())
-
-                    # Move all selected points - update via ApplicationState with batch mode
-                    with self._app_state.batch_updates():
-                        for idx in view.selected_points:
-                            if 0 <= idx < len(active_curve_data):
-                                point = active_curve_data[idx]
-                                new_x = point[1] + curve_delta_x
-                                new_y = point[2] + curve_delta_y
-                                # Update in local copy
-                                if len(point) >= 4:
-                                    active_curve_data[idx] = (point[0], new_x, new_y, point[3])
-                                else:
-                                    active_curve_data[idx] = (point[0], new_x, new_y)
-                        # Write back to ApplicationState
-                        self._app_state.set_curve_data(active_curve_name, active_curve_data)
-
-            view.last_drag_pos = pos
-
-        # pan_active is bool, last_pan_pos is Optional in CurveViewProtocol
-        elif view.pan_active and view.last_pan_pos is not None:
-            # Pan the view
-            delta_x = pos.x() - view.last_pan_pos.x()
-            delta_y = pos.y() - view.last_pan_pos.y()
-
-            # Pan the view if supported
-            pan_method = getattr(view, "pan", None)
-            if pan_method is not None and callable(pan_method):
-                _ = pan_method(delta_x, delta_y)
-            view.last_pan_pos = pos
-
-        # rubber_band_active is bool, rubber_band_origin is QPoint in CurveViewProtocol
-        elif view.rubber_band_active:
-            # Update rubber band rectangle
-            # rubber_band is Optional in CurveViewProtocol
-            if view.rubber_band is not None:
-                # rubber_band_origin was set as QPoint in mouse press, pos is also QPoint
-                origin = view.rubber_band_origin
-                origin_pt = origin if isinstance(origin, QPoint) else origin.toPoint()
-                rect = QRect(origin_pt, pos).normalized()
-                view.rubber_band.setGeometry(rect)
-
-        view.update()
-
-    def handle_mouse_release(self, view: CurveViewProtocol, _event: QMouseEvent) -> None:
-        """Handle mouse release events."""
-
-        # drag_active is bool in CurveViewProtocol
-        if view.drag_active:
-            # End dragging - create command for undo/redo
-            view.drag_active = False
-            view.last_drag_pos = None
-            self._owner.drag_point_idx = None
-
-            # Create command if points were actually moved
-            if self._drag_original_positions:
-                from core.commands.curve_commands import BatchMoveCommand
-
-                # Collect the moves using ApplicationState
-                active_curve_data = self._app_state.get_curve_data()
-                moves = []
-                for idx, old_pos in self._drag_original_positions.items():
-                    if 0 <= idx < len(active_curve_data):
-                        point = active_curve_data[idx]
-                        new_pos = (point[1], point[2])
-                        if old_pos != new_pos:  # Only add if actually moved
-                            moves.append((idx, old_pos, new_pos))
-
-                # Execute command through command manager if points were moved
-                if moves:
-                    command = BatchMoveCommand(
-                        description=f"Move {len(moves)} point{'s' if len(moves) > 1 else ''}",
-                        moves=moves,
-                    )
-                    # The points have already been moved during dragging,
-                    # so we mark the command as executed and add it to history
-                    command.executed = True
-                    _ = self._owner.command_manager.add_executed_command(command, view.main_window)
-
-            # Clear the tracked positions
-            self._drag_original_positions = None
-
-        # pan_active is bool in CurveViewProtocol
-        elif view.pan_active:
-            # End panning
-            view.pan_active = False
-            view.last_pan_pos = None
-            view.unsetCursor()
-
-        # rubber_band_active is bool in CurveViewProtocol
-        elif view.rubber_band_active:
-            # Finish rectangle selection
-            # rubber_band is Optional in CurveViewProtocol
-            if view.rubber_band is not None:
-                rect = view.rubber_band.geometry()
-
-                # Find points in rectangle using ApplicationState
-                selected_count = 0
-                active_curve_data = self._app_state.get_curve_data()
-                if active_curve_data:
+                    # Convert screen delta to curve coordinates
                     transform_service = _get_transform_service()
                     transform = transform_service.get_transform(view)
 
-                    if not view.selected_points:
-                        view.selected_points = set()
+                    # Transform has a single scale, not scale_x/scale_y
+                    curve_delta_x = delta_x / transform.scale
+                    # Y-FLIP BUG FIX: Respect view.flip_y_axis
+                    y_multiplier = -1.0 if view.flip_y_axis else 1.0
+                    curve_delta_y = (delta_y * y_multiplier) / transform.scale
 
-                    for i, point in enumerate(active_curve_data):
-                        screen_x, screen_y = transform.data_to_screen(point[1], point[2])
-                        if rect.contains(int(screen_x), int(screen_y)):
-                            view.selected_points.add(i)
-                            selected_count += 1
+                    # Use ApplicationState with batch mode for performance
+                    active_curve_name = self._app_state.active_curve
+                    if active_curve_name:
+                        active_curve_data = list(self._app_state.get_curve_data())
 
-                # Hide rubber band
-                view.rubber_band.hide()
-                view.rubber_band_active = False
+                        # Move all selected points - update via ApplicationState with batch mode
+                        with self._app_state.batch_updates():
+                            for idx in view.selected_points:
+                                if 0 <= idx < len(active_curve_data):
+                                    point = active_curve_data[idx]
+                                    new_x = point[1] + curve_delta_x
+                                    new_y = point[2] + curve_delta_y
+                                    # Update in local copy
+                                    if len(point) >= 4:
+                                        active_curve_data[idx] = (point[0], new_x, new_y, point[3])
+                                    else:
+                                        active_curve_data[idx] = (point[0], new_x, new_y)
+                            # Write back to ApplicationState
+                            self._app_state.set_curve_data(active_curve_name, active_curve_data)
 
-                # Update history if points were selected
-                if selected_count > 0:
-                    self._owner._commands.update_history_buttons(view.main_window)
+                view.last_drag_pos = pos
 
-        view.update()
+            # pan_active is bool, last_pan_pos is Optional in CurveViewProtocol
+            elif view.pan_active and view.last_pan_pos is not None:
+                # Pan the view
+                delta_x = pos.x() - view.last_pan_pos.x()
+                delta_y = pos.y() - view.last_pan_pos.y()
+
+                # Pan the view if supported
+                pan_method = getattr(view, "pan", None)
+                if pan_method is not None and callable(pan_method):
+                    _ = pan_method(delta_x, delta_y)
+                view.last_pan_pos = pos
+
+            # rubber_band_active is bool, rubber_band_origin is QPoint in CurveViewProtocol
+            elif view.rubber_band_active:
+                # Update rubber band rectangle
+                # rubber_band is Optional in CurveViewProtocol
+                if view.rubber_band is not None:
+                    # rubber_band_origin was set as QPoint in mouse press, pos is also QPoint
+                    origin = view.rubber_band_origin
+                    origin_pt = origin if isinstance(origin, QPoint) else origin.toPoint()
+                    rect = QRect(origin_pt, pos).normalized()
+                    view.rubber_band.setGeometry(rect)
+
+            view.update()
+
+        except Exception as e:
+            logger.error(f"Error in mouse move handler: {e}", exc_info=True)
+            # Don't propagate to Qt event loop - prevents UI crash
+
+    def handle_mouse_release(self, view: CurveViewProtocol, _event: QMouseEvent) -> None:
+        """Handle mouse release events."""
+        self._owner._assert_main_thread()
+
+        try:
+            # drag_active is bool in CurveViewProtocol
+            if view.drag_active:
+                # End dragging - create command for undo/redo
+                view.drag_active = False
+                view.last_drag_pos = None
+                self._owner.drag_point_idx = None
+
+                # Create command if points were actually moved
+                if self._drag_original_positions:
+                    from core.commands.curve_commands import BatchMoveCommand
+
+                    # Collect the moves using ApplicationState
+                    active_curve_data = self._app_state.get_curve_data()
+                    moves = []
+                    for idx, old_pos in self._drag_original_positions.items():
+                        if 0 <= idx < len(active_curve_data):
+                            point = active_curve_data[idx]
+                            new_pos = (point[1], point[2])
+                            if old_pos != new_pos:  # Only add if actually moved
+                                moves.append((idx, old_pos, new_pos))
+
+                    # Execute command through command manager if points were moved
+                    if moves:
+                        command = BatchMoveCommand(
+                            description=f"Move {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                            moves=moves,
+                        )
+                        # The points have already been moved during dragging,
+                        # so we mark the command as executed and add it to history
+                        command.executed = True
+                        _ = self._owner.command_manager.add_executed_command(command, view.main_window)
+
+                # Clear the tracked positions
+                self._drag_original_positions = None
+
+            # pan_active is bool in CurveViewProtocol
+            elif view.pan_active:
+                # End panning
+                view.pan_active = False
+                view.last_pan_pos = None
+                view.unsetCursor()
+
+            # rubber_band_active is bool in CurveViewProtocol
+            elif view.rubber_band_active:
+                # Finish rectangle selection
+                # rubber_band is Optional in CurveViewProtocol
+                if view.rubber_band is not None:
+                    rect = view.rubber_band.geometry()
+
+                    # Find points in rectangle using ApplicationState
+                    selected_count = 0
+                    active_curve_data = self._app_state.get_curve_data()
+                    if active_curve_data:
+                        transform_service = _get_transform_service()
+                        transform = transform_service.get_transform(view)
+
+                        if not view.selected_points:
+                            view.selected_points = set()
+
+                        for i, point in enumerate(active_curve_data):
+                            screen_x, screen_y = transform.data_to_screen(point[1], point[2])
+                            if rect.contains(int(screen_x), int(screen_y)):
+                                view.selected_points.add(i)
+                                selected_count += 1
+
+                    # Hide rubber band
+                    view.rubber_band.hide()
+                    view.rubber_band_active = False
+
+                    # Update history if points were selected
+                    if selected_count > 0:
+                        self._owner._commands.update_history_buttons(view.main_window)
+
+            view.update()
+
+        except Exception as e:
+            logger.error(f"Error in mouse release handler: {e}", exc_info=True)
+            # Don't propagate to Qt event loop - prevents UI crash
 
     def handle_wheel_event(self, view: CurveViewProtocol, event: QWheelEvent) -> None:
         """Handle mouse wheel events."""
-        # Zoom around mouse position
-        delta = event.angleDelta().y()
-        zoom_factor = 1.1 if delta > 0 else 0.9
+        self._owner._assert_main_thread()
 
-        # Zoom the view if supported
-        zoom_method = getattr(view, "zoom", None)
-        if zoom_method is not None and callable(zoom_method):
-            center = event.position()
-            _ = zoom_method(zoom_factor, center)
-            view.update()
+        try:
+            # Zoom around mouse position
+            delta = event.angleDelta().y()
+            zoom_factor = 1.1 if delta > 0 else 0.9
+
+            # Zoom the view if supported
+            zoom_method = getattr(view, "zoom", None)
+            if zoom_method is not None and callable(zoom_method):
+                center = event.position()
+                _ = zoom_method(zoom_factor, center)
+                view.update()
+
+        except Exception as e:
+            logger.error(f"Error in wheel event handler: {e}", exc_info=True)
+            # Don't propagate to Qt event loop - prevents UI crash
 
     def handle_key_event(self, view: CurveViewProtocol, event: QKeyEvent) -> None:
         """Handle keyboard events."""
-        from PySide6.QtCore import Qt
+        self._owner._assert_main_thread()
 
-        key = event.key()
+        try:
+            from PySide6.QtCore import Qt
 
-        if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
-            # Delete selected points using command for undo/redo
-            # selected_points is defined in CurveViewProtocol
-            if view.selected_points:
-                from core.commands.curve_commands import DeletePointsCommand
+            key = event.key()
 
-                # Collect points to delete using ApplicationState
+            if key == Qt.Key.Key_Delete or key == Qt.Key.Key_Backspace:
+                # Delete selected points using command for undo/redo
+                # selected_points is defined in CurveViewProtocol
+                if view.selected_points:
+                    from core.commands.curve_commands import DeletePointsCommand
+
+                    # Collect points to delete using ApplicationState
+                    active_curve_data = self._app_state.get_curve_data()
+                    indices = list(view.selected_points)
+                    deleted_points = []
+                    for idx in sorted(indices):
+                        if 0 <= idx < len(active_curve_data):
+                            deleted_points.append((idx, active_curve_data[idx]))
+
+                    if deleted_points:
+                        # Create and execute delete command
+                        command = DeletePointsCommand(
+                            description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
+                            indices=indices,
+                            deleted_points=deleted_points,
+                        )
+
+                        # Execute the command through the command manager
+                        _ = self._owner.command_manager.execute_command(command, view.main_window)
+
+                        # Clear selection
+                        view.selected_points.clear()
+                        view.selected_point_idx = -1
+
+                    # Note: No need to add_to_history - command manager handles it
+
+            elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                # Select all points using ApplicationState
                 active_curve_data = self._app_state.get_curve_data()
-                indices = list(view.selected_points)
-                deleted_points = []
-                for idx in sorted(indices):
-                    if 0 <= idx < len(active_curve_data):
-                        deleted_points.append((idx, active_curve_data[idx]))
+                if active_curve_data:
+                    view.selected_points = set(range(len(active_curve_data)))
+                    view.selected_point_idx = 0
+                    # main_window is defined in CurveViewProtocol
+                    self._owner._commands.update_history_buttons(view.main_window)
 
-                if deleted_points:
-                    # Create and execute delete command
-                    command = DeletePointsCommand(
-                        description=f"Delete {len(deleted_points)} point{'s' if len(deleted_points) > 1 else ''}",
-                        indices=indices,
-                        deleted_points=deleted_points,
-                    )
-
-                    # Execute the command through the command manager
-                    _ = self._owner.command_manager.execute_command(command, view.main_window)
-
-                    # Clear selection
-                    view.selected_points.clear()
-                    view.selected_point_idx = -1
-
-                # Note: No need to add_to_history - command manager handles it
-
-        elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-            # Select all points using ApplicationState
-            active_curve_data = self._app_state.get_curve_data()
-            if active_curve_data:
-                view.selected_points = set(range(len(active_curve_data)))
-                view.selected_point_idx = 0
+            elif key == Qt.Key.Key_Escape:
+                # Clear selection
+                view.selected_points = set()
+                view.selected_point_idx = -1
                 # main_window is defined in CurveViewProtocol
                 self._owner._commands.update_history_buttons(view.main_window)
 
-        elif key == Qt.Key.Key_Escape:
-            # Clear selection
-            view.selected_points = set()
-            view.selected_point_idx = -1
-            # main_window is defined in CurveViewProtocol
-            self._owner._commands.update_history_buttons(view.main_window)
+            elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
+                # Nudge selected points
+                # selected_points is defined in CurveViewProtocol
+                if view.selected_points:
+                    from core.commands.curve_commands import BatchMoveCommand
 
-        elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
-            # Nudge selected points
-            # selected_points is defined in CurveViewProtocol
-            if view.selected_points:
-                from core.commands.curve_commands import BatchMoveCommand
-
-                nudge_distance = 1.0
-                delta_x = (
-                    nudge_distance if key == Qt.Key.Key_Right else (-nudge_distance if key == Qt.Key.Key_Left else 0)
-                )
-                delta_y = nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
-
-                # Convert to curve coordinates
-                transform_service = _get_transform_service()
-                transform = transform_service.get_transform(view)
-
-                curve_delta_x = delta_x / transform.scale
-                curve_delta_y = -delta_y / transform.scale  # Invert Y
-
-                # Collect moves for command using ApplicationState
-                active_curve_data = self._app_state.get_curve_data()
-                moves = []
-                for idx in view.selected_points:
-                    if 0 <= idx < len(active_curve_data):
-                        point = active_curve_data[idx]
-                        old_pos = (point[1], point[2])
-                        new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
-                        moves.append((idx, old_pos, new_pos))
-
-                if moves:
-                    # Create and execute move command
-                    command = BatchMoveCommand(
-                        description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
-                        moves=moves,
+                    nudge_distance = 1.0
+                    delta_x = (
+                        nudge_distance
+                        if key == Qt.Key.Key_Right
+                        else (-nudge_distance if key == Qt.Key.Key_Left else 0)
                     )
-                    _ = self._owner.command_manager.execute_command(command, view.main_window)
-                    # Note: No need to add_to_history - command manager handles it
+                    delta_y = (
+                        nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
+                    )
 
-        view.update()
+                    # Convert to curve coordinates
+                    transform_service = _get_transform_service()
+                    transform = transform_service.get_transform(view)
+
+                    curve_delta_x = delta_x / transform.scale
+                    curve_delta_y = -delta_y / transform.scale  # Invert Y
+
+                    # Collect moves for command using ApplicationState
+                    active_curve_data = self._app_state.get_curve_data()
+                    moves = []
+                    for idx in view.selected_points:
+                        if 0 <= idx < len(active_curve_data):
+                            point = active_curve_data[idx]
+                            old_pos = (point[1], point[2])
+                            new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
+                            moves.append((idx, old_pos, new_pos))
+
+                    if moves:
+                        # Create and execute move command
+                        command = BatchMoveCommand(
+                            description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                            moves=moves,
+                        )
+                        _ = self._owner.command_manager.execute_command(command, view.main_window)
+                        # Note: No need to add_to_history - command manager handles it
+
+            view.update()
+
+        except Exception as e:
+            logger.error(f"Error in key event handler: {e}", exc_info=True)
+            # Don't propagate to Qt event loop - prevents UI crash
 
 
 class _SelectionManager:

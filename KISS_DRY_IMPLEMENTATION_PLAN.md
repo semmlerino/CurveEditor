@@ -522,8 +522,8 @@ git checkout ui/main_window.py
 **Risk**: Very Low
 
 #### Prerequisites
-- [ ] Review existing event handlers: `handle_mouse_press`, `handle_mouse_move`, `handle_mouse_release`, `handle_wheel_event`, `handle_key_event`
-- [ ] Verify no existing outer try/except blocks
+- [x] Review existing event handlers: `handle_mouse_press`, `handle_mouse_move`, `handle_mouse_release`, `handle_wheel_event`, `handle_key_event` ✅
+- [x] Verify no existing outer try/except blocks ✅
 
 #### Code Changes
 
@@ -569,13 +569,13 @@ def handle_mouse_press(self, view: CurveViewProtocol, event: QMouseEvent) -> Non
 #### Success Metrics
 
 **Quantitative**:
-- [ ] 5 event handlers wrapped with try/except
-- [ ] Each has: `except Exception as e: logger.error(..., exc_info=True)`
+- [x] 5 event handlers wrapped with try/except ✅
+- [x] Each has: `except Exception as e: logger.error(..., exc_info=True)` ✅
 
 **Qualitative**:
-- [ ] Exceptions logged with full traceback (`exc_info=True`)
-- [ ] UI doesn't crash on handler exceptions
-- [ ] Errors are visible in logs for debugging
+- [x] Exceptions logged with full traceback (`exc_info=True`) ✅
+- [x] UI doesn't crash on handler exceptions ✅
+- [x] Errors are visible in logs for debugging ✅
 
 #### Verification Steps
 
