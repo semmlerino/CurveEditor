@@ -501,9 +501,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @property
     def curve_data(self) -> CurveDataList:
-        """Get the current curve data from the curve widget."""
-        # Get data from curve widget (which uses ApplicationState internally)
-        return self.curve_widget.curve_data if self.curve_widget else []
+        """Get the current curve data directly from ApplicationState.
+
+        Uses ApplicationState as single source of truth per architectural guidelines.
+        """
+        app_state = get_application_state()
+        if (cd := app_state.active_curve_data) is None:
+            return []
+        _, curve_data = cd
+        return curve_data
 
     @curve_data.setter
     def curve_data(self, value: CurveDataList) -> None:
@@ -797,37 +803,26 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         return f"Bounds:\nX: [{min_x:.2f}, {max_x:.2f}]\nY: [{min_y:.2f}, {max_y:.2f}]"
 
     def _get_current_point_count_and_bounds(self) -> tuple[int, tuple[float, float, float, float] | None]:
-        """Get current curve point count and bounds."""
-        if self.curve_widget:
-            curve_data = self.curve_widget.curve_data
-            analysis = self.services.analyze_curve_bounds(curve_data)  # pyright: ignore[reportArgumentType]
-            count = analysis["count"]
-            bounds_dict = analysis.get("bounds")
+        """Get current curve point count and bounds from ApplicationState.
 
-            if isinstance(bounds_dict, dict) and isinstance(count, int | float) and count > 0:
-                bounds = (
-                    float(bounds_dict.get("min_x", 0)),
-                    float(bounds_dict.get("min_y", 0)),
-                    float(bounds_dict.get("max_x", 0)),
-                    float(bounds_dict.get("max_y", 0)),
-                )
-                return int(count), bounds
-            return int(count) if isinstance(count, int | float) else 0, None
-
-        # Fallback to ApplicationState
+        Uses ApplicationState as single source of truth per architectural guidelines.
+        """
         app_state = get_application_state()
-        active_curve = app_state.active_curve
 
-        if not active_curve:
+        # Get active curve data from single source of truth
+        if (cd := app_state.active_curve_data) is None:
             return 0, None
 
-        curve_data = app_state.get_curve_data(active_curve)
+        curve_name, curve_data = cd
+
         if not curve_data:
             return 0, None
 
+        # Calculate bounds from curve data
         x_coords = [float(point[1]) for point in curve_data]
         y_coords = [float(point[2]) for point in curve_data]
         bounds = (min(x_coords), min(y_coords), max(x_coords), max(y_coords))
+
         return len(curve_data), bounds
 
     def _update_history_actions(self) -> None:
@@ -1103,7 +1098,12 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             Sorted list of frame numbers that are navigable (keyframes, endframes, or startframes).
             Returns empty list if no curve data loaded.
         """
-        curve_data = self.curve_widget.curve_data if self.curve_widget else []
+        # Get active curve data directly from ApplicationState
+        app_state = get_application_state()
+        if (cd := app_state.active_curve_data) is None:
+            return []
+
+        _, curve_data = cd
 
         if not curve_data:
             return []

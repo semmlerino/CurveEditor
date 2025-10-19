@@ -583,20 +583,21 @@ class TestMultiControllerSignalChains:
         # Stop playback
         timeline_controller.toggle_playback()
 
-    @pytest.mark.skip(reason="Point editor coordinate updates need signal chain implementation")
     def test_controller_cascade_signal_chain(self, qtbot):
         """Test cascading signals through multiple controllers.
 
         Tests the pattern:
-        UIController -> ActionHandler -> PointEditor -> Store -> All UI
+        PointEditorController -> CurveViewWidget -> CurveDataFacade -> ApplicationState -> Signal Emission
 
-        NOTE: This test exposes a gap in the point editor -> ApplicationState signal chain.
-        The point editor successfully updates the data_facade, which calls update_point,
-        but the signal may not be properly emitted or connected to propagate back to UI.
-        This is a known limitation in the current implementation that should be addressed
-        in a future refactoring phase.
+        The signal chain works correctly:
+        1. PointEditorController._on_point_x_changed() updates the point
+        2. CurveDataFacade.update_point() calls ApplicationState.update_point()
+        3. ApplicationState.update_point() emits curves_changed signal
+        4. UI components receive the signal and can update
+
+        NOTE: Must disable auto_load_data to prevent sample data from interfering with test setup.
         """
-        window = MainWindow()
+        window = MainWindow(auto_load_data=False)  # Don't load sample data
         qtbot.addWidget(window)
 
         # Setup test data via ApplicationState (Phase 4 pattern)

@@ -243,6 +243,37 @@ class SmoothCommand(Command):
 
 **Critical**: Both `undo()` AND `redo()` must use `self._target_curve`. Never call `self.execute(main_window)` in `redo()` as it will overwrite the stored target.
 
+### Data Access Patterns (Architectural Guidance)
+
+**Prefer direct ApplicationState access in MainWindow and services:**
+
+```python
+# ✅ RECOMMENDED - Direct ApplicationState access (MainWindow pattern)
+from stores.application_state import get_application_state
+
+app_state = get_application_state()
+if (cd := app_state.active_curve_data) is None:
+    return []  # No active curve
+curve_name, curve_data = cd
+# Use curve_name and curve_data
+```
+
+**Convenience pattern acceptable for other UI components:**
+
+```python
+# ⚠️ ACCEPTABLE - For UI components outside MainWindow
+curve_data = self.curve_view.curve_data  # Delegates to ApplicationState internally
+```
+
+**Why prefer direct access in MainWindow?**
+- MainWindow is the central coordinator - should use canonical patterns
+- More explicit about data flow and single source of truth
+- Consistent with refactored methods (e.g., `_get_current_point_count_and_bounds`)
+- Sets clear example for future code
+- Direct access to ApplicationState eliminates unnecessary indirection
+
+**Implementation Note**: `CurveViewWidget.curve_data` is a convenience wrapper that delegates to ApplicationState. It's not a separate data source, but direct access is preferred in MainWindow for architectural clarity.
+
 
 ## Command Base Class Pattern
 
@@ -269,6 +300,9 @@ class MyCustomCommand(CurveDataCommand):
             if (result := self._get_active_curve_data()) is None:
                 return False
             curve_name, curve_data = result
+
+            # CRITICAL: Store target curve for undo/redo
+            self._target_curve = curve_name
 
             # ... perform operation
 
@@ -307,7 +341,7 @@ class MyCustomCommand(CurveDataCommand):
 ```
 
 **Available base class methods**:
-- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve (caller must store `_target_curve`)
+- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve (does NOT store target - caller MUST store `_target_curve` explicitly in execute())
 - `_safe_execute(name: str, operation) -> bool`: Wraps operation in try/except with logging
 - `_update_point_position(point, new_pos) -> LegacyPointData`: Updates x/y while preserving frame/status
 - `_update_point_at_index(data, idx, updater) -> bool`: Safe indexed update with bounds check

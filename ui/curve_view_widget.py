@@ -301,7 +301,16 @@ class CurveViewWidget(QWidget):
 
     @property
     def curve_data(self) -> CurveDataList:
-        """Get active curve data from ApplicationState."""
+        """Get active curve data from ApplicationState.
+
+        NOTE: For code in MainWindow, prefer direct ApplicationState access:
+            app_state = get_application_state()
+            if (cd := app_state.active_curve_data) is None:
+                return []
+            curve_name, curve_data = cd
+
+        This property is a convenience wrapper for other UI components.
+        """
         active_curve = self._app_state.active_curve
         if not active_curve:
             logger.warning("No active curve set, returning empty data")

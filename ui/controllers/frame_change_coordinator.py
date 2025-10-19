@@ -64,16 +64,24 @@ class FrameChangeCoordinator:
             main_window: Main window instance providing access to all controllers
         """
         from ui.controllers.view_management_controller import ViewManagementController
-        from ui.curve_view_widget import CurveViewWidget
         from ui.protocols.controller_protocols import TimelineControllerProtocol
         from ui.timeline_tabs import TimelineTabWidget
 
         self.main_window: MainWindow = main_window
-        self.curve_widget: CurveViewWidget | None = main_window.curve_widget
+        # NOTE: Don't cache curve_widget reference - it's created AFTER coordinator
+        # Use property to access main_window.curve_widget dynamically
         self.view_management: ViewManagementController = main_window.view_management_controller  # pyright: ignore[reportAttributeAccessIssue]
         self.timeline_controller: TimelineControllerProtocol = main_window.timeline_controller
         self.timeline_tabs: TimelineTabWidget | None = main_window.timeline_tabs
         self._connected: bool = False  # Track connection state to prevent Qt warnings
+
+    @property
+    def curve_widget(self):
+        """Get curve widget from main window (created after coordinator)."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        widget = self.main_window.curve_widget
+        return widget if isinstance(widget, CurveViewWidget) else None
 
     def __del__(self) -> None:
         """Ensure signal disconnection during object destruction.
@@ -97,13 +105,12 @@ class FrameChangeCoordinator:
         """
         from PySide6.QtCore import Qt
 
-        # Prevent duplicate connections - disconnect first if already connected
-        if self._connected:
-            try:
-                _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
-                self._connected = False
-            except (RuntimeError, TypeError):
-                pass  # Disconnect failed, but proceed to connect anyway
+        # Prevent duplicate connections - always try to disconnect first (idempotent)
+        # Qt's disconnect is safe even if not currently connected
+        try:
+            _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
+        except (RuntimeError, TypeError):
+            pass  # Not connected or disconnect failed - either way, proceed to connect
 
         # Connect with QueuedConnection to defer execution until next event loop iteration
         # This breaks the synchronous nested execution that causes timeline desync bugs

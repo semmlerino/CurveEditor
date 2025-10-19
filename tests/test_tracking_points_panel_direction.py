@@ -138,8 +138,10 @@ class TestTrackingPointsPanelDirection:
         """Test that context menu direction functionality works via helper methods."""
         table = populated_panel.table
 
-        # Select first row
-        table.selectRow(0)
+        # Select first row using robust selection model API (prevents Qt state pollution issues)
+        selection_model = table.selectionModel()
+        index = table.model().index(0, 1)  # Row 0, column 1 (Name column)
+        selection_model.select(index, selection_model.SelectionFlag.Select | selection_model.SelectionFlag.Rows)
 
         # Test that the direction submenu functionality exists by testing the helper method
         # This avoids the blocking menu.exec() call while still testing the core functionality
@@ -155,10 +157,14 @@ class TestTrackingPointsPanelDirection:
         assert new_direction == TrackingDirection.TRACKING_FW
         assert new_direction != original_direction
 
-    def test_context_menu_direction_actions_exist(self, populated_panel: TrackingPointsPanel):
+    def test_context_menu_direction_actions_exist(self, populated_panel: TrackingPointsPanel, qtbot: QtBot):
         """Test that direction submenu has correct actions."""
-        # Select first row
-        populated_panel.table.selectRow(0)
+        table = populated_panel.table
+
+        # Select first row using robust selection model API (prevents Qt state pollution issues)
+        selection_model = table.selectionModel()
+        index = table.model().index(0, 1)  # Row 0, column 1 (Name column)
+        selection_model.select(index, selection_model.SelectionFlag.Select | selection_model.SelectionFlag.Rows)
 
         # Get selected points to trigger menu creation logic
         selected_points = populated_panel.get_selected_points()

@@ -813,38 +813,33 @@ class _CommandHistory:
         history_state = {}
 
         # Get curve_data - prioritize ApplicationState, then fall back to legacy locations
-        if (cd := self._app_state.active_curve_data) is not None:
+        if (cd := self._app_state.active_curve_data) is None:
+            # Fallback: Try widget curve_data
+            if (
+                main_window.curve_widget is not None
+                and getattr(main_window.curve_widget, "curve_data", None) is not None
+            ):
+                widget_curve_data = getattr(main_window.curve_widget, "curve_data")
+                if (
+                    widget_curve_data
+                    and isinstance(widget_curve_data, list)
+                    and len(widget_curve_data) > 0
+                    and isinstance(widget_curve_data[0], list)
+                ):
+                    history_state["curve_data"] = [tuple(point) for point in widget_curve_data]
+                else:
+                    history_state["curve_data"] = copy.deepcopy(widget_curve_data)
+            else:
+                logger.warning("Cannot extract curve data from main_window or ApplicationState")
+                return
+        else:
+            # Primary path: Use ApplicationState data
             curve_name, data = cd
             # Convert lists to tuples for compression (as expected by tests)
             if data and isinstance(data[0], list):
                 history_state["curve_data"] = [tuple(point) for point in data]
             else:
                 history_state["curve_data"] = copy.deepcopy(data)
-        elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
-            widget_curve_data = getattr(main_window.curve_widget, "curve_data")
-            if (
-                widget_curve_data
-                and isinstance(widget_curve_data, list)
-                and len(widget_curve_data) > 0
-                and isinstance(widget_curve_data[0], list)
-            ):
-                history_state["curve_data"] = [tuple(point) for point in widget_curve_data]
-            else:
-                history_state["curve_data"] = copy.deepcopy(widget_curve_data)
-        elif main_window.curve_widget is not None and getattr(main_window.curve_widget, "curve_data", None) is not None:
-            view_curve_data = getattr(main_window.curve_widget, "curve_data")
-            if (
-                view_curve_data
-                and isinstance(view_curve_data, list)
-                and len(view_curve_data) > 0
-                and isinstance(view_curve_data[0], list)
-            ):
-                history_state["curve_data"] = [tuple(point) for point in view_curve_data]
-            else:
-                history_state["curve_data"] = copy.deepcopy(view_curve_data)
-        else:
-            logger.warning("Cannot extract curve data from main_window or ApplicationState")
-            return
 
         # Get point_name
         point_name = getattr(main_window, "point_name", None)

@@ -43,8 +43,8 @@ def main_window_with_shortcuts(qtbot):
     app_state.set_curve_data("__test__", test_data)
     app_state.set_active_curve("__test__")
 
-    # Now create window
-    window = MainWindow()
+    # Now create window (disable auto_load_data to prevent sample data from interfering)
+    window = MainWindow(auto_load_data=False)
     qtbot.addWidget(window)
 
     # Add test tracking data

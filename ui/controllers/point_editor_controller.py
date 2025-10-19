@@ -232,6 +232,8 @@ class PointEditorController:
             value: New X coordinate value
         """
         # Get selected points from ApplicationState
+        # Note: Uses partial pattern (name-only) since we only need curve name for get_selection(),
+        # not the full curve data. Curve data is accessed via curve_widget below.
         state = get_application_state()
         active = state.active_curve
         if not active:
@@ -256,6 +258,8 @@ class PointEditorController:
             value: New Y coordinate value
         """
         # Get selected points from ApplicationState
+        # Note: Uses partial pattern (name-only) since we only need curve name for get_selection(),
+        # not the full curve data. Curve data is accessed via curve_widget below.
         state = get_application_state()
         active = state.active_curve
         if not active:
