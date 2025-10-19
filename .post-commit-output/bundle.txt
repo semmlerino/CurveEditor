@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (54.4MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 222 files to bundle
+Skipping large file (60.8MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 226 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .pytest_tips.md
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -12,6 +12,7 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
+Bundled: ARCHIVING_SUMMARY.md
 Bundled: basedpyrightconfig.json
 Bundled: BASEDPYRIGHT_STRATEGY.md
 Bundled: baseline_lines.txt
@@ -20,7 +21,10 @@ Bundled: baseline_types.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
 Bundled: curveview_method_categorization.txt
+Bundled: DOCUMENTATION_INDEX.md
+Bundled: FINAL_VERIFICATION_REPORT.md
 Bundled: KeyFrameTest.txt
+Bundled: KISS_DRY_IMPLEMENTATION_PLAN.md
 Bundled: main.py
 Bundled: mainwindow_diff.txt
 Bundled: PERFORMANCE_BASELINE_REPORT.txt
@@ -33,7 +37,6 @@ Bundled: phase3_task33_inventory_corrected.txt
 Bundled: phase3_task33_verification_report.txt
 Bundled: PHASE4_EXECUTIVE_SUMMARY.txt
 Bundled: phase6_type_check.txt
-Bundled: PHASE_COMPLETION_CHECKLIST.md
 Bundled: Point01.txt
 Bundled: Point01_only.txt
 Bundled: post_phase6.0_types.txt
@@ -43,6 +46,7 @@ Bundled: py_doc_r8.0.txt
 Bundled: QUICK-REFERENCE.md
 Bundled: README.md
 Bundled: requirements.txt
+Bundled: REVIEW_SUMMARY.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: SetTrackingBwd.py
@@ -54,8 +58,7 @@ Bundled: test_normalized_3de.txt
 Bundled: test_results.txt
 Bundled: TIMELINE_SIGNAL_CONNECTION_FIX.md
 Bundled: transfer_config.json
-Bundled: TYPE_SYSTEM_EXPERT_PLAN_TAU_ASSESSMENT.md
-Bundled: VERIFICATION_SUMMARY.txt
+Bundled: VERIFIED_KISS_DRY_ASSESSMENT.md
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
 Bundled: .serena/project.yml
@@ -196,6 +199,7 @@ Bundled: ui/main_window_builder.py
 Bundled: ui/menu_bar.py
 Bundled: ui/point_list_widget.py
 Bundled: ui/progress_manager.py
+Bundled: ui/qt_utils.py
 Bundled: ui/service_facade.py
 Bundled: ui/session_manager.py
 Bundled: ui/shortcut_registry.py
@@ -228,9 +232,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.73 MB
+Folder size: 2.80 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 856248 bytes
+Encoded size: 883204 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

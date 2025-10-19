@@ -1089,95 +1089,76 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Apply smoothing operation (delegated to ActionHandlerController)."""
         self.action_controller.apply_smooth_operation()
 
-    def _navigate_to_prev_keyframe(self) -> None:
-        """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
-        current_frame = get_application_state().current_frame
+    def _get_navigation_frames(self) -> list[int]:
+        """Collect all navigation frames (keyframes, endframes, startframes) from current curve.
+
+        Returns:
+            Sorted list of frame numbers that are navigable (keyframes, endframes, or startframes).
+            Returns empty list if no curve data loaded.
+        """
         curve_data = self.curve_widget.curve_data if self.curve_widget else []
 
         if not curve_data:
-            self.statusBar().showMessage("No curve data loaded", 3000)
-            return
+            return []
 
-        # Find all keyframes and endframes from point data
+        # Collect keyframes and endframes from point data
         nav_frames: list[int] = []
         for point in curve_data:
             if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
                 nav_frames.append(int(point[0]))
 
-        # Get startframes from DataService analysis
+        # Add startframes from DataService analysis
         try:
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
             for frame, status in frame_status.items():
-                if status.is_startframe:
-                    if frame not in nav_frames:
-                        nav_frames.append(frame)
+                if status.is_startframe and frame not in nav_frames:
+                    nav_frames.append(frame)
         except Exception as e:
             logger.warning(f"Could not identify startframes: {e}")
 
+        return sorted(nav_frames)
+
+    def _navigate_to_adjacent_frame(self, direction: int) -> None:
+        """Navigate to adjacent navigation frame.
+
+        Args:
+            direction: -1 for previous, +1 for next
+        """
+        nav_frames = self._get_navigation_frames()
         if not nav_frames:
             self.statusBar().showMessage("No navigation frames found", 3000)
             return
 
-        # Sort frames and find the previous one
-        nav_frames.sort()
-        prev_frame = None
+        current_frame = get_application_state().current_frame
 
-        for frame in reversed(nav_frames):
-            if frame < current_frame:
-                prev_frame = frame
-                break
-
-        if prev_frame is not None:
-            self.timeline_controller.set_frame(prev_frame)
-            self.statusBar().showMessage(f"Navigated to previous frame: {prev_frame}", 2000)
+        # Find adjacent frame in specified direction
+        if direction < 0:
+            # Previous: find largest frame < current
+            candidates = [f for f in nav_frames if f < current_frame]
+            target = max(candidates) if candidates else None
+            direction_name = "previous"
+            boundary_msg = "first"
         else:
-            self.statusBar().showMessage("Already at first navigation frame", 2000)
+            # Next: find smallest frame > current
+            candidates = [f for f in nav_frames if f > current_frame]
+            target = min(candidates) if candidates else None
+            direction_name = "next"
+            boundary_msg = "last"
+
+        if target is not None:
+            self.timeline_controller.set_frame(target)
+            self.statusBar().showMessage(f"Navigated to {direction_name} frame: {target}", 2000)
+        else:
+            self.statusBar().showMessage(f"Already at {boundary_msg} navigation frame", 2000)
+
+    def _navigate_to_prev_keyframe(self) -> None:
+        """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
+        self._navigate_to_adjacent_frame(-1)
 
     def _navigate_to_next_keyframe(self) -> None:
         """Navigate to the next keyframe, endframe, or startframe relative to current frame."""
-        current_frame = get_application_state().current_frame
-        curve_data = self.curve_widget.curve_data if self.curve_widget else []
-
-        if not curve_data:
-            self.statusBar().showMessage("No curve data loaded", 3000)
-            return
-
-        # Find all keyframes and endframes from point data
-        nav_frames: list[int] = []
-        for point in curve_data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(int(point[0]))
-
-        # Get startframes from DataService analysis
-        try:
-            data_service = get_data_service()
-            frame_status = data_service.get_frame_range_point_status(curve_data)
-            for frame, status in frame_status.items():
-                if status.is_startframe:
-                    if frame not in nav_frames:
-                        nav_frames.append(frame)
-        except Exception as e:
-            logger.warning(f"Could not identify startframes: {e}")
-
-        if not nav_frames:
-            self.statusBar().showMessage("No navigation frames found", 3000)
-            return
-
-        # Sort frames and find the next one
-        nav_frames.sort()
-        next_frame = None
-
-        for frame in nav_frames:
-            if frame > current_frame:
-                next_frame = frame
-                break
-
-        if next_frame is not None:
-            self.timeline_controller.set_frame(next_frame)
-            self.statusBar().showMessage(f"Navigated to next frame: {next_frame}", 2000)
-        else:
-            self.statusBar().showMessage("Already at last navigation frame", 2000)
+        self._navigate_to_adjacent_frame(1)
 
     @override
     def keyPressEvent(self, event: QKeyEvent) -> None:
