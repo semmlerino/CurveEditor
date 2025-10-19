@@ -17,6 +17,7 @@ from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QWidget
 
 if TYPE_CHECKING:
+    from ui.curve_view_widget import CurveViewWidget
     from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
@@ -85,6 +86,22 @@ class ShortcutCommand(ABC):
         """
         self.key_sequence: str = key_sequence
         self._description: str = description
+
+    def _get_curve_widget(self, context: ShortcutContext) -> CurveViewWidget | None:
+        """Get curve widget with validation.
+
+        Args:
+            context: Shortcut context containing main window
+
+        Returns:
+            CurveViewWidget if available, None otherwise
+
+        Logs warning if widget not available.
+        """
+        widget = context.main_window.curve_widget
+        if not widget:
+            logger.warning(f"{self.__class__.__name__}: No curve widget available")
+        return widget
 
     @abstractmethod
     def can_execute(self, context: ShortcutContext) -> bool:

@@ -65,12 +65,12 @@ class UIInitializationController:
         """
         # Disconnect toolbar widget signals (2 connections)
         try:
-            if self.main_window.ui is not None:
-                if self.main_window.ui.toolbar.smoothing_type_combo is not None:
+            if self.main_window.ui:
+                if self.main_window.ui.toolbar.smoothing_type_combo:
                     _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.disconnect(
                         self._on_smoothing_type_changed
                     )
-                if self.main_window.ui.toolbar.smoothing_size_spinbox is not None:
+                if self.main_window.ui.toolbar.smoothing_size_spinbox:
                     _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.disconnect(
                         self._on_smoothing_size_changed
                     )

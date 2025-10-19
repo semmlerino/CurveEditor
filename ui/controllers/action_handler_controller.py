@@ -269,7 +269,7 @@ class ActionHandlerController:
         interaction_service = get_interaction_service()
 
         # Try command system if available
-        if interaction_service is not None:
+        if interaction_service:
             logger.info(f"Using command system for smoothing: {len(selected_indices)} points")
             if interaction_service.command_manager.execute_command(
                 smooth_command, cast(MainWindowProtocol, cast(object, self.main_window))

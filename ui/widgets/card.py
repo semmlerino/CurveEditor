@@ -31,7 +31,7 @@ class Card(QWidget):
     """
 
     # Signal emitted when card is collapsed/expanded
-    collapsed_changed = Signal(bool)  # True = collapsed, False = expanded
+    collapsed_changed: Signal = Signal(bool)  # True = collapsed, False = expanded
 
     def __init__(
         self,
@@ -50,29 +50,29 @@ class Card(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
-        self._collapsible = collapsible
-        self._collapsed = collapsed
+        self._collapsible: bool = collapsible
+        self._collapsed: bool = collapsed
 
         # Main layout
-        self._main_layout = QVBoxLayout(self)
+        self._main_layout: QVBoxLayout = QVBoxLayout(self)
         self._main_layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
         self._main_layout.setSpacing(SPACING_SM)
 
         # Header with title and optional collapse button
         if title:
-            self._header = QWidget()
+            self._header: QWidget = QWidget()
             header_layout = QHBoxLayout(self._header)
             header_layout.setContentsMargins(0, 0, 0, SPACING_SM)
             header_layout.setSpacing(SPACING_SM)
 
             # Title label
-            self._title_label = QLabel(title)
+            self._title_label: QLabel = QLabel(title)
             self._title_label.setStyleSheet(f"font-weight: bold; font-size: {FONT_SIZE_HEADING}pt;")
             header_layout.addWidget(self._title_label)
 
             # Collapse button (if collapsible)
             if collapsible:
-                self._collapse_button = QToolButton()
+                self._collapse_button: QToolButton = QToolButton()
                 self._collapse_button.setText("▼" if not collapsed else "▶")
                 self._collapse_button.setFixedSize(20, 20)
                 _ = self._collapse_button.clicked.connect(self._toggle_collapsed)
@@ -94,8 +94,8 @@ class Card(QWidget):
             self._main_layout.addWidget(self._header)
 
         # Content container (holds user-added widgets)
-        self._content = QWidget()
-        self._content_layout = QVBoxLayout(self._content)
+        self._content: QWidget = QWidget()
+        self._content_layout: QVBoxLayout = QVBoxLayout(self._content)
         self._content_layout.setContentsMargins(0, 0, 0, 0)
         self._content_layout.setSpacing(SPACING_SM)
         self._main_layout.addWidget(self._content)

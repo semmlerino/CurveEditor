@@ -857,17 +857,15 @@ class _CommandHistory:
             history_state["point_color"] = point_color
 
         # Check if main_window has history attributes for direct management
-        # history is defined in MainWindowProtocol
+        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
         if main_window.history is not None and main_window.history_index is not None:
             # Truncate future history if we're not at the end
-            # history_index is defined in MainWindowProtocol
             if main_window.history_index < len(main_window.history) - 1:
                 main_window.history = main_window.history[: main_window.history_index + 1]
             # Add state to main_window's history
             main_window.history.append(history_state)
 
             # Update history index
-            # history_index is defined in MainWindowProtocol
             main_window.history_index = len(main_window.history) - 1
 
             # Enforce size limit
@@ -875,21 +873,21 @@ class _CommandHistory:
             if max_history_size is not None:
                 while len(main_window.history) > max_history_size:
                     _ = main_window.history.pop(0)
-                    # history_index is defined in MainWindowProtocol
                     main_window.history_index = max(0, main_window.history_index - 1)
         else:
+            # Use internal history when main_window doesn't manage its own
             # Truncate future history if we're not at the end
             if self._current_index < len(self._history) - 1:
                 self._history = self._history[: self._current_index + 1]
-
-            # Use internal history
+            # Add state to internal history
             self._history.append(history_state)
             self._current_index = len(self._history) - 1
 
-            # Enforce size limit
-            if len(self._history) > self._max_history_size:
+            # Enforce size limit on internal history
+            max_history_size = getattr(main_window, "max_history_size", 100)
+            while len(self._history) > max_history_size:
                 _ = self._history.pop(0)
-                self._current_index -= 1
+                self._current_index = max(0, self._current_index - 1)
 
         # Update button states
         self.update_history_buttons(main_window)
@@ -913,14 +911,18 @@ class _CommandHistory:
         if self._owner.command_manager.can_undo():
             _ = self._owner.command_manager.undo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        elif main_window.history is not None and main_window.history_index is not None:
+        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
+        elif (
+            main_window.history is not None
+            and main_window.history_index is not None
+            and main_window.history_index > 0
+        ):
             logger.info("Using legacy history system")
-            if main_window.history_index > 0:
-                main_window.history_index -= 1
-                state = main_window.history[main_window.history_index]
-                typed_state = cast(dict[str, object], state)
-                self.restore_state(main_window, typed_state)
-                self.update_history_buttons(main_window)
+            main_window.history_index -= 1
+            state = main_window.history[main_window.history_index]
+            typed_state = cast(dict[str, object], state)
+            self.restore_state(main_window, typed_state)
+            self.update_history_buttons(main_window)
         # Check internal history when main_window doesn't manage its own
         elif self._current_index > 0:
             logger.info("Using internal history system")
@@ -942,14 +944,18 @@ class _CommandHistory:
             logger.info("Using command manager for redo")
             _ = self._owner.command_manager.redo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        elif main_window.history is not None and main_window.history_index is not None:
+        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
+        elif (
+            main_window.history is not None
+            and main_window.history_index is not None
+            and main_window.history_index < len(main_window.history) - 1
+        ):
             logger.info("Using legacy history system for redo")
-            if main_window.history_index < len(main_window.history) - 1:
-                main_window.history_index += 1
-                state = main_window.history[main_window.history_index]
-                typed_state = cast(dict[str, object], state)
-                self.restore_state(main_window, typed_state)
-                self.update_history_buttons(main_window)
+            main_window.history_index += 1
+            state = main_window.history[main_window.history_index]
+            typed_state = cast(dict[str, object], state)
+            self.restore_state(main_window, typed_state)
+            self.update_history_buttons(main_window)
         # Check internal history when main_window doesn't manage its own
         elif self._current_index < len(self._history) - 1:
             logger.info("Using internal history system for redo")
@@ -971,19 +977,16 @@ class _CommandHistory:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
-        # Early return if main_window is None (can happen in tests)
-        if main_window is None:
-            return
-
         # Determine can_undo and can_redo based on history location
-        if main_window.history is not None and main_window.history_index is not None:
-            # Use main_window's history
-            can_undo_val = main_window.history_index > 0
-            can_redo_val = main_window.history_index < len(main_window.history) - 1
-        else:
-            # Use internal history
-            can_undo_val = self.can_undo()
-            can_redo_val = self.can_redo()
+        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
+        can_undo_val = (
+            main_window.history_index is not None and main_window.history_index > 0
+        )
+        can_redo_val = (
+            main_window.history is not None
+            and main_window.history_index is not None
+            and main_window.history_index < len(main_window.history) - 1
+        )
 
         # Update buttons via ui components
         ui = getattr(main_window, "ui", None)
@@ -999,9 +1002,6 @@ class _CommandHistory:
     def restore_state(self, main_window: MainWindowProtocol, state: dict[str, object]) -> None:
         """Restore a saved state."""
         import copy
-
-        if state is None:
-            return
 
         # Initialize curve_data for type checker
         curve_data = []

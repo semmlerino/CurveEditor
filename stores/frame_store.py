@@ -31,9 +31,9 @@ class FrameStore(QObject):
     """
 
     # Signals for frame state changes
-    current_frame_changed = Signal(int)  # New current frame
-    frame_range_changed = Signal(int, int)  # min_frame, max_frame
-    playback_state_changed = Signal(bool)  # is_playing
+    current_frame_changed: Signal = Signal(int)  # New current frame
+    frame_range_changed: Signal = Signal(int, int)  # min_frame, max_frame
+    playback_state_changed: Signal = Signal(bool)  # is_playing
 
     def __init__(self):
         """Initialize the frame store."""

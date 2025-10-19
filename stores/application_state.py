@@ -809,7 +809,7 @@ class ApplicationState(QObject):
         self._assert_main_thread()
         return self._selected_curves.copy()
 
-    def set_selected_curves(self, curve_names: set[str]) -> None:
+    def set_selected_curves(self, curve_names: set[str] | None) -> None:
         """
         Set which curves are selected for display.
 
@@ -858,7 +858,7 @@ class ApplicationState(QObject):
         self._assert_main_thread()
         return self._show_all_curves
 
-    def set_show_all_curves(self, show_all: bool) -> None:
+    def set_show_all_curves(self, show_all: bool | None) -> None:
         """
         Set show-all-curves mode.
 

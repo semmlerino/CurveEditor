@@ -60,8 +60,8 @@ class PointEditorController:
         """
         # Disconnect point editor spinbox signals (2 connections, if connected)
         try:
-            if self._spinbox_connected is not None and self._spinbox_connected:
-                if self.main_window is not None:
+            if self._spinbox_connected:
+                if self.main_window:
                     if self.main_window.point_x_spinbox:
                         _ = self.main_window.point_x_spinbox.valueChanged.disconnect(self._on_point_x_changed)
                     if self.main_window.point_y_spinbox:

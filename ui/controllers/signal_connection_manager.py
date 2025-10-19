@@ -44,7 +44,7 @@ class SignalConnectionManager:
         """
         # Disconnect file operations signals (8 connections)
         try:
-            if self.main_window.file_operations is not None:
+            if self.main_window.file_operations:
                 file_ops = self.main_window.file_operations
                 _ = file_ops.tracking_data_loaded.disconnect(self.main_window.on_tracking_data_loaded)
                 _ = file_ops.multi_point_data_loaded.disconnect(self.main_window.on_multi_point_data_loaded)
@@ -61,7 +61,7 @@ class SignalConnectionManager:
 
         # Disconnect state manager signals (5 connections)
         try:
-            if self.main_window.state_manager is not None:
+            if self.main_window.state_manager:
                 state_mgr = self.main_window.state_manager
                 _ = state_mgr.file_changed.disconnect(self.main_window.on_file_changed)
                 _ = state_mgr.modified_changed.disconnect(self.main_window.on_modified_changed)
@@ -74,7 +74,7 @@ class SignalConnectionManager:
         # Disconnect timeline controller signals (1 connection)
         # REMOVED: timeline.frame_changed disconnect - signal emission removed from TimelineController
         try:
-            if self.main_window.timeline_controller is not None:
+            if self.main_window.timeline_controller:
                 timeline = self.main_window.timeline_controller
                 # TimelineController is QObject with signals at runtime
                 _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]

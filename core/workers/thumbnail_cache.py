@@ -51,7 +51,7 @@ class ThumbnailCache:
         """
         # Memory cache (LRU)
         self._memory_cache: OrderedDict[str, QPixmap] = OrderedDict()
-        self._memory_cache_size = memory_cache_size
+        self._memory_cache_size: int = memory_cache_size
 
         # Disk cache directory
         if cache_dir is None:
@@ -59,9 +59,9 @@ class ThumbnailCache:
 
             cache_dir = Path(tempfile.gettempdir()) / "curveeditor_thumbnails"
 
-        self.cache_dir = cache_dir
+        self.cache_dir: Path = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self.max_disk_cache_bytes = max_disk_cache_mb * 1024 * 1024
+        self.max_disk_cache_bytes: int = max_disk_cache_mb * 1024 * 1024
 
         logger.debug(f"Thumbnail cache initialized: {self.cache_dir}")
         logger.debug(f"Memory cache size: {memory_cache_size}, Disk cache: {max_disk_cache_mb}MB")

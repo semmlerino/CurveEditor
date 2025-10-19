@@ -149,7 +149,7 @@ class SetEndframeCommand(ShortcutCommand):
         NOT on selected points. This allows navigating to a frame and toggling its status
         regardless of what's selected.
         """
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
@@ -308,7 +308,7 @@ class DeletePointsCommand(ShortcutCommand):
 
         # Delete curve points if selected
         if context.has_curve_selection:
-            curve_widget = context.main_window.curve_widget
+            curve_widget = self._get_curve_widget(context)
             if curve_widget:
                 try:
                     curve_widget.delete_selected_points()
@@ -361,7 +361,7 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         This is a FRAME-BASED operation - it converts the point at the current frame
         to an interpolated point with coordinates calculated from surrounding keyframes.
         """
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
@@ -478,12 +478,12 @@ class CenterViewCommand(ShortcutCommand):
             return False
 
         # Need curve widget
-        return context.main_window.curve_widget is not None
+        return self._get_curve_widget(context) is not None
 
     @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the center view command."""
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
@@ -522,12 +522,12 @@ class SelectAllCommand(ShortcutCommand):
 
         Can execute if curve widget is available.
         """
-        return context.main_window.curve_widget is not None
+        return self._get_curve_widget(context) is not None
 
     @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the select all command."""
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
@@ -557,7 +557,7 @@ class DeselectAllCommand(ShortcutCommand):
     @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the deselect command."""
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 
@@ -591,13 +591,13 @@ class FitBackgroundCommand(ShortcutCommand):
             return False
 
         # Need curve widget with background image
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         return curve_widget is not None and curve_widget.background_image is not None
 
     @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the fit background command."""
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None or curve_widget.background_image is None:
             return False
 
@@ -661,7 +661,7 @@ class NudgePointsCommand(ShortcutCommand):
     @override
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the nudge command."""
-        curve_widget = context.main_window.curve_widget
+        curve_widget = self._get_curve_widget(context)
         if curve_widget is None:
             return False
 

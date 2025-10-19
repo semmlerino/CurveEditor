@@ -40,8 +40,8 @@ class GlobalEventFilter(QObject):
             registry: The shortcut registry to use for command lookup
         """
         super().__init__()
-        self.main_window = main_window
-        self.registry = registry
+        self.main_window: MainWindow = main_window
+        self.registry: ShortcutRegistry = registry
         logger.info("GlobalEventFilter initialized")
 
     @override

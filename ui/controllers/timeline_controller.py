@@ -110,7 +110,7 @@ class TimelineController(QObject):
         """
         # Disconnect playback timer
         try:
-            if self.playback_timer is not None:
+            if self.playback_timer:
                 _ = self.playback_timer.timeout.disconnect(self._on_playback_timer)
                 self.playback_timer.stop()
         except (RuntimeError, AttributeError):
@@ -118,26 +118,26 @@ class TimelineController(QObject):
 
         # Disconnect navigation signals
         try:
-            if self.frame_spinbox is not None:
+            if self.frame_spinbox:
                 _ = self.frame_spinbox.valueChanged.disconnect(self._on_frame_changed)
-            if self.frame_slider is not None:
+            if self.frame_slider:
                 _ = self.frame_slider.valueChanged.disconnect(self._on_slider_changed)
-            if self.btn_first is not None:
+            if self.btn_first:
                 _ = self.btn_first.clicked.disconnect(self._on_first_frame)
-            if self.btn_prev is not None:
+            if self.btn_prev:
                 _ = self.btn_prev.clicked.disconnect(self._on_prev_frame)
-            if self.btn_next is not None:
+            if self.btn_next:
                 _ = self.btn_next.clicked.disconnect(self._on_next_frame)
-            if self.btn_last is not None:
+            if self.btn_last:
                 _ = self.btn_last.clicked.disconnect(self._on_last_frame)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 
         # Disconnect playback signals
         try:
-            if self.btn_play_pause is not None:
+            if self.btn_play_pause:
                 _ = self.btn_play_pause.toggled.disconnect(self._on_play_pause)
-            if self.fps_spinbox is not None:
+            if self.fps_spinbox:
                 _ = self.fps_spinbox.valueChanged.disconnect(self._on_fps_changed)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
