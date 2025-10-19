@@ -1328,7 +1328,7 @@ class _PointManipulator:
         # Update view
         update_method = getattr(view, "update", None)
         if update_method is not None and callable(update_method):
-            update_method()
+            _ = update_method()
 
     def on_selection_changed(self, indices: set[int], curve_name: str | None = None) -> None:
         """

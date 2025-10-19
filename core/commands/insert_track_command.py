@@ -38,6 +38,8 @@ logger = get_logger("insert_track_command")
 class InsertTrackCommand(Command):
     """Command for Insert Track operation with undo/redo support."""
 
+    executed: bool
+
     def __init__(self, selected_curves: list[str], current_frame: int):
         """Initialize Insert Track command.
 
@@ -46,8 +48,8 @@ class InsertTrackCommand(Command):
             current_frame: Current frame (determines gap location)
         """
         super().__init__("Insert Track")
-        self.selected_curves = selected_curves
-        self.current_frame = current_frame
+        self.selected_curves: list[str] = selected_curves
+        self.current_frame: int = current_frame
 
         # State for undo/redo
         self.original_data: dict[str, CurveDataList] = {}
@@ -70,10 +72,6 @@ class InsertTrackCommand(Command):
         """
         try:
             # Get tracked data from MultiPointTrackingController
-            if main_window.multi_point_controller is None:
-                logger.error("Main window missing multi_point_controller")
-                return False
-
             controller = main_window.multi_point_controller
             tracked_data = controller.tracked_data
 
@@ -364,8 +362,7 @@ class InsertTrackCommand(Command):
             curve_name: Name of modified curve
         """
         # Update tracking panel
-        if main_window.multi_point_controller is not None:
-            main_window.multi_point_controller.update_tracking_panel()
+        main_window.multi_point_controller.update_tracking_panel()
 
         # If this is the active curve, update the display
         if main_window.active_timeline_point is not None:
@@ -387,8 +384,7 @@ class InsertTrackCommand(Command):
             curve_name: Name of new curve
         """
         # Update tracking panel
-        if main_window.multi_point_controller is not None:
-            main_window.multi_point_controller.update_tracking_panel()
+        main_window.multi_point_controller.update_tracking_panel()
 
         # Set as active curve - always do this for newly created curves
         main_window.active_timeline_point = curve_name
@@ -433,8 +429,7 @@ class InsertTrackCommand(Command):
                 self._update_ui(main_window, curve_name)
 
             # Update tracking panel
-            if main_window.multi_point_controller is not None:
-                main_window.multi_point_controller.update_tracking_panel()
+            main_window.multi_point_controller.update_tracking_panel()
 
             self.executed = False
             logger.info("Insert Track undone")
@@ -470,8 +465,7 @@ class InsertTrackCommand(Command):
                     self._update_ui(main_window, curve_name)
 
             # Update tracking panel
-            if main_window.multi_point_controller is not None:
-                main_window.multi_point_controller.update_tracking_panel()
+            main_window.multi_point_controller.update_tracking_panel()
 
             self.executed = True
             logger.info("Insert Track redone")

@@ -40,7 +40,7 @@ class CommandManager:
         """
         self._history: list[Command] = []
         self._current_index: int = -1
-        self._max_history_size = max_history_size
+        self._max_history_size: int = max_history_size
         self._merge_timeout: float = 1.0  # Seconds to allow command merging
 
         logger.info(f"CommandManager initialized with max_history_size={max_history_size}")

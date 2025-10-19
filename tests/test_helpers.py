@@ -296,6 +296,12 @@ class MockCurveView:
         self.selected_point_idx: int = -1
         self.current_image_idx: int = 0
 
+        # MultiCurveViewProtocol required attributes
+        self.active_curve_name: str | None = None
+        self.curves_data: dict[str, CurveDataList] = {}
+        self.selected_curve_names: set[str] = set()
+        self.selected_curves_ordered: list[str] = []
+
         # View state
         self.zoom_factor: float = 1.0
         self.offset_x: float = 0.0
@@ -610,6 +616,56 @@ class MockCurveView:
         self.flip_y_axis = False
         self.scale_to_image = False
 
+    # MultiCurveViewProtocol stub methods
+    def set_curves_data(
+        self,
+        curves: dict[str, CurveDataList],
+        metadata: dict[str, dict[str, object]] | None = None,
+        active_curve: str | None = None,
+        selected_curves: list[str] | None = None,
+    ) -> None:
+        """Set multiple curves with optional metadata (stub for testing)."""
+        self.curves_data = curves
+        if active_curve:
+            self.active_curve_name = active_curve
+        if selected_curves:
+            self.selected_curve_names = set(selected_curves)
+            self.selected_curves_ordered = selected_curves
+
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, object] | None = None) -> None:
+        """Add a single curve to the view (stub for testing)."""
+        self.curves_data[name] = data
+
+    def remove_curve(self, name: str) -> None:
+        """Remove a curve from the view (stub for testing)."""
+        if name in self.curves_data:
+            del self.curves_data[name]
+
+    def set_active_curve(self, name: str) -> None:
+        """Set the active curve for editing (stub for testing)."""
+        self.active_curve_name = name
+
+    def set_selected_curves(self, curve_names: list[str]) -> None:
+        """Set the selected curves (stub for testing)."""
+        self.selected_curve_names = set(curve_names)
+        self.selected_curves_ordered = curve_names
+
+    def update_curve_visibility(self, curve_name: str, visible: bool) -> None:
+        """Update visibility of a specific curve (stub for testing)."""
+        pass
+
+    def update_curve_color(self, curve_name: str, color: tuple[int, int, int]) -> None:
+        """Update color of a specific curve (stub for testing)."""
+        pass
+
+    def get_curve_metadata(self, curve_name: str) -> dict[str, object]:
+        """Get metadata for a specific curve (stub for testing)."""
+        return {}
+
+    def center_on_selected_curves(self) -> None:
+        """Center the view on all selected curves (stub for testing)."""
+        pass
+
 
 class MockMainWindow:
     """Lightweight real MainWindow implementation for testing.
@@ -654,9 +710,9 @@ class MockMainWindow:
         self.status_bar = QStatusBar()
 
         # History management (for MainWindowProtocol compatibility)
-        # Protocol requires non-optional types (invariant because mutable)
-        self.history: list[object] = []
-        self.history_index: int = -1
+        # Optional to allow tests to force internal history usage
+        self.history: list[object] | None = []
+        self.history_index: int | None = -1
         self.max_history_size: int = 50
 
         # Protocol required attributes

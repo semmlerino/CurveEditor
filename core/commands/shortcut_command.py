@@ -83,8 +83,8 @@ class ShortcutCommand(ABC):
             key_sequence: The key sequence that triggers this command (e.g., "E", "Shift+1")
             description: Human-readable description of what this shortcut does
         """
-        self.key_sequence = key_sequence
-        self._description = description
+        self.key_sequence: str = key_sequence
+        self._description: str = description
 
     @abstractmethod
     def can_execute(self, context: ShortcutContext) -> bool:

@@ -268,10 +268,10 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         precision: float = 1e-10,
     ):
         """Initialize with configurable limits."""
-        self.max_coordinate = max_coordinate
-        self.min_scale = min_scale
-        self.max_scale = max_scale
-        self.precision = precision
+        self.max_coordinate: float = max_coordinate
+        self.min_scale: float = min_scale
+        self.max_scale: float = max_scale
+        self.precision: float = precision
 
     @override
     def validate_coordinate(self, x: float, y: float, context: str = "") -> ValidationResult:
@@ -550,9 +550,9 @@ class AdaptiveValidationStrategy(BaseValidationStrategy):
 
     def __init__(self):
         """Initialize with both strategies."""
-        self.minimal = MinimalValidationStrategy()
-        self.comprehensive = ComprehensiveValidationStrategy()
-        self._use_comprehensive = __debug__  # Default based on debug mode
+        self.minimal: MinimalValidationStrategy = MinimalValidationStrategy()
+        self.comprehensive: ComprehensiveValidationStrategy = ComprehensiveValidationStrategy()
+        self._use_comprehensive: bool = __debug__  # Default based on debug mode
 
     def set_context(
         self,

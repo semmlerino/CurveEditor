@@ -48,7 +48,7 @@ class FileLoadWorker(QThread):
 
         # Wait for thread to finish if it's running
         if self.isRunning():
-            self.wait(2000)  # Wait up to 2 seconds
+            _ = self.wait(2000)  # Wait up to 2 seconds
 
     def start_work(self, tracking_file_path: str | None, image_dir_path: str | None) -> None:
         """Start new file loading work in Qt thread.

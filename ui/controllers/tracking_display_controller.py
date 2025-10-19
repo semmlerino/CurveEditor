@@ -8,13 +8,13 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, cast
 
-from PySide6.QtCore import QObject, Signal, Slot
+from PySide6.QtCore import Signal, Slot
 
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from protocols.ui import MainWindowProtocol
-from stores.application_state import ApplicationState, get_application_state
+from ui.controllers.base_tracking_controller import BaseTrackingController
 
 if TYPE_CHECKING:
     from ui.tracking_points_panel import TrackingPointsPanel
@@ -40,7 +40,7 @@ def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
     )
 
 
-class TrackingDisplayController(QObject):
+class TrackingDisplayController(BaseTrackingController):
     """Handles visual display of tracking data.
 
     Responsibilities:
@@ -62,10 +62,7 @@ class TrackingDisplayController(QObject):
         Args:
             main_window: Main window protocol interface
         """
-        super().__init__()
-        self.main_window: MainWindowProtocol = main_window
-        self._app_state: ApplicationState = get_application_state()
-
+        super().__init__(main_window)
         logger.info("TrackingDisplayController initialized")
 
     @Slot(str, list)

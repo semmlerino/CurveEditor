@@ -54,7 +54,7 @@ class DirectoryScanWorker(QThread):
         """Request the worker to stop processing."""
         self.requestInterruption()
         if self.isRunning():
-            self.wait(2000)  # Wait up to 2 seconds
+            _ = self.wait(2000)  # Wait up to 2 seconds
         logger.debug("Scan stop requested")
 
     @override

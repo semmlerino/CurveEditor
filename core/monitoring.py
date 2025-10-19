@@ -226,6 +226,9 @@ class MetricsCollector:
     """
 
     _instance: MetricsCollector | None = None
+    cache_metrics: CacheMetrics
+    transform_metrics: TransformMetrics
+    _initialized: bool
 
     def __new__(cls) -> MetricsCollector:
         """Ensure singleton instance."""

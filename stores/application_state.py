@@ -1100,7 +1100,7 @@ class ApplicationState(QObject):
             "total_selected": total_selected,
             "active_curve": self._active_curve,
             "current_frame": self._current_frame,
-            "batch_depth": self._batch_depth,
+            "is_batching": self._batching,
         }
 
 

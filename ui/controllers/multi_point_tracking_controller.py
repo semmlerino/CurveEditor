@@ -16,8 +16,6 @@ This facade provides backward-compatible API while maintaining separation of con
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject
-
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
@@ -25,7 +23,8 @@ from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
-from stores.application_state import ApplicationState, get_application_state
+from stores.application_state import get_application_state
+from ui.controllers.base_tracking_controller import BaseTrackingController
 
 # Import sub-controllers
 from ui.controllers.tracking_data_controller import TrackingDataController
@@ -35,7 +34,7 @@ from ui.controllers.tracking_selection_controller import TrackingSelectionContro
 logger = get_logger("multi_point_tracking_controller")
 
 
-class MultiPointTrackingController(QObject):
+class MultiPointTrackingController(BaseTrackingController):
     """
     Facade controller for multi-point tracking operations.
 
@@ -54,11 +53,7 @@ class MultiPointTrackingController(QObject):
         Args:
             main_window: Reference to the main window for UI access
         """
-        super().__init__()
-        self.main_window: MainWindowProtocol = main_window
-
-        # Get centralized ApplicationState
-        self._app_state: ApplicationState = get_application_state()
+        super().__init__(main_window)
 
         # Create sub-controllers
         self.data_controller: TrackingDataController = TrackingDataController(main_window)

@@ -40,6 +40,7 @@ class Command(ABC):
         """
         self.description: str = description
         self.executed: bool = False
+        self._target_curve: str | None = None
 
     @abstractmethod
     def execute(self, main_window: MainWindowProtocol) -> bool:
@@ -139,6 +140,8 @@ class CompositeCommand(Command):
     This is useful for operations that consist of multiple atomic steps
     that should be undone/redone as a single unit.
     """
+
+    executed: bool
 
     def __init__(self, description: str, commands: list[Command] | None = None) -> None:
         """
@@ -254,6 +257,8 @@ class NullCommand(Command):
 
     Used as a placeholder or for testing purposes.
     """
+
+    executed: bool
 
     def __init__(self) -> None:
         """Initialize the null command."""

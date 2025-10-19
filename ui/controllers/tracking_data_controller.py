@@ -7,7 +7,7 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 
 from typing import cast
 
-from PySide6.QtCore import QObject, QThread, Signal, Slot
+from PySide6.QtCore import QThread, Signal, Slot
 from PySide6.QtWidgets import QApplication
 
 from core.logger_utils import get_logger
@@ -15,12 +15,12 @@ from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
 from data.tracking_direction_utils import update_keyframe_status_for_tracking_direction
 from protocols.ui import MainWindowProtocol
-from stores.application_state import ApplicationState, get_application_state
+from ui.controllers.base_tracking_controller import BaseTrackingController
 
 logger = get_logger("tracking_data_controller")
 
 
-class TrackingDataController(QObject):
+class TrackingDataController(BaseTrackingController):
     """Handles loading and validating tracking data.
 
     Responsibilities:
@@ -47,9 +47,7 @@ class TrackingDataController(QObject):
         Args:
             main_window: Main window protocol interface
         """
-        super().__init__()
-        self.main_window = main_window
-        self._app_state: ApplicationState = get_application_state()
+        super().__init__(main_window)
 
         # Track previous tracking directions for each point
         self.point_tracking_directions: dict[str, TrackingDirection] = {}

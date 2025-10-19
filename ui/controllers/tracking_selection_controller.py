@@ -5,16 +5,17 @@ TrackingSelectionController - Handles selection synchronization.
 Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
-from PySide6.QtCore import QObject, QTimer, Slot
+from PySide6.QtCore import QTimer, Slot
 
 from core.logger_utils import get_logger
 from protocols.ui import MainWindowProtocol
-from stores.application_state import ApplicationState, get_application_state
+from stores.application_state import get_application_state
+from ui.controllers.base_tracking_controller import BaseTrackingController
 
 logger = get_logger("tracking_selection_controller")
 
 
-class TrackingSelectionController(QObject):
+class TrackingSelectionController(BaseTrackingController):
     """Handles selection synchronization between panel and view.
 
     Responsibilities:
@@ -30,10 +31,7 @@ class TrackingSelectionController(QObject):
         Args:
             main_window: Main window protocol interface
         """
-        super().__init__()
-        self.main_window: MainWindowProtocol = main_window
-        self._app_state: ApplicationState = get_application_state()
-
+        super().__init__(main_window)
         logger.info("TrackingSelectionController initialized")
 
     @Slot(str, list)

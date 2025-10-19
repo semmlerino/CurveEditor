@@ -13,6 +13,7 @@
     "io_utils",
     "rendering",
     "services",
+    "stores",
     "tests",
     "ui",
     "main.py"
@@ -47,10 +48,10 @@
     "SetTrackingFwdBwd.py",
     "test_images_output",
     "test_data",
-    "stores",
     "commands",
     "session",
     "profiling",
+    "tools",
     "test_*.py",
     "performance*.py"
   ],

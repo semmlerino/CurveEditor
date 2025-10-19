@@ -5,7 +5,7 @@ Provides centralized access to all reactive data stores, ensuring
 single source of truth for application state.
 """
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject
 
@@ -29,7 +29,7 @@ class StoreManager(QObject):
     the application, preventing data synchronization issues.
     """
 
-    _instance: Optional["StoreManager"] = None
+    _instance: "StoreManager | None" = None
 
     def __new__(cls) -> "StoreManager":
         """Ensure singleton pattern."""
@@ -132,8 +132,8 @@ class StoreManager(QObject):
     def _connect_stores(self) -> None:
         """Connect ApplicationState to FrameStore for coordinated updates."""
         # Connect to ApplicationState signals (replaces CurveDataStore signals)
-        self._app_state.curves_changed.connect(self._on_curves_changed)
-        self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
+        _ = self._app_state.curves_changed.connect(self._on_curves_changed)
+        _ = self._app_state.active_curve_changed.connect(self._on_active_curve_changed)
 
         logger.debug("Connected ApplicationState signals for store coordination")
 

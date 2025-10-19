@@ -374,7 +374,7 @@ class BatchEditUI:
         """Select all points in the curve."""
         # curve_view is Optional in BatchEditableProtocol
         if self.parent.curve_view is not None:
-            curve_view = cast(CurveViewProtocol, self.parent.curve_view)
+            curve_view = self.parent.curve_view
             if curve_view.points:
                 num_points = len(curve_view.points)
                 if num_points > 0:
@@ -544,7 +544,7 @@ class BatchEditUI:
             self.parent.curve_data,
             self.parent.selected_indices,
             factor,
-            cast(CurveViewProtocol, self.parent.curve_view)
+            self.parent.curve_view
             # curve_view is Optional in BatchEditableProtocol
             if self.parent.curve_view is not None
             else None,
