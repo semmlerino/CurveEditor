@@ -99,6 +99,10 @@ class CurveDataCommand(Command, ABC):
     ) -> bool:
         """Update point at index with bounds checking.
 
+        Helper method available for future commands requiring functional-style indexed updates.
+        Currently not used by existing commands but provides a reusable pattern for
+        commands that need to apply transformations to points at specific indices.
+
         Args:
             curve_data: Curve data list
             index: Point index
@@ -402,6 +406,7 @@ class MovePointCommand(CurveDataCommand):
         def _execute_operation() -> bool:
             # Get active curve data
             if (result := self._get_active_curve_data()) is None:
+                logger.error("No active curve")
                 return False
             curve_name, curve_data = result
 
@@ -523,6 +528,7 @@ class DeletePointsCommand(CurveDataCommand):
         def _execute_operation() -> bool:
             # Get active curve data
             if (result := self._get_active_curve_data()) is None:
+                logger.error("No active curve")
                 return False
             curve_name, curve_data = result
 
@@ -636,6 +642,7 @@ class BatchMoveCommand(CurveDataCommand):
         def _execute_operation() -> bool:
             # Get active curve data
             if (result := self._get_active_curve_data()) is None:
+                logger.error("No active curve")
                 return False
             curve_name, curve_data = result
 
@@ -927,6 +934,7 @@ class AddPointCommand(CurveDataCommand):
         def _execute_operation() -> bool:
             # Get active curve data (allows empty curves!)
             if (result := self._get_active_curve_data()) is None:
+                logger.error("No active curve")
                 return False
             curve_name, curve_data = result
 
@@ -1027,6 +1035,7 @@ class ConvertToInterpolatedCommand(CurveDataCommand):
         def _execute_operation() -> bool:
             # Get active curve data
             if (result := self._get_active_curve_data()) is None:
+                logger.error("No active curve")
                 return False
             curve_name, curve_data = result
 
