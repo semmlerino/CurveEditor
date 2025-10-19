@@ -855,9 +855,11 @@ class MyCustomCommand(CurveDataCommand):
 ```
 
 #### Success Metrics
-- [ ] New section added to CLAUDE.md
-- [ ] Examples show proper base class usage
-- [ ] Guidelines clear on when to use vs not use
+- [x] New section added to CLAUDE.md
+- [x] Examples show proper base class usage (execute, undo, redo)
+- [x] Guidelines clear on when to use vs not use
+- [x] Return types documented for all methods
+- [x] Critical fix: _get_active_curve_data() correctly documented (does NOT store target)
 
 #### Verification Steps
 ```bash

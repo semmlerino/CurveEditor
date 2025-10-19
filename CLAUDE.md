@@ -243,6 +243,85 @@ class SmoothCommand(Command):
 
 **Critical**: Both `undo()` AND `redo()` must use `self._target_curve`. Never call `self.execute(main_window)` in `redo()` as it will overwrite the stored target.
 
+
+## Command Base Class Pattern
+
+**Use `CurveDataCommand` base class for curve-modifying commands** (Phase KISS/DRY Cleanup):
+
+All commands that modify curve data should inherit from `CurveDataCommand` to leverage:
+- Automatic active curve validation and retrieval
+- Standardized error handling
+- Target curve storage for correct undo/redo
+- Common helper methods for point manipulation
+
+```python
+from core.commands.curve_commands import CurveDataCommand
+
+class MyCustomCommand(CurveDataCommand):
+    def __init__(self, description: str, ...):
+        super().__init__(description)
+        # self._target_curve inherited from base
+
+    def execute(self, main_window: MainWindowProtocol) -> bool:
+        """Execute command with base class helpers."""
+        def _execute_operation() -> bool:
+            # Validate and get active curve
+            if (result := self._get_active_curve_data()) is None:
+                return False
+            curve_name, curve_data = result
+
+            # ... perform operation
+
+            return True
+
+        # Automatic error handling
+        return self._safe_execute("executing", _execute_operation)
+
+    def undo(self, main_window: MainWindowProtocol) -> bool:
+        """Undo uses stored target curve."""
+        def _undo_operation() -> bool:
+            if not self._target_curve:
+                logger.error("Missing target curve for undo")
+                return False
+
+            # Restore using stored target
+            app_state = get_application_state()
+            app_state.set_curve_data(self._target_curve, self._old_data)
+            return True
+
+        return self._safe_execute("undoing", _undo_operation)
+
+    def redo(self, main_window: MainWindowProtocol) -> bool:
+        """Redo uses stored target curve (do NOT call execute())."""
+        def _redo_operation() -> bool:
+            if not self._target_curve:
+                logger.error("Missing target curve for redo")
+                return False
+
+            # Apply using stored target (NOT current active curve)
+            app_state = get_application_state()
+            app_state.set_curve_data(self._target_curve, self._new_data)
+            return True
+
+        return self._safe_execute("redoing", _redo_operation)
+```
+
+**Available base class methods**:
+- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve (caller must store `_target_curve`)
+- `_safe_execute(name: str, operation) -> bool`: Wraps operation in try/except with logging
+- `_update_point_position(point, new_pos) -> LegacyPointData`: Updates x/y while preserving frame/status
+- `_update_point_at_index(data, idx, updater) -> bool`: Safe indexed update with bounds check
+
+**When to use**:
+- Any command that modifies curve points
+- Commands that need undo/redo support
+- Commands requiring active curve validation
+
+**When NOT to use**:
+- Shortcut commands (use `ShortcutCommand` base if needed)
+- Commands that don't modify curve data
+- Commands that operate on multiple curves simultaneously
+
 ## Core Data Models
 
 ```python
