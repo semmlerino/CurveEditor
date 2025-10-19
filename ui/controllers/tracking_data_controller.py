@@ -112,7 +112,7 @@ class TrackingDataController(QObject):
         if existing_curves:
             # We have existing data - add this as a new point
             base_name = "Track"
-            point_name = self._get_unique_point_name(base_name)
+            point_name = self.get_unique_point_name(base_name)
             self._app_state.set_curve_data(point_name, data)
             self.main_window.active_timeline_point = point_name  # Set as active timeline point
             # Initialize with default tracking direction
@@ -163,7 +163,7 @@ class TrackingDataController(QObject):
 
             for point_name, trajectory in multi_data.items():
                 # Check for naming conflicts and resolve them
-                unique_name = self._get_unique_point_name(point_name)
+                unique_name = self.get_unique_point_name(point_name)
                 self._app_state.set_curve_data(unique_name, trajectory)
                 new_point_names.append(unique_name)
                 # Initialize with default tracking direction
@@ -202,7 +202,7 @@ class TrackingDataController(QObject):
 
         self.data_changed.emit()
 
-    def _get_unique_point_name(self, base_name: str) -> str:
+    def get_unique_point_name(self, base_name: str) -> str:
         """Generate a unique point name by appending a suffix if needed.
 
         Args:

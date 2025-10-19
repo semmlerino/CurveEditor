@@ -31,17 +31,17 @@ class TrackingSelectionController(QObject):
             main_window: Main window protocol interface
         """
         super().__init__()
-        self.main_window = main_window
+        self.main_window: MainWindowProtocol = main_window
         self._app_state: ApplicationState = get_application_state()
 
         logger.info("TrackingSelectionController initialized")
 
     @Slot(str, list)
-    def on_data_loaded(self, curve_name: str, _curve_data: list[object]) -> None:
+    def on_data_loaded(self, _curve_name: str, _curve_data: list[object]) -> None:
         """Handle data loaded signal - auto-select point at current frame.
 
         Args:
-            curve_name: Name of the loaded curve
+            _curve_name: Name of the loaded curve (unused)
             _curve_data: The loaded curve data (unused)
         """
         # AUTO-SELECT point at current frame for immediate superior selection experience
@@ -162,8 +162,11 @@ class TrackingSelectionController(QObject):
             if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
                 # Use small delay to allow widget updates to complete
                 def safe_center_on_selection() -> None:
-                    if self.main_window.curve_widget and not self.main_window.curve_widget.isHidden():
-                        self.main_window.curve_widget.center_on_selection()
+                    curve_widget = self.main_window.curve_widget
+                    if curve_widget and not getattr(curve_widget, "isHidden", lambda: True)():
+                        center_method = getattr(curve_widget, "center_on_selection", None)
+                        if callable(center_method):
+                            _ = center_method()
 
                 QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
                 logger.debug("Scheduled centering on selected point after 10ms delay")
@@ -187,7 +190,9 @@ class TrackingSelectionController(QObject):
 
         # If no selection, clear TrackingPanel selection
         if not selection:
-            self.main_window.tracking_panel.set_selected_points([])
+            tracking_panel = self.main_window.tracking_panel
+            if tracking_panel and callable(getattr(tracking_panel, "set_selected_points", None)):
+                tracking_panel.set_selected_points([])  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
             return
 
         # Use explicit curve_name or fallback to active_timeline_point
@@ -203,7 +208,9 @@ class TrackingSelectionController(QObject):
                 self.main_window.active_timeline_point = active_curve_name
 
             # Update TrackingPanel visual state
-            self.main_window.tracking_panel.set_selected_points(selected_curves)
+            tracking_panel = self.main_window.tracking_panel
+            if tracking_panel and callable(getattr(tracking_panel, "set_selected_points", None)):
+                tracking_panel.set_selected_points(selected_curves)  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
 
             logger.debug(
                 f"Updated tracking panel for curve selection: {len(selection)} points selected in '{active_curve_name}'"

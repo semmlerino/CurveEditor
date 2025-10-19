@@ -22,6 +22,7 @@ from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath,
 from core.curve_segments import CurveSegment, SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import CurvePoint
+from ui.color_constants import CurveColors
 from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
 
 if TYPE_CHECKING:
@@ -521,8 +522,7 @@ class OptimizedCurveRenderer:
             return
 
         # Set line style
-        pen = QPen(QColor(255, 255, 255))
-        pen.setWidth(2)
+        pen = CurveColors.get_active_pen()
         painter.setPen(pen)
 
         # Use QPainterPath for batch line drawing
@@ -567,12 +567,8 @@ class OptimizedCurveRenderer:
         segmented_curve = SegmentedCurve.from_points(points)
 
         # Set line styles for different segment types
-        active_pen = QPen(QColor(255, 255, 255))
-        active_pen.setWidth(2)
-
-        inactive_pen = QPen(QColor(128, 128, 128, 128))  # Semi-transparent gray
-        inactive_pen.setWidth(1)
-        inactive_pen.setStyle(Qt.PenStyle.DashLine)
+        active_pen = CurveColors.get_active_pen()
+        inactive_pen = CurveColors.get_inactive_pen()
 
         # Create frame-to-index mapping for O(1) lookups
         frame_to_index = {pt[0]: i for i, pt in enumerate(curve_data)}
@@ -707,7 +703,7 @@ class OptimizedCurveRenderer:
 
         # Set default color if not provided
         if curve_color is None:
-            curve_color = QColor(255, 255, 255)
+            curve_color = CurveColors.WHITE
 
         # Check if we have status information to determine rendering approach
         has_status = any(len(pt) > 3 for pt in curve_data[:100] if pt)  # Check first 100 points
@@ -738,12 +734,8 @@ class OptimizedCurveRenderer:
         segmented_curve = SegmentedCurve.from_points(points)
 
         # Set line styles for different segment types
-        active_pen = QPen(curve_color)
-        active_pen.setWidth(line_width)
-
-        inactive_pen = QPen(QColor(128, 128, 128, 128))  # Semi-transparent gray
-        inactive_pen.setWidth(max(1, line_width - 1))
-        inactive_pen.setStyle(Qt.PenStyle.DashLine)
+        active_pen = CurveColors.get_active_pen(color=curve_color, width=line_width)
+        inactive_pen = CurveColors.get_inactive_pen(width=max(1, line_width - 1))
 
         # Create frame-to-index mapping for O(1) lookups
         frame_to_index = {pt[0]: i for i, pt in enumerate(curve_data)}

@@ -14,6 +14,10 @@ Following the testing guide principles:
 - Mock only at system boundaries
 """
 
+# Per-file type checking relaxations for test code
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+
 from typing import TYPE_CHECKING, Any, cast
 from unittest.mock import Mock
 
@@ -167,11 +171,11 @@ class TestInteractionServiceSelection:  # pyright: ignore[reportUninitializedIns
         app_state.set_active_curve("test_curve")
 
         main_window = MockMainWindow()
-        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         main_window.curve_view = view  # Backward compatibility
 
         # Use correct method name: select_all_points, not select_all
-        count = self.service.select_all_points(view, main_window)
+        count = self.service.select_all_points(view, main_window)  # pyright: ignore[reportArgumentType]  # MockMainWindow compatible with protocol
 
         assert count == 3
         assert len(view.selected_points) == 3
@@ -189,10 +193,10 @@ class TestInteractionServiceSelection:  # pyright: ignore[reportUninitializedIns
         view.selected_points = {0, 1}
         view.selected_point_idx = 1
         main_window = MockMainWindow()
-        main_window.curve_widget = view  # Real MainWindow interface
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         main_window.curve_view = view  # Backward compatibility
 
-        self.service.clear_selection(view, main_window)
+        self.service.clear_selection(view, main_window)  # pyright: ignore[reportArgumentType]  # MockMainWindow compatible with protocol
 
         assert len(view.selected_points) == 0
         assert view.selected_point_idx == -1
@@ -260,8 +264,8 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -286,8 +290,8 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         view = MockCurveView([(1, 100, 100)])
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -316,8 +320,8 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -355,8 +359,8 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -389,8 +393,8 @@ class TestInteractionServiceHistory:  # pyright: ignore[reportUninitializedInsta
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -657,8 +661,8 @@ class TestInteractionServiceKeyboardEvents:  # pyright: ignore[reportUninitializ
         view = MockCurveView()
         main_window = MockMainWindow()
         # Set history to None to force use of internal history
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         main_window.curve_widget = view  # Real MainWindow interface
         main_window.curve_view = view  # Backward compatibility
 
@@ -1149,8 +1153,8 @@ class TestStateManagement:  # pyright: ignore[reportUninitializedInstanceVariabl
 
         view = MockCurveView(cast(CurveDataList, test_data))
         main_window = MockMainWindow()
-        main_window.history = None
-        main_window.history_index = None
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
         self.service.save_state(main_window)
         main_window.curve_view = view
 
@@ -1170,7 +1174,7 @@ class TestStateManagement:  # pyright: ignore[reportUninitializedInstanceVariabl
 
         view = MockCurveView([(1, 50.0, 50.0)])
         main_window = MockMainWindow()
-        main_window.curve_widget = view
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         main_window.curve_view = view
 
         # Create state to restore
@@ -1228,7 +1232,7 @@ class TestHistoryWithMainWindow:  # pyright: ignore[reportUninitializedInstanceV
         self.service.add_to_history(main_window, None)
         main_window.history_index = -1
         main_window.max_history_size = 50
-        main_window.curve_widget = view
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         main_window.curve_view = view
 
         self.service.add_to_history(main_window, None)
@@ -1250,7 +1254,7 @@ class TestHistoryWithMainWindow:  # pyright: ignore[reportUninitializedInstanceV
         main_window = MockMainWindow()
         self.service.add_to_history(main_window, None)
         main_window.history_index = -1
-        main_window.curve_widget = view
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         main_window.curve_view = view
 
         self.service.add_to_history(main_window, None)
@@ -1292,9 +1296,9 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
 
         view = MockCurveView([(1, 100.0, 100.0)])
         main_window = MockMainWindow()
-        main_window.history = None
-        main_window.history_index = None
-        main_window.curve_widget = view
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
         self.service.add_to_history(main_window, None)
 
         # Add some states
@@ -1341,9 +1345,9 @@ class TestHistoryEdgeCases:  # pyright: ignore[reportUninitializedInstanceVariab
 
         view = MockCurveView([(1, 100.0, 100.0)])
         main_window = MockMainWindow()
-        main_window.history = None
-        main_window.history_index = None
-        main_window.curve_widget = view
+        main_window.history = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.history_index = None  # pyright: ignore[reportAttributeAccessIssue]  # Test uses None to force internal history
+        main_window.curve_widget = view  # pyright: ignore[reportAttributeAccessIssue]  # MockCurveView used in tests
 
         # Add some states
         self.service.add_to_history(main_window, None)

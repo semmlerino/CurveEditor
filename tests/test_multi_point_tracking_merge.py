@@ -12,7 +12,6 @@ Following UNIFIED_TESTING_GUIDE best practices:
 """
 
 from collections.abc import Callable
-from typing import Any
 
 import pytest
 
@@ -29,15 +28,15 @@ class MockSignal:
     """Lightweight signal test double for non-Qt components."""
 
     def __init__(self) -> None:
-        self.emissions: list[tuple[Any, ...]] = []
-        self.callbacks: list[Callable[..., Any]] = []
+        self.emissions: list[tuple[object, ...]] = []
+        self.callbacks: list[Callable[..., object]] = []
 
-    def emit(self, *args: Any) -> None:
+    def emit(self, *args: object) -> None:
         self.emissions.append(args)
         for callback in self.callbacks:
-            callback(*args)
+            _ = callback(*args)
 
-    def connect(self, callback: Callable[..., Any]) -> None:
+    def connect(self, callback: Callable[..., object]) -> None:
         self.callbacks.append(callback)
 
     @property
@@ -168,9 +167,9 @@ class MockCurveWidget:
     def set_curves_data(
         self,
         curves: dict[str, CurveDataList],
-        metadata: Any = None,
-        active_curve: Any = None,
-        selected_curves: Any = None,
+        metadata: object = None,
+        active_curve: object = None,
+        selected_curves: object = None,
     ) -> None:
         """Mock implementation of set_curves_data."""
         self.curves_data = curves
@@ -244,7 +243,7 @@ class MockFileOperations:
         self.next_data: CurveDataList | dict[str, CurveDataList] | None = None
         self.file_loaded_signal: MockSignal = MockSignal()
 
-    def open_file(self, parent: Any) -> CurveDataList | dict[str, CurveDataList] | None:
+    def open_file(self, parent: object) -> CurveDataList | dict[str, CurveDataList] | None:
         """Simulate opening a file."""
         if self.next_data is not None:
             self.file_loaded_signal.emit(self.next_data)
@@ -263,10 +262,10 @@ class MockMainWindow:
         self.tracking_panel: MockTrackingPanel = MockTrackingPanel()
         self.state_manager: MockStateManager = MockStateManager()
         self.file_operations: MockFileOperations = MockFileOperations()
-        self.frame_slider: Any = None
-        self.frame_spinbox: Any = None
-        self.total_frames_label: Any = None
-        self.status_label: Any = None
+        self.frame_slider: object = None
+        self.frame_spinbox: object = None
+        self.total_frames_label: object = None
+        self.status_label: object = None
         self.tracking_controller: MultiPointTrackingController | None = None
         self.active_timeline_point: str | None = None
 
@@ -275,7 +274,7 @@ class MockMainWindow:
         if self.tracking_controller is not None:
             self.tracking_controller.update_tracking_panel()
 
-    def update_timeline_tabs(self, data: Any) -> None:
+    def update_timeline_tabs(self, data: object) -> None:
         """Mock timeline update."""
         pass
 
@@ -298,7 +297,7 @@ class TestUniqueNameGeneration:
         controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # No existing data
-        unique_name = controller._get_unique_point_name("NewPoint")
+        unique_name = controller._get_unique_point_name("NewPoint")  # pyright: ignore[reportAttributeAccessIssue]
         assert unique_name == "NewPoint"
 
     def test_unique_name_with_conflict(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
@@ -310,7 +309,7 @@ class TestUniqueNameGeneration:
         controller.tracked_data = make_multi_point_data(["Point1", "Point2"])
 
         # Try to add conflicting name
-        unique_name = controller._get_unique_point_name("Point1")
+        unique_name = controller._get_unique_point_name("Point1")  # pyright: ignore[reportAttributeAccessIssue]
         assert unique_name == "Point1_2"
 
     def test_unique_name_with_multiple_conflicts(
@@ -327,7 +326,7 @@ class TestUniqueNameGeneration:
             "Track_3": [(3, 30.0, 40.0)],
         }
 
-        unique_name = controller._get_unique_point_name("Track")
+        unique_name = controller._get_unique_point_name("Track")  # pyright: ignore[reportAttributeAccessIssue]
         assert unique_name == "Track_4"
 
     @pytest.mark.parametrize(
@@ -347,7 +346,7 @@ class TestUniqueNameGeneration:
         # Set up existing names
         controller.tracked_data = {name: [] for name in existing_names}
 
-        unique_name = controller._get_unique_point_name(base_name)
+        unique_name = controller._get_unique_point_name(base_name)  # pyright: ignore[reportAttributeAccessIssue]
         assert unique_name == expected
 
 
@@ -605,7 +604,7 @@ class TestFileOpenMerging:
 class TestEdgeCases:
     """Test edge cases and error conditions."""
 
-    def test_empty_data_handled_gracefully(self):
+    def test_empty_data_handled_gracefully(self) -> None:
         """Empty data should not cause errors."""
         main_window = MockMainWindow()
         controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
@@ -618,7 +617,7 @@ class TestEdgeCases:
         assert len(controller.tracked_data) == 0
         assert main_window.active_timeline_point is None
 
-    def test_none_data_handled_gracefully(self):
+    def test_none_data_handled_gracefully(self) -> None:
         """None data should not cause errors."""
         main_window = MockMainWindow()
         controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
@@ -652,7 +651,7 @@ class TestEdgeCases:
         assert elapsed < 0.1
         assert len(controller.tracked_data) == 50
 
-    def test_deep_conflict_resolution(self):
+    def test_deep_conflict_resolution(self) -> None:
         """Should handle deep naming conflicts correctly."""
         main_window = MockMainWindow()
         controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
@@ -660,6 +659,7 @@ class TestEdgeCases:
 
         # Create data with many conflicts
         for i in range(10):
+            data: dict[str, CurveDataList]
             if i == 0:
                 data = {"Track": [(1, 10.0, 20.0)]}
             else:

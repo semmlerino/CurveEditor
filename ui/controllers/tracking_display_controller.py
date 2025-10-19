@@ -6,7 +6,7 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
 from collections.abc import Sequence
-from typing import Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QObject, Signal, Slot
 
@@ -16,7 +16,28 @@ from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from protocols.ui import MainWindowProtocol
 from stores.application_state import ApplicationState, get_application_state
 
+if TYPE_CHECKING:
+    from ui.tracking_points_panel import TrackingPointsPanel
+
 logger = get_logger("tracking_display_controller")
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    """Convert hex color string to RGB tuple.
+
+    Args:
+        hex_color: Hex color string (e.g., "#FF0000" or "FF0000")
+
+    Returns:
+        RGB tuple (r, g, b) with values 0-255
+    """
+    # Remove '#' if present
+    hex_color = hex_color.lstrip("#")
+    return (
+        int(hex_color[0:2], 16),
+        int(hex_color[2:4], 16),
+        int(hex_color[4:6], 16),
+    )
 
 
 class TrackingDisplayController(QObject):
@@ -33,7 +54,7 @@ class TrackingDisplayController(QObject):
         display_updated: Emitted when display refreshed
     """
 
-    display_updated = Signal()
+    display_updated: Signal = Signal()
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initialize tracking display controller.
@@ -42,7 +63,7 @@ class TrackingDisplayController(QObject):
             main_window: Main window protocol interface
         """
         super().__init__()
-        self.main_window = main_window
+        self.main_window: MainWindowProtocol = main_window
         self._app_state: ApplicationState = get_application_state()
 
         logger.info("TrackingDisplayController initialized")
@@ -82,7 +103,8 @@ class TrackingDisplayController(QObject):
 
         # Sync table selection for file loading case
         if self.main_window.tracking_panel:
-            self.main_window.tracking_panel.set_selected_points([curve_name])
+            panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
+            panel.set_selected_points([curve_name])
 
         self.display_updated.emit()
 
@@ -104,7 +126,8 @@ class TrackingDisplayController(QObject):
             all_tracked_data: dict[str, CurveDataInput] = {}
             for curve_name in self._app_state.get_all_curve_names():
                 all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
-            self.main_window.tracking_panel.set_tracked_data(all_tracked_data)
+            panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
+            panel.set_tracked_data(all_tracked_data)
 
     def _prepare_display_data(self) -> tuple[dict[str, CurveDataList], dict[str, dict[str, Any]], str | None]:
         """Prepare curve data for display (common logic).
@@ -124,9 +147,10 @@ class TrackingDisplayController(QObject):
                 all_curves_data[curve_name] = curve_data
                 # Get metadata from tracking panel if available
                 if self.main_window.tracking_panel is not None:
+                    panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
                     metadata[curve_name] = {
-                        "visible": self.main_window.tracking_panel.get_point_visibility(curve_name),
-                        "color": self.main_window.tracking_panel.get_point_color(curve_name),
+                        "visible": panel.get_point_visibility(curve_name),
+                        "color": panel.get_point_color(curve_name),
                     }
 
         return all_curves_data, metadata, active_curve
@@ -231,11 +255,11 @@ class TrackingDisplayController(QObject):
             max_frame = max(point[0] for point in data)
             try:
                 if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)
+                    self.main_window.frame_slider.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSlider method, None already checked
                 if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)
+                    self.main_window.frame_spinbox.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSpinBox method, None already checked
                 if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))
+                    self.main_window.total_frames_label.setText(str(max_frame))  # pyright: ignore[reportAttributeAccessIssue]  # QLabel method, None already checked
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass
@@ -252,11 +276,11 @@ class TrackingDisplayController(QObject):
         if max_frame > 0:
             try:
                 if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)
+                    self.main_window.frame_slider.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSlider method, None already checked
                 if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)
+                    self.main_window.frame_spinbox.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSpinBox method, None already checked
                 if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))
+                    self.main_window.total_frames_label.setText(str(max_frame))  # pyright: ignore[reportAttributeAccessIssue]  # QLabel method, None already checked
             except RuntimeError:
                 # Widgets may have been deleted during application shutdown
                 pass
@@ -285,13 +309,15 @@ class TrackingDisplayController(QObject):
 
         Args:
             point_name: Name of the tracking point
-            color: New color for the point
+            color: New color for the point (hex string like "#FF0000")
         """
         # Update curve color directly if multi-curve is supported
         if self.main_window.curve_widget is not None and callable(
             getattr(self.main_window.curve_widget, "update_curve_color", None)
         ):
-            self.main_window.curve_widget.update_curve_color(point_name, color)
+            # Convert hex color string to RGB tuple
+            rgb_color = _hex_to_rgb(color)
+            self.main_window.curve_widget.update_curve_color(point_name, rgb_color)
         else:
             # Fallback to full display update, preserving selection
             self.update_display_preserve_selection()
@@ -438,8 +464,8 @@ class TrackingDisplayController(QObject):
             widget.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
 
         # Use the proper centering method that handles coordinate transformation and Y-flip
-        widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportPrivateUsage]
+        widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportAttributeAccessIssue]  # Accessing concrete CurveViewWidget implementation
 
-        widget.invalidate_caches()
+        widget.invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]  # CurveViewWidget method not in protocol
         widget.update()
-        widget.view_changed.emit()
+        widget.view_changed.emit()  # pyright: ignore[reportAttributeAccessIssue]  # Signal not in protocol

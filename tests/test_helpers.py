@@ -618,13 +618,16 @@ class MockMainWindow:
     """
 
     def __init__(self) -> None:
-        from typing import cast
+        from typing import TYPE_CHECKING
+
+        if TYPE_CHECKING:
+            from protocols.ui import MultiCurveViewProtocol
 
         # Core components
         self.curve_view = MockCurveView()
-        # curve_widget type is MultiCurveViewProtocol | None in protocol,
-        # but we use MockCurveView for testing. Cast to satisfy type checker.
-        self.curve_widget: object = cast(object, self.curve_view)
+        # curve_widget must be typed as MultiCurveViewProtocol | None for protocol compliance
+        # MockCurveView is compatible with MultiCurveViewProtocol at runtime
+        self.curve_widget: "MultiCurveViewProtocol | None" = self.curve_view  # pyright: ignore[reportAssignmentType]
 
         # UI components structure using real widgets
         class UIComponents:
@@ -651,7 +654,7 @@ class MockMainWindow:
         self.status_bar = QStatusBar()
 
         # History management (for MainWindowProtocol compatibility)
-        # Note: These are mutable to allow tests to force internal history usage
+        # Protocol requires non-optional types (invariant because mutable)
         self.history: list[object] = []
         self.history_index: int = -1
         self.max_history_size: int = 50
@@ -868,17 +871,22 @@ class MockMainWindow:
 
     def add_to_history(self, action: object | None = None) -> None:
         """Add action to history (MainWindowProtocol)."""
-        self.history.append(action)
-        if len(self.history) > self.max_history_size:
-            self.history.pop(0)
-        self.history_index = len(self.history) - 1
+        if self.history is not None:
+            self.history.append(action)
+            if len(self.history) > self.max_history_size:
+                self.history.pop(0)
+            self.history_index = len(self.history) - 1
 
     def can_undo(self) -> bool:
         """Check if undo is available."""
+        if self.history_index is None:
+            return False
         return self.history_index >= 0
 
     def can_redo(self) -> bool:
         """Check if redo is available."""
+        if self.history is None or self.history_index is None:
+            return False
         return self.history_index < len(self.history) - 1
 
     def set_tracked_data_atomic(self, data: object) -> None:

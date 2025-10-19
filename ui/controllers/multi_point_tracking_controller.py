@@ -19,7 +19,7 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import QObject
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
+    from protocols.ui import MainWindowProtocol
 
 from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
@@ -47,7 +47,7 @@ class MultiPointTrackingController(QObject):
     Phase 3.1: Refactored from 1,166 lines to thin delegation layer.
     """
 
-    def __init__(self, main_window: "MainWindow"):
+    def __init__(self, main_window: "MainWindowProtocol"):
         """
         Initialize the multi-point tracking controller.
 
@@ -55,15 +55,15 @@ class MultiPointTrackingController(QObject):
             main_window: Reference to the main window for UI access
         """
         super().__init__()
-        self.main_window: MainWindow = main_window
+        self.main_window: MainWindowProtocol = main_window
 
         # Get centralized ApplicationState
         self._app_state: ApplicationState = get_application_state()
 
         # Create sub-controllers
-        self.data_controller = TrackingDataController(main_window)
-        self.display_controller = TrackingDisplayController(main_window)
-        self.selection_controller = TrackingSelectionController(main_window)
+        self.data_controller: TrackingDataController = TrackingDataController(main_window)
+        self.display_controller: TrackingDisplayController = TrackingDisplayController(main_window)
+        self.selection_controller: TrackingSelectionController = TrackingSelectionController(main_window)
 
         # Wire sub-controllers together
         self._connect_sub_controllers()
@@ -111,7 +111,7 @@ class MultiPointTrackingController(QObject):
         Args:
             data: Single trajectory data loaded from file
         """
-        self.data_controller.on_tracking_data_loaded(data)
+        self.data_controller.on_tracking_data_loaded(data)  # pyright: ignore[reportArgumentType]
 
     def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """
@@ -192,7 +192,7 @@ class MultiPointTrackingController(QObject):
         """
         return self.data_controller.get_tracking_point_names()
 
-    def _get_unique_point_name(self, base_name: str) -> str:
+    def get_unique_point_name(self, base_name: str) -> str:
         """
         Generate a unique point name by appending a suffix if needed.
 
@@ -202,7 +202,7 @@ class MultiPointTrackingController(QObject):
         Returns:
             A unique point name that doesn't conflict with existing names
         """
-        return self.data_controller._get_unique_point_name(base_name)
+        return self.data_controller.get_unique_point_name(base_name)
 
     # ==================== Display Operations - Delegate to TrackingDisplayController ====================
 

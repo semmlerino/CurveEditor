@@ -232,10 +232,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.timeline_controller = TimelineController(self.state_manager, self)
         self.action_controller = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller = UIInitializationController(self)
-        self.view_management_controller = ViewManagementController(self)
+        self.view_management_controller = ViewManagementController(self)  # pyright: ignore[reportAttributeAccessIssue]
         self.background_controller = self.view_management_controller
-        self.point_editor_controller = PointEditorController(self, self.state_manager)
-        self.tracking_controller = MultiPointTrackingController(self)
+        self.point_editor_controller = PointEditorController(self, self.state_manager)  # pyright: ignore[reportAttributeAccessIssue]
+        self.tracking_controller = MultiPointTrackingController(self)  # pyright: ignore[reportArgumentType]
 
         # Frame change coordinator (replaces 6 independent frame_changed connections)
         self.frame_change_coordinator: FrameChangeCoordinator = FrameChangeCoordinator(self)
@@ -517,6 +517,15 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def is_modified(self) -> bool:
         """Get the modification state."""
         return self.state_manager.is_modified
+
+    @property
+    def curve_view(self) -> "CurveViewWidget | None":
+        """Get the curve view widget (MainWindowProtocol requirement).
+
+        Returns the curve_widget which implements CurveViewProtocol.
+        This property exists for protocol conformance.
+        """
+        return self.curve_widget
 
     @property
     def active_timeline_point(self) -> str | None:

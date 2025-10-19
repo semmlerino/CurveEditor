@@ -111,12 +111,13 @@ class TestUpdatePointPosition:
     def test_handles_invalid_tuple_gracefully(self):
         """_update_point_position returns original if tuple too small."""
         cmd = SetCurveDataCommand("test", [])
-        point: LegacyPointData = (42, 100.0)  # type: ignore[assignment]  # Intentionally invalid for test
+        # Create a 2-tuple that will be treated as invalid by the helper
+        invalid_point = (42, 100.0)
         new_pos = (150.0, 250.0)
 
-        result = cmd._update_point_position(point, new_pos)
+        result = cmd._update_point_position(invalid_point, new_pos)  # pyright: ignore[reportArgumentType]
 
-        assert result == point  # Unchanged
+        assert result == invalid_point  # Unchanged
 
     def test_preserves_status_in_4_tuple(self):
         """_update_point_position maintains status value exactly."""
@@ -127,6 +128,8 @@ class TestUpdatePointPosition:
         result = cmd._update_point_position(point, new_pos)
 
         assert result == (10, 75.0, 85.0, "endframe")
+        # Type checker knows result is PointTuple4 because input was PointTuple4
+        assert len(result) == 4
         assert result[3] == "endframe"  # Status preserved
 
 

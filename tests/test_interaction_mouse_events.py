@@ -41,8 +41,9 @@ class TestMousePressEvents:
     def setup(self, qapp) -> None:
         """Setup test environment."""
         self.service = get_interaction_service()
-        self.service._history = []
-        self.service._current_index = -1
+        # Access internal history through _commands helper
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
 
     def test_mouse_press_selects_point_single_click(self) -> None:
         """Test single click selects a single point."""
@@ -295,8 +296,8 @@ class TestMouseReleaseEvents:
         view.drag_active = True
         view.selected_points = {0}
 
-        # Set original positions for drag
-        self.service._drag_original_positions = {0: (100.0, 100.0)}
+        # Set original positions for drag (access through _mouse helper)
+        self.service._mouse._drag_original_positions = {0: (100.0, 100.0)}
 
         # Update point position to simulate drag
         view.curve_data[0] = (1, 150.0, 150.0)

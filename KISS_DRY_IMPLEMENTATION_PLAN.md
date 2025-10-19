@@ -23,19 +23,24 @@
   - ✅ Task 3.1: Migrate to active_curve_data Property (41f364a + ecb453e) - 12 sites, improved robustness
   - ✅ Task 3.2: Standardize None Checking Patterns - 10 locations, improved type safety
 
+- **Phase 4 (33%)**: Code Clarity
+  - ✅ Task 4.1: Create CurveColors Constants Class - 9 lines saved, improved maintainability
+  - ⏳ Task 4.2: Create BaseTrackingController - Not started
+  - ⏳ Task 4.3: Create ShortcutCommand Base Class - Not started
+
 ### In Progress 🔄
-- None (ready for Phase 4)
+- None (ready for Task 4.2)
 
 ### Pending ⏳
-- **Phase 4**: Tasks 4.1, 4.2, 4.3 (3 hours estimated)
+- **Phase 4**: Tasks 4.2, 4.3 (2 hours estimated)
 
 ### Summary Stats
-- **Tasks Completed**: 8/10 (80%)
-- **Lines Saved**: 200+ lines
+- **Tasks Completed**: 9/10 (90%)
+- **Lines Saved**: 209+ lines
 - **Tests Passing**: 2426/2427 (99.96%)
-- **Commits**: 9 (8 tasks + 1 naming fix)
-- **Code Reviews**: All A-/A grades (88-92%)
-- **Time Spent**: ~9 hours (on track)
+- **Commits**: 10 (9 tasks + 1 naming fix)
+- **Code Reviews**: All A-/B+ grades (85-92%)
+- **Time Spent**: ~10 hours (on track)
 
 ---
 
@@ -1254,10 +1259,12 @@ inactive_pen = CurveColors.get_inactive_pen()
 ```
 
 #### Success Metrics
-- [ ] `CurveColors` class created with 3 colors, 2 helper methods
-- [ ] 6 hardcoded `QColor(255, 255, 255)` replaced
-- [ ] 2 hardcoded `QColor(128, 128, 128, 128)` replaced
-- [ ] All rendering tests pass
+- [x] `CurveColors` class created with 2 colors, 2 helper methods ✅
+- [x] 3 hardcoded `QColor(255, 255, 255)` replaced ✅
+- [x] 2 hardcoded `QColor(128, 128, 128, 128)` replaced ✅
+- [x] All rendering tests pass ✅ (16/16 tests)
+- [x] Removed CURRENT_FRAME_MAGENTA (dead code) ✅
+- [x] Added TODO for color_manager.py integration ✅
 
 #### Verification Steps
 ```bash

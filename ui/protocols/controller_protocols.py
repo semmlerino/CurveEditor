@@ -283,7 +283,10 @@ class ViewManagementProtocol(ViewOptionsProtocol, BackgroundImageProtocol, Proto
 class MultiPointTrackingProtocol(Protocol):
     """Protocol for multi-point tracking controller."""
 
-    tracked_data: dict[str, CurveDataList]
+    @property
+    def tracked_data(self) -> dict[str, CurveDataList]:
+        """Access to tracked data dictionary."""
+        ...
 
     def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle tracking data loaded."""
