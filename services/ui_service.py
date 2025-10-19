@@ -366,8 +366,8 @@ class UIService:
             if (cd := app_state.active_curve_data) is None:
                 has_data = False
             else:
-                curve_name, curve_data = cd
-                has_data = len(curve_data) > 0
+                curve_name, data = cd
+                has_data = len(data) > 0
             main_window.save_button.setEnabled(has_data)
 
         # Update selection-dependent buttons
@@ -433,8 +433,8 @@ class UIService:
         if (cd := app_state.active_curve_data) is None:
             point_count = 0
         else:
-            curve_name, curve_data = cd
-            point_count = len(curve_data)
+            curve_name, data = cd
+            point_count = len(data)
         self.set_status(main_window, f"{point_count} points loaded")
 
         # Update window title if modified
