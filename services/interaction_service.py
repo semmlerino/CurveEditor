@@ -913,9 +913,7 @@ class _CommandHistory:
         # Check if main_window manages its own history (legacy compatibility)
         # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
         elif (
-            main_window.history is not None
-            and main_window.history_index is not None
-            and main_window.history_index > 0
+            main_window.history is not None and main_window.history_index is not None and main_window.history_index > 0
         ):
             logger.info("Using legacy history system")
             main_window.history_index -= 1
@@ -977,11 +975,12 @@ class _CommandHistory:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
+        # Defensive check for test mocks that may pass None
+        if main_window is None:
+            return
+
         # Determine can_undo and can_redo based on history location
-        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
-        can_undo_val = (
-            main_window.history_index is not None and main_window.history_index > 0
-        )
+        can_undo_val = main_window.history_index is not None and main_window.history_index > 0
         can_redo_val = (
             main_window.history is not None
             and main_window.history_index is not None
