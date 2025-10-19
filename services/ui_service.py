@@ -363,7 +363,12 @@ class UIService:
         # save_button is Optional
         if main_window.save_button is not None:
             app_state = get_application_state()
-            main_window.save_button.setEnabled(len(app_state.get_curve_data()) > 0)
+            if (cd := app_state.active_curve_data) is None:
+                has_data = False
+            else:
+                curve_name, curve_data = cd
+                has_data = len(curve_data) > 0
+            main_window.save_button.setEnabled(has_data)
 
         # Update selection-dependent buttons
         has_selection = False
@@ -425,7 +430,11 @@ class UIService:
 
         # Update status bar with data info
         app_state = get_application_state()
-        point_count = len(app_state.get_curve_data())
+        if (cd := app_state.active_curve_data) is None:
+            point_count = 0
+        else:
+            curve_name, curve_data = cd
+            point_count = len(curve_data)
         self.set_status(main_window, f"{point_count} points loaded")
 
         # Update window title if modified

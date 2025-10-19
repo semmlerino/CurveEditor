@@ -124,7 +124,9 @@ class _MouseHandler:
                     self._drag_original_positions = {}
                     if view.selected_points:
                         # Use ApplicationState for active curve data
-                        active_curve_data = self._app_state.get_curve_data()  # No param = active curve
+                        if (cd := self._app_state.active_curve_data) is None:
+                            return
+                        curve_name, active_curve_data = cd
                         for idx in view.selected_points:
                             if 0 <= idx < len(active_curve_data):
                                 point = active_curve_data[idx]
@@ -191,24 +193,25 @@ class _MouseHandler:
                     curve_delta_y = (delta_y * y_multiplier) / transform.scale
 
                     # Use ApplicationState with batch mode for performance
-                    active_curve_name = self._app_state.active_curve
-                    if active_curve_name:
-                        active_curve_data = list(self._app_state.get_curve_data())
+                    if (cd := self._app_state.active_curve_data) is None:
+                        return
+                    curve_name, data = cd
+                    active_curve_data = list(data)  # Mutable copy for modifications
 
-                        # Move all selected points - update via ApplicationState with batch mode
-                        with self._app_state.batch_updates():
-                            for idx in view.selected_points:
-                                if 0 <= idx < len(active_curve_data):
-                                    point = active_curve_data[idx]
-                                    new_x = point[1] + curve_delta_x
-                                    new_y = point[2] + curve_delta_y
-                                    # Update in local copy
-                                    if len(point) >= 4:
-                                        active_curve_data[idx] = (point[0], new_x, new_y, point[3])
-                                    else:
-                                        active_curve_data[idx] = (point[0], new_x, new_y)
-                            # Write back to ApplicationState
-                            self._app_state.set_curve_data(active_curve_name, active_curve_data)
+                    # Move all selected points - update via ApplicationState with batch mode
+                    with self._app_state.batch_updates():
+                        for idx in view.selected_points:
+                            if 0 <= idx < len(active_curve_data):
+                                point = active_curve_data[idx]
+                                new_x = point[1] + curve_delta_x
+                                new_y = point[2] + curve_delta_y
+                                # Update in local copy
+                                if len(point) >= 4:
+                                    active_curve_data[idx] = (point[0], new_x, new_y, point[3])
+                                else:
+                                    active_curve_data[idx] = (point[0], new_x, new_y)
+                        # Write back to ApplicationState
+                        self._app_state.set_curve_data(curve_name, active_curve_data)
 
                 view.last_drag_pos = pos
 
@@ -258,7 +261,9 @@ class _MouseHandler:
                     from core.commands.curve_commands import BatchMoveCommand
 
                     # Collect the moves using ApplicationState
-                    active_curve_data = self._app_state.get_curve_data()
+                    if (cd := self._app_state.active_curve_data) is None:
+                        return
+                    curve_name, active_curve_data = cd
                     moves = []
                     for idx, old_pos in self._drag_original_positions.items():
                         if 0 <= idx < len(active_curve_data):
@@ -296,20 +301,22 @@ class _MouseHandler:
                     rect = view.rubber_band.geometry()
 
                     # Find points in rectangle using ApplicationState
+                    if (cd := self._app_state.active_curve_data) is None:
+                        return
+                    curve_name, active_curve_data = cd
+
                     selected_count = 0
-                    active_curve_data = self._app_state.get_curve_data()
-                    if active_curve_data:
-                        transform_service = _get_transform_service()
-                        transform = transform_service.get_transform(view)
+                    transform_service = _get_transform_service()
+                    transform = transform_service.get_transform(view)
 
-                        if not view.selected_points:
-                            view.selected_points = set()
+                    if not view.selected_points:
+                        view.selected_points = set()
 
-                        for i, point in enumerate(active_curve_data):
-                            screen_x, screen_y = transform.data_to_screen(point[1], point[2])
-                            if rect.contains(int(screen_x), int(screen_y)):
-                                view.selected_points.add(i)
-                                selected_count += 1
+                    for i, point in enumerate(active_curve_data):
+                        screen_x, screen_y = transform.data_to_screen(point[1], point[2])
+                        if rect.contains(int(screen_x), int(screen_y)):
+                            view.selected_points.add(i)
+                            selected_count += 1
 
                     # Hide rubber band
                     view.rubber_band.hide()
@@ -361,7 +368,9 @@ class _MouseHandler:
                     from core.commands.curve_commands import DeletePointsCommand
 
                     # Collect points to delete using ApplicationState
-                    active_curve_data = self._app_state.get_curve_data()
+                    if (cd := self._app_state.active_curve_data) is None:
+                        return
+                    curve_name, active_curve_data = cd
                     indices = list(view.selected_points)
                     deleted_points = []
                     for idx in sorted(indices):
@@ -387,12 +396,13 @@ class _MouseHandler:
 
             elif key == Qt.Key.Key_A and event.modifiers() & Qt.KeyboardModifier.ControlModifier:
                 # Select all points using ApplicationState
-                active_curve_data = self._app_state.get_curve_data()
-                if active_curve_data:
-                    view.selected_points = set(range(len(active_curve_data)))
-                    view.selected_point_idx = 0
-                    # main_window is defined in CurveViewProtocol
-                    self._owner._commands.update_history_buttons(view.main_window)
+                if (cd := self._app_state.active_curve_data) is None:
+                    return
+                curve_name, active_curve_data = cd
+                view.selected_points = set(range(len(active_curve_data)))
+                view.selected_point_idx = 0
+                # main_window is defined in CurveViewProtocol
+                self._owner._commands.update_history_buttons(view.main_window)
 
             elif key == Qt.Key.Key_Escape:
                 # Clear selection
@@ -425,7 +435,9 @@ class _MouseHandler:
                     curve_delta_y = -delta_y / transform.scale  # Invert Y
 
                     # Collect moves for command using ApplicationState
-                    active_curve_data = self._app_state.get_curve_data()
+                    if (cd := self._app_state.active_curve_data) is None:
+                        return
+                    curve_name, active_curve_data = cd
                     moves = []
                     for idx in view.selected_points:
                         if 0 <= idx < len(active_curve_data):
@@ -497,22 +509,18 @@ class _SelectionManager:
 
         if mode == "active":
             # Single-curve mode (backward compatible)
-            active_curve = self._app_state.active_curve
-            if active_curve is None:
+            if (cd := self._app_state.active_curve_data) is None:
                 return PointSearchResult(index=-1, curve_name=None)
+            curve_name, active_curve_data = cd
 
             # Use spatial index for O(1) lookup
-            active_curve_data = self._app_state.get_curve_data(active_curve)
-            if not active_curve_data:
-                return PointSearchResult(index=-1, curve_name=None)
-
             transform_service = _get_transform_service()
             transform = transform_service.get_transform(view)
 
             threshold = 5.0
             # Updated API: curve_data is now first parameter
             idx = self._point_index.find_point_at_position(active_curve_data, transform, x, y, threshold, view)
-            return PointSearchResult(index=idx, curve_name=active_curve if idx >= 0 else None, distance=0.0)
+            return PointSearchResult(index=idx, curve_name=curve_name if idx >= 0 else None, distance=0.0)
 
         elif mode == "all_visible":
             # Multi-curve mode - search all visible curves
@@ -553,9 +561,9 @@ class _SelectionManager:
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
         # Use ApplicationState for active curve data
-        active_curve_data = self._app_state.get_curve_data()
-        if not active_curve_data:
+        if (cd := self._app_state.active_curve_data) is None:
             return -1
+        curve_name, active_curve_data = cd
 
         transform_service = _get_transform_service()
 
@@ -805,8 +813,8 @@ class _CommandHistory:
         history_state = {}
 
         # Get curve_data - prioritize ApplicationState, then fall back to legacy locations
-        active_curve_data = self._app_state.get_curve_data()
-        if active_curve_data:
+        if (cd := self._app_state.active_curve_data) is not None:
+            curve_name, active_curve_data = cd
             # Convert lists to tuples for compression (as expected by tests)
             if active_curve_data and isinstance(active_curve_data[0], list):
                 history_state["curve_data"] = [tuple(point) for point in active_curve_data]

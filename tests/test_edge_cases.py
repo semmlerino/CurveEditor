@@ -50,9 +50,10 @@ class TestNullAndNoneChecks:
 
         service = UIService()
 
-        # Should raise ValueError - no active curve is an error condition
-        with pytest.raises(ValueError, match="No active curve set"):
-            service.update_button_states(mock_window)
+        # Should gracefully handle no active curve (improved behavior after Task 3.1)
+        # Button should be disabled when no active curve
+        service.update_button_states(mock_window)
+        assert mock_window.save_button.isEnabled() is False
 
     def test_ui_service_update_button_states_with_empty_curve_data(self, qtbot):
         """Test UIService.update_button_states() with active curve but no data."""
@@ -330,11 +331,12 @@ class TestRegressionPrevention:
     """Tests that directly target the specific bugs that escaped."""
 
     def test_bug_1_regression_ui_service_no_active_curve(self, qtbot):
-        """Regression test for Bug #1: UIService should raise ValueError when no active curve.
+        """Regression test for Bug #1: UIService gracefully handles no active curve (improved after Task 3.1).
 
         Location: services/ui_service.py:366
-        Symptom: ValueError: No active curve set
-        Fix: Raise clear error when active_curve is None (caller must set active curve first)
+        Old behavior: Raised ValueError: No active curve set
+        New behavior (Task 3.1): Gracefully handles None, disables save button
+        Improvement: More robust - no crashes, proper UI state
         """
         from services.ui_service import UIService
 
@@ -355,9 +357,9 @@ class TestRegressionPrevention:
 
         service = UIService()
 
-        # Should raise ValueError with clear message
-        with pytest.raises(ValueError, match="No active curve set"):
-            service.update_button_states(mock_window)
+        # Should gracefully handle - no exception, button disabled (improved behavior)
+        service.update_button_states(mock_window)
+        assert mock_window.save_button.isEnabled() is False
 
     def test_bug_2_regression_ui_service_non_string_components(self):
         """Regression test for Bug #2: UIService should raise TypeError for non-string components.
