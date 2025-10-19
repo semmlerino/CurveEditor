@@ -1000,7 +1000,7 @@ class _CommandHistory:
         """Restore a saved state."""
         import copy
 
-        if not state:
+        if state is None:
             return
 
         # Initialize curve_data for type checker

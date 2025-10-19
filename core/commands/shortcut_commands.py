@@ -150,7 +150,7 @@ class SetEndframeCommand(ShortcutCommand):
         regardless of what's selected.
         """
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
@@ -237,7 +237,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
 
         # Check if tracking panel exists and has points
         tracking_panel = context.main_window.tracking_panel
-        if not tracking_panel:
+        if tracking_panel is None:
             return False
 
         # Can execute if there are selected points OR any visible points
@@ -259,7 +259,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the tracking direction command."""
         tracking_panel = context.main_window.tracking_panel
-        if not tracking_panel:
+        if tracking_panel is None:
             return False
 
         try:
@@ -362,7 +362,7 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         to an interpolated point with coordinates calculated from surrounding keyframes.
         """
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
@@ -484,7 +484,7 @@ class CenterViewCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the center view command."""
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
@@ -528,7 +528,7 @@ class SelectAllCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the select all command."""
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
@@ -558,7 +558,7 @@ class DeselectAllCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the deselect command."""
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
@@ -598,7 +598,7 @@ class FitBackgroundCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the fit background command."""
         curve_widget = context.main_window.curve_widget
-        if not curve_widget or not curve_widget.background_image:
+        if curve_widget is None or curve_widget.background_image is None:
             return False
 
         try:
@@ -662,7 +662,7 @@ class NudgePointsCommand(ShortcutCommand):
     def execute(self, context: ShortcutContext) -> bool:
         """Execute the nudge command."""
         curve_widget = context.main_window.curve_widget
-        if not curve_widget:
+        if curve_widget is None:
             return False
 
         try:
