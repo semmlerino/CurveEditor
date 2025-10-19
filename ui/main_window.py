@@ -208,7 +208,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 _ = app.setStyle("Fusion")
                 # Apply the dark theme stylesheet
                 app.setStyleSheet(get_dark_theme_stylesheet())
-                app._dark_theme_applied = True  # pyright: ignore[reportAttributeAccessIssue]
+                setattr(app, "_dark_theme_applied", True)
                 logger.info("Applied dark theme to application")
             else:
                 logger.debug("Dark theme already applied, skipping")
@@ -224,26 +224,25 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._store_manager.set_state_manager(self.state_manager)
 
         # Initialize controllers (typed as protocols for better decoupling)
+        from protocols.ui import MainWindowProtocol
+        from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
+
+        from .service_facade import get_service_facade
+
         self.timeline_controller = TimelineController(self.state_manager, self)
         self.action_controller = ActionHandlerController(self.state_manager, self)
         self.ui_init_controller = UIInitializationController(self)
-        self.view_management_controller = ViewManagementController(self)  # pyright: ignore[reportAttributeAccessIssue]
+        self.view_management_controller = ViewManagementController(self)
         self.background_controller = self.view_management_controller
-        self.point_editor_controller = PointEditorController(self, self.state_manager)  # pyright: ignore[reportAttributeAccessIssue]
-        self.tracking_controller = MultiPointTrackingController(self)  # pyright: ignore[reportAttributeAccessIssue]
+        self.point_editor_controller = PointEditorController(self, self.state_manager)
+        self.tracking_controller = MultiPointTrackingController(self)
 
         # Frame change coordinator (replaces 6 independent frame_changed connections)
-        from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
-
         self.frame_change_coordinator: FrameChangeCoordinator = FrameChangeCoordinator(self)
 
         self.signal_manager = SignalConnectionManager(self)
 
         # Initialize service facade
-        from protocols.ui import MainWindowProtocol
-
-        from .service_facade import get_service_facade
-
         self.services: ServiceFacade = get_service_facade(cast(MainWindowProtocol, cast(object, self)))
 
         # Initialize file operations manager
@@ -501,13 +500,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager.set_selected_points(value)
 
     @property
-    def curve_data(self) -> list[tuple[int, float, float] | tuple[int, float, float, str]]:
+    def curve_data(self) -> CurveDataList:
         """Get the current curve data from the curve widget."""
         # Get data from curve widget (which uses ApplicationState internally)
-        return self.curve_widget.curve_data if self.curve_widget else []  # pyright: ignore[reportReturnType]
+        return self.curve_widget.curve_data if self.curve_widget else []
 
     @curve_data.setter
-    def curve_data(self, value: list[tuple[int, float, float] | tuple[int, float, float, str]]) -> None:
+    def curve_data(self, value: CurveDataList) -> None:
         """Set the curve data via ApplicationState."""
         state = get_application_state()
         active_curve = state.active_curve
@@ -591,14 +590,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         state = get_application_state()
 
         # Use batch mode to set all curves atomically
-        state.begin_batch()
-        try:
+        with state.batch_updates():
             for curve_name, curve_data in data.items():
                 # Convert generic object to CurveDataList if needed
                 if isinstance(curve_data, list):
                     state.set_curve_data(curve_name, curve_data)
-        finally:
-            state.end_batch()
 
     def set_file_loading_state(self, loading: bool) -> None:
         """Set file loading state flag.
@@ -629,22 +625,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def on_action_new(self) -> None:
         """Handle new file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_new()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_new()
 
     @Slot()
     def on_action_open(self) -> None:
         """Handle open file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_open()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_open()
 
     @Slot()
     def on_action_save(self) -> None:
         """Handle save file action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_save()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_save()
 
     @Slot()
     def on_action_save_as(self) -> None:
         """Handle save as action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_save_as()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_save_as()
 
     def _cleanup_file_load_thread(self) -> None:
         """Clean up file loading thread - delegates to FileOperations."""
@@ -695,27 +691,27 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def on_action_undo(self) -> None:
         """Handle undo action (delegated to ActionHandlerController)."""
         logger.info("MainWindow.on_action_undo called")
-        self.action_controller._on_action_undo()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_undo()
 
     @Slot()
     def on_action_redo(self) -> None:
         """Handle redo action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_redo()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_redo()
 
     @Slot()
     def on_action_zoom_in(self) -> None:
         """Handle zoom in action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_zoom_in()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_zoom_in()
 
     @Slot()
     def on_action_zoom_out(self) -> None:
         """Handle zoom out action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_zoom_out()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_zoom_out()
 
     @Slot()
     def on_action_reset_view(self) -> None:
         """Handle reset view action (delegated to ActionHandlerController)."""
-        self.action_controller._on_action_reset_view()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_action_reset_view()
 
     @Slot()
     def _on_toggle_grid(self) -> None:
@@ -727,42 +723,42 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     @Slot()
     def on_load_images(self) -> None:
         """Handle load background images action (delegated to ActionHandlerController)."""
-        self.action_controller._on_load_images()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_load_images()
 
     @Slot()
     def on_export_data(self) -> None:
         """Handle export curve data action (delegated to ActionHandlerController)."""
-        self.action_controller._on_export_data()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_export_data()
 
     @Slot()
     def on_select_all(self) -> None:
         """Handle select all action (delegated to ActionHandlerController)."""
-        self.action_controller._on_select_all()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_select_all()
 
     @Slot()
     def on_add_point(self) -> None:
         """Handle add point action (delegated to ActionHandlerController)."""
-        self.action_controller._on_add_point()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_add_point()
 
     @Slot()
     def on_zoom_fit(self) -> None:
         """Handle zoom fit action (delegated to ActionHandlerController)."""
-        self.action_controller._on_zoom_fit()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_zoom_fit()
 
     @Slot()
     def on_smooth_curve(self) -> None:
         """Handle smooth curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_smooth_curve()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_smooth_curve()
 
     @Slot()
     def on_filter_curve(self) -> None:
         """Handle filter curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_filter_curve()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_filter_curve()
 
     @Slot()
     def on_analyze_curve(self) -> None:
         """Handle analyze curve action (delegated to ActionHandlerController)."""
-        self.action_controller._on_analyze_curve()  # pyright: ignore[reportPrivateUsage]
+        self.action_controller.on_analyze_curve()
 
     # ==================== State Change Handlers ====================
 
@@ -797,7 +793,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update info labels - use curve widget data if available
         if self.curve_widget:
             curve_data = self.curve_widget.curve_data
-            analysis = self.services.analyze_curve_bounds(curve_data)  # pyright: ignore[reportArgumentType]
+            analysis = self.services.analyze_curve_bounds(curve_data)
 
             point_count = analysis["count"]
             if self.point_count_label:
@@ -969,7 +965,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
-        return self.action_controller._get_current_curve_data()  # pyright: ignore[reportReturnType, reportPrivateUsage]
+        return self.action_controller._get_current_curve_data()
 
     def _verify_connections(self) -> None:
         """
@@ -1078,8 +1074,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Update the curve widget if available
         # curve_widget is Optional
         if self.curve_widget is not None:
-            if getattr(self.curve_widget, "set_auto_center", None) is not None:
-                self.curve_widget.set_auto_center(enabled)  # pyright: ignore[reportAttributeAccessIssue]
+            set_auto_center = getattr(self.curve_widget, "set_auto_center", None)
+            if callable(set_auto_center):
+                _ = set_auto_center(enabled)
 
         # Log the state change
         logger.info(f"Auto-centering {'enabled' if enabled else 'disabled'}")

@@ -215,21 +215,17 @@ class TestCurveViewWidgetStoreIntegration:
         # Count data_changed emissions
         spy = QSignalSpy(widget.data_changed)
 
-        # Start batch in ApplicationState
-        app_state.begin_batch()
+        # Batch operations in ApplicationState
+        with app_state.batch_updates():
+            # Multiple operations
+            widget.add_point((1, 100.0, 200.0))
+            widget.add_point((2, 150.0, 250.0))
+            widget.add_point((3, 200.0, 300.0))
 
-        # Multiple operations
-        widget.add_point((1, 100.0, 200.0))
-        widget.add_point((2, 150.0, 250.0))
-        widget.add_point((3, 200.0, 300.0))
+            # During batch, individual signals suppressed
+            assert spy.count() == 0
 
-        # During batch, individual signals suppressed
-        assert spy.count() == 0
-
-        # End batch
-        app_state.end_batch()
-
-        # Should get one signal for the whole batch
+        # After batch ends, should get one signal for the whole batch
         assert spy.count() == 1
 
         # Data should be there

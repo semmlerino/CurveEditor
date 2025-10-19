@@ -40,10 +40,13 @@ Batching Multiple Updates:
         state.set_show_all_curves(False)
         state.set_selected_curves({"Track1", "Track2"})
 
-    # ✅ Good: One signal, one repaint (context manager - recommended)
-    with state.batch_updates():
+    # ✅ Good: One signal, one repaint (manual - for advanced use)
+    state.begin_batch()
+    try:
         state.set_show_all_curves(False)
         state.set_selected_curves({"Track1", "Track2"})
+    finally:
+        state.end_batch()
 
     Batch mode is especially important for coordinated selection state changes
     where display_mode transitions require updating both show_all and selected_curves.
@@ -129,9 +132,9 @@ class ApplicationState(QObject):
         self._show_all_curves: bool = False
 
         # Batch operation support (no QMutex needed - main-thread-only)
-        self._batching: bool = False
-        self._emitting: bool = False  # Prevent reentrancy during signal emission
-        self._pending_signals: dict[SignalInstance, tuple[Any, ...]] = {}
+        self._batch_depth: int = 0
+        self._pending_signals: list[tuple[SignalInstance, tuple[Any, ...]]] = []
+        self._emitting_batch: bool = False  # Prevents reentrancy during emission
 
         # Image sequence state
         self._image_files: list[str] = []
@@ -910,11 +913,11 @@ class ApplicationState(QObject):
             <DisplayMode.SELECTED: 2>
 
             >>> # Batch mode: state visible immediately, signals deferred
-            >>> with app_state.batch_updates():
-            ...     app_state.set_selected_curves(set())
-            ...     app_state.display_mode  # Returns ACTIVE_ONLY immediately!
+            >>> app_state.begin_batch()
+            >>> app_state.set_selected_curves(set())
+            >>> app_state.display_mode  # Returns ACTIVE_ONLY immediately!
             <DisplayMode.ACTIVE_ONLY: 3>
-            # Signals emit when context exits
+            >>> app_state.end_batch()  # Signals emit now
         """
         # Optional enhancement: Add thread safety assertion for consistency
         self._assert_main_thread()
@@ -928,69 +931,116 @@ class ApplicationState(QObject):
 
     # ==================== Batch Operations ====================
 
+    def begin_batch(self) -> None:
+        """
+        Begin batch operation mode (supports nesting).
+
+        In batch mode, signals are deferred until end_batch() is called.
+        This prevents signal storms when making multiple related changes.
+
+        Supports nested batches - signals only emit when outermost batch completes.
+
+        Example:
+            state.begin_batch()
+            try:
+                for curve in curves:
+                    state.set_curve_data(curve, data)
+            finally:
+                state.end_batch()
+        """
+        self._assert_main_thread()
+
+        # Support nesting with reference counting
+        self._batch_depth += 1
+        is_outermost = self._batch_depth == 1
+
+        if is_outermost:
+            self._pending_signals.clear()
+            logger.debug("Batch mode started")
+
+    def end_batch(self) -> None:
+        """
+        End batch operation mode and emit all pending signals.
+
+        Signals are emitted in order they were triggered.
+        Duplicate signals are eliminated.
+        """
+        self._assert_main_thread()
+
+        if self._batch_depth == 0:
+            logger.warning("Not in batch mode")
+            return
+
+        self._batch_depth -= 1
+        is_outermost = self._batch_depth == 0
+
+        if is_outermost:
+            # Emit accumulated signals
+            self._flush_pending_signals()
+            logger.debug("Batch mode ended")
+
+    def _flush_pending_signals(self) -> None:
+        """Emit all pending signals (deduplicated)."""
+        # Deduplicate by signal type - last emission wins
+        unique_signals: dict[SignalInstance, tuple[Any, ...]] = {}
+        for signal, args in self._pending_signals:
+            unique_signals[signal] = args
+
+        # Set flag to prevent reentrancy during emission
+        self._emitting_batch = True
+        try:
+            # Emit in deterministic order
+            for signal, args in unique_signals.items():
+                signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
+        finally:
+            self._emitting_batch = False
+            self._pending_signals.clear()
+
     @contextmanager
     def batch_updates(self) -> Generator[None, None, None]:
         """
-        Context manager for batch operations.
+        Context manager for batch operations with automatic nesting support.
 
         Signals are queued during batch operations and emitted once at the end.
-        Multiple signals of the same type are deduplicated (last state wins).
-
-        Simple nested support: If already batching, inner context is a no-op.
-        This is safe for single-threaded applications.
+        Supports nested batches - signals only emit when outermost batch completes.
 
         Example:
             with state.batch_updates():
                 state.set_curve_data("Track1", data1)
                 state.set_curve_data("Track2", data2)
-                # curves_changed emitted once at end with final state
+                # Signals emitted once at end
         """
         self._assert_main_thread()
 
-        # If already batching, just pass through (simple nested support)
-        if self._batching:
-            yield
-            return
+        # Support nesting with reference counting
+        self._batch_depth += 1
+        is_outermost = self._batch_depth == 1
 
-        # Start batch mode
-        self._batching = True
-        self._pending_signals.clear()
-        logger.debug("Batch mode started")
+        if is_outermost:
+            self._pending_signals.clear()
+            logger.debug("Batch mode started")
 
         try:
             yield
         except Exception:
-            # On exception, clear pending signals
-            self._pending_signals.clear()
+            # On exception, still need to clean up
+            if is_outermost:
+                self._pending_signals.clear()
             raise
         finally:
-            self._batching = False
+            self._batch_depth -= 1
 
-            # Emit accumulated signals with reentrancy protection
-            # (prevents infinite loops if signal handlers modify state)
-            if not self._emitting:
-                self._emitting = True
-                try:
-                    # Emit accumulated signals (dict ensures deduplication, last args wins)
-                    for signal, args in self._pending_signals.items():
-                        signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
-                finally:
-                    self._emitting = False
-
-            self._pending_signals.clear()
-            logger.debug("Batch mode ended")
+            if is_outermost:
+                # Emit accumulated signals
+                self._flush_pending_signals()
+                logger.debug("Batch mode ended")
 
     def _emit(self, signal: SignalInstance, args: tuple[Any, ...]) -> None:
-        """
-        Emit signal immediately or queue if in batch/emitting mode.
-
-        In batch mode, signals are queued and deduplicated by signal type.
-        During emission, reentrancy is prevented (signals queued, not emitted).
-        Last emission wins for each signal type.
-        """
-        if self._batching or self._emitting:
-            # Queue signal with args (dict deduplicates, last one wins)
-            self._pending_signals[signal] = args
+        """Emit signal immediately or queue if in batch mode."""
+        # Queue if in batch or currently emitting batch signals (prevents reentrancy)
+        if self._batch_depth > 0 or self._emitting_batch:
+            # Queue signal for later
+            self._pending_signals.append((signal, args))
         else:
             # Emit immediately
             signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
@@ -1005,7 +1055,7 @@ class ApplicationState(QObject):
             if active is None:
                 return None
             data = state.get_curve_data(active)
-            if not data:
+            if data is None:
                 return None
             return callback(active, data)
 
@@ -1029,58 +1079,12 @@ class ApplicationState(QObject):
             state.with_active_curve(lambda name, data: self.display_curve(name, data))
         """
         active = self.active_curve
-        if not active:
+        if active is None:
             return None
         data = self.get_curve_data(active)
-        if not data:
+        if data is None:
             return None
         return callback(active, data)
-
-    @property
-    def active_curve_data(self) -> tuple[str, CurveDataList] | None:
-        """Get (curve_name, data) for active curve, or None if unavailable.
-
-        Returns curve data even if empty (empty list is valid for new curves).
-        Only returns None if no active curve is set.
-
-        Use this to safely access active curve AND its data in one operation.
-
-        Pattern established by Phase 4 Task 4.4:
-        Complex state retrieval should use @property or service methods,
-        not repeated in business logic.
-
-        Returns:
-            Tuple of (curve_name, curve_data) or None if no active curve set.
-            Note: curve_data may be an empty list [] for new curves.
-
-        Example:
-            # Modern property-based approach (recommended):
-            if (curve_data := state.active_curve_data) is None:
-                return
-            curve_name, data = curve_data
-            # Use curve_name and data (data may be empty [])
-
-            # Old 4-step pattern (avoid in new code):
-            active = state.active_curve
-            if not active:
-                return
-            data = state.get_curve_data(active)
-            if not data:
-                return
-            # Use active and data
-        """
-        active = self.active_curve
-        if not active:
-            return None
-
-        try:
-            data = self.get_curve_data(active)
-            return (active, data)
-        except ValueError as e:
-            # Defensive: get_curve_data() raises ValueError if no active curve,
-            # but we already checked, so this should never happen
-            logger.error(f"Unexpected error getting curve data: {e}")
-            return None
 
     # ==================== State Inspection ====================
 

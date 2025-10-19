@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, override
 
-from PySide6.QtCore import QEvent, QObject
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtGui import QKeyEvent
 
 if TYPE_CHECKING:
@@ -63,6 +63,19 @@ class GlobalEventFilter(QObject):
         # Ensure it's a QKeyEvent
         if not isinstance(event, QKeyEvent):
             return False
+
+        # Handle Page Up/Down for keyframe navigation (check before skipping widgets)
+        key = event.key()
+        if key == Qt.Key.Key_PageUp or key == Qt.Key.Key_PageDown:
+            logger.debug(f"[GLOBAL_EVENT_FILTER] KeyPress: key={key}, watching {watched.__class__.__name__}")
+            if key == Qt.Key.Key_PageUp:
+                logger.debug("[GLOBAL_EVENT_FILTER] Page Up pressed, navigating to previous keyframe")
+                self.main_window._navigate_to_prev_keyframe()
+            else:
+                logger.debug("[GLOBAL_EVENT_FILTER] Page Down pressed, navigating to next keyframe")
+                self.main_window._navigate_to_next_keyframe()
+            event.accept()
+            return True
 
         # Don't interfere with text input in certain widgets
         if self._should_skip_widget(watched):

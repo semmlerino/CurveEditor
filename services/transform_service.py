@@ -514,6 +514,41 @@ class TransformService:
         """
         return Transform.from_view_state(view_state)
 
+    def get_transform(self, curve_view: "CurveViewProtocol") -> Transform:
+        """
+        Convenience method to get a Transform directly from a CurveView.
+
+        This method combines create_view_state() and create_transform_from_view_state()
+        into a single call, simplifying the common pattern:
+
+            # Old (2-step):
+            view_state = transform_service.create_view_state(view)
+            transform = transform_service.create_transform_from_view_state(view_state)
+
+            # New (1-step):
+            transform = transform_service.get_transform(view)
+
+        Args:
+            curve_view: The CurveView instance to create a transform for
+
+        Returns:
+            Transform instance for the given view
+
+        Raises:
+            TypeError: If curve_view.zoom_factor is not a numeric type
+            AttributeError: If curve_view is missing required protocol attributes
+
+        Note:
+            For most use cases, this is the recommended method. Use the 2-step
+            pattern only if you need to manipulate view state between steps:
+
+                view_state = transform_service.create_view_state(view)
+                view_state = view_state.with_updates(zoom_factor=2.0)
+                transform = transform_service.create_transform_from_view_state(view_state)
+        """
+        view_state = self.create_view_state(curve_view)
+        return self.create_transform_from_view_state(view_state)
+
     def create_transform(
         self,
         scale: float = 1.0,

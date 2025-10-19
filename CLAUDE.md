@@ -156,6 +156,93 @@ if active:
     state.set_curve_data(active, new_data)
 ```
 
+### Active Curve Data Pattern
+
+**Use `active_curve_data` property for safe access** (Phase 4 Task 4.4):
+
+```python
+from stores.application_state import get_application_state
+
+state = get_application_state()
+
+# ✅ GOOD - Property-based (modern pattern, Phase 4+)
+if (curve_data := state.active_curve_data) is None:
+    return
+curve_name, data = curve_data
+# Use curve_name and data safely
+
+# ❌ BAD - Manual 4-step pattern (pre-Phase 4, avoid in new code)
+active = state.active_curve
+if not active:
+    return
+data = state.get_curve_data(active)
+if not data:
+    return
+# Use active and data
+```
+
+**Pattern Established**: Complex state retrieval patterns should use `@property` or service methods, not be repeated across business logic. This:
+- **Reduces code**: 4 lines → 2 lines (50% reduction)
+- **Improves discoverability**: Property visible in IDE autocomplete
+- **Ensures consistency**: One way to do it
+- **Type safety**: Single source of truth for return type
+
+**When to use**:
+- Command `execute()`/`undo()` methods needing curve data
+- Service operations requiring active curve + data
+- UI event handlers that modify curve data
+- Any code path requiring both curve name AND curve data
+
+**When NOT to use**:
+- Only need curve name (use `state.active_curve` directly)
+- Only need selection (use `state.get_selection(curve_name)`)
+- Only need to check if active curve exists (partial pattern is fine)
+
+**Command Pattern: Store Target Curve** (Task 4.6 Bug Fix):
+
+Commands must store the target curve at `execute()` time for correct undo behavior:
+
+```python
+class SmoothCommand(Command):
+    def __init__(self, ...):
+        super().__init__(...)
+        self._target_curve: str | None = None  # Store target for undo
+        # ... other fields
+
+    def execute(self, main_window: MainWindowProtocol) -> bool:
+        # Use Pattern A to get curve
+        if (cd := state.active_curve_data) is None:
+            return False
+        curve_name, data = cd
+
+        # ✅ CRITICAL: Store target curve for undo
+        self._target_curve = curve_name
+
+        # ... execute logic
+
+    def undo(self, main_window: MainWindowProtocol) -> bool:
+        # ✅ CORRECT: Use stored target, not current active
+        if not self._target_curve:
+            return False
+        state.set_curve_data(self._target_curve, self._old_data)
+
+        # ❌ WRONG: Re-fetching active curve
+        # active = state.active_curve  # BUG: Uses wrong curve if user switched!
+
+    def redo(self, main_window: MainWindowProtocol) -> bool:
+        # ✅ CORRECT: Use stored target, not current active
+        if not self._target_curve:
+            return False
+        state.set_curve_data(self._target_curve, self._new_data)
+
+        # ❌ WRONG: Calling execute() which overwrites _target_curve
+        # return self.execute(main_window)  # BUG: Re-fetches active curve!
+```
+
+**Why This Matters**: If user executes command on "Track1", switches to "Track2", then clicks Undo or Redo, both operations must target "Track1" (where command executed), not "Track2" (current active). Re-fetching or calling `execute()` causes data corruption.
+
+**Critical**: Both `undo()` AND `redo()` must use `self._target_curve`. Never call `self.execute(main_window)` in `redo()` as it will overwrite the stored target.
+
 ## Core Data Models
 
 ```python
@@ -362,6 +449,35 @@ from core.display_mode import DisplayMode
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 ```
+
+### Transform Service Pattern
+
+**Recommended**: Use `get_transform()` for coordinate transformations:
+
+```python
+# ✅ RECOMMENDED - Single method call
+from services import get_transform_service
+
+transform_service = get_transform_service()
+transform = transform_service.get_transform(view)
+
+# Use transform
+screen_x, screen_y = transform.data_to_screen(data_x, data_y)
+data_x, data_y = transform.screen_to_data(screen_x, screen_y)
+```
+
+**Legacy Pattern** (still supported but verbose):
+
+```python
+# ⚠️ LEGACY - Two-step pattern (still works but verbose)
+view_state = transform_service.create_view_state(view)
+transform = transform_service.create_transform_from_view_state(view_state)
+```
+
+**When to use legacy pattern**:
+- Need to modify `view_state` between creation and transform
+- Advanced test scenarios requiring view state manipulation
+- 99% of code should use `get_transform()` directly
 
 ## Key Design Patterns
 

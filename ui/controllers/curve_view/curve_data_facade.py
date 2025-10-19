@@ -208,8 +208,7 @@ class CurveDataFacade:
         logger.info(f"  Current display_mode BEFORE: {self._app_state.display_mode}")
 
         # Use ApplicationState for multi-curve data (Week 3 migration)
-        self._app_state.begin_batch()
-        try:
+        with self._app_state.batch_updates():
             # Set each curve in ApplicationState
             for name, data in curves.items():
                 curve_metadata = metadata.get(name) if metadata else None
@@ -241,8 +240,6 @@ class CurveDataFacade:
             else:
                 self._app_state.set_active_curve(None)
                 self.set_curve_data([])
-        finally:
-            self._app_state.end_batch()
 
         logger.debug(f"Set {len(curves)} curves in ApplicationState, active: {self._app_state.active_curve}")
 

@@ -532,7 +532,7 @@ class TestFileOpenMerging:
         # Simulate opening a single curve file
         single_data = make_tracking_data(5)
         main_window.file_operations.set_next_file_data(single_data)
-        action_controller._on_action_open()
+        action_controller.on_action_open()
 
         # Should have routed through tracking controller
         assert len(tracking_controller.tracked_data) == 1
@@ -552,7 +552,7 @@ class TestFileOpenMerging:
         # Simulate opening a multi-point file
         multi_data = make_multi_point_data(["Point1", "Point2"])
         main_window.file_operations.set_next_file_data(multi_data)
-        action_controller._on_action_open()
+        action_controller.on_action_open()
 
         # Should have routed through tracking controller
         assert len(tracking_controller.tracked_data) == 2
@@ -575,21 +575,21 @@ class TestFileOpenMerging:
         # Open first single file
         single_data1 = make_tracking_data(3)
         main_window.file_operations.set_next_file_data(single_data1)
-        action_controller._on_action_open()
+        action_controller.on_action_open()
 
         assert len(tracking_controller.tracked_data) == 1
 
         # Open multi-point file
         multi_data = make_multi_point_data(["Point1", "Point2"])
         main_window.file_operations.set_next_file_data(multi_data)
-        action_controller._on_action_open()
+        action_controller.on_action_open()
 
         assert len(tracking_controller.tracked_data) == 3
 
         # Open another single file
         single_data2 = make_tracking_data(2)
         main_window.file_operations.set_next_file_data(single_data2)
-        action_controller._on_action_open()
+        action_controller.on_action_open()
 
         # Should have all data merged
         assert len(tracking_controller.tracked_data) == 4

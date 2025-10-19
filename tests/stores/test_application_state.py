@@ -16,6 +16,7 @@ import pytest
 from PySide6.QtTest import QSignalSpy
 
 from core.models import CurvePoint, PointStatus
+from core.type_aliases import CurveDataInput
 from stores.application_state import get_application_state, reset_application_state
 
 
@@ -191,17 +192,15 @@ class TestApplicationState:
         state = get_application_state()
         spy = QSignalSpy(state.curves_changed)
 
-        state.begin_batch()
-        state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
-        state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
-        state.set_curve_data("curve3", [(1, 50.0, 60.0, "normal")])
+        with state.batch_updates():
+            state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
+            state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
+            state.set_curve_data("curve3", [(1, 50.0, 60.0, "normal")])
 
-        # No signals yet
-        assert spy.count() == 0
+            # No signals yet (still in batch)
+            assert spy.count() == 0
 
-        state.end_batch()
-
-        # Now signals emitted
+        # After batch completes, signals emitted
         assert spy.count() > 0
 
     def test_batch_mode_eliminates_duplicates(self) -> None:
@@ -209,13 +208,12 @@ class TestApplicationState:
         state = get_application_state()
         spy = QSignalSpy(state.curves_changed)
 
-        state.begin_batch()
-        # Modify same curve 10 times
-        for i in range(10):
-            state.set_curve_data("test", [(i, float(i), float(i * 2), "normal")])
-        state.end_batch()
+        with state.batch_updates():
+            # Modify same curve 10 times
+            for i in range(10):
+                state.set_curve_data("test", [(i, float(i), float(i * 2), "normal")])
 
-        # Should emit only once
+        # Should emit only once (last state wins)
         assert spy.count() == 1
 
     def test_batch_mode_exception_handling(self) -> None:
@@ -223,53 +221,51 @@ class TestApplicationState:
         state = get_application_state()
         spy = QSignalSpy(state.curves_changed)
 
-        # Verify batch mode cleanup with try/finally pattern
+        # Verify batch mode cleanup when exception occurs in context manager
         try:
-            state.begin_batch()
-            try:
+            with state.batch_updates():
                 state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
                 state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
                 # Simulate an exception during batch operation
                 raise ValueError("Test exception during batch operation")
-            finally:
-                # end_batch() MUST be called even when exception occurs
-                state.end_batch()
         except ValueError:
             pass  # Expected exception
 
-        # Verify signals were emitted despite the exception
-        assert spy.count() > 0, "Signals should be emitted even when exception occurs"
+        # Verify signals were NOT emitted (exception clears pending signals)
+        # This is the correct behavior - failed batch should not emit partial state
+        assert spy.count() == 0, "Failed batch should not emit signals"
 
         # Verify batch mode was properly exited (not stuck in batch mode)
         # If batch mode cleanup failed, this would defer signals incorrectly
-        previous_count = spy.count()
         state.set_curve_data("curve3", [(1, 50.0, 60.0, "normal")])
-        assert spy.count() > previous_count, "Should emit signals immediately after batch mode exit"
+        assert spy.count() == 1, "Should emit signals immediately after batch mode exit"
 
     def test_batch_mode_nested_exception_safety(self) -> None:
-        """Test that batch mode state is correctly restored after exception."""
+        """Test that nested batch mode works correctly (inner batch is no-op)."""
         state = get_application_state()
+        spy = QSignalSpy(state.curves_changed)
 
-        # Start batch mode
-        state.begin_batch()
-        try:
+        # Outer batch
+        with state.batch_updates():
             state.set_curve_data("curve1", [(1, 10.0, 20.0, "normal")])
 
-            # Simulate exception mid-batch
-            try:
-                state.set_curve_data("invalid_curve", [])  # Edge case
-                raise RuntimeError("Simulated error")
-            except RuntimeError:
-                pass  # Handle error but continue batch
+            # Inner batch (should be no-op, just pass through)
+            with state.batch_updates():
+                state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
+                # Inner batch completes, but signals not emitted yet (outer batch active)
 
-            # Should still be in batch mode
-            state.set_curve_data("curve2", [(1, 30.0, 40.0, "normal")])
-        finally:
-            state.end_batch()
+            # Still in outer batch
+            state.set_curve_data("curve3", [(1, 50.0, 60.0, "normal")])
+
+        # Signals emitted after outer batch completes
+        # All 3 set_curve_data calls trigger same signal type (curves_changed),
+        # so deduplication means only 1 emission with final state
+        assert spy.count() == 1  # Deduplicated: last state wins
 
         # Verify all operations completed successfully
         assert "curve1" in state.get_all_curve_names()
         assert "curve2" in state.get_all_curve_names()
+        assert "curve3" in state.get_all_curve_names()
 
     # ==================== Performance Tests ====================
 
@@ -310,11 +306,222 @@ class TestApplicationState:
         reset_application_state()
         state = get_application_state()
         start = time.perf_counter()
-        state.begin_batch()
-        for i in range(100):
-            state.set_curve_data(f"curve_{i}", [(i, float(i), float(i * 2), "normal")])
-        state.end_batch()
+        with state.batch_updates():
+            for i in range(100):
+                state.set_curve_data(f"curve_{i}", [(i, float(i), float(i * 2), "normal")])
         batch_time = time.perf_counter() - start
 
         speedup = individual_time / batch_time
-        assert speedup > 3.0  # At least 3x faster
+        assert speedup > 3.0  # At least 3x faster  # At least 3x faster
+
+
+class TestWithActiveCurve:
+    """Tests for with_active_curve helper."""
+
+    @pytest.fixture(autouse=True)
+    def reset_state(self) -> Generator[None, None, None]:
+        """Reset state before each test."""
+        reset_application_state()
+        yield
+        reset_application_state()
+
+    def test_with_active_curve_success(self) -> None:
+        """Should execute callback with active curve data."""
+        state = get_application_state()
+        # Setup active curve with data
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0, "keyframe")])
+        state.set_active_curve("TestCurve")
+
+        results: list[tuple[str, CurveDataInput]] = []
+
+        def collect_data(name: str, data: CurveDataInput) -> None:
+            results.append((name, data))
+
+        state.with_active_curve(collect_data)
+
+        assert len(results) == 1
+        assert results[0][0] == "TestCurve"
+        assert len(results[0][1]) == 1
+
+    def test_with_active_curve_no_active(self) -> None:
+        """Should return None when no active curve."""
+        state = get_application_state()
+        state.set_active_curve(None)
+
+        def return_value(name: str, data: CurveDataInput) -> str:
+            return "value"
+
+        result = state.with_active_curve(return_value)
+        assert result is None
+
+    def test_with_active_curve_no_data(self) -> None:
+        """Should return None when active curve has no data."""
+        state = get_application_state()
+        state.set_active_curve("EmptyCurve")
+
+        def return_value(name: str, data: CurveDataInput) -> str:
+            return "value"
+
+        result = state.with_active_curve(return_value)
+        assert result is None
+
+    def test_with_active_curve_return_value(self) -> None:
+        """Should return callback result."""
+        state = get_application_state()
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0, "keyframe")])
+        state.set_active_curve("TestCurve")
+
+        def format_result(name: str, data: CurveDataInput) -> str:
+            return f"Curve {name} has {len(data)} points"
+
+        result = state.with_active_curve(format_result)
+        assert result == "Curve TestCurve has 1 points"
+
+    def test_with_active_curve_type_preservation(self) -> None:
+        """Should preserve return type from callback."""
+        state = get_application_state()
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0, "keyframe"), (2, 15.0, 25.0, "normal")])
+        state.set_active_curve("TestCurve")
+
+        def count_points(name: str, data: CurveDataInput) -> int:
+            return len(data)
+
+        result = state.with_active_curve(count_points)
+        assert isinstance(result, int)
+        assert result == 2
+
+    def test_with_active_curve_complex_operation(self) -> None:
+        """Should handle complex operations in callback."""
+        state = get_application_state()
+        state.set_curve_data(
+            "TestCurve", [(1, 10.0, 20.0, "keyframe"), (2, 15.0, 25.0, "normal"), (3, 20.0, 30.0, "keyframe")]
+        )
+        state.set_active_curve("TestCurve")
+
+        def find_keyframes(name: str, data: CurveDataInput) -> list[int]:
+            return [i for i, point in enumerate(data) if len(point) > 3 and point[3] == "keyframe"]
+
+        result = state.with_active_curve(find_keyframes)
+        assert result == [0, 2]
+
+    def test_with_active_curve_side_effects(self) -> None:
+        """Should allow callbacks with side effects."""
+        state = get_application_state()
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0, "keyframe")])
+        state.set_active_curve("TestCurve")
+
+        side_effect_tracker: list[str] = []
+
+        def track_side_effect(name: str, data: CurveDataInput) -> None:
+            side_effect_tracker.append(f"Processed {name} with {len(data)} points")
+
+        result = state.with_active_curve(track_side_effect)
+        assert result is None  # Void callback returns None
+        assert len(side_effect_tracker) == 1
+        assert "TestCurve" in side_effect_tracker[0]
+
+    def test_with_active_curve_exception_propagation(self) -> None:
+        """Should propagate exceptions from callback."""
+        state = get_application_state()
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0, "keyframe")])
+        state.set_active_curve("TestCurve")
+
+        def failing_callback(name: str, data: CurveDataInput) -> str:
+            raise ValueError("Test exception")
+
+        with pytest.raises(ValueError, match="Test exception"):
+            state.with_active_curve(failing_callback)
+
+
+class TestActiveCurveDataProperty:
+    """Tests for active_curve_data property (Phase 4 Task 4.4)."""
+
+    def test_active_curve_data_success_path(self) -> None:
+        """Should return (curve_name, data) when active curve has data."""
+        state = get_application_state()
+        test_data = [(1, 10.0, 20.0), (2, 15.0, 25.0)]
+        state.set_curve_data("TestCurve", test_data)
+        state.set_active_curve("TestCurve")
+
+        result = state.active_curve_data
+        assert result is not None
+        curve_name, data = result
+        assert curve_name == "TestCurve"
+        assert len(data) == 2
+        assert data[0] == (1, 10.0, 20.0)
+        assert data[1] == (2, 15.0, 25.0)
+
+    def test_active_curve_data_no_active_curve(self) -> None:
+        """Should return None when no active curve is set."""
+        state = get_application_state()
+        state.set_curve_data("TestCurve", [(1, 10.0, 20.0)])
+        # Don't set active curve
+
+        result = state.active_curve_data
+        assert result is None
+
+    def test_active_curve_data_active_curve_no_data(self) -> None:
+        """Should return tuple with empty list when active curve has no data."""
+        state = get_application_state()
+        state.set_active_curve("NonExistentCurve")
+
+        result = state.active_curve_data
+        assert result is not None
+        curve_name, data = result
+        assert curve_name == "NonExistentCurve"
+        assert data == []  # Non-existent curve returns empty list
+
+    def test_active_curve_data_tuple_unpacking(self) -> None:
+        """Should support tuple unpacking in walrus operator."""
+        state = get_application_state()
+        state.set_curve_data("Track1", [(1, 5.0, 10.0)])
+        state.set_active_curve("Track1")
+
+        # Pattern from documentation
+        if (curve_data := state.active_curve_data) is None:
+            pytest.fail("Expected active curve data to exist")
+        curve_name, data = curve_data
+        assert curve_name == "Track1"
+        assert len(data) == 1
+
+    def test_active_curve_data_multiple_curves(self) -> None:
+        """Should return only active curve data when multiple curves exist."""
+        state = get_application_state()
+        state.set_curve_data("Track1", [(1, 10.0, 20.0)])
+        state.set_curve_data("Track2", [(1, 30.0, 40.0)])
+        state.set_curve_data("Track3", [(1, 50.0, 60.0)])
+        state.set_active_curve("Track2")
+
+        result = state.active_curve_data
+        assert result is not None
+        curve_name, data = result
+        assert curve_name == "Track2"
+        assert data[0] == (1, 30.0, 40.0)
+
+    def test_active_curve_data_with_empty_curve_data(self) -> None:
+        """Should return tuple with empty list (empty curves are valid for new curves)."""
+        state = get_application_state()
+        state.set_curve_data("EmptyCurve", [])
+        state.set_active_curve("EmptyCurve")
+
+        result = state.active_curve_data
+        assert result is not None
+        curve_name, data = result
+        assert curve_name == "EmptyCurve"
+        assert data == []  # Empty list is valid!
+
+    def test_active_curve_data_after_active_curve_change(self) -> None:
+        """Should reflect active curve changes."""
+        state = get_application_state()
+        state.set_curve_data("Track1", [(1, 10.0, 20.0)])
+        state.set_curve_data("Track2", [(1, 30.0, 40.0)])
+        state.set_active_curve("Track1")
+
+        result1 = state.active_curve_data
+        assert result1 is not None
+        assert result1[0] == "Track1"
+
+        state.set_active_curve("Track2")
+        result2 = state.active_curve_data
+        assert result2 is not None
+        assert result2[0] == "Track2"

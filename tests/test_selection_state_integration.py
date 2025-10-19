@@ -170,14 +170,13 @@ class TestSelectionStateIntegration:
 
     def test_batch_mode_state_visibility(self, qapp):
         """
-        Test: display_mode reflects changes immediately during batch.
+        Test: display_mode reflects changes immediately during batch_updates().
 
         Batch mode defers signal emissions, NOT state visibility.
         """
         app_state = get_application_state()
 
-        app_state.begin_batch()
-        try:
+        with app_state.batch_updates():
             # Set selection
             app_state.set_selected_curves({"Track1"})
             # display_mode should update immediately, even in batch
@@ -187,21 +186,16 @@ class TestSelectionStateIntegration:
             app_state.set_show_all_curves(True)
             # Mode should change immediately
             assert app_state.display_mode == DisplayMode.ALL_VISIBLE
-        finally:
-            app_state.end_batch()
 
         # Signals emitted now, but state was visible throughout
 
     def test_batch_mode_conflicting_changes(self, qapp):
-        """Test precedence when both show_all and selection change in batch."""
+        """Test precedence when both show_all and selection change in batch_updates()."""
         app_state = get_application_state()
 
-        app_state.begin_batch()
-        try:
+        with app_state.batch_updates():
             app_state.set_selected_curves({"Track1"})  # Would give SELECTED
             app_state.set_show_all_curves(True)  # Would give ALL_VISIBLE
-        finally:
-            app_state.end_batch()
 
         # Last write wins: show_all takes priority
         assert app_state.display_mode == DisplayMode.ALL_VISIBLE
@@ -222,13 +216,10 @@ class TestSelectionStateIntegration:
 
         app_state.selection_state_changed.connect(track_signals)
 
-        app_state.begin_batch()
-        try:
+        with app_state.batch_updates():
             app_state.set_selected_curves({"Track1"})
             app_state.set_selected_curves({"Track2"})
             app_state.set_selected_curves({"Track3"})
-        finally:
-            app_state.end_batch()
 
         # Should emit LAST value only, not first
         assert len(signal_emissions) == 1

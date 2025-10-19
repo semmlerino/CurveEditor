@@ -12,10 +12,10 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, Any, cast, override
 
-from PySide6.QtCore import QDir, QPoint, QSize, Qt, Signal
-from PySide6.QtGui import QKeySequence, QPixmap, QShortcut
+from PySide6.QtCore import QDir, QEvent, QObject, QPoint, QSize, Qt, Signal
+from PySide6.QtGui import QKeyEvent, QKeySequence, QPixmap, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -480,15 +480,15 @@ class ImageSequenceBrowserDialog(QDialog):
             return start_directory
 
         # Priority 2: Last used directory from state manager
-        if parent is not None and parent.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
-            state_manager = parent.state_manager  # pyright: ignore[reportAttributeAccessIssue, reportOptionalMemberAccess]
+        if parent is not None:
+            state_manager: Any = getattr(parent, "state_manager", None)
             if state_manager is not None:
-                recent_dirs = state_manager.recent_directories  # pyright: ignore[reportAny]
-                if recent_dirs and len(recent_dirs) > 0:  # pyright: ignore[reportAny]
-                    last_dir = recent_dirs[0]  # pyright: ignore[reportAny]
-                    if Path(last_dir).exists():  # pyright: ignore[reportAny]
+                recent_dirs: Any = getattr(state_manager, "recent_directories", None)
+                if recent_dirs and len(recent_dirs) > 0:
+                    last_dir = recent_dirs[0]
+                    if Path(last_dir).exists():
                         logger.debug(f"Using last directory from state: {last_dir}")
-                        return last_dir  # pyright: ignore[reportAny]
+                        return last_dir
 
         # Priority 3: Documents folder
         documents_dir = Path.home() / "Documents"
@@ -932,39 +932,31 @@ class ImageSequenceBrowserDialog(QDialog):
         self.sequence_list.installEventFilter(self)
 
     @override
-    def eventFilter(self, obj: object, event: object) -> bool:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def eventFilter(self, arg__1: QObject, arg__2: QEvent) -> bool:
         """Handle events for keyboard navigation."""
-        from PySide6.QtCore import QEvent, QObject
-        from PySide6.QtGui import QKeyEvent
-
         # Handle Enter key on sequence list
-        if obj == self.sequence_list and isinstance(event, QKeyEvent):
-            if event.type() == QEvent.Type.KeyPress:
-                if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+        if arg__1 == self.sequence_list and isinstance(arg__2, QKeyEvent):
+            if arg__2.type() == QEvent.Type.KeyPress:
+                if arg__2.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
                     # Enter key on sequence list = load sequence
                     current_item = self.sequence_list.currentItem()
                     if current_item and self.load_button.isEnabled():
                         self.accept()
                         return True
 
-        # Type-safe call to parent - cast required for protocol compatibility
-        if isinstance(obj, QObject) and isinstance(event, QEvent):
-            return super().eventFilter(obj, event)  # type: ignore[misc]
-        return False
+        # Call parent's eventFilter
+        return super().eventFilter(arg__1, arg__2)
 
     @override
-    def keyPressEvent(self, event: object) -> None:  # pyright: ignore[reportIncompatibleMethodOverride]
+    def keyPressEvent(self, arg__1: QKeyEvent) -> None:
         """Handle keyboard shortcuts for the dialog."""
-        from PySide6.QtGui import QKeyEvent
+        # Escape key - cancel dialog
+        if arg__1.key() == Qt.Key.Key_Escape:
+            self.reject()
+            return
 
-        if isinstance(event, QKeyEvent):
-            # Escape key - cancel dialog
-            if event.key() == Qt.Key.Key_Escape:
-                self.reject()
-                return
-
-            # Type-safe call to parent
-            super().keyPressEvent(event)  # type: ignore[arg-type]
+        # Call parent's keyPressEvent
+        super().keyPressEvent(arg__1)
 
     def _focus_address_bar(self) -> None:
         """Focus the address bar and select all text for easy replacement."""
@@ -1009,13 +1001,13 @@ class ImageSequenceBrowserDialog(QDialog):
 
                 # Also search in sequence metadata if available
                 if not match:
-                    sequence = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
-                    if isinstance(sequence, ImageSequence):
+                    sequence_data = item.data(Qt.ItemDataRole.UserRole)
+                    if isinstance(sequence_data, ImageSequence):
                         # Search in directory path
-                        if filter_text in sequence.directory.lower():
+                        if filter_text in sequence_data.directory.lower():
                             match = True
                         # Search in base name
-                        elif filter_text in sequence.base_name.lower():
+                        elif filter_text in sequence_data.base_name.lower():
                             match = True
 
                 item.setHidden(not match)
@@ -1048,14 +1040,15 @@ class ImageSequenceBrowserDialog(QDialog):
         """Populate address bar dropdown with recent directories from state manager."""
         # Get recent directories from parent's state manager if available
         parent_window = self.parent()
-        if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
-            state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is not None:
+            state_manager: Any = getattr(parent_window, "state_manager", None)
             if state_manager is not None:
-                recents = state_manager.recent_directories  # pyright: ignore[reportAny]
-                self.address_bar.clear()
-                for path in recents:  # pyright: ignore[reportAny]
-                    if Path(path).exists():  # pyright: ignore[reportAny]
-                        self.address_bar.addItem(path)  # pyright: ignore[reportAny]
+                recents: Any = getattr(state_manager, "recent_directories", None)
+                if recents:
+                    self.address_bar.clear()
+                    for path in recents:
+                        if Path(path).exists():
+                            self.address_bar.addItem(path)
 
     def _on_address_bar_activated(self, index: int) -> None:
         """Handle selection from recent directories dropdown.
@@ -1153,8 +1146,8 @@ class ImageSequenceBrowserDialog(QDialog):
                 base_name=base_name,
                 padding=padding_val,
                 extension=extension,
-                frames=frames_val,  # type: ignore[arg-type]
-                file_list=file_list_val,  # type: ignore[arg-type]
+                frames=cast(list[int], frames_val),
+                file_list=cast(list[str], file_list_val),
                 directory=directory,
             )
 
@@ -1238,10 +1231,12 @@ class ImageSequenceBrowserDialog(QDialog):
             return
 
         # Retrieve stored ImageSequence object
-        sequence = current_item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
-        if not isinstance(sequence, ImageSequence):
+        sequence_data = current_item.data(Qt.ItemDataRole.UserRole)
+        if not isinstance(sequence_data, ImageSequence):
             logger.warning("Invalid sequence data in list item")
             return
+
+        sequence = sequence_data
 
         self.selected_sequence = sequence
         self.selected_directory = sequence.directory
@@ -1263,10 +1258,10 @@ class ImageSequenceBrowserDialog(QDialog):
         if not current_item:
             return
 
-        sequence = current_item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
-        if isinstance(sequence, ImageSequence):
-            self.selected_sequence = sequence
-            self.selected_directory = sequence.directory
+        sequence_data = current_item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(sequence_data, ImageSequence):
+            self.selected_sequence = sequence_data
+            self.selected_directory = sequence_data.directory
             self.accept()
 
     def _on_up_clicked(self) -> None:
@@ -1397,11 +1392,13 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Add to recent directories
         parent_window = self.parent()
-        if parent_window is not None and parent_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
-            state_manager = parent_window.state_manager  # pyright: ignore[reportAttributeAccessIssue]
+        if parent_window is not None:
+            state_manager: Any = getattr(parent_window, "state_manager", None)
             if state_manager is not None:
-                state_manager.add_recent_directory(normalized_path)  # pyright: ignore[reportAny]
-                self._populate_recent_directories()  # Refresh dropdown
+                add_recent = getattr(state_manager, "add_recent_directory", None)
+                if add_recent is not None:
+                    add_recent(normalized_path)
+                    self._populate_recent_directories()  # Refresh dropdown
 
         logger.debug(f"Navigated to: {normalized_path}")
 
@@ -1816,11 +1813,11 @@ class ImageSequenceBrowserDialog(QDialog):
         Args:
             item: List widget item that was double-clicked
         """
-        path = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
-        if path and Path(path).exists():  # pyright: ignore[reportAny]
-            self._navigate_to_path(path)  # pyright: ignore[reportAny]
+        path_data = item.data(Qt.ItemDataRole.UserRole)
+        if isinstance(path_data, str) and path_data and Path(path_data).exists():
+            self._navigate_to_path(path_data)
         else:
-            self.info_label.setText(f"Favorite path no longer exists: {path}")
+            self.info_label.setText(f"Favorite path no longer exists: {path_data}")
 
     def _show_favorites_context_menu(self, pos: QPoint) -> None:
         """Show context menu for favorites list.
@@ -1844,12 +1841,15 @@ class ImageSequenceBrowserDialog(QDialog):
         move_down_action = menu.addAction("Move Down")
 
         action = menu.exec(self.favorites_list.mapToGlobal(pos))
-        path = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
+        path_data = item.data(Qt.ItemDataRole.UserRole)
+
+        if not isinstance(path_data, str):
+            return
 
         if action == rename_action:
             name, ok = QInputDialog.getText(self, "Rename Favorite", "Enter new name:", text=item.text().lstrip("★ "))
             if ok and name:
-                _ = self.favorites_manager.rename(path, name)  # pyright: ignore[reportAny]
+                _ = self.favorites_manager.rename(path_data, name)
                 self._populate_favorites()
 
         elif action == remove_action:
@@ -1864,16 +1864,16 @@ class ImageSequenceBrowserDialog(QDialog):
                 QMessageBox.StandardButton.No,  # Default to No for safety
             )
             if reply == QMessageBox.StandardButton.Yes:
-                _ = self.favorites_manager.remove(path)  # pyright: ignore[reportAny]
+                _ = self.favorites_manager.remove(path_data)
                 self._populate_favorites()
                 self._update_favorite_button_state()
 
         elif action == move_up_action:
-            _ = self.favorites_manager.move_up(path)  # pyright: ignore[reportAny]
+            _ = self.favorites_manager.move_up(path_data)
             self._populate_favorites()
 
         elif action == move_down_action:
-            _ = self.favorites_manager.move_down(path)  # pyright: ignore[reportAny]
+            _ = self.favorites_manager.move_down(path_data)
             self._populate_favorites()
 
     def _update_favorite_button_state(self) -> None:
@@ -2129,9 +2129,9 @@ class ImageSequenceBrowserDialog(QDialog):
         for i in range(self.sequence_list.count()):
             item = self.sequence_list.item(i)
             if item:
-                seq = item.data(Qt.ItemDataRole.UserRole)  # pyright: ignore[reportAny]
-                if isinstance(seq, ImageSequence):
-                    sequences.append(seq)
+                seq_data = item.data(Qt.ItemDataRole.UserRole)
+                if isinstance(seq_data, ImageSequence):
+                    sequences.append(seq_data)
 
         # Sort by current criterion
         if self.current_sort == "name":

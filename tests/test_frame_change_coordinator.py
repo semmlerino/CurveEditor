@@ -14,11 +14,14 @@ class TestFrameChangeCoordinator:
     @pytest.fixture
     def main_window(self, qtbot):
         """Create main window fixture."""
+        from stores.store_manager import StoreManager
         from ui.main_window import MainWindow
 
         window = MainWindow()
         qtbot.addWidget(window)
-        return window
+        yield window
+        # Cleanup after test
+        StoreManager.reset()
 
     @pytest.fixture
     def coordinator(self, main_window):
@@ -37,6 +40,9 @@ class TestFrameChangeCoordinator:
         """Test coordinator's _trigger_repaint is only called once per frame change."""
         # Use MainWindow's own coordinator (don't create a separate one)
         coordinator = main_window.frame_change_coordinator
+
+        # First, allow any pending signals from previous tests to flush
+        qtbot.wait(50)
 
         # Mock the coordinator's _trigger_repaint method to count calls
         # This is more specific than mocking curve_widget.update() which may be
@@ -87,6 +93,9 @@ class TestFrameChangeCoordinator:
         """Test coordinator triggers repaint exactly once per frame change."""
         # Use MainWindow's own coordinator
         coordinator = main_window.frame_change_coordinator
+
+        # First, allow any pending signals from previous tests to flush
+        qtbot.wait(50)
 
         # Mock coordinator's _trigger_repaint method
         # This is more specific than mocking curve_widget.update() which may be

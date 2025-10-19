@@ -612,12 +612,19 @@ class MockCurveView:
 
 
 class MockMainWindow:
-    """Lightweight real MainWindow implementation for testing."""
+    """Lightweight real MainWindow implementation for testing.
+
+    Implements MainWindowProtocol to avoid type ignores in tests.
+    """
 
     def __init__(self) -> None:
+        from typing import cast
+
         # Core components
         self.curve_view = MockCurveView()
-        self.curve_widget = self.curve_view  # Alias
+        # curve_widget type is MultiCurveViewProtocol | None in protocol,
+        # but we use MockCurveView for testing. Cast to satisfy type checker.
+        self.curve_widget: object = cast(object, self.curve_view)
 
         # UI components structure using real widgets
         class UIComponents:
@@ -631,7 +638,7 @@ class MockMainWindow:
         # Services mock
         from unittest.mock import MagicMock
 
-        self.services = MagicMock()
+        self._services = MagicMock()
 
         # State
         self.current_file: str | None = None
@@ -644,13 +651,13 @@ class MockMainWindow:
         self.status_bar = QStatusBar()
 
         # History management (for MainWindowProtocol compatibility)
-        # Note: These are nullable to allow tests to force internal history usage
-        self.history: list[object] | None = []
-        self.history_index: int | None = -1
+        # Note: These are mutable to allow tests to force internal history usage
+        self.history: list[object] = []
+        self.history_index: int = -1
         self.max_history_size: int = 50
 
         # Protocol required attributes
-        self.selected_indices: list[int] = []
+        self._selected_indices: list[int] = []
         self.point_name: str = "Point"
         self.point_color: str = "#FF0000"
 
@@ -662,9 +669,43 @@ class MockMainWindow:
         # State manager (required by MainWindowProtocol)
         from unittest.mock import MagicMock
 
-        self.state_manager = MagicMock()
-        self.state_manager.is_modified = False
-        self.state_manager.auto_center_enabled = True
+        self._state_manager = MagicMock()
+        self._state_manager.is_modified = False
+        self._state_manager.auto_center_enabled = True
+        self._state_manager.current_frame = 1
+
+        # Additional MainWindowProtocol required attributes
+        self._point_spinbox_connected: bool = False
+        self.file_operations: object = MagicMock()
+        self.fps_spinbox: object = None
+        self.btn_play_pause: object = None
+        self.timeline_tabs: object = None
+        self.shortcut_manager: object = None
+        self.multi_point_controller: object = None
+
+        # More protocol attributes
+        self.tracking_panel: object = None
+        self.frame_spinbox: object = None
+        self.frame_slider: object = None
+        self.image_filenames: list[str] = []
+        self.file_load_worker: object = None
+        self.total_frames_label: object = None
+        self.tracked_data: object = None
+        self.active_points: object = None
+        self.active_timeline_point: str | None = None
+        self.current_image_idx: int = 0
+        self.session_manager: object = None
+        self.view_update_manager: object = None
+
+    @property
+    def selected_indices(self) -> list[int]:
+        """Get selected point indices (MainWindowProtocol)."""
+        return self._selected_indices
+
+    @selected_indices.setter
+    def selected_indices(self, value: list[int]) -> None:
+        """Set selected point indices (MainWindowProtocol)."""
+        self._selected_indices = value
 
     @property
     def curve_data(self) -> CurveDataList:
@@ -686,6 +727,7 @@ class MockMainWindow:
     def current_frame(self, value: int) -> None:
         """Set the current frame number."""
         self._current_frame = value
+        self._state_manager.current_frame = value
 
     @property
     def is_modified(self) -> bool:
@@ -695,7 +737,18 @@ class MockMainWindow:
     @is_modified.setter
     def is_modified(self, value: bool) -> None:
         """Set modified state."""
-        self.state_manager.is_modified = value
+        self._is_modified = value
+        self._state_manager.is_modified = value
+
+    @property
+    def services(self) -> object:
+        """Get services facade (MainWindowProtocol)."""
+        return self._services
+
+    @property
+    def state_manager(self) -> object:
+        """Get state manager (MainWindowProtocol)."""
+        return self._state_manager
 
     def _create_timeline_components(self):
         """Create timeline UI components using real Qt widgets."""
@@ -763,10 +816,58 @@ class MockMainWindow:
         """Update status message."""
         self.show_status_message(message)
 
-    def add_to_history(self, action: object) -> None:
-        """Add action to history."""
-        if self.history is None:
-            self.history = []
+    def setWindowTitle(self, title: str) -> None:
+        """Set window title (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def statusBar(self) -> object:
+        """Get status bar widget (MainWindowProtocol)."""
+        return self.status_bar
+
+    def close(self) -> bool:
+        """Close the window (MainWindowProtocol)."""
+        return True
+
+    def set_centering_enabled(self, enabled: bool) -> None:
+        """Enable or disable auto-centering (MainWindowProtocol)."""
+        if self._state_manager:
+            self._state_manager.auto_center_enabled = enabled
+
+    def apply_smooth_operation(self) -> None:
+        """Apply smoothing operation (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def _get_current_frame(self) -> int:
+        """Get current frame (controller friend method)."""
+        return self._current_frame
+
+    def _set_current_frame(self, frame: int) -> None:
+        """Set current frame (controller friend method)."""
+        self._current_frame = frame
+        self._state_manager.current_frame = frame
+
+    def update_timeline_tabs(self, curve_data: object | None) -> None:
+        """Update timeline tabs (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def update_tracking_panel(self) -> None:
+        """Update tracking panel (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def update_zoom_label(self) -> None:
+        """Update zoom level label (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def _get_current_curve_data(self) -> CurveDataList:
+        """Get current curve data (controller friend method)."""
+        return self.curve_view.curve_data
+
+    def restore_state(self, state: dict[str, object]) -> None:
+        """Restore state from history (MainWindowProtocol)."""
+        pass  # Mock implementation - tests may override
+
+    def add_to_history(self, action: object | None = None) -> None:
+        """Add action to history (MainWindowProtocol)."""
         self.history.append(action)
         if len(self.history) > self.max_history_size:
             self.history.pop(0)
@@ -774,13 +875,34 @@ class MockMainWindow:
 
     def can_undo(self) -> bool:
         """Check if undo is available."""
-        return self.history_index is not None and self.history_index >= 0
+        return self.history_index >= 0
 
     def can_redo(self) -> bool:
         """Check if redo is available."""
-        return (
-            self.history_index is not None and self.history is not None and self.history_index < len(self.history) - 1
-        )
+        return self.history_index < len(self.history) - 1
+
+    def set_tracked_data_atomic(self, data: object) -> None:
+        """Set tracked data atomically (MainWindowProtocol)."""
+        self.tracked_data = data
+
+    def geometry(self) -> object:
+        """Get window geometry (MainWindowProtocol)."""
+        return None
+
+    def set_file_loading_state(self, loading: bool) -> None:
+        """Set file loading state (MainWindowProtocol)."""
+        pass
+
+    # Signal protocol attributes
+    @property
+    def play_toggled(self) -> object:
+        """Play toggled signal (MainWindowProtocol)."""
+        return TestSignal()
+
+    @property
+    def frame_rate_changed(self) -> object:
+        """Frame rate changed signal (MainWindowProtocol)."""
+        return TestSignal()
 
 
 class MockDataBuilder:

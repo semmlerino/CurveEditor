@@ -140,8 +140,8 @@ def main_window_with_data(qtbot, make_navigation_dataset):
                 max_frame = max(point[0] for point in processed_data)
                 # Extend frame range to 30 to allow testing beyond the data (navigation tests may go beyond)
                 window.timeline_controller.set_frame_range(1, max(max_frame, 30))
-                # Ensure curve_widget has the data for navigation purposes
-                window.curve_widget.set_curve_data(processed_data)
+                # Note: curve_widget.curve_data is read-only and gets data from ApplicationState
+                # Data is already set via app_state.set_curve_data() at line 129
 
         # Show and wait for exposure
         window.show()
@@ -363,20 +363,25 @@ class TestNavigationEdgeCases:
 
         # Start before the single keyframe
         get_application_state().set_frame(5)
+        qtbot.wait(50)
 
         # PageDown should go to frame 10 (the only keyframe)
         key_event_down = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event_down)
+        qtbot.wait(50)
         assert get_application_state().current_frame == 10
 
         # PageDown again from 10 should stay at 10 (no next frame)
         window.keyPressEvent(key_event_down)
+        qtbot.wait(50)
         assert get_application_state().current_frame == 10
 
         # Set frame after keyframe and try PageUp
         get_application_state().set_frame(15)
+        qtbot.wait(50)
         key_event_up = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
         window.keyPressEvent(key_event_up)
+        qtbot.wait(50)
         # Should go back to frame 10 (the only keyframe)
         assert get_application_state().current_frame == 10
 

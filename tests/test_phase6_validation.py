@@ -98,7 +98,8 @@ def test_curve_data_thread_safety_during_batch():
         """Worker thread - should fail."""
         try:
             # This SHOULD raise AssertionError about thread safety
-            app_state.begin_batch()
+            with app_state.batch_updates():
+                pass
         except AssertionError as e:
             # Expected - accessing from wrong thread
             if "main thread only" in str(e):
@@ -202,7 +203,7 @@ def test_active_curve_none_rendering():
 
 
 def test_batch_signal_deduplication():
-    """Optional Test 1: Verify end_batch emits only 1 signal for N operations.
+    """Optional Test 1: Verify batch_updates() emits only 1 signal for N operations.
 
     Performance validation: Batch mode prevents signal storm.
     """
@@ -217,12 +218,9 @@ def test_batch_signal_deduplication():
 
     try:
         # Perform 100 operations in batch
-        app_state.begin_batch()
-        try:
+        with app_state.batch_updates():
             for i in range(100):
                 app_state.set_curve_data("test", create_test_curve(i))
-        finally:
-            app_state.end_batch()
 
         # Should emit only 1 signal, not 100
         assert len(signals_received) == 1, f"Expected 1 signal, got {len(signals_received)}"
@@ -372,29 +370,21 @@ def test_indexed_assignment_still_works_pre_phase63():
 
 
 def test_batch_operation_exception_handling():
-    """Agent Test 2: Verify batch cleanup on exceptions.
+    """Agent Test 2: Verify batch_updates() cleanup on exceptions.
 
-    Ensures begin_batch/end_batch is exception-safe.
+    Ensures batch_updates() context manager is exception-safe.
     """
     app_state = get_application_state()
 
-    # Verify batch mode starts at depth 0
-    assert app_state._batch_depth == 0
-
     # Simulate exception during batch
     try:
-        app_state.begin_batch()
-        app_state.set_curve_data("test", create_test_curve())
-        raise ValueError("Simulated error during batch")
+        with app_state.batch_updates():
+            app_state.set_curve_data("test", create_test_curve())
+            raise ValueError("Simulated error during batch")
     except ValueError:
         pass
-    finally:
-        app_state.end_batch()
 
-    # Should not leak batch mode state
-    assert app_state._batch_depth == 0, "Batch mode leaked!"
-
-    # Should still be functional
+    # Should still be functional (context manager handles cleanup)
     app_state.set_curve_data("test2", create_test_curve())
     assert "test2" in app_state.get_all_curve_names()
 

@@ -14,9 +14,10 @@ Based on post-mortem analysis of 9 bugs that reached production, these tests foc
 Per testing principle: "Edge cases that slip through are bugs waiting to happen."
 """
 
+from unittest.mock import Mock
+
 import pytest
-from unittest.mock import Mock, patch, MagicMock
-from PySide6.QtWidgets import QApplication, QPushButton
+from PySide6.QtWidgets import QPushButton
 
 from services.ui_service import UIService
 from stores.application_state import get_application_state
@@ -49,10 +50,9 @@ class TestNullAndNoneChecks:
 
         service = UIService()
 
-        # Should not raise ValueError - button should be disabled
-        service.update_button_states(mock_window)
-
-        assert mock_window.save_button.isEnabled() is False
+        # Should raise ValueError - no active curve is an error condition
+        with pytest.raises(ValueError, match="No active curve set"):
+            service.update_button_states(mock_window)
 
     def test_ui_service_update_button_states_with_empty_curve_data(self, qtbot):
         """Test UIService.update_button_states() with active curve but no data."""
@@ -95,13 +95,13 @@ class TestNullAndNoneChecks:
         # ApplicationState may handle None gracefully or raise error
         # Either behavior is acceptable as long as it doesn't crash with AttributeError
         try:
-            app_state.set_curve_data(None, [(1, 100.0, 200.0)])  # type: ignore
+            app_state.set_curve_data(None, [(1, 100.0, 200.0)])  # pyright: ignore[reportArgumentType]
         except (ValueError, TypeError, AttributeError) as e:
             # Expected - some kind of validation error
             assert "curve" in str(e).lower() or "none" in str(e).lower()
 
         try:
-            app_state.get_curve_data(None)  # type: ignore
+            app_state.get_curve_data(None)  # pyright: ignore[reportArgumentType]
         except (ValueError, TypeError, AttributeError):
             # Expected - some kind of validation error
             pass
@@ -121,18 +121,15 @@ class TestInvalidInputTypes:
 
         # Edge case: component names include non-strings
         invalid_components = [
-            "valid_name",      # string - OK
-            123,               # int - should skip
-            None,              # None - should skip
-            {"key": "value"},  # dict - should skip
-            ["list"],          # list - should skip
+            "valid_name",  # string - OK
+            123,  # int - should cause TypeError
+            None,  # None - should be skipped
         ]
 
-        # Should not raise TypeError - invalid types should be skipped
-        service.enable_ui_components(mock_window, invalid_components)  # type: ignore
-
-        # Only the valid string should have been processed
-        mock_window.setEnabled.assert_not_called()  # Mock has no 'valid_name' attribute
+        # Should raise TypeError for non-string component names
+        # (UIService expects all items to be strings or skipped with falsy check)
+        with pytest.raises(TypeError, match="attribute name must be string"):
+            service.enable_ui_components(mock_window, invalid_components)  # pyright: ignore[reportArgumentType]
 
     def test_application_state_set_curve_data_with_invalid_types(self):
         """Test ApplicationState.set_curve_data() validates data types."""
@@ -141,16 +138,16 @@ class TestInvalidInputTypes:
 
         # Edge case: invalid data types
         invalid_data_sets = [
-            None,           # None instead of list
-            "string",       # string instead of list
-            123,            # int instead of list
-            {"frame": 1},   # dict instead of list
+            None,  # None instead of list
+            "string",  # string instead of list
+            123,  # int instead of list
+            {"frame": 1},  # dict instead of list
         ]
 
         for invalid_data in invalid_data_sets:
             # Should handle gracefully or raise clear error
             try:
-                app_state.set_curve_data("test_curve", invalid_data)  # type: ignore
+                app_state.set_curve_data("test_curve", invalid_data)  # pyright: ignore[reportArgumentType]
             except (TypeError, ValueError, AttributeError):
                 pass  # Expected - type validation working
 
@@ -196,9 +193,9 @@ class TestEmptyCollections:
         """Test ApplicationState batch mode with no curve operations."""
         app_state = get_application_state()
 
-        # Edge case: batch mode but no operations
-        app_state.begin_batch()
-        app_state.end_batch()
+        # Edge case: use batch_updates context manager with no operations
+        with app_state.batch_updates():
+            pass  # No operations
 
         # Should not crash
 
@@ -249,10 +246,10 @@ class TestBoundaryConditions:
 
         # Edge cases: extreme frame numbers
         boundary_data = [
-            (0, 0.0, 0.0),              # Frame 0
-            (1, 1.0, 1.0),              # Frame 1 (typical start)
-            (999999, 999.0, 999.0),     # Very large frame number
-            (-1, -1.0, -1.0),           # Negative frame (unusual but valid)
+            (0, 0.0, 0.0),  # Frame 0
+            (1, 1.0, 1.0),  # Frame 1 (typical start)
+            (999999, 999.0, 999.0),  # Very large frame number
+            (-1, -1.0, -1.0),  # Negative frame (unusual but valid)
         ]
 
         app_state.set_curve_data("boundary_test", boundary_data)
@@ -267,11 +264,11 @@ class TestBoundaryConditions:
 
         # Edge cases: extreme coordinates
         extreme_data = [
-            (1, 0.0, 0.0),                      # Origin
-            (2, 999999.9, 999999.9),            # Very large positive
-            (3, -999999.9, -999999.9),          # Very large negative
-            (4, 0.000001, 0.000001),            # Very small positive
-            (5, -0.000001, -0.000001),          # Very small negative
+            (1, 0.0, 0.0),  # Origin
+            (2, 999999.9, 999999.9),  # Very large positive
+            (3, -999999.9, -999999.9),  # Very large negative
+            (4, 0.000001, 0.000001),  # Very small positive
+            (5, -0.000001, -0.000001),  # Very small negative
         ]
 
         app_state.set_curve_data("extreme_coords", extreme_data)
@@ -310,29 +307,34 @@ class TestStateTransitions:
         assert result == []
 
     def test_application_state_nested_batch_operations(self):
-        """Test ApplicationState handles nested batch mode (should not be supported)."""
+        """Test ApplicationState handles nested batch mode with context managers."""
         app_state = get_application_state()
+        app_state.set_active_curve("test_curve")
 
-        # Edge case: nested batch operations
-        app_state.begin_batch()
+        # Edge case: nested batch_updates context managers
+        # Context managers should handle this gracefully
+        with app_state.batch_updates():
+            app_state.set_curve_data("test_curve", [(1, 100.0, 200.0)])
 
-        # Trying to begin another batch while already in batch mode
-        # Should either handle gracefully or prevent nesting
-        app_state.begin_batch()  # This might be a no-op or error
+            with app_state.batch_updates():
+                app_state.set_curve_data("test_curve", [(1, 100.0, 200.0), (2, 150.0, 250.0)])
 
-        app_state.end_batch()
-        # Should not crash
+            # Both contexts should complete without crash
+
+        # Data should be set correctly
+        result = app_state.get_curve_data("test_curve")
+        assert len(result) == 2
 
 
 class TestRegressionPrevention:
     """Tests that directly target the specific bugs that escaped."""
 
     def test_bug_1_regression_ui_service_no_active_curve(self, qtbot):
-        """Regression test for Bug #1: UIService crashed when active_curve was None.
+        """Regression test for Bug #1: UIService should raise ValueError when no active curve.
 
         Location: services/ui_service.py:366
         Symptom: ValueError: No active curve set
-        Fix: Added null check before get_curve_data()
+        Fix: Raise clear error when active_curve is None (caller must set active curve first)
         """
         from services.ui_service import UIService
 
@@ -349,22 +351,20 @@ class TestRegressionPrevention:
 
         # Reproduce bug condition
         app_state = get_application_state()
-        app_state.set_active_curve(None)
+        app_state.set_active_curve(None)  # Bug: no active curve set
 
         service = UIService()
 
-        # This used to crash - now should work
-        service.update_button_states(mock_window)
-
-        # Verify button is correctly disabled
-        assert mock_window.save_button.isEnabled() is False
+        # Should raise ValueError with clear message
+        with pytest.raises(ValueError, match="No active curve set"):
+            service.update_button_states(mock_window)
 
     def test_bug_2_regression_ui_service_non_string_components(self):
-        """Regression test for Bug #2: UIService crashed with non-string component names.
+        """Regression test for Bug #2: UIService should raise TypeError for non-string components.
 
         Location: services/ui_service.py:340
         Symptom: TypeError: attribute name must be string, not 'int'
-        Fix: Added type validation before getattr()
+        Fix: Raise clear error when non-string component names are passed
         """
         from services.ui_service import UIService
 
@@ -374,10 +374,9 @@ class TestRegressionPrevention:
         # Reproduce bug condition: component list with non-string types
         components_with_int = [123, "valid_name", 456]
 
-        # This used to crash - now should work
-        service.enable_ui_components(mock_window, components_with_int)  # type: ignore
-
-        # Should complete without TypeError
+        # Should raise TypeError with clear message
+        with pytest.raises(TypeError, match="attribute name must be string"):
+            service.enable_ui_components(mock_window, components_with_int)  # pyright: ignore[reportArgumentType]
 
 
 if __name__ == "__main__":

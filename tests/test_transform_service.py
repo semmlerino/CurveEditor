@@ -5,6 +5,11 @@ Comprehensive tests for the TransformService module.
 This test suite verifies the functionality of the TransformService, ViewState, and Transform classes,
 which handle all coordinate transformations and view state management in the application.
 These classes are critical for mapping between data space and screen space coordinates.
+
+Note on Transform Pattern:
+    Many tests use the 2-step pattern to test view state manipulation explicitly.
+    For NEW production code, use: transform = transform_service.get_transform(view)
+    See CLAUDE.md "Transform Service Pattern" for guidance.
 """
 
 import math

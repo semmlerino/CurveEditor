@@ -3,6 +3,11 @@ Integration tests for CurveEditor services.
 
 These tests verify that the DEFAULT architecture services work together correctly
 in real-world scenarios. Each test represents a complete user workflow.
+
+Note on Transform Pattern:
+    Some tests use the legacy 2-step pattern for explicitness. For NEW production
+    code, use the recommended pattern: transform = transform_service.get_transform(view)
+    (See CLAUDE.md for details)
 """
 
 import csv

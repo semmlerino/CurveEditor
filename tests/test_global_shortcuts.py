@@ -29,19 +29,23 @@ from ui.shortcut_registry import ShortcutRegistry
 @pytest.fixture
 def main_window_with_shortcuts(qtbot):
     """Create a main window with global shortcuts initialized."""
+    from stores.store_manager import StoreManager
+
+    # Setup test curve data BEFORE creating window (so it's available during initialization)
+    app_state = get_application_state()
+    test_data: CurveDataList = [
+        (1, 100.0, 100.0, PointStatus.NORMAL.value),
+        (2, 150.0, 120.0, PointStatus.KEYFRAME.value),
+        (3, 200.0, 130.0, PointStatus.NORMAL.value),
+        (4, 250.0, 140.0, PointStatus.NORMAL.value),
+        (5, 300.0, 150.0, PointStatus.KEYFRAME.value),
+    ]
+    app_state.set_curve_data("__test__", test_data)
+    app_state.set_active_curve("__test__")
+
+    # Now create window
     window = MainWindow()
     qtbot.addWidget(window)
-
-    # Add test curve data
-    if window.curve_widget is not None:
-        test_data: CurveDataList = [
-            (1, 100.0, 100.0, PointStatus.NORMAL.value),
-            (2, 150.0, 120.0, PointStatus.KEYFRAME.value),
-            (3, 200.0, 130.0, PointStatus.NORMAL.value),
-            (4, 250.0, 140.0, PointStatus.NORMAL.value),
-            (5, 300.0, 150.0, PointStatus.KEYFRAME.value),
-        ]
-        window.curve_widget.set_curve_data(test_data)
 
     # Add test tracking data
     if window.tracking_panel:
@@ -54,7 +58,10 @@ def main_window_with_shortcuts(qtbot):
         )
         window.tracking_panel.set_tracked_data(tracked_data)
 
-    return window
+    yield window
+
+    # Cleanup
+    StoreManager.reset()
 
 
 class TestGlobalShortcuts:

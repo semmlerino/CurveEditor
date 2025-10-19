@@ -15,27 +15,27 @@ from core.type_aliases import CurveDataInput, CurveDataList
 class ActionHandlerProtocol(Protocol):
     """Protocol for action handler controller."""
 
-    def _on_action_new(self) -> None:
+    def on_action_new(self) -> None:
         """Handle new file action."""
         ...
 
-    def _on_action_open(self) -> None:
+    def on_action_open(self) -> None:
         """Handle open file action."""
         ...
 
-    def _on_action_save(self) -> None:
+    def on_action_save(self) -> None:
         """Handle save file action."""
         ...
 
-    def _on_action_save_as(self) -> None:
+    def on_action_save_as(self) -> None:
         """Handle save as action."""
         ...
 
-    def _on_select_all(self) -> None:
+    def on_select_all(self) -> None:
         """Handle select all action."""
         ...
 
-    def _on_add_point(self) -> None:
+    def on_add_point(self) -> None:
         """Handle add point action."""
         ...
 
@@ -47,7 +47,7 @@ class ActionHandlerProtocol(Protocol):
         """Handle zoom out action."""
         ...
 
-    def _on_zoom_fit(self) -> None:
+    def on_zoom_fit(self) -> None:
         """Handle zoom fit action."""
         ...
 
@@ -63,47 +63,47 @@ class ActionHandlerProtocol(Protocol):
         """Apply smoothing operation to curve."""
         ...
 
-    def _get_current_curve_data(self) -> object:
+    def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data."""
         ...
 
-    def _on_action_undo(self) -> None:
+    def on_action_undo(self) -> None:
         """Handle undo action."""
         ...
 
-    def _on_action_redo(self) -> None:
+    def on_action_redo(self) -> None:
         """Handle redo action."""
         ...
 
-    def _on_action_zoom_in(self) -> None:
+    def on_action_zoom_in(self) -> None:
         """Handle zoom in action."""
         ...
 
-    def _on_action_zoom_out(self) -> None:
+    def on_action_zoom_out(self) -> None:
         """Handle zoom out action."""
         ...
 
-    def _on_action_reset_view(self) -> None:
+    def on_action_reset_view(self) -> None:
         """Handle reset view action."""
         ...
 
-    def _on_load_images(self) -> None:
+    def on_load_images(self) -> None:
         """Handle load images action."""
         ...
 
-    def _on_export_data(self) -> None:
+    def on_export_data(self) -> None:
         """Handle export data action."""
         ...
 
-    def _on_smooth_curve(self) -> None:
+    def on_smooth_curve(self) -> None:
         """Handle smooth curve action."""
         ...
 
-    def _on_filter_curve(self) -> None:
+    def on_filter_curve(self) -> None:
         """Handle filter curve action."""
         ...
 
-    def _on_analyze_curve(self) -> None:
+    def on_analyze_curve(self) -> None:
         """Handle analyze curve action."""
         ...
 

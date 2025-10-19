@@ -159,6 +159,22 @@ class ServiceFacade:
             return self._transform_service.create_transform_from_view_state(view_state)
         return None
 
+    def get_transform(self, curve_view: CurveViewProtocol) -> Transform | None:
+        """
+        Get a Transform directly from a CurveView.
+
+        Convenience method that combines create_view_state() and create_transform().
+
+        Args:
+            curve_view: The CurveView instance to create a transform for
+
+        Returns:
+            Transform instance or None if service unavailable
+        """
+        if self._transform_service:
+            return self._transform_service.get_transform(curve_view)
+        return None
+
     def transform_to_screen(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
         """Transform data coordinates to screen coordinates."""
         if transform:

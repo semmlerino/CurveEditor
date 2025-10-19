@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 
 # animation_utils removed - using direct connections instead
 from ui.frame_tab import FrameTab
+from ui.qt_utils import safe_slot
 
 logger = get_logger(__name__)
 
@@ -309,6 +310,7 @@ class TimelineTabWidget(QWidget):
         # Sync initial active timeline point
         self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
 
+    @safe_slot
     def _on_frame_changed(self, frame: int) -> None:
         """React to StateManager frame changes (visual updates only)."""
         # Clamp to valid range
@@ -329,6 +331,7 @@ class TimelineTabWidget(QWidget):
         # Update frame info display
         self._update_frame_info()
 
+    @safe_slot
     def _on_active_timeline_point_changed(self, point_name: str | None) -> None:
         """React to StateManager active timeline point changes.
 
@@ -365,13 +368,9 @@ class TimelineTabWidget(QWidget):
 
         logger.info("TimelineTabWidget connected to ApplicationState signals")
 
+    @safe_slot
     def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
         """Handle ApplicationState curves_changed signal."""
-        # Guard against operations during widget destruction
-        try:
-            _ = self.isVisible()  # This will raise RuntimeError if widget is being destroyed
-        except RuntimeError:
-            return
 
         # Get active curve data
         from services import get_data_service
@@ -437,11 +436,13 @@ class TimelineTabWidget(QWidget):
 
             logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
+    @safe_slot
     def _on_active_curve_changed(self, _curve_name: str) -> None:
         """Handle ApplicationState active_curve_changed signal."""
         # Refresh timeline with new active curve data
         self._on_curves_changed(self._app_state.get_all_curves())
 
+    @safe_slot
     def _on_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
         """Handle selection changes.
 

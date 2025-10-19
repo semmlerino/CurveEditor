@@ -174,8 +174,7 @@ class _MouseHandler:
 
                 # Convert screen delta to curve coordinates
                 transform_service = _get_transform_service()
-                view_state = transform_service.create_view_state(view)
-                transform = transform_service.create_transform_from_view_state(view_state)
+                transform = transform_service.get_transform(view)
 
                 # Transform has a single scale, not scale_x/scale_y
                 curve_delta_x = delta_x / transform.scale
@@ -189,8 +188,7 @@ class _MouseHandler:
                     active_curve_data = list(self._app_state.get_curve_data())
 
                     # Move all selected points - update via ApplicationState with batch mode
-                    self._app_state.begin_batch()
-                    try:
+                    with self._app_state.batch_updates():
                         for idx in view.selected_points:
                             if 0 <= idx < len(active_curve_data):
                                 point = active_curve_data[idx]
@@ -203,8 +201,6 @@ class _MouseHandler:
                                     active_curve_data[idx] = (point[0], new_x, new_y)
                         # Write back to ApplicationState
                         self._app_state.set_curve_data(active_curve_name, active_curve_data)
-                    finally:
-                        self._app_state.end_batch()
 
             view.last_drag_pos = pos
 
@@ -290,8 +286,7 @@ class _MouseHandler:
                 active_curve_data = self._app_state.get_curve_data()
                 if active_curve_data:
                     transform_service = _get_transform_service()
-                    view_state = transform_service.create_view_state(view)
-                    transform = transform_service.create_transform_from_view_state(view_state)
+                    transform = transform_service.get_transform(view)
 
                     if not view.selected_points:
                         view.selected_points = set()
@@ -392,8 +387,7 @@ class _MouseHandler:
 
                 # Convert to curve coordinates
                 transform_service = _get_transform_service()
-                view_state = transform_service.create_view_state(view)
-                transform = transform_service.create_transform_from_view_state(view_state)
+                transform = transform_service.get_transform(view)
 
                 curve_delta_x = delta_x / transform.scale
                 curve_delta_y = -delta_y / transform.scale  # Invert Y
@@ -477,8 +471,7 @@ class _SelectionManager:
                 return PointSearchResult(index=-1, curve_name=None)
 
             transform_service = _get_transform_service()
-            view_state = transform_service.create_view_state(view)
-            transform = transform_service.create_transform_from_view_state(view_state)
+            transform = transform_service.get_transform(view)
 
             threshold = 5.0
             # Updated API: curve_data is now first parameter
@@ -496,8 +489,7 @@ class _SelectionManager:
             threshold = 5.0
 
             transform_service = _get_transform_service()
-            view_state = transform_service.create_view_state(view)
-            transform = transform_service.create_transform_from_view_state(view_state)
+            transform = transform_service.get_transform(view)
 
             for curve_name in visible_curves:
                 curve_data = self._app_state.get_curve_data(curve_name)
@@ -532,8 +524,7 @@ class _SelectionManager:
         transform_service = _get_transform_service()
 
         # Create transform for coordinate conversion
-        view_state = transform_service.create_view_state(view)
-        transform = transform_service.create_transform_from_view_state(view_state)
+        transform = transform_service.get_transform(view)
 
         # Use spatial index with specified tolerance
         return self._point_index.find_point_at_position(active_curve_data, transform, x, y, tolerance, view)
@@ -694,8 +685,7 @@ class _SelectionManager:
         transform_service = _get_transform_service()
 
         # Create transform for coordinate conversion
-        view_state = transform_service.create_view_state(view)
-        transform = transform_service.create_transform_from_view_state(view_state)
+        transform = transform_service.get_transform(view)
 
         # Use spatial index for O(1) rectangular selection
         point_indices = self._point_index.get_points_in_rect(
@@ -1252,8 +1242,7 @@ class _PointManipulator:
 
         success = False
         # Update via ApplicationState with batch mode for performance
-        self._app_state.begin_batch()
-        try:
+        with self._app_state.batch_updates():
             for idx in view.selected_points:
                 if 0 <= idx < len(curve_data):
                     point = curve_data[idx]
@@ -1269,8 +1258,6 @@ class _PointManipulator:
             if success:
                 # Write back to ApplicationState
                 self._app_state.set_curve_data(curve_name, curve_data)
-        finally:
-            self._app_state.end_batch()
 
         if success:
             view.update()

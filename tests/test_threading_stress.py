@@ -49,9 +49,8 @@ class TestApplicationStateThreadSafety:
             """Worker that attempts to perform batch operations (should fail)."""
             try:
                 # This should raise AssertionError (wrong thread)
-                state.begin_batch()
-                state.set_curve_data(f"worker_{worker_id}_curve", [(1, 0.0, 0.0, "normal")])
-                state.end_batch()
+                with state.batch_updates():
+                    state.set_curve_data(f"worker_{worker_id}_curve", [(1, 0.0, 0.0, "normal")])
             except AssertionError:
                 # EXPECTED - thread assertion caught the violation
                 assertion_errors.append(worker_id)
@@ -73,31 +72,27 @@ class TestApplicationStateThreadSafety:
 
     def test_concurrent_batch_nested_not_allowed(self, qapp: QCoreApplication) -> None:
         """
-        Test that nested batch operations are properly handled (warning logged).
+        Test that nested batch_updates() contexts are properly handled (no-op).
 
-        Verifies that attempting to start batch mode while already in batch mode
-        logs a warning but doesn't cause corruption.
+        Verifies that inner/nested batch contexts pass through without issues
+        while outer context controls signal emission.
         """
         state = get_application_state()
 
-        # Enter batch mode once
-        state.begin_batch()
-
-        # Attempt to enter again (should log warning but not crash)
-        state.begin_batch()  # Should warn
-
-        # Exit batch mode
-        state.end_batch()
+        # Outer batch context
+        with state.batch_updates():
+            # Inner batch context (should no-op and pass through)
+            with state.batch_updates():
+                pass
+            # Back in outer context
 
         # Should be out of batch mode now
-        # Attempting to exit again should also warn
-        state.end_batch()  # Should warn
 
     def test_signal_deduplication_under_concurrent_access(self, qapp: QCoreApplication) -> None:
         """
-        Test that signal deduplication works correctly with concurrent access.
+        Test that signal deduplication works correctly with batch_updates().
 
-        Verifies that when multiple threads modify the same curve in batch mode,
+        Verifies that when multiple operations modify the same curve in batch mode,
         signals are properly deduplicated and no corruption occurs.
         """
         state = get_application_state()
@@ -113,16 +108,14 @@ class TestApplicationStateThreadSafety:
         state.curves_changed.connect(count_signals)
         state.selection_changed.connect(count_selection_signals)
 
-        # Start batch mode
-        state.begin_batch()
+        # Use batch context
+        with state.batch_updates():
+            # Modify the same curve 100 times
+            for i in range(100):
+                state.set_curve_data("test_curve", [(1, float(i), float(i), "normal")])
+                state.set_selection("test_curve", {0})
 
-        # Modify the same curve 100 times
-        for i in range(100):
-            state.set_curve_data("test_curve", [(1, float(i), float(i), "normal")])
-            state.set_selection("test_curve", {0})
-
-        # End batch mode (should emit deduplicated signals)
-        state.end_batch()
+        # Signals emitted after context exit (should emit deduplicated signals)
 
         # Process events to ensure signals are handled
         qapp.processEvents()
@@ -148,9 +141,8 @@ class TestApplicationStateThreadSafety:
             """Attempt to rapidly toggle batch mode (should be rejected)."""
             for i in range(iterations):
                 try:
-                    state.begin_batch()
-                    state.set_curve_data(f"curve_{worker_id}", [(1, 0.0, 0.0, "normal")])
-                    state.end_batch()
+                    with state.batch_updates():
+                        state.set_curve_data(f"curve_{worker_id}", [(1, 0.0, 0.0, "normal")])
                 except AssertionError:
                     # Expected - thread assertion caught violation
                     assertion_count.append(1)

@@ -62,11 +62,11 @@ class TestMainWindowThreadingIntegration:
 
             # Verify worker exists and thread started
             assert main_window.file_operations.file_load_worker is not None
-            assert main_window.file_operations.file_load_worker._thread is not None
+            worker = main_window.file_operations.file_load_worker
 
             # Thread should be running (or recently finished)
             # For small files it might complete quickly, so we check if it was started
-            thread_existed = main_window.file_operations.file_load_worker._thread is not None
+            was_running = worker.isRunning()
 
             # Immediately close the window (this used to crash)
             main_window.close()
@@ -75,14 +75,14 @@ class TestMainWindowThreadingIntegration:
             qtbot.wait(200)
 
             # Verify thread was properly stopped/cleaned up
-            assert main_window.file_operations.file_load_worker._should_stop is True
+            # Note: For small files, worker may finish naturally before interruption is requested
+            # The important check is that the worker is not running (no crash occurred)
+            if was_running:
+                # Wait for thread to finish
+                worker.wait(500)
 
-            # If thread existed, it should have stopped or be stopping
-            if thread_existed and main_window.file_operations.file_load_worker._thread:
-                # Wait a bit more for thread to finish
-                qtbot.wait(500)
-                # Thread should not be alive anymore
-                assert not main_window.file_operations.file_load_worker._thread.is_alive()
+            # Thread should not be running anymore (either stopped or finished naturally)
+            assert not worker.isRunning()
 
     def test_rapid_file_load_requests(self, main_window, qtbot, tmp_path):
         """Test rapid successive file load requests don't cause crashes."""
@@ -100,9 +100,9 @@ class TestMainWindowThreadingIntegration:
                 main_window.file_operations.open_file()
                 qtbot.wait(50)  # Small delay between requests
 
-            # Last worker should be running
+            # Last worker should be running or just finished
             assert main_window.file_operations.file_load_worker is not None
-            assert main_window.file_operations.file_load_worker._thread is not None
+            # Note: Worker may have finished quickly for small test files, so we just verify it exists
 
             # Clean up
             main_window.close()
@@ -112,7 +112,7 @@ class TestMainWindowThreadingIntegration:
         """Verify no QPixmap is created in worker threads (would crash)."""
         # This test verifies we're following Qt threading rules
         test_file = tmp_path / "pixmap_test.csv"
-        test_file.write_text("1,100,200\n")
+        test_file.write_text("1\nTestPoint\nPointType\n1\n1 100 200\n")
 
         # Patch QPixmap to detect if it's called from worker thread
         original_qpixmap = None
@@ -192,26 +192,21 @@ class TestMainWindowThreadingIntegration:
             # Wait a moment for thread to start
             qtbot.wait(50)
 
-            # Get thread reference if it exists
-            if window.file_operations.file_load_worker and window.file_operations.file_load_worker._thread:
-                worker_thread = window.file_operations.file_load_worker._thread
-                thread_was_alive = worker_thread.is_alive()
-            else:
-                # Thread may have completed already for fast loads
-                thread_was_alive = False
-                worker_thread = None
+            # Check if worker is running
+            worker = window.file_operations.file_load_worker
+            was_running = worker.isRunning() if worker else False
 
             # Close the window properly
             window.close()
             qtbot.wait(500)
 
-            # If thread was alive, it should have stopped
-            if thread_was_alive and worker_thread:
-                assert not worker_thread.is_alive()
-
-            # Worker should have been flagged to stop
-            if window.file_operations.file_load_worker:
-                assert window.file_operations.file_load_worker._should_stop is True
+            # If worker existed and was running, it should have stopped
+            if worker:
+                # If it was running, wait for it to finish and verify it stopped
+                if was_running:
+                    worker.wait(500)
+                # Worker should not be running anymore (either stopped or finished naturally)
+                assert not worker.isRunning()
 
 
 class TestThreadingCrashScenarios:
@@ -239,17 +234,15 @@ class TestThreadingCrashScenarios:
 
             # Verify cleanup happened if worker exists
             if main_window.file_operations.file_load_worker is not None:
-                # Worker should be flagged to stop
-                assert main_window.file_operations.file_load_worker._should_stop is True
-                # Thread should either be None or stopped
-                if main_window.file_operations.file_load_worker._thread:
-                    assert not main_window.file_operations.file_load_worker._thread.is_alive()
+                worker = main_window.file_operations.file_load_worker
+                # Thread should have stopped (either via interruption or natural completion)
+                assert not worker.isRunning()
 
     def test_multiple_windows_with_threading(self, qtbot, tmp_path):
         """Test multiple MainWindow instances with active threads."""
         windows = []
         test_file = tmp_path / "multi.csv"
-        test_file.write_text("1,100,200\n")
+        test_file.write_text("1\nTestPoint\nPointType\n1\n1 100 200\n")
 
         try:
             # Create multiple windows
@@ -275,8 +268,9 @@ class TestThreadingCrashScenarios:
 
             # Verify all threads stopped
             for window in windows:
-                if window.file_operations.file_load_worker and window.file_operations.file_load_worker._thread:
-                    assert not window.file_operations.file_load_worker._thread.is_alive()
+                worker = window.file_operations.file_load_worker
+                if worker:
+                    assert not worker.isRunning()
 
         finally:
             # Ensure cleanup

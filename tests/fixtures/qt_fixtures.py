@@ -266,7 +266,10 @@ def main_window(qapp: QApplication, qtbot):
 
 @pytest.fixture
 def file_load_signals(qtbot, qapp):
-    """Create FileLoadSignals instance with proper QObject cleanup.
+    """Create FileLoadWorker instance with proper QObject cleanup.
+
+    NOTE: This fixture name is maintained for backward compatibility.
+    It actually creates a FileLoadWorker (QThread with signals as class attributes).
 
     CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
     After 850+ tests, uncleaned QObjects cause segfaults (see UNIFIED_TESTING_GUIDE).
@@ -274,26 +277,33 @@ def file_load_signals(qtbot, qapp):
     This fixture implements the cleanup pattern from the testing guide:
     - Set parent to QApplication for proper Qt ownership
     - Explicit deleteLater() + processEvents() in cleanup
+    - Proper thread stopping before cleanup
 
     Args:
         qtbot: pytest-qt bot fixture
         qapp: QApplication instance
 
     Yields:
-        FileLoadSignals: Properly managed QObject for signal emission
+        FileLoadWorker: Properly managed QThread for file loading
     """
-    from io_utils.file_load_worker import FileLoadSignals
+    from io_utils.file_load_worker import FileLoadWorker
 
-    signals = FileLoadSignals()
+    worker = FileLoadWorker()
     # Set parent to QApplication for proper Qt ownership/cleanup
-    signals.setParent(qapp)
+    worker.setParent(qapp)
 
-    yield signals
+    yield worker
 
     # Explicit cleanup to prevent memory leaks and segfaults
     try:
-        signals.setParent(None)
-        signals.deleteLater()
+        # Stop thread first
+        worker.stop()
+        if worker.isRunning():
+            worker.wait(2000)
+
+        # Then clean up QObject
+        worker.setParent(None)
+        worker.deleteLater()
         # Process events to ensure deleteLater() is handled
         qapp.processEvents()
     except RuntimeError:
@@ -301,38 +311,45 @@ def file_load_signals(qtbot, qapp):
 
 
 @pytest.fixture
-def file_load_worker(file_load_signals):
+def file_load_worker(qtbot, qapp):
     """Create FileLoadWorker instance with proper thread cleanup.
 
     CRITICAL: Background threads must be fully stopped to prevent segfaults.
 
     This fixture ensures:
     - Worker thread is stopped before fixture teardown
-    - Thread.join() with timeout is called
+    - Thread.wait() with timeout is called (QThread method)
     - Cleanup happens even if test fails
 
     Args:
-        file_load_signals: FileLoadSignals fixture (auto-cleaned)
+        qtbot: pytest-qt bot fixture (unused, for consistency)
+        qapp: QApplication instance for Qt ownership
 
     Yields:
         FileLoadWorker: Worker with thread safety guarantees
     """
     from io_utils.file_load_worker import FileLoadWorker
 
-    worker = FileLoadWorker(file_load_signals)
+    worker = FileLoadWorker()
+    worker.setParent(qapp)  # Qt ownership for cleanup
     yield worker
 
     # Ensure cleanup happens even if test fails
     try:
         worker.stop()
-        # Wait for thread to fully stop with timeout
-        if worker._thread and worker._thread.is_alive():
-            worker._thread.join(timeout=2.0)
-            if worker._thread.is_alive():
+        # stop() already calls wait(2000), but ensure it's stopped
+        if worker.isRunning():
+            worker.wait(2000)
+            if worker.isRunning():
                 # Thread didn't stop - log warning but don't fail test
                 import warnings
 
                 warnings.warn("Worker thread did not stop within timeout")
+
+        # Clean up QObject
+        worker.setParent(None)
+        worker.deleteLater()
+        qapp.processEvents()
     except (RuntimeError, AttributeError):
         # Worker might already be stopped, that's okay
         pass
@@ -340,10 +357,11 @@ def file_load_worker(file_load_signals):
 
 @pytest.fixture
 def ui_file_load_signals(qtbot, qapp):
-    """Create FileLoadSignals from ui.file_operations with proper QObject cleanup.
+    """Create FileLoadWorker from io_utils.file_load_worker with proper QObject cleanup.
 
-    NOTE: This is a DIFFERENT class than io_utils.file_load_worker.FileLoadSignals!
-    The ui.file_operations version has multi_point_data_loaded signal.
+    FileLoadWorker is a QThread with signals as class attributes.
+    Signals are: tracking_data_loaded, image_sequence_loaded, progress_updated,
+    error_occurred, and finished.
 
     CRITICAL: QObjects must be properly cleaned up to prevent resource exhaustion.
 
@@ -352,18 +370,24 @@ def ui_file_load_signals(qtbot, qapp):
         qapp: QApplication instance
 
     Yields:
-        FileLoadSignals: Properly managed QObject from ui.file_operations
+        FileLoadWorker: Properly managed QThread for signal emission
     """
-    from ui.file_operations import FileLoadSignals
+    from io_utils.file_load_worker import FileLoadWorker
 
-    signals = FileLoadSignals()
-    signals.setParent(qapp)
+    worker = FileLoadWorker()
+    worker.setParent(qapp)
 
-    yield signals
+    yield worker
 
     try:
-        signals.setParent(None)
-        signals.deleteLater()
+        # Stop thread first
+        worker.stop()
+        if worker.isRunning():
+            worker.wait(2000)
+
+        # Then clean up QObject
+        worker.setParent(None)
+        worker.deleteLater()
         qapp.processEvents()
     except RuntimeError:
         pass
@@ -371,28 +395,27 @@ def ui_file_load_signals(qtbot, qapp):
 
 @pytest.fixture
 def ui_file_load_worker(ui_file_load_signals):
-    """Create FileLoadWorker from ui.file_operations with proper thread cleanup.
+    """Create FileLoadWorker from io_utils.file_load_worker with proper thread cleanup.
 
-    NOTE: This is a DIFFERENT class than io_utils.file_load_worker.FileLoadWorker!
+    FileLoadWorker inherits from QThread, so it is the worker and thread combined.
 
     Args:
-        ui_file_load_signals: FileLoadSignals fixture from ui.file_operations
+        ui_file_load_signals: FileLoadWorker fixture (used to maintain fixture pattern)
 
     Yields:
-        FileLoadWorker: Worker from ui.file_operations with thread safety
+        FileLoadWorker: QThread worker with proper cleanup
     """
-    from ui.file_operations import FileLoadWorker
-
-    worker = FileLoadWorker(ui_file_load_signals)
-    yield worker
+    # ui_file_load_signals is already a FileLoadWorker instance, just return it
+    # This maintains the fixture pattern for backward compatibility
+    yield ui_file_load_signals
 
     try:
-        worker.stop()
-        if worker._thread and worker._thread.is_alive():
-            worker._thread.join(timeout=2.0)
-            if worker._thread.is_alive():
+        ui_file_load_signals.stop()
+        if ui_file_load_signals.isRunning():
+            ui_file_load_signals.wait(timeout=2000)
+            if ui_file_load_signals.isRunning():
                 import warnings
 
-                warnings.warn("UI FileLoadWorker thread did not stop within timeout")
+                warnings.warn("FileLoadWorker thread did not stop within timeout")
     except (RuntimeError, AttributeError):
         pass

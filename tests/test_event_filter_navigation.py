@@ -41,7 +41,14 @@ class TestEventFilterNavigation:
     def main_window_with_data(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create MainWindow with test curve data."""
         window = MainWindow()
-        qtbot.addWidget(window)  # Register for cleanup
+
+        def cleanup_event_filter(w):
+            """Remove event filters before widget destruction."""
+            app_instance = QApplication.instance()
+            if app_instance and hasattr(w, "global_event_filter"):
+                app_instance.removeEventFilter(w.global_event_filter)
+
+        qtbot.addWidget(window, before_close_func=cleanup_event_filter)  # Register for cleanup
 
         # Load test data with keyframes
         test_data: CurveDataList = [
@@ -52,17 +59,28 @@ class TestEventFilterNavigation:
             (20, 300.0, 300.0, "keyframe"),
         ]
 
-        # Use real components
-        if window.curve_widget is not None:
-            window.curve_widget.set_curve_data(test_data)
-        window.update_timeline_tabs(test_data)
-
-        # Install event filter (mimics main.py)
-        app.installEventFilter(window)
-
         # Show window and wait for it to be ready
         window.show()
         qtbot.waitExposed(window)
+        qtbot.wait(500)  # Allow background file operations to complete
+
+        # NOW set up active curve in application state (after background load completes)
+        state = get_application_state()
+        test_curve_name = "TestCurve"
+        state.set_curve_data(test_curve_name, test_data)
+        state.set_active_curve(test_curve_name)
+
+        # Verify the setup
+        assert state.active_curve == test_curve_name, f"Active curve not set: {state.active_curve}"
+        assert state.get_curve_data(test_curve_name) == test_data, "Curve data not set correctly"
+
+        # Update UI components to reflect the data
+        window.update_timeline_tabs(test_data)
+
+        # Trigger curve widget update
+        if window.curve_widget is not None:
+            window.curve_widget.update()
+
         qtbot.wait(50)  # Allow UI to update
         return window
 
@@ -71,6 +89,7 @@ class TestEventFilterNavigation:
     ) -> None:
         """Test Page Down works through eventFilter when timeline has focus."""
         window = main_window_with_data
+        app = QApplication.instance()
 
         # Give focus to timeline (simulates user clicking timeline)
         if window.timeline_tabs:
@@ -85,9 +104,10 @@ class TestEventFilterNavigation:
         # Create Page Down key event
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
 
-        # Send event through application (will be caught by eventFilter)
-        if window.timeline_tabs:
-            QApplication.sendEvent(window.timeline_tabs, key_event)
+        # Post event to application event queue to trigger event filters
+        if window.timeline_tabs and app:
+            app.postEvent(window.timeline_tabs, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         # Verify navigation happened (should be at frame 5)
@@ -98,6 +118,7 @@ class TestEventFilterNavigation:
     def test_page_up_via_eventfilter_with_timeline_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test Page Up works through eventFilter when timeline has focus."""
         window = main_window_with_data
+        app = QApplication.instance()
 
         # Give focus to timeline
         if window.timeline_tabs:
@@ -111,9 +132,11 @@ class TestEventFilterNavigation:
         # Create Page Up key event
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
 
-        # Send event through application
+        # Post event to application event queue to trigger event filters
         assert window.timeline_tabs is not None
-        QApplication.sendEvent(window.timeline_tabs, key_event)
+        if app:
+            app.postEvent(window.timeline_tabs, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         # Verify navigation happened (should be at frame 5)
@@ -124,6 +147,7 @@ class TestEventFilterNavigation:
     def test_navigation_with_curve_widget_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation still works when curve widget has focus."""
         window = main_window_with_data
+        app = QApplication.instance()
 
         # Give focus to curve widget
         assert window.curve_widget is not None
@@ -136,7 +160,9 @@ class TestEventFilterNavigation:
 
         # Page Down
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(window.curve_widget, key_event)
+        if app:
+            app.postEvent(window.curve_widget, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         # Should navigate to frame 10
@@ -145,6 +171,7 @@ class TestEventFilterNavigation:
     def test_navigation_with_spinbox_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation works when frame spinbox has focus."""
         window = main_window_with_data
+        app = QApplication.instance()
 
         if not window.frame_spinbox:
             pytest.skip("Frame spinbox not available")
@@ -159,7 +186,9 @@ class TestEventFilterNavigation:
 
         # Page Up
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(window.frame_spinbox, key_event)
+        if app:
+            app.postEvent(window.frame_spinbox, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         # Should navigate to frame 10
@@ -196,6 +225,7 @@ class TestEventFilterNavigation:
     def test_navigation_at_boundaries_with_eventfilter(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test boundary behavior works correctly through eventFilter."""
         window = main_window_with_data
+        app = QApplication.instance()
 
         # Give focus to timeline
         if window.timeline_tabs:
@@ -206,7 +236,10 @@ class TestEventFilterNavigation:
 
         # Try Page Up (should show message, stay at frame 1)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageUp, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(window.timeline_tabs or window, key_event)
+        target = window.timeline_tabs or window
+        if app:
+            app.postEvent(target, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         assert get_application_state().current_frame == 1
@@ -217,7 +250,9 @@ class TestEventFilterNavigation:
 
         # Try Page Down (should show message, stay at frame 20)
         key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(window.timeline_tabs or window, key_event)
+        if app:
+            app.postEvent(target, key_event)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         assert get_application_state().current_frame == 20
@@ -225,6 +260,7 @@ class TestEventFilterNavigation:
 
     def test_mixed_navigation_frames(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation with mixed frame types (keyframes, endframes, startframes)."""
+        app = QApplication.instance()
         # Load data with different frame types
         mixed_data = [
             (1, 100.0, 100.0, "keyframe"),  # Navigation point
@@ -248,14 +284,20 @@ class TestEventFilterNavigation:
         get_application_state().set_frame(2)
 
         # Page Down should go to endframe at 5
-        key_event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
-        QApplication.sendEvent(main_window_with_data.timeline_tabs or main_window_with_data, key_event)
+        key_event1 = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        target = main_window_with_data.timeline_tabs or main_window_with_data
+        if app:
+            app.postEvent(target, key_event1)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         assert get_application_state().current_frame == 5
 
         # Page Down again should go to keyframe at 10
-        QApplication.sendEvent(main_window_with_data.timeline_tabs or main_window_with_data, key_event)
+        key_event2 = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
+        if app:
+            app.postEvent(target, key_event2)
+            app.processEvents()  # Process the event queue
         qtbot.wait(10)
 
         assert get_application_state().current_frame == 10

@@ -31,7 +31,7 @@ class FileLoadWorker(QThread):
     image_sequence_loaded: ClassVar[Signal] = Signal(str, list)  # dir_path, file_list
     progress_updated: ClassVar[Signal] = Signal(int, str)  # progress%, message
     error_occurred: ClassVar[Signal] = Signal(str)  # error message
-    finished: ClassVar[Signal] = Signal()
+    # Note: finished signal is inherited from QThread, no need to redefine
 
     def __init__(self) -> None:
         """Initialize worker."""
@@ -99,8 +99,7 @@ class FileLoadWorker(QThread):
                 total_tasks += 1
 
             if total_tasks == 0:
-                # Signal emission (Qt handles thread-safety via QueuedConnection)
-                self.finished.emit()
+                # QThread will automatically emit finished() when run() returns
                 return
 
             # Load tracking data if requested
@@ -183,11 +182,10 @@ class FileLoadWorker(QThread):
             self.error_occurred.emit(error_msg)
 
         finally:
-            logger.info("[QTHREAD] About to emit finished signal")
-            logger.info(f"[QTHREAD] Current Qt thread: {self.objectName() or 'FileLoadWorker'}")
-            # Signal emission (Qt handles thread-safety)
-            self.finished.emit()
-            logger.info("[QTHREAD] finished.emit() completed")
+            # QThread will automatically emit finished() when run() returns
+            logger.info(
+                f"[QTHREAD] Exiting run() - Qt will emit finished signal automatically: {self.objectName() or 'FileLoadWorker'}"
+            )
 
     def _load_2dtrack_data_direct(
         self, file_path: str, flip_y: bool = False, image_height: float = 720

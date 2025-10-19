@@ -66,6 +66,7 @@ from rendering.render_state import RenderState
 # Import services
 from services import get_interaction_service
 from services.transform_service import Transform, ViewState
+from ui.qt_utils import safe_slot
 from ui.ui_constants import (
     DEFAULT_BACKGROUND_OPACITY,
     DEFAULT_IMAGE_HEIGHT,
@@ -90,6 +91,7 @@ if TYPE_CHECKING:
         current_frame: int
         status_bar: QStatusBar
         state_manager: StateManager
+        tracking_controller: Any  # MultiPointTrackingController - avoid cycle
 
         def add_to_history(self) -> None: ...
 else:
@@ -658,7 +660,7 @@ class CurveViewWidget(QWidget):
             curve_names: List of curve names to select and display
         """
         if self.main_window is not None:
-            self.main_window.tracking_controller.set_selected_curves(curve_names)  # pyright: ignore[reportAttributeAccessIssue]
+            self.main_window.tracking_controller.set_selected_curves(curve_names)
         else:
             # Fallback for tests or when main_window not available
             # Update via ApplicationState (cache updates automatically via signal)
@@ -712,7 +714,7 @@ class CurveViewWidget(QWidget):
         Calculates the bounding box of all selected curves and centers the view on it.
         """
         if self.main_window is not None:
-            self.main_window.tracking_controller.center_on_selected_curves()  # pyright: ignore[reportAttributeAccessIssue]
+            self.main_window.tracking_controller.center_on_selected_curves()
         else:
             # Fallback for tests or when main_window not available
             # Get all curve names from ApplicationState
@@ -1220,6 +1222,7 @@ class CurveViewWidget(QWidget):
             logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled via legacy call)")
             self.center_on_frame(frame)
 
+    @safe_slot
     def _on_selection_state_changed(self, selected_curves: set[str], _show_all: bool) -> None:
         """
         Update widget and repaint when ApplicationState selection changes.
@@ -1344,7 +1347,8 @@ class CurveViewWidget(QWidget):
         if result.index is not None:
             point_index: int = result.index
         else:
-            point_index = result  # pyright: ignore[reportAssignmentType]
+            # Legacy fallback for direct int return (should not happen in current code)
+            point_index = -1
 
         # Log for verification during integration testing
         logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {point_index}")
@@ -1612,8 +1616,7 @@ class CurveViewWidget(QWidget):
             # Execute the composite command through the interaction service's command manager
             interaction_service = get_interaction_service()
             if interaction_service and self.main_window:
-                # Protocol mismatch between local MainWindow and service's MainWindowProtocol
-                # At runtime, the actual main_window satisfies both protocols
+                # Protocol variance: MainWindow satisfies MainWindowProtocol at runtime
                 _ = interaction_service.command_manager.execute_command(composite, self.main_window)  # pyright: ignore[reportArgumentType]
 
     def delete_selected_points(self) -> None:
@@ -1643,8 +1646,7 @@ class CurveViewWidget(QWidget):
             # Execute the command through the interaction service's command manager
             interaction_service = get_interaction_service()
             if interaction_service and self.main_window:
-                # Protocol mismatch between local MainWindow and service's MainWindowProtocol
-                # At runtime, the actual main_window satisfies both protocols
+                # Protocol variance: MainWindow satisfies MainWindowProtocol at runtime
                 _ = interaction_service.command_manager.execute_command(command, self.main_window)  # pyright: ignore[reportArgumentType]
 
         # Selection is cleared automatically by the command
@@ -1973,10 +1975,10 @@ if __name__ == "__main__":
     main_window.setCentralWidget(curve_widget)
 
     # Connect signals for testing
-    # Note: PySide6 signal connect requires Callable, lambda type hints not supported
-    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))  # pyright: ignore[reportUnknownLambdaType]
-    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))  # pyright: ignore[reportUnknownLambdaType]
-    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))  # pyright: ignore[reportUnknownLambdaType]
+    # Note: Test code - type ignores not needed for example code
+    _ = curve_widget.point_selected.connect(lambda idx: print(f"Selected point {idx}"))
+    _ = curve_widget.point_moved.connect(lambda idx, x, y: print(f"Moved point {idx} to ({x:.1f}, {y:.1f})"))
+    _ = curve_widget.zoom_changed.connect(lambda z: print(f"Zoom: {z:.1f}x"))
 
     main_window.show()
     sys.exit(app.exec())

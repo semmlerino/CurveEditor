@@ -497,46 +497,46 @@ class TestControllerProtocols:
     """Test controller protocol interfaces."""
 
     def test_action_handler_protocol_on_action_new_method(self):
-        """Test ActionHandlerProtocol._on_action_new() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_new() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_new()
-        mock_handler._on_action_new.assert_called_once()
+        mock_handler.on_action_new()
+        mock_handler.on_action_new.assert_called_once()
 
     def test_action_handler_protocol_on_action_open_method(self):
-        """Test ActionHandlerProtocol._on_action_open() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_open() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_open()
-        mock_handler._on_action_open.assert_called_once()
+        mock_handler.on_action_open()
+        mock_handler.on_action_open.assert_called_once()
 
     def test_action_handler_protocol_on_action_save_method(self):
-        """Test ActionHandlerProtocol._on_action_save() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_save() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_save()
-        mock_handler._on_action_save.assert_called_once()
+        mock_handler.on_action_save()
+        mock_handler.on_action_save.assert_called_once()
 
     def test_action_handler_protocol_on_action_save_as_method(self):
-        """Test ActionHandlerProtocol._on_action_save_as() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_save_as() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_save_as()
-        mock_handler._on_action_save_as.assert_called_once()
+        mock_handler.on_action_save_as()
+        mock_handler.on_action_save_as.assert_called_once()
 
     def test_action_handler_protocol_on_select_all_method(self):
-        """Test ActionHandlerProtocol._on_select_all() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_select_all() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_select_all()
-        mock_handler._on_select_all.assert_called_once()
+        mock_handler.on_select_all()
+        mock_handler.on_select_all.assert_called_once()
 
     def test_action_handler_protocol_on_add_point_method(self):
-        """Test ActionHandlerProtocol._on_add_point() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_add_point() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_add_point()
-        mock_handler._on_add_point.assert_called_once()
+        mock_handler.on_add_point()
+        mock_handler.on_add_point.assert_called_once()
 
     def test_action_handler_protocol_on_zoom_in_method(self):
         """Test ActionHandlerProtocol._on_zoom_in() method exists and is callable."""
@@ -553,11 +553,11 @@ class TestControllerProtocols:
         mock_handler._on_zoom_out.assert_called_once()
 
     def test_action_handler_protocol_on_zoom_fit_method(self):
-        """Test ActionHandlerProtocol._on_zoom_fit() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_zoom_fit() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_zoom_fit()
-        mock_handler._on_zoom_fit.assert_called_once()
+        mock_handler.on_zoom_fit()
+        mock_handler.on_zoom_fit.assert_called_once()
 
     def test_action_handler_protocol_on_reset_view_method(self):
         """Test ActionHandlerProtocol._on_reset_view() method exists and is callable."""
@@ -591,74 +591,74 @@ class TestControllerProtocols:
         mock_handler._get_current_curve_data.assert_called_once()
 
     def test_action_handler_protocol_on_action_undo_method(self):
-        """Test ActionHandlerProtocol._on_action_undo() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_undo() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_undo()
-        mock_handler._on_action_undo.assert_called_once()
+        mock_handler.on_action_undo()
+        mock_handler.on_action_undo.assert_called_once()
 
     def test_action_handler_protocol_on_action_redo_method(self):
-        """Test ActionHandlerProtocol._on_action_redo() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_redo() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_redo()
-        mock_handler._on_action_redo.assert_called_once()
+        mock_handler.on_action_redo()
+        mock_handler.on_action_redo.assert_called_once()
 
     def test_action_handler_protocol_on_action_zoom_in_method(self):
-        """Test ActionHandlerProtocol._on_action_zoom_in() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_zoom_in() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_zoom_in()
-        mock_handler._on_action_zoom_in.assert_called_once()
+        mock_handler.on_action_zoom_in()
+        mock_handler.on_action_zoom_in.assert_called_once()
 
     def test_action_handler_protocol_on_action_zoom_out_method(self):
-        """Test ActionHandlerProtocol._on_action_zoom_out() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_zoom_out() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_zoom_out()
-        mock_handler._on_action_zoom_out.assert_called_once()
+        mock_handler.on_action_zoom_out()
+        mock_handler.on_action_zoom_out.assert_called_once()
 
     def test_action_handler_protocol_on_action_reset_view_method(self):
-        """Test ActionHandlerProtocol._on_action_reset_view() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_action_reset_view() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_action_reset_view()
-        mock_handler._on_action_reset_view.assert_called_once()
+        mock_handler.on_action_reset_view()
+        mock_handler.on_action_reset_view.assert_called_once()
 
     def test_action_handler_protocol_on_load_images_method(self):
-        """Test ActionHandlerProtocol._on_load_images() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_load_images() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_load_images()
-        mock_handler._on_load_images.assert_called_once()
+        mock_handler.on_load_images()
+        mock_handler.on_load_images.assert_called_once()
 
     def test_action_handler_protocol_on_export_data_method(self):
-        """Test ActionHandlerProtocol._on_export_data() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_export_data() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_export_data()
-        mock_handler._on_export_data.assert_called_once()
+        mock_handler.on_export_data()
+        mock_handler.on_export_data.assert_called_once()
 
     def test_action_handler_protocol_on_smooth_curve_method(self):
-        """Test ActionHandlerProtocol._on_smooth_curve() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_smooth_curve() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_smooth_curve()
-        mock_handler._on_smooth_curve.assert_called_once()
+        mock_handler.on_smooth_curve()
+        mock_handler.on_smooth_curve.assert_called_once()
 
     def test_action_handler_protocol_on_filter_curve_method(self):
-        """Test ActionHandlerProtocol._on_filter_curve() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_filter_curve() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_filter_curve()
-        mock_handler._on_filter_curve.assert_called_once()
+        mock_handler.on_filter_curve()
+        mock_handler.on_filter_curve.assert_called_once()
 
     def test_action_handler_protocol_on_analyze_curve_method(self):
-        """Test ActionHandlerProtocol._on_analyze_curve() method exists and is callable."""
+        """Test ActionHandlerProtocol.on_analyze_curve() method exists and is callable."""
         mock_handler = Mock(spec=ActionHandlerProtocol)
 
-        mock_handler._on_analyze_curve()
-        mock_handler._on_analyze_curve.assert_called_once()
+        mock_handler.on_analyze_curve()
+        mock_handler.on_analyze_curve.assert_called_once()
 
     def test_view_options_protocol_on_show_background_changed_method(self):
         """Test ViewOptionsProtocol.on_show_background_changed() method exists and is callable."""
@@ -1185,29 +1185,29 @@ class TestProtocolCoverage:
         """Verify all controller protocol methods are tested."""
         # Sample check for ActionHandlerProtocol - the largest protocol
         action_methods = [
-            "_on_action_new",
-            "_on_action_open",
-            "_on_action_save",
-            "_on_action_save_as",
-            "_on_select_all",
-            "_on_add_point",
+            "on_action_new",
+            "on_action_open",
+            "on_action_save",
+            "on_action_save_as",
+            "on_select_all",
+            "on_add_point",
             "_on_zoom_in",
             "_on_zoom_out",
-            "_on_zoom_fit",
+            "on_zoom_fit",
             "_on_reset_view",
             "update_zoom_label",
             "apply_smooth_operation",
             "_get_current_curve_data",
-            "_on_action_undo",
-            "_on_action_redo",
-            "_on_action_zoom_in",
-            "_on_action_zoom_out",
-            "_on_action_reset_view",
-            "_on_load_images",
-            "_on_export_data",
-            "_on_smooth_curve",
-            "_on_filter_curve",
-            "_on_analyze_curve",
+            "on_action_undo",
+            "on_action_redo",
+            "on_action_zoom_in",
+            "on_action_zoom_out",
+            "on_action_reset_view",
+            "on_load_images",
+            "on_export_data",
+            "on_smooth_curve",
+            "on_filter_curve",
+            "on_analyze_curve",
         ]
 
         for method in action_methods:

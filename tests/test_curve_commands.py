@@ -7,13 +7,13 @@ testing execute, undo, and redo operations with proper state management.
 Follows the testing guide patterns for Qt components and command testing.
 
 Type Safety Note:
-- Mock objects (MockMainWindow, MockCurveWidget) implement minimal interface needed for testing
-- They don't fully implement MainWindowProtocol/CurveViewProtocol (would bloat test code)
-- Using pyright: ignore[reportArgumentType] where mocks are passed to protocol-expecting methods
-- This is appropriate for unit tests where we control the mock behavior
+- Mock objects (MockMainWindow, MockCurveWidget) implement CommandTestProtocol
+- This minimal protocol captures only what commands actually need for testing
+- Avoids implementing 50+ MainWindowProtocol methods that tests never use
 """
 
 import copy
+from typing import Protocol, cast
 from unittest.mock import Mock
 
 import pytest
@@ -21,6 +21,7 @@ import pytest
 from core.commands.curve_commands import (
     AddPointCommand,
     BatchMoveCommand,
+    ConvertToInterpolatedCommand,
     DeletePointsCommand,
     MovePointCommand,
     SetCurveDataCommand,
@@ -28,6 +29,23 @@ from core.commands.curve_commands import (
     SmoothCommand,
 )
 from core.type_aliases import CurveDataInput, CurveDataList
+from protocols.ui import MainWindowProtocol
+
+
+class CommandTestProtocol(Protocol):
+    """Minimal protocol for command testing - only what commands actually use."""
+
+    curve_widget: object  # Optional widget that may have update() method
+
+
+def as_main_window(mock: object) -> MainWindowProtocol:
+    """
+    Cast mock to MainWindowProtocol for command testing.
+
+    Commands only use curve_widget.update() in practice (everything else via ApplicationState).
+    MockMainWindow implements this minimal interface. Type-safe alternative to 34 inline ignores.
+    """
+    return cast(MainWindowProtocol, mock)
 
 
 class MockDataService:
@@ -91,6 +109,10 @@ class MockCurveWidget:
         """Set curve data and track calls."""
         self.curve_data = list(data)  # Convert to list and copy
         self.set_curve_data_calls.append(list(data))
+
+    def update(self) -> None:
+        """Update the widget (required for some commands)."""
+        pass
 
 
 class MockMainWindow:
@@ -237,7 +259,7 @@ class TestSetCurveDataCommand:
 
         cmd = SetCurveDataCommand("Test set curve data", new_data)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -252,7 +274,7 @@ class TestSetCurveDataCommand:
 
         cmd = SetCurveDataCommand("Test set curve data", new_data)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -275,11 +297,11 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
         # Execute first
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
         assert app_state.get_curve_data("test_curve") == new_data
 
         # Then undo
-        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.undo(as_main_window(main_window))
 
         assert result is True
         assert not cmd.executed
@@ -294,7 +316,7 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data)
         # Don't execute first, so old_data remains None
 
-        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.undo(as_main_window(main_window))
 
         assert result is False
 
@@ -316,10 +338,10 @@ class TestSetCurveDataCommand:
         cmd = SetCurveDataCommand("Test set curve data", new_data, initial_data)
 
         # Execute, undo, then redo
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
-        cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
+        cmd.undo(as_main_window(main_window))
 
-        result = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.redo(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -373,7 +395,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with moving average", indices, "moving_average", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -404,7 +426,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with median", indices, "median", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -431,7 +453,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with butterworth", indices, "butterworth", 4)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -449,7 +471,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth with unknown", [0], "unknown_filter", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -460,7 +482,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -484,7 +506,7 @@ class TestSmoothCommand:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         # View state should be preserved
@@ -510,10 +532,10 @@ class TestSmoothCommand:
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
         # Execute first
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
 
         # Then undo
-        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.undo(as_main_window(main_window))
 
         assert result is True
         assert not cmd.executed
@@ -537,11 +559,11 @@ class TestSmoothCommand:
         cmd = SmoothCommand("Smooth points", indices, "moving_average", 3)
 
         # Execute, undo, then redo
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
         smoothed_data = copy.deepcopy(app_state.get_curve_data("test_curve"))
-        cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.undo(as_main_window(main_window))
 
-        result = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.redo(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -581,7 +603,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -609,7 +631,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         # Status should be preserved in ApplicationState
@@ -627,7 +649,7 @@ class TestMovePointCommand:
 
         cmd = MovePointCommand("Move point", 5, old_pos, new_pos)  # Index out of range
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -653,12 +675,12 @@ class TestMovePointCommand:
         cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
 
         # Execute first
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
         curve_data = app_state.get_curve_data("test_curve")
         assert curve_data[0] == (1, 110.0, 210.0)
 
         # Then undo
-        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.undo(as_main_window(main_window))
 
         assert result is True
         assert not cmd.executed
@@ -699,7 +721,7 @@ class TestDeletePointsCommand:
 
         cmd = DeletePointsCommand("Delete points", indices)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -748,7 +770,7 @@ class TestBatchMoveCommand:
 
         cmd = BatchMoveCommand("Batch move", moves)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -807,7 +829,7 @@ class TestAddPointCommand:
 
         cmd = AddPointCommand("Add point", 1, new_point)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is True
         assert cmd.executed
@@ -836,12 +858,12 @@ class TestAddPointCommand:
         cmd = AddPointCommand("Add point", 1, new_point)
 
         # Execute first
-        cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        cmd.execute(as_main_window(main_window))
         curve_data = app_state.get_curve_data("test_curve")
         assert len(curve_data) == 3
 
         # Then undo
-        result = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.undo(as_main_window(main_window))
 
         assert result is True
         assert not cmd.executed
@@ -864,7 +886,7 @@ class TestCommandErrorHandling:
 
         cmd = SetCurveDataCommand("Test error handling", new_data)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -883,7 +905,7 @@ class TestCommandErrorHandling:
 
         cmd = SmoothCommand("Smooth points", [0], "moving_average", 3)
 
-        result = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result = cmd.execute(as_main_window(main_window))
 
         assert result is False
         assert not cmd.executed
@@ -910,19 +932,19 @@ class TestCommandIntegration:
         cmd = SetCurveDataCommand("Test sequence", new_data)
 
         # Execute
-        result1 = cmd.execute(main_window)  # pyright: ignore[reportArgumentType]
+        result1 = cmd.execute(as_main_window(main_window))
         assert result1 is True
         assert cmd.executed
         assert app_state.get_curve_data("test_curve") == new_data
 
         # Undo
-        result2 = cmd.undo(main_window)  # pyright: ignore[reportArgumentType]
+        result2 = cmd.undo(as_main_window(main_window))
         assert result2 is True
         assert not cmd.executed
         assert app_state.get_curve_data("test_curve") == initial_data
 
         # Redo
-        result3 = cmd.redo(main_window)  # pyright: ignore[reportArgumentType]
+        result3 = cmd.redo(as_main_window(main_window))
         assert result3 is True
         assert cmd.executed
         assert app_state.get_curve_data("test_curve") == new_data
@@ -953,3 +975,330 @@ class TestCommandIntegration:
         assert cmd.new_data is not None
         assert len(cmd.old_data) == 2
         assert len(cmd.new_data) == 2
+
+
+class TestBug2CommandTargetIsolation:
+    """Test Bug #2 fix: Commands target original curve, not current active.
+
+    Bug #2 is a data corruption vulnerability where commands re-fetch the active curve
+    during undo/redo instead of using the stored target curve. This causes operations
+    to target the wrong curve if the user switches curves between execute and undo/redo.
+
+    Test Scenario:
+    1. User has Track1 and Track2
+    2. User executes command on Track1 (command stores _target_curve = "Track1")
+    3. User switches active curve to Track2
+    4. User clicks Undo → should modify Track1 (not Track2)
+    5. User clicks Redo → should modify Track1 (not Track2)
+    """
+
+    def test_set_curve_data_command_targets_original_curve_after_switch(self, app_state):
+        """SetCurveDataCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [(1, 0.0, 0.0)]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute command on Track1
+        new_track1_data = [(1, 5.0, 5.0)]
+        cmd = SetCurveDataCommand("Set Data", new_track1_data, original_track1_data)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified
+        assert app_state.get_curve_data("Track1") == new_track1_data
+
+        # Switch to Track2 and set different data
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 10.0, 10.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1 (where we executed), not Track2 (current active)
+        assert cmd.undo(as_main_window(main_window)) is True
+
+        # Verify Track1 was restored (not Track2)
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data  # Unchanged
+
+        # Redo should also target Track1 (not Track2)
+        assert cmd.redo(as_main_window(main_window)) is True
+
+        # Verify Track1 was re-modified (not Track2)
+        assert app_state.get_curve_data("Track1") == new_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data  # Still unchanged
+
+    def test_smooth_command_targets_original_curve_after_switch(self, app_state, monkeypatch):
+        """SmoothCommand undo/redo targets original curve after switch."""
+        # Setup mock data service
+        mock_service = MockDataService()
+        monkeypatch.setattr("services.get_data_service", lambda: mock_service)
+
+        # Setup Track1 with data that will be smoothed
+        app_state.set_active_curve("Track1")
+        original_track1_data = [
+            (1, 0.0, 0.0),
+            (2, 10.0, 10.0),
+            (3, 0.0, 0.0),
+        ]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute smooth on Track1
+        cmd = SmoothCommand("Smooth", [0, 1, 2], "moving_average", 3)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Get smoothed data (mock adds 0.1 to Y values)
+        smoothed_track1_data = app_state.get_curve_data("Track1")
+        assert smoothed_track1_data != original_track1_data
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 20.0, 20.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == smoothed_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_move_point_command_targets_original_curve_after_switch(self, app_state):
+        """MovePointCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute move on Track1
+        old_pos = (100.0, 200.0)
+        new_pos = (110.0, 210.0)
+        cmd = MovePointCommand("Move point", 0, old_pos, new_pos)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified
+        moved_track1_data = app_state.get_curve_data("Track1")
+        assert moved_track1_data[0] == (1, 110.0, 210.0)
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == moved_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_delete_points_command_targets_original_curve_after_switch(self, app_state):
+        """DeletePointsCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute delete on Track1
+        indices = [0, 2]  # Delete first and third points
+        cmd = DeletePointsCommand("Delete points", indices)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified (only middle point remains)
+        deleted_track1_data = app_state.get_curve_data("Track1")
+        assert len(deleted_track1_data) == 1
+        assert deleted_track1_data[0] == (2, 150.0, 250.0)
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0), (2, 350.0, 450.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == deleted_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_batch_move_command_targets_original_curve_after_switch(self, app_state):
+        """BatchMoveCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute batch move on Track1
+        moves = [
+            (0, (100.0, 200.0), (110.0, 210.0)),
+            (2, (200.0, 300.0), (220.0, 320.0)),
+        ]
+        cmd = BatchMoveCommand("Batch move", moves)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified
+        moved_track1_data = app_state.get_curve_data("Track1")
+        assert moved_track1_data[0] == (1, 110.0, 210.0)
+        assert moved_track1_data[2] == (3, 220.0, 320.0)
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == moved_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_set_point_status_command_targets_original_curve_after_switch(self, app_state):
+        """SetPointStatusCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [
+            (1, 100.0, 200.0, "NORMAL"),
+            (2, 150.0, 250.0, "INTERPOLATED"),
+        ]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute set status on Track1
+        changes = [
+            (0, "NORMAL", "KEYFRAME"),
+            (1, "INTERPOLATED", "NORMAL"),
+        ]
+        cmd = SetPointStatusCommand("Set status", changes)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified
+        modified_track1_data = app_state.get_curve_data("Track1")
+        assert modified_track1_data[0][3] == "KEYFRAME"
+        assert modified_track1_data[1][3] == "NORMAL"
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0, "TRACKED")]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == modified_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_add_point_command_targets_original_curve_after_switch(self, app_state):
+        """AddPointCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [(1, 100.0, 200.0), (3, 200.0, 300.0)]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute add point on Track1
+        new_point = (2, 150.0, 250.0)
+        cmd = AddPointCommand("Add point", 1, new_point)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified (new point inserted)
+        added_track1_data = app_state.get_curve_data("Track1")
+        assert len(added_track1_data) == 3
+        assert added_track1_data[1] == new_point
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0)]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == added_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+    def test_convert_to_interpolated_command_targets_original_curve_after_switch(self, app_state):
+        """ConvertToInterpolatedCommand undo/redo targets original curve after switch."""
+        # Setup Track1 with initial data
+        app_state.set_active_curve("Track1")
+        original_track1_data = [
+            (1, 100.0, 200.0, "NORMAL"),
+            (2, 150.0, 250.0, "KEYFRAME"),
+            (3, 200.0, 300.0, "TRACKED"),
+        ]
+        app_state.set_curve_data("Track1", original_track1_data)
+
+        # Create mock main window
+        curve_widget = MockCurveWidget(original_track1_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Execute convert to interpolated on Track1 (convert first point)
+        old_point = (1, 100.0, 200.0, "NORMAL")
+        new_point = (1, 100.0, 200.0, "INTERPOLATED")
+        cmd = ConvertToInterpolatedCommand("Convert to interpolated", 0, old_point, new_point)
+        assert cmd.execute(as_main_window(main_window)) is True
+
+        # Verify Track1 was modified (first point now INTERPOLATED)
+        converted_track1_data = app_state.get_curve_data("Track1")
+        assert converted_track1_data[0][3] == "INTERPOLATED"
+        assert converted_track1_data[1][3] == "KEYFRAME"  # Unchanged
+        assert converted_track1_data[2][3] == "TRACKED"  # Unchanged
+
+        # Switch to Track2
+        app_state.set_active_curve("Track2")
+        track2_data = [(1, 300.0, 400.0, "NORMAL")]
+        app_state.set_curve_data("Track2", track2_data)
+
+        # Undo should target Track1
+        assert cmd.undo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == original_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data
+
+        # Redo should target Track1
+        assert cmd.redo(as_main_window(main_window)) is True
+        assert app_state.get_curve_data("Track1") == converted_track1_data
+        assert app_state.get_curve_data("Track2") == track2_data

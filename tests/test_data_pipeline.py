@@ -12,6 +12,14 @@ Pipeline stages tested:
 4. UI updates → Status notifications → Error handling
 
 Focus on HIGH-VALUE integration tests that verify the data pipeline works correctly.
+
+Note on Transform Pattern:
+    Some tests use the legacy 2-step pattern for explicitness in testing:
+        view_state = transform_service.create_view_state(view)
+        transform = transform_service.create_transform_from_view_state(view_state)
+
+    For NEW production code, use the recommended pattern from CLAUDE.md:
+        transform = transform_service.get_transform(view)
 """
 
 import csv

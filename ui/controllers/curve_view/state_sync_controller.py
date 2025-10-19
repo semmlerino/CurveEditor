@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, Any
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from services import get_data_service
+from ui.qt_utils import safe_slot
 
 # Import cycle prevention: CurveViewWidget imports this controller
 # So we can't import CurveViewWidget here - use Any for the type
@@ -83,6 +84,7 @@ class StateSyncController:
 
     # ==================== ApplicationState Signal Handlers ====================
 
+    @safe_slot
     def _on_app_state_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
         """Handle ApplicationState curves_changed signal.
 
@@ -108,6 +110,7 @@ class StateSyncController:
 
         logger.debug(f"ApplicationState curves changed: {len(curves)} curves")
 
+    @safe_slot
     def _on_app_state_selection_changed(self, indices: set[int], curve_name: str) -> None:
         """Handle ApplicationState selection_changed signal."""
         # Update display if this is the active curve
@@ -117,6 +120,7 @@ class StateSyncController:
             self.widget.selection_changed.emit(list(indices))
             logger.debug(f"ApplicationState selection changed for '{curve_name}': {len(indices)} selected")
 
+    @safe_slot
     def _on_app_state_active_curve_changed(self, curve_name: str) -> None:
         """Handle ApplicationState active_curve_changed signal."""
         # Update display to show new active curve
@@ -124,6 +128,7 @@ class StateSyncController:
         self.widget.update()
         logger.debug(f"ApplicationState active curve changed to: '{curve_name}'")
 
+    @safe_slot
     def _on_app_state_visibility_changed(self, curve_name: str, visible: bool) -> None:
         """Handle ApplicationState curve_visibility_changed signal."""
         # Update display

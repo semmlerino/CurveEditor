@@ -282,7 +282,7 @@ class TestMainWindowStoreIntegration:
         assert window2.curve_data == [(1, 100.0, 200.0)]
 
     def test_batch_operations_minimize_timeline_updates(self, main_window, qtbot):
-        """Test that batch operations don't trigger multiple timeline updates."""
+        """Test that batch_updates() doesn't trigger multiple timeline updates."""
         update_count = [0]
 
         def count_updates():
@@ -291,23 +291,19 @@ class TestMainWindowStoreIntegration:
         main_window._update_timeline_tabs = count_updates
 
         # Start batch operation in ApplicationState
-        main_window._app_state.begin_batch()
+        with main_window._app_state.batch_updates():
+            # Multiple operations via ApplicationState
+            main_window._app_state.set_curve_data(main_window._curve_name, [(1, 100.0, 200.0)])
+            main_window._app_state.set_curve_data(main_window._curve_name, [(1, 100.0, 200.0), (2, 150.0, 250.0)])
+            main_window._app_state.set_curve_data(
+                main_window._curve_name, [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+            )
 
-        # Multiple operations via ApplicationState
-        main_window._app_state.set_curve_data(main_window._curve_name, [(1, 100.0, 200.0)])
-        main_window._app_state.set_curve_data(main_window._curve_name, [(1, 100.0, 200.0), (2, 150.0, 250.0)])
-        main_window._app_state.set_curve_data(
-            main_window._curve_name, [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
-        )
+            # Let any immediate signals process
+            qtbot.wait(10)
 
-        # Let any immediate signals process
-        qtbot.wait(10)
-
-        # No updates should have occurred during batch
-        assert update_count[0] == 0
-
-        # End batch
-        main_window._app_state.end_batch()
+            # No updates should have occurred during batch
+            assert update_count[0] == 0
 
         # Let batch-end signal process
         qtbot.wait(10)

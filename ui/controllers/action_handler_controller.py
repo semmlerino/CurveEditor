@@ -48,7 +48,7 @@ class ActionHandlerController:
     # ==================== File Action Handlers ====================
 
     @Slot()
-    def _on_action_new(self) -> None:
+    def on_action_new(self) -> None:
         """Handle new file action."""
         if self.main_window.file_operations.new_file():
             # Clear curve widget data
@@ -62,7 +62,7 @@ class ActionHandlerController:
                 self.main_window.status_label.setText("New curve created")
 
     @Slot()
-    def _on_action_open(self) -> None:
+    def on_action_open(self) -> None:
         """Handle open file action."""
         data = self.main_window.file_operations.open_file(self.main_window)
 
@@ -83,7 +83,7 @@ class ActionHandlerController:
                 self.main_window.status_label.setText("File loaded successfully")
 
     @Slot()
-    def _on_action_save(self) -> None:
+    def on_action_save(self) -> None:
         """Handle save file action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.save_file(data):
@@ -91,7 +91,7 @@ class ActionHandlerController:
                 self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
-    def _on_action_save_as(self) -> None:
+    def on_action_save_as(self) -> None:
         """Handle save as action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.save_file_as(data, self.main_window):
@@ -99,14 +99,14 @@ class ActionHandlerController:
                 self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
-    def _on_load_images(self) -> None:
+    def on_load_images(self) -> None:
         """Handle load background images action."""
         if self.main_window.file_operations.load_images(self.main_window):
             if self.main_window.status_label:
                 self.main_window.status_label.setText("Images loaded successfully")
 
     @Slot()
-    def _on_export_data(self) -> None:
+    def on_export_data(self) -> None:
         """Handle export curve data action."""
         data = self._get_current_curve_data()
         if self.main_window.file_operations.export_data(data, self.main_window):
@@ -116,22 +116,22 @@ class ActionHandlerController:
     # ==================== Edit Action Handlers ====================
 
     @Slot()
-    def _on_action_undo(self) -> None:
+    def on_action_undo(self) -> None:
         """Handle undo action."""
-        logger.info("ActionHandlerController._on_action_undo called")
+        logger.info("ActionHandlerController.on_action_undo called")
         self.main_window.services.undo()
         if self.main_window.status_label:
             self.main_window.status_label.setText("Undo")
 
     @Slot()
-    def _on_action_redo(self) -> None:
+    def on_action_redo(self) -> None:
         """Handle redo action."""
         self.main_window.services.redo()
         if self.main_window.status_label:
             self.main_window.status_label.setText("Redo")
 
     @Slot()
-    def _on_select_all(self) -> None:
+    def on_select_all(self) -> None:
         """Handle select all action."""
         if self.main_window.curve_widget:
             self.main_window.curve_widget.select_all()
@@ -139,7 +139,7 @@ class ActionHandlerController:
                 self.main_window.status_label.setText("All points selected")
 
     @Slot()
-    def _on_add_point(self) -> None:
+    def on_add_point(self) -> None:
         """Handle add point action."""
         # TODO: Implement add point at current position
         if self.main_window.status_label:
@@ -148,7 +148,7 @@ class ActionHandlerController:
     # ==================== View Action Handlers ====================
 
     @Slot()
-    def _on_action_zoom_in(self) -> None:
+    def on_action_zoom_in(self) -> None:
         """Handle zoom in action."""
         if self.main_window.curve_widget:
             # Let curve widget handle zooming directly
@@ -165,7 +165,7 @@ class ActionHandlerController:
         self.update_zoom_label()
 
     @Slot()
-    def _on_action_zoom_out(self) -> None:
+    def on_action_zoom_out(self) -> None:
         """Handle zoom out action."""
         if self.main_window.curve_widget:
             # Let curve widget handle zooming directly
@@ -182,7 +182,7 @@ class ActionHandlerController:
         self.update_zoom_label()
 
     @Slot()
-    def _on_action_reset_view(self) -> None:
+    def on_action_reset_view(self) -> None:
         """Handle reset view action."""
         if self.main_window.curve_widget:
             # Reset view using curve widget's method
@@ -196,7 +196,7 @@ class ActionHandlerController:
             self.main_window.status_label.setText("View reset")
 
     @Slot()
-    def _on_zoom_fit(self) -> None:
+    def on_zoom_fit(self) -> None:
         """Handle zoom fit action."""
         if self.main_window.curve_widget:
             self.main_window.curve_widget.fit_to_view()
@@ -207,19 +207,19 @@ class ActionHandlerController:
     # ==================== Curve Action Handlers ====================
 
     @Slot()
-    def _on_smooth_curve(self) -> None:
+    def on_smooth_curve(self) -> None:
         """Handle smooth curve action."""
         self.apply_smooth_operation()
 
     @Slot()
-    def _on_filter_curve(self) -> None:
+    def on_filter_curve(self) -> None:
         """Handle filter curve action."""
         # TODO: Implement curve filtering
         if self.main_window.status_label:
             self.main_window.status_label.setText("Filter curve not yet implemented")
 
     @Slot()
-    def _on_analyze_curve(self) -> None:
+    def on_analyze_curve(self) -> None:
         """Handle analyze curve action."""
         # TODO: Implement curve analysis
         if self.main_window.status_label:
@@ -358,12 +358,12 @@ class ActionHandlerController:
     # Protocol compliance aliases
     def _on_zoom_in(self) -> None:
         """Handle zoom in action (Protocol API)."""
-        self._on_action_zoom_in()
+        self.on_action_zoom_in()
 
     def _on_zoom_out(self) -> None:
         """Handle zoom out action (Protocol API)."""
-        self._on_action_zoom_out()
+        self.on_action_zoom_out()
 
     def _on_reset_view(self) -> None:
         """Handle reset view action (Protocol API)."""
-        self._on_action_reset_view()
+        self.on_action_reset_view()
