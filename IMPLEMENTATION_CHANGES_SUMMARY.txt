@@ -1,0 +1,33 @@
+# Implementation Changes for Private Method Encapsulation Fix
+
+## Files to Modify:
+
+### 1. protocols/ui.py
+- Add `select_point()` method to CurveViewProtocol (if not exists)
+- Create or update TrackingPointsPanelProtocol with public methods
+- Create or update TimelineTabsProtocol with public methods
+- Update MainWindowProtocol to use strongly-typed protocols instead of object
+
+### 2. ui/curve_view_widget.py (Line 1367)
+- Create public wrapper: `select_point()` → calls `_select_point()`
+
+### 3. ui/tracking_points_panel.py
+- Line 668: Create public wrapper: `set_direction_for_points()` → calls `_set_direction_for_points()`
+- Line 694: Create public wrapper: `delete_points()` → calls `_delete_points()`
+
+### 4. ui/timeline_tabs.py (Line 314)
+- Create public wrapper: `on_frame_changed()` → calls `_on_frame_changed()`
+
+### 5. core/commands/shortcut_commands.py
+- Line 313: Change `._set_direction_for_points()` → `.set_direction_for_points()`
+- Line 356: Change `._delete_points()` → `.delete_points()`
+- Line 753: Change `._select_point()` → `.select_point()`
+
+### 6. ui/controllers/frame_change_coordinator.py (Line 220)
+- Change `._on_frame_changed()` → `.on_frame_changed()`
+- Remove pyright: ignore comment
+
+## Expected Results:
+- Zero reportPrivateUsage type errors
+- All tests passing
+- Improved encapsulation and type safety
