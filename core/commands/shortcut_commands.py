@@ -180,11 +180,7 @@ class SetEndframeCommand(ShortcutCommand):
                 return False
 
             curve_data = app_state.get_curve_data(active_curve)
-            point_index = None
-            for i, point in enumerate(curve_data):
-                if point[0] == context.current_frame:  # point[0] is the frame number
-                    point_index = i
-                    break
+            point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
 
             if point_index is None or point_index < 0 or point_index >= len(curve_data):
                 return False
@@ -415,13 +411,8 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
                     logger.warning("No active curve set, cannot delete keyframe")
                     return False
                 curve_data = app_state.get_curve_data(active_curve)
-                point_index = None
-                current_point = None
-                for i, point in enumerate(curve_data):
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        point_index = i
-                        current_point = point
-                        break
+                point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
+                current_point = curve_data[point_index] if point_index is not None else None
 
                 if point_index is not None and current_point is not None:
                     # Get the current point data
@@ -738,11 +729,7 @@ class NudgePointsCommand(ShortcutCommand):
                     logger.warning("No active curve set, cannot nudge point")
                     return False
                 curve_data = app_state.get_curve_data(active_curve)
-                point_index = None
-                for i, point in enumerate(curve_data):
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        point_index = i
-                        break
+                point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
 
                 if point_index is not None:
                     logger.info(f"Nudging point at frame {context.current_frame} by ({dx}, {dy})")

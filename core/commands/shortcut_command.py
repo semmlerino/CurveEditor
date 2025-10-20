@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
 from core.logger_utils import get_logger
+from core.type_aliases import CurveDataList
 
 logger = get_logger("shortcut_commands")
 
@@ -102,6 +103,21 @@ class ShortcutCommand(ABC):
         if not widget:
             logger.warning(f"{self.__class__.__name__}: No curve widget available")
         return widget
+
+    def _find_point_index_at_frame(self, curve_data: CurveDataList, frame: int) -> int | None:
+        """Find the index of a point at the given frame.
+
+        Args:
+            curve_data: List of curve points
+            frame: Frame number to search for
+
+        Returns:
+            Point index if found, None otherwise
+        """
+        for i, point in enumerate(curve_data):
+            if point[0] == frame:  # point[0] is the frame number
+                return i
+        return None
 
     @abstractmethod
     def can_execute(self, context: ShortcutContext) -> bool:
