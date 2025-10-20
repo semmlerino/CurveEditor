@@ -7,32 +7,19 @@ It processes all Python files in ui/, services/, and core/ directories.
 
 import re
 from pathlib import Path
-from typing import Tuple
 
 
 def fix_single_hasattr(content: str) -> str:
     """Replace single hasattr() patterns with None checks."""
 
     # Pattern 1: hasattr(self, "attr") -> self.attr is not None
-    content = re.sub(
-        r'\bhasattr\(self,\s*["\'](\w+)["\']\)',
-        r'self.\1 is not None',
-        content
-    )
+    content = re.sub(r'\bhasattr\(self,\s*["\'](\w+)["\']\)', r"self.\1 is not None", content)
 
     # Pattern 2: hasattr(obj, "attr") -> obj.attr is not None
-    content = re.sub(
-        r'\bhasattr\((\w+),\s*["\'](\w+)["\']\)',
-        r'\1.\2 is not None',
-        content
-    )
+    content = re.sub(r'\bhasattr\((\w+),\s*["\'](\w+)["\']\)', r"\1.\2 is not None", content)
 
     # Pattern 3: hasattr(self.obj, "attr") -> self.obj.attr is not None
-    content = re.sub(
-        r'\bhasattr\(self\.(\w+),\s*["\'](\w+)["\']\)',
-        r'self.\1.\2 is not None',
-        content
-    )
+    content = re.sub(r'\bhasattr\(self\.(\w+),\s*["\'](\w+)["\']\)', r"self.\1.\2 is not None", content)
 
     return content
 
@@ -47,18 +34,12 @@ def fix_chained_hasattr(content: str) -> str:
     # Pattern: obj is not None and hasattr(obj, "attr")
     # -> obj is not None and obj.attr is not None
     content = re.sub(
-        r'(\w+) is not None and hasattr\(\1,\s*["\'](\w+)["\']\)',
-        r'\1 is not None and \1.\2 is not None',
-        content
+        r'(\w+) is not None and hasattr\(\1,\s*["\'](\w+)["\']\)', r"\1 is not None and \1.\2 is not None", content
     )
 
     # Pattern: obj and hasattr(obj, "attr")
     # -> obj is not None and obj.attr is not None
-    content = re.sub(
-        r'(\w+) and hasattr\(\1,\s*["\'](\w+)["\']\)',
-        r'\1 is not None and \1.\2 is not None',
-        content
-    )
+    content = re.sub(r'(\w+) and hasattr\(\1,\s*["\'](\w+)["\']\)', r"\1 is not None and \1.\2 is not None", content)
 
     return content
 
@@ -67,32 +48,24 @@ def fix_not_hasattr(content: str) -> str:
     """Fix negative hasattr() patterns."""
 
     # Pattern: not hasattr(self, "attr") -> self.attr is None
-    content = re.sub(
-        r'\bnot hasattr\(self,\s*["\'](\w+)["\']\)',
-        r'self.\1 is None',
-        content
-    )
+    content = re.sub(r'\bnot hasattr\(self,\s*["\'](\w+)["\']\)', r"self.\1 is None", content)
 
     # Pattern: not hasattr(obj, "attr") -> obj.attr is None
-    content = re.sub(
-        r'\bnot hasattr\((\w+),\s*["\'](\w+)["\']\)',
-        r'\1.\2 is None',
-        content
-    )
+    content = re.sub(r'\bnot hasattr\((\w+),\s*["\'](\w+)["\']\)', r"\1.\2 is None", content)
 
     return content
 
 
-def process_file(file_path: Path) -> Tuple[int, list[str]]:
+def process_file(file_path: Path) -> tuple[int, list[str]]:
     """Process a single file, return count of replacements and list of changes."""
     content = file_path.read_text()
     original = content
     original_hasattr_count = content.count("hasattr(")
 
     # Apply fixes in order
-    content = fix_not_hasattr(content)      # Handle 'not hasattr' first
+    content = fix_not_hasattr(content)  # Handle 'not hasattr' first
     content = fix_chained_hasattr(content)  # Handle chained patterns
-    content = fix_single_hasattr(content)   # Handle single patterns
+    content = fix_single_hasattr(content)  # Handle single patterns
 
     changes = []
     if content != original:
@@ -101,11 +74,11 @@ def process_file(file_path: Path) -> Tuple[int, list[str]]:
         replacements = original_hasattr_count - new_hasattr_count
 
         # Find what was changed
-        original_lines = original.split('\n')
-        new_lines = content.split('\n')
+        original_lines = original.split("\n")
+        new_lines = content.split("\n")
 
         for i, (old, new) in enumerate(zip(original_lines, new_lines), 1):
-            if old != new and 'hasattr' in old:
+            if old != new and "hasattr" in old:
                 changes.append(f"  Line {i}: {old.strip()} -> {new.strip()}")
 
         return replacements, changes

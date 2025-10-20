@@ -12,7 +12,6 @@ Following the UNIFIED_TESTING_GUIDE to avoid Qt threading violations.
 from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 
-from stores.application_state import get_application_state
 import pytest
 from PySide6.QtGui import QColor
 

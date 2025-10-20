@@ -212,7 +212,7 @@ class TimelineTabWidget(QWidget):
         """)
 
         # State - start with minimal range, will be updated when data is loaded
-        self._state_manager: "StateManager | None" = None
+        self._state_manager: StateManager | None = None
         self._current_frame: int = 1  # Only for tracking old frame for visual updates
         self.total_frames = 1
         self.min_frame = 1

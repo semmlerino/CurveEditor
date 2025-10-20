@@ -685,7 +685,7 @@ class MockMainWindow:
         self.curve_view = MockCurveView()
         # curve_widget must be typed as MultiCurveViewProtocol | None for protocol compliance
         # MockCurveView is compatible with MultiCurveViewProtocol at runtime
-        self.curve_widget: "MultiCurveViewProtocol | None" = self.curve_view  # pyright: ignore[reportAssignmentType]
+        self.curve_widget: MultiCurveViewProtocol | None = self.curve_view  # pyright: ignore[reportAssignmentType]
 
         # UI components structure using real widgets
         class UIComponents:

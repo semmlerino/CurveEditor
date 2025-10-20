@@ -23,7 +23,6 @@ from core.display_mode import DisplayMode
 from core.logger_utils import get_logger
 from core.models import TrackingDirection
 from core.type_aliases import CurveDataInput, CurveDataList
-from stores.application_state import get_application_state
 from ui.controllers.base_tracking_controller import BaseTrackingController
 
 # Import sub-controllers

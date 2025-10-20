@@ -5,6 +5,7 @@ establishing consistent initialization patterns and reducing code duplication.
 """
 
 import logging
+
 from PySide6.QtCore import QObject
 
 from protocols.ui import MainWindowProtocol
