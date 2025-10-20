@@ -517,7 +517,7 @@ class OptimizedCurveRenderer:
         # if render_state.show_all_frame_numbers and self._render_quality == RenderQuality.HIGH:
         #     self._render_frame_numbers_optimized(painter, render_state, lod_points, visible_indices, step)
 
-    def _render_lines_optimized(self, painter: QPainter, screen_points: FloatArray, step: int) -> None:  # pyright: ignore[reportUnusedParameter]
+    def _render_lines_optimized(self, painter: QPainter, screen_points: FloatArray, _step: int) -> None:
         """Render lines between points using optimized QPainterPath."""
         if len(screen_points) < 2:
             return
@@ -544,12 +544,12 @@ class OptimizedCurveRenderer:
     def _render_segmented_lines(
         self,
         painter: QPainter,
-        render_state: "RenderState",
+        _render_state: "RenderState",
         curve_data: list[
             tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]
         ],
         screen_points: FloatArray,
-        visible_indices: IntArray,
+        _visible_indices: IntArray,
     ) -> None:
         """Render lines respecting curve segments (gaps at ENDFRAME points).
 
@@ -631,7 +631,7 @@ class OptimizedCurveRenderer:
         self,
         painter: QPainter,
         segment: "CurveSegment",
-        segmented_curve: "SegmentedCurve",
+        _segmented_curve: "SegmentedCurve",
         screen_points: FloatArray,
         frame_to_index: dict[int, int],
         pen: QPen,
@@ -722,7 +722,7 @@ class OptimizedCurveRenderer:
     def _render_lines_segmented_aware(
         self,
         painter: QPainter,
-        render_state: "RenderState",
+        _render_state: "RenderState",
         curve_data: Sequence[
             tuple[int, float, float] | tuple[int, float, float, str] | tuple[int, float, float, str | bool]
         ],
@@ -1178,7 +1178,7 @@ class OptimizedCurveRenderer:
         transform = self._create_transform_from_render_state(render_state)
 
         # Cast background_image to proper type for type checker
-        bg_image = background_image  # type: QImage | QPixmap
+        bg_image: QImage | QPixmap = background_image
 
         # Get image position - account for Y-flip
         # When Y-flip is enabled, the image's top-left in data space is at (0, image_height)

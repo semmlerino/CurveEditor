@@ -215,15 +215,16 @@ class DataAnalysisService:
         y_coords = []
 
         for point in points:
-            # Check if point is a CurvePoint object by looking for frame attribute
-            if isinstance(point, tuple | list) and len(point) >= 3:  # Tuple format
+            # Handle CurvePoint object (check for frame attribute first)
+            if hasattr(point, "frame"):
+                frames.append(point.frame)  # pyright: ignore[reportAttributeAccessIssue]
+                x_coords.append(point.x)  # pyright: ignore[reportAttributeAccessIssue]
+                y_coords.append(point.y)  # pyright: ignore[reportAttributeAccessIssue]
+            # Handle tuple/list format
+            elif len(point) >= 3:
                 frames.append(point[0])
                 x_coords.append(point[1])
                 y_coords.append(point[2])
-            elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                frames.append(point.frame)
-                x_coords.append(point.x)
-                y_coords.append(point.y)
 
         return {
             "count": len(points),
@@ -255,8 +256,15 @@ class DataAnalysisService:
         interpolated_count = 0
 
         for point in points:
-            # Handle both tuple format and CurvePoint objects
-            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            # Handle CurvePoint object (check for frame attribute first)
+            if hasattr(point, "frame"):
+                if getattr(point, "frame") == frame:  # pyright: ignore[reportAttributeAccessIssue]
+                    if getattr(getattr(point, "status"), "value", None) == "interpolated":  # pyright: ignore[reportAttributeAccessIssue]
+                        interpolated_count += 1
+                    else:
+                        keyframe_count += 1
+            # Handle tuple/list format
+            elif len(point) >= 3:
                 point_frame = point[0]
                 if point_frame == frame:
                     # Check status if available
@@ -267,16 +275,7 @@ class DataAnalysisService:
                             interpolated_count += 1
                         else:
                             keyframe_count += 1
-                    elif isinstance(status, str):
-                        if status == "interpolated":
-                            interpolated_count += 1
-                        else:
-                            keyframe_count += 1
-                    else:
-                        keyframe_count += 1
-            elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                if getattr(point, "frame") == frame:
-                    if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                    elif status == "interpolated":
                         interpolated_count += 1
                     else:
                         keyframe_count += 1
@@ -298,8 +297,18 @@ class DataAnalysisService:
         frame_status = {}
 
         for point in points:
-            # Handle both tuple format and CurvePoint objects
-            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            # Handle CurvePoint object (check for frame attribute first)
+            if hasattr(point, "frame"):
+                frame = getattr(point, "frame")  # pyright: ignore[reportAttributeAccessIssue]
+                if frame not in frame_status:
+                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
+
+                if getattr(getattr(point, "status"), "value", None) == "interpolated":  # pyright: ignore[reportAttributeAccessIssue]
+                    frame_status[frame][1] += 1
+                else:
+                    frame_status[frame][0] += 1
+            # Handle tuple/list format
+            elif len(point) >= 3:
                 frame = point[0]
                 if frame not in frame_status:
                     frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
@@ -312,19 +321,7 @@ class DataAnalysisService:
                         frame_status[frame][1] += 1
                     else:
                         frame_status[frame][0] += 1
-                elif isinstance(status, str):
-                    if status == "interpolated":
-                        frame_status[frame][1] += 1
-                    else:
-                        frame_status[frame][0] += 1
-                else:
-                    frame_status[frame][0] += 1
-            elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                frame = getattr(point, "frame")
-                if frame not in frame_status:
-                    frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
-
-                if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                elif status == "interpolated":
                     frame_status[frame][1] += 1
                 else:
                     frame_status[frame][0] += 1

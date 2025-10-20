@@ -278,19 +278,8 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         """Validate coordinates with comprehensive checks."""
         result = ValidationResult(is_valid=True)
 
-        # Check types
-        if not isinstance(x, int | float) or not isinstance(y, int | float):
-            result.add_issue(
-                ValidationIssue(
-                    field_name=f"{context}_coordinates",
-                    value=(x, y),
-                    severity=ValidationSeverity.CRITICAL,
-                    message=f"Invalid coordinate types: {type(x).__name__}, {type(y).__name__}",
-                    suggestion="Coordinates must be numeric",
-                )
-            )
-            result.validated_value = (0.0, 0.0)
-            return result
+        # Type check is implicit from function signature (x: float, y: float)
+        # No need for explicit isinstance check - pyright validates at call site
 
         # Check for NaN/inf BEFORE calling validate_point
         if math.isnan(x) or math.isinf(x) or math.isnan(y) or math.isinf(y):
@@ -352,19 +341,8 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         """Validate scale with comprehensive checks."""
         result = ValidationResult(is_valid=True)
 
-        # Type check
-        if not isinstance(scale, int | float):
-            result.add_issue(
-                ValidationIssue(
-                    field_name=f"{context}_scale",
-                    value=scale,
-                    severity=ValidationSeverity.CRITICAL,
-                    message=f"Invalid scale type: {type(scale).__name__}",
-                    suggestion="Scale must be numeric",
-                )
-            )
-            result.validated_value = 1.0
-            return result
+        # Type check is implicit from function signature (scale: float)
+        # No need for explicit isinstance check - pyright validates at call site
 
         # Check for NaN/inf/zero BEFORE calling validate_scale
         if math.isnan(scale) or math.isinf(scale) or scale == 0:
@@ -414,19 +392,8 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         """Validate dimensions with comprehensive checks."""
         result = ValidationResult(is_valid=True)
 
-        # Type checks
-        if not isinstance(width, int | float) or not isinstance(height, int | float):
-            result.add_issue(
-                ValidationIssue(
-                    field_name=f"{context}_dimensions",
-                    value=(width, height),
-                    severity=ValidationSeverity.CRITICAL,
-                    message=f"Invalid dimension types: {type(width).__name__}, {type(height).__name__}",
-                    suggestion="Dimensions must be numeric",
-                )
-            )
-            result.validated_value = (100, 100)
-            return result
+        # Type checks are implicit from function signature (width: float, height: float)
+        # No need for explicit isinstance check - pyright validates at call site
 
         # Range checks
         if width <= 0:

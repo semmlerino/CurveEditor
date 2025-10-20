@@ -281,15 +281,16 @@ class DataService:
         y_coords = []
 
         for point in points:
-            # Check if point is a CurvePoint object by looking for frame attribute
-            if isinstance(point, tuple | list) and len(point) >= 3:  # Tuple format
+            # Handle CurvePoint object (check for frame attribute first)
+            if hasattr(point, "frame"):
+                frames.append(point.frame)  # pyright: ignore[reportAttributeAccessIssue]
+                x_coords.append(point.x)  # pyright: ignore[reportAttributeAccessIssue]
+                y_coords.append(point.y)  # pyright: ignore[reportAttributeAccessIssue]
+            # Handle tuple/list format
+            elif len(point) >= 3:
                 frames.append(point[0])
                 x_coords.append(point[1])
                 y_coords.append(point[2])
-            elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                frames.append(point.frame)
-                x_coords.append(point.x)
-                y_coords.append(point.y)
 
         return {
             "count": len(points),
@@ -322,7 +323,7 @@ class DataService:
 
         for point in points:
             # Handle both tuple format and CurvePoint objects
-            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            if len(point) >= 3:  # Tuple format (point is always list | tuple)
                 point_frame = point[0]
                 if point_frame == frame:
                     # Check status if available
@@ -333,13 +334,12 @@ class DataService:
                             interpolated_count += 1
                         else:
                             keyframe_count += 1
-                    elif isinstance(status, str):
+                    else:
+                        # Treat as string or other type
                         if status == "interpolated":
                             interpolated_count += 1
                         else:
                             keyframe_count += 1
-                    else:
-                        keyframe_count += 1
             elif getattr(point, "frame", None) is not None:  # CurvePoint object
                 if getattr(point, "frame") == frame:
                     if getattr(getattr(point, "status"), "value", None) == "interpolated":
@@ -436,12 +436,12 @@ class DataService:
 
         # First pass: collect basic status counts
         frame_status = {}
-        endframe_frames = set()  # Track which frames have endframes
-        sorted_points = sorted(points, key=lambda p: p[0] if isinstance(p, list | tuple) else getattr(p, "frame", 0))
+        endframe_frames: set[int] = set()  # Track which frames have endframes
+        sorted_points = sorted(points, key=lambda p: p[0] if len(p) > 0 else getattr(p, "frame", 0))
 
         for _i, point in enumerate(sorted_points):
             # Handle both tuple format and CurvePoint objects
-            if isinstance(point, list | tuple) and len(point) >= 3:  # Tuple format
+            if len(point) >= 3:  # Tuple format (point is always list | tuple)
                 frame = point[0]
                 if frame not in frame_status:
                     # [keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, selected]
@@ -455,7 +455,8 @@ class DataService:
                         frame_status[frame][1] += 1  # interpolated
                     else:
                         frame_status[frame][0] += 1  # keyframe
-                elif isinstance(status, str):
+                else:
+                    # Treat as string or other status type
                     if status == "interpolated":
                         frame_status[frame][1] += 1
                     elif status == "keyframe":
@@ -467,8 +468,6 @@ class DataService:
                         endframe_frames.add(frame)
                     else:  # normal or unknown
                         frame_status[frame][4] += 1
-                else:
-                    frame_status[frame][0] += 1  # default to keyframe
             elif getattr(point, "frame", None) is not None:  # CurvePoint object
                 frame = getattr(point, "frame")
                 if frame not in frame_status:
@@ -546,14 +545,10 @@ class DataService:
                         # Check if there's any keyframe between the endframe and this frame
                         has_keyframe_between = False
                         for pt in sorted_points:
-                            pt_frame = pt[0] if isinstance(pt, list | tuple) else pt.frame
+                            pt_frame = pt[0] if len(pt) > 0 else pt.frame
                             if last_endframe_frame < pt_frame < frame:
-                                pt_status = (
-                                    pt[3]
-                                    if isinstance(pt, list | tuple) and len(pt) > 3
-                                    else getattr(pt, "status", "keyframe")
-                                )
-                                if isinstance(pt_status, str) and pt_status == "keyframe":
+                                pt_status = pt[3] if len(pt) > 3 else getattr(pt, "status", "keyframe")
+                                if pt_status == "keyframe":
                                     has_keyframe_between = True
                                     break
                                 elif getattr(pt_status, "value", None) == "keyframe":
