@@ -24,7 +24,7 @@ else:
     np = None
     NDArray = None
 
-from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
+from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 
 # Simple validation helpers

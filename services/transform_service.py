@@ -14,7 +14,7 @@ import threading
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Protocol, cast, override
 
-from ui.ui_constants import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
+from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QPointF

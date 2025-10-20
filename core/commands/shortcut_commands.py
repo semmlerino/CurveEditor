@@ -712,7 +712,7 @@ class NudgePointsCommand(ShortcutCommand):
 
         try:
             # Calculate nudge amount based on modifiers
-            from ui.ui_constants import DEFAULT_NUDGE_AMOUNT
+            from core.defaults import DEFAULT_NUDGE_AMOUNT
 
             modifiers = context.key_event.modifiers()
             clean_modifiers = modifiers & ~Qt.KeyboardModifier.KeypadModifier

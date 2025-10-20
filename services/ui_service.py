@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 
 from PySide6.QtWidgets import QInputDialog, QMenu, QMessageBox, QWidget
 
-from ui.ui_constants import DEFAULT_STATUS_TIMEOUT
+from core.defaults import DEFAULT_STATUS_TIMEOUT
 
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol

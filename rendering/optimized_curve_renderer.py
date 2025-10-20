@@ -20,10 +20,10 @@ from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QBrush, QColor, QFont, QImage, QPainter, QPainterPath, QPen, QPixmap
 
 from core.curve_segments import CurveSegment, SegmentedCurve
+from core.defaults import GRID_CELL_SIZE, RENDER_PADDING
 from core.logger_utils import get_logger
 from core.models import CurvePoint
 from ui.color_constants import CurveColors
-from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING
 
 if TYPE_CHECKING:
     from services.transform_service import Transform
