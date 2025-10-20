@@ -862,11 +862,73 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ---
 
-## Phase 3: Strategic (Optional - Week 3+)
+## Phase 3: Strategic (Optional - Week 3+) - ⏸️ DEFERRED
 
-**Estimated Time**: 4+ weeks
+**Status**: ⏸️ **DEFERRED** - Awaiting 2-week stability monitoring period
+**Analysis Date**: 2025-10-20
+**Estimated Time**: 4+ weeks (if/when executed)
 **LOC Impact**: Variable (targeting 3 god objects: InteractionService, CurveViewWidget, MainWindow)
 **Risk**: High
+**Dependencies**: Phases 1-2 complete + 2 weeks production usage
+
+---
+
+### Phase 3 Analysis Summary (2025-10-20)
+
+**Analysis Performed**: Comprehensive reconnaissance of all three god objects
+
+**Key Discovery**: 🎉 **InteractionService Already Internally Refactored!**
+- Found 4 internal helper classes (`_MouseHandler`, `_SelectionManager`, `_CommandHistory`, `_PointManipulator`)
+- Clean facade pattern with 44 public methods
+- Separation of concerns already achieved
+- **Conclusion**: Task 3.1 may be complete pending evaluation
+
+**Decision**: **ALL Phase 3 tasks deferred** pending stability monitoring
+
+**Rationale**:
+1. **Stability Period Required**: Phase 1-2 completed today, need 2+ weeks production usage
+2. **Preconditions Not Met**: All tasks require architectural design discussions (not detailed in plan)
+3. **Time Investment**: 4+ weeks total effort beyond session scope
+4. **Risk Assessment**: Strategic refactorings require careful evaluation of existing structure
+5. **Existing Architecture**: MainWindow has 8 controllers, InteractionService has internal helpers
+
+**Recommended Approach**: **Phase 3.0 - Stability Monitoring** (NEW)
+
+---
+
+### Phase 3.0: Stability Monitoring Period (2 Weeks) - **CURRENT**
+
+**Objective**: Validate Phase 1-2 changes before strategic refactoring
+
+**Duration**: 2025-10-20 through 2025-11-03
+
+**Activities**:
+1. Use CurveEditor in production VFX workflows
+2. Monitor for regressions, performance issues, or usability problems
+3. Gather metrics on code complexity and maintainability
+4. Evaluate if Phase 3 tasks still necessary
+
+**Success Criteria**:
+- ✓ Zero regressions from Phase 1-2 changes
+- ✓ No performance degradation
+- ✓ User feedback positive or neutral
+- ✓ No critical bugs introduced
+
+**Decision Point** (2025-11-03):
+```
+IF stability issues found → Proceed with relevant Phase 3 task
+IF InteractionService works well → Mark Task 3.1 as COMPLETE
+IF no issues found → Close Phase 3 as unnecessary
+ELSE → Execute incremental cleanups only (low-risk, high-value)
+```
+
+**Incremental Cleanups Identified** (if stability good):
+- Remove 4 deprecated methods from CurveViewWidget (~60 lines, low risk)
+- Extract 4 frame navigation methods to TimelineController (~100 lines, low risk)
+- Move 2 verification methods to test utilities (~60 lines, low risk)
+- **Total potential**: ~220 lines, 2-3 days effort, minimal risk
+
+---
 **Dependencies**: Phases 1-2 complete, stable for 2+ weeks
 
 **Note**: Verification analysis identified 3 god objects, not just MainWindow. Priorities updated based on severity (line count × method count).
