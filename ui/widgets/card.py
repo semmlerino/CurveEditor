@@ -133,8 +133,7 @@ class Card(QWidget):
         self._content.setVisible(not self._collapsed)
 
         # Update button icon
-        if self._collapse_button is not None:
-            self._collapse_button.setText("▼" if not self._collapsed else "▶")
+        self._collapse_button.setText("▼" if not self._collapsed else "▶")
 
         self.collapsed_changed.emit(self._collapsed)
 

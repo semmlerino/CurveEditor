@@ -481,7 +481,8 @@ class OptimizedCurveRenderer:
         curve_data = render_state.points
 
         # Render lines using unified method that respects segments and LOD
-        has_status = any(len(pt) > 3 for pt in curve_data[:100] if pt)  # Check first 100 points
+        # Check ALL points to ensure we detect endframes anywhere in curve
+        has_status = any(len(pt) > 3 for pt in curve_data if pt)
         if has_status:
             # Use all points for segmented rendering (preserves segment boundaries)
             self._render_lines_with_segments(
@@ -706,7 +707,8 @@ class OptimizedCurveRenderer:
             curve_color = CurveColors.WHITE
 
         # Check if we have status information to determine rendering approach
-        has_status = any(len(pt) > 3 for pt in curve_data[:100] if pt)  # Check first 100 points
+        # Check ALL points to ensure we detect endframes anywhere in curve
+        has_status = any(len(pt) > 3 for pt in curve_data if pt)
 
         if has_status:
             # Render with segment awareness (gaps at ENDFRAME points)
@@ -820,8 +822,9 @@ class OptimizedCurveRenderer:
 
         # Create SegmentedCurve to check for inactive segments
         # Only create if we have status information
+        # Check ALL points, not just first 100, to ensure we detect endframes anywhere in curve
         segmented_curve = None
-        has_status = any(len(pt) > 3 for pt in points_data[:100] if pt)
+        has_status = any(len(pt) > 3 for pt in points_data if pt)
         if has_status:
             points = [CurvePoint.from_tuple(pt) for pt in points_data]
             segmented_curve = SegmentedCurve.from_points(points)

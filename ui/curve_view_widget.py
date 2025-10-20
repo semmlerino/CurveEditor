@@ -1337,12 +1337,8 @@ class CurveViewWidget(QWidget):
         result = self.interaction_service.find_point_at(self, pos.x(), pos.y())  # pyright: ignore[reportArgumentType]
 
         # Extract index from PointSearchResult (Increment 4 changed return type)
-        # PointSearchResult has .index attribute for accessing the point index
-        if result.index is not None:
-            point_index: int = result.index
-        else:
-            # Legacy fallback for direct int return (should not happen in current code)
-            point_index = -1
+        # PointSearchResult.index is always int, -1 if not found
+        point_index: int = result.index
 
         # Log for verification during integration testing
         logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {point_index}")
