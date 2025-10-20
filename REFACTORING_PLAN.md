@@ -34,18 +34,20 @@ After comprehensive analysis with verification, we identified **5 major refactor
 | Algorithm in CurveViewWidget | 65 lines in widget | ⚠️ LOCATION | Actually in TrackingDisplayController (still wrong layer) |
 
 **Accuracy**: 95% (1 location correction, problem still valid)
-**Total Layer Violations**: 12 (5 constants + 6 colors + 1 protocol)
+**Total Layer Violations Fixed**: 6 of 12 (5 constants + 1 protocol) - 6 color violations deferred to Phase 3
 
 ---
 
 ## Phase 1: Critical Quick Wins (Week 1)
 
-**Estimated Time**: 6 hours (realistic estimate after verification)
-**LOC Impact**: ~500 lines cleaned (450 removed, ~100 added for core/defaults.py + core/colors.py)
+**Estimated Time**: 5 hours 20 minutes (reduced from 6 hours after Task 1.4 amendment)
+**LOC Impact**: ~460 lines cleaned (450 removed, ~10 added for core/defaults.py only)
 **Risk**: Minimal
-**Dependencies**: Task 1.4 must complete before Task 1.2 (both fix layer violations)
+**Dependencies**: Execute sequentially (1.1 → 1.2 → 1.3 → 1.4 → 1.5) to avoid line number shifts between tasks
 
-**Note**: Tasks renumbered in execution order (1.1 → 1.2 → 1.3 → 1.4 → 1.5)
+**Note**: Tasks modify same files at different locations - sequential execution prevents merge conflicts
+
+**Amendment (2025-10-20)**: Task 1.4 reduced to protocol fix only. Color extraction deferred to Phase 3 due to API breaking changes identified during verification.
 
 ### Task 1.1: Delete Dead Code (15 minutes)
 
@@ -97,7 +99,7 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 **Objective**: Move UI constants to `core/defaults.py`, fix imports
 
-**Dependencies**: ⚠️ Must complete Task 1.4 first (fixes 7 additional violations: 6 colors + 1 protocol)
+**Dependencies**: None (Task 1.4 fixes colors, this task fixes constants - independent modifications)
 
 **Current Violations** (5 constant imports):
 1. `services/transform_service.py:17` - imports `DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH`
@@ -126,7 +128,7 @@ After comprehensive analysis with verification, we identified **5 major refactor
   DEFAULT_NUDGE_AMOUNT: float = 1.0
 
   # UI operation defaults
-  DEFAULT_STATUS_TIMEOUT: int = 2000  # milliseconds
+  DEFAULT_STATUS_TIMEOUT: int = 3000  # milliseconds
 
   # View constraints
   MAX_ZOOM_FACTOR: float = 10.0
@@ -134,7 +136,7 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
   # Rendering defaults
   GRID_CELL_SIZE: int = 100
-  RENDER_PADDING: int = 50
+  RENDER_PADDING: int = 100
   ```
 
 - [ ] **Step 2**: Update `services/transform_service.py` (line 17)
@@ -192,161 +194,81 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ---
 
-### Task 1.4: Extract Colors to Core (45 minutes) 🔴 CRITICAL
+### Task 1.4: Fix Protocol Import Violation (5 minutes) ✅ MINIMAL FIX
 
-**Objective**: Fix 6 color-related layer violations in rendering/ plus 1 protocol violation
+**Objective**: Fix protocol import violation in rendering layer (deferred color violations to Phase 3)
 
-**Current Violations**:
-- `rendering/optimized_curve_renderer.py:25` - imports `CurveColors` from `ui.color_constants`
-- `rendering/optimized_curve_renderer.py:892` - runtime import of `SPECIAL_COLORS, get_status_color` from `ui.color_manager`
-- `rendering/optimized_curve_renderer.py:963` - runtime import of `COLORS_DARK` from `ui.color_manager`
-- `rendering/optimized_curve_renderer.py:1014` - runtime import of `get_status_color` from `ui.color_manager`
-- `rendering/optimized_curve_renderer.py:1209` - runtime import of `COLORS_DARK` from `ui.color_manager`
-- `rendering/optimized_curve_renderer.py:1282` - runtime import of `COLORS_DARK` from `ui.color_manager`
+**Status**: ⚠️ **AMENDED** - Originally planned color extraction has breaking API changes. Deferred to Phase 3 for architectural redesign. This task now only fixes the protocol import violation.
 
-**Analysis**: Method-level imports are workarounds for circular imports (verified by `# pyright: reportImportCycles=false` in renderer). Colors are presentation concerns, but rendering layer needs them. Solution: Extract to core/.
+**Background**:
+- Original plan identified 7 violations (6 color imports + 1 protocol import)
+- Verification found color extraction would break CurveColors API (static methods → dataclass incompatibility)
+- Decision: Fix low-risk protocol violation now, defer color architecture to Phase 3
+- See `TASK_1_4_CRITICAL_ISSUES.md` for full analysis
+
+**Current Violation**:
+- `rendering/rendering_protocols.py:51` - imports `StateManager` from `ui.state_manager` outside TYPE_CHECKING block
+
+**Analysis**: Protocol files should only import types for annotations within TYPE_CHECKING blocks to avoid circular dependencies and maintain proper layer separation.
 
 **Steps**:
 
-- [ ] **Step 1**: Create `core/colors.py`
-  ```python
-  #!/usr/bin/env python
-  """
-  Application-wide color definitions.
-
-  Colors belong here if used by rendering/ layer.
-  UI-specific styling colors remain in ui/color_constants.py.
-  """
-
-  from dataclasses import dataclass
-  from PySide6.QtGui import QColor
-
-
-  @dataclass(frozen=True)
-  class CurveColors:
-      """Color scheme for curve rendering."""
-
-      point: QColor
-      selected_point: QColor
-      line: QColor
-      interpolated: QColor
-      keyframe: QColor
-      endframe: QColor
-      tracked: QColor
-
-      @classmethod
-      def default(cls) -> "CurveColors":
-          """Create default color scheme."""
-          return cls(
-              point=QColor(255, 255, 255),
-              selected_point=QColor(255, 100, 100),
-              line=QColor(200, 200, 200),
-              interpolated=QColor(150, 150, 255),
-              keyframe=QColor(255, 255, 0),
-              endframe=QColor(255, 0, 0),
-              tracked=QColor(0, 255, 0),
-          )
-
-
-  # Status-specific colors (used by renderer)
-  COLORS_DARK = {
-      "normal": QColor(200, 200, 200),
-      "interpolated": QColor(100, 100, 255),
-      "keyframe": QColor(255, 255, 100),
-      "tracked": QColor(100, 255, 100),
-      "endframe": QColor(255, 100, 100),
-  }
-
-  SPECIAL_COLORS = {
-      "selected": QColor(255, 100, 100),
-      "hover": QColor(255, 200, 100),
-  }
-
-
-  def get_status_color(status: str, selected: bool = False) -> QColor:
-      """Get color for point status.
-
-      Args:
-          status: Point status string
-          selected: Whether point is selected
-
-      Returns:
-          QColor for the status
-      """
-      if selected:
-          return SPECIAL_COLORS["selected"]
-      return COLORS_DARK.get(status, COLORS_DARK["normal"])
+- [ ] **Step 1**: Read current protocol file
+  ```bash
+  cat rendering/rendering_protocols.py | head -60
   ```
 
-- [ ] **Step 2**: Update `rendering/optimized_curve_renderer.py` imports
-  - Replace line 25: `from ui.color_constants import CurveColors`
-  - With: `from core.colors import CurveColors, COLORS_DARK, SPECIAL_COLORS, get_status_color`
-  - Remove all 5 method-level imports (lines 892, 963, 1014, 1209, 1282)
-
-- [ ] **Step 3**: Update `ui/color_constants.py` to re-export from core
+- [ ] **Step 2**: Fix Protocol import in `rendering/rendering_protocols.py`
+  - Locate line 51: `from ui.state_manager import StateManager`
+  - Move import to TYPE_CHECKING block at top of file:
   ```python
-  # At top of file, add:
-  from core.colors import CurveColors, COLORS_DARK, SPECIAL_COLORS, get_status_color
+  from typing import TYPE_CHECKING, Protocol
 
-  # Remove duplicate definitions if they exist
-  ```
-
-- [ ] **Step 4**: Update `ui/color_manager.py` to re-export from core
-  ```python
-  # At top of file, add:
-  from core.colors import COLORS_DARK, SPECIAL_COLORS, get_status_color
-
-  # Remove duplicate definitions
-  ```
-
-- [ ] **Step 5**: Fix Protocol import in `rendering/rendering_protocols.py`
-  - Move line 51 import to TYPE_CHECKING block:
-  ```python
-  # At top of file, in TYPE_CHECKING block:
   if TYPE_CHECKING:
       from PySide6.QtGui import QImage, QPixmap
       from services.transform_service import Transform
-      from ui.state_manager import StateManager  # ← Move here
+      from ui.state_manager import StateManager  # ← Move here (line ~10)
+
+  # ... rest of file ...
 
   class MainWindowProtocol(Protocol):
       """Protocol for main window objects."""
 
-      state_manager: "StateManager"  # ← String annotation (was: StateManager without import)
+      state_manager: "StateManager"  # ← Change to string annotation (line ~53)
   ```
 
-- [ ] **Step 6**: Verify all color violations fixed
+- [ ] **Step 3**: Verify import fixed
   ```bash
-  # Should show NO imports of ui.color_* in rendering/
-  grep -n "from ui\.color" rendering/
-
   # Should show NO imports of StateManager outside TYPE_CHECKING
-  grep -A5 "class MainWindowProtocol" rendering/rendering_protocols.py | grep "from ui"
-  ```
-  - Expected: No output
+  grep -n "from ui.state_manager" rendering/rendering_protocols.py
 
-- [ ] **CHECKPOINT 1.4**: Verify color rendering
+  # Should only show TYPE_CHECKING import and string annotation
+  grep -A10 "if TYPE_CHECKING" rendering/rendering_protocols.py | grep StateManager
+  grep "state_manager:" rendering/rendering_protocols.py
+  ```
+  - Expected: Import only in TYPE_CHECKING block, annotation uses string
+
+- [ ] **CHECKPOINT 1.4**: Verify protocol change
   ```bash
-  # Type checking
-  ~/.local/bin/uv run basedpyright rendering/ core/colors.py
+  # Type checking (should pass with no new errors)
+  ~/.local/bin/uv run basedpyright rendering/rendering_protocols.py
 
   # Linting
-  ~/.local/bin/uv run ruff check rendering/ core/colors.py
+  ~/.local/bin/uv run ruff check rendering/rendering_protocols.py
 
-  # Rendering tests
-  ~/.local/bin/uv run pytest tests/rendering/ -v
-
-  # Manual smoke test
-  ~/.local/bin/uv run python main.py
-  # - Load a curve file
-  # - Verify point colors display correctly (keyframes, interpolated, etc.)
-  # - Select points, verify selection color
-  # - Verify status colors match expected (no regressions)
+  # Quick test (verify no import errors)
+  ~/.local/bin/uv run python -c "from rendering.rendering_protocols import MainWindowProtocol; print('OK')"
   ```
-  **Expected**: All pass, colors render identically
+  **Expected**: All pass, no import cycle errors
 
-**Rollback**: `git restore core/colors.py rendering/ ui/color_constants.py ui/color_manager.py`
+**Rollback**: `git restore rendering/rendering_protocols.py`
 
-**Note**: This task MUST complete before Task 1.2, as both fix layer violations. Order: 1.4 (colors + protocol) → 1.2 (constants).
+**Note**: Color layer violations (6 remaining) deferred to Phase 3 due to API compatibility concerns. Requires architectural decision on whether to:
+- Keep colors in ui/ (acknowledge violation)
+- Create separate rendering-specific color module
+- Redesign CurveColors to be extraction-safe
+
+**Time Saved**: 40 minutes (was 45 min, now 5 min)
 
 ---
 
@@ -567,11 +489,12 @@ After comprehensive analysis with verification, we identified **5 major refactor
   - Task 1.1: Delete unused /commands/ directory and deprecated files (450 lines)
   - Task 1.2: Move UI constants to core/defaults.py (fix 5 violations)
   - Task 1.3: Extract _update_spinboxes_silently() with QSignalBlocker (16 lines saved)
-  - Task 1.4: Extract colors to core/colors.py (fix 6 color + 1 protocol violations)
+  - Task 1.4: Fix protocol import violation in rendering_protocols.py (1 violation)
   - Task 1.5: Extract _find_point_index_at_frame() helper (12 lines saved)
 
-  Total cleanup: ~500 lines net (450 removed, ~100 added for core files)
-  All 12 layer violations fixed (services/rendering no longer import from ui/)
+  Total cleanup: ~460 lines net (450 removed, ~10 added for core/defaults.py)
+  6 layer violations fixed (5 constants + 1 protocol)
+  Note: 6 color violations deferred to Phase 3 due to API compatibility.
   All tests passing, no functionality changes.
 
   🤖 Generated with Claude Code
@@ -584,8 +507,8 @@ After comprehensive analysis with verification, we identified **5 major refactor
 - ✅ All lints pass
 - ✅ All tests pass
 - ✅ Manual smoke tests confirm no regressions
-- ✅ ~950 lines of code removed/consolidated
-- ✅ No layer violations from services→UI
+- ✅ ~460 lines of code removed/consolidated
+- ✅ 6 critical layer violations fixed (5 constants + 1 protocol)
 
 ---
 
@@ -851,12 +774,105 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ## Phase 3: Strategic (Optional - Week 3+)
 
-**Estimated Time**: 1 week
-**LOC Impact**: Variable
+**Estimated Time**: 4+ weeks
+**LOC Impact**: Variable (targeting 3 god objects: InteractionService, CurveViewWidget, MainWindow)
 **Risk**: High
-**Dependencies**: Phases 1-2 complete, stable for 1+ week
+**Dependencies**: Phases 1-2 complete, stable for 2+ weeks
 
-### Task 3.1: MainWindow Method Extraction (1 week)
+**Note**: Verification analysis identified 3 god objects, not just MainWindow. Priorities updated based on severity (line count × method count).
+
+### Task 3.1: InteractionService Refactoring (2 weeks) - HIGHEST PRIORITY
+
+**Objective**: Split InteractionService into focused, single-responsibility services
+
+**Current State** (Verified):
+- **1,713 lines, 83 methods** (worse than MainWindow's 1,254 lines, 101 methods)
+- File: `services/interaction_service.py`
+- Combines 5 distinct concerns (god object anti-pattern)
+
+**Identified Concerns**:
+1. **Mouse/Pointer Event Handling**: Click detection, drag tracking, hover states
+2. **Selection Management**: Point selection, multi-select, selection state
+3. **Command History**: Undo/redo queue, command execution
+4. **Point Manipulation**: Move points, snap to grid, validation
+5. **Geometry Calculations**: Point finding, distance calculations, hit testing
+
+**Proposed Refactoring**:
+
+Split into 5 focused services:
+1. `PointerEventService`: Mouse event handling (~15 methods, ~300 lines)
+2. `SelectionService`: Selection state and operations (~12 methods, ~250 lines)
+3. `CommandHistoryService`: Undo/redo management (~8 methods, ~200 lines)
+4. `PointManipulationService`: Point operations (~18 methods, ~400 lines)
+5. `InteractionService` (reduced): Core coordination (~30 methods, ~500 lines)
+
+**Analysis Required**:
+- [ ] Review all 83 methods, categorize by concern
+- [ ] Identify dependencies between services
+- [ ] Design service interfaces (protocols)
+- [ ] Plan migration path (incremental extraction)
+- [ ] Update all callers (MainWindow, controllers)
+
+**Decision Point**: Only proceed if:
+- [ ] Phases 1-2 stable for 2+ weeks
+- [ ] No regressions observed in production use
+- [ ] Clear service boundaries identified
+- [ ] Time available for careful incremental refactoring
+
+**NOT PLANNED IN DETAIL** - Requires architectural design discussion.
+
+**Estimated Time**: 2 weeks (most complex refactoring)
+
+**If proceeding**:
+1. Create detailed service extraction plan
+2. Extract one service at a time (incremental)
+3. Run full test suite after each service extraction
+4. Update all callers progressively
+5. Maintain backward compatibility during transition
+
+---
+
+### Task 3.2: CurveViewWidget Extraction (1 week)
+
+**Objective**: Reduce CurveViewWidget complexity and separate concerns
+
+**Current State** (Verified):
+- **2,004 lines, 101 methods** (equal to MainWindow!)
+- File: `ui/curve_view_widget.py`
+- Mixes view rendering, business logic, and interaction handling
+
+**Identified Issues**:
+- View concerns (rendering, painting, Qt events)
+- Business logic (point calculations, curve data access)
+- Interaction handling (overlaps with InteractionService)
+- State management (some overlap with ApplicationState)
+
+**Proposed Refactoring**:
+
+Extract ~30-40 methods to separate concerns:
+1. **ViewRenderer** (new): Pure rendering logic (~15 methods)
+2. **InteractionHandler** (existing service): Move interaction logic
+3. **CurveViewWidget** (reduced): Core widget, event delegation (~40-50 methods)
+
+**Analysis Required**:
+- [ ] Review all 101 methods, categorize by concern
+- [ ] Identify which methods are pure view vs business logic
+- [ ] Determine overlap with InteractionService
+- [ ] Design clean separation of concerns
+- [ ] Evaluate impact on MainWindow
+
+**Decision Point**: Only proceed if:
+- [ ] Task 3.1 (InteractionService) complete and stable
+- [ ] Clear extraction patterns identified
+- [ ] Time available for incremental refactoring
+
+**NOT PLANNED IN DETAIL** - Requires design discussion after Task 3.1.
+
+**Estimated Time**: 1 week
+
+---
+
+### Task 3.3: MainWindow Method Extraction (1 week)
 
 **Objective**: Reduce MainWindow from 101 methods to ~60-70
 
@@ -1009,13 +1025,13 @@ git revert <phase_commit_hash>
 
 ## Success Metrics
 
-### Phase 1 Metrics
-- **Code Reduction**: ~500 lines net reduction (450 removed, ~100 added for core/defaults.py + core/colors.py)
-- **Architecture**: Zero layer violations (12 violations fixed: 5 constants + 6 colors + 1 protocol)
+### Phase 1 Metrics (Amended)
+- **Code Reduction**: ~460 lines net reduction (450 removed, ~10 added for core/defaults.py)
+- **Architecture**: 6 critical violations fixed (5 constants + 1 protocol) - 6 color violations deferred to Phase 3
 - **Duplication**: ~28 lines of duplicate code eliminated (16 spinbox + 12 point lookup enumerated pattern)
 - **Test Coverage**: No coverage reduction
 - **Type Safety**: Zero new type errors
-- **Time**: ~6 hours (realistic estimate: 15m + 30m + 1h + 45m + 2h + checkpoints)
+- **Time**: ~5h 20m (reduced from 6h: 15m + 30m + 1h + 5m + 2h + checkpoints)
 
 ### Phase 2 Metrics
 - **Code Reduction**: ~145 lines consolidated
@@ -1077,18 +1093,18 @@ git revert <phase_commit_hash>
 
 ## Timeline
 
-### Week 1: Phase 1 (Critical Path)
+### Week 1: Phase 1 (Critical Path) - Amended
 - **Monday AM**: Task 1.1 (delete dead code) - 15 min
 - **Monday AM**: Task 1.2 (constants to core/) - 30 min
 - **Monday PM**: Task 1.3 (spinbox QSignalBlocker) - 1 hour
-- **Tuesday AM**: Task 1.4 (colors to core/) - 45 min
-- **Tuesday PM**: Task 1.5 (point lookup helper) - 2 hours
-- **Wednesday**: Final Checkpoint 1, commit, documentation - 1 hour
-- **Thursday-Friday**: Buffer/additional testing
+- **Monday PM**: Task 1.4 (protocol import fix) - 5 min (reduced from 45 min)
+- **Tuesday**: Task 1.5 (point lookup helper) - 2 hours
+- **Tuesday PM**: Final Checkpoint 1, commit, documentation - 1 hour
+- **Wednesday-Friday**: Buffer/additional testing
 
-**Total**: ~6 hours + 2-day buffer
+**Total**: ~5h 20m + 3-day buffer (reduced from 6h due to Task 1.4 scope reduction)
 
-**Task Execution Order**: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 (colors before constants dependency)
+**Task Execution Order**: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 (execute sequentially to prevent line number conflicts)
 
 ### Week 2: Phase 2 (Consolidation)
 - **Monday-Tuesday**: Task 2.1 (active_curve_data) - 1 day
@@ -1100,8 +1116,13 @@ git revert <phase_commit_hash>
 
 ### Week 3+: Phase 3 (Optional)
 - **Decision Point**: End of Week 2
-- **If Proceed**: 1 week careful extraction
+- **If Proceed**: 4+ weeks for 3 god object refactorings
+  - Weeks 3-4: Task 3.1 - InteractionService refactoring (PRIORITY 1)
+  - Week 5: Task 3.2 - CurveViewWidget extraction (PRIORITY 2)
+  - Week 6: Task 3.3 - MainWindow method extraction (PRIORITY 3)
 - **If Skip**: Monitor stability, move to next project
+
+**Note**: Verification identified 3 god objects (InteractionService: 1,713 lines/83 methods, CurveViewWidget: 2,004 lines/101 methods, MainWindow: 1,254 lines/101 methods). Priority ordered by complexity and architectural impact.
 
 ---
 
@@ -1109,14 +1130,11 @@ git revert <phase_commit_hash>
 
 ### Files Modified (Phase 1)
 - `core/defaults.py` (NEW) - Task 1.2
-- `core/colors.py` (NEW) - Task 1.4
 - `services/transform_service.py` - Task 1.2
 - `services/transform_core.py` - Task 1.2
 - `services/ui_service.py` - Task 1.2
-- `rendering/optimized_curve_renderer.py` - Task 1.2, 1.4
-- `rendering/rendering_protocols.py` - Task 1.4
-- `ui/color_constants.py` - Task 1.4 (re-exports)
-- `ui/color_manager.py` - Task 1.4 (re-exports)
+- `rendering/optimized_curve_renderer.py` - Task 1.2
+- `rendering/rendering_protocols.py` - Task 1.4 (protocol import fix)
 - `core/commands/shortcut_command.py` - Task 1.5
 - `core/commands/shortcut_commands.py` - Task 1.2, 1.5
 - `ui/controllers/point_editor_controller.py` - Task 1.3
@@ -1189,15 +1207,33 @@ wc -l path/to/file.py
 |------|---------|---------|
 | 2025-10-20 | 1.0 | Initial plan after verification analysis |
 | 2025-10-20 | 1.1 | Post-verification amendments: (1) Renumbered tasks in execution order (1.1→1.2→1.3→1.4→1.5), (2) Updated timeline 4.5h→6h, (3) Clarified point lookup count (3 enumerated, not 5), (4) Added notes on additional blockSignals() uses, (5) Added TransformService scope documentation, (6) Updated all cross-references |
+| 2025-10-20 | 1.2 | Multi-agent verification amendments: (1) Fixed task order contradiction (sequential execution to prevent line conflicts), (2) Added Phase 3.1 (InteractionService: 1,713 lines/83 methods - PRIORITY 1), (3) Added Phase 3.2 (CurveViewWidget: 2,004 lines/101 methods - PRIORITY 2), (4) Renamed MainWindow extraction to Task 3.3 (PRIORITY 3), (5) Updated Phase 3 timeline 1 week→4+ weeks, (6) Updated Phase 3 dependencies to require 2+ weeks stability |
+| 2025-10-20 | 1.3 | **CRITICAL FIX** - Cross-verification amendments: (1) Fixed Task 1.2 incorrect values (DEFAULT_STATUS_TIMEOUT: 2000→3000, RENDER_PADDING: 50→100), (2) **Rewrote Task 1.4** from color extraction (45 min) to protocol fix only (5 min) due to breaking API changes identified, (3) Deferred 6 color violations to Phase 3, (4) Updated all metrics: Time 6h→5h20m, LOC ~500→~460, Violations 12→6, (5) Removed core/colors.py from file inventory, (6) Updated commit message and timeline |
 
 ---
 
 **Next Step**: Review this amended plan, then begin Phase 1, Task 1.1 when ready.
 
+**Key Changes from v1.2** (CRITICAL):
+- ⚠️ **Task 1.2 value corrections**: Fixed 2 incorrect constant values (would have broken functionality)
+- 🔴 **Task 1.4 scope reduction**: Rewrote from full color extraction to minimal protocol fix only
+  - Reason: Verification found 3 breaking API changes (CurveColors class incompatibility)
+  - Impact: 40 minutes saved, 6 color violations deferred to Phase 3
+  - See `TASK_1_4_CRITICAL_ISSUES.md` for details
+- Phase 1 time: 6 hours → 5h 20 minutes
+- Phase 1 LOC: ~500 → ~460 lines
+- Layer violations fixed: 12 → 6 (5 constants + 1 protocol)
+
+**Key Changes from v1.1**:
+- Fixed task order contradiction (clarified sequential execution prevents line number shifts)
+- Added 2 new god objects to Phase 3 (InteractionService, CurveViewWidget)
+- Re-prioritized Phase 3: InteractionService (worst) → CurveViewWidget → MainWindow
+- Updated Phase 3 timeline from 1 week to 4+ weeks (3 god objects, not 1)
+- Increased stability requirement to 2+ weeks before Phase 3
+
 **Key Changes from v1.0**:
-- Tasks renumbered in execution order for clarity
-- Realistic 6-hour timeline (was 4.5 hours)
-- Task 1.4 (colors) now executes BEFORE Task 1.2 (constants) due to dependency
-- Point lookup helper targets 3 enumerated lookups (verified accurate)
-- Added future enhancement notes for timeline_controller.py blockSignals()
-- Added TransformService scope expansion documentation
+- Tasks renumbered in execution order for clarity (v1.1)
+- Realistic 6-hour timeline, was 4.5 hours (v1.1)
+- Point lookup helper targets 3 enumerated lookups, verified accurate (v1.1)
+- Added future enhancement notes for timeline_controller.py blockSignals() (v1.1)
+- Added TransformService scope expansion documentation (v1.1)
