@@ -73,7 +73,7 @@ class ActionHandlerController:
                 self.main_window.tracking_controller.on_multi_point_data_loaded(data)
             else:
                 # Single curve data - also delegate to tracking controller for proper merging
-                self.main_window.tracking_controller.on_tracking_data_loaded(data)  # pyright: ignore[reportArgumentType]
+                self.main_window.tracking_controller.on_tracking_data_loaded(data)
 
                 # Update timeline tabs with frame range and point data
                 self.main_window.update_timeline_tabs(data)

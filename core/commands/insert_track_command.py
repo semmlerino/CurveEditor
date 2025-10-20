@@ -292,7 +292,7 @@ class InsertTrackCommand(Command):
                 # Merge averaged points with target data
                 from core.models import CurvePoint
 
-                target_points = [CurvePoint.from_tuple(p) if isinstance(p, tuple) else p for p in target_data]
+                target_points = [CurvePoint.from_tuple(p) for p in target_data]
                 all_points = target_points + averaged_points
 
                 # Sort and convert

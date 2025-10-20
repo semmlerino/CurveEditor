@@ -695,11 +695,7 @@ class TestMultiControllerSignalChains:
         qtbot.wait(100)
 
         # Test ViewManagement <-> UI bidirectional communication
-        if (
-            window.view_management_controller is not None
-            and window.ui_init_controller is not None
-            and window.curve_widget is not None
-        ):
+        if window.curve_widget is not None:
             # Change view through view management - update point radius
             _ = (
                 window.curve_widget.point_radius if hasattr(window.curve_widget, "point_radius") else 5

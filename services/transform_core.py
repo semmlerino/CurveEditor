@@ -46,10 +46,7 @@ def validate_scale(
 
 def validate_point(x: float, y: float, context: str) -> tuple[float, float]:
     """Validate coordinate pair."""
-    # Type guard doesn't properly narrow individual parameters,
-    # so we check manually for type safety
-    if not (isinstance(x, int | float) and isinstance(y, int | float)):
-        return (0.0, 0.0)
+    # Parameters are already typed as float, so we only need to check finiteness
     if not (math.isfinite(x) and math.isfinite(y)):
         return (0.0, 0.0)
     return (x, y)

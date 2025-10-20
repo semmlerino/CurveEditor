@@ -77,7 +77,7 @@ class SignalConnectionManager:
             if self.main_window.timeline_controller:
                 timeline = self.main_window.timeline_controller
                 # TimelineController is QObject with signals at runtime
-                _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
+                _ = timeline.status_message.disconnect(self.main_window.update_status)  # pyright: ignore[reportAny]
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 
@@ -173,7 +173,7 @@ class SignalConnectionManager:
         # REMOVED: timeline_controller.frame_changed connection to dead code
         # TimelineController no longer emits frame_changed (redundant with ApplicationState)
         # All frame change handling via ApplicationState → StateManager → FrameChangeCoordinator
-        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAttributeAccessIssue]
+        _ = self.main_window.timeline_controller.status_message.connect(self.main_window.update_status)  # pyright: ignore[reportAny]
 
         # NOTE: timeline_tabs.frame_changed connection REMOVED to prevent circular signal flow
         # With StateManager as single source of truth, timeline_tabs delegates frame changes

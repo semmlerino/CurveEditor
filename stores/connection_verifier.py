@@ -106,12 +106,6 @@ class ConnectionVerifier:
         Args:
             component: Component implementing UIComponent protocol
         """
-        from ui.protocols.controller_protocols import UIComponent
-
-        if not isinstance(component, UIComponent):
-            logger.warning(f"Component {component} does not implement UIComponent protocol")
-            return
-
         component_name = component.__class__.__name__
 
         for source_signal, target_slot in component.required_connections:
@@ -160,18 +154,10 @@ class ConnectionVerifier:
         Returns:
             Tuple of (all_verified, error_messages)
         """
-        from ui.protocols.controller_protocols import UIComponent
-
         error_messages = []
         all_verified = True
 
         for component in components:
-            if not isinstance(component, UIComponent):
-                error_msg = f"Component {component.__class__.__name__} does not implement UIComponent protocol"
-                error_messages.append(error_msg)
-                all_verified = False
-                continue
-
             # Verify the component's own verification method
             try:
                 if not component.verify_connections():
