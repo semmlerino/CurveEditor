@@ -488,6 +488,7 @@ class TestSmoothingWithOtherFeatures:
 class TestSmoothingPerformance:
     """Test smoothing performance with large datasets."""
 
+    @pytest.mark.slow
     def test_smoothing_large_dataset_performance(self, qtbot, benchmark):
         """Test smoothing performance with large curve data."""
         window = MainWindow(auto_load_data=False)  # Disable auto-loading in tests

@@ -798,10 +798,6 @@ class SetPointStatusCommand(CurveDataCommand):
             app_state.set_curve_data(curve_name, curve_data)
             self.executed = True
 
-            # Trigger widget update (CurveDataStore removed in Phase 6.3)
-            if main_window.curve_widget:
-                main_window.curve_widget.update()
-
             return True
 
         return self._safe_execute("executing", _execute_operation)
@@ -837,10 +833,6 @@ class SetPointStatusCommand(CurveDataCommand):
             app_state.set_curve_data(self._target_curve, curve_data)
             self.executed = False
 
-            # Trigger widget update (CurveDataStore removed in Phase 6.3)
-            if main_window.curve_widget:
-                main_window.curve_widget.update()
-
             return True
 
         return self._safe_execute("undoing", _undo_operation)
@@ -874,10 +866,6 @@ class SetPointStatusCommand(CurveDataCommand):
             # Update ApplicationState with modified data
             app_state.set_curve_data(self._target_curve, curve_data)
             self.executed = True
-
-            # Trigger widget update (CurveDataStore removed in Phase 6.3)
-            if main_window.curve_widget:
-                main_window.curve_widget.update()
 
             return True
 

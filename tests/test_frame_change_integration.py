@@ -66,6 +66,7 @@ class TestFrameChangeSignalChain:
             coordinator.curve_widget, "centering_mode"
         ), "Coordinator widget missing centering_mode attribute"
 
+    @pytest.mark.slow
     def test_rapid_frame_changes_via_signal_chain(self, qtbot, main_window):
         """
         Test rapid scrubbing via signal chain reproduces centering lag bug.

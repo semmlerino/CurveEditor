@@ -48,14 +48,12 @@ class InsertTrackShortcutCommand(ShortcutCommand):
 
         # Check for multi-point controller
         main_window = context.main_window
-        multi_point_controller = getattr(main_window, "multi_point_controller", None)
-        if multi_point_controller is None:
+        if main_window.multi_point_controller is None:
             return False
 
         # Check for selected curves (via tracking panel)
-        tracking_panel = getattr(main_window, "tracking_panel", None)
-        if tracking_panel is not None:
-            selected = tracking_panel.get_selected_points()
+        if main_window.tracking_panel is not None:
+            selected = main_window.tracking_panel.get_selected_points()
             return len(selected) > 0
 
         return False
@@ -74,9 +72,8 @@ class InsertTrackShortcutCommand(ShortcutCommand):
 
             # Get selected curves
             selected_curves = []
-            tracking_panel = getattr(main_window, "tracking_panel", None)
-            if tracking_panel is not None:
-                selected_curves = tracking_panel.get_selected_points()
+            if main_window.tracking_panel is not None:
+                selected_curves = main_window.tracking_panel.get_selected_points()
 
             if not selected_curves:
                 logger.warning("No curves selected for Insert Track")
@@ -310,7 +307,7 @@ class SetTrackingDirectionCommand(ShortcutCommand):
             logger.info(f"Setting {len(selected_points)} points to {self.direction.value}")
 
             # Use the panel's internal method to set direction
-            tracking_panel._set_direction_for_points(selected_points, self.direction)
+            tracking_panel.set_direction_for_points(selected_points, self.direction)
             return True
 
         except Exception as e:
@@ -353,7 +350,7 @@ class DeletePointsCommand(ShortcutCommand):
             tracking_panel = context.main_window.tracking_panel
             if tracking_panel:
                 try:
-                    tracking_panel._delete_points(context.selected_tracking_points)
+                    tracking_panel.delete_points(context.selected_tracking_points)
                     success = True
                 except Exception as e:
                     logger.error(f"Failed to delete tracking points: {e}")
@@ -750,7 +747,7 @@ class NudgePointsCommand(ShortcutCommand):
                 if point_index is not None:
                     logger.info(f"Nudging point at frame {context.current_frame} by ({dx}, {dy})")
                     # Temporarily select the point, nudge it, then clear
-                    curve_widget._select_point(point_index, add_to_selection=False)
+                    curve_widget.select_point(point_index, add_to_selection=False)
                     curve_widget.nudge_selected(dx, dy)
                     curve_widget.clear_selection()
 

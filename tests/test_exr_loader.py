@@ -9,6 +9,7 @@ for Qt image loading using imageio.
 from unittest.mock import Mock, patch
 
 import numpy as np
+import pytest
 
 from io_utils.exr_loader import (
     is_exr_file,
@@ -57,6 +58,7 @@ class TestToneMapping:
 
     @patch("imageio.v3.imread")
     @patch("PySide6.QtGui.QImage")
+    @pytest.mark.slow
     def test_tone_mapping_applied_to_hdr_data(self, mock_qimage, mock_imread):
         """Test that tone mapping is applied to HDR pixel values."""
         # Create mock HDR data with values > 1.0

@@ -138,6 +138,7 @@ class TestMainWindowThreadingIntegration:
                 # Verify no threading violations
                 assert len(thread_violations) == 0, f"QPixmap violations: {thread_violations}"
 
+    @pytest.mark.slow
     def test_memory_cleanup_after_loading(self, main_window, qtbot, tmp_path):
         """Test memory is properly cleaned up after file loading."""
         import gc
@@ -238,6 +239,7 @@ class TestThreadingCrashScenarios:
                 # Thread should have stopped (either via interruption or natural completion)
                 assert not worker.isRunning()
 
+    @pytest.mark.slow
     def test_multiple_windows_with_threading(self, qtbot, tmp_path):
         """Test multiple MainWindow instances with active threads."""
         windows = []

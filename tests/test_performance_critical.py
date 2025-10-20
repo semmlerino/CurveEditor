@@ -44,6 +44,7 @@ class TestDataProcessingPerformance:
         """Set up services for performance testing."""
         self.data_service = get_data_service()
 
+    @pytest.mark.slow
     def test_large_dataset_loading_performance(self, benchmark):
         """Benchmark: Load 1000 points from JSON - Target: <100ms."""
         # Create large realistic dataset
@@ -74,6 +75,7 @@ class TestDataProcessingPerformance:
         finally:
             os.unlink(temp_file)
 
+    @pytest.mark.slow
     def test_smoothing_performance_medium_dataset(self, benchmark):
         """Benchmark: Smooth 500 points with moving average - Target: <50ms."""
         # Create medium dataset for smoothing
@@ -109,6 +111,7 @@ class TestDataProcessingPerformance:
         assert isinstance(outliers, list)
         assert len(outliers) >= 2  # Should find the outliers we added
 
+    @pytest.mark.slow
     def test_filtering_performance(self, benchmark):
         """Benchmark: Median filtering on 400 points - Target: <40ms."""
         # Create dataset with some noise
@@ -341,6 +344,7 @@ class TestRealisticWorkflowPerformance:
         self.data_service = get_data_service()
         self.transform_service = get_transform_service()
 
+    @pytest.mark.slow
     def test_complete_workflow_performance(self, benchmark):
         """Benchmark: Complete file load → process → transform → save workflow."""
         # Create realistic dataset
@@ -400,6 +404,7 @@ class TestRealisticWorkflowPerformance:
                 if os.path.exists(temp_file):
                     os.unlink(temp_file)
 
+    @pytest.mark.slow
     def test_interactive_performance_simulation(self, benchmark):
         """Benchmark: Simulate interactive user operations performance."""
         # Set up realistic state

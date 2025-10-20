@@ -6,7 +6,7 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import Signal, Slot
 
@@ -17,7 +17,7 @@ from protocols.ui import MainWindowProtocol
 from ui.controllers.base_tracking_controller import BaseTrackingController
 
 if TYPE_CHECKING:
-    from ui.tracking_points_panel import TrackingPointsPanel
+    pass
 
 logger = get_logger("tracking_display_controller")
 
@@ -100,8 +100,7 @@ class TrackingDisplayController(BaseTrackingController):
 
         # Sync table selection for file loading case
         if self.main_window.tracking_panel:
-            panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
-            panel.set_selected_points([curve_name])
+            self.main_window.tracking_panel.set_selected_points([curve_name])
 
         self.display_updated.emit()
 
@@ -123,8 +122,7 @@ class TrackingDisplayController(BaseTrackingController):
             all_tracked_data: dict[str, CurveDataInput] = {}
             for curve_name in self._app_state.get_all_curve_names():
                 all_tracked_data[curve_name] = self._app_state.get_curve_data(curve_name)
-            panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
-            panel.set_tracked_data(all_tracked_data)
+            self.main_window.tracking_panel.set_tracked_data(all_tracked_data)
 
     def _prepare_display_data(self) -> tuple[dict[str, CurveDataList], dict[str, dict[str, Any]], str | None]:
         """Prepare curve data for display (common logic).
@@ -144,10 +142,9 @@ class TrackingDisplayController(BaseTrackingController):
                 all_curves_data[curve_name] = curve_data
                 # Get metadata from tracking panel if available
                 if self.main_window.tracking_panel is not None:
-                    panel = cast("TrackingPointsPanel", self.main_window.tracking_panel)
                     metadata[curve_name] = {
-                        "visible": panel.get_point_visibility(curve_name),
-                        "color": panel.get_point_color(curve_name),
+                        "visible": self.main_window.tracking_panel.get_point_visibility(curve_name),
+                        "color": self.main_window.tracking_panel.get_point_color(curve_name),
                     }
 
         return all_curves_data, metadata, active_curve

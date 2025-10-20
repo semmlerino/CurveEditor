@@ -6,7 +6,7 @@ CurveView, and related widgets. These protocols define the interface contracts
 that UI components must implement.
 """
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from typing import TYPE_CHECKING, Protocol
 
 if TYPE_CHECKING:
@@ -385,6 +385,19 @@ class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
         """
         ...
 
+    def select_point(self, point_index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
+        """
+        Select a point by index.
+
+        Public API for point selection, replacing _select_point() private method.
+
+        Args:
+            point_index: Index of point to select
+            add_to_selection: If True, add to existing selection; if False, replace selection
+            curve_name: Optional curve name (defaults to active curve if None)
+        """
+        ...
+
     def center_on_selected_curves(self) -> None:
         """Center the view on all selected curves."""
         ...
@@ -532,15 +545,19 @@ class MainWindowProtocol(Protocol):
         ...
 
     @property
-    def multi_point_controller(self) -> "MultiPointTrackingProtocol":
-        """Get multi-point tracking controller (alias for tracking_controller)."""
+    def multi_point_controller(self) -> "MultiPointTrackingProtocol | None":
+        """Get multi-point tracking controller if available.
+
+        Returns:
+            Controller instance or None if not initialized.
+        """
         ...
 
     # UI widget attributes (initialized by UIInitializationController)
     fps_spinbox: object | None  # QSpinBox
     btn_play_pause: object | None  # QPushButton
-    timeline_tabs: object | None  # QTabWidget
-    tracking_panel: object | None  # TrackingPointsPanel
+    timeline_tabs: "TimelineTabsProtocol | None"
+    tracking_panel: "TrackingPointsPanelProtocol | None"
 
     @property
     def curve_view(self) -> "CurveViewProtocol | None":
@@ -828,6 +845,93 @@ class WidgetProtocol(Protocol):
 
     def isVisible(self) -> bool:
         """Check if widget is visible."""
+        ...
+
+
+class TrackingPointsPanelProtocol(Protocol):
+    """Protocol for tracking points panel widget.
+
+    Defines the public interface for the tracking points panel,
+    which manages multi-point tracking operations.
+    """
+
+    def set_direction_for_points(self, points: list[str], direction: object) -> None:
+        """Set tracking direction for selected points.
+
+        Args:
+            points: List of point names to update
+            direction: TrackingDirection enum value (FORWARD/BACKWARD/BOTH/NONE)
+        """
+        ...
+
+    def delete_points(self, points: list[str]) -> None:
+        """Delete tracking points by name.
+
+        Args:
+            points: List of point names to delete
+        """
+        ...
+
+    def get_selected_points(self) -> list[str]:
+        """Get list of selected point names.
+
+        Returns:
+            List of selected tracking point names
+        """
+        ...
+
+    def set_selected_points(self, points: list[str]) -> None:
+        """Set selected points by name.
+
+        Args:
+            points: List of point names to select
+        """
+        ...
+
+    def set_tracked_data(self, tracked_data: "Mapping[str, object]") -> None:
+        """Set tracking data for all points.
+
+        Args:
+            tracked_data: Mapping from point names to curve data
+        """
+        ...
+
+    def get_point_visibility(self, point_name: str) -> bool:
+        """Get visibility status of a point.
+
+        Args:
+            point_name: Name of the point
+
+        Returns:
+            True if point is visible, False otherwise
+        """
+        ...
+
+    def get_point_color(self, point_name: str) -> tuple[int, int, int]:
+        """Get color of a point.
+
+        Args:
+            point_name: Name of the point
+
+        Returns:
+            RGB color tuple (0-255)
+        """
+        ...
+
+
+class TimelineTabsProtocol(Protocol):
+    """Protocol for timeline tabs widget.
+
+    Defines the public interface for the timeline tab container,
+    which displays curve data across multiple tabs/frames.
+    """
+
+    def on_frame_changed(self, frame: int) -> None:
+        """Handle frame change notification.
+
+        Args:
+            frame: New frame number
+        """
         ...
 
 

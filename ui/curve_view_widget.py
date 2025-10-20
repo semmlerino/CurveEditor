@@ -1364,9 +1364,20 @@ class CurveViewWidget(QWidget):
 
         return point_index
 
+    def select_point(self, point_index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
+        """
+        Public API for point selection.
+
+        Args:
+            point_index: Index of point to select
+            add_to_selection: If True, add to existing selection; if False, replace selection
+            curve_name: Optional curve name (defaults to active curve if None)
+        """
+        self._select_point(point_index, add_to_selection, curve_name)
+
     def _select_point(self, index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
         """
-        Select a point.
+        Select a point (internal implementation).
 
         Args:
             index: Point index

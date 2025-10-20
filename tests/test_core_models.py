@@ -1427,6 +1427,7 @@ class TestPropertyBasedTesting:
         y=st.floats(allow_nan=False, allow_infinity=False, min_value=-1000, max_value=1000),  # Reduced range
     )
     @settings(max_examples=50, deadline=1000)  # Reduce examples and increase deadline
+    @pytest.mark.slow
     def test_point_creation_invariants(self, frame, x, y):
         """Test that point creation invariants hold for all valid inputs."""
         point = CurvePoint(frame, x, y)

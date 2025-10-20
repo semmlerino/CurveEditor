@@ -271,7 +271,7 @@ class TestSetTrackingDirectionCommand:
         result = cmd.execute(basic_context)
 
         assert result is True
-        mock_panel._set_direction_for_points.assert_called_once_with(
+        mock_panel.set_direction_for_points.assert_called_once_with(
             ["Point_1", "Point_2"], TrackingDirection.TRACKING_FW
         )
 
@@ -287,7 +287,7 @@ class TestSetTrackingDirectionCommand:
         result = cmd.execute(basic_context)
 
         assert result is True
-        mock_panel._set_direction_for_points.assert_called_once_with(
+        mock_panel.set_direction_for_points.assert_called_once_with(
             ["Point_1", "Point_2"], TrackingDirection.TRACKING_BW
         )
 
@@ -347,7 +347,7 @@ class TestDeletePointsCommand:
         result = cmd.execute(basic_context)
 
         assert result is True
-        mock_panel._delete_points.assert_called_once_with(["Point_1", "Point_2"])
+        mock_panel.delete_points.assert_called_once_with(["Point_1", "Point_2"])
 
 
 class TestCenterViewCommand:

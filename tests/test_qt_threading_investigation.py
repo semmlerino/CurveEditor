@@ -35,6 +35,7 @@ class TestQtThreadingInvestigation:
             assert window is not None
             assert hasattr(window, "curve_widget")
 
+    @pytest.mark.slow
     def test_stylesheet_setting_safety(self, qtbot, qapp):
         """Test if setting stylesheet multiple times causes issues."""
         from ui.dark_theme_stylesheet import get_dark_theme_stylesheet

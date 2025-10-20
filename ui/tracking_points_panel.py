@@ -665,8 +665,18 @@ class TrackingPointsPanel(QWidget):
                     if checkbox:
                         checkbox.setChecked(visible)
 
+    def set_direction_for_points(self, points: list[str], direction: TrackingDirection) -> None:
+        """
+        Public API for setting tracking direction.
+
+        Args:
+            points: List of point names to update
+            direction: TrackingDirection enum value
+        """
+        self._set_direction_for_points(points, direction)
+
     def _set_direction_for_points(self, points: list[str], direction: TrackingDirection) -> None:
-        """Set tracking direction for multiple points."""
+        """Set tracking direction for multiple points (internal implementation)."""
         for point_name in points:
             if point_name in self._point_metadata:
                 self._point_metadata[point_name]["tracking_direction"] = direction
@@ -691,8 +701,17 @@ class TrackingPointsPanel(QWidget):
                     if direction_combo and isinstance(direction_combo, QComboBox):
                         direction_combo.setCurrentText(direction.abbreviation)
 
+    def delete_points(self, points: list[str]) -> None:
+        """
+        Public API for deleting tracking points.
+
+        Args:
+            points: List of point names to delete
+        """
+        self._delete_points(points)
+
     def _delete_points(self, points: list[str]) -> None:
-        """Delete selected points."""
+        """Delete selected points (internal implementation)."""
         for point_name in points:
             self.point_deleted.emit(point_name)
 

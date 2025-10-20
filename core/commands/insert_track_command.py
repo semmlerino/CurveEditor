@@ -73,6 +73,9 @@ class InsertTrackCommand(Command):
         try:
             # Get tracked data from MultiPointTrackingController
             controller = main_window.multi_point_controller
+            if controller is None:
+                logger.error("Multi-point controller not available")
+                return False
             tracked_data = controller.tracked_data
 
             if not self.selected_curves:
@@ -143,6 +146,9 @@ class InsertTrackCommand(Command):
             True if successful
         """
         controller = main_window.multi_point_controller
+        if controller is None:
+            logger.error("Multi-point controller not available")
+            return False
         tracked_data = controller.tracked_data
 
         curve_data = tracked_data[target_curve]
@@ -200,6 +206,9 @@ class InsertTrackCommand(Command):
             True if successful
         """
         controller = main_window.multi_point_controller
+        if controller is None:
+            logger.error("Multi-point controller not available")
+            return False
         tracked_data = controller.tracked_data
 
         # Track if at least one target was successfully filled
@@ -315,6 +324,9 @@ class InsertTrackCommand(Command):
             True if successful
         """
         controller = main_window.multi_point_controller
+        if controller is None:
+            logger.error("Multi-point controller not available")
+            return False
         tracked_data = controller.tracked_data
 
         # 3DEqualizer-style console output
@@ -361,6 +373,11 @@ class InsertTrackCommand(Command):
             main_window: Reference to main window
             curve_name: Name of modified curve
         """
+        # Check controller availability
+        if main_window.multi_point_controller is None:
+            logger.warning("Cannot update UI: multi-point controller not available")
+            return
+
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
@@ -383,6 +400,11 @@ class InsertTrackCommand(Command):
             main_window: Reference to main window
             curve_name: Name of new curve
         """
+        # Check controller availability
+        if main_window.multi_point_controller is None:
+            logger.warning("Cannot update UI: multi-point controller not available")
+            return
+
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
@@ -415,6 +437,9 @@ class InsertTrackCommand(Command):
                 return False
 
             controller = main_window.multi_point_controller
+            if controller is None:
+                logger.error("Multi-point controller not available")
+                return False
             tracked_data = controller.tracked_data
 
             # Scenario 3: Remove created curve
@@ -428,8 +453,8 @@ class InsertTrackCommand(Command):
                 tracked_data[curve_name] = copy.deepcopy(original_data)
                 self._update_ui(main_window, curve_name)
 
-            # Update tracking panel
-            main_window.multi_point_controller.update_tracking_panel()
+            # Update tracking panel (controller already checked above)
+            controller.update_tracking_panel()
 
             self.executed = False
             logger.info("Insert Track undone")
@@ -451,6 +476,9 @@ class InsertTrackCommand(Command):
         """
         try:
             controller = main_window.multi_point_controller
+            if controller is None:
+                logger.error("Multi-point controller not available")
+                return False
             tracked_data = controller.tracked_data
 
             # Scenario 3: Re-add created curve
@@ -464,8 +492,8 @@ class InsertTrackCommand(Command):
                     tracked_data[curve_name] = copy.deepcopy(new_data)
                     self._update_ui(main_window, curve_name)
 
-            # Update tracking panel
-            main_window.multi_point_controller.update_tracking_panel()
+            # Update tracking panel (controller already checked above)
+            controller.update_tracking_panel()
 
             self.executed = True
             logger.info("Insert Track redone")

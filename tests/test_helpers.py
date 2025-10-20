@@ -447,11 +447,13 @@ class MockCurveView:
             self.curve_data[index] = new_point
             self.points[index] = new_point
 
-    def select_point(self, index: int) -> None:
-        """Select a point by index."""
-        if 0 <= index < len(self.curve_data):
-            self.selected_points.add(index)
-            self.selected_point_idx = index
+    def select_point(self, point_index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:
+        """Select a point by index (matches MultiCurveViewProtocol signature)."""
+        if 0 <= point_index < len(self.curve_data):
+            if not add_to_selection:
+                self.selected_points.clear()
+            self.selected_points.add(point_index)
+            self.selected_point_idx = point_index
 
     def deselect_all(self) -> None:
         """Deselect all points."""

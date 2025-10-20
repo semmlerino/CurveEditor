@@ -219,7 +219,7 @@ class FrameChangeCoordinator:
         # Note: _on_frame_changed is internal to TimelineTabWidget but safe to call
         # from coordinator as it only updates visual state without triggering signals
         if self.timeline_tabs:
-            self.timeline_tabs._on_frame_changed(frame)  # pyright: ignore[reportPrivateUsage]
+            self.timeline_tabs.on_frame_changed(frame)
 
         logger.debug(f"[FRAME-COORDINATOR] Timeline widgets updated for frame {frame}")
 

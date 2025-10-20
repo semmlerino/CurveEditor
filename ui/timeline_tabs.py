@@ -310,9 +310,18 @@ class TimelineTabWidget(QWidget):
         # Sync initial active timeline point
         self._on_active_timeline_point_changed(self._state_manager.active_timeline_point)
 
+    def on_frame_changed(self, frame: int) -> None:
+        """
+        Public API for frame change notification.
+
+        Args:
+            frame: New frame number
+        """
+        self._on_frame_changed(frame)
+
     @safe_slot
     def _on_frame_changed(self, frame: int) -> None:
-        """React to StateManager frame changes (visual updates only)."""
+        """React to StateManager frame changes (visual updates only - internal implementation)."""
         # Clamp to valid range
         frame = clamp_frame(frame, self.min_frame, self.max_frame)
 
