@@ -15,21 +15,11 @@ Test Coverage:
 """
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from core.display_mode import DisplayMode
 from rendering.render_state import RenderState
 from stores.application_state import get_application_state
 from ui.curve_view_widget import CurveViewWidget
-
-
-@pytest.fixture
-def qapp():
-    """Provide Qt application instance."""
-    app = QApplication.instance()
-    if app is None:
-        app = QApplication([])
-    return app
 
 
 @pytest.fixture
@@ -410,14 +400,14 @@ class TestRenderStateImmutability:
         curve_widget.set_curves_data(sample_curves, active_curve="Track1")
         state = RenderState.compute(curve_widget)
 
-        # Assert: Cannot modify attributes
-        with pytest.raises(Exception):  # FrozenInstanceError or similar
+        # Assert: Cannot modify attributes (dataclass frozen=True)
+        with pytest.raises(Exception, match="frozen|cannot assign"):
             state.display_mode = DisplayMode.ACTIVE_ONLY  # pyright: ignore[reportAttributeAccessIssue]
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="frozen|cannot assign"):
             state.visible_curves = frozenset({"NewCurve"})  # pyright: ignore[reportAttributeAccessIssue]
 
-        with pytest.raises(Exception):
+        with pytest.raises(Exception, match="frozen|cannot assign"):
             state.active_curve = "Track2"  # pyright: ignore[reportAttributeAccessIssue]
 
     def test_visible_curves_is_frozenset(self, curve_widget, sample_curves):
@@ -429,8 +419,8 @@ class TestRenderStateImmutability:
         # Assert: Is frozenset
         assert isinstance(state.visible_curves, frozenset)
 
-        # Assert: Cannot modify frozenset
-        with pytest.raises(AttributeError):
+        # Assert: Cannot modify frozenset (no 'add' method)
+        with pytest.raises(AttributeError, match="'frozenset' object has no attribute 'add'"):
             state.visible_curves.add("NewCurve")  # pyright: ignore[reportAttributeAccessIssue]
 
 

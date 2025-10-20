@@ -450,5 +450,5 @@ class TestCreateAveragedCurve:
 
     def test_empty_sources(self):
         """Test error handling with no sources."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="No source curves provided|at least one"):
             create_averaged_curve({})

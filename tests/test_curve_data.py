@@ -324,7 +324,7 @@ class TestEdgeCases:
 
     def test_invalid_data_format(self):
         """Test handling of invalid data format."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="Invalid curve data format"):
             CurveDataWithMetadata(data=[(1, 100)])  # pyright: ignore[reportArgumentType] - Testing invalid data
 
     def test_empty_data(self):
@@ -344,7 +344,7 @@ class TestEdgeCases:
 
         curve_data = CurveDataWithMetadata(data=data, metadata=metadata)
 
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="must be normalized"):
             curve_data.from_normalized(metadata)
 
     def test_dimension_sanity_checks(self):
