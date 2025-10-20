@@ -10,19 +10,10 @@ a unified interface to all application services using the consolidated
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from core.image_state import ImageState
 from protocols.ui import CurveViewProtocol, MainWindowProtocol
 from ui.service_facade import ServiceFacade, get_service_facade, reset_service_facade
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 @pytest.fixture

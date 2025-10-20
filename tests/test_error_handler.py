@@ -10,7 +10,6 @@ Follows the testing guide patterns for Qt components and error handling.
 from unittest.mock import Mock
 
 import pytest
-from PySide6.QtWidgets import QApplication
 from pytestqt.qt_compat import qt_api
 
 from ui.error_handler import (
@@ -21,14 +20,6 @@ from ui.error_handler import (
     ErrorSeverity,
     get_error_handler,
 )
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 class TestErrorSeverity:

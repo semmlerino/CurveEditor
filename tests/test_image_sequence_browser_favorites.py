@@ -6,19 +6,10 @@ from unittest.mock import Mock, patch
 
 import pytest
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
 from pytestqt.qtbot import QtBot
 
 from core.favorites_manager import FavoritesManager
 from ui.image_sequence_browser import ImageSequenceBrowserDialog
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 @pytest.fixture

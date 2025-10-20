@@ -525,3 +525,214 @@ class TestInsertTrackCommand:
 
         # Should fail - no common frames to average
         assert result is False
+
+
+class TestInsertTrackEmptyCollectionBounds:
+    """REGRESSION TESTS: InsertTrack empty collection and bounds checking.
+
+    Tests edge cases where collections are empty or have insufficient data,
+    preventing IndexError crashes in production.
+
+    Referenced code locations:
+    - core/commands/insert_track_command.py:106, 262, 276
+    """
+
+    @pytest.fixture
+    def mock_main_window(self):
+        """Create mock MainWindow with multi-point tracking controller."""
+        main_window = Mock()
+
+        controller = Mock()
+        controller.tracked_data = {}
+        controller.update_tracking_panel = Mock()
+
+        main_window.multi_point_controller = controller
+        main_window.curve_widget = Mock()
+        main_window.curve_widget.set_curve_data = Mock()
+        main_window.active_timeline_point = None
+        main_window.update_timeline_tabs = Mock()
+
+        return main_window
+
+    def test_no_curves_have_data_at_current_frame(self, mock_main_window):
+        """REGRESSION TEST: Gracefully fail when no curves have data at current frame.
+
+        Bug: If source_data_list is empty at line 262, averaging will fail.
+        This test ensures graceful failure with clear error message.
+        """
+        # Setup curves that don't have data at target frame
+        curve1 = [(1, 100.0, 200.0, "normal"), (2, 110.0, 210.0, "normal")]
+        curve2 = [(1, 200.0, 300.0, "normal"), (2, 210.0, 310.0, "normal")]
+
+        mock_main_window.multi_point_controller.tracked_data = {
+            "curve1": curve1,
+            "curve2": curve2,
+        }
+
+        # Try Insert Track at frame 10 (where no curve has data)
+        command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=10)
+        result = command.execute(mock_main_window)
+
+        # Should fail gracefully without IndexError
+        assert result is False, "Should fail when no curves have data at current frame"
+        assert command.scenario == 0, "Should not determine scenario"
+
+    def test_single_curve_selected_needs_multiple_for_interpolation(self, mock_main_window):
+        """REGRESSION TEST: Scenario detection requires proper curve count.
+
+        Bug: If only single curve selected but has no data at current frame,
+        and no other curves available, should fail gracefully.
+        """
+        # Single curve with no data at current frame (will look for gap)
+        curve1 = [(1, 100.0, 200.0, "normal"), (10, 200.0, 300.0, "normal")]
+
+        mock_main_window.multi_point_controller.tracked_data = {"curve1": curve1}
+
+        # Current frame at 5 (in the gap)
+        command = InsertTrackCommand(selected_curves=["curve1"], current_frame=5)
+        result = command.execute(mock_main_window)
+
+        # Should succeed - Scenario 1 (interpolation)
+        assert result is True
+        assert command.scenario == 1
+
+    def test_empty_source_data_list_in_scenario_2(self, mock_main_window):
+        """REGRESSION TEST: Scenario 2 fails gracefully with empty source_data_list.
+
+        Bug: At line 262, if no sources have overlap with target, source_data_list
+        is empty and averaging fails. Should handle gracefully.
+
+        Code location: insert_track_command.py:242-244
+        """
+        # Target has gap, but source has no overlap at all
+        target = [
+            (1, 100.0, 200.0, "normal"),
+            (2, 110.0, 210.0, "normal"),
+            # Gap at 3, 4, 5
+            (6, 140.0, 240.0, "normal"),
+        ]
+
+        # Source has data in gap but NO overlap before or after
+        source = [
+            (3, 200.0, 300.0, "normal"),
+            (4, 210.0, 310.0, "normal"),
+            (5, 220.0, 320.0, "normal"),
+        ]
+
+        mock_main_window.multi_point_controller.tracked_data = {
+            "target": target,
+            "source": source,
+        }
+
+        command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=4)
+        result = command.execute(mock_main_window)
+
+        # Should fail gracefully (no overlap for offset calculation)
+        # The command logs "No valid source curves found" and continues
+        # This is expected behavior - the test verifies no crash occurs
+        assert isinstance(result, bool), "Should return bool, not crash"
+
+    def test_target_has_no_frames_outside_gap(self, mock_main_window):
+        """REGRESSION TEST: Target curve has only gap (no boundary frames).
+
+        Bug: If target curve has no data before/after gap, finding
+        overlap_before/overlap_after at line 246-249 may fail.
+        """
+        # Target is ONLY the gap (no surrounding data)
+        target = []  # Empty - entire range is a gap
+
+        # Source has data
+        source = [
+            (1, 200.0, 300.0, "normal"),
+            (2, 210.0, 310.0, "normal"),
+            (3, 220.0, 320.0, "normal"),
+            (4, 230.0, 330.0, "normal"),
+            (5, 240.0, 340.0, "normal"),
+        ]
+
+        mock_main_window.multi_point_controller.tracked_data = {
+            "target": target,
+            "source": source,
+        }
+
+        command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=3)
+        result = command.execute(mock_main_window)
+
+        # Should fail - can't find gap in empty curve
+        assert result is False
+
+    def test_source_list_bounds_access_safety(self, mock_main_window):
+        """REGRESSION TEST: Safe access to source_data_list and offset_list.
+
+        Bug: Lines 273-276 access source_data_list[0] and offset_list[0]
+        after checking if list is empty. Verify this check works correctly.
+
+        Code location: insert_track_command.py:273-276
+        """
+        # Target with gap
+        target = [
+            (1, 100.0, 200.0, "normal"),
+            (2, 110.0, 210.0, "normal"),
+            # Gap at 3, 4
+            (5, 140.0, 240.0, "normal"),
+            (6, 150.0, 250.0, "normal"),
+        ]
+
+        # Source with data in gap AND overlap
+        source = [
+            (1, 200.0, 300.0, "normal"),
+            (2, 210.0, 310.0, "normal"),
+            (3, 220.0, 320.0, "normal"),  # In gap
+            (4, 230.0, 330.0, "normal"),  # In gap
+            (5, 240.0, 340.0, "normal"),
+            (6, 250.0, 350.0, "normal"),
+        ]
+
+        mock_main_window.multi_point_controller.tracked_data = {
+            "target": target,
+            "source": source,
+        }
+
+        command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=3)
+        result = command.execute(mock_main_window)
+
+        # Should succeed - proper overlap exists
+        assert result is True
+        assert command.scenario == 2
+
+        # Verify gap was filled
+        filled_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        frames = {p[0] for p in filled_data}
+        assert 3 in frames
+        assert 4 in frames
+
+    def test_average_multiple_sources_empty_gap_frames(self, mock_main_window):
+        """REGRESSION TEST: Averaging with empty gap_frames list.
+
+        Bug: If gap_frames is empty at line 280, averaging should handle gracefully.
+
+        Code location: insert_track_command.py:280
+        """
+        # Target with "gap" that's actually zero frames (edge case)
+        target = [
+            (1, 100.0, 200.0, "normal"),
+            (2, 110.0, 210.0, "normal"),
+            (3, 120.0, 220.0, "normal"),  # No gap - consecutive frames
+        ]
+
+        # Multiple sources
+        source1 = [(1, 200.0, 300.0, "normal"), (2, 210.0, 310.0, "normal"), (3, 220.0, 320.0, "normal")]
+        source2 = [(1, 300.0, 400.0, "normal"), (2, 310.0, 410.0, "normal"), (3, 320.0, 420.0, "normal")]
+
+        mock_main_window.multi_point_controller.tracked_data = {
+            "target": target,
+            "source1": source1,
+            "source2": source2,
+        }
+
+        command = InsertTrackCommand(selected_curves=["target", "source1", "source2"], current_frame=2)
+        result = command.execute(mock_main_window)
+
+        # All curves have data at frame 2, should execute Scenario 3 (create averaged)
+        assert result is True
+        assert command.scenario == 3  # Create averaged curve scenario

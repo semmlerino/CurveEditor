@@ -130,16 +130,30 @@ class SetEndframeCommand(ShortcutCommand):
             return False
 
         # Can execute if we have a current frame with a point
-        if context.current_frame is not None:
-            app_state = get_application_state()
-            curve_data = app_state.get_curve_data()
-            if curve_data:
-                # Check if any point exists at the current frame
-                for point in curve_data:
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        return True
+        if context.current_frame is None:
+            return False
 
-        return False
+        try:
+            app_state = get_application_state()
+            # Get active curve data (may raise ValueError if no active curve)
+            active_curve = app_state.active_curve
+            if not active_curve:
+                return False
+
+            curve_data = app_state.get_curve_data(active_curve)
+            if not curve_data:
+                return False
+
+            # Check if any point exists at the current frame
+            for point in curve_data:
+                if point[0] == context.current_frame:  # point[0] is the frame number
+                    return True
+
+            return False
+
+        except ValueError:
+            # No active curve set
+            return False
 
     @override
     def execute(self, context: ShortcutContext) -> bool:
@@ -158,50 +172,68 @@ class SetEndframeCommand(ShortcutCommand):
             from services import get_interaction_service
 
             # FRAME-BASED OPERATION: Always operate on current frame, ignore selection
-            if context.current_frame is not None:
-                # Find the point at the current frame using ApplicationState
-                app_state = get_application_state()
-                curve_data = app_state.get_curve_data()
-                point_index = None
-                for i, point in enumerate(curve_data):
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        point_index = i
-                        break
+            if context.current_frame is None:
+                return False
 
-                if point_index is not None and 0 <= point_index < len(curve_data):
-                    point = curve_data[point_index]
-                    if point and len(point) >= 4:
-                        # Normalize current status to string format for command compatibility
-                        current_status = PointStatus.from_legacy(point[3]).to_legacy_string()
+            # Find the point at the current frame using ApplicationState
+            app_state = get_application_state()
+            active_curve = app_state.active_curve
+            if not active_curve:
+                logger.warning("No active curve set, cannot toggle endframe")
+                return False
 
-                        # Toggle logic
-                        if current_status == PointStatus.ENDFRAME.value:
-                            new_status = PointStatus.KEYFRAME.value
-                            status_text = "KEYFRAME"
-                        else:
-                            new_status = PointStatus.ENDFRAME.value
-                            status_text = "ENDFRAME"
+            curve_data = app_state.get_curve_data(active_curve)
+            point_index = None
+            for i, point in enumerate(curve_data):
+                if point[0] == context.current_frame:  # point[0] is the frame number
+                    point_index = i
+                    break
 
-                        # Create status message first (before using it)
-                        msg = f"Set frame {context.current_frame} to {status_text}"
+            if point_index is None or point_index < 0 or point_index >= len(curve_data):
+                return False
 
-                        # Create command with proper description
-                        command = SetPointStatusCommand(
-                            description=msg,
-                            changes=[(point_index, current_status, new_status)],
-                        )
+            point = curve_data[point_index]
+            if not point or len(point) < 3:
+                return False
 
-                        # Execute through command manager
-                        interaction_service = get_interaction_service()
-                        if interaction_service:
-                            success = interaction_service.command_manager.execute_command(
-                                command, cast("MainWindowProtocol", cast(object, context.main_window))
-                            )
-                            if success:
-                                curve_widget.update_status(msg, 2000)
-                                logger.info(msg)
-                                return True
-                        return False
+            # Handle both 3-element (frame, x, y) and 4-element (frame, x, y, status) formats
+            # If no status is present, default to "keyframe"
+            if len(point) >= 4:
+                current_status = PointStatus.from_legacy(point[3]).to_legacy_string()
+            else:
+                current_status = PointStatus.KEYFRAME.value
+
+            # Toggle logic
+            if current_status == PointStatus.ENDFRAME.value:
+                new_status = PointStatus.KEYFRAME.value
+                status_text = "KEYFRAME"
+            else:
+                new_status = PointStatus.ENDFRAME.value
+                status_text = "ENDFRAME"
+
+            # Create status message first (before using it)
+            msg = f"Set frame {context.current_frame} to {status_text}"
+
+            # Create command with proper description
+            command = SetPointStatusCommand(
+                description=msg,
+                changes=[(point_index, current_status, new_status)],
+            )
+
+            # Execute through command manager
+            interaction_service = get_interaction_service()
+            if not interaction_service:
+                return False
+
+            success = interaction_service.command_manager.execute_command(
+                command, cast("MainWindowProtocol", cast(object, context.main_window))
+            )
+
+            if success:
+                curve_widget.update_status(msg, 2000)
+                logger.info(msg)
+                return True
+            return False
 
         except Exception as e:
             logger.error(f"Failed to toggle endframe status: {e}")
@@ -344,13 +376,19 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         """
         # Can execute if we have a current frame with a point
         if context.current_frame is not None:
-            app_state = get_application_state()
-            curve_data = app_state.get_curve_data()
-            if curve_data:
-                # Check if any point exists at the current frame
-                for point in curve_data:
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        return True
+            try:
+                app_state = get_application_state()
+                active_curve = app_state.active_curve
+                if not active_curve:
+                    return False
+                curve_data = app_state.get_curve_data(active_curve)
+                if curve_data:
+                    # Check if any point exists at the current frame
+                    for point in curve_data:
+                        if point[0] == context.current_frame:  # point[0] is the frame number
+                            return True
+            except ValueError:
+                return False
 
         return False
 
@@ -375,7 +413,11 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
             if context.current_frame is not None:
                 # Find the point index at the current frame using ApplicationState
                 app_state = get_application_state()
-                curve_data = app_state.get_curve_data()
+                active_curve = app_state.active_curve
+                if not active_curve:
+                    logger.warning("No active curve set, cannot delete keyframe")
+                    return False
+                curve_data = app_state.get_curve_data(active_curve)
                 point_index = None
                 current_point = None
                 for i, point in enumerate(curve_data):
@@ -648,13 +690,19 @@ class NudgePointsCommand(ShortcutCommand):
 
         # Or if we have a current frame with a point
         if context.current_frame is not None:
-            app_state = get_application_state()
-            curve_data = app_state.get_curve_data()
-            if curve_data:
-                # Check if any point exists at the current frame
-                for point in curve_data:
-                    if point[0] == context.current_frame:  # point[0] is the frame number
-                        return True
+            try:
+                app_state = get_application_state()
+                active_curve = app_state.active_curve
+                if not active_curve:
+                    return False
+                curve_data = app_state.get_curve_data(active_curve)
+                if curve_data:
+                    # Check if any point exists at the current frame
+                    for point in curve_data:
+                        if point[0] == context.current_frame:  # point[0] is the frame number
+                            return True
+            except ValueError:
+                return False
 
         return False
 
@@ -688,7 +736,11 @@ class NudgePointsCommand(ShortcutCommand):
             elif context.current_frame is not None:
                 # Find the point at the current frame using ApplicationState
                 app_state = get_application_state()
-                curve_data = app_state.get_curve_data()
+                active_curve = app_state.active_curve
+                if not active_curve:
+                    logger.warning("No active curve set, cannot nudge point")
+                    return False
+                curve_data = app_state.get_curve_data(active_curve)
                 point_index = None
                 for i, point in enumerate(curve_data):
                     if point[0] == context.current_frame:  # point[0] is the frame number

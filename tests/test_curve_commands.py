@@ -1302,3 +1302,204 @@ class TestBug2CommandTargetIsolation:
         assert cmd.redo(as_main_window(main_window)) is True
         assert app_state.get_curve_data("Track1") == converted_track1_data
         assert app_state.get_curve_data("Track2") == track2_data
+
+
+class TestCompositeCommandRollback:
+    """REGRESSION TESTS: CompositeCommand rollback failure handling.
+
+    Tests edge cases when CompositeCommand's rollback mechanism fails,
+    preventing data corruption when sub-commands fail during execution.
+    """
+
+    @pytest.fixture
+    def app_state(self):
+        """Fixture to provide clean ApplicationState for each test."""
+        from stores.application_state import get_application_state
+
+        state = get_application_state()
+        # Clear any existing data using public API
+        # Note: In real tests, ApplicationState is reset between tests automatically
+        # This fixture just ensures clean state for these specific tests
+        return state
+
+    def test_composite_execute_failure_triggers_rollback(self, app_state):
+        """REGRESSION TEST: CompositeCommand rolls back on partial failure.
+
+        Bug: If one sub-command in a CompositeCommand fails during execute(),
+        previously executed sub-commands must be rolled back to maintain
+        data integrity.
+
+        This test verifies that:
+        1. Successful sub-commands execute normally
+        2. When a sub-command fails, rollback is triggered
+        3. All previously executed commands are undone
+        4. Final state matches initial state (no partial changes)
+        """
+        from core.commands.base_command import CompositeCommand
+        from core.commands.curve_commands import MovePointCommand
+
+        # Setup initial data
+        app_state.set_active_curve("TestCurve")
+        initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+        app_state.set_curve_data("TestCurve", initial_data)
+
+        curve_widget = MockCurveWidget(initial_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Create composite command with 3 sub-commands
+        # Commands 1 and 2 will succeed, command 3 will fail
+        composite = CompositeCommand("Batch operations")
+
+        # Command 1: Move first point (will succeed)
+        cmd1 = MovePointCommand("Move point 1", 0, (100.0, 200.0), (110.0, 210.0))
+        composite.add_command(cmd1)
+
+        # Command 2: Move second point (will succeed)
+        cmd2 = MovePointCommand("Move point 2", 1, (150.0, 250.0), (160.0, 260.0))
+        composite.add_command(cmd2)
+
+        # Command 3: Create a failing command
+        class FailingCommand(MovePointCommand):
+            """Mock command that always fails execution."""
+
+            def execute(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+                # Simulate failure
+                return False
+
+        cmd3 = FailingCommand("Failing move", 2, (200.0, 300.0), (220.0, 320.0))
+        composite.add_command(cmd3)
+
+        # Execute composite - should fail and rollback
+        result = composite.execute(as_main_window(main_window))
+
+        # Verify execution failed
+        assert result is False, "Composite should fail when sub-command fails"
+        assert composite.executed is False, "Composite should not be marked as executed"
+
+        # CRITICAL: Data should be rolled back to initial state
+        final_data = app_state.get_curve_data("TestCurve")
+        assert final_data == initial_data, "Data should be rolled back after partial failure"
+
+        # Verify no points were permanently modified
+        assert final_data[0] == (1, 100.0, 200.0), "First point should be unchanged"
+        assert final_data[1] == (2, 150.0, 250.0), "Second point should be unchanged"
+        assert final_data[2] == (3, 200.0, 300.0), "Third point should be unchanged"
+
+    def test_composite_execute_exception_triggers_rollback(self, app_state):
+        """REGRESSION TEST: CompositeCommand rolls back on exception.
+
+        Bug: If a sub-command raises an exception during execute(),
+        the composite command must catch it and rollback all changes.
+        """
+        from core.commands.base_command import CompositeCommand
+        from core.commands.curve_commands import MovePointCommand
+
+        # Setup initial data
+        app_state.set_active_curve("TestCurve")
+        initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]
+        app_state.set_curve_data("TestCurve", initial_data)
+
+        curve_widget = MockCurveWidget(initial_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Create composite with exception-raising command
+        composite = CompositeCommand("Operations with exception")
+
+        # Command 1: Succeeds
+        cmd1 = MovePointCommand("Move point", 0, (100.0, 200.0), (110.0, 210.0))
+        composite.add_command(cmd1)
+
+        # Command 2: Raises exception
+        class ExceptionCommand(MovePointCommand):
+            """Mock command that raises exception."""
+
+            def execute(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+                raise RuntimeError("Simulated execution failure")
+
+        cmd2 = ExceptionCommand("Exception move", 1, (150.0, 250.0), (160.0, 260.0))
+        composite.add_command(cmd2)
+
+        # Execute composite - should catch exception and rollback
+        result = composite.execute(as_main_window(main_window))
+
+        # Verify execution failed gracefully
+        assert result is False, "Composite should fail when exception occurs"
+        assert composite.executed is False
+
+        # CRITICAL: Data should be rolled back despite exception
+        final_data = app_state.get_curve_data("TestCurve")
+        assert final_data == initial_data, "Data should be rolled back after exception"
+
+    def test_composite_undo_partial_failure(self, app_state):
+        """REGRESSION TEST: CompositeCommand.undo() handles partial rollback failure.
+
+        Bug: If one sub-command's undo() fails, other sub-commands should still
+        attempt to undo, but overall undo should report failure.
+
+        This ensures best-effort rollback while alerting user to incomplete state.
+        """
+        from core.commands.base_command import CompositeCommand
+        from core.commands.curve_commands import MovePointCommand
+
+        # Setup
+        app_state.set_active_curve("TestCurve")
+        initial_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+        app_state.set_curve_data("TestCurve", initial_data)
+
+        curve_widget = MockCurveWidget(initial_data)
+        main_window = MockMainWindow(curve_widget)
+
+        # Create composite with command that will fail undo
+        composite = CompositeCommand("Operations")
+
+        # Command 1: Normal (will undo successfully)
+        cmd1 = MovePointCommand("Move 1", 0, (100.0, 200.0), (110.0, 210.0))
+        composite.add_command(cmd1)
+
+        # Command 2: Will fail undo
+        class FailingUndoCommand(MovePointCommand):
+            """Mock command that fails undo."""
+
+            def undo(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+                return False
+
+        cmd2 = FailingUndoCommand("Failing undo", 1, (150.0, 250.0), (160.0, 260.0))
+        composite.add_command(cmd2)
+
+        # Command 3: Normal (should still attempt undo)
+        cmd3 = MovePointCommand("Move 3", 2, (200.0, 300.0), (220.0, 320.0))
+        composite.add_command(cmd3)
+
+        # Execute composite successfully
+        assert composite.execute(as_main_window(main_window)) is True
+
+        # Attempt undo - should fail but still undo what it can
+        result = composite.undo(as_main_window(main_window))
+
+        # Verify undo reported failure
+        assert result is False, "Composite undo should fail when sub-command undo fails"
+        assert composite.executed is True, "Composite should remain marked as executed"
+
+    def test_composite_empty_commands_list(self, app_state):
+        """Test CompositeCommand with no sub-commands.
+
+        Edge case: Empty composite should succeed trivially without errors.
+        """
+        from core.commands.base_command import CompositeCommand
+
+        app_state.set_active_curve("TestCurve")
+        app_state.set_curve_data("TestCurve", [(1, 100.0, 200.0)])
+
+        curve_widget = MockCurveWidget()
+        main_window = MockMainWindow(curve_widget)
+
+        # Empty composite
+        composite = CompositeCommand("Empty operation")
+
+        # Should succeed without doing anything
+        assert composite.execute(as_main_window(main_window)) is True
+        assert composite.executed is True
+
+        # Undo should also succeed
+        assert composite.undo(as_main_window(main_window)) is True
+        assert composite.executed is False

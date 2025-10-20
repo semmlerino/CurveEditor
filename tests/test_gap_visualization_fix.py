@@ -10,19 +10,10 @@ manual selection would break gap visualization.
 from typing import cast
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 # CurveEditor specific imports
 from core.type_aliases import PointTuple4Str
 from ui.curve_view_widget import CurveViewWidget
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 @pytest.fixture

@@ -15,7 +15,6 @@ from unittest.mock import Mock
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QApplication
 
 from core.commands.shortcut_command import ShortcutCommand, ShortcutContext
 from core.commands.shortcut_commands import (
@@ -27,14 +26,6 @@ from core.type_aliases import CurveDataList
 from ui.curve_view_widget import CurveViewWidget
 from ui.main_window import MainWindow
 from ui.tracking_points_panel import TrackingPointsPanel
-
-
-@pytest.fixture(scope="session")
-def qapp():
-    """Shared QApplication for all tests - following UNIFIED_TESTING_GUIDE."""
-    app = QApplication.instance() or QApplication([])
-    yield app
-    app.processEvents()
 
 
 @pytest.fixture
@@ -50,6 +41,31 @@ def curve_widget_with_data(qtbot):
         (3, 200.0, 130.0, PointStatus.NORMAL.value),
         (4, 250.0, 140.0, PointStatus.NORMAL.value),
         (5, 300.0, 150.0, PointStatus.KEYFRAME.value),
+    ]
+    widget.set_curve_data(test_data)
+
+    return widget
+
+
+@pytest.fixture
+def curve_widget_with_3element_data(qtbot):
+    """Create a curve widget with 3-element data (no status field).
+
+    This matches production scenarios where data is loaded directly
+    without going through DataService._apply_default_statuses().
+    Regression test for bug where E key failed with 3-element tuples.
+    """
+    widget = CurveViewWidget()
+    qtbot.addWidget(widget)  # CRITICAL: Auto cleanup per guide
+
+    # 3-element format: (frame, x, y) - NO STATUS
+    # This is what actually happens in production with some data sources
+    test_data = [
+        (1, 100.0, 100.0),
+        (2, 150.0, 120.0),
+        (3, 200.0, 130.0),
+        (4, 250.0, 140.0),
+        (5, 300.0, 150.0),
     ]
     widget.set_curve_data(test_data)
 
@@ -308,6 +324,56 @@ class TestEndframeKeyboardShortcut:
         curve_data_after = list(app_state.get_curve_data())
         point0 = curve_data_after[0] if curve_data_after else None
         assert point0 and len(point0) >= 4 and point0[3] == original_status
+
+    def test_e_key_with_3element_data_format(self, curve_widget_with_3element_data, qtbot):
+        """REGRESSION TEST: E key must work with 3-element tuples (frame, x, y).
+
+        Bug: SetEndframeCommand.execute() checked len(point) >= 4 and failed
+        when data was in 3-element format (no status field).
+
+        This test ensures E key works with data loaded directly (bypassing
+        DataService._apply_default_statuses which adds status field).
+
+        Follows UNIFIED_TESTING_GUIDE: Test production scenarios, not just
+        ideal test data. Real production data can have 3-element format.
+        """
+        widget = curve_widget_with_3element_data
+
+        # Verify data is 3-element format (precondition)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        initial_data = list(app_state.get_curve_data())
+        assert len(initial_data) > 0
+        assert len(initial_data[0]) == 3, "Precondition: data should be 3-element format"
+
+        # Create mock main window
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        # Create the command for frame 1
+        cmd = SetEndframeCommand()
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=widget,
+            key_event=event,
+            selected_curve_points=set(),
+            selected_tracking_points=[],
+            current_frame=1,
+        )
+
+        # Command should recognize 3-element data and handle gracefully
+        assert cmd.can_execute(context), "E key should work with 3-element data"
+        assert cmd.execute(context), "E key execute should succeed with 3-element data"
+
+        # After execution, status field should be added
+        final_data = list(app_state.get_curve_data())
+        assert len(final_data) > 0
+        point0 = final_data[0]
+        assert len(point0) >= 4, "After E key, data should have status field"
+        # Should default to KEYFRAME, then toggle to ENDFRAME
+        assert point0[3] == PointStatus.ENDFRAME.value
 
 
 class TestTrackingDirectionKeyboardShortcuts:
@@ -664,6 +730,108 @@ class TestRealComponentIntegration:
         for point_name in selected:
             if point_name in panel._point_metadata:
                 assert panel._point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
+
+
+class TestNudgePointsCommandRegressions:
+    """Regression tests for NudgePointsCommand edge cases."""
+
+    def test_nudge_with_3element_data_format(self, curve_widget_with_3element_data, qtbot):
+        """REGRESSION TEST: Nudge command must work with 3-element tuples (frame, x, y).
+
+        Bug: Commands that access point data by index may fail if expecting 4-element
+        tuples but receiving 3-element tuples (no status field).
+
+        This test ensures nudge operations work with data loaded directly
+        (bypassing DataService._apply_default_statuses which adds status field).
+
+        Follows UNIFIED_TESTING_GUIDE: Test production scenarios, not just
+        ideal test data. Real production data can have 3-element format.
+        """
+        from core.commands.shortcut_commands import NudgePointsCommand
+
+        widget = curve_widget_with_3element_data
+
+        # Verify data is 3-element format (precondition)
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+        initial_data = list(app_state.get_curve_data())
+        assert len(initial_data) > 0
+        assert len(initial_data[0]) == 3, "Precondition: data should be 3-element format"
+
+        # Select the point at index 1 (frame 2)
+        widget._select_point(1, add_to_selection=False)
+
+        # Create mock main window
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        # Test nudge right (numpad 6) with selected point
+        cmd = NudgePointsCommand("6", dx=1.0, dy=0.0)
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_6, Qt.KeyboardModifier.KeypadModifier)
+        context = ShortcutContext(
+            main_window=mock_window,
+            focused_widget=widget,
+            key_event=event,
+            selected_curve_points=widget.selected_indices,  # Use selected point
+            selected_tracking_points=[],
+            current_frame=2,  # Frame with a point
+        )
+
+        # CRITICAL: Command should handle 3-element data gracefully
+        # The regression is that it should NOT crash
+        assert cmd.can_execute(context), "Nudge should work with 3-element data"
+
+        # Execute should succeed without crashing (key regression test)
+        # NudgePointsCommand calls widget.nudge_selected() which handles the actual movement
+        result = cmd.execute(context)
+        assert result is True, "Nudge execute should succeed with 3-element data (no crash)"
+
+        # Verify command completed without exception (the critical regression prevention)
+        # The fact that we reach here means no IndexError or TypeError occurred
+        # when accessing 3-element tuples instead of 4-element tuples
+
+    def test_nudge_multiple_directions_3element_data(self, curve_widget_with_3element_data, qtbot):
+        """Test nudging in all directions with 3-element data format.
+
+        Verifies no crashes when nudging up/down/left/right with 3-element tuples.
+        """
+        from core.commands.shortcut_commands import NudgePointsCommand
+
+        widget = curve_widget_with_3element_data
+
+        # Create mock main window
+        mock_window = Mock()
+        mock_window.curve_widget = widget
+
+        # Test all 4 numpad directions (2=down, 4=left, 6=right, 8=up)
+        test_cases = [
+            ("2", 0.0, 1.0, "down"),  # Numpad 2
+            ("4", -1.0, 0.0, "left"),  # Numpad 4
+            ("6", 1.0, 0.0, "right"),  # Numpad 6
+            ("8", 0.0, -1.0, "up"),  # Numpad 8
+        ]
+
+        for key, dx, dy, direction in test_cases:
+            cmd = NudgePointsCommand(key, dx=dx, dy=dy)
+            event = QKeyEvent(
+                QKeyEvent.Type.KeyPress, getattr(Qt.Key, f"Key_{key}"), Qt.KeyboardModifier.KeypadModifier
+            )
+            context = ShortcutContext(
+                main_window=mock_window,
+                focused_widget=widget,
+                key_event=event,
+                selected_curve_points=set(),
+                selected_tracking_points=[],
+                current_frame=3,  # Frame with a point
+            )
+
+            # Should not crash with 3-element data
+            can_exec = cmd.can_execute(context)
+            assert can_exec, f"Nudge {direction} should be executable with 3-element data"
+
+            result = cmd.execute(context)
+            assert result, f"Nudge {direction} should succeed with 3-element data"
 
 
 class TestEdgeCasesAndBoundaryConditions:

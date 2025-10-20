@@ -784,10 +784,12 @@ class SetPointStatusCommand(CurveDataCommand):
                 if 0 <= index < len(curve_data):
                     point = curve_data[index]
                     # Update status while preserving frame, x, y
+                    # Note: This intentionally normalizes 3-element to 4-element format
+                    # because status operations require a status field
                     if len(point) >= 3:
                         curve_data[index] = (point[0], point[1], point[2], new_status)
                     else:
-                        logger.warning(f"Point {index} has invalid format")
+                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
                 else:
                     logger.warning(f"Point index {index} out of range")
 
@@ -823,10 +825,11 @@ class SetPointStatusCommand(CurveDataCommand):
                 if 0 <= index < len(curve_data):
                     point = curve_data[index]
                     # Restore old status while preserving frame, x, y
+                    # Note: Data is already 4-element from execute() normalization
                     if len(point) >= 3:
                         curve_data[index] = (point[0], point[1], point[2], old_status)
                     else:
-                        logger.warning(f"Point {index} has invalid format")
+                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
                 else:
                     logger.warning(f"Point index {index} out of range")
 
@@ -859,10 +862,12 @@ class SetPointStatusCommand(CurveDataCommand):
                 if 0 <= index < len(curve_data):
                     point = curve_data[index]
                     # Update status while preserving frame, x, y
+                    # Note: This intentionally normalizes 3-element to 4-element format
+                    # because status operations require a status field
                     if len(point) >= 3:
                         curve_data[index] = (point[0], point[1], point[2], new_status)
                     else:
-                        logger.warning(f"Point {index} has invalid format")
+                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
                 else:
                     logger.warning(f"Point index {index} out of range")
 
