@@ -1,0 +1,8 @@
+
+Post-Commit Hook Summary
+========================
+Commit: c9e8770
+Timestamp:
+Encoded file: curveeditor_latest.txt
+Bundle exit code: 0
+Output directory: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/.post-commit-output
