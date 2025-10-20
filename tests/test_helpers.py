@@ -42,22 +42,22 @@ except ImportError:
     _has_qt_internal = False
 
     # Stub classes for non-Qt test environments
-    class QObject:  # pyright: ignore[reportRedeclaration]
+    class QObject:
         pass
 
-    class QRubberBand:  # pyright: ignore[reportRedeclaration]
+    class QRubberBand:
         def __init__(self, *args: Any) -> None:
             pass
 
     if not TYPE_CHECKING:
         QtRubberBand = QRubberBand  # Use stub in non-Qt environment
 
-    class QSize:  # pyright: ignore[reportRedeclaration]
+    class QSize:
         def __init__(self, w: int, h: int) -> None:
             self.w = w
             self.h = h
 
-    class QImage:  # pyright: ignore[reportRedeclaration]
+    class QImage:
         Format_RGB32 = None
 
         def __init__(self, *args: Any) -> None:
@@ -72,11 +72,11 @@ except ImportError:
         def sizeInBytes(self) -> int:
             return 0
 
-    class QColor:  # pyright: ignore[reportRedeclaration]
+    class QColor:
         def __init__(self, *args: Any) -> None:
             pass
 
-    class _QWidgetStub:  # pyright: ignore[reportRedeclaration]
+    class _QWidgetStub:
         def __init__(self, *args: Any) -> None:
             pass
 
@@ -98,18 +98,18 @@ except ImportError:
         def showMessage(self, message: str, timeout: int = 0) -> None:
             pass
 
-    class _QPushButtonStub:  # pyright: ignore[reportRedeclaration]
+    class _QPushButtonStub:
         def __init__(self, *args: Any) -> None:
             pass
 
-    class QAction:  # pyright: ignore[reportRedeclaration]
+    class QAction:
         def __init__(self, *args: Any) -> None:
             pass
 
     # Type-safe stub assignments
-    QWidget = _QWidgetStub  # pyright: ignore[reportAssignmentType]
-    QPushButton = _QPushButtonStub  # pyright: ignore[reportAssignmentType]
-    QLabel = QSlider = QSpinBox = QStatusBar = _QWidgetStub  # pyright: ignore[reportAssignmentType]
+    QWidget = _QWidgetStub
+    QPushButton = _QPushButtonStub
+    QLabel = QSlider = QSpinBox = QStatusBar = _QWidgetStub
 
 # Export HAS_QT constant (computed once from internal flag)
 HAS_QT: bool = _has_qt_internal
@@ -685,7 +685,7 @@ class MockMainWindow:
         self.curve_view = MockCurveView()
         # curve_widget must be typed as MultiCurveViewProtocol | None for protocol compliance
         # MockCurveView is compatible with MultiCurveViewProtocol at runtime
-        self.curve_widget: MultiCurveViewProtocol | None = self.curve_view  # pyright: ignore[reportAssignmentType]
+        self.curve_widget: MultiCurveViewProtocol | None = self.curve_view
 
         # UI components structure using real widgets
         class UIComponents:
@@ -1257,13 +1257,13 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
     # Sync to CurveDataStore (until Phase 6.3 removal)
     # Check if widget has _curve_store attribute (real CurveViewWidget)
     if hasattr(widget, "_curve_store"):
-        curve_store = widget._curve_store  # pyright: ignore[reportAttributeAccessIssue]
+        curve_store = widget._curve_store  # type: ignore[union-attr]
         if not indices_set:
-            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
+            curve_store.clear_selection()  # type: ignore[union-attr]
         else:
-            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
+            curve_store.clear_selection()  # type: ignore[union-attr]
             for idx in indices_set:
-                curve_store.select(idx, add_to_selection=True)  # pyright: ignore[reportAttributeAccessIssue]
+                curve_store.select(idx, add_to_selection=True)  # type: ignore[union-attr]
 
 
 # ==================== Export all helpers ====================

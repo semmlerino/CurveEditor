@@ -78,11 +78,11 @@ class MainWindowBuilder:
         # Connect signals (Qt automatically handles cross-thread signal emission)
         # Note: Handler names match the public API in MainWindow (without underscore prefix)
         # Type warnings about Unknown in list types are from PySide6 Signal stubs - handlers have proper types
-        _ = window.file_load_worker.tracking_data_loaded.connect(window.on_tracking_data_loaded)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType]
-        _ = window.file_load_worker.image_sequence_loaded.connect(window._on_image_sequence_loaded)  # pyright: ignore[reportAttributeAccessIssue, reportUnknownMemberType, reportUnknownArgumentType, reportPrivateUsage]
-        _ = window.file_load_worker.progress_updated.connect(window.on_file_load_progress)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_worker.error_occurred.connect(window.on_file_load_error)  # pyright: ignore[reportAttributeAccessIssue]
-        _ = window.file_load_worker.finished.connect(window.on_file_load_finished)  # pyright: ignore[reportAttributeAccessIssue]
+        _ = window.file_load_worker.tracking_data_loaded.connect(window.on_tracking_data_loaded)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType]
+        _ = window.file_load_worker.image_sequence_loaded.connect(window._on_image_sequence_loaded)  # pyright: ignore[reportUnknownMemberType, reportUnknownArgumentType, reportPrivateUsage]
+        _ = window.file_load_worker.progress_updated.connect(window.on_file_load_progress)
+        _ = window.file_load_worker.error_occurred.connect(window.on_file_load_error)
+        _ = window.file_load_worker.finished.connect(window.on_file_load_finished)
 
         logger.info("[QTHREAD] File loader initialized with Qt threading (QThread)")
 

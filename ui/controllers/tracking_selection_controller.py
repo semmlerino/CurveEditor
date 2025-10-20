@@ -190,7 +190,7 @@ class TrackingSelectionController(BaseTrackingController):
         if not selection:
             tracking_panel = self.main_window.tracking_panel
             if tracking_panel and callable(getattr(tracking_panel, "set_selected_points", None)):
-                tracking_panel.set_selected_points([])  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+                tracking_panel.set_selected_points([])
             return
 
         # Use explicit curve_name or fallback to active_timeline_point
@@ -208,7 +208,7 @@ class TrackingSelectionController(BaseTrackingController):
             # Update TrackingPanel visual state
             tracking_panel = self.main_window.tracking_panel
             if tracking_panel and callable(getattr(tracking_panel, "set_selected_points", None)):
-                tracking_panel.set_selected_points(selected_curves)  # pyright: ignore[reportAttributeAccessIssue,reportUnknownMemberType]
+                tracking_panel.set_selected_points(selected_curves)
 
             logger.debug(
                 f"Updated tracking panel for curve selection: {len(selection)} points selected in '{active_curve_name}'"
