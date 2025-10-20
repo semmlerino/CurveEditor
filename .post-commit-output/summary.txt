@@ -1,7 +1,7 @@
 
 Post-Commit Hook Summary
 ========================
-Commit: 84dddd7
+Commit: 497c009
 Timestamp:
 Encoded file: curveeditor_latest.txt
 Bundle exit code: 0

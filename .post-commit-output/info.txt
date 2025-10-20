@@ -1,3 +1,3 @@
-Post-commit hook executed at Mon Oct 20 12:45:17 BST 2025
-Commit: 84dddd7baf9aae294fb2696bf10f65822e8801df
+Post-commit hook executed at Mon Oct 20 12:48:57 BST 2025
+Commit: 497c00907645918ec02af7e808becb430ea88e99
 Branch: phase3-task33-statemanager-removal

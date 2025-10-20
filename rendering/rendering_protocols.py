@@ -12,6 +12,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QImage, QPixmap
 
     from services.transform_service import Transform
+    from ui.state_manager import StateManager
 
 
 class CurveViewProtocol(Protocol):
@@ -48,6 +49,4 @@ class CurveViewProtocol(Protocol):
 class MainWindowProtocol(Protocol):
     """Protocol for main window objects."""
 
-    from ui.state_manager import StateManager
-
-    state_manager: StateManager  # Has current_frame attribute
+    state_manager: "StateManager"  # Has current_frame attribute
