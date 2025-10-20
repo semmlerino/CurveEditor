@@ -9,7 +9,7 @@ points are selected and applying changes when spinbox values are edited.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Slot  # pyright: ignore[reportUnknownVariableType]
+from PySide6.QtCore import QSignalBlocker, Slot  # pyright: ignore[reportUnknownVariableType]
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -134,18 +134,10 @@ class PointEditorController:
             _frame, x, y, _ = safe_extract_point(point_data)
 
             # Update spinboxes with actual values
+            self._update_spinboxes_silently(x, y)
+
+            # Connect spinbox changes if not already connected
             if self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
-                # Block signals to prevent triggering value changed handlers
-                _ = self.main_window.point_x_spinbox.blockSignals(True)
-                _ = self.main_window.point_y_spinbox.blockSignals(True)
-
-                self.main_window.point_x_spinbox.setValue(x)
-                self.main_window.point_y_spinbox.setValue(y)
-
-                _ = self.main_window.point_x_spinbox.blockSignals(False)
-                _ = self.main_window.point_y_spinbox.blockSignals(False)
-
-                # Connect spinbox changes if not already connected
                 if not self._spinbox_connected:
                     _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
                     _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
@@ -189,15 +181,8 @@ class PointEditorController:
             point_data = curve_data[idx]
             _frame, x, y, _ = safe_extract_point(point_data)
 
-            # Block signals while updating
-            _ = self.main_window.point_x_spinbox.blockSignals(True)
-            _ = self.main_window.point_y_spinbox.blockSignals(True)
-
-            self.main_window.point_x_spinbox.setValue(x)
-            self.main_window.point_y_spinbox.setValue(y)
-
-            _ = self.main_window.point_x_spinbox.blockSignals(False)
-            _ = self.main_window.point_y_spinbox.blockSignals(False)
+            # Update spinboxes without triggering signals
+            self._update_spinboxes_silently(x, y)
 
             # Enable spinboxes
             self._set_spinboxes_enabled(True)
@@ -222,6 +207,25 @@ class PointEditorController:
             self.main_window.point_x_spinbox.setEnabled(enabled)
         if self.main_window.point_y_spinbox:
             self.main_window.point_y_spinbox.setEnabled(enabled)
+
+    def _update_spinboxes_silently(self, x: float, y: float) -> None:
+        """Update spinbox values without triggering signals.
+
+        Uses QSignalBlocker for exception-safe signal blocking (RAII pattern).
+        Signals are automatically restored when blockers go out of scope.
+
+        Args:
+            x: X coordinate value
+            y: Y coordinate value
+        """
+        if not self.main_window.point_x_spinbox or not self.main_window.point_y_spinbox:
+            return
+
+        # QSignalBlocker is exception-safe (RAII pattern) - preferred over blockSignals()
+        with QSignalBlocker(self.main_window.point_x_spinbox), QSignalBlocker(self.main_window.point_y_spinbox):
+            self.main_window.point_x_spinbox.setValue(x)
+            self.main_window.point_y_spinbox.setValue(y)
+        # Signals automatically restored here, even if setValue() raises exception
 
     @Slot(float)
     def _on_point_x_changed(self, value: float) -> None:
