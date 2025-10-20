@@ -158,7 +158,7 @@ class ShortcutCommand(ABC):
         status = "succeeded" if success else "failed"
         logger.info(
             f"Shortcut [{self.key_sequence}] {status}: {self.description} "
-            f"(widget: {context.widget_type}, "
-            f"curve_selection: {len(context.selected_curve_points)}, "
-            f"tracking_selection: {len(context.selected_tracking_points)})"
+            + f"(widget: {context.widget_type}, "
+            + f"curve_selection: {len(context.selected_curve_points)}, "
+            + f"tracking_selection: {len(context.selected_tracking_points)})"
         )
