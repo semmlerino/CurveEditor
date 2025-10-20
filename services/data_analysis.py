@@ -217,9 +217,9 @@ class DataAnalysisService:
         for point in points:
             # Handle CurvePoint object (check for frame attribute first)
             if hasattr(point, "frame"):
-                frames.append(point.frame)  # pyright: ignore[reportAttributeAccessIssue]
-                x_coords.append(point.x)  # pyright: ignore[reportAttributeAccessIssue]
-                y_coords.append(point.y)  # pyright: ignore[reportAttributeAccessIssue]
+                frames.append(point.frame)
+                x_coords.append(point.x)
+                y_coords.append(point.y)
             # Handle tuple/list format
             elif len(point) >= 3:
                 frames.append(point[0])
@@ -258,8 +258,8 @@ class DataAnalysisService:
         for point in points:
             # Handle CurvePoint object (check for frame attribute first)
             if hasattr(point, "frame"):
-                if getattr(point, "frame") == frame:  # pyright: ignore[reportAttributeAccessIssue]
-                    if getattr(getattr(point, "status"), "value", None) == "interpolated":  # pyright: ignore[reportAttributeAccessIssue]
+                if getattr(point, "frame") == frame:
+                    if getattr(getattr(point, "status"), "value", None) == "interpolated":
                         interpolated_count += 1
                     else:
                         keyframe_count += 1
@@ -299,11 +299,11 @@ class DataAnalysisService:
         for point in points:
             # Handle CurvePoint object (check for frame attribute first)
             if hasattr(point, "frame"):
-                frame = getattr(point, "frame")  # pyright: ignore[reportAttributeAccessIssue]
+                frame = getattr(point, "frame")
                 if frame not in frame_status:
                     frame_status[frame] = [0, 0, False]  # [keyframe, interpolated, selected]
 
-                if getattr(getattr(point, "status"), "value", None) == "interpolated":  # pyright: ignore[reportAttributeAccessIssue]
+                if getattr(getattr(point, "status"), "value", None) == "interpolated":
                     frame_status[frame][1] += 1
                 else:
                     frame_status[frame][0] += 1

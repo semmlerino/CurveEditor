@@ -1040,15 +1040,14 @@ class ImageSequenceBrowserDialog(QDialog):
         """Populate address bar dropdown with recent directories from state manager."""
         # Get recent directories from parent's state manager if available
         parent_window = self.parent()
-        if parent_window is not None:
-            state_manager: Any = getattr(parent_window, "state_manager", None)
-            if state_manager is not None:
-                recents: Any = getattr(state_manager, "recent_directories", None)
-                if recents:
-                    self.address_bar.clear()
-                    for path in recents:
-                        if Path(path).exists():
-                            self.address_bar.addItem(path)
+        state_manager: Any = getattr(parent_window, "state_manager", None)
+        if state_manager is not None:
+            recents: Any = getattr(state_manager, "recent_directories", None)
+            if recents:
+                self.address_bar.clear()
+                for path in recents:
+                    if Path(path).exists():
+                        self.address_bar.addItem(path)
 
     def _on_address_bar_activated(self, index: int) -> None:
         """Handle selection from recent directories dropdown.
@@ -1392,13 +1391,12 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Add to recent directories
         parent_window = self.parent()
-        if parent_window is not None:
-            state_manager: Any = getattr(parent_window, "state_manager", None)
-            if state_manager is not None:
-                add_recent = getattr(state_manager, "add_recent_directory", None)
-                if add_recent is not None:
-                    add_recent(normalized_path)
-                    self._populate_recent_directories()  # Refresh dropdown
+        state_manager: Any = getattr(parent_window, "state_manager", None)
+        if state_manager is not None:
+            add_recent = getattr(state_manager, "add_recent_directory", None)
+            if add_recent is not None:
+                add_recent(normalized_path)
+                self._populate_recent_directories()  # Refresh dropdown
 
         logger.debug(f"Navigated to: {normalized_path}")
 
@@ -1897,10 +1895,6 @@ class ImageSequenceBrowserDialog(QDialog):
     def _populate_drives(self) -> None:
         """Populate drive selector with available drives (Windows only)."""
         if sys.platform != "win32" or self.drive_selector is None:
-            return
-
-        # Defensive guard: tree_view must be initialized before calling this method
-        if self.tree_view is None:
             return
 
         # Get available drives by checking A-Z

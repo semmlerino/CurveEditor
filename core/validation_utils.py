@@ -13,8 +13,6 @@ def is_valid_coordinate(x: object, y: object) -> TypeGuard[tuple[float, float]]:
 
 def ensure_valid_scale(scale: float, min_val: float = 1e-10) -> float:
     """Ensure scale is valid, return safe default if not."""
-    if not isinstance(scale, int | float):
-        return 1.0
     if math.isfinite(scale) and scale > 0:
         return max(scale, min_val)
     return 1.0
@@ -47,7 +45,7 @@ def sanitize_point_data(points: list[object]) -> list[object]:
 
 def validate_finite(value: float, name: str = "", default: float = 0.0) -> float:
     """Validate value is finite, return default if not."""
-    if not isinstance(value, int | float) or not math.isfinite(value):
+    if not math.isfinite(value):
         return default
     return value
 
@@ -61,4 +59,4 @@ def validate_point(x: float, y: float) -> tuple[float, float]:
 
 def validate_file_path(path: str) -> bool:
     """Check if file path is valid."""
-    return bool(path and isinstance(path, str))
+    return bool(path)

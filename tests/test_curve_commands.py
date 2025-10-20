@@ -1362,7 +1362,7 @@ class TestCompositeCommandRollback:
         class FailingCommand(MovePointCommand):
             """Mock command that always fails execution."""
 
-            def execute(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+            def execute(self, main_window):
                 # Simulate failure
                 return False
 
@@ -1413,7 +1413,7 @@ class TestCompositeCommandRollback:
         class ExceptionCommand(MovePointCommand):
             """Mock command that raises exception."""
 
-            def execute(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+            def execute(self, main_window):
                 raise RuntimeError("Simulated execution failure")
 
         cmd2 = ExceptionCommand("Exception move", 1, (150.0, 250.0), (160.0, 260.0))
@@ -1460,7 +1460,7 @@ class TestCompositeCommandRollback:
         class FailingUndoCommand(MovePointCommand):
             """Mock command that fails undo."""
 
-            def undo(self, main_window):  # pyright: ignore[reportIncompatibleMethodOverride]
+            def undo(self, main_window):
                 return False
 
         cmd2 = FailingUndoCommand("Failing undo", 1, (150.0, 250.0), (160.0, 260.0))

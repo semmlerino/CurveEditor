@@ -568,7 +568,7 @@ class TestRealFileNavigation:
 
         # Update frame range based on data
         if test_data:
-            max_frame = max(point[0] for point in test_data)  # pyright: ignore[reportIndexIssue]
+            max_frame = max(point[0] for point in test_data)
             window.timeline_controller.set_frame_range(1, max_frame)
 
         window.show()
@@ -579,13 +579,13 @@ class TestRealFileNavigation:
 
         # Discover navigation frames dynamically from the loaded data
         data_service = get_data_service()
-        frame_status = data_service.get_frame_range_point_status(test_data)  # pyright: ignore[reportArgumentType]
+        frame_status = data_service.get_frame_range_point_status(test_data)
 
         # Collect all navigation frames (keyframes, endframes, startframes)
         nav_frames = []
-        for point in test_data:  # pyright: ignore[reportArgumentType]
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:  # pyright: ignore[reportIndexIssue]
-                nav_frames.append(point[0])  # pyright: ignore[reportIndexIssue]
+        for point in test_data:
+            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
+                nav_frames.append(point[0])
 
         # Add startframes
         for frame, status in frame_status.items():

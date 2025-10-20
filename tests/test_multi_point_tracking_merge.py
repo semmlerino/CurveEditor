@@ -297,7 +297,7 @@ class TestUniqueNameGeneration:
         controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
 
         # No existing data
-        unique_name = controller.get_unique_point_name("NewPoint")  # pyright: ignore[reportAttributeAccessIssue]
+        unique_name = controller.get_unique_point_name("NewPoint")
         assert unique_name == "NewPoint"
 
     def test_unique_name_with_conflict(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
@@ -309,7 +309,7 @@ class TestUniqueNameGeneration:
         controller.tracked_data = make_multi_point_data(["Point1", "Point2"])
 
         # Try to add conflicting name
-        unique_name = controller.get_unique_point_name("Point1")  # pyright: ignore[reportAttributeAccessIssue]
+        unique_name = controller.get_unique_point_name("Point1")
         assert unique_name == "Point1_2"
 
     def test_unique_name_with_multiple_conflicts(
@@ -326,7 +326,7 @@ class TestUniqueNameGeneration:
             "Track_3": [(3, 30.0, 40.0)],
         }
 
-        unique_name = controller.get_unique_point_name("Track")  # pyright: ignore[reportAttributeAccessIssue]
+        unique_name = controller.get_unique_point_name("Track")
         assert unique_name == "Track_4"
 
     @pytest.mark.parametrize(
@@ -346,7 +346,7 @@ class TestUniqueNameGeneration:
         # Set up existing names
         controller.tracked_data = {name: [] for name in existing_names}
 
-        unique_name = controller.get_unique_point_name(base_name)  # pyright: ignore[reportAttributeAccessIssue]
+        unique_name = controller.get_unique_point_name(base_name)
         assert unique_name == expected
 
 
