@@ -1,6 +1,7 @@
 # CurveEditor Refactoring Plan
 
 **Generated**: 2025-10-20
+**Last Updated**: 2025-10-20 (Post-Verification)
 **Status**: Ready for Execution
 **Total Estimated Time**: 3 weeks (1 week critical, 2 weeks optional)
 
@@ -11,12 +12,12 @@
 After comprehensive analysis with verification, we identified **5 major refactoring priorities**:
 
 1. **Dead Code Removal**: ~450 lines of unused `/commands/` directory (403 Python + 50 Markdown)
-2. **Layer Violations**: Services/Core importing UI constants (architectural breach)
+2. **Layer Violations**: 12 total violations (5 constant imports + 6 color imports + 1 protocol import) - services/core/rendering importing from ui/
 3. **Duplicate Code**: 120-140 lines of repeated patterns
 4. **Business Logic Location**: 65 lines of geometry in UI controller (should be in service)
 5. **God Object**: MainWindow has 101 methods (some extractable)
 
-**Quick Wins** (Week 1): ~500 lines cleaned, architectural fixes, <4 hours effort, minimal risk.
+**Quick Wins** (Week 1): ~500 lines cleaned, 12 layer violations fixed, ~6 hours effort, minimal risk.
 
 ---
 
@@ -25,23 +26,28 @@ After comprehensive analysis with verification, we identified **5 major refactor
 | Finding | Agent Claim | Verified? | Correction |
 |---------|-------------|-----------|------------|
 | `/commands/` unused | ~450 dead lines (403 Python + 50 Markdown) | ✅ YES | Zero imports from main codebase |
-| UI constants in services | Layer violation | ✅ YES | Confirmed in transform_service.py:17, shortcut_commands.py |
+| UI constants in services | 5 constant violations | ✅ YES | Confirmed in transform_service.py:17, shortcut_commands.py, etc. |
+| UI colors in rendering | 6 color violations | ✅ YES | Added Task 1.4 to fix (critical finding) |
+| Protocol import violation | 1 protocol violation | ✅ YES | StateManager import in rendering_protocols.py (fixed in Task 1.4) |
 | Duplicate patterns | 120-140 lines | ✅ YES | Visually confirmed point lookup, spinbox blocking, validation |
 | MainWindow 101 methods | God object | ✅ YES | Exact count confirmed |
 | Algorithm in CurveViewWidget | 65 lines in widget | ⚠️ LOCATION | Actually in TrackingDisplayController (still wrong layer) |
 
 **Accuracy**: 95% (1 location correction, problem still valid)
+**Total Layer Violations**: 12 (5 constants + 6 colors + 1 protocol)
 
 ---
 
 ## Phase 1: Critical Quick Wins (Week 1)
 
-**Estimated Time**: 4 hours
-**LOC Impact**: ~500 lines cleaned (450 removed, 50 added for core/defaults.py)
+**Estimated Time**: 6 hours (realistic estimate after verification)
+**LOC Impact**: ~500 lines cleaned (450 removed, ~100 added for core/defaults.py + core/colors.py)
 **Risk**: Minimal
-**Dependencies**: None
+**Dependencies**: Task 1.4 must complete before Task 1.2 (both fix layer violations)
 
-### Task 1.1: Delete Dead Code (5 minutes)
+**Note**: Tasks renumbered in execution order (1.1 → 1.2 → 1.3 → 1.4 → 1.5)
+
+### Task 1.1: Delete Dead Code (15 minutes)
 
 **Objective**: Remove unused `/commands/` directory (~450 lines: 403 Python + 50 Markdown)
 
@@ -87,11 +93,13 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ---
 
-### Task 1.2: Fix Layer Violations (30 minutes)
+### Task 1.2: Fix Layer Violations - Constants (30 minutes)
 
 **Objective**: Move UI constants to `core/defaults.py`, fix imports
 
-**Current Violations** (5 total):
+**Dependencies**: ⚠️ Must complete Task 1.4 first (fixes 7 additional violations: 6 colors + 1 protocol)
+
+**Current Violations** (5 constant imports):
 1. `services/transform_service.py:17` - imports `DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH`
 2. `services/transform_core.py:27` - imports `DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH`
 3. `core/commands/shortcut_commands.py:718` - imports `DEFAULT_NUDGE_AMOUNT`
@@ -149,12 +157,14 @@ After comprehensive analysis with verification, we identified **5 major refactor
   - Replace: `from ui.ui_constants import GRID_CELL_SIZE, RENDER_PADDING`
   - With: `from core.defaults import GRID_CELL_SIZE, RENDER_PADDING`
 
-- [ ] **Step 7**: Verify all violations fixed
+- [ ] **Step 7**: Verify all constant violations fixed
   ```bash
-  # Should only show UI layer files (ui/, not core/ or services/)
+  # Should only show UI layer files (ui/, not core/ or services/ or rendering/)
   grep -n "from ui\.ui_constants import" --include="*.py" -r core/ services/ rendering/
   ```
-  - Expected: No output (all violations fixed)
+  - Expected: No output (all 5 constant violations fixed)
+
+  - Note: Task 1.4 already fixed the 6 color violations and 1 protocol violation
 
 - [ ] **CHECKPOINT 1.2**: Verify layer separation
   ```bash
@@ -182,9 +192,169 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ---
 
-### Task 1.3: Extract Spinbox Helper (1 hour)
+### Task 1.4: Extract Colors to Core (45 minutes) 🔴 CRITICAL
 
-**Objective**: Eliminate duplicate spinbox signal blocking code
+**Objective**: Fix 6 color-related layer violations in rendering/ plus 1 protocol violation
+
+**Current Violations**:
+- `rendering/optimized_curve_renderer.py:25` - imports `CurveColors` from `ui.color_constants`
+- `rendering/optimized_curve_renderer.py:892` - runtime import of `SPECIAL_COLORS, get_status_color` from `ui.color_manager`
+- `rendering/optimized_curve_renderer.py:963` - runtime import of `COLORS_DARK` from `ui.color_manager`
+- `rendering/optimized_curve_renderer.py:1014` - runtime import of `get_status_color` from `ui.color_manager`
+- `rendering/optimized_curve_renderer.py:1209` - runtime import of `COLORS_DARK` from `ui.color_manager`
+- `rendering/optimized_curve_renderer.py:1282` - runtime import of `COLORS_DARK` from `ui.color_manager`
+
+**Analysis**: Method-level imports are workarounds for circular imports (verified by `# pyright: reportImportCycles=false` in renderer). Colors are presentation concerns, but rendering layer needs them. Solution: Extract to core/.
+
+**Steps**:
+
+- [ ] **Step 1**: Create `core/colors.py`
+  ```python
+  #!/usr/bin/env python
+  """
+  Application-wide color definitions.
+
+  Colors belong here if used by rendering/ layer.
+  UI-specific styling colors remain in ui/color_constants.py.
+  """
+
+  from dataclasses import dataclass
+  from PySide6.QtGui import QColor
+
+
+  @dataclass(frozen=True)
+  class CurveColors:
+      """Color scheme for curve rendering."""
+
+      point: QColor
+      selected_point: QColor
+      line: QColor
+      interpolated: QColor
+      keyframe: QColor
+      endframe: QColor
+      tracked: QColor
+
+      @classmethod
+      def default(cls) -> "CurveColors":
+          """Create default color scheme."""
+          return cls(
+              point=QColor(255, 255, 255),
+              selected_point=QColor(255, 100, 100),
+              line=QColor(200, 200, 200),
+              interpolated=QColor(150, 150, 255),
+              keyframe=QColor(255, 255, 0),
+              endframe=QColor(255, 0, 0),
+              tracked=QColor(0, 255, 0),
+          )
+
+
+  # Status-specific colors (used by renderer)
+  COLORS_DARK = {
+      "normal": QColor(200, 200, 200),
+      "interpolated": QColor(100, 100, 255),
+      "keyframe": QColor(255, 255, 100),
+      "tracked": QColor(100, 255, 100),
+      "endframe": QColor(255, 100, 100),
+  }
+
+  SPECIAL_COLORS = {
+      "selected": QColor(255, 100, 100),
+      "hover": QColor(255, 200, 100),
+  }
+
+
+  def get_status_color(status: str, selected: bool = False) -> QColor:
+      """Get color for point status.
+
+      Args:
+          status: Point status string
+          selected: Whether point is selected
+
+      Returns:
+          QColor for the status
+      """
+      if selected:
+          return SPECIAL_COLORS["selected"]
+      return COLORS_DARK.get(status, COLORS_DARK["normal"])
+  ```
+
+- [ ] **Step 2**: Update `rendering/optimized_curve_renderer.py` imports
+  - Replace line 25: `from ui.color_constants import CurveColors`
+  - With: `from core.colors import CurveColors, COLORS_DARK, SPECIAL_COLORS, get_status_color`
+  - Remove all 5 method-level imports (lines 892, 963, 1014, 1209, 1282)
+
+- [ ] **Step 3**: Update `ui/color_constants.py` to re-export from core
+  ```python
+  # At top of file, add:
+  from core.colors import CurveColors, COLORS_DARK, SPECIAL_COLORS, get_status_color
+
+  # Remove duplicate definitions if they exist
+  ```
+
+- [ ] **Step 4**: Update `ui/color_manager.py` to re-export from core
+  ```python
+  # At top of file, add:
+  from core.colors import COLORS_DARK, SPECIAL_COLORS, get_status_color
+
+  # Remove duplicate definitions
+  ```
+
+- [ ] **Step 5**: Fix Protocol import in `rendering/rendering_protocols.py`
+  - Move line 51 import to TYPE_CHECKING block:
+  ```python
+  # At top of file, in TYPE_CHECKING block:
+  if TYPE_CHECKING:
+      from PySide6.QtGui import QImage, QPixmap
+      from services.transform_service import Transform
+      from ui.state_manager import StateManager  # ← Move here
+
+  class MainWindowProtocol(Protocol):
+      """Protocol for main window objects."""
+
+      state_manager: "StateManager"  # ← String annotation (was: StateManager without import)
+  ```
+
+- [ ] **Step 6**: Verify all color violations fixed
+  ```bash
+  # Should show NO imports of ui.color_* in rendering/
+  grep -n "from ui\.color" rendering/
+
+  # Should show NO imports of StateManager outside TYPE_CHECKING
+  grep -A5 "class MainWindowProtocol" rendering/rendering_protocols.py | grep "from ui"
+  ```
+  - Expected: No output
+
+- [ ] **CHECKPOINT 1.4**: Verify color rendering
+  ```bash
+  # Type checking
+  ~/.local/bin/uv run basedpyright rendering/ core/colors.py
+
+  # Linting
+  ~/.local/bin/uv run ruff check rendering/ core/colors.py
+
+  # Rendering tests
+  ~/.local/bin/uv run pytest tests/rendering/ -v
+
+  # Manual smoke test
+  ~/.local/bin/uv run python main.py
+  # - Load a curve file
+  # - Verify point colors display correctly (keyframes, interpolated, etc.)
+  # - Select points, verify selection color
+  # - Verify status colors match expected (no regressions)
+  ```
+  **Expected**: All pass, colors render identically
+
+**Rollback**: `git restore core/colors.py rendering/ ui/color_constants.py ui/color_manager.py`
+
+**Note**: This task MUST complete before Task 1.2, as both fix layer violations. Order: 1.4 (colors + protocol) → 1.2 (constants).
+
+---
+
+### Task 1.3: Extract Spinbox Helper with QSignalBlocker (1 hour)
+
+**Note**: Verification found 6 additional `blockSignals()` uses in `timeline_controller.py` (lines 217/219, 229/231, 294/296/298/300, 389/391, 412/414). Consider applying this pattern there in Phase 2 or as future enhancement.
+
+**Objective**: Eliminate duplicate spinbox signal blocking code using modern Qt pattern
 
 **Current Duplication**:
 - `ui/controllers/point_editor_controller.py:139-146` (8 lines)
@@ -202,12 +372,16 @@ After comprehensive analysis with verification, we identified **5 major refactor
   "
   ```
 
-- [ ] **Step 2**: Add helper method to `PointEditorController`
+- [ ] **Step 2**: Add helper method to `PointEditorController` using QSignalBlocker
   - Location: After `_set_spinboxes_enabled()` method
+  - Add import at top of file: `from PySide6.QtCore import QSignalBlocker`
   - Add:
   ```python
   def _update_spinboxes_silently(self, x: float, y: float) -> None:
       """Update spinbox values without triggering signals.
+
+      Uses QSignalBlocker for exception-safe signal blocking (RAII pattern).
+      Signals are automatically restored when blockers go out of scope.
 
       Args:
           x: X coordinate value
@@ -216,16 +390,18 @@ After comprehensive analysis with verification, we identified **5 major refactor
       if not self.main_window.point_x_spinbox or not self.main_window.point_y_spinbox:
           return
 
-      # Block signals to prevent triggering value changed handlers
-      self.main_window.point_x_spinbox.blockSignals(True)
-      self.main_window.point_y_spinbox.blockSignals(True)
-
-      self.main_window.point_x_spinbox.setValue(x)
-      self.main_window.point_y_spinbox.setValue(y)
-
-      self.main_window.point_x_spinbox.blockSignals(False)
-      self.main_window.point_y_spinbox.blockSignals(False)
+      # QSignalBlocker is exception-safe (RAII pattern) - preferred over blockSignals()
+      with QSignalBlocker(self.main_window.point_x_spinbox), \
+           QSignalBlocker(self.main_window.point_y_spinbox):
+          self.main_window.point_x_spinbox.setValue(x)
+          self.main_window.point_y_spinbox.setValue(y)
+      # Signals automatically restored here, even if setValue() raises exception
   ```
+
+  **Why QSignalBlocker**: Modern Qt best practice (since Qt 5.3). Benefits:
+  - Exception-safe (RAII pattern - signals restored even if exception thrown)
+  - More Pythonic (context manager pattern)
+  - Eliminates manual state management bugs
 
 - [ ] **Step 3**: Replace first occurrence (lines 139-146)
   - Replace 8 lines with: `self._update_spinboxes_silently(x, y)`
@@ -266,16 +442,17 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 ---
 
-### Task 1.4: Extract Point Lookup Helper (2 hours)
+### Task 1.5: Extract Point Lookup Helper (2 hours)
 
 **Objective**: Eliminate repeated "find point by frame" pattern
 
 **Current Duplication**:
-- `core/commands/shortcut_commands.py:187-190` (SetEndframeCommand)
-- `core/commands/shortcut_commands.py:243-246` (DeleteCurrentFrameKeyframeCommand)
-- `core/commands/shortcut_commands.py:~420` (NudgePointsCommand)
-- 5+ total occurrences
-- Total: ~40 lines duplicated
+- `core/commands/shortcut_commands.py:187-190` (SetEndframeCommand.execute) - enumerated lookup
+- `core/commands/shortcut_commands.py:423-426` (DeleteCurrentFrameKeyframeCommand.execute) - enumerated lookup
+- `core/commands/shortcut_commands.py:745-748` (NudgePointsCommand.execute) - enumerated lookup
+- **3 enumerated lookups** requiring index (main target)
+- **Additional simple existence checks** at lines 149, 388, 702 (can be refactored separately if desired)
+- Total: ~12-15 lines duplicated in enumerated pattern
 
 **Steps**:
 
@@ -330,9 +507,10 @@ After comprehensive analysis with verification, we identified **5 major refactor
   grep -n "for.*enumerate.*curve_data" core/commands/shortcut_commands.py
   grep -n "point\[0\] == .*frame" core/commands/shortcut_commands.py
   ```
-  - Replace any remaining instances
+  - Verify only 3 enumerated lookups remain (should all be refactored)
+  - Note: Simple existence checks at lines 149, 388, 702 are a different pattern (can be addressed later if desired)
 
-- [ ] **CHECKPOINT 1.4**: Verify shortcut commands
+- [ ] **CHECKPOINT 1.5**: Verify shortcut commands
   ```bash
   # Type checking
   ~/.local/bin/uv run basedpyright core/commands/
@@ -385,12 +563,15 @@ After comprehensive analysis with verification, we identified **5 major refactor
   git add -A
   git commit -m "refactor(phase1): Remove dead code, fix layer violations, eliminate duplication
 
-  - Delete unused /commands/ directory (884 lines)
-  - Move UI constants to core/defaults.py (fix layer violations)
-  - Extract _update_spinboxes_silently() helper (16 lines saved)
-  - Extract _find_point_index_at_frame() helper (40 lines saved)
+  Tasks completed in order:
+  - Task 1.1: Delete unused /commands/ directory and deprecated files (450 lines)
+  - Task 1.2: Move UI constants to core/defaults.py (fix 5 violations)
+  - Task 1.3: Extract _update_spinboxes_silently() with QSignalBlocker (16 lines saved)
+  - Task 1.4: Extract colors to core/colors.py (fix 6 color + 1 protocol violations)
+  - Task 1.5: Extract _find_point_index_at_frame() helper (12 lines saved)
 
-  Total cleanup: ~950 lines
+  Total cleanup: ~500 lines net (450 removed, ~100 added for core files)
+  All 12 layer violations fixed (services/rendering no longer import from ui/)
   All tests passing, no functionality changes.
 
   🤖 Generated with Claude Code
@@ -495,12 +676,15 @@ After comprehensive analysis with verification, we identified **5 major refactor
 
 **Dependencies**: Requires Task 1.2 completion (MAX/MIN_ZOOM_FACTOR moved to core/defaults.py)
 
+**Note on Service Responsibility**: This extends TransformService scope to include "viewport fitting calculations" alongside coordinate transformations. While this slightly expands SRP, it's pragmatic for a single-user application. Future consideration: If TransformService grows beyond 5-6 methods, consider extracting to dedicated `core/geometry.py` module.
+
 **Current Location**:
 - `ui/controllers/tracking_display_controller.py:402-467` (65 lines)
 - Contains: bounding box calculation, zoom calculation, centering logic
 
 **Target Location**:
 - `services/transform_service.py` (new method)
+- Update TransformService docstring to document viewport fitting as in-scope
 
 **Steps**:
 
@@ -826,12 +1010,12 @@ git revert <phase_commit_hash>
 ## Success Metrics
 
 ### Phase 1 Metrics
-- **Code Reduction**: ~500 lines net reduction (450 removed, ~50 added for core/defaults.py)
-- **Architecture**: Zero layer violations (5 violations fixed: services→UI imports eliminated)
-- **Duplication**: 56 lines of duplicate code eliminated
+- **Code Reduction**: ~500 lines net reduction (450 removed, ~100 added for core/defaults.py + core/colors.py)
+- **Architecture**: Zero layer violations (12 violations fixed: 5 constants + 6 colors + 1 protocol)
+- **Duplication**: ~28 lines of duplicate code eliminated (16 spinbox + 12 point lookup enumerated pattern)
 - **Test Coverage**: No coverage reduction
 - **Type Safety**: Zero new type errors
-- **Time**: <4 hours actual vs. 4 hours estimated
+- **Time**: ~6 hours (realistic estimate: 15m + 30m + 1h + 45m + 2h + checkpoints)
 
 ### Phase 2 Metrics
 - **Code Reduction**: ~145 lines consolidated
@@ -894,13 +1078,17 @@ git revert <phase_commit_hash>
 ## Timeline
 
 ### Week 1: Phase 1 (Critical Path)
-- **Monday**: Tasks 1.1-1.2 (dead code, layer violations) - 35 min
-- **Tuesday**: Task 1.3 (spinbox helper) - 1 hour
-- **Wednesday**: Task 1.4 (point lookup helper) - 2 hours
-- **Thursday**: Final Checkpoint 1, commit - 30 min
-- **Friday**: Buffer/documentation
+- **Monday AM**: Task 1.1 (delete dead code) - 15 min
+- **Monday AM**: Task 1.2 (constants to core/) - 30 min
+- **Monday PM**: Task 1.3 (spinbox QSignalBlocker) - 1 hour
+- **Tuesday AM**: Task 1.4 (colors to core/) - 45 min
+- **Tuesday PM**: Task 1.5 (point lookup helper) - 2 hours
+- **Wednesday**: Final Checkpoint 1, commit, documentation - 1 hour
+- **Thursday-Friday**: Buffer/additional testing
 
-**Total**: 4 hours + 1 day buffer
+**Total**: ~6 hours + 2-day buffer
+
+**Task Execution Order**: 1.1 → 1.2 → 1.3 → 1.4 → 1.5 (colors before constants dependency)
 
 ### Week 2: Phase 2 (Consolidation)
 - **Monday-Tuesday**: Task 2.1 (active_curve_data) - 1 day
@@ -920,12 +1108,18 @@ git revert <phase_commit_hash>
 ## Appendix A: File Inventory
 
 ### Files Modified (Phase 1)
-- `core/defaults.py` (NEW)
-- `services/transform_service.py`
-- `services/transform_core.py`
-- `core/commands/shortcut_command.py`
-- `core/commands/shortcut_commands.py`
-- `ui/controllers/point_editor_controller.py`
+- `core/defaults.py` (NEW) - Task 1.2
+- `core/colors.py` (NEW) - Task 1.4
+- `services/transform_service.py` - Task 1.2
+- `services/transform_core.py` - Task 1.2
+- `services/ui_service.py` - Task 1.2
+- `rendering/optimized_curve_renderer.py` - Task 1.2, 1.4
+- `rendering/rendering_protocols.py` - Task 1.4
+- `ui/color_constants.py` - Task 1.4 (re-exports)
+- `ui/color_manager.py` - Task 1.4 (re-exports)
+- `core/commands/shortcut_command.py` - Task 1.5
+- `core/commands/shortcut_commands.py` - Task 1.2, 1.5
+- `ui/controllers/point_editor_controller.py` - Task 1.3
 
 ### Files Deleted (Phase 1)
 - `commands/` (directory, 884 lines)
@@ -994,7 +1188,16 @@ wc -l path/to/file.py
 | Date | Version | Changes |
 |------|---------|---------|
 | 2025-10-20 | 1.0 | Initial plan after verification analysis |
+| 2025-10-20 | 1.1 | Post-verification amendments: (1) Renumbered tasks in execution order (1.1→1.2→1.3→1.4→1.5), (2) Updated timeline 4.5h→6h, (3) Clarified point lookup count (3 enumerated, not 5), (4) Added notes on additional blockSignals() uses, (5) Added TransformService scope documentation, (6) Updated all cross-references |
 
 ---
 
-**Next Step**: Review this plan, then begin Phase 1, Task 1.1 when ready.
+**Next Step**: Review this amended plan, then begin Phase 1, Task 1.1 when ready.
+
+**Key Changes from v1.0**:
+- Tasks renumbered in execution order for clarity
+- Realistic 6-hour timeline (was 4.5 hours)
+- Task 1.4 (colors) now executes BEFORE Task 1.2 (constants) due to dependency
+- Point lookup helper targets 3 enumerated lookups (verified accurate)
+- Added future enhancement notes for timeline_controller.py blockSignals()
+- Added TransformService scope expansion documentation
