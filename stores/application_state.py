@@ -648,22 +648,14 @@ class ApplicationState(QObject):
             directory: Optional base directory (if None, keeps current)
 
         Raises:
-            TypeError: If files is not a list
-            ValueError: If files list is too large or contains invalid paths
+            ValueError: If files list is too large
         """
         self._assert_main_thread()
 
         # Validation
-        if not isinstance(files, list):
-            raise TypeError(f"files must be list, got {type(files).__name__}")
-
         max_files = 10_000
         if len(files) > max_files:
             raise ValueError(f"Too many files: {len(files)} (max: {max_files})")
-
-        for f in files:
-            if not isinstance(f, str):
-                raise TypeError(f"File path must be str, got {type(f).__name__}")
 
         # Store copy (immutability) - consistent with set_curve_data() pattern
         old_files = self._image_files
@@ -973,7 +965,7 @@ class ApplicationState(QObject):
                 try:
                     # Emit accumulated signals (dict ensures deduplication, last args wins)
                     for signal, args in self._pending_signals.items():
-                        signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
+                        signal.emit(*args)
                 finally:
                     self._emitting = False
 
@@ -993,7 +985,7 @@ class ApplicationState(QObject):
             self._pending_signals[signal] = args
         else:
             # Emit immediately
-            signal.emit(*args)  # pyright: ignore[reportAttributeAccessIssue]
+            signal.emit(*args)
 
     # ==================== Helper Methods ====================
 

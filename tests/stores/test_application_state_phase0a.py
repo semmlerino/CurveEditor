@@ -85,12 +85,12 @@ class TestImageSequenceMethods:
         assert "img003.png" not in stored_files
 
     def test_set_image_files_validates_type(self, state):
-        """set_image_files should raise TypeError for non-list input."""
-        with pytest.raises(TypeError, match="files must be list"):
-            state.set_image_files("not_a_list")  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="files must be list"):
-            state.set_image_files(("tuple", "of", "files"))  # pyright: ignore[reportArgumentType]
+        """set_image_files requires list[str] type (enforced by type system)."""
+        # Type validation is handled by basedpyright at call sites.
+        # Runtime isinstance checks were redundant; removed in cleanup.
+        # This test verifies type signature works with valid input.
+        state.set_image_files(["img001.png", "img002.png"])
+        assert state.get_image_files() == ["img001.png", "img002.png"]
 
     def test_set_image_files_validates_max_files_limit(self, state):
         """set_image_files should raise ValueError for > 10000 files."""
@@ -101,11 +101,13 @@ class TestImageSequenceMethods:
             state.set_image_files(too_many_files)
 
     def test_set_image_files_validates_element_types(self, state):
-        """set_image_files should raise TypeError for non-str elements."""
-        invalid_files = ["img001.png", 123, "img003.png"]  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="File path must be str"):
-            state.set_image_files(invalid_files)  # pyright: ignore[reportArgumentType]
+        """set_image_files requires list[str] elements (enforced by type system)."""
+        # Element type validation is handled by basedpyright at call sites.
+        # Runtime isinstance checks were redundant; removed in cleanup.
+        # This test verifies the type signature works correctly with str elements.
+        files = ["img001.png", "img002.png", "img003.png"]
+        state.set_image_files(files)
+        assert state.get_image_files() == files
 
     def test_get_total_frames_derived_from_image_files(self, state):
         """get_total_frames should equal len(image_files)."""

@@ -852,8 +852,11 @@ class _CommandHistory:
             history_state["point_color"] = point_color
 
         # Check if main_window has history attributes for direct management
-        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
-        if main_window.history is not None and main_window.history_index is not None:
+        # Note: defensive check for test mocks that allow None despite protocol
+        if (
+            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
+        ):
             # Truncate future history if we're not at the end
             if main_window.history_index < len(main_window.history) - 1:
                 main_window.history = main_window.history[: main_window.history_index + 1]
@@ -906,9 +909,11 @@ class _CommandHistory:
         if self._owner.command_manager.can_undo():
             _ = self._owner.command_manager.undo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
+        # Note: defensive check for test mocks that allow None despite protocol
         elif (
-            main_window.history is not None and main_window.history_index is not None and main_window.history_index > 0
+            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index > 0
         ):
             logger.info("Using legacy history system")
             main_window.history_index -= 1
@@ -937,10 +942,10 @@ class _CommandHistory:
             logger.info("Using command manager for redo")
             _ = self._owner.command_manager.redo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        # Note: MainWindowProtocol guarantees non-None, but defensive check for test mocks
+        # Note: defensive check for test mocks that allow None despite protocol
         elif (
-            main_window.history is not None
-            and main_window.history_index is not None
+            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
             and main_window.history_index < len(main_window.history) - 1
         ):
             logger.info("Using legacy history system for redo")
@@ -970,15 +975,19 @@ class _CommandHistory:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
-        # Defensive check for test mocks that may pass None
-        if main_window is None:
+        # Handle case where main_window might be None (test mocks)
+        if main_window is None:  # pyright: ignore[reportUnnecessaryComparison]
             return
 
         # Determine can_undo and can_redo based on history location
-        can_undo_val = main_window.history_index is not None and main_window.history_index > 0
+        # Note: defensive checks for test mocks that allow None despite protocol
+        can_undo_val = (
+            main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index > 0
+        )
         can_redo_val = (
-            main_window.history is not None
-            and main_window.history_index is not None
+            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
+            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
             and main_window.history_index < len(main_window.history) - 1
         )
 
