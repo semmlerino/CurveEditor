@@ -431,31 +431,16 @@ class TrackingDisplayController(BaseTrackingController):
             return
         logger.debug(f"Collected {len(all_points)} points for centering")
 
-        # Calculate bounding box
-        x_coords = [p[0] for p in all_points]
-        y_coords = [p[1] for p in all_points]
+        # Calculate fit bounds using service
+        from services import get_transform_service
 
-        min_x, max_x = min(x_coords), max(x_coords)
-        min_y, max_y = min(y_coords), max(y_coords)
+        transform_service = get_transform_service()
+        center_x, center_y, optimal_zoom = transform_service.calculate_fit_bounds(
+            all_points, widget.width(), widget.height(), padding_factor=1.2
+        )
 
-        # Calculate center point
-        center_x = (min_x + max_x) / 2
-        center_y = (min_y + max_y) / 2
-
-        # Calculate required zoom to fit all points with some padding
-        from ui.ui_constants import MAX_ZOOM_FACTOR, MIN_ZOOM_FACTOR
-
-        padding_factor = 1.2
-        width_needed = (max_x - min_x) * padding_factor
-        height_needed = (max_y - min_y) * padding_factor
-
-        if width_needed > 0 and height_needed > 0:
-            zoom_x = widget.width() / width_needed
-            zoom_y = widget.height() / height_needed
-            optimal_zoom = min(zoom_x, zoom_y, MAX_ZOOM_FACTOR)
-
-            # Apply zoom
-            widget.zoom_factor = max(MIN_ZOOM_FACTOR, optimal_zoom)
+        # Apply zoom
+        widget.zoom_factor = optimal_zoom
 
         # Use the proper centering method that handles coordinate transformation and Y-flip
         widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportAttributeAccessIssue]  # Accessing concrete CurveViewWidget implementation

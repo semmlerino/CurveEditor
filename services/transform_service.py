@@ -490,6 +490,9 @@ class TransformService:
 
     This service merges functionality from unified_transform.py and view_state.py
     to provide a single interface for transformation operations.
+
+    Also provides viewport fitting calculations (bounding box, optimal zoom)
+    for centering and fitting content in the view.
     """
 
     _lock: threading.RLock
@@ -608,3 +611,64 @@ class TransformService:
     def update_transform(self, transform: Transform, **kwargs: object) -> Transform:
         """Update a Transform with new parameters."""
         return transform.with_updates(**kwargs)
+
+    def calculate_fit_bounds(
+        self,
+        points: list[tuple[float, float]],
+        viewport_width: int,
+        viewport_height: int,
+        padding_factor: float = 1.2,
+    ) -> tuple[float, float, float]:
+        """Calculate optimal zoom and center for fitting points in viewport.
+
+        This method computes the bounding box of the given points and calculates
+        the appropriate zoom level and center coordinates to fit all points within
+        the viewport with specified padding.
+
+        Args:
+            points: List of (x, y) coordinate tuples to fit in viewport
+            viewport_width: Width of viewport in pixels
+            viewport_height: Height of viewport in pixels
+            padding_factor: Extra space around points (1.2 = 20% padding)
+
+        Returns:
+            Tuple of (center_x, center_y, optimal_zoom) where:
+            - center_x, center_y: Coordinates of bounding box center
+            - optimal_zoom: Zoom level to fit all points (clamped to min/max)
+
+        Example:
+            >>> transform_service = get_transform_service()
+            >>> points = [(0.0, 0.0), (100.0, 100.0)]
+            >>> center_x, center_y, zoom = transform_service.calculate_fit_bounds(
+            ...     points, 800, 600, padding_factor=1.2
+            ... )
+        """
+        if not points:
+            return (0.0, 0.0, 1.0)
+
+        # Calculate bounding box
+        x_coords = [p[0] for p in points]
+        y_coords = [p[1] for p in points]
+
+        min_x, max_x = min(x_coords), max(x_coords)
+        min_y, max_y = min(y_coords), max(y_coords)
+
+        # Calculate center point
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+
+        # Calculate required zoom to fit all points with padding
+        width_needed = (max_x - min_x) * padding_factor
+        height_needed = (max_y - min_y) * padding_factor
+
+        if width_needed > 0 and height_needed > 0:
+            from core.defaults import MAX_ZOOM_FACTOR, MIN_ZOOM_FACTOR
+
+            zoom_x = viewport_width / width_needed
+            zoom_y = viewport_height / height_needed
+            optimal_zoom = min(zoom_x, zoom_y, MAX_ZOOM_FACTOR)
+            optimal_zoom = max(MIN_ZOOM_FACTOR, optimal_zoom)
+        else:
+            optimal_zoom = 1.0
+
+        return (center_x, center_y, optimal_zoom)
