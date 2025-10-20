@@ -132,14 +132,10 @@ class SetEndframeCommand(ShortcutCommand):
 
         try:
             app_state = get_application_state()
-            # Get active curve data (may raise ValueError if no active curve)
-            active_curve = app_state.active_curve
-            if not active_curve:
+            # Get active curve data using property
+            if (cd := app_state.active_curve_data) is None:
                 return False
-
-            curve_data = app_state.get_curve_data(active_curve)
-            if not curve_data:
-                return False
+            active_curve, curve_data = cd
 
             # Check if any point exists at the current frame
             for point in curve_data:
@@ -174,12 +170,10 @@ class SetEndframeCommand(ShortcutCommand):
 
             # Find the point at the current frame using ApplicationState
             app_state = get_application_state()
-            active_curve = app_state.active_curve
-            if not active_curve:
+            if (cd := app_state.active_curve_data) is None:
                 logger.warning("No active curve set, cannot toggle endframe")
                 return False
-
-            curve_data = app_state.get_curve_data(active_curve)
+            active_curve, curve_data = cd
             point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
 
             if point_index is None or point_index < 0 or point_index >= len(curve_data):
@@ -371,15 +365,13 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
         if context.current_frame is not None:
             try:
                 app_state = get_application_state()
-                active_curve = app_state.active_curve
-                if not active_curve:
+                if (cd := app_state.active_curve_data) is None:
                     return False
-                curve_data = app_state.get_curve_data(active_curve)
-                if curve_data:
-                    # Check if any point exists at the current frame
-                    for point in curve_data:
-                        if point[0] == context.current_frame:  # point[0] is the frame number
-                            return True
+                active_curve, curve_data = cd
+                # Check if any point exists at the current frame
+                for point in curve_data:
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        return True
             except ValueError:
                 return False
 
@@ -406,11 +398,10 @@ class DeleteCurrentFrameKeyframeCommand(ShortcutCommand):
             if context.current_frame is not None:
                 # Find the point index at the current frame using ApplicationState
                 app_state = get_application_state()
-                active_curve = app_state.active_curve
-                if not active_curve:
+                if (cd := app_state.active_curve_data) is None:
                     logger.warning("No active curve set, cannot delete keyframe")
                     return False
-                curve_data = app_state.get_curve_data(active_curve)
+                active_curve, curve_data = cd
                 point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
                 current_point = curve_data[point_index] if point_index is not None else None
 
@@ -680,15 +671,13 @@ class NudgePointsCommand(ShortcutCommand):
         if context.current_frame is not None:
             try:
                 app_state = get_application_state()
-                active_curve = app_state.active_curve
-                if not active_curve:
+                if (cd := app_state.active_curve_data) is None:
                     return False
-                curve_data = app_state.get_curve_data(active_curve)
-                if curve_data:
-                    # Check if any point exists at the current frame
-                    for point in curve_data:
-                        if point[0] == context.current_frame:  # point[0] is the frame number
-                            return True
+                active_curve, curve_data = cd
+                # Check if any point exists at the current frame
+                for point in curve_data:
+                    if point[0] == context.current_frame:  # point[0] is the frame number
+                        return True
             except ValueError:
                 return False
 
@@ -724,11 +713,10 @@ class NudgePointsCommand(ShortcutCommand):
             elif context.current_frame is not None:
                 # Find the point at the current frame using ApplicationState
                 app_state = get_application_state()
-                active_curve = app_state.active_curve
-                if not active_curve:
+                if (cd := app_state.active_curve_data) is None:
                     logger.warning("No active curve set, cannot nudge point")
                     return False
-                curve_data = app_state.get_curve_data(active_curve)
+                active_curve, curve_data = cd
                 point_index = self._find_point_index_at_frame(curve_data, context.current_frame)
 
                 if point_index is not None:
