@@ -28,7 +28,7 @@ from stores.application_state import get_application_state, reset_application_st
 class SignalSpy:
     """Helper to track Qt signal emissions."""
 
-    def __init__(self, signal: Signal):  # pyright: ignore[reportArgumentType]
+    def __init__(self, signal: Signal):
         self.signal = signal
         self.emissions: list[tuple[object, ...]] = []
         self.signal.connect(self._on_emit)  # pyright: ignore[reportAttributeAccessIssue]

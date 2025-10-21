@@ -527,7 +527,7 @@ class TestTransform:
         data_point = QPointF(100.0, 200.0)
 
         # Transform to screen coordinates
-        screen_point = basic_transform.data_to_screen_qpoint(data_point)  # pyright: ignore[reportArgumentType]
+        screen_point = basic_transform.data_to_screen_qpoint(data_point)
         assert isinstance(screen_point, QPointF)
         assert screen_point.x() == 100.0
         assert screen_point.y() == 200.0

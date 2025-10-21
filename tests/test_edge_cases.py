@@ -102,7 +102,7 @@ class TestNullAndNoneChecks:
             assert "curve" in str(e).lower() or "none" in str(e).lower()
 
         try:
-            app_state.get_curve_data(None)  # pyright: ignore[reportArgumentType]
+            app_state.get_curve_data(None)  # type: ignore[arg-type]
         except (ValueError, TypeError, AttributeError):
             # Expected - some kind of validation error
             pass

@@ -354,7 +354,7 @@ class TestCurvePoint:
             CurvePoint.from_tuple((100, 1920.0))  # pyright: ignore[reportArgumentType]
 
         with pytest.raises(ValueError, match="must have 3 or 4 elements"):
-            CurvePoint.from_tuple((100,))  # pyright: ignore[reportArgumentType]
+            CurvePoint.from_tuple((100,))
 
     def test_from_tuple_extra_elements_ignored(self) -> None:
         """Test creation from tuple with extra elements ignores them."""

@@ -255,11 +255,11 @@ class TestEndframeKeyboardShortcut:
         # CRITICAL: Selected point at frame 4 should be UNCHANGED
         point3_after = curve_data_after[3] if len(curve_data_after) > 3 else None
         assert point3_after and len(point3_after) >= 4 and point3_before is not None
-        # Cast to 4-tuple after length check - we've verified it has status info
+        # After length check - we've verified it has status info
         from core.type_aliases import PointTuple4
 
-        point3_after_4 = cast(PointTuple4, point3_after)
-        point3_before_4 = cast(PointTuple4, point3_before)
+        point3_after_4: PointTuple4 = point3_after  # type: ignore[assignment]
+        point3_before_4: PointTuple4 = point3_before  # type: ignore[assignment]
         assert point3_after_4[3] == point3_before_4[3], "Selected point at frame 4 should remain unchanged"
         assert point3_after_4[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
 
