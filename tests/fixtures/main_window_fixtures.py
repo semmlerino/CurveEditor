@@ -5,13 +5,27 @@ Provides mock data, test helpers, and reusable components
 for MainWindow characterization and refactoring tests.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import tempfile
+from collections.abc import Generator
 from pathlib import Path
 from typing import cast
 from unittest.mock import Mock, patch
 
 import pytest
-from PySide6.QtGui import QImage
+from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QApplication
 
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
@@ -80,7 +94,7 @@ def create_test_image_sequence(num_images: int = 5) -> tuple[Path, list[str]]:
     image_files = []
 
     for i in range(1, num_images + 1):
-        image = QImage(1280, 720, QImage.Format_RGB32)  # pyright: ignore[reportAttributeAccessIssue]
+        image = QImage(1280, 720, QImage.Format_RGB32)
         image.fill(0x404040)  # Gray
 
         filename = f"test_image_{i:04d}.png"
@@ -98,17 +112,17 @@ class MockCurveWidget:
     """Mock CurveViewWidget for testing."""
 
     def __init__(self):
-        self.curve_data = []
-        self.background_image = None
-        self.show_background = False
-        self.selected_indices = set()
-        self.flip_y_axis = False
-        self._data_metadata = None
+        self.curve_data: CurveDataList = []
+        self.background_image: QPixmap | None = None
+        self.show_background: bool = False
+        self.selected_indices: set[int] = set()
+        self.flip_y_axis: bool = False
+        self._data_metadata: CoordinateMetadata | None = None
 
         # Mock signals
-        self.selection_changed = Mock()
-        self.view_changed = Mock()
-        self.point_moved = Mock()
+        self.selection_changed: Mock = Mock()
+        self.view_changed: Mock = Mock()
+        self.point_moved: Mock = Mock()
 
     def set_curve_data(self, data):
         """Mock set_curve_data method."""
@@ -135,13 +149,15 @@ class MockFileLoadWorker:
     """Mock FileLoadWorker for testing."""
 
     def __init__(self):
-        self.tracking_data_loaded = Mock()
-        self.image_sequence_loaded = Mock()
-        self.progress_updated = Mock()
-        self.error_occurred = Mock()
-        self.finished = Mock()
+        # Signal mocks
+        self.tracking_data_loaded: Mock = Mock()
+        self.image_sequence_loaded: Mock = Mock()
+        self.progress_updated: Mock = Mock()
+        self.error_occurred: Mock = Mock()
+        self.finished: Mock = Mock()
 
-        self._running = False
+        # State
+        self._running: bool = False
 
     def start_work(self, tracking_file: str | None = None, image_dir: str | None = None):
         """Mock start_work method."""
@@ -166,12 +182,14 @@ class MockStateManager:
     """Mock StateManager for testing."""
 
     def __init__(self):
-        self.is_modified = False
-        self.current_file = None
-        self.total_frames = 1
+        # State attributes
+        self.is_modified: bool = False
+        self.current_file: str | None = None
+        self.total_frames: int = 1
 
-        self.file_changed = Mock()
-        self.modified_changed = Mock()
+        # Signal mocks
+        self.file_changed: Mock = Mock()
+        self.modified_changed: Mock = Mock()
 
     def set_track_data(self, data, mark_modified=True):
         """Mock set_track_data method."""
@@ -188,25 +206,25 @@ class MockStateManager:
 
 
 @pytest.fixture
-def mock_curve_widget():
+def mock_curve_widget() -> MockCurveWidget:
     """Provide a mock CurveViewWidget."""
     return MockCurveWidget()
 
 
 @pytest.fixture
-def mock_file_worker():
+def mock_file_worker() -> MockFileLoadWorker:
     """Provide a mock FileLoadWorker."""
     return MockFileLoadWorker()
 
 
 @pytest.fixture
-def mock_state_manager():
+def mock_state_manager() -> MockStateManager:
     """Provide a mock StateManager."""
     return MockStateManager()
 
 
 @pytest.fixture
-def main_window_with_mocks(qapp, qtbot, monkeypatch):
+def main_window_with_mocks(qapp, qtbot, monkeypatch) -> Generator[MainWindow, None, None]:
     """Create MainWindow with mocked components.
 
     CRITICAL: Uses qtbot.addWidget() for automatic cleanup to prevent
@@ -222,9 +240,9 @@ def main_window_with_mocks(qapp, qtbot, monkeypatch):
     qtbot.addWidget(window, before_close_func=_cleanup_main_window_event_filter)
 
     # Replace components with mocks
-    window.curve_widget = MockCurveWidget()  # pyright: ignore[reportAttributeAccessIssue]
-    window.file_load_worker = MockFileLoadWorker()  # pyright: ignore[reportAttributeAccessIssue]
-    window.state_manager = MockStateManager()  # pyright: ignore[reportAttributeAccessIssue]
+    window.curve_widget = MockCurveWidget()
+    window.file_load_worker = MockFileLoadWorker()
+    window.state_manager = MockStateManager()
 
     window.show()
     qapp.processEvents()
@@ -235,7 +253,7 @@ def main_window_with_mocks(qapp, qtbot, monkeypatch):
 
 
 @pytest.fixture
-def temp_tracking_file():
+def temp_tracking_file() -> Generator[Path, None, None]:
     """Create a temporary tracking data file."""
     file_path = create_test_2dtrack_file()
     yield file_path
@@ -243,7 +261,7 @@ def temp_tracking_file():
 
 
 @pytest.fixture
-def temp_image_sequence():
+def temp_image_sequence() -> Generator[tuple[Path, list[str]], None, None]:
     """Create temporary test images."""
     dir_path, files = create_test_image_sequence()
     yield dir_path, files
@@ -272,18 +290,18 @@ class MainWindowTestHelper:
         """Simulate loading images through the UI."""
         with patch("ui.main_window.QFileDialog.getExistingDirectory") as mock_dialog:
             mock_dialog.return_value = image_dir
-            window._on_action_load_images()  # pyright: ignore[reportAttributeAccessIssue]
+            window._on_action_load_images()
 
     @staticmethod
     def simulate_playback(window: MainWindow, num_frames: int = 5):
         """Simulate playback for a number of frames."""
-        window._on_play_pause(True)  # pyright: ignore[reportAttributeAccessIssue]
+        window._on_play_pause(True)
 
         for _ in range(num_frames):
-            window._on_playback_timer()  # pyright: ignore[reportAttributeAccessIssue]
+            window._on_playback_timer()
             QApplication.processEvents()
 
-        window._on_play_pause(False)  # pyright: ignore[reportAttributeAccessIssue]
+        window._on_play_pause(False)
 
     @staticmethod
     def set_frame_range(window: MainWindow, min_frame: int, max_frame: int):
@@ -300,7 +318,7 @@ class MainWindowTestHelper:
         """Get current UI state for verification."""
         return {
             "current_frame": window.current_frame,
-            "is_playing": window.playback_timer.isActive() if window.playback_timer else False,  # pyright: ignore[reportAttributeAccessIssue]
+            "is_playing": window.playback_timer.isActive() if window.playback_timer else False,
             "has_data": bool(window.curve_widget.curve_data) if window.curve_widget else False,
             "has_background": bool(window.curve_widget.background_image) if window.curve_widget else False,
             "is_modified": window.state_manager.is_modified if window.state_manager else False,
@@ -316,7 +334,7 @@ class PerformanceMonitor:
     """Monitor performance during tests."""
 
     def __init__(self):
-        self.measurements = []
+        self.measurements: list[dict[str, object]] = []
 
     def measure(self, func, *args, **kwargs):
         """Measure execution time of a function."""
@@ -342,7 +360,7 @@ class PerformanceMonitor:
 
 
 @pytest.fixture
-def performance_monitor():
+def performance_monitor() -> PerformanceMonitor:
     """Provide performance monitoring for tests."""
     return PerformanceMonitor()
 
@@ -379,5 +397,5 @@ def assert_clean_state(window: MainWindow):
         assert not window.action_undo.isEnabled()
     if window.action_redo:
         assert not window.action_redo.isEnabled()
-    if window.playback_timer:  # pyright: ignore[reportAttributeAccessIssue]
-        assert not window.playback_timer.isActive()  # pyright: ignore[reportAttributeAccessIssue]
+    if window.playback_timer:
+        assert not window.playback_timer.isActive()

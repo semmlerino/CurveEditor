@@ -14,6 +14,19 @@ Test Categories:
 - Visual rendering options
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import os
 import sys
 from unittest.mock import Mock
@@ -192,8 +205,8 @@ class TestViewStateManagement:
         curve_view_widget.center_on_selection()
         assert True
 
-    def test_center_on_frame(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
-        """Test centering on a specific frame."""
+    def test_center_on_frame_valid(self, curve_view_widget: CurveViewWidget, sample_points: PointsList) -> None:
+        """Test centering on a valid frame."""
         curve_view_widget.set_curve_data(sample_points)
 
         # Test centering on valid frame (1-based indexing)
@@ -207,17 +220,24 @@ class TestViewStateManagement:
         # Pan offsets should change (view should move)
         assert curve_view_widget.pan_offset_x != initial_pan_x or curve_view_widget.pan_offset_y != initial_pan_y
 
-        # Test with out-of-bounds frame (should not crash)
-        curve_view_widget.center_on_frame(999)  # Invalid frame
-        assert True  # Should not raise exceptions
+    @pytest.mark.parametrize(
+        "invalid_frame",
+        [
+            pytest.param(999, id="out_of_bounds"),
+            pytest.param(0, id="zero_frame"),
+            pytest.param(-1, id="negative_frame"),
+            pytest.param(-100, id="large_negative"),
+        ],
+    )
+    def test_center_on_frame_invalid(
+        self, curve_view_widget: CurveViewWidget, sample_points: PointsList, invalid_frame: int
+    ) -> None:
+        """Test centering on invalid frames does not crash."""
+        curve_view_widget.set_curve_data(sample_points)
 
-        # Test with frame 0 (invalid, should not crash)
-        curve_view_widget.center_on_frame(0)
-        assert True
-
-        # Test with negative frame (invalid, should not crash)
-        curve_view_widget.center_on_frame(-1)
-        assert True
+        # Should not raise exceptions with invalid frames
+        curve_view_widget.center_on_frame(invalid_frame)
+        assert True  # Verify no crash occurred
 
 
 class TestCoordinateTransformation:
@@ -262,37 +282,33 @@ class TestCoordinateTransformation:
 class TestVisualizationOptions:
     """Test visualization options and display settings."""
 
-    def test_toggle_grid(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test toggling grid display."""
-        initial_state = curve_view_widget.show_grid
-        curve_view_widget.show_grid = not initial_state
-        assert curve_view_widget.show_grid != initial_state
+    @pytest.mark.parametrize(
+        "attribute_name,initial_value",
+        [
+            pytest.param("show_grid", False, id="grid"),
+            pytest.param("show_points", True, id="points"),
+            pytest.param("show_lines", True, id="lines"),
+            pytest.param("show_velocity_vectors", False, id="velocity_vectors"),
+            pytest.param("show_background", True, id="background"),
+        ],
+    )
+    def test_toggle_display_attributes(
+        self, curve_view_widget: CurveViewWidget, attribute_name: str, initial_value: bool
+    ) -> None:
+        """Test toggling various display attributes on/off."""
+        # Verify initial state
+        assert getattr(curve_view_widget, attribute_name) == initial_value
 
-    def test_toggle_points(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test toggling point display."""
-        initial_state = curve_view_widget.show_points
-        curve_view_widget.show_points = not initial_state
-        assert curve_view_widget.show_points != initial_state
+        # Toggle to opposite state
+        setattr(curve_view_widget, attribute_name, not initial_value)
+        assert getattr(curve_view_widget, attribute_name) != initial_value
 
-    def test_toggle_lines(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test toggling line display."""
-        initial_state = curve_view_widget.show_lines
-        curve_view_widget.show_lines = not initial_state
-        assert curve_view_widget.show_lines != initial_state
+        # Toggle back
+        setattr(curve_view_widget, attribute_name, initial_value)
+        assert getattr(curve_view_widget, attribute_name) == initial_value
 
-    def test_toggle_velocity_vectors(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test toggling velocity vectors."""
-        curve_view_widget.show_velocity_vectors = True
-        assert curve_view_widget.show_velocity_vectors is True
-
-        curve_view_widget.show_velocity_vectors = False
-        assert curve_view_widget.show_velocity_vectors is False
-
-    def test_background_settings(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test background display settings."""
-        curve_view_widget.show_background = False
-        assert curve_view_widget.show_background is False
-
+    def test_background_opacity(self, curve_view_widget: CurveViewWidget) -> None:
+        """Test background opacity settings."""
         curve_view_widget.background_opacity = 0.5
         assert curve_view_widget.background_opacity == 0.5
 

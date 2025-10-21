@@ -8,7 +8,21 @@ Follows pytest best practices:
 - Production-realistic state management
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from collections.abc import Callable
+from typing import Any
 
 import pytest
 from PySide6.QtCore import QPointF, Qt
@@ -122,7 +136,7 @@ def safe_test_data_factory() -> Callable[..., CurveDataList]:
 
 
 @pytest.fixture
-def user_interaction(qtbot):
+def user_interaction(qtbot) -> Any:
     """Fixture providing user interaction helpers.
 
     Returns object with methods simulating production user actions.

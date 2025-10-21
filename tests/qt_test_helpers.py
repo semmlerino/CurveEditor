@@ -9,6 +9,20 @@ segmentation faults in tests, particularly:
 - Proper QPainter lifecycle management
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
+from collections.abc import Callable
 from contextlib import contextmanager
 
 from PySide6.QtCore import QSize
@@ -158,8 +172,8 @@ class TestSignal:
 
     def __init__(self):
         """Initialize empty signal test double."""
-        self.emissions = []
-        self.callbacks = []
+        self.emissions: list[tuple[object, ...]] = []
+        self.callbacks: list[Callable[..., object]] = []
 
     def emit(self, *args):
         """Emit the signal with given arguments.

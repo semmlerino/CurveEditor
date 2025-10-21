@@ -1,3 +1,16 @@
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import time
 
 import numpy as np
@@ -213,7 +226,9 @@ class TestCachePerformance:
         test_data = [(i, i * 10, i * 20) for i in range(5)]
         widget.set_curve_data(test_data)
 
-        # Trigger screen points cache update
+        # NOTE: In production, cache is built lazily during rendering operations.
+        # For testing cache behavior specifically, we need to trigger the cache update
+        # directly since we're not doing full rendering in tests.
         widget._update_screen_points_cache()
 
         # Cache should contain screen positions for all points
@@ -237,6 +252,8 @@ class TestCachePerformance:
         # Time the data setting operation
         start = time.perf_counter()
         widget.set_curve_data(large_data)
+        # NOTE: Manually trigger cache for performance testing
+        # In production, this happens lazily during rendering
         widget._update_screen_points_cache()
         setup_time = time.perf_counter() - start
 
@@ -341,6 +358,8 @@ class TestRenderQualityModes:
 
         # Measure update time (simulating rendering)
         start = time.perf_counter()
+        # NOTE: Manually trigger cache update for testing
+        # In production, this happens during actual rendering
         widget._update_screen_points_cache()
         render_time = time.perf_counter() - start
 

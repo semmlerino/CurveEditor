@@ -6,6 +6,19 @@ This service is critical for curve data operations, file handling, and image
 sequence management.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import json
 import threading
 from typing import Any
@@ -269,60 +282,57 @@ class TestDataAnalysis:
 class TestFileOperations:
     """Test file I/O operations: JSON, CSV, 2DTrackData formats."""
 
-    def test_load_json_array_format(self, tmp_path):
-        """Test loading JSON in array format."""
+    @pytest.mark.parametrize(
+        "json_data,expected_count,test_id",
+        [
+            pytest.param(
+                [
+                    {"frame": 1, "x": 10.0, "y": 20.0, "status": "keyframe"},
+                    {"frame": 2, "x": 12.0, "y": 22.0, "status": "interpolated"},
+                ],
+                2,
+                "array_format",
+                id="json_array",
+            ),
+            pytest.param(
+                {
+                    "metadata": {"label": "Test Track", "color": "#FF0000"},
+                    "points": [
+                        {"frame": 1, "x": 10.0, "y": 20.0, "status": "keyframe"},
+                        {"frame": 2, "x": 12.0, "y": 22.0, "status": "interpolated"},
+                    ],
+                },
+                2,
+                "wrapped_format",
+                id="json_wrapped",
+            ),
+            pytest.param(
+                [
+                    [1, 10.0, 20.0, "keyframe"],
+                    [2, 12.0, 22.0, "interpolated"],
+                    [3, 14.0, 24.0],  # No status
+                ],
+                3,
+                "tuple_array",
+                id="json_tuples",
+            ),
+        ],
+    )
+    def test_load_json_formats(self, tmp_path, json_data, expected_count: int, test_id: str):
+        """Test loading JSON files in various formats."""
         service = DataService()
         test_file = tmp_path / "test.json"
-
-        # Create test JSON file
-        json_data = [
-            {"frame": 1, "x": 10.0, "y": 20.0, "status": "keyframe"},
-            {"frame": 2, "x": 12.0, "y": 22.0, "status": "interpolated"},
-        ]
         test_file.write_text(json.dumps(json_data))
 
         result = service.load_json(str(test_file))
 
-        assert len(result) == 2
+        assert len(result) == expected_count
         assert result[0] == (1, 10.0, 20.0, "keyframe")
         assert result[1] == (2, 12.0, 22.0, "interpolated")
 
-    def test_load_json_wrapped_format(self, tmp_path):
-        """Test loading JSON in wrapped format with metadata."""
-        service = DataService()
-        test_file = tmp_path / "test.json"
-
-        json_data = {
-            "metadata": {"label": "Test Track", "color": "#FF0000"},
-            "points": [
-                {"frame": 1, "x": 10.0, "y": 20.0, "status": "keyframe"},
-                {"frame": 2, "x": 12.0, "y": 22.0, "status": "interpolated"},
-            ],
-        }
-        test_file.write_text(json.dumps(json_data))
-
-        result = service.load_json(str(test_file))
-
-        assert len(result) == 2
-        assert result[0] == (1, 10.0, 20.0, "keyframe")
-
-    def test_load_json_tuple_array_format(self, tmp_path):
-        """Test loading JSON with tuple/array format."""
-        service = DataService()
-        test_file = tmp_path / "test.json"
-
-        json_data = [
-            [1, 10.0, 20.0, "keyframe"],
-            [2, 12.0, 22.0, "interpolated"],
-            [3, 14.0, 24.0],  # No status
-        ]
-        test_file.write_text(json.dumps(json_data))
-
-        result = service.load_json(str(test_file))
-
-        assert len(result) == 3
-        assert result[0] == (1, 10.0, 20.0, "keyframe")
-        assert result[2] == (3, 14.0, 24.0, "keyframe")  # Default status
+        # Test specific to tuple array format - verify default status applied
+        if test_id == "tuple_array" and len(result) > 2:
+            assert result[2] == (3, 14.0, 24.0, "keyframe")  # Default status
 
     def test_load_json_file_not_found(self):
         """Test loading JSON file that doesn't exist."""
@@ -369,63 +379,52 @@ class TestFileOperations:
         assert len(loaded_data["points"]) == 2
         mock_logger.log_info.assert_called_once()
 
-    def test_load_csv_with_header(self, tmp_path):
-        """Test loading CSV file with header."""
-        service = DataService()
-        test_file = tmp_path / "test.csv"
-
-        csv_content = """frame,x,y,status
+    @pytest.mark.parametrize(
+        "csv_content,file_ext,description",
+        [
+            pytest.param(
+                """frame,x,y,status
 1,10.0,20.0,keyframe
 2,12.0,22.0,interpolated
-"""
+""",
+                "csv",
+                "comma_with_header",
+                id="csv_with_header",
+            ),
+            pytest.param(
+                """1,10.0,20.0,keyframe
+2,12.0,22.0,interpolated
+""",
+                "csv",
+                "comma_without_header",
+                id="csv_no_header",
+            ),
+            pytest.param(
+                "1\t10.0\t20.0\tkeyframe\n2\t12.0\t22.0\tinterpolated",
+                "tsv",
+                "tab_delimited",
+                id="tab_delimited",
+            ),
+            pytest.param(
+                "1;10.0;20.0;keyframe\n2;12.0;22.0;interpolated",
+                "csv",
+                "semicolon_delimited",
+                id="semicolon_delimited",
+            ),
+        ],
+    )
+    def test_load_csv_formats(self, tmp_path, csv_content: str, file_ext: str, description: str):
+        """Test loading CSV files with different delimiters and formats."""
+        service = DataService()
+        test_file = tmp_path / f"test.{file_ext}"
         test_file.write_text(csv_content)
 
         result = service.load_csv(str(test_file))
 
+        # All formats should produce the same result
         assert len(result) == 2
         assert result[0] == (1, 10.0, 20.0, "keyframe")
         assert result[1] == (2, 12.0, 22.0, "interpolated")
-
-    def test_load_csv_without_header(self, tmp_path):
-        """Test loading CSV file without header."""
-        service = DataService()
-        test_file = tmp_path / "test.csv"
-
-        csv_content = """1,10.0,20.0,keyframe
-2,12.0,22.0,interpolated
-"""
-        test_file.write_text(csv_content)
-
-        result = service.load_csv(str(test_file))
-
-        assert len(result) == 2
-        assert result[0] == (1, 10.0, 20.0, "keyframe")
-
-    def test_load_csv_tab_delimited(self, tmp_path):
-        """Test loading tab-delimited CSV file."""
-        service = DataService()
-        test_file = tmp_path / "test.tsv"
-
-        csv_content = "1\t10.0\t20.0\tkeyframe\n2\t12.0\t22.0\tinterpolated"
-        test_file.write_text(csv_content)
-
-        result = service.load_csv(str(test_file))
-
-        assert len(result) == 2
-        assert result[0] == (1, 10.0, 20.0, "keyframe")
-
-    def test_load_csv_semicolon_delimited(self, tmp_path):
-        """Test loading semicolon-delimited CSV file."""
-        service = DataService()
-        test_file = tmp_path / "test.csv"
-
-        csv_content = "1;10.0;20.0;keyframe\n2;12.0;22.0;interpolated"
-        test_file.write_text(csv_content)
-
-        result = service.load_csv(str(test_file))
-
-        assert len(result) == 2
-        assert result[0] == (1, 10.0, 20.0, "keyframe")
 
     def test_load_2dtrack_data_single_point(self, tmp_path):
         """Test loading 2DTrackData format (single curve) with 3DE metadata."""

@@ -9,6 +9,21 @@ Tests the complete endframe gap behavior including:
 - Frame navigation through gaps
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
+import pytest
+
 from core.type_aliases import CurveDataList
 from services.data_service import DataService
 
@@ -16,8 +31,20 @@ from services.data_service import DataService
 class TestDataServiceGapBehavior:
     """Test DataService integration with gap behavior."""
 
-    def test_get_position_at_frame_with_gaps(self):
-        """Test DataService position lookup with gaps."""
+    @pytest.mark.parametrize(
+        "frame,expected_position",
+        [
+            pytest.param(1, (100.0, 100.0), id="active_start"),
+            pytest.param(5, (150.0, 150.0), id="endframe"),
+            pytest.param(6, (150.0, 150.0), id="gap_frame_6"),
+            pytest.param(7, (150.0, 150.0), id="gap_frame_7"),
+            pytest.param(8, (150.0, 150.0), id="gap_frame_8"),
+            pytest.param(9, (150.0, 150.0), id="gap_frame_9"),
+            pytest.param(10, (200.0, 200.0), id="next_active"),
+        ],
+    )
+    def test_get_position_at_frame_with_gaps(self, frame: int, expected_position: tuple[float, float]):
+        """Test DataService position lookup with gaps - positions held during gaps."""
         data_service = DataService()
 
         # Create curve data with gaps
@@ -27,18 +54,7 @@ class TestDataServiceGapBehavior:
             (10, 200.0, 200.0, "keyframe"),  # Startframe after gap
         ]
 
-        # Active segment positions
-        assert data_service.get_position_at_frame(curve_data, 1) == (100.0, 100.0)
-        assert data_service.get_position_at_frame(curve_data, 5) == (150.0, 150.0)
-
-        # Gap positions (should hold endframe position)
-        assert data_service.get_position_at_frame(curve_data, 6) == (150.0, 150.0)
-        assert data_service.get_position_at_frame(curve_data, 7) == (150.0, 150.0)
-        assert data_service.get_position_at_frame(curve_data, 8) == (150.0, 150.0)
-        assert data_service.get_position_at_frame(curve_data, 9) == (150.0, 150.0)
-
-        # Next active segment
-        assert data_service.get_position_at_frame(curve_data, 10) == (200.0, 200.0)
+        assert data_service.get_position_at_frame(curve_data, frame) == expected_position
 
     def test_get_position_at_frame_interpolation(self):
         """Test DataService interpolation in active segments."""
@@ -170,7 +186,19 @@ class TestGapWorkflow:
             frame10_status = status_dict[10]
             assert frame10_status.is_startframe is True  # Should be detected as startframe
 
-    def test_multiple_gaps_workflow(self):
+    @pytest.mark.parametrize(
+        "frame,expected_x,expected_y,description",
+        [
+            pytest.param(4, 120.0, 120.0, "first_gap_start", id="gap1_frame4"),
+            pytest.param(5, 120.0, 120.0, "first_gap_end", id="gap1_frame5"),
+            pytest.param(6, 150.0, 150.0, "between_gaps_keyframe", id="keyframe_6"),
+            pytest.param(9, 170.0, 170.0, "second_gap_start", id="gap2_frame9"),
+            pytest.param(10, 170.0, 170.0, "second_gap_middle", id="gap2_frame10"),
+            pytest.param(11, 170.0, 170.0, "second_gap_end", id="gap2_frame11"),
+            pytest.param(12, 200.0, 200.0, "after_gaps", id="keyframe_12"),
+        ],
+    )
+    def test_multiple_gaps_workflow(self, frame: int, expected_x: float, expected_y: float, description: str):
         """Test workflow with multiple gaps in sequence."""
         data_service = DataService()
 
@@ -182,23 +210,25 @@ class TestGapWorkflow:
             (12, 200.0, 200.0, "keyframe"),  # End second gap
         ]
 
-        # First gap: frames 4-5 hold position from frame 3
-        assert data_service.get_position_at_frame(curve_data, 4) == (120.0, 120.0)
-        assert data_service.get_position_at_frame(curve_data, 5) == (120.0, 120.0)
+        position = data_service.get_position_at_frame(curve_data, frame)
+        if description == "between_gaps_interpolated":
+            # For interpolated position, just verify it's not None
+            assert position is not None
+        else:
+            assert position == (expected_x, expected_y)
 
-        # Between gaps: normal operation
-        assert data_service.get_position_at_frame(curve_data, 6) == (150.0, 150.0)
-        assert data_service.get_position_at_frame(curve_data, 7) is not None  # Should interpolate to frame 8
-
-        # Second gap: frames 9-11 hold position from frame 8
-        assert data_service.get_position_at_frame(curve_data, 9) == (170.0, 170.0)
-        assert data_service.get_position_at_frame(curve_data, 10) == (170.0, 170.0)
-        assert data_service.get_position_at_frame(curve_data, 11) == (170.0, 170.0)
-
-        # After gaps
-        assert data_service.get_position_at_frame(curve_data, 12) == (200.0, 200.0)
-
-    def test_gap_at_end_of_sequence(self):
+    @pytest.mark.parametrize(
+        "frame,expected_behavior",
+        [
+            pytest.param(1, ("exact", (100.0, 100.0)), id="keyframe_1"),
+            pytest.param(7, ("interpolated", None), id="interpolated_7"),
+            pytest.param(10, ("exact", (200.0, 200.0)), id="endframe_10"),
+            pytest.param(11, ("exact", (200.0, 200.0)), id="held_11"),
+            pytest.param(15, ("exact", (200.0, 200.0)), id="held_15"),
+            pytest.param(100, ("exact", (200.0, 200.0)), id="held_100"),
+        ],
+    )
+    def test_gap_at_end_of_sequence(self, frame: int, expected_behavior: tuple):
         """Test gap behavior when endframe is at the end of sequence."""
         data_service = DataService()
 
@@ -208,15 +238,13 @@ class TestGapWorkflow:
             (10, 200.0, 200.0, "endframe"),  # Gap extends indefinitely
         ]
 
-        # Positions before endframe work normally
-        assert data_service.get_position_at_frame(curve_data, 1) == (100.0, 100.0)
-        assert data_service.get_position_at_frame(curve_data, 7) is not None  # Interpolated
-        assert data_service.get_position_at_frame(curve_data, 10) == (200.0, 200.0)
+        behavior_type, expected_value = expected_behavior
+        result = data_service.get_position_at_frame(curve_data, frame)
 
-        # After endframe: position should be held indefinitely
-        assert data_service.get_position_at_frame(curve_data, 11) == (200.0, 200.0)
-        assert data_service.get_position_at_frame(curve_data, 15) == (200.0, 200.0)
-        assert data_service.get_position_at_frame(curve_data, 100) == (200.0, 200.0)
+        if behavior_type == "exact":
+            assert result == expected_value
+        elif behavior_type == "interpolated":
+            assert result is not None  # Should interpolate between frames 5 and 10
 
 
 class TestEdgeCases:

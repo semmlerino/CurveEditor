@@ -4,8 +4,24 @@ Service layer test fixtures.
 Contains fixtures for testing service components and managing service state.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import gc
 import threading
+from collections.abc import Generator
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -14,7 +30,7 @@ import services
 
 
 @pytest.fixture
-def isolated_services():
+def isolated_services() -> Generator[None, None, None]:
     """Provide isolated service instances for testing.
 
     This fixture ensures services are reset between tests to prevent
@@ -44,7 +60,7 @@ def isolated_services():
 
 
 @pytest.fixture
-def all_services():
+def all_services() -> Generator[SimpleNamespace, None, None]:
     """Provide all service instances in a convenient namespace.
 
     This fixture consolidates the common pattern of initializing all services
@@ -54,8 +70,6 @@ def all_services():
         SimpleNamespace: Object with data_service, transform_service,
                         interaction_service, and ui_service attributes
     """
-    from types import SimpleNamespace
-
     from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
 
     # Create namespace with all services
@@ -72,7 +86,7 @@ def all_services():
 
 
 @pytest.fixture
-def memory_monitor():
+def memory_monitor() -> Generator[Any, None, None]:
     """Monitor memory usage during tests.
 
     Useful for detecting memory leaks in service operations.
@@ -115,7 +129,7 @@ def memory_monitor():
 
 
 @pytest.fixture
-def app_state():
+def app_state() -> Generator[Any, None, None]:
     """Provide clean ApplicationState for each test.
 
     This fixture ensures ApplicationState is reset between tests to prevent
@@ -142,7 +156,7 @@ def app_state():
 
 
 @pytest.fixture
-def curve_with_data(app_state):
+def curve_with_data(app_state) -> Generator[Any, None, None]:
     """Provide ApplicationState with test curve data pre-loaded.
 
     Convenience fixture that sets up a test curve with sample data and

@@ -14,6 +14,19 @@ from multiple threads, validating that the internal mutex properly protects
 the batch mode flag and pending signals list.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import threading
 import time
 from collections.abc import Generator
@@ -59,7 +72,7 @@ class TestApplicationStateThreadSafety:
                 pass
 
         # Launch 10 concurrent workers
-        threads = [threading.Thread(target=batch_worker, args=(i,), daemon=True) for i in range(10)]
+        threads = [threading.Thread(target=batch_worker, args=(i,)) for i in range(10)]
 
         for t in threads:
             t.start()
@@ -150,7 +163,7 @@ class TestApplicationStateThreadSafety:
                     pass
 
         # Launch 5 threads that attempt to toggle batch mode
-        threads = [threading.Thread(target=rapid_batch_toggle, args=(i,), daemon=True) for i in range(5)]
+        threads = [threading.Thread(target=rapid_batch_toggle, args=(i,)) for i in range(5)]
 
         for t in threads:
             t.start()
@@ -184,7 +197,7 @@ class TestApplicationStateThreadSafety:
                 pass
 
         # Run worker thread
-        thread = threading.Thread(target=worker_thread_violation, daemon=True)
+        thread = threading.Thread(target=worker_thread_violation)
         thread.start()
         thread.join(timeout=5)
 
@@ -222,7 +235,7 @@ class TestApplicationStateThreadSafety:
                 pass
 
         # Launch multiple modifier threads
-        threads = [threading.Thread(target=modifier_thread, args=(i,), daemon=True) for i in range(3)]
+        threads = [threading.Thread(target=modifier_thread, args=(i,)) for i in range(3)]
 
         for t in threads:
             t.start()

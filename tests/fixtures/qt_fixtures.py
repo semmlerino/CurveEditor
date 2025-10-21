@@ -5,6 +5,19 @@ Contains fixtures for Qt application management, widget cleanup,
 and Qt-specific test utilities.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import os
 import sys
 from collections.abc import Generator
@@ -149,7 +162,7 @@ def curve_view_widget(qapp: QApplication, qtbot):
     mock_main_window = ProtocolCompliantMockMainWindow()
     # CRITICAL: Set the mock's curve_widget to point to our actual widget
     # so that commands execute on the real widget, not the mock
-    mock_main_window.curve_widget = widget  # pyright: ignore[reportAttributeAccessIssue]
+    mock_main_window.curve_widget = widget
     # Mock is protocol-compatible at runtime (has properties that match protocol requirements)
     widget.set_main_window(mock_main_window)  # pyright: ignore[reportArgumentType]
 
