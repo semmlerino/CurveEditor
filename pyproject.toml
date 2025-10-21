@@ -121,7 +121,8 @@ markers = [
     "skip_qt_cleanup: Tests that should skip automatic Qt cleanup",
     "slow: Tests that take a long time to run",
     "integration: Integration tests",
-    "unit: Unit tests",
+    "unit: Unit tests (no Qt dependencies, fast execution)",
+    "production: Production workflow simulation tests (realistic user interactions)",
     "performance: Performance and benchmark tests",
     "benchmark: Specific benchmark tests for performance comparison",
 ]

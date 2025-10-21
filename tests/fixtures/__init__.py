@@ -6,6 +6,7 @@ This package contains organized test fixtures split by domain:
 - mock_fixtures: Mock objects for testing
 - data_fixtures: Test data generators and builders
 - service_fixtures: Service layer test fixtures
+- production_fixtures: Production-realistic workflow fixtures
 """
 
 # Component fixtures removed - classes now available directly from test_helpers
@@ -23,6 +24,11 @@ from tests.fixtures.mock_fixtures import (
     mock_main_window_with_data,
     protocol_compliant_mock_curve_view,
     protocol_compliant_mock_main_window,
+)
+from tests.fixtures.production_fixtures import (
+    production_widget_factory,
+    safe_test_data_factory,
+    user_interaction,
 )
 from tests.fixtures.qt_fixtures import (
     curve_view_widget,
@@ -55,6 +61,10 @@ __all__ = [
     "protocol_compliant_mock_curve_view",
     "protocol_compliant_mock_main_window",
     "lazy_mock_main_window",
+    # Production fixtures
+    "production_widget_factory",
+    "safe_test_data_factory",
+    "user_interaction",
     # Qt fixtures
     "qapp",
     "qt_cleanup",

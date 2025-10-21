@@ -236,168 +236,31 @@ def main_window(qtbot) -> MainWindow:
     return window
 ```
 
-## Decision Functions (Not Pseudo-Code)
+## Essential Test Patterns
 
-### Signal Testing Strategy
-```python
-def choose_signal_testing_approach(obj, signal_name: str):
-    """Determine correct signal testing approach."""
-    if isinstance(obj, QObject) and hasattr(obj, signal_name):
-        # Real Qt object with real signal
-        from pytestqt.qt_compat import qt_api
-        signal = getattr(obj, signal_name)
-        return qt_api.QtTest.QSignalSpy(signal)
-    elif isinstance(obj, Mock):
-        # Mock object needs TestSignal
-        return TestSignal()
-    else:
-        raise TypeError(f"Cannot test signal on {type(obj)}")
+### Signal Testing
 
-def should_use_real_component(component_type: str) -> bool:
-    """Decide whether to mock or use real component."""
-    mock_these = {'external_api', 'network', 'subprocess', 'file_io_when_testing_logic'}
-    return component_type not in mock_these
-```
+**Signal test doubles**:
+- ✅ `QSignalSpy` for real Qt objects: `spy = QSignalSpy(widget.signal_name)`
+- ✅ `TestSignal` for mocks: Available in `tests/test_helpers.py`
+- ❌ Never `QSignalSpy` with Mock → `TypeError`
 
-## Complete Test Patterns
-
-### Error Testing Pattern
-```python
-def test_invalid_frame_range():
-    """Test error handling with pytest.raises."""
-    curve = CurveViewWidget()
-
-    # Test with match parameter for message validation
-    with pytest.raises(ValueError, match="Frame must be >= 0"):
-        curve.set_frame(-1)
-
-    with pytest.raises(IndexError, match="Point index .* out of range"):
-        curve.select_point(999)
-
-def test_pep_678_exception_notes():
-    """Test exception context using PEP 678 add_note (Python 3.11+)."""
-    try:
-        curve.load_data("/invalid/path.json")
-    except FileNotFoundError as e:
-        # Verify exception notes added for debugging context
-        assert "Attempted to load curve data" in str(e.__notes__)
-```
-
-### TestSignal Implementation (Complete)
-
-**When to use:**
-- ✅ Use `TestSignal` for mocked objects (Mock/MagicMock) that need signal behavior
-- ✅ Use `QSignalSpy` for real Qt objects (QObject subclasses) with actual signals
-- ❌ Never use `QSignalSpy` with Mock objects → `TypeError`
+### Error Testing
 
 ```python
-class TestSignal:
-    """Complete signal test double for non-Qt objects.
-
-    Usage:
-        mock_service = Mock()
-        mock_service.data_changed = TestSignal()
-
-        # Test emission
-        mock_service.data_changed.emit({"key": "value"})
-        assert mock_service.data_changed.was_emitted
-    """
-    def __init__(self):
-        self.emissions = []
-        self.callbacks = []
-
-    def emit(self, *args):
-        self.emissions.append(args)
-        for callback in self.callbacks:
-            callback(*args)
-
-    def connect(self, callback):
-        self.callbacks.append(callback)
-
-    def disconnect(self, callback):
-        if callback in self.callbacks:
-            self.callbacks.remove(callback)
-
-    @property
-    def was_emitted(self):
-        return len(self.emissions) > 0
-
-    @property
-    def emit_count(self):
-        return len(self.emissions)
+# Test exceptions with message validation
+with pytest.raises(ValueError, match="Frame must be >= 0"):
+    curve.set_frame(-1)
 ```
 
-### Test CurveViewWidget Pattern
+### Modal Dialog Testing
+
 ```python
-def test_curve_view_point_manipulation(qtbot, curve_widget):
-    """Test point operations in CurveViewWidget."""
-    # Setup test data
-    points = [
-        CurvePoint(0, 0.0, 0.0, PointStatus.KEYFRAME),
-        CurvePoint(10, 1.0, 1.0, PointStatus.NORMAL)
-    ]
-    curve_widget.set_curve_data(points)
-
-    # Test selection
-    spy = qt_api.QtTest.QSignalSpy(curve_widget.point_selected)
-    curve_widget.select_point(0)
-
-    assert len(spy) == 1
-    assert spy[0][0] == 0  # First point selected
-    assert 0 in curve_widget.selected_indices
-
-    # Test point movement
-    move_spy = qt_api.QtTest.QSignalSpy(curve_widget.point_moved)
-    curve_widget.update_point(0, 5, 0.5, 0.5)
-
-    assert len(move_spy) == 1
-    assert curve_widget.curve_data[0].frame == 5
+# Mock exec to prevent blocking
+monkeypatch.setattr(QDialog, "exec", lambda self: QDialog.DialogCode.Accepted)
 ```
 
-### Test Modal Dialog Pattern
-```python
-def test_curve_editor_dialog(qtbot, monkeypatch):
-    """Test dialog without blocking."""
-    # Mock exec to prevent blocking
-    monkeypatch.setattr(QDialog, "exec",
-                       lambda self: QDialog.DialogCode.Accepted)
-
-    dialog = CurvePropertiesDialog()
-    qtbot.addWidget(dialog)
-
-    # Set values
-    dialog.fps_spinbox.setValue(60)
-    dialog.duration_spinbox.setValue(100)
-
-    result = dialog.exec()
-    assert result == QDialog.DialogCode.Accepted
-    assert dialog.get_fps() == 60
-```
-
-### Test Worker Thread Pattern
-```python
-def test_background_image_loading(qtbot):
-    """Test threading with proper cleanup."""
-    from services import ImageLoaderThread
-
-    loader = ImageLoaderThread()
-    spy = qt_api.QtTest.QSignalSpy(loader.finished)
-
-    # Use ThreadSafeTestImage for thread safety
-    with patch('services.QImage', ThreadSafeTestImage):
-        loader.load_path = "/test/image.png"
-        loader.start()
-
-        # Wait for completion
-        qtbot.waitUntil(lambda: not loader.isRunning(), timeout=5000)
-
-    assert len(spy) == 1
-
-    # Cleanup
-    if loader.isRunning():
-        loader.quit()
-        loader.wait(1000)
-```
+**Full examples**: See `tests/test_production_patterns_example.py` for production-realistic patterns.
 
 ## TDD Bug Fix Workflow
 
@@ -501,48 +364,22 @@ def cleanup_background_threads():
 **Verified**: Full CurveEditor test suite (2264 tests) completes in 3 minutes with zero crashes.
 
 ### Safe Image Operations
+
+**Thread-safe image processing**:
 ```python
-def process_curve_thumbnail(curve_data):
-    """Process image in thread-safe manner."""
-    # Worker thread code
-    image = ThreadSafeTestImage(200, 100)  # NOT QPixmap
+# ✅ Worker thread: Use ThreadSafeTestImage (not QPixmap)
+image = ThreadSafeTestImage(200, 100)
 
-    # safe_painter: Context manager that handles QPainter cleanup
-    # Ensures painter.end() is called even if exception occurs
-    with safe_painter(image.get_qimage()) as painter:
-        # ... draw curve ...
-        painter.drawLine(0, 0, 100, 100)
-    # painter.end() called automatically
+# ✅ Use safe_painter context manager
+with safe_painter(image.get_qimage()) as painter:
+    painter.drawLine(0, 0, 100, 100)
+# painter.end() called automatically
 
-    # Return QImage for main thread to convert to QPixmap
-    return image.get_qimage()
-
-def test_concurrent_thumbnail_generation():
-    """Test parallel image processing."""
-    import threading
-
-    def worker(curve_id: int, results: list):
-        try:
-            # Safe: Uses ThreadSafeTestImage
-            thumbnail = process_curve_thumbnail(test_curves[curve_id])
-            results.append((curve_id, thumbnail))
-        except Exception as e:
-            results.append((curve_id, str(e)))
-
-    results = []
-    threads = []
-
-    for i in range(5):
-        t = threading.Thread(target=worker, args=(i, results))
-        threads.append(t)
-        t.start()
-
-    for t in threads:
-        t.join(timeout=5.0)
-
-    assert len(results) == 5
-    assert all(isinstance(r[1], QImage) for r in results)
+# ✅ Return QImage (main thread converts to QPixmap)
+return image.get_qimage()
 ```
+
+**Available in**: `tests/qt_test_helpers.py`
 
 ## Type Ignore Patterns
 
@@ -557,116 +394,44 @@ obj.maybe_none.method()  # pyright: ignore[reportOptionalMemberAccess]
 # NEVER: # type: ignore  (too broad, enforced by basedpyrightconfig.json)
 ```
 
-## Test Smells - Warning Signs
+## Test Anti-Patterns & Best Practices
 
-Patterns that indicate poorly designed tests:
+### ❌ Never Do These
 
-❌ **Test depends on execution order**
+**Fatal errors**:
+- QPixmap in worker thread → FATAL CRASH
+- GUI creation in worker threads (QDialog, QWidget in QThread.run())
+- QSignalSpy with Mock objects → TypeError
+
+**Common mistakes**:
+- Qt container truthiness: `if self.layout:` (use `is not None`)
+- Execution order dependencies (test_02 depends on test_01)
+- Global/shared state between tests
+- Over-mocking (testing mocks, not code)
+- Tests without assertions
+- Multiple concepts per test (split into separate tests)
+- Unclear test names (`test_1` → `test_curve_rejects_duplicate_frames`)
+
+### ✅ Always Do These
+
 ```python
-# BAD: test_02 depends on test_01 running first
-def test_01_create_curve():
-    global curve
-    curve = CurveData()
-
-def test_02_modify_curve():  # Breaks if run alone!
-    curve.add_point(10, 5.0)
-```
-
-❌ **Test modifies global/shared state**
-```python
-# BAD: Modifies class-level state
-class TestCurve:
-    data = []  # Shared across tests!
-
-    def test_add(self):
-        self.data.append(1)  # Leaks to other tests
-```
-
-❌ **Over-mocking - Testing mocks instead of code**
-```python
-# BAD: Everything is mocked, testing nothing
-def test_process_curve():
-    mock_curve = Mock()
-    mock_processor = Mock()
-    mock_result = Mock()
-    # What are we actually testing?
-```
-
-❌ **No assertions - Test that doesn't verify**
-```python
-# BAD: No verification of behavior
-def test_curve_processing():
-    curve.process()  # Did it work? Who knows!
-```
-
-❌ **Multiple concepts - Should be separate tests**
-```python
-# BAD: Testing add, remove, and update together
-def test_curve_operations():
-    curve.add_point(1, 1.0)
-    curve.remove_point(0)
-    curve.update_point(1, 2.0)
-    # Which part failed?
-```
-
-❌ **Unclear names - Doesn't describe behavior**
-```python
-# BAD: What does this test?
-def test_curve_1():
-    ...
-
-# GOOD: Clear expected behavior
-def test_curve_rejects_duplicate_frame_numbers():
-    ...
-```
-
-## Anti-Patterns Reference
-
-### Never Do These
-```python
-# ❌ QPixmap in worker thread → FATAL CRASH
-threading.Thread(target=lambda: QPixmap(100, 100))
-
-# ❌ QSignalSpy with mock → TypeError
-spy = QSignalSpy(mock.signal)
-
-# ❌ Qt container truthiness → False when empty!
-if self.layout:  # WRONG
-if self.layout is not None:  # CORRECT
-
-# ❌ GUI creation in worker thread → CRASH
-class Worker(QThread):
-    def run(self):
-        dialog = QDialog()  # FATAL
-
-# ❌ Unprotected parent access → RuntimeError
-super().__init__(parent)  # Parent might be deleted
-
-# ❌ Mock class under test → Pointless
-controller = Mock(spec=Controller)
-```
-
-### Always Do These
-```python
-# ✅ Widget cleanup
+# Widget cleanup
 qtbot.addWidget(widget)
 
-# ✅ Explicit None checks
+# Explicit None checks
 if widget is not None:
 
-# ✅ Initialize before super
+# Initialize before super
 self.data = []
 super().__init__()
 
-# ✅ RuntimeError protection
+# RuntimeError protection for deleted widgets
 try:
     widget.method()
 except RuntimeError:
     pass
 
-# ✅ Test ALL Protocol methods
-def test_every_protocol_method():
-    """Even if unused in production."""
+# Test ALL Protocol methods (prevents typo bugs)
 ```
 
 ## Command Reference
@@ -746,6 +511,271 @@ exclude_lines = [
 ]
 ```
 
+## Test-Production State Alignment
+
+**Critical Pattern**: Tests must simulate production state initialization, not manually trigger internal updates.
+
+### Anti-Pattern: Manual Cache/State Updates
+
+❌ **BAD - Manually updating state that production doesn't control**
+```python
+def test_ctrl_click_selection(curve_widget, qtbot):
+    # ❌ Manually updating internal cache
+    curve_widget._update_screen_points_cache()
+
+    QTest.mouseClick(curve_widget, ...)
+    # Test passes, but production may fail if cache isn't updated
+```
+
+✅ **GOOD - Let widget initialize naturally through Qt lifecycle**
+```python
+def test_ctrl_click_selection(curve_view_widget, qtbot):
+    # ✅ Let widget show and render naturally
+    curve_view_widget.show()
+    qtbot.waitExposed(curve_view_widget)
+    qtbot.wait(50)  # Allow paint event to complete
+
+    # Production code path: spatial index rebuilds on demand
+    QTest.mouseClick(curve_view_widget, ...)
+```
+
+**Why This Matters**:
+- Tests calling `_update_screen_points_cache()` pass even though production never calls it
+- The spatial index rebuilds automatically in `find_point_at_position()`, not via explicit cache updates
+- Tests should verify the production code path, not an idealized version
+
+**Discovery**: CurveEditor's Ctrl+click tests originally called `_update_screen_points_cache()` manually. Production worked correctly without it because the spatial index uses `transform.data_to_screen()` directly.
+
+### Boundary Testing: Qt/QTest Edge Cases
+
+**Critical**: QTest.mouseClick has boundary issues at exact widget edges.
+
+❌ **BAD - Test data that maps to boundary coordinates**
+```python
+# This creates a point at screen (0, 0) - QTest fails!
+test_data = [(0, 0.0, 0.0), (1, 100.0, 100.0)]
+QTest.mouseClick(widget, Qt.LeftButton, QPoint(0, 0))  # Fails silently
+```
+
+✅ **GOOD - Offset coordinates to avoid widget boundaries**
+```python
+# Ensure all points are away from edges (add 50px margin)
+test_data = [(i+1, float(50 + i*100), float(50 + i*100)) for i in range(5)]
+QTest.mouseClick(widget, Qt.LeftButton, QPoint(51, 51))  # Works reliably
+```
+
+**Observed Behavior** (CurveEditor spatial index tests):
+```
+Point at (0.0, 0.0): Spatial index finds it ✓, QTest.mouseClick fails ✗
+Point at (1.0, 1.0): Spatial index finds it ✓, QTest.mouseClick works ✓
+```
+
+**Root Cause**: Qt may not deliver mouse events at exact (0,0) or (width-1, height-1) coordinates. This is a test framework limitation, not a production bug.
+
+**Solution**:
+1. Add margin to test data coordinates (50px recommended)
+2. Document why test data has offsets
+3. Test boundary scenarios with offsets (1,1) instead of (0,0)
+
+### Cache Invalidation Testing
+
+When testing features that depend on cached state:
+
+```python
+def test_ctrl_click_after_zoom(curve_view_widget, qtbot):
+    """Test that selection works after cache invalidation."""
+    # Setup
+    curve_view_widget.show()
+    qtbot.waitExposed(curve_view_widget)
+
+    # Invalidate caches through normal user action
+    curve_view_widget.zoom_factor = 2.0  # Triggers cache rebuild
+    curve_view_widget.update()
+    qtbot.wait(10)
+
+    # Test still works after cache invalidation
+    QTest.mouseClick(...)
+    assert selection_is_correct
+```
+
+**Don't**:
+- Call internal `_invalidate_cache()` methods directly
+- Assume caches are always fresh
+- Test with idealized state that production doesn't guarantee
+
+**Do**:
+- Trigger cache invalidation through user actions (zoom, pan, data change)
+- Verify code handles stale/missing caches correctly
+- Test both fresh and post-invalidation states
+
+### Production Workflow Testing Infrastructure
+
+**Purpose**: Simplify writing production-realistic tests following best practices discovered during systematic test quality improvements.
+
+**Key Fixtures** (available in all tests via `conftest.py`):
+
+#### 1. `production_widget_factory` - Factory Pattern for Widget Setup
+
+Factory fixture that creates widgets in production-ready state. Follows pytest "factory as fixture" pattern for multiple configurations per test.
+
+```python
+def test_multiple_scenarios(production_widget_factory, safe_test_data_factory):
+    # Configuration 1: Widget shown and rendered
+    widget = production_widget_factory(
+        curve_data=safe_test_data_factory(5),
+        show=True,           # Default: show widget
+        wait_for_render=True # Default: wait for paint + cache rebuild
+    )
+
+    # Configuration 2: Same test, different setup
+    widget = production_widget_factory(
+        curve_data=safe_test_data_factory(10, spacing=50.0),
+        wait_for_render=False  # Skip render wait for unit tests
+    )
+```
+
+**Benefits**:
+- Eliminates 6-8 lines of boilerplate setup per test
+- Ensures consistent production state initialization
+- Single source of truth for production-ready widget configuration
+
+#### 2. `safe_test_data_factory` - Boundary-Safe Test Data
+
+Factory fixture that generates test data avoiding (0,0) boundary issues where QTest.mouseClick fails.
+
+```python
+def test_with_safe_data(safe_test_data_factory):
+    # Default: 50px margin, 100px spacing
+    data = safe_test_data_factory(5)
+    # → [(1, 50.0, 50.0), (2, 150.0, 150.0), ...]
+
+    # Custom spacing for dense data
+    dense = safe_test_data_factory(10, spacing=50.0)
+
+    # Larger margin for edge case testing
+    margin = safe_test_data_factory(3, start_margin=100.0, spacing=200.0)
+```
+
+**Benefits**:
+- Prevents QTest boundary failures (0,0) automatically
+- Configurable for different test scenarios
+- Self-documenting (offset explains why)
+
+#### 3. `user_interaction` - Realistic User Action Simulation
+
+Fixture providing helpers that simulate production user interactions with proper coordinate transformations.
+
+```python
+def test_user_workflow(production_widget_factory, safe_test_data_factory, user_interaction):
+    widget = production_widget_factory(safe_test_data_factory(5))
+
+    # Method 1: Direct coordinate clicking
+    user_interaction.click(widget, 50.0, 50.0)  # Data coordinates
+    user_interaction.ctrl_click(widget, 150.0, 150.0)
+
+    # Method 2: Point-level selection by index (recommended)
+    user_interaction.select_point(widget, 0)         # Select first point
+    user_interaction.select_point(widget, 1, ctrl=True)  # Ctrl+click second
+```
+
+**Benefits**:
+- Handles data-to-screen coordinate transformation
+- Clear test intent (no manual QTest/QPointF boilerplate)
+- Consistent interaction patterns across tests
+
+#### Auto-Tagging System
+
+Tests using production fixtures are automatically tagged with `@pytest.mark.production` by `conftest.py`:
+
+```bash
+# Run only production workflow tests
+pytest -m production
+
+# Run fast unit tests only (no Qt)
+pytest -m unit
+
+# Run everything except production tests
+pytest -m "not production"
+
+# List all production tests
+pytest -m production --co -q
+```
+
+**Auto-tagging rules** (`pytest_collection_modifyitems` hook):
+- Uses `production_widget_factory` or `user_interaction` → `@pytest.mark.production`
+- Uses no Qt fixtures (`qtbot`, `qapp`) → `@pytest.mark.unit`
+
+#### Validation Decorator: `@assert_production_realistic`
+
+Decorator that validates tests don't use anti-patterns creating test-production mismatches.
+
+```python
+from tests.test_utils import assert_production_realistic
+
+@assert_production_realistic
+def test_selection(production_widget_factory, safe_test_data_factory):
+    widget = production_widget_factory(safe_test_data_factory(5))
+
+    # ✅ CORRECT: No manual cache updates
+    # Cache rebuilds automatically via production code path
+    assert widget.curve_data is not None
+
+    # ❌ WRONG (would cause validation failure):
+    # widget._update_screen_points_cache()  # Anti-pattern!
+```
+
+**Anti-patterns detected**:
+- `_update_screen_points_cache()` - Manual cache update (production uses auto-rebuild)
+- `._spatial_index` - Direct cache access (should use service methods)
+
+**Features**:
+- Smart comment filtering (ignores `# widget._update...` comments)
+- `__tracebackhide__` for clean error messages
+- Links to testing guide for correct patterns
+
+#### Complete Example
+
+```python
+def test_ctrl_click_selection(production_widget_factory, safe_test_data_factory, user_interaction):
+    """Example: Multi-selection using Ctrl+click (production-realistic)."""
+    # Setup: Widget with safe test data, shown and rendered
+    widget = production_widget_factory(curve_data=safe_test_data_factory(5))
+
+    # Simulate user workflow
+    user_interaction.select_point(widget, 0)         # Click first point
+    user_interaction.select_point(widget, 1, ctrl=True)  # Ctrl+click second
+
+    # Verify production state
+    app_state = get_application_state()
+    if (cd := app_state.active_curve_data) is None:
+        pytest.fail("No active curve")
+    curve_name, _ = cd
+    selection = app_state.get_selection(curve_name)
+
+    assert len(selection) == 2
+    assert {0, 1}.issubset(selection)
+```
+
+**Code reduction**: 50% fewer lines vs manual setup (2 setup lines vs 8).
+
+#### When to Use
+
+**Use production fixtures when**:
+- Testing user interactions (clicks, drags, keyboard)
+- Testing view state changes (zoom, pan)
+- Testing multi-step workflows
+- Writing integration tests
+
+**Use basic fixtures when**:
+- Testing pure logic (no UI rendering needed)
+- Testing service methods directly
+- Unit testing models/commands
+- Performance-critical test loops
+
+**Full examples**: See `tests/test_production_patterns_example.py` for 8 comprehensive examples covering all patterns.
+
+**Discovery**: Production workflow infrastructure developed during systematic test quality review (2025-10-21), aligned with pytest-qt best practices and "factory as fixture" pattern.
+
 ## Summary
 
 **Core Principle**: Test behavior, not implementation.
@@ -762,6 +792,9 @@ exclude_lines = [
 **Resource Management**: Session-scope QApplication requires explicit cleanup of all QObjects and background threads.
 
 ---
-*Version 2025.01 - Optimized for Claude Code and LLM consumption*
+*Version 2025.10.4 - Optimized for Claude Code and LLM consumption*
+*Consolidated from 1034 to 799 lines (23% reduction) - removed redundant examples, added references to test files*
 *ThreadSafeTestImage available in tests/qt_test_helpers.py*
 *QObject lifecycle patterns discovered via Context7 MCP (pytest-qt documentation)*
+*Test-Production State Alignment patterns discovered via systematic failure analysis (2025-10-21)*
+*Production Workflow Testing Infrastructure added (2025-10-21) - factory fixtures, auto-tagging, validation decorator*

@@ -30,16 +30,20 @@ from tests.fixtures import (
     mock_curve_view_with_selection,
     mock_main_window,
     mock_main_window_with_data,
+    # Production fixtures
+    production_widget_factory,
     protocol_compliant_mock_curve_view,
     protocol_compliant_mock_main_window,
     # Qt fixtures
     qapp,
     qt_cleanup,
+    safe_test_data_factory,
     # Data fixtures
     sample_curve_data,
     sample_points,
     ui_file_load_signals,
     ui_file_load_worker,
+    user_interaction,
 )
 
 
@@ -215,6 +219,26 @@ def reset_all_services() -> Generator[None, None, None]:
         logging.warning(f"Service reset warning: {e}")
 
 
+def pytest_collection_modifyitems(items):
+    """Auto-tag tests based on fixtures used.
+
+    Implements pytest collection hook to automatically mark tests:
+    - 'production': Tests using production workflow fixtures
+    - 'unit': Tests without Qt dependencies (fast unit tests)
+
+    This enables filtering tests by type without manual markers.
+    """
+    for item in items:
+        # Auto-tag production workflow tests
+        production_fixtures = {"production_widget_factory", "user_interaction"}
+        if any(f in item.fixturenames for f in production_fixtures):
+            item.add_marker(pytest.mark.production)
+
+        # Auto-tag unit tests (no Qt widgets)
+        elif "qtbot" not in item.fixturenames and "qapp" not in item.fixturenames:
+            item.add_marker(pytest.mark.unit)
+
+
 # Re-export all fixtures so pytest can find them
 __all__ = [
     # Data fixtures
@@ -230,6 +254,10 @@ __all__ = [
     "protocol_compliant_mock_curve_view",
     "protocol_compliant_mock_main_window",
     "lazy_mock_main_window",
+    # Production fixtures
+    "production_widget_factory",
+    "safe_test_data_factory",
+    "user_interaction",
     # Qt fixtures
     "qapp",
     "qt_cleanup",
