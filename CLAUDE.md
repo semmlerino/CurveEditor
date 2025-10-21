@@ -601,6 +601,45 @@ transform = transform_service.create_transform_from_view_state(view_state)
 5. **Transform Caching**: LRU cache
 6. **Command Pattern**: Undo/redo support
 
+## Common Pitfalls
+
+### ❌ WRONG: Modifying controller snapshot dict
+
+Controller properties that return dicts (like `tracked_data`) return **snapshots** (fresh dict each call). Item assignment doesn't persist:
+
+```python
+# ❌ WRONG - Modifications lost immediately
+tracked_data = controller.tracked_data  # Get snapshot
+tracked_data[curve_name] = new_data     # Modify temporary dict - LOST!
+```
+
+**Why this fails:**
+- `tracked_data` property returns a new dict on each access
+- Modifying the returned dict doesn't affect ApplicationState
+- Changes disappear when the dict is garbage collected
+- No error is raised - **fails silently**
+
+### ✅ CORRECT: Direct ApplicationState access
+
+```python
+# ✅ CORRECT - Direct ApplicationState access (preferred)
+from stores.application_state import get_application_state
+
+app_state = get_application_state()
+app_state.set_curve_data(curve_name, new_data)  # Persists correctly
+```
+
+**Alternative (bulk operations only):**
+```python
+# ✅ ACCEPTABLE - Bulk replacement via setter
+controller.tracked_data = loaded_data  # Triggers property setter
+```
+
+**When to use which:**
+- **Direct ApplicationState**: All command/service operations (preferred)
+- **Bulk replacement**: File loading, session restore (valid but less common)
+- **Snapshot read**: Read-only iteration over all curves (safe)
+
 ## Development Tips
 
 1. Check `which uv` first - use `.venv/bin/python3` if unavailable

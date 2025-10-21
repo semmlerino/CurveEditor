@@ -56,9 +56,21 @@ class TrackingDataController(BaseTrackingController):
 
     @property
     def tracked_data(self) -> dict[str, CurveDataList]:
-        """Get all tracked curve data from ApplicationState.
+        """Get snapshot of all tracked curves.
 
-        Phase 4: Removed __default__ filtering - all curves are real named curves.
+        Returns a fresh dict on each call. Modifications won't persist.
+
+        CORRECT (bulk replacement):
+            controller.tracked_data = loaded_data  # Triggers setter ✓
+
+        INCORRECT (item assignment):
+            data = controller.tracked_data
+            data[curve_name] = new_data  # Lost! Dict is temporary ✗
+
+        RECOMMENDED (new code):
+            Use ApplicationState directly per CLAUDE.md:
+            app_state = get_application_state()
+            app_state.set_curve_data(curve_name, data)
         """
         result: dict[str, CurveDataList] = {}
         for curve_name in self._app_state.get_all_curve_names():
