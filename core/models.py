@@ -343,23 +343,6 @@ class CurvePoint:
     y: Coordinate
     status: PointStatus = PointStatus.NORMAL
 
-    def __post_init__(self) -> None:
-        """Validate point data after initialization."""
-        # Runtime validation for critical type safety
-        # These checks provide defensive programming despite type hints
-        if not isinstance(self.frame, int):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TypeError("Frame must be int")
-
-        # Validate coordinate types (must be numeric)
-        if not isinstance(self.x, int | float):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TypeError("X coordinate must be numeric")
-        if not isinstance(self.y, int | float):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TypeError("Y coordinate must be numeric")
-
-        # Validate status type
-        if not isinstance(self.status, PointStatus):  # pyright: ignore[reportUnnecessaryIsInstance]
-            raise TypeError("Status must be PointStatus enum")
-
     @property
     def is_interpolated(self) -> bool:
         """True if this point is interpolated."""
@@ -585,11 +568,6 @@ class PointCollection:
             points: List of CurvePoint objects (defaults to empty list)
         """
         self.points = points if points is not None else []
-
-        # Validate all points are CurvePoint instances
-        for i, point in enumerate(self.points):
-            if not isinstance(point, CurvePoint):  # pyright: ignore[reportUnnecessaryIsInstance]
-                raise TypeError(f"Point {i} must be CurvePoint")
 
     # Collection interface
 

@@ -286,9 +286,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Verify all critical connections are established
         self._verify_connections()
 
-        # Verify controller protocol compliance
-        self._verify_protocol_compliance()
-
         # Setup initial state
         self.update_ui_state()
 
@@ -999,39 +996,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                     verifier.log_report()
         else:
             logger.debug("All critical connections verified")
-
-    def _verify_protocol_compliance(self) -> None:
-        """
-        Verify that all controllers implement their expected protocols.
-
-        This provides type-safe verification at runtime and helps catch
-        protocol compliance issues during development.
-        """
-        protocol_checks = [
-            (self.timeline_controller, TimelineControllerProtocol, "TimelineController"),
-            (self.action_controller, ActionHandlerProtocol, "ActionHandlerController"),
-            (self.ui_init_controller, UIInitializationProtocol, "UIInitializationController"),
-            (self.point_editor_controller, PointEditorProtocol, "PointEditorController"),
-            (self.tracking_controller, MultiPointTrackingProtocol, "MultiPointTrackingController"),
-            (self.signal_manager, SignalConnectionProtocol, "SignalConnectionManager"),
-        ]
-
-        compliance_failures = []
-        for controller, protocol, name in protocol_checks:
-            # Protocol check - structural typing means this is always true but verifies at runtime
-            if not isinstance(controller, protocol):  # pyright: ignore[reportUnnecessaryIsInstance]
-                compliance_failures.append(f"{name} does not implement {protocol.__name__}")
-
-        if compliance_failures:
-            error_msg = "Protocol compliance failures:\n" + "\n".join(compliance_failures)
-            logger.error(error_msg)
-            # In development mode, this should be a hard error
-            import os
-
-            if os.environ.get("DEBUG_MODE"):
-                raise TypeError(error_msg)
-        else:
-            logger.debug("All controllers are protocol compliant")
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""

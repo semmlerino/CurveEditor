@@ -620,18 +620,20 @@ class TestInteractionServiceMouseEvents:
         app_state.set_curve_data("test_curve", view.curve_data)
         app_state.set_active_curve("test_curve")
 
-        # Ctrl+Click for multi-selection
+        # Ctrl+Click on active curve toggles point-level selection
         event = Mock()
         event.button.return_value = Qt.MouseButton.LeftButton
         event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
         event.position.return_value = QPoint(100, 100)
 
-        # Should toggle selection
-        initial_selection = len(view.selected_points)
+        # Initially no points selected
+        view.selected_points = set()
+
+        # Ctrl+click on active curve should toggle point selection
         self.service.handle_mouse_press(view, event)
 
-        # Selection should change
-        assert len(view.selected_points) != initial_selection
+        # Point should be added to selection (not curve-level selection)
+        assert len(view.selected_points) > 0, "Ctrl+click on active curve should toggle point selection"
 
 
 class TestInteractionServiceKeyboardEvents:
@@ -1059,6 +1061,8 @@ class TestMouseReleaseEvents:
         view.rubber_band_active = True
         view.rubber_band = Mock(spec=QRubberBand)
         view.rubber_band.geometry.return_value = QRect(90, 90, 70, 70)
+        # Provide main_window to avoid NoneType errors
+        view.main_window = MockMainWindow()
 
         # Create mouse release event
         event = Mock(spec=QMouseEvent)
@@ -1566,3 +1570,107 @@ class TestFindPointAtPositionEdgeCases:
             10.0,
         )
         assert result is False
+
+    def test_ctrl_click_curve_selection(self) -> None:
+        """Test Ctrl+click to select multiple curves."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
+        # Set up two curves with visible points at different locations
+        # Use coordinates that are clearly separated
+        curve1_data: CurveDataList = [(1, 10.0, 10.0), (2, 20.0, 20.0)]
+        curve2_data: CurveDataList = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+
+        # Set curve data (curves are visible by default)
+        app_state.set_curve_data("curve1", curve1_data)
+        app_state.set_curve_data("curve2", curve2_data)
+        app_state.set_active_curve("curve1")
+
+        # Initially only curve1 is selected
+        app_state.set_selected_curves({"curve1"})
+
+        # Create view with curve1 data (active)
+        view = MockCurveView(curve1_data)
+
+        # Clear spatial index to ensure rebuild
+        self.service.clear_spatial_index()
+
+        # Test: Find curve1's point at (10, 10) in active mode
+        result1 = self.service.find_point_at(view, 10, 10, mode="active")
+        assert result1.found, "Should find curve1 point at (10, 10) in active mode"
+        assert result1.curve_name == "curve1", "Should be curve1"
+
+        # Test: Find curve2's point at (100, 100) in all_visible mode
+        result2 = self.service.find_point_at(view, 100, 100, mode="all_visible")
+        assert result2.found, "Should find curve2 point at (100, 100) in all_visible mode"
+        assert result2.curve_name == "curve2", "Should be curve2"
+
+        # Now test the full Ctrl+click interaction
+        event = Mock()
+        event.button.return_value = Qt.MouseButton.LeftButton
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        # Mock position for curve2's first point (100, 100)
+        mock_pos = Mock()
+        mock_pos.x.return_value = 100
+        mock_pos.y.return_value = 100
+        mock_pos.toPoint.return_value = QPoint(100, 100)
+        event.position.return_value = mock_pos
+
+        # Handle Ctrl+click - should add curve2 to selection
+        self.service.handle_mouse_press(view, event)
+
+        # Verify curve2 was added to selection
+        selected_curves = app_state.get_selected_curves()
+        assert "curve1" in selected_curves, "curve1 should remain selected"
+        assert "curve2" in selected_curves, "curve2 should be added to selection"
+
+        # Verify curve2 became active
+        assert app_state.active_curve == "curve2", "curve2 should become active"
+
+    def test_ctrl_click_curve_deselection(self) -> None:
+        """Test Ctrl+click to deselect a curve."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
+        # Set up two curves
+        curve1_data: CurveDataList = [(1, 100.0, 100.0), (2, 200.0, 200.0)]
+        curve2_data: CurveDataList = [(1, 300.0, 300.0), (2, 400.0, 400.0)]
+
+        # Set curve data (curves are visible by default)
+        app_state.set_curve_data("curve1", curve1_data)
+        app_state.set_curve_data("curve2", curve2_data)
+        app_state.set_active_curve("curve1")
+
+        # Both curves initially selected
+        app_state.set_selected_curves({"curve1", "curve2"})
+
+        view = MockCurveView(curve1_data)
+
+        # Clear spatial index
+        self.service.clear_spatial_index()
+
+        # Create mock event for Ctrl+click on curve2's first point
+        event = Mock()
+        event.button.return_value = Qt.MouseButton.LeftButton
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        # Mock position for curve2's first point (300, 300)
+        mock_pos = Mock()
+        mock_pos.x.return_value = 300
+        mock_pos.y.return_value = 300
+        mock_pos.toPoint.return_value = QPoint(300, 300)
+        event.position.return_value = mock_pos
+
+        # Handle Ctrl+click - should remove curve2 from selection
+        self.service.handle_mouse_press(view, event)
+
+        # Verify curve2 was removed from selection
+        selected_curves = app_state.get_selected_curves()
+        assert "curve1" in selected_curves, "curve1 should remain selected"
+        assert "curve2" not in selected_curves, "curve2 should be removed from selection"
+
+        # Verify curve2 still became active (even when deselecting)
+        assert app_state.active_curve == "curve2", "curve2 should become active"

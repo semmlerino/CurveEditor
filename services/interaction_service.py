@@ -82,28 +82,59 @@ class _MouseHandler:
             # Convert to QPoint for QRect operations (handles both QPoint and QPointF from mocks)
             pos = pos_f if isinstance(pos_f, QPoint) else pos_f.toPoint()
 
+            # Check if Ctrl is held - affects search mode and selection behavior
+            ctrl_held = bool(event.modifiers() & Qt.KeyboardModifier.ControlModifier)
+
             # Check for point selection first
-            point_result = self._owner._selection.find_point_at(view, pos.x(), pos.y())
+            # When Ctrl is held, search across all visible curves for curve-level selection
+            search_mode = "all_visible" if ctrl_held else "active"
+            point_result = self._owner._selection.find_point_at(view, pos.x(), pos.y(), mode=search_mode)
 
             if point_result.found:
                 # Point clicked
                 point_idx = point_result.index
-                if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
-                    # Toggle selection (no drag for Ctrl+click)
-                    # Get current selection
-                    current_selection = view.selected_points if view.selected_points else set()
-                    # Toggle the point
-                    if point_idx in current_selection:
-                        # Deselecting
-                        current_selection = current_selection - {point_idx}
-                        view.selected_points = current_selection
-                        # Set selected_point_idx to first remaining, or -1 if none
-                        view.selected_point_idx = min(current_selection) if current_selection else -1
+                if ctrl_held:
+                    # Check if clicked point is in active curve or different curve
+                    active_curve = self._app_state.active_curve
+
+                    if point_result.curve_name and point_result.curve_name != active_curve:
+                        # Ctrl+click on DIFFERENT curve: Toggle curve-level selection
+                        current_curves = self._app_state.get_selected_curves()
+
+                        # Toggle the clicked curve
+                        if point_result.curve_name in current_curves:
+                            # Remove from selection
+                            new_selection = current_curves - {point_result.curve_name}
+                        else:
+                            # Add to selection
+                            new_selection = current_curves | {point_result.curve_name}
+
+                        # Update selected curves
+                        self._app_state.set_selected_curves(new_selection)
+
+                        # Make clicked curve active
+                        self._app_state.set_active_curve(point_result.curve_name)
+
+                        # No drag for cross-curve selection
+                        return
                     else:
-                        # Selecting
-                        current_selection = current_selection | {point_idx}
-                        view.selected_points = current_selection
-                        view.selected_point_idx = point_idx
+                        # Ctrl+click on ACTIVE curve: Toggle point-level selection
+                        current_selection = view.selected_points if view.selected_points else set()
+
+                        if point_idx in current_selection:
+                            # Remove from selection
+                            current_selection = current_selection - {point_idx}
+                            view.selected_points = current_selection
+                            # Update selected_point_idx
+                            view.selected_point_idx = max(current_selection) if current_selection else -1
+                        else:
+                            # Add to selection
+                            current_selection = current_selection | {point_idx}
+                            view.selected_points = current_selection
+                            view.selected_point_idx = point_idx
+
+                        # No drag for Ctrl+click point toggle
+                        return
                 elif event.modifiers() & Qt.KeyboardModifier.ShiftModifier:
                     # Range selection (simplified - just add to selection, no drag)
                     current_selection = view.selected_points if view.selected_points else set()
@@ -540,6 +571,12 @@ class _SelectionManager:
                 if not curve_data:
                     continue
 
+                # CRITICAL: Clear spatial index before each curve to prevent cache collision
+                # The spatial index caches by transform hash + point count, but different
+                # curves can have the same point count, leading to stale index data
+                self._point_index._grid.clear()  # pyright: ignore[reportAttributeAccessIssue]
+                self._point_index._last_transform_hash = None  # pyright: ignore[reportAttributeAccessIssue]
+
                 # Search this curve with clean API
                 idx = self._point_index.find_point_at_position(curve_data, transform, x, y, threshold, view)
 
@@ -852,11 +889,8 @@ class _CommandHistory:
             history_state["point_color"] = point_color
 
         # Check if main_window has history attributes for direct management
-        # Note: defensive check for test mocks that allow None despite protocol
-        if (
-            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
-        ):
+        # Protocol allows None - interaction service uses internal history as fallback
+        if main_window.history is not None and main_window.history_index is not None:
             # Truncate future history if we're not at the end
             if main_window.history_index < len(main_window.history) - 1:
                 main_window.history = main_window.history[: main_window.history_index + 1]
@@ -909,11 +943,9 @@ class _CommandHistory:
         if self._owner.command_manager.can_undo():
             _ = self._owner.command_manager.undo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        # Note: defensive check for test mocks that allow None despite protocol
+        # Note: protocol allows None - interaction service uses internal history as fallback
         elif (
-            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index > 0
+            main_window.history is not None and main_window.history_index is not None and main_window.history_index > 0
         ):
             logger.info("Using legacy history system")
             main_window.history_index -= 1
@@ -942,10 +974,10 @@ class _CommandHistory:
             logger.info("Using command manager for redo")
             _ = self._owner.command_manager.redo(main_window)
         # Check if main_window manages its own history (legacy compatibility)
-        # Note: defensive check for test mocks that allow None despite protocol
+        # Note: protocol allows None - interaction service uses internal history as fallback
         elif (
-            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
+            main_window.history is not None
+            and main_window.history_index is not None
             and main_window.history_index < len(main_window.history) - 1
         ):
             logger.info("Using legacy history system for redo")
@@ -975,19 +1007,12 @@ class _CommandHistory:
 
     def update_history_buttons(self, main_window: MainWindowProtocol) -> None:
         """Update undo/redo button states."""
-        # Handle case where main_window might be None (test mocks)
-        if main_window is None:  # pyright: ignore[reportUnnecessaryComparison]
-            return
-
         # Determine can_undo and can_redo based on history location
-        # Note: defensive checks for test mocks that allow None despite protocol
-        can_undo_val = (
-            main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index > 0
-        )
+        # Note: protocol allows None - interaction service uses internal history as fallback
+        can_undo_val = main_window.history_index is not None and main_window.history_index > 0
         can_redo_val = (
-            main_window.history is not None  # pyright: ignore[reportUnnecessaryComparison]
-            and main_window.history_index is not None  # pyright: ignore[reportUnnecessaryComparison]
+            main_window.history is not None
+            and main_window.history_index is not None
             and main_window.history_index < len(main_window.history) - 1
         )
 

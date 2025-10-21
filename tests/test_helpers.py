@@ -1257,13 +1257,13 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
     # Sync to CurveDataStore (until Phase 6.3 removal)
     # Check if widget has _curve_store attribute (real CurveViewWidget)
     if hasattr(widget, "_curve_store"):
-        curve_store = widget._curve_store  # type: ignore[union-attr]
+        curve_store = widget._curve_store  # pyright: ignore[reportAttributeAccessIssue]
         if not indices_set:
-            curve_store.clear_selection()  # type: ignore[union-attr]
+            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
         else:
-            curve_store.clear_selection()  # type: ignore[union-attr]
+            curve_store.clear_selection()  # pyright: ignore[reportAttributeAccessIssue]
             for idx in indices_set:
-                curve_store.select(idx, add_to_selection=True)  # type: ignore[union-attr]
+                curve_store.select(idx, add_to_selection=True)  # pyright: ignore[reportAttributeAccessIssue]
 
 
 # ==================== Export all helpers ====================

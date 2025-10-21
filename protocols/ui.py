@@ -118,23 +118,95 @@ class CurveViewProtocol(Protocol):
     to work with services and controllers.
     """
 
-    # Basic attributes
-    selected_point_idx: int
-    curve_data: CurveDataList
-    current_image_idx: int
+    # Basic attributes (as properties to match CurveViewWidget implementation)
+    @property
+    def selected_point_idx(self) -> int:
+        """Current selected point index."""
+        ...
 
-    # Point management
-    points: CurveDataList
-    selected_points: set[int]
+    @selected_point_idx.setter
+    def selected_point_idx(self, value: int) -> None:
+        """Set current selected point index."""
+        ...
 
-    # Transform and positioning
-    offset_x: float
-    offset_y: float
-    x_offset: float  # Alias for offset_x
-    y_offset: float  # Alias for offset_y
-    zoom_factor: float
-    pan_offset_x: float
-    pan_offset_y: float
+    @property
+    def curve_data(self) -> CurveDataList:
+        """Active curve data."""
+        ...
+
+    @property
+    def current_image_idx(self) -> int:
+        """Current image index."""
+        ...
+
+    # Point management (as properties to match CurveViewWidget implementation)
+    @property
+    def points(self) -> CurveDataList:
+        """All points in the curve."""
+        ...
+
+    @property
+    def selected_points(self) -> set[int]:
+        """Set of selected point indices."""
+        ...
+
+    @selected_points.setter
+    def selected_points(self, value: set[int]) -> None:
+        """Set selected point indices."""
+        ...
+
+    # Transform and positioning (most are properties in CurveViewWidget)
+    @property
+    def offset_x(self) -> float:
+        """X offset for rendering."""
+        ...
+
+    @property
+    def offset_y(self) -> float:
+        """Y offset for rendering."""
+        ...
+
+    @property
+    def x_offset(self) -> float:
+        """X offset alias for compatibility."""
+        ...
+
+    @property
+    def y_offset(self) -> float:
+        """Y offset alias for compatibility."""
+        ...
+
+    @property
+    def zoom_factor(self) -> float:
+        """Current zoom level."""
+        ...
+
+    @zoom_factor.setter
+    def zoom_factor(self, value: float) -> None:
+        """Set zoom level."""
+        ...
+
+    @property
+    def pan_offset_x(self) -> float:
+        """Pan offset in X direction."""
+        ...
+
+    @pan_offset_x.setter
+    def pan_offset_x(self, value: float) -> None:
+        """Set pan offset X."""
+        ...
+
+    @property
+    def pan_offset_y(self) -> float:
+        """Pan offset in Y direction."""
+        ...
+
+    @pan_offset_y.setter
+    def pan_offset_y(self, value: float) -> None:
+        """Set pan offset Y."""
+        ...
+
+    # Manual offsets are plain attributes (not properties)
     manual_offset_x: float
     manual_offset_y: float
 
@@ -442,9 +514,9 @@ class MainWindowProtocol(Protocol):
         """Get the current frame number."""
         ...
 
-    # History management
-    history: list[object]
-    history_index: int
+    # History management (optional - interaction service has internal fallback)
+    history: list[object] | None
+    history_index: int | None
     max_history_size: int
 
     # Point attributes

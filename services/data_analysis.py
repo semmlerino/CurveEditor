@@ -209,19 +209,14 @@ class DataAnalysisService:
                 "bounds": {"min_x": 0, "max_x": 0, "min_y": 0, "max_y": 0},
             }
 
-        # Extract data from points (handle both CurvePoint objects and tuples)
+        # Extract data from points (LegacyPointData is tuple format)
         frames = []
         x_coords = []
         y_coords = []
 
         for point in points:
-            # Handle CurvePoint object (check for frame attribute first)
-            if hasattr(point, "frame"):
-                frames.append(point.frame)
-                x_coords.append(point.x)
-                y_coords.append(point.y)
-            # Handle tuple/list format
-            elif len(point) >= 3:
+            # CurveDataInput is Sequence[LegacyPointData] which are tuples
+            if len(point) >= 3:
                 frames.append(point[0])
                 x_coords.append(point[1])
                 y_coords.append(point[2])

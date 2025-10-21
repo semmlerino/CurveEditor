@@ -156,32 +156,9 @@ class TestCurvePoint:
         assert isinstance(point.x, int)  # Preserved as int
         assert isinstance(point.y, int)
 
-    def test_point_validation_frame_type(self) -> None:
-        """Test frame validation rejects non-integer types."""
-        with pytest.raises(TypeError, match="Frame must be int"):
-            _ = CurvePoint(100.5, 1920.0, 1080.0)  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="Frame must be int"):
-            _ = CurvePoint("100", 1920.0, 1080.0)  # pyright: ignore[reportArgumentType]
-
-    def test_point_validation_coordinate_types(self) -> None:
-        """Test coordinate validation rejects non-numeric types."""
-        with pytest.raises(TypeError, match="X coordinate must be numeric"):
-            _ = CurvePoint(100, "1920", 1080.0)  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="Y coordinate must be numeric"):
-            _ = CurvePoint(100, 1920.0, "1080")  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="X coordinate must be numeric"):
-            _ = CurvePoint(100, None, 1080.0)  # pyright: ignore[reportArgumentType]
-
-    def test_point_validation_status_type(self) -> None:
-        """Test status validation rejects non-PointStatus types."""
-        with pytest.raises(TypeError, match="Status must be PointStatus enum"):
-            _ = CurvePoint(100, 1920.0, 1080.0, "invalid")  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="Status must be PointStatus enum"):
-            _ = CurvePoint(100, 1920.0, 1080.0, True)  # pyright: ignore[reportArgumentType]
+    # NOTE: Runtime validation removed - relying on type system instead (see CLAUDE.md)
+    # Personal VFX tool doesn't need enterprise-level defensive programming
+    # Type hints + frozen dataclass provide compile-time safety
 
     # === Immutability Tests ===
 
@@ -435,13 +412,8 @@ class TestPointCollection:
         assert collection[0] == points[0]
         assert collection[1] == points[1]
 
-    def test_collection_validation_invalid_points(self) -> None:
-        """Test collection validation rejects invalid point types."""
-        with pytest.raises(TypeError, match="Point 1 must be CurvePoint"):
-            _ = PointCollection([CurvePoint(100, 1920.0, 1080.0), (101, 1921.0, 1081.0)])  # pyright: ignore[reportArgumentType]
-
-        with pytest.raises(TypeError, match="Point 1 must be CurvePoint"):
-            _ = PointCollection([CurvePoint(100, 1920.0, 1080.0), "invalid"])  # pyright: ignore[reportArgumentType]
+    # NOTE: Runtime validation removed - relying on type system instead (see CLAUDE.md)
+    # Type hints enforce list[CurvePoint] at compile-time
 
     # === Collection Interface Tests ===
 

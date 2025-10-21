@@ -351,12 +351,16 @@ class UIService:
             main_window: Main window containing the buttons
         """
         # Update undo/redo buttons
-        # undo_button is Optional, history_index is defined in MainWindowProtocol
-        if main_window.undo_button is not None:
+        # undo_button, history_index are Optional in MainWindowProtocol
+        if main_window.undo_button is not None and main_window.history_index is not None:
             main_window.undo_button.setEnabled(main_window.history_index > 0)
 
-        # redo_button is Optional, history is defined in MainWindowProtocol
-        if main_window.redo_button is not None:
+        # redo_button, history_index, history are Optional in MainWindowProtocol
+        if (
+            main_window.redo_button is not None
+            and main_window.history_index is not None
+            and main_window.history is not None
+        ):
             main_window.redo_button.setEnabled(main_window.history_index < len(main_window.history) - 1)
 
         # Update save button

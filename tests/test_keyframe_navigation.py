@@ -579,7 +579,7 @@ class TestRealFileNavigation:
 
         # Discover navigation frames dynamically from the loaded data
         data_service = get_data_service()
-        frame_status = data_service.get_frame_range_point_status(test_data)
+        frame_status = data_service.get_frame_range_point_status(test_data)  # pyright: ignore[reportArgumentType]
 
         # Collect all navigation frames (keyframes, endframes, startframes)
         nav_frames = []

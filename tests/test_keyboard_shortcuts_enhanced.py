@@ -258,8 +258,8 @@ class TestEndframeKeyboardShortcut:
         # After length check - we've verified it has status info
         from core.type_aliases import PointTuple4
 
-        point3_after_4: PointTuple4 = point3_after  # type: ignore[assignment]
-        point3_before_4: PointTuple4 = point3_before  # type: ignore[assignment]
+        point3_after_4: PointTuple4 = point3_after  # pyright: ignore[reportAssignmentType]
+        point3_before_4: PointTuple4 = point3_before  # pyright: ignore[reportAssignmentType]
         assert point3_after_4[3] == point3_before_4[3], "Selected point at frame 4 should remain unchanged"
         assert point3_after_4[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
 
