@@ -31,6 +31,7 @@ from core.insert_track_algorithm import (
 )
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
+from stores.application_state import get_application_state
 
 logger = get_logger("insert_track_command")
 
@@ -71,12 +72,12 @@ class InsertTrackCommand(Command):
             True if successful, False otherwise
         """
         try:
-            # Get tracked data from MultiPointTrackingController
+            # Get tracked data from ApplicationState
             controller = main_window.multi_point_controller
             if controller is None:
                 logger.error("Multi-point controller not available")
                 return False
-            tracked_data = controller.tracked_data
+            app_state = get_application_state()
 
             if not self.selected_curves:
                 logger.error("No curves selected for Insert Track")
@@ -84,18 +85,19 @@ class InsertTrackCommand(Command):
 
             # Save original data for undo
             for curve_name in self.selected_curves:
-                if curve_name in tracked_data:
-                    self.original_data[curve_name] = copy.deepcopy(tracked_data[curve_name])
+                curve_data = app_state.get_curve_data(curve_name)
+                if curve_data is not None:
+                    self.original_data[curve_name] = copy.deepcopy(curve_data)
 
             # Determine scenario
             curves_with_data_at_current = []
             curves_without_data_at_current = []
 
             for curve_name in self.selected_curves:
-                if curve_name not in tracked_data:
+                curve_data = app_state.get_curve_data(curve_name)
+                if curve_data is None:
                     continue
 
-                curve_data = tracked_data[curve_name]
                 frames = {p[0] for p in curve_data}
 
                 if self.current_frame in frames:
@@ -149,9 +151,12 @@ class InsertTrackCommand(Command):
         if controller is None:
             logger.error("Multi-point controller not available")
             return False
-        tracked_data = controller.tracked_data
+        app_state = get_application_state()
 
-        curve_data = tracked_data[target_curve]
+        curve_data = app_state.get_curve_data(target_curve)
+        if curve_data is None:
+            logger.error(f"No data found for curve '{target_curve}'")
+            return False
 
         # Find gap
         gap = find_gap_around_frame(curve_data, self.current_frame)
@@ -184,7 +189,8 @@ class InsertTrackCommand(Command):
 
         # Update tracked data
         self.new_data[target_curve] = new_curve_data
-        tracked_data[target_curve] = new_curve_data
+        app_state = get_application_state()
+        app_state.set_curve_data(target_curve, new_curve_data)
 
         # Update UI
         self._update_ui(main_window, target_curve)
@@ -209,14 +215,17 @@ class InsertTrackCommand(Command):
         if controller is None:
             logger.error("Multi-point controller not available")
             return False
-        tracked_data = controller.tracked_data
+        app_state = get_application_state()
 
         # Track if at least one target was successfully filled
         any_success = False
 
         # Process each target curve
         for target_name in target_curves:
-            target_data = tracked_data[target_name]
+            target_data = app_state.get_curve_data(target_name)
+            if target_data is None:
+                logger.warning(f"No data found for target curve '{target_name}'")
+                continue
 
             # Find gap
             gap = find_gap_around_frame(target_data, self.current_frame)
@@ -231,7 +240,10 @@ class InsertTrackCommand(Command):
             offset_list = []
 
             for source_name in source_curves:
-                source_data = tracked_data[source_name]
+                source_data = app_state.get_curve_data(source_name)
+                if source_data is None:
+                    logger.warning(f"No data found for source curve '{source_name}'")
+                    continue
 
                 # Find overlap frames
                 before_overlap, after_overlap = find_overlap_frames(target_data, source_data, gap_start, gap_end)
@@ -272,7 +284,9 @@ class InsertTrackCommand(Command):
             else:
                 logger.info(f"averaging {len(source_data_list)} source points:")
                 for source_name in source_curves:
-                    if source_name in [src for src in source_curves if tracked_data[src] in source_data_list]:
+                    # Check if this source's data is in our source_data_list
+                    src_data = app_state.get_curve_data(source_name)
+                    if src_data is not None and any(src_data == sd for sd in source_data_list):
                         logger.info(source_name)
 
             logger.info(f"section: [{gap_start}, {gap_end}]")
@@ -301,7 +315,8 @@ class InsertTrackCommand(Command):
 
             # Update tracked data (ensure proper type with list() conversion)
             self.new_data[target_name] = list(new_curve_data)
-            tracked_data[target_name] = list(new_curve_data)
+            app_state = get_application_state()
+            app_state.set_curve_data(target_name, list(new_curve_data))
 
             # Update UI
             self._update_ui(main_window, target_name)
@@ -327,7 +342,7 @@ class InsertTrackCommand(Command):
         if controller is None:
             logger.error("Multi-point controller not available")
             return False
-        tracked_data = controller.tracked_data
+        app_state = get_application_state()
 
         # 3DEqualizer-style console output
         logger.info("--------------- insert track v1.0 ---------------")
@@ -337,7 +352,11 @@ class InsertTrackCommand(Command):
             logger.info(source_name)
 
         # Collect source curves
-        source_curves_dict = {name: tracked_data[name] for name in source_curves}
+        source_curves_dict = {}
+        for name in source_curves:
+            curve_data = app_state.get_curve_data(name)
+            if curve_data is not None:
+                source_curves_dict[name] = curve_data
 
         # Create averaged curve
         new_curve_name, averaged_data = create_averaged_curve(source_curves_dict)
@@ -350,12 +369,14 @@ class InsertTrackCommand(Command):
         base_name = "avrg"
         counter = 1
         new_curve_name = f"{base_name}_{counter:02d}"
-        while new_curve_name in tracked_data:
+        all_curve_names = app_state.get_all_curve_names()
+        while new_curve_name in all_curve_names:
             counter += 1
             new_curve_name = f"{base_name}_{counter:02d}"
 
         # Add new curve to tracked data
-        tracked_data[new_curve_name] = averaged_data
+        app_state = get_application_state()
+        app_state.set_curve_data(new_curve_name, averaged_data)
         self.created_curve_name = new_curve_name
         self.new_data[new_curve_name] = averaged_data
 
@@ -386,12 +407,17 @@ class InsertTrackCommand(Command):
             if main_window.active_timeline_point == curve_name:
                 # Update curve display
                 if main_window.curve_widget:
-                    curve_data = main_window.multi_point_controller.tracked_data[curve_name]
-                    main_window.curve_widget.set_curve_data(curve_data)
+                    app_state = get_application_state()
+                    curve_data = app_state.get_curve_data(curve_name)
+                    if curve_data is not None:
+                        main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline
         if main_window.update_timeline_tabs is not None:
-            main_window.update_timeline_tabs(main_window.multi_point_controller.tracked_data[curve_name])
+            app_state = get_application_state()
+            curve_data = app_state.get_curve_data(curve_name)
+            if curve_data is not None:
+                main_window.update_timeline_tabs(curve_data)
 
     def _update_ui_new_curve(self, main_window: MainWindowProtocol, curve_name: str) -> None:
         """Update UI after creating a new averaged curve.
@@ -412,7 +438,11 @@ class InsertTrackCommand(Command):
         main_window.active_timeline_point = curve_name
 
         # Get curve data (needed for both curve widget and timeline updates)
-        curve_data = main_window.multi_point_controller.tracked_data[curve_name]
+        app_state = get_application_state()
+        curve_data = app_state.get_curve_data(curve_name)
+        if curve_data is None:
+            logger.warning(f"Cannot update UI: no data for new curve '{curve_name}'")
+            return
 
         # Update curve display
         if main_window.curve_widget:
@@ -440,17 +470,18 @@ class InsertTrackCommand(Command):
             if controller is None:
                 logger.error("Multi-point controller not available")
                 return False
-            tracked_data = controller.tracked_data
 
             # Scenario 3: Remove created curve
             if self.scenario == 3 and self.created_curve_name:
-                if self.created_curve_name in tracked_data:
-                    del tracked_data[self.created_curve_name]
+                app_state = get_application_state()
+                if self.created_curve_name in app_state.get_all_curve_names():
+                    app_state.delete_curve(self.created_curve_name)
                     logger.info(f"Removed averaged curve '{self.created_curve_name}'")
 
             # Scenarios 1 & 2: Restore original data
+            app_state = get_application_state()
             for curve_name, original_data in self.original_data.items():
-                tracked_data[curve_name] = copy.deepcopy(original_data)
+                app_state.set_curve_data(curve_name, copy.deepcopy(original_data))
                 self._update_ui(main_window, curve_name)
 
             # Update tracking panel (controller already checked above)
@@ -479,17 +510,18 @@ class InsertTrackCommand(Command):
             if controller is None:
                 logger.error("Multi-point controller not available")
                 return False
-            tracked_data = controller.tracked_data
 
             # Scenario 3: Re-add created curve
             if self.scenario == 3 and self.created_curve_name:
-                tracked_data[self.created_curve_name] = copy.deepcopy(self.new_data[self.created_curve_name])
+                app_state = get_application_state()
+                app_state.set_curve_data(self.created_curve_name, copy.deepcopy(self.new_data[self.created_curve_name]))
                 self._update_ui_new_curve(main_window, self.created_curve_name)
 
             # Scenarios 1 & 2: Re-apply new data
+            app_state = get_application_state()
             for curve_name, new_data in self.new_data.items():
                 if curve_name != self.created_curve_name:  # Skip scenario 3's created curve
-                    tracked_data[curve_name] = copy.deepcopy(new_data)
+                    app_state.set_curve_data(curve_name, copy.deepcopy(new_data))
                     self._update_ui(main_window, curve_name)
 
             # Update tracking panel (controller already checked above)

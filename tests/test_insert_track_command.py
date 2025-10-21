@@ -22,6 +22,7 @@ import pytest
 
 from core.commands.insert_track_command import InsertTrackCommand
 from core.models import CurvePoint
+from stores.application_state import get_application_state
 
 
 class TestInsertTrackCommand:
@@ -79,8 +80,9 @@ class TestInsertTrackCommand:
 
     def test_scenario_1_interpolate_single_curve_gap(self, mock_main_window, curve_with_gap):
         """Test Scenario 1: Interpolate gap in single selected curve."""
-        # Setup
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve_with_gap}
+        # Setup - populate ApplicationState instead of mock tracked_data
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", curve_with_gap)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=6)
@@ -91,8 +93,9 @@ class TestInsertTrackCommand:
         assert command.scenario == 1
         assert command.executed is True
 
-        # Check that gap was filled
-        new_data = mock_main_window.multi_point_controller.tracked_data["curve_01"]
+        # Check that gap was filled - read from ApplicationState
+        new_data = app_state.get_curve_data("curve_01")
+        assert new_data is not None
         frames = {p[0] for p in new_data}
         assert 5 in frames
         assert 6 in frames
@@ -108,14 +111,16 @@ class TestInsertTrackCommand:
         """Test Scenario 1: Undo restores original data with gap."""
         # Setup
         original_data = curve_with_gap[:]
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve_with_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", curve_with_gap)
 
         # Execute and undo
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=6)
         command.execute(mock_main_window)
 
         # Verify gap was filled
-        filled_data = mock_main_window.multi_point_controller.tracked_data["curve_01"]
+        filled_data = app_state.get_curve_data("curve_01")
+        assert filled_data is not None
         filled_frames = {p[0] for p in filled_data}
         assert 6 in filled_frames
 
@@ -124,7 +129,8 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Verify original data restored (with gap)
-        restored_data = mock_main_window.multi_point_controller.tracked_data["curve_01"]
+        restored_data = app_state.get_curve_data("curve_01")
+        assert restored_data is not None
         restored_frames = {p[0] for p in restored_data}
         assert 6 not in restored_frames  # Gap should be back
         assert len(restored_data) == len(original_data)
@@ -132,7 +138,8 @@ class TestInsertTrackCommand:
     def test_scenario_1_redo_refills_gap(self, mock_main_window, curve_with_gap):
         """Test Scenario 1: Redo refills the gap."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve_with_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", curve_with_gap)
 
         # Execute, undo, redo
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=6)
@@ -143,14 +150,15 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Verify gap is filled again
-        new_data = mock_main_window.multi_point_controller.tracked_data["curve_01"]
+        new_data = app_state.get_curve_data("curve_01")
         frames = {p[0] for p in new_data}
         assert 6 in frames
 
     def test_scenario_1_no_gap_at_frame_returns_false(self, mock_main_window, curve_without_gap):
         """Test Scenario 1: Returns False when no gap at current frame."""
         # Setup - curve has no gap
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve_without_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", curve_without_gap)
 
         # Execute at frame with data (no gap)
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=5)
@@ -164,7 +172,9 @@ class TestInsertTrackCommand:
     def test_scenario_2_fill_gap_from_single_source(self, mock_main_window, curve_with_gap, curve_without_gap):
         """Test Scenario 2: Fill gap using single source curve."""
         # Setup - target has gap, source doesn't
-        mock_main_window.multi_point_controller.tracked_data = {"target": curve_with_gap, "source": curve_without_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("target", curve_with_gap)
+        app_state.set_curve_data("source", curve_without_gap)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=6)
@@ -175,14 +185,14 @@ class TestInsertTrackCommand:
         assert command.scenario == 2
 
         # Check that target gap was filled
-        target_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        target_data = app_state.get_curve_data("target")
         target_frames = {p[0] for p in target_data}
         assert 5 in target_frames
         assert 6 in target_frames
         assert 7 in target_frames
 
         # Source data should be unchanged
-        source_data = mock_main_window.multi_point_controller.tracked_data["source"]
+        source_data = app_state.get_curve_data("source")
         assert len(source_data) == len(curve_without_gap)
 
     def test_scenario_2_fill_gap_with_offset_correction(self, mock_main_window):
@@ -201,7 +211,11 @@ class TestInsertTrackCommand:
             (4, 30.0, 180.0, "normal"),  # Offset: target - source = (100, 50)
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {"target": target, "source": source}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source", source)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=3)
@@ -210,7 +224,7 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Check filled point has correct offset applied
-        target_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        target_data = app_state.get_curve_data("target")
         points = [CurvePoint.from_tuple(p) for p in target_data]
         frame_3 = next(p for p in points if p.frame == 3)
 
@@ -240,11 +254,13 @@ class TestInsertTrackCommand:
             (4, 130.0, 230.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "target": target,
-            "source1": source1,
-            "source2": source2,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source1", source1)
+
+        app_state.set_curve_data("source2", source2)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["target", "source1", "source2"], current_frame=3)
@@ -253,7 +269,7 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Check filled point is average of sources
-        target_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        target_data = app_state.get_curve_data("target")
         points = [CurvePoint.from_tuple(p) for p in target_data]
         frame_3 = next(p for p in points if p.frame == 3)
 
@@ -265,7 +281,9 @@ class TestInsertTrackCommand:
         """Test Scenario 2: Undo removes filled data and restores gap."""
         # Setup
         original_target = curve_with_gap[:]
-        mock_main_window.multi_point_controller.tracked_data = {"target": curve_with_gap, "source": curve_without_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("target", curve_with_gap)
+        app_state.set_curve_data("source", curve_without_gap)
 
         # Execute and undo
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=6)
@@ -275,7 +293,7 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Verify gap restored
-        target_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        target_data = app_state.get_curve_data("target")
         target_frames = {p[0] for p in target_data}
         assert 6 not in target_frames
         assert len(target_data) == len(original_target)
@@ -283,7 +301,9 @@ class TestInsertTrackCommand:
     def test_scenario_2_redo_refills_from_source(self, mock_main_window, curve_with_gap, curve_without_gap):
         """Test Scenario 2: Redo refills gap from source."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {"target": curve_with_gap, "source": curve_without_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("target", curve_with_gap)
+        app_state.set_curve_data("source", curve_without_gap)
 
         # Execute, undo, redo
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=6)
@@ -294,7 +314,7 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Verify gap filled again
-        target_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        target_data = app_state.get_curve_data("target")
         target_frames = {p[0] for p in target_data}
         assert 6 in target_frames
 
@@ -306,7 +326,11 @@ class TestInsertTrackCommand:
         curve1 = curve_without_gap
         curve2 = [(f, x + 50.0, y + 50.0, s) for f, x, y, s in curve_without_gap]
 
-        mock_main_window.multi_point_controller.tracked_data = {"curve1": curve1, "curve2": curve2}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve1", curve1)
+
+        app_state.set_curve_data("curve2", curve2)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
@@ -318,10 +342,12 @@ class TestInsertTrackCommand:
         assert command.created_curve_name is not None
 
         # Check new curve created
-        assert command.created_curve_name in mock_main_window.multi_point_controller.tracked_data
+        assert command.created_curve_name in app_state.get_all_curve_names()
 
         # Verify averaged data
-        averaged_data = mock_main_window.multi_point_controller.tracked_data[command.created_curve_name]
+        app_state = get_application_state()
+        averaged_data = app_state.get_curve_data(command.created_curve_name)
+        assert averaged_data is not None
         assert len(averaged_data) == len(curve1)  # All common frames
 
         # Check averaging is correct for a specific point
@@ -336,11 +362,10 @@ class TestInsertTrackCommand:
     def test_scenario_3_unique_curve_name_generation(self, mock_main_window, curve_without_gap):
         """Test Scenario 3: Generated curve name is unique."""
         # Setup - existing avrg_01 curve
-        mock_main_window.multi_point_controller.tracked_data = {
-            "curve1": curve_without_gap,
-            "curve2": curve_without_gap,
-            "avrg_01": [(1, 0.0, 0.0, "normal")],
-        }
+        app_state = get_application_state()
+        app_state.set_curve_data("curve1", curve_without_gap)
+        app_state.set_curve_data("curve2", curve_without_gap)
+        app_state.set_curve_data("avrg_01", [(1, 100.0, 200.0, "normal")])
 
         # Execute
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
@@ -353,32 +378,30 @@ class TestInsertTrackCommand:
     def test_scenario_3_undo_removes_created_curve(self, mock_main_window, curve_without_gap):
         """Test Scenario 3: Undo removes the created averaged curve."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {
-            "curve1": curve_without_gap,
-            "curve2": curve_without_gap,
-        }
+        app_state = get_application_state()
+        app_state.set_curve_data("curve1", curve_without_gap)
+        app_state.set_curve_data("curve2", curve_without_gap)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
         command.execute(mock_main_window)
 
         created_name = command.created_curve_name
-        assert created_name in mock_main_window.multi_point_controller.tracked_data
+        assert created_name in app_state.get_all_curve_names()
 
         # Undo
         result = command.undo(mock_main_window)
         assert result is True
 
         # Verify curve removed
-        assert created_name not in mock_main_window.multi_point_controller.tracked_data
+        assert created_name not in app_state.get_all_curve_names()
 
     def test_scenario_3_redo_recreates_averaged_curve(self, mock_main_window, curve_without_gap):
         """Test Scenario 3: Redo recreates the averaged curve."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {
-            "curve1": curve_without_gap,
-            "curve2": curve_without_gap,
-        }
+        app_state = get_application_state()
+        app_state.set_curve_data("curve1", curve_without_gap)
+        app_state.set_curve_data("curve2", curve_without_gap)
 
         # Execute, undo, redo
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
@@ -390,13 +413,13 @@ class TestInsertTrackCommand:
         assert result is True
 
         # Verify curve recreated
-        assert created_name in mock_main_window.multi_point_controller.tracked_data
+        assert created_name in app_state.get_all_curve_names()
 
     # ==================== Error Handling Tests ====================
 
     def test_no_selected_curves_returns_false(self, mock_main_window):
         """Test that empty selection returns False."""
-        mock_main_window.multi_point_controller.tracked_data = {}
+        # No setup needed - testing empty selection
 
         command = InsertTrackCommand(selected_curves=[], current_frame=5)
         result = command.execute(mock_main_window)
@@ -415,7 +438,7 @@ class TestInsertTrackCommand:
 
     def test_curve_not_in_tracked_data_handled(self, mock_main_window):
         """Test that non-existent curve is handled gracefully."""
-        mock_main_window.multi_point_controller.tracked_data = {}
+        # No data setup - testing non-existent curve
 
         command = InsertTrackCommand(selected_curves=["nonexistent"], current_frame=5)
         result = command.execute(mock_main_window)
@@ -435,7 +458,8 @@ class TestInsertTrackCommand:
     def test_ui_updates_called_for_modified_curve(self, mock_main_window, curve_with_gap):
         """Test that UI update methods are called after modifying curve."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve_with_gap}
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", curve_with_gap)
         mock_main_window.active_timeline_point = "curve_01"
 
         # Execute
@@ -450,10 +474,9 @@ class TestInsertTrackCommand:
     def test_ui_updates_called_for_new_curve(self, mock_main_window, curve_without_gap):
         """Test that UI update methods are called after creating new curve."""
         # Setup
-        mock_main_window.multi_point_controller.tracked_data = {
-            "curve1": curve_without_gap,
-            "curve2": curve_without_gap,
-        }
+        app_state = get_application_state()
+        app_state.set_curve_data("curve1", curve_without_gap)
+        app_state.set_curve_data("curve2", curve_without_gap)
 
         # Execute
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
@@ -477,7 +500,9 @@ class TestInsertTrackCommand:
             (6, 110.0, 210.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve_01", curve)
 
         # Try to fill gap at frame 2 (before first point)
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=2)
@@ -494,7 +519,9 @@ class TestInsertTrackCommand:
             (2, 110.0, 210.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": curve}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve_01", curve)
 
         # Try to fill gap at frame 5 (after last point)
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=5)
@@ -505,7 +532,8 @@ class TestInsertTrackCommand:
 
     def test_empty_curve_data(self, mock_main_window):
         """Test handling empty curve data."""
-        mock_main_window.multi_point_controller.tracked_data = {"curve_01": []}
+        app_state = get_application_state()
+        app_state.set_curve_data("curve_01", [])
 
         command = InsertTrackCommand(selected_curves=["curve_01"], current_frame=5)
         result = command.execute(mock_main_window)
@@ -518,7 +546,11 @@ class TestInsertTrackCommand:
         curve1 = [(1, 100.0, 200.0, "normal"), (2, 110.0, 210.0, "normal")]
         curve2 = [(5, 150.0, 250.0, "normal"), (6, 160.0, 260.0, "normal")]
 
-        mock_main_window.multi_point_controller.tracked_data = {"curve1": curve1, "curve2": curve2}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve1", curve1)
+
+        app_state.set_curve_data("curve2", curve2)
 
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=5)
         result = command.execute(mock_main_window)
@@ -564,10 +596,11 @@ class TestInsertTrackEmptyCollectionBounds:
         curve1 = [(1, 100.0, 200.0, "normal"), (2, 110.0, 210.0, "normal")]
         curve2 = [(1, 200.0, 300.0, "normal"), (2, 210.0, 310.0, "normal")]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "curve1": curve1,
-            "curve2": curve2,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve1", curve1)
+
+        app_state.set_curve_data("curve2", curve2)
 
         # Try Insert Track at frame 10 (where no curve has data)
         command = InsertTrackCommand(selected_curves=["curve1", "curve2"], current_frame=10)
@@ -586,7 +619,9 @@ class TestInsertTrackEmptyCollectionBounds:
         # Single curve with no data at current frame (will look for gap)
         curve1 = [(1, 100.0, 200.0, "normal"), (10, 200.0, 300.0, "normal")]
 
-        mock_main_window.multi_point_controller.tracked_data = {"curve1": curve1}
+        app_state = get_application_state()
+
+        app_state.set_curve_data("curve1", curve1)
 
         # Current frame at 5 (in the gap)
         command = InsertTrackCommand(selected_curves=["curve1"], current_frame=5)
@@ -619,10 +654,11 @@ class TestInsertTrackEmptyCollectionBounds:
             (5, 220.0, 320.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "target": target,
-            "source": source,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source", source)
 
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=4)
         result = command.execute(mock_main_window)
@@ -650,10 +686,11 @@ class TestInsertTrackEmptyCollectionBounds:
             (5, 240.0, 340.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "target": target,
-            "source": source,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source", source)
 
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=3)
         result = command.execute(mock_main_window)
@@ -688,10 +725,11 @@ class TestInsertTrackEmptyCollectionBounds:
             (6, 250.0, 350.0, "normal"),
         ]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "target": target,
-            "source": source,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source", source)
 
         command = InsertTrackCommand(selected_curves=["target", "source"], current_frame=3)
         result = command.execute(mock_main_window)
@@ -701,7 +739,7 @@ class TestInsertTrackEmptyCollectionBounds:
         assert command.scenario == 2
 
         # Verify gap was filled
-        filled_data = mock_main_window.multi_point_controller.tracked_data["target"]
+        filled_data = app_state.get_curve_data("target")
         frames = {p[0] for p in filled_data}
         assert 3 in frames
         assert 4 in frames
@@ -724,11 +762,13 @@ class TestInsertTrackEmptyCollectionBounds:
         source1 = [(1, 200.0, 300.0, "normal"), (2, 210.0, 310.0, "normal"), (3, 220.0, 320.0, "normal")]
         source2 = [(1, 300.0, 400.0, "normal"), (2, 310.0, 410.0, "normal"), (3, 320.0, 420.0, "normal")]
 
-        mock_main_window.multi_point_controller.tracked_data = {
-            "target": target,
-            "source1": source1,
-            "source2": source2,
-        }
+        app_state = get_application_state()
+
+        app_state.set_curve_data("target", target)
+
+        app_state.set_curve_data("source1", source1)
+
+        app_state.set_curve_data("source2", source2)
 
         command = InsertTrackCommand(selected_curves=["target", "source1", "source2"], current_frame=2)
         result = command.execute(mock_main_window)

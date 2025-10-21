@@ -78,6 +78,9 @@ class MultiPointTrackingController(BaseTrackingController):
         # Data changed → Update display
         _ = self.data_controller.data_changed.connect(self.display_controller.on_data_changed)
 
+        # Selection state changed → Update active curve and display
+        _ = self._app_state.selection_state_changed.connect(self._on_selection_state_changed)
+
         logger.debug("Sub-controller signals wired")
 
     def __del__(self) -> None:
@@ -276,6 +279,22 @@ class MultiPointTrackingController(BaseTrackingController):
             point_names: List of selected point names (for multi-selection in panel)
         """
         self.selection_controller.on_tracking_points_selected(point_names, self.display_controller)
+
+    def _on_selection_state_changed(self, selected_curves: set[str], _show_all: bool) -> None:
+        """
+        React to selection state changes from ApplicationState.
+
+        This bridges the TrackingPointsPanel → ApplicationState → SelectionController pathway.
+        When user selects tracking points in the panel, this ensures the active curve
+        and display state are updated correctly.
+
+        Args:
+            selected_curves: Set of selected curve names from ApplicationState
+            _show_all: Whether show-all mode is enabled (unused)
+        """
+        point_names = list(selected_curves)
+        if point_names:
+            self.on_tracking_points_selected(point_names)
 
     def on_curve_selection_changed(self, selection: set[int], curve_name: str | None = None) -> None:
         """

@@ -265,7 +265,7 @@ class TestTrackingDirectionUndo:
             (3, 120.0, 220.0, "keyframe"),
         ]
 
-        main_window.tracking_controller.tracked_data["Point1"] = simple_data
+        main_window.tracking_controller.tracked_data = {"Point1": simple_data}
         main_window.curve_widget.set_curve_data(simple_data)
 
         interaction_service = get_interaction_service()

@@ -23,6 +23,7 @@ from core.commands.insert_track_command import InsertTrackCommand
 from core.commands.shortcut_command import ShortcutContext
 from core.commands.shortcut_commands import InsertTrackShortcutCommand
 from services import get_interaction_service
+from stores.application_state import get_application_state
 
 
 class TestInsertTrackIntegration:
@@ -38,10 +39,15 @@ class TestInsertTrackIntegration:
         tracking_panel.get_selected_points.return_value = ["point_01", "point_02"]
         main_window.tracking_panel = tracking_panel
 
-        # Multi-point controller with tracked data
+        # Multi-point controller
         controller = Mock()
-        controller.tracked_data = {
-            "point_01": [
+        controller.update_tracking_panel = Mock()
+
+        # Setup data in ApplicationState instead of mock tracked_data
+        app_state = get_application_state()
+        app_state.set_curve_data(
+            "point_01",
+            [
                 (1, 100.0, 200.0, "keyframe"),
                 (2, 110.0, 210.0, "normal"),
                 (3, 120.0, 220.0, "normal"),
@@ -49,7 +55,10 @@ class TestInsertTrackIntegration:
                 (7, 160.0, 260.0, "normal"),
                 (8, 170.0, 270.0, "keyframe"),
             ],
-            "point_02": [
+        )
+        app_state.set_curve_data(
+            "point_02",
+            [
                 (1, 200.0, 300.0, "keyframe"),
                 (2, 210.0, 310.0, "normal"),
                 (3, 220.0, 320.0, "normal"),
@@ -59,8 +68,7 @@ class TestInsertTrackIntegration:
                 (7, 260.0, 360.0, "normal"),
                 (8, 270.0, 370.0, "keyframe"),
             ],
-        }
-        controller.update_tracking_panel = Mock()
+        )
 
         main_window.multi_point_controller = controller
         main_window.curve_widget = Mock()
@@ -177,7 +185,9 @@ class TestInsertTrackIntegration:
         assert command.scenario == 1
 
         # Verify gap was filled
-        filled_data = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        filled_data = app_state.get_curve_data("point_01")
+        assert filled_data is not None
         frames = {p[0] for p in filled_data}
         assert 4 in frames
         assert 5 in frames
@@ -218,10 +228,15 @@ class TestInsertTrackIntegration:
         tracking_panel.get_selected_points.return_value = ["target", "source_01", "source_02"]
         main_window.tracking_panel = tracking_panel
 
-        # Multi-point controller with 3-ELEMENT data format
+        # Multi-point controller
         controller = Mock()
-        controller.tracked_data = {
-            "target": [
+        controller.update_tracking_panel = Mock()
+
+        # Setup 3-ELEMENT data format in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data(
+            "target",
+            [
                 (1, 100.0, 200.0),  # 3-element: NO STATUS
                 (2, 110.0, 210.0),
                 (3, 120.0, 220.0),
@@ -229,7 +244,10 @@ class TestInsertTrackIntegration:
                 (7, 160.0, 260.0),
                 (8, 170.0, 270.0),
             ],
-            "source_01": [
+        )
+        app_state.set_curve_data(
+            "source_01",
+            [
                 (1, 200.0, 300.0),  # 3-element: NO STATUS
                 (2, 210.0, 310.0),
                 (3, 220.0, 320.0),
@@ -239,7 +257,10 @@ class TestInsertTrackIntegration:
                 (7, 260.0, 360.0),
                 (8, 270.0, 370.0),
             ],
-            "source_02": [
+        )
+        app_state.set_curve_data(
+            "source_02",
+            [
                 (1, 300.0, 400.0),  # 3-element: NO STATUS
                 (2, 310.0, 410.0),
                 (3, 320.0, 420.0),
@@ -249,8 +270,7 @@ class TestInsertTrackIntegration:
                 (7, 360.0, 460.0),
                 (8, 370.0, 470.0),
             ],
-        }
-        controller.update_tracking_panel = Mock()
+        )
 
         main_window.multi_point_controller = controller
         main_window.curve_widget = Mock()
@@ -270,7 +290,9 @@ class TestInsertTrackIntegration:
         assert command.scenario == 2, "Should execute Scenario 2 (fill from sources)"
 
         # Verify target gap was filled (should have new points)
-        filled_data = controller.tracked_data["target"]
+        app_state = get_application_state()
+        filled_data = app_state.get_curve_data("target")
+        assert filled_data is not None, "Target curve data should exist"
         frames = {p[0] for p in filled_data}
         assert 4 in frames, "Frame 4 should be filled"
         assert 5 in frames, "Frame 5 should be filled"
@@ -294,16 +316,18 @@ class TestInsertTrackIntegration:
         main_window.tracking_panel = tracking_panel
 
         controller = Mock()
-        controller.tracked_data = {
-            "single_curve": [
+        # Setup data in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data(
+            "single_curve",
+            [
                 (1, 100.0, 200.0),  # 3-element format
                 (2, 110.0, 210.0),
                 (3, 120.0, 220.0),
-                # Gap at frames 4, 5, 6
                 (7, 160.0, 260.0),
                 (8, 170.0, 270.0),
             ],
-        }
+        )
         controller.update_tracking_panel = Mock()
 
         main_window.multi_point_controller = controller
@@ -322,7 +346,8 @@ class TestInsertTrackIntegration:
         assert command.scenario == 1, "Should execute Scenario 1 (interpolation)"
 
         # Verify gap was filled
-        filled_data = controller.tracked_data["single_curve"]
+        app_state = get_application_state()
+        filled_data = app_state.get_curve_data("single_curve")
         frames = {p[0] for p in filled_data}
         assert 4 in frames, "Frame 4 should be interpolated"
         assert 5 in frames, "Frame 5 should be interpolated"
@@ -333,18 +358,24 @@ class TestInsertTrackIntegration:
         # Setup - two curves both with data at current frame
         main_window = Mock()
         controller = Mock()
-        controller.tracked_data = {
-            "point_01": [
+        # Setup data in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data(
+            "point_01",
+            [
                 (1, 100.0, 200.0, "normal"),
                 (2, 110.0, 210.0, "normal"),
                 (3, 120.0, 220.0, "normal"),
             ],
-            "point_02": [
+        )
+        app_state.set_curve_data(
+            "point_02",
+            [
                 (1, 200.0, 300.0, "normal"),
                 (2, 210.0, 310.0, "normal"),
                 (3, 220.0, 320.0, "normal"),
             ],
-        }
+        )
         controller.update_tracking_panel = Mock()
 
         main_window.multi_point_controller = controller
@@ -363,10 +394,12 @@ class TestInsertTrackIntegration:
 
         # Verify new curve created
         assert command.created_curve_name is not None
-        assert command.created_curve_name in controller.tracked_data
+        app_state = get_application_state()
+        assert command.created_curve_name in app_state.get_all_curve_names()
 
         # Verify new curve is averaged
-        averaged_data = controller.tracked_data[command.created_curve_name]
+        app_state = get_application_state()
+        averaged_data = app_state.get_curve_data(command.created_curve_name)
         assert len(averaged_data) == 3  # All common frames
 
         # Verify UI updates
@@ -385,7 +418,8 @@ class TestInsertTrackIntegration:
         command_manager.execute_command(command, mock_main_window_with_controller)
 
         # Verify gap filled
-        filled_data = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        filled_data = app_state.get_curve_data("point_01")
         filled_frames = {p[0] for p in filled_data}
         assert 5 in filled_frames
 
@@ -393,7 +427,8 @@ class TestInsertTrackIntegration:
         command_manager.undo(mock_main_window_with_controller)
 
         # Verify gap restored
-        restored_data = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        restored_data = app_state.get_curve_data("point_01")
         restored_frames = {p[0] for p in restored_data}
         assert 5 not in restored_frames
 
@@ -401,7 +436,8 @@ class TestInsertTrackIntegration:
         command_manager.redo(mock_main_window_with_controller)
 
         # Verify gap filled again
-        refilled_data = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        refilled_data = app_state.get_curve_data("point_01")
         refilled_frames = {p[0] for p in refilled_data}
         assert 5 in refilled_frames
 
@@ -438,10 +474,22 @@ class TestInsertTrackIntegration:
         """Test that Scenario 3 sets newly created curve as active."""
         main_window = Mock()
         controller = Mock()
-        controller.tracked_data = {
-            "point_01": [(1, 100.0, 200.0, "normal")],
-            "point_02": [(1, 200.0, 300.0, "normal")],
-        }
+        # Setup data in ApplicationState
+        app_state = get_application_state()
+        app_state.set_curve_data(
+            "point_01",
+            [
+                (1, 100.0, 200.0, "normal"),
+                (2, 110.0, 210.0, "normal"),
+            ],
+        )
+        app_state.set_curve_data(
+            "point_02",
+            [
+                (1, 200.0, 300.0, "normal"),
+                (2, 210.0, 310.0, "normal"),
+            ],
+        )
         controller.update_tracking_panel = Mock()
 
         main_window.multi_point_controller = controller
@@ -486,24 +534,28 @@ class TestInsertTrackIntegration:
 
     def test_controller_data_consistency_after_operation(self, mock_main_window_with_controller):
         """Test that tracked_data remains consistent after Insert Track."""
-        original_point_02 = mock_main_window_with_controller.multi_point_controller.tracked_data["point_02"][:]
+        app_state = get_application_state()
+        original_point_02 = app_state.get_curve_data("point_02")[:]
 
         # Execute Scenario 2 (fill point_01 from point_02)
         command = InsertTrackCommand(selected_curves=["point_01", "point_02"], current_frame=5)
         command.execute(mock_main_window_with_controller)
 
         # Verify point_02 (source) is unchanged
-        current_point_02 = mock_main_window_with_controller.multi_point_controller.tracked_data["point_02"]
+        app_state = get_application_state()
+        current_point_02 = app_state.get_curve_data("point_02")
         assert len(current_point_02) == len(original_point_02)
 
         # Verify point_01 (target) was modified
-        point_01 = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        point_01 = app_state.get_curve_data("point_01")
         assert len(point_01) > 5  # Original had 5 points, now should have more
 
     def test_controller_data_consistency_after_undo(self, mock_main_window_with_controller):
         """Test data consistency after undo operation."""
         # Save original data
-        original_point_01 = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"][:]
+        app_state = get_application_state()
+        original_point_01 = app_state.get_curve_data("point_01")[:]
 
         # Execute and undo
         command = InsertTrackCommand(selected_curves=["point_01"], current_frame=5)
@@ -511,7 +563,8 @@ class TestInsertTrackIntegration:
         command.undo(mock_main_window_with_controller)
 
         # Verify data restored exactly
-        restored_point_01 = mock_main_window_with_controller.multi_point_controller.tracked_data["point_01"]
+        app_state = get_application_state()
+        restored_point_01 = app_state.get_curve_data("point_01")
         assert len(restored_point_01) == len(original_point_01)
 
         # Verify frames match
@@ -538,7 +591,8 @@ class TestInsertTrackIntegration:
         assert cmd2.scenario == 3
 
         # Verify new curve exists
-        assert cmd2.created_curve_name in mock_main_window_with_controller.multi_point_controller.tracked_data
+        app_state = get_application_state()
+        assert cmd2.created_curve_name in app_state.get_all_curve_names()
 
     def test_undo_multiple_operations_in_order(self, mock_main_window_with_controller):
         """Test undoing multiple operations in correct order."""
@@ -558,4 +612,5 @@ class TestInsertTrackIntegration:
 
         # Verify cmd2's created curve removed
         if cmd2.created_curve_name:
-            assert cmd2.created_curve_name not in mock_main_window_with_controller.multi_point_controller.tracked_data
+            app_state = get_application_state()
+            assert cmd2.created_curve_name not in app_state.get_all_curve_names()
