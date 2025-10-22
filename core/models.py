@@ -51,6 +51,12 @@ PointsList = list[LegacyPointTuple]
 class FrameStatus(NamedTuple):
     """Status information for a single frame in timeline.
 
+    VALIDATION (via validate() method):
+    ====================================
+    All count fields should be non-negative integers. Use validate() after
+    construction to check for data inconsistencies that can cause visual
+    display bugs (e.g., missing normal_count leading to incorrect display).
+
     Attributes:
         keyframe_count: Number of keyframe points
         interpolated_count: Number of interpolated points
@@ -70,6 +76,23 @@ class FrameStatus(NamedTuple):
     is_startframe: bool
     is_inactive: bool
     has_selected: bool
+
+    def validate(self) -> None:
+        """Validate all counts are non-negative.
+
+        Raises:
+            ValueError: If any count is negative
+        """
+        if self.keyframe_count < 0:
+            raise ValueError(f"keyframe_count must be >= 0, got {self.keyframe_count}")
+        if self.interpolated_count < 0:
+            raise ValueError(f"interpolated_count must be >= 0, got {self.interpolated_count}")
+        if self.tracked_count < 0:
+            raise ValueError(f"tracked_count must be >= 0, got {self.tracked_count}")
+        if self.endframe_count < 0:
+            raise ValueError(f"endframe_count must be >= 0, got {self.endframe_count}")
+        if self.normal_count < 0:
+            raise ValueError(f"normal_count must be >= 0, got {self.normal_count}")
 
     @property
     def total_points(self) -> int:

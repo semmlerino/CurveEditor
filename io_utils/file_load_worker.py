@@ -118,9 +118,9 @@ class FileLoadWorker(QThread):
                         # Emit the full metadata-aware data so coordinate transforms work correctly
                         data = curve_data
                     else:
-                        # Legacy approach - still no flip_y since we handle it in display
-                        # 3DEqualizer uses bottom-origin coordinates, display transform will handle Y-flip
-                        data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=False, image_height=720)
+                        # Legacy approach - apply flip_y to match manual loading behavior
+                        # 3DEqualizer uses bottom-origin coordinates, flip to top-origin
+                        data = self._load_2dtrack_data_direct(self.tracking_file_path, flip_y=True, image_height=720)
 
                     if data:
                         logger.info(
@@ -335,8 +335,9 @@ class FileLoadWorker(QThread):
             For single-point: CurveDataWithMetadata with coordinate system information
             For multi-point: Dict mapping point names to CurveDataWithMetadata
         """
-        # First load the raw data
-        raw_data = self._load_2dtrack_data_direct(file_path, flip_y=False, image_height=720)
+        # First load the raw data - apply flip_y to match manual loading behavior
+        # 3DEqualizer uses bottom-origin coordinates, flip to top-origin
+        raw_data = self._load_2dtrack_data_direct(file_path, flip_y=True, image_height=720)
 
         # Detect coordinate system from file
         metadata = detect_coordinate_system(file_path)

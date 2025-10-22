@@ -109,7 +109,7 @@ class TestNullAndNoneChecks:
         # ApplicationState may handle None gracefully or raise error
         # Either behavior is acceptable as long as it doesn't crash with AttributeError
         try:
-            app_state.set_curve_data(None, [(1, 100.0, 200.0)])  # pyright: ignore[reportArgumentType]
+            app_state.set_curve_data(None, [(1, 100.0, 200.0)])
         except (ValueError, TypeError, AttributeError) as e:
             # Expected - some kind of validation error
             assert "curve" in str(e).lower() or "none" in str(e).lower()
@@ -143,7 +143,7 @@ class TestInvalidInputTypes:
         # Should raise TypeError for non-string component names
         # (UIService expects all items to be strings or skipped with falsy check)
         with pytest.raises(TypeError, match="attribute name must be string"):
-            service.enable_ui_components(mock_window, invalid_components)  # pyright: ignore[reportArgumentType]
+            service.enable_ui_components(mock_window, invalid_components)
 
     def test_application_state_set_curve_data_with_invalid_types(self):
         """Test ApplicationState.set_curve_data() validates data types."""
@@ -161,7 +161,7 @@ class TestInvalidInputTypes:
         for invalid_data in invalid_data_sets:
             # Should handle gracefully or raise clear error
             try:
-                app_state.set_curve_data("test_curve", invalid_data)  # pyright: ignore[reportArgumentType]
+                app_state.set_curve_data("test_curve", invalid_data)
             except (TypeError, ValueError, AttributeError):
                 pass  # Expected - type validation working
 
@@ -391,7 +391,7 @@ class TestRegressionPrevention:
 
         # Should raise TypeError with clear message
         with pytest.raises(TypeError, match="attribute name must be string"):
-            service.enable_ui_components(mock_window, components_with_int)  # pyright: ignore[reportArgumentType]
+            service.enable_ui_components(mock_window, components_with_int)
 
 
 if __name__ == "__main__":

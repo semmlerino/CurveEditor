@@ -341,3 +341,274 @@ class TestFileLoadWorkerIntegration:
         # Clean up
         worker.stop()
         worker.wait(2000)
+
+
+class TestFileLoadWorkerYFlipIntegration:
+    """Integration tests for Y-flip behavior through start_work() path.
+
+    These tests verify the critical bug fix: ensuring that FileLoadWorker.run()
+    applies Y-flip when loading data via start_work() for both legacy and
+    metadata-aware loading paths.
+    """
+
+    def test_start_work_applies_y_flip_to_loaded_data(self, worker, qtbot, tmp_path):
+        """Test that start_work() applies Y-flip to loaded tracking data.
+
+        This is a regression test for the bug where FileLoadWorker.run() used
+        flip_y=False, causing pre-loaded points at startup to have incorrect
+        Y-coordinates while manually loaded points were correct.
+        """
+        # Create test file in 2DTrackData format
+        test_file = tmp_path / "test_flip.csv"
+        test_file.write_text("1\nTestPoint\nPointType\n2\n1 100.0 200.0\n2 150.0 250.0\n")
+
+        loaded_data = []
+
+        def capture_data(data):
+            loaded_data.append(data)
+
+        worker.tracking_data_loaded.connect(capture_data)
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Verify data was loaded
+        assert len(loaded_data) == 1
+        data = loaded_data[0]
+
+        # CRITICAL: Verify Y-coordinates are flipped (720 - y)
+        # Original Y=200 should become 720-200=520
+        # Original Y=250 should become 720-250=470
+        assert len(data) == 2
+        assert data[0][0] == 1  # Frame
+        assert data[0][1] == 100.0  # X unchanged
+        assert data[0][2] == 520.0  # Y flipped: 720 - 200
+        assert data[1][0] == 2  # Frame
+        assert data[1][1] == 150.0  # X unchanged
+        assert data[1][2] == 470.0  # Y flipped: 720 - 250
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)
+
+    def test_start_work_with_multi_point_applies_y_flip(self, worker, qtbot, tmp_path):
+        """Test Y-flip applied to all points in multi-point tracking data."""
+        # Create multi-point test file
+        test_file = tmp_path / "multi_point.csv"
+        test_file.write_text(
+            "3\n"  # 3 points
+            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n"
+            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n"
+            "Point3\n0\n2\n1 300.0 300.0\n2 310.0 310.0\n"
+        )
+
+        loaded_data = []
+        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Should return dict for multi-point data
+        assert len(loaded_data) == 1
+        data = loaded_data[0]
+        assert isinstance(data, dict)
+        assert len(data) == 3
+
+        # Verify Y-flip for all points
+        assert data["Point1"][0][2] == 620.0  # 720 - 100
+        assert data["Point2"][0][2] == 520.0  # 720 - 200
+        assert data["Point3"][0][2] == 420.0  # 720 - 300
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)
+
+
+class TestFileLoadWorkerMetadataAwarePath:
+    """Test metadata-aware loading path applies Y-flip correctly.
+
+    These tests verify the second bug fix: ensuring the metadata-aware loading
+    path (used when use_metadata_aware_data=True) also applies Y-flip.
+    """
+
+    def test_metadata_aware_loading_applies_y_flip(self, worker, qtbot, tmp_path, monkeypatch):
+        """Test metadata-aware path applies Y-flip via start_work().
+
+        Regression test for bug where line 340 in file_load_worker.py used
+        flip_y=False in the metadata-aware loading path.
+        """
+        # Enable metadata-aware loading
+        from core.config import AppConfig
+
+        test_config = AppConfig()
+        test_config.use_metadata_aware_data = True
+
+        # Monkeypatch get_config to return test config
+        import io_utils.file_load_worker
+
+        monkeypatch.setattr(io_utils.file_load_worker, "get_config", lambda: test_config)
+
+        # Create test file
+        test_file = tmp_path / "test_metadata.csv"
+        test_file.write_text("1\nTestPoint\nPointType\n2\n1 100.0 200.0\n2 150.0 250.0\n")
+
+        loaded_data = []
+        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Verify CurveDataWithMetadata was returned
+        from core.curve_data import CurveDataWithMetadata
+
+        assert len(loaded_data) == 1
+        data = loaded_data[0]
+        assert isinstance(data, CurveDataWithMetadata)
+
+        # CRITICAL: Verify Y-coordinates are flipped in the raw data
+        assert len(data.data) == 2
+        assert data.data[0][2] == 520.0  # Y flipped: 720 - 200
+        assert data.data[1][2] == 470.0  # Y flipped: 720 - 250
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)
+
+    def test_metadata_aware_multi_point_y_flip(self, worker, qtbot, tmp_path, monkeypatch):
+        """Test metadata-aware path applies Y-flip to multi-point data."""
+        # Enable metadata-aware loading
+        from core.config import AppConfig
+
+        test_config = AppConfig()
+        test_config.use_metadata_aware_data = True
+
+        import io_utils.file_load_worker
+
+        monkeypatch.setattr(io_utils.file_load_worker, "get_config", lambda: test_config)
+
+        # Create multi-point file
+        test_file = tmp_path / "multi_metadata.csv"
+        test_file.write_text("2\n" "Point1\n0\n1\n1 100.0 100.0\n" "Point2\n0\n1\n1 200.0 200.0\n")
+
+        loaded_data = []
+        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Should return dict of CurveDataWithMetadata
+        from core.curve_data import CurveDataWithMetadata
+
+        assert len(loaded_data) == 1
+        data = loaded_data[0]
+        assert isinstance(data, dict)
+
+        # Verify both points have Y-flipped data
+        assert isinstance(data["Point1"], CurveDataWithMetadata)
+        assert isinstance(data["Point2"], CurveDataWithMetadata)
+        assert data["Point1"].data[0][2] == 620.0  # 720 - 100
+        assert data["Point2"].data[0][2] == 520.0  # 720 - 200
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)
+
+
+class TestFileLoadWorkerLoadParity:
+    """Test parity between manual and auto-load paths.
+
+    These tests ensure that DataService.load_tracked_data() (manual load)
+    and FileLoadWorker.start_work() (auto-load at startup) produce identical
+    results, particularly for Y-coordinate flipping.
+    """
+
+    def test_manual_and_auto_load_produce_identical_results(self, worker, qtbot, tmp_path):
+        """Test manual and auto-load apply same Y-flip transformation.
+
+        This parity test ensures consistency between:
+        1. User clicking File → Open (uses DataService)
+        2. Application startup loading session (uses FileLoadWorker)
+        """
+        # Create test file in proper 2DTrackData format
+        test_file = tmp_path / "parity_test.csv"
+        test_file.write_text("1\nPoint01\n0\n3\n1 100.0 200.0\n2 150.0 250.0\n3 200.0 300.0\n")
+
+        # Manual load via DataService
+        from services import get_data_service
+
+        data_service = get_data_service()
+        manual_data = data_service.load_tracked_data(str(test_file))
+
+        # Extract single point data (manual returns dict)
+        assert "Point01" in manual_data
+        manual_point_data = manual_data["Point01"]
+
+        # Auto-load via FileLoadWorker
+        auto_data = []
+        worker.tracking_data_loaded.connect(lambda d: auto_data.append(d))
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Worker returns list for single point
+        assert len(auto_data) == 1
+        auto_point_data = auto_data[0]
+
+        # CRITICAL: Both should have identical Y-flipped coordinates
+        assert len(manual_point_data) == len(auto_point_data)
+
+        for i, (manual_point, auto_point) in enumerate(zip(manual_point_data, auto_point_data)):
+            # Compare frame, x, y (ignore status field if present)
+            assert manual_point[0] == auto_point[0], f"Point {i}: Frame mismatch"
+            assert manual_point[1] == auto_point[1], f"Point {i}: X mismatch"
+            assert manual_point[2] == auto_point[2], f"Point {i}: Y mismatch (Y-flip inconsistency)"
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)
+
+    def test_multi_point_parity_between_load_methods(self, worker, qtbot, tmp_path):
+        """Test multi-point data consistency between manual and auto-load."""
+        # Create multi-point file
+        test_file = tmp_path / "multi_parity.csv"
+        test_file.write_text(
+            "3\n"
+            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n"
+            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n"
+            "Point3\n0\n2\n1 300.0 300.0\n2 310.0 310.0\n"
+        )
+
+        # Manual load
+        from services import get_data_service
+
+        manual_data = get_data_service().load_tracked_data(str(test_file))
+
+        # Auto-load
+        auto_data = []
+        worker.tracking_data_loaded.connect(lambda d: auto_data.append(d))
+
+        with qtbot.waitSignal(worker.finished, timeout=2000):
+            worker.start_work(str(test_file), None)
+
+        # Both should return dicts
+        assert isinstance(manual_data, dict)
+        assert isinstance(auto_data[0], dict)
+
+        # Should have same points
+        assert set(manual_data.keys()) == set(auto_data[0].keys())
+
+        # Verify Y-flip consistency for each point
+        for point_name in manual_data:
+            manual_points = manual_data[point_name]
+            auto_points = auto_data[0][point_name]
+
+            assert len(manual_points) == len(auto_points)
+
+            for i, (m, a) in enumerate(zip(manual_points, auto_points)):
+                assert m[0] == a[0], f"{point_name}[{i}]: Frame mismatch"
+                assert m[1] == a[1], f"{point_name}[{i}]: X mismatch"
+                assert m[2] == a[2], f"{point_name}[{i}]: Y mismatch (Y-flip inconsistency)"
+
+        # Clean up
+        worker.stop()
+        worker.wait(2000)

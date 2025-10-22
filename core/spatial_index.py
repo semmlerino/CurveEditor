@@ -138,7 +138,7 @@ class PointIndex:
                     self._last_transform_hash = None  # Force rebuild
                     logger.debug(
                         f"Adaptive grid resized: {old_grid_width}x{old_grid_height} -> "
-                        f"{self.grid_width}x{self.grid_height} for {screen_width}x{screen_height} screen"
+                        + f"{self.grid_width}x{self.grid_height} for {screen_width}x{screen_height} screen"
                     )
                     return True
 

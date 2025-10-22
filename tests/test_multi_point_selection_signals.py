@@ -61,19 +61,19 @@ def controller(mock_main_window, qapp):
     original_update = controller.display_controller.update_display_with_selection  # noqa: F841
     original_center = controller.display_controller.center_on_selected_curves  # noqa: F841
 
-    controller.display_controller.update_call_count = 0  # pyright: ignore[reportAttributeAccessIssue]
-    controller.display_controller.last_selected_curves = None  # pyright: ignore[reportAttributeAccessIssue]
+    controller.display_controller.update_call_count = 0
+    controller.display_controller.last_selected_curves = None
 
     def tracked_update(selected_curves: list[str]) -> None:
-        controller.display_controller.update_call_count += 1  # pyright: ignore[reportAttributeAccessIssue]
-        controller.display_controller.last_selected_curves = selected_curves  # pyright: ignore[reportAttributeAccessIssue]
+        controller.display_controller.update_call_count += 1
+        controller.display_controller.last_selected_curves = selected_curves
         # Don't call original - it might have complex dependencies
 
     def tracked_center() -> None:
         pass  # No-op for testing
 
-    controller.display_controller.update_display_with_selection = tracked_update  # pyright: ignore[reportAttributeAccessIssue]
-    controller.display_controller.center_on_selected_curves = tracked_center  # pyright: ignore[reportAttributeAccessIssue]
+    controller.display_controller.update_display_with_selection = tracked_update
+    controller.display_controller.center_on_selected_curves = tracked_center
 
     yield controller
 
@@ -137,8 +137,8 @@ class TestSelectionSignalPathway:
         )
 
         # Verify the display was updated
-        assert controller.display_controller.update_call_count > 0  # pyright: ignore[reportAttributeAccessIssue]
-        assert controller.display_controller.last_selected_curves == ["Point04"]  # pyright: ignore[reportAttributeAccessIssue]
+        assert controller.display_controller.update_call_count > 0
+        assert controller.display_controller.last_selected_curves == ["Point04"]
 
     def test_multi_selection_uses_last_as_active(self, controller, sample_multi_curve_data, qapp):
         """
@@ -230,7 +230,7 @@ class TestSignalIntegration:
             assert app_state.active_curve == curve_name
 
         # Verify display updates happened
-        assert controller.display_controller.update_call_count >= 3  # pyright: ignore[reportAttributeAccessIssue]
+        assert controller.display_controller.update_call_count >= 3
 
 
 # ==================== Helper for Manual Testing ====================

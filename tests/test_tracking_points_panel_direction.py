@@ -58,7 +58,7 @@ class TestTrackingPointsPanelDirection:
         self, tracking_panel: TrackingPointsPanel, sample_tracking_data: dict[str, CurveDataList]
     ) -> TrackingPointsPanel:
         """TrackingPointsPanel with sample data loaded."""
-        tracking_panel.set_tracked_data(sample_tracking_data)  # pyright: ignore[reportArgumentType]
+        tracking_panel.set_tracked_data(sample_tracking_data)
         return tracking_panel
 
     # ==================== Basic Setup and Metadata Tests ====================
@@ -67,7 +67,7 @@ class TestTrackingPointsPanelDirection:
         self, tracking_panel: TrackingPointsPanel, sample_tracking_data: dict[str, CurveDataList]
     ):
         """Test that new tracking data gets default direction FW+BW."""
-        tracking_panel.set_tracked_data(sample_tracking_data)  # pyright: ignore[reportArgumentType]
+        tracking_panel.set_tracked_data(sample_tracking_data)
 
         for point_name in sample_tracking_data.keys():
             direction = tracking_panel.get_tracking_direction(point_name)

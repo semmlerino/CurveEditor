@@ -136,7 +136,7 @@ def main_window_with_data(qtbot, make_navigation_dataset):
         if test_data:
             # Apply default status assignment as DataService does when loading files
             data_service = get_data_service()
-            processed_data = data_service._apply_default_statuses(test_data)  # pyright: ignore[reportPrivateUsage]
+            processed_data = data_service._apply_default_statuses(test_data)
 
             app_state = get_application_state()
             app_state.set_curve_data("__default__", processed_data)
@@ -566,13 +566,13 @@ class TestRealFileNavigation:
         try:
             # Try to load KeyFrameTest.txt
             data_service = get_data_service()
-            test_data = data_service._load_2dtrack_data("KeyFrameTest.txt")  # pyright: ignore[reportPrivateUsage]
+            test_data = data_service._load_2dtrack_data("KeyFrameTest.txt")
         except FileNotFoundError:
             pytest.skip("KeyFrameTest.txt not available")
 
         # Set data BEFORE creating window
         app_state = get_application_state()
-        app_state.set_curve_data("__default__", test_data)  # pyright: ignore[reportArgumentType]
+        app_state.set_curve_data("__default__", test_data)
         app_state.set_active_curve("__default__")
 
         # Create window with real data
@@ -592,7 +592,7 @@ class TestRealFileNavigation:
 
         # Discover navigation frames dynamically from the loaded data
         data_service = get_data_service()
-        frame_status = data_service.get_frame_range_point_status(test_data)  # pyright: ignore[reportArgumentType]
+        frame_status = data_service.get_frame_range_point_status(test_data)
 
         # Collect all navigation frames (keyframes, endframes, startframes)
         nav_frames = []

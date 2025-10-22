@@ -122,14 +122,14 @@ class TestServiceIntegration:
         app_state.set_active_curve("test_curve")
 
         # Create transform using the same method as the interaction service
-        view_state = transform_service.create_view_state(view)  # pyright: ignore[reportArgumentType]
+        view_state = transform_service.create_view_state(view)
         transform = transform_service.create_transform_from_view_state(view_state)
 
         # Test finding point at screen position
         screen_x, screen_y = transform.data_to_screen(100, 100)
 
         # Find point at this position
-        idx = interaction_service.find_point_at_position(view, screen_x, screen_y, tolerance=10)  # pyright: ignore[reportArgumentType]
+        idx = interaction_service.find_point_at_position(view, screen_x, screen_y, tolerance=10)
 
         # Should find the first point
         assert idx == 0

@@ -159,13 +159,13 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         assert found_idx.index == 1
 
         # 7. Interact: Select the point
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)
         assert success
         assert 1 in self.curve_view.selected_points
 
         # 8. Interact: Move the selected point
         new_x, new_y = 160.0, 260.0
-        success = self.interaction_service.update_point_position(self.curve_view, self.main_window, 1, new_x, new_y)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.update_point_position(self.curve_view, self.main_window, 1, new_x, new_y)
         assert success
         # Phase 6: update_point_position updates ApplicationState (single source of truth)
         # Verify in ApplicationState
@@ -207,7 +207,7 @@ class TestLoadTransformInteractSave(TestServiceIntegration):
         self.curve_view.points = loaded_data
 
         # 4. Interact: Select all points
-        count = self.interaction_service.select_all_points(self.curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
+        count = self.interaction_service.select_all_points(self.curve_view, self.main_window)
         assert count == 5
         assert len(self.curve_view.selected_points) == 5
 
@@ -249,7 +249,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
         assert found_idx.index == 2
 
         # Select the found point
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, found_idx.index)
         assert success
         assert self.curve_view.selected_point_idx == 2
 
@@ -280,7 +280,7 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
         rect = QRect(int(min_x), int(min_y), int(max_x - min_x), int(max_y - min_y))
 
         # Select points in rectangle
-        count = self.interaction_service.select_points_in_rect(self.curve_view, self.main_window, rect)  # pyright: ignore[reportArgumentType]
+        count = self.interaction_service.select_points_in_rect(self.curve_view, self.main_window, rect)
         assert count == 3
         assert self.curve_view.selected_points == {0, 1, 2}
 
@@ -335,7 +335,7 @@ class TestDataUIIntegration(TestServiceIntegration):
             assert success
 
             # Load operation
-            loaded = self.data_service._load_json(temp_file)  # pyright: ignore[reportPrivateUsage]
+            loaded = self.data_service._load_json(temp_file)
             assert len(loaded) == 5
 
         # In real implementation, UI service would show status messages
@@ -377,14 +377,14 @@ class TestHistoryIntegration(TestServiceIntegration):
         app_state.set_active_curve("test_curve")
 
         # Add initial state to history
-        self.interaction_service.add_to_history(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.add_to_history(self.main_window)
 
         # Store original position
         original_data = app_state.get_curve_data("test_curve")
         self.curve_view.curve_data = list(original_data)
 
         # Modify a point
-        self.interaction_service.update_point_position(self.curve_view, self.main_window, 0, 110.0, 210.0)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.update_point_position(self.curve_view, self.main_window, 0, 110.0, 210.0)
 
         # Verify point was modified in ApplicationState (Phase 6: ApplicationState is source of truth)
         curve_data = app_state.get_curve_data("test_curve")
@@ -392,7 +392,7 @@ class TestHistoryIntegration(TestServiceIntegration):
         assert curve_data[0][2] == 210.0
 
         # Add modified state to history
-        self.interaction_service.add_to_history(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.add_to_history(self.main_window)
 
         # Get history stats to verify state
         stats = self.interaction_service.get_history_stats()
@@ -403,13 +403,13 @@ class TestHistoryIntegration(TestServiceIntegration):
             assert can_undo
 
         # Try to undo the change
-        self.interaction_service.undo(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.undo(self.main_window)
 
         # State should be returned (may be None if not implemented)
         # The important part is no exception is raised
 
         # Try to redo the change
-        self.interaction_service.redo(self.main_window)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.redo(self.main_window)
         # Again, no exception is the key test
 
     def test_history_memory_management(self):
@@ -420,7 +420,7 @@ class TestHistoryIntegration(TestServiceIntegration):
             modified_data[0] = (1, 100.0 + i, 200.0 + i, "keyframe")
 
             self.main_window.curve_view.curve_data = modified_data
-            self.interaction_service.add_to_history(self.main_window)  # pyright: ignore[reportArgumentType]
+            self.interaction_service.add_to_history(self.main_window)
 
         # History should have some stats available
         stats = self.interaction_service.get_history_stats()
@@ -462,11 +462,11 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
     def test_out_of_bounds_operations(self):
         """Test services handle out-of-bounds operations."""
         # Try to select non-existent point
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)
         assert not success
 
         # Try to update non-existent point
-        success = self.interaction_service.update_point_position(self.curve_view, self.main_window, -1, 0, 0)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.update_point_position(self.curve_view, self.main_window, -1, 0, 0)
         assert not success
 
         # Try to find point at extreme coordinates
@@ -481,14 +481,14 @@ class TestErrorRecoveryIntegration(TestServiceIntegration):
         app_state.set_active_curve("test_curve")
 
         # Cause an error by selecting invalid point
-        self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)  # pyright: ignore[reportArgumentType]
+        self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 999)
 
         # Verify view state is still valid
         assert isinstance(self.curve_view.selected_points, set)
         assert self.curve_view.selected_point_idx >= -1
 
         # Normal operations should still work
-        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 0)  # pyright: ignore[reportArgumentType]
+        success = self.interaction_service.select_point_by_index(self.curve_view, self.main_window, 0)
         assert success
         assert 0 in self.curve_view.selected_points
 
@@ -531,7 +531,7 @@ class TestPerformanceIntegration(TestServiceIntegration):
         assert idx.index == 500
 
         # Select all should work
-        count = self.interaction_service.select_all_points(self.curve_view, self.main_window)  # pyright: ignore[reportArgumentType]
+        count = self.interaction_service.select_all_points(self.curve_view, self.main_window)
         assert count == 1000
 
 

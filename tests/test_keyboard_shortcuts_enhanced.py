@@ -122,7 +122,7 @@ def tracking_panel_with_data(qtbot):
             "Point_3": [(i, float(i * 15), float(i * 7), PointStatus.NORMAL.value) for i in range(10, 20)],
         },
     )
-    panel.set_tracked_data(tracked_data)  # pyright: ignore[reportArgumentType]
+    panel.set_tracked_data(tracked_data)
 
     return panel
 
@@ -271,7 +271,7 @@ class TestEndframeKeyboardShortcut:
         # After length check - we've verified it has status info
         from core.type_aliases import PointTuple4
 
-        point3_after_4: PointTuple4 = point3_after  # pyright: ignore[reportAssignmentType]
+        point3_after_4: PointTuple4 = point3_after
         point3_before_4: PointTuple4 = point3_before  # pyright: ignore[reportAssignmentType]
         assert point3_after_4[3] == point3_before_4[3], "Selected point at frame 4 should remain unchanged"
         assert point3_after_4[3] == PointStatus.NORMAL.value, "Frame 4 should still be NORMAL"
@@ -712,7 +712,7 @@ class TestRealComponentIntegration:
                 "Point_2": [(i, float(i * 12), float(i * 6), PointStatus.NORMAL.value) for i in range(3, 8)],
             },
         )
-        panel.set_tracked_data(tracked_data)  # pyright: ignore[reportArgumentType]
+        panel.set_tracked_data(tracked_data)
 
         # Create real MainWindow and connect panel
         window = MainWindow()
@@ -856,7 +856,7 @@ class TestEdgeCasesAndBoundaryConditions:
         cmd = SetEndframeCommand()
         event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_E, Qt.KeyboardModifier.NoModifier)
         context = ShortcutContext(
-            main_window=None,  # pyright: ignore[reportArgumentType] - Testing edge case
+            main_window=None,  # Testing edge case
             focused_widget=None,
             key_event=event,
             selected_curve_points=set(),

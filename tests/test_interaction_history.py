@@ -71,7 +71,7 @@ class TestHistoryOperations:
         main_window.history = None
         main_window.history_index = None
 
-        self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.add_to_history(main_window)
 
         # Should have at least one history entry (might start at 1 if add_to_history was called before)
         assert len(self.service._commands._history) >= 1
@@ -93,7 +93,7 @@ class TestHistoryOperations:
         main_window.history = []
         main_window.history_index = -1
 
-        self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.add_to_history(main_window)
 
         # Should add to main_window.history
         assert len(main_window.history) == 1
@@ -109,7 +109,7 @@ class TestHistoryOperations:
 
         # Add many history entries
         for i in range(150):
-            self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
+            self.service.add_to_history(main_window)
 
         # Should not exceed max size
         assert len(self.service._commands._history) <= self.service._commands._max_history_size
@@ -123,7 +123,7 @@ class TestHistoryOperations:
         # Add a command
         command = DeletePointsCommand("Delete test", indices=[0], deleted_points=[(0, (1, 100.0, 100.0))])
         command.executed = True
-        self.service.command_manager.add_executed_command(command, main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.add_executed_command(command, main_window)
 
         # Should be able to undo
         assert self.service.can_undo() is True
@@ -140,10 +140,10 @@ class TestHistoryOperations:
 
         # Add and execute a command
         command = DeletePointsCommand("Delete test", indices=[0], deleted_points=[(0, (1, 100.0, 100.0))])
-        self.service.command_manager.execute_command(command, main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.execute_command(command, main_window)
 
         # Undo the command
-        self.service.command_manager.undo(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.undo(main_window)
 
         # Should be able to redo
         assert self.service.can_redo() is True
@@ -161,10 +161,10 @@ class TestHistoryOperations:
         # Execute a move command
         moves = [(0, (100.0, 100.0), (150.0, 150.0))]
         command = BatchMoveCommand("Move test", moves=moves)
-        self.service.command_manager.execute_command(command, main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.execute_command(command, main_window)
 
         # Undo
-        self.service.undo_action(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.undo_action(main_window)
 
         # Point should be back at original position
         curve_data = app_state.get_curve_data("test_curve")
@@ -184,11 +184,11 @@ class TestHistoryOperations:
         # Execute a move command
         moves = [(0, (100.0, 100.0), (150.0, 150.0))]
         command = BatchMoveCommand("Move test", moves=moves)
-        self.service.command_manager.execute_command(command, main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.execute_command(command, main_window)
 
         # Undo then redo
-        self.service.undo_action(main_window)  # pyright: ignore[reportArgumentType]
-        self.service.redo_action(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.undo_action(main_window)
+        self.service.redo_action(main_window)
 
         # Point should be at new position again
         curve_data = app_state.get_curve_data("test_curve")
@@ -210,7 +210,7 @@ class TestHistoryOperations:
             "point_color": "blue",
         }
 
-        self.service.restore_state(main_window, saved_state)  # pyright: ignore[reportArgumentType]
+        self.service.restore_state(main_window, saved_state)
 
         # ApplicationState should be updated
         curve_data = app_state.get_curve_data("test_curve")
@@ -226,11 +226,11 @@ class TestHistoryOperations:
         main_window = MockMainWindow()
 
         # Add some history
-        self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
-        self.service.add_to_history(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.add_to_history(main_window)
+        self.service.add_to_history(main_window)
 
         # Clear history
-        self.service.clear_history(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.clear_history(main_window)
 
         # Should be empty
         assert len(self.service._commands._history) == 0
@@ -249,14 +249,14 @@ class TestHistoryOperations:
         # Add a command
         command = DeletePointsCommand("Delete test", indices=[0], deleted_points=[(0, (1, 100.0, 100.0))])
         command.executed = True
-        self.service.command_manager.add_executed_command(command, main_window)  # pyright: ignore[reportArgumentType]
+        self.service.command_manager.add_executed_command(command, main_window)
 
         # Now should be able to undo
         assert self.service.can_undo() is True
         assert self.service.can_redo() is False
 
         # update_history_buttons should not crash (UI button update is optional)
-        self.service.update_history_buttons(main_window)  # pyright: ignore[reportArgumentType]
+        self.service.update_history_buttons(main_window)
 
 
 class TestMemoryAndStats:

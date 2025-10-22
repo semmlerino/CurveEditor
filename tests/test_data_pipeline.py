@@ -380,7 +380,7 @@ class TestPointManipulationPipeline:
             assert orig == restored
 
         # 7. Simulate redo (reapply modification)
-        redone_data = self.data_service.smooth_moving_average(restored_data, window_size=3)  # pyright: ignore[reportArgumentType]
+        redone_data = self.data_service.smooth_moving_average(restored_data, window_size=3)
 
         # 8. Verify redo produces consistent results
         assert len(redone_data) == len(modified_data)

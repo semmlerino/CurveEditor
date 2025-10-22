@@ -392,7 +392,7 @@ class TestWheelEvents:
             zoom_called = True
             zoom_factor_arg = factor
 
-        view.zoom = track_zoom  # pyright: ignore[reportAttributeAccessIssue]
+        view.zoom = track_zoom
 
         event = Mock(spec=QWheelEvent)
         event.angleDelta.return_value = Mock(y=lambda: 120)  # Positive delta
@@ -416,7 +416,7 @@ class TestWheelEvents:
             zoom_called = True
             zoom_factor_arg = factor
 
-        view.zoom = track_zoom  # pyright: ignore[reportAttributeAccessIssue]
+        view.zoom = track_zoom
 
         event = Mock(spec=QWheelEvent)
         event.angleDelta.return_value = Mock(y=lambda: -120)  # Negative delta

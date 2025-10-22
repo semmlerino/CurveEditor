@@ -228,7 +228,7 @@ class TestGapWorkflow:
             pytest.param(100, ("exact", (200.0, 200.0)), id="held_100"),
         ],
     )
-    def test_gap_at_end_of_sequence(self, frame: int, expected_behavior: tuple):
+    def test_gap_at_end_of_sequence(self, frame: int, expected_behavior: tuple[str, tuple[float, float]]):
         """Test gap behavior when endframe is at the end of sequence."""
         data_service = DataService()
 

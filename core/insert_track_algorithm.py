@@ -274,26 +274,8 @@ def fill_gap_with_source(
 
     logger.info(f"Filled {gap_frames_filled} frames in gap [{gap_start}, {gap_end}]")
 
-    # Mark overlap frames (frames OUTSIDE gap boundaries) as keyframes
-    # Find the ACTUAL existing frames before and after the gap
-    # (not just gap_start-1 and gap_end+1, which might not exist)
-    target_frames = {p.frame for p in target_points}
-    overlap_before = max((f for f in target_frames if f < gap_start), default=None)
-    overlap_after = min((f for f in target_frames if f > gap_end), default=None)
-
-    final_points: list[CurvePoint] = []
-    for point in result_points:
-        should_mark_keyframe = False
-        if overlap_before is not None and point.frame == overlap_before:
-            should_mark_keyframe = True
-        if overlap_after is not None and point.frame == overlap_after:
-            should_mark_keyframe = True
-
-        if should_mark_keyframe:
-            # Mark overlap frame as keyframe (original data connecting to fill)
-            final_points.append(point.with_status(PointStatus.KEYFRAME))
-        else:
-            final_points.append(point)
+    # Keep all points with their original status (no keyframe marking)
+    final_points: list[CurvePoint] = list(result_points)
 
     # Sort by frame
     final_points.sort(key=lambda p: p.frame)
@@ -427,15 +409,8 @@ def interpolate_gap(curve_data: CurveDataList, gap_start: int, gap_end: int) -> 
         interp_point = CurvePoint(frame=frame, x=interp_x, y=interp_y, status=PointStatus.INTERPOLATED)
         result_points.append(interp_point)
 
-    # Mark overlap frames (frames OUTSIDE gap boundaries) as keyframes
-    # These are the before_point and after_point frames where original data exists
-    final_points: list[CurvePoint] = []
-    for point in result_points:
-        if point.frame == before_point.frame or point.frame == after_point.frame:
-            # Mark overlap frame as keyframe (original data connecting to interpolation)
-            final_points.append(point.with_status(PointStatus.KEYFRAME))
-        else:
-            final_points.append(point)
+    # Keep all points with their original status (no keyframe marking)
+    final_points: list[CurvePoint] = list(result_points)
 
     # Sort and convert
     final_points.sort(key=lambda p: p.frame)

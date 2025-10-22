@@ -78,7 +78,7 @@ class TestGetTransformHelper:
         self, transform_service: TransformService, mock_view: MockCurveView
     ) -> None:
         """Test that get_transform returns a Transform instance."""
-        transform = transform_service.get_transform(mock_view)  # pyright: ignore[reportArgumentType]
+        transform = transform_service.get_transform(mock_view)
 
         assert isinstance(transform, Transform)
         assert transform is not None
@@ -88,11 +88,11 @@ class TestGetTransformHelper:
     ) -> None:
         """Test that get_transform produces same result as 2-step pattern."""
         # Old pattern (2 steps)
-        view_state = transform_service.create_view_state(mock_view)  # pyright: ignore[reportArgumentType]
+        view_state = transform_service.create_view_state(mock_view)
         transform_old = transform_service.create_transform_from_view_state(view_state)
 
         # New pattern (1 step)
-        transform_new = transform_service.get_transform(mock_view)  # pyright: ignore[reportArgumentType]
+        transform_new = transform_service.get_transform(mock_view)
 
         # Should produce identical transforms
         assert transform_old.scale == transform_new.scale
@@ -107,7 +107,7 @@ class TestGetTransformHelper:
 
         for zoom in zoom_levels:
             view = MockCurveView(zoom_factor=zoom)
-            transform = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+            transform = transform_service.get_transform(view)
 
             assert transform.scale == zoom
             assert isinstance(transform, Transform)
@@ -115,7 +115,7 @@ class TestGetTransformHelper:
     def test_get_transform_with_pan_offsets(self, transform_service: TransformService) -> None:
         """Test get_transform with different pan offsets."""
         view = MockCurveView(offset_x=100.0, offset_y=-50.0)
-        transform = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+        transform = transform_service.get_transform(view)
 
         assert transform.pan_offset == (100.0, -50.0)
 
@@ -125,7 +125,7 @@ class TestGetTransformHelper:
 
         for width, height in sizes:
             view = MockCurveView(width=width, height=height)
-            transform = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+            transform = transform_service.get_transform(view)
 
             # Transform is created successfully (display_height comes from image, not widget)
             assert isinstance(transform, Transform)
@@ -134,18 +134,18 @@ class TestGetTransformHelper:
         """Test get_transform respects Y-axis flip setting."""
         # With Y flip (default)
         view_flipped = MockCurveView(flip_y_axis=True)
-        transform_flipped = transform_service.get_transform(view_flipped)  # pyright: ignore[reportArgumentType]
+        transform_flipped = transform_service.get_transform(view_flipped)
         assert transform_flipped.flip_y is True
 
         # Without Y flip
         view_normal = MockCurveView(flip_y_axis=False)
-        transform_normal = transform_service.get_transform(view_normal)  # pyright: ignore[reportArgumentType]
+        transform_normal = transform_service.get_transform(view_normal)
         assert transform_normal.flip_y is False
 
     def test_get_transform_coordinate_conversion(self, transform_service: TransformService) -> None:
         """Test that transform from get_transform can convert coordinates."""
         view = MockCurveView(zoom_factor=2.0, offset_x=50.0, offset_y=25.0)
-        transform = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+        transform = transform_service.get_transform(view)
 
         # Test data to screen conversion
         screen_x, screen_y = transform.data_to_screen(100.0, 200.0)
@@ -163,7 +163,7 @@ class TestGetTransformHelper:
         """Test get_transform with complex view configuration."""
         view = MockCurveView(zoom_factor=3.5, offset_x=150.0, offset_y=-75.0, width=2560, height=1440, flip_y_axis=True)
 
-        transform = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+        transform = transform_service.get_transform(view)
 
         assert transform.scale == 3.5
         assert transform.pan_offset == (150.0, -75.0)
@@ -176,8 +176,8 @@ class TestGetTransformHelper:
         view1 = MockCurveView(zoom_factor=1.0)
         view2 = MockCurveView(zoom_factor=2.0)
 
-        transform1 = transform_service.get_transform(view1)  # pyright: ignore[reportArgumentType]
-        transform2 = transform_service.get_transform(view2)  # pyright: ignore[reportArgumentType]
+        transform1 = transform_service.get_transform(view1)
+        transform2 = transform_service.get_transform(view2)
 
         # Should be different objects
         assert transform1 is not transform2
@@ -193,14 +193,18 @@ class TestGetTransformHelper:
         results: list[Transform | None] = [None] * 10
 
         def create_transform(index: int) -> None:
-            results[index] = transform_service.get_transform(view)  # pyright: ignore[reportArgumentType]
+            results[index] = transform_service.get_transform(view)
 
         threads = [threading.Thread(target=create_transform, args=(i,)) for i in range(10)]
 
         for thread in threads:
             thread.start()
         for thread in threads:
-            thread.join()
+            thread.join(timeout=5.0)
+            if thread.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {thread.name} did not stop within timeout")
 
         # All should have succeeded
         assert all(isinstance(r, Transform) for r in results)
@@ -225,7 +229,7 @@ class TestServiceFacadeGetTransform:
 
     def test_service_facade_get_transform_available(self, service_facade, mock_view: MockCurveView) -> None:  # type: ignore[no-untyped-def]
         """Test that ServiceFacade.get_transform is available."""
-        transform = service_facade.get_transform(mock_view)  # pyright: ignore[reportUnknownMemberType]
+        transform = service_facade.get_transform(mock_view)
 
         # Should return Transform or None (depends on service availability)
         assert transform is None or isinstance(transform, Transform)
@@ -237,8 +241,8 @@ class TestServiceFacadeGetTransform:
     ) -> None:
         """Test ServiceFacade.get_transform when transform service is available."""
         # Ensure transform service is available
-        if service_facade.is_service_available("transform"):  # pyright: ignore[reportUnknownMemberType]
-            transform = service_facade.get_transform(mock_view)  # pyright: ignore[reportUnknownMemberType]
+        if service_facade.is_service_available("transform"):
+            transform = service_facade.get_transform(mock_view)
             assert isinstance(transform, Transform)
 
 

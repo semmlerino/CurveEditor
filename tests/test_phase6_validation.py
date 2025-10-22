@@ -123,7 +123,11 @@ def test_curve_data_thread_safety_during_batch():
     # Run worker thread
     thread = threading.Thread(target=batch_update)
     thread.start()
-    thread.join()
+    thread.join(timeout=5.0)
+    if thread.is_alive():
+        import warnings
+
+        warnings.warn(f"Thread {thread.name} did not stop within timeout")
 
     # Verify thread safety check worked
     assert len(errors) == 1, "Thread safety check should have caught wrong thread access"

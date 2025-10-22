@@ -138,7 +138,7 @@ class YFlipStrategy:
         if flip_y and not scale_to_image:
             raise ValueError(
                 "Inconsistent Y-flip configuration: flip_y=True requires scale_to_image=True "
-                "for proper 3DEqualizer coordinate handling"
+                + "for proper 3DEqualizer coordinate handling"
             )
 
         # This is valid: flip_y=False with scale_to_image=True for tracking data that scales with background

@@ -415,13 +415,13 @@ class TestRenderStateImmutability:
 
         # Assert: Cannot modify attributes (dataclass frozen=True)
         with pytest.raises(Exception, match="frozen|cannot assign"):
-            state.display_mode = DisplayMode.ACTIVE_ONLY  # pyright: ignore[reportAttributeAccessIssue]
+            state.display_mode = DisplayMode.ACTIVE_ONLY
 
         with pytest.raises(Exception, match="frozen|cannot assign"):
-            state.visible_curves = frozenset({"NewCurve"})  # pyright: ignore[reportAttributeAccessIssue]
+            state.visible_curves = frozenset({"NewCurve"})
 
         with pytest.raises(Exception, match="frozen|cannot assign"):
-            state.active_curve = "Track2"  # pyright: ignore[reportAttributeAccessIssue]
+            state.active_curve = "Track2"
 
     def test_visible_curves_is_frozenset(self, curve_widget, sample_curves):
         """visible_curves should be frozenset (immutable)."""
@@ -434,7 +434,7 @@ class TestRenderStateImmutability:
 
         # Assert: Cannot modify frozenset (no 'add' method)
         with pytest.raises(AttributeError, match="'frozenset' object has no attribute 'add'"):
-            state.visible_curves.add("NewCurve")  # pyright: ignore[reportAttributeAccessIssue]
+            state.visible_curves.add("NewCurve")
 
 
 # NOTE: TestRenderStateMatchesShouldRenderCurve class removed (obsolete migration tests)

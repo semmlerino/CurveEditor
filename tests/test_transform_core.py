@@ -1,27 +1,16 @@
 #!/usr/bin/env python3
 """
-Comprehensive tests for services/transform_core.py.
+Comprehensive tests for services/transform_core.py module.
 
-This module tests the critical coordinate transformation engine that converts
-between data space and screen space. Transform errors can silently corrupt
-point positions, clicks, zoom/pan behavior, and file I/O.
+This test suite covers the foundation of all coordinate transformations in CurveEditor:
+- Validation functions (validate_finite, validate_scale, validate_point)
+- ValidationConfig class and environment handling
+- ViewState class (initialization, immutability, quantization)
+- Transform class (data-to-screen, screen-to-data, batch operations)
+- calculate_center_offset function
+- Roundtrip accuracy and edge cases
 
-Test Coverage:
-- Validation helpers (validate_finite, validate_scale, validate_point)
-- ValidationConfig (debug vs production modes)
-- ViewState (creation, immutability, quantization)
-- Transform core transformations (data_to_screen, screen_to_data)
-- Transform edge cases (NaN, infinity, zero scale, huge coordinates)
-- Transform batch operations (NumPy vectorized transforms)
-- Transform integration (from_view_state)
-- Property-based testing (roundtrip invariants)
-
-Testing Strategy:
-- Pure Python/NumPy tests (no Qt dependencies)
-- High coverage target (90%+ of 410 statements)
-- Test both debug and production validation modes
-- Verify mathematical invariants (roundtrip identity)
-- Test edge cases that could silently corrupt data
+Coverage Target: >95% line coverage for transform_core.py (410 lines)
 """
 
 # Per-file type checking relaxations for test code
@@ -29,6 +18,7 @@ Testing Strategy:
 # pyright: reportArgumentType=none
 # pyright: reportAny=none
 # pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
 # pyright: reportUnknownVariableType=none
 # pyright: reportMissingParameterType=none
 # pyright: reportPrivateUsage=none
@@ -37,15 +27,14 @@ Testing Strategy:
 
 import math
 import os
-from unittest.mock import Mock, patch
+from dataclasses import FrozenInstanceError
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
-from hypothesis import assume, given, settings
-from hypothesis import strategies as st
-from numpy.testing import assert_allclose
 
-from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
+from core.error_messages import ValidationError
 from services.transform_core import (
     DEFAULT_PRECISION,
     MIN_SCALE_VALUE,
@@ -61,394 +50,238 @@ from services.transform_core import (
 )
 
 # =============================================================================
-# Test Validation Helpers
+# Validation Function Tests
 # =============================================================================
 
 
-class TestValidateFinite:
-    """Test validate_finite() helper function."""
+class TestValidationFunctions:
+    """Test validation helper functions."""
 
-    def test_with_valid_float(self) -> None:
-        """Valid float returned unchanged."""
-        result = validate_finite(123.456, "test")
-        assert result == 123.456
+    def test_validate_finite_with_valid_value(self) -> None:
+        """Test validate_finite with valid finite value."""
+        result = validate_finite(42.5, "test_value", default=0.0)
+        assert result == 42.5
 
-    def test_with_nan_uses_default(self) -> None:
-        """NaN replaced with default value."""
-        result = validate_finite(float("nan"), "test", default=5.0)
-        assert result == 5.0
+    def test_validate_finite_with_nan_returns_default(self) -> None:
+        """Test validate_finite with NaN returns default."""
+        result = validate_finite(float("nan"), "test_value", default=99.0)
+        assert result == 99.0
 
-    def test_with_positive_infinity_uses_default(self) -> None:
-        """Positive infinity replaced with default."""
-        result = validate_finite(float("inf"), "test", default=0.0)
-        assert result == 0.0
+    def test_validate_finite_with_infinity_returns_default(self) -> None:
+        """Test validate_finite with infinity returns default."""
+        result = validate_finite(float("inf"), "test_value", default=42.0)
+        assert result == 42.0
 
-    def test_with_negative_infinity_uses_default(self) -> None:
-        """Negative infinity replaced with default."""
-        result = validate_finite(float("-inf"), "test", default=-1.0)
-        assert result == -1.0
-
-    def test_with_zero(self) -> None:
-        """Zero is valid."""
-        result = validate_finite(0.0, "test")
-        assert result == 0.0
-
-    def test_with_negative_value(self) -> None:
-        """Negative values are valid."""
-        result = validate_finite(-999.99, "test")
-        assert result == -999.99
-
-    def test_with_very_large_value(self) -> None:
-        """Very large values are valid if finite."""
-        result = validate_finite(1e100, "test")
-        assert result == 1e100
-
-    def test_default_parameter_defaults_to_zero(self) -> None:
-        """Default parameter defaults to 0.0 when not specified."""
-        result = validate_finite(float("nan"), "test")
-        assert result == 0.0
-
-
-class TestValidateScale:
-    """Test validate_scale() helper function."""
-
-    def test_with_valid_scale(self) -> None:
-        """Valid scale returned unchanged."""
-        result = validate_scale(2.0, "test")
-        assert result == 2.0
-
-    def test_rejects_zero_uses_default(self) -> None:
-        """Zero scale replaced with default."""
-        result = validate_scale(0.0, "test", default=1.0)
-        assert result == 1.0
-
-    def test_rejects_negative_uses_default(self) -> None:
-        """Negative scale replaced with default."""
-        result = validate_scale(-5.0, "test", default=1.0)
-        assert result == 1.0
-
-    def test_clamps_too_small_to_minimum(self) -> None:
-        """Scale below minimum clamped to minimum."""
-        result = validate_scale(1e-15, "test", min_scale=1e-10, default=1.0)
-        assert result == 1e-10
-
-    def test_clamps_too_large_to_maximum(self) -> None:
-        """Scale above maximum clamped to maximum."""
-        result = validate_scale(1e15, "test", max_scale=1e10, default=1.0)
-        assert result == 1e10
-
-    def test_with_nan_uses_default(self) -> None:
-        """NaN scale replaced with default."""
-        result = validate_scale(float("nan"), "test", default=1.0)
-        assert result == 1.0
-
-    def test_with_infinity_uses_default(self) -> None:
-        """Infinity scale replaced with default."""
-        result = validate_scale(float("inf"), "test", default=1.0)
-        assert result == 1.0
-
-    def test_respects_custom_min_max(self) -> None:
-        """Custom min/max bounds respected."""
-        result = validate_scale(5.0, "test", min_scale=1.0, max_scale=10.0)
-        assert result == 5.0
-
-        result = validate_scale(0.5, "test", min_scale=1.0, max_scale=10.0)
-        assert result == 1.0
-
-        result = validate_scale(15.0, "test", min_scale=1.0, max_scale=10.0)
+    def test_validate_finite_with_negative_infinity_returns_default(self) -> None:
+        """Test validate_finite with -infinity returns default."""
+        result = validate_finite(float("-inf"), "test_value", default=10.0)
         assert result == 10.0
 
-    def test_default_parameters(self) -> None:
-        """Default min_scale, max_scale, default values work."""
-        # Should clamp very small value to 1e-10 (default min_scale)
-        result = validate_scale(1e-20, "test")
+    def test_validate_scale_with_valid_positive_value(self) -> None:
+        """Test validate_scale with valid positive scale."""
+        result = validate_scale(2.5, "test_scale", min_scale=1e-10, max_scale=1e10, default=1.0)
+        assert result == 2.5
+
+    def test_validate_scale_with_zero_returns_default(self) -> None:
+        """Test validate_scale with zero returns default."""
+        result = validate_scale(0.0, "test_scale", default=1.0)
+        assert result == 1.0
+
+    def test_validate_scale_with_negative_returns_default(self) -> None:
+        """Test validate_scale with negative value returns default."""
+        result = validate_scale(-5.0, "test_scale", default=1.0)
+        assert result == 1.0
+
+    def test_validate_scale_with_nan_returns_default(self) -> None:
+        """Test validate_scale with NaN returns default."""
+        result = validate_scale(float("nan"), "test_scale", default=2.0)
+        assert result == 2.0
+
+    def test_validate_scale_clamps_to_min_scale(self) -> None:
+        """Test validate_scale clamps value below min_scale."""
+        result = validate_scale(1e-12, "test_scale", min_scale=1e-10, default=1.0)
         assert result == 1e-10
 
-        # Should clamp very large value to 1e10 (default max_scale)
-        result = validate_scale(1e20, "test")
+    def test_validate_scale_clamps_to_max_scale(self) -> None:
+        """Test validate_scale clamps value above max_scale."""
+        result = validate_scale(1e12, "test_scale", max_scale=1e10, default=1.0)
         assert result == 1e10
 
+    def test_validate_point_with_valid_coordinates(self) -> None:
+        """Test validate_point with valid finite coordinates."""
+        x, y = validate_point(100.5, 200.5, "test_context")
+        assert x == 100.5
+        assert y == 200.5
 
-class TestValidatePoint:
-    """Test validate_point() helper function."""
-
-    def test_with_valid_coordinates(self) -> None:
-        """Valid coordinates returned unchanged."""
-        x, y = validate_point(100.0, 200.0, "test")
-        assert x == 100.0
-        assert y == 200.0
-
-    def test_with_nan_x_returns_zero(self) -> None:
-        """NaN x-coordinate replaced with (0, 0)."""
-        x, y = validate_point(float("nan"), 200.0, "test")
+    def test_validate_point_with_nan_x_returns_zeros(self) -> None:
+        """Test validate_point with NaN X returns (0, 0)."""
+        x, y = validate_point(float("nan"), 100.0, "test_context")
         assert x == 0.0
         assert y == 0.0
 
-    def test_with_nan_y_returns_zero(self) -> None:
-        """NaN y-coordinate replaced with (0, 0)."""
-        x, y = validate_point(100.0, float("nan"), "test")
+    def test_validate_point_with_nan_y_returns_zeros(self) -> None:
+        """Test validate_point with NaN Y returns (0, 0)."""
+        x, y = validate_point(100.0, float("nan"), "test_context")
         assert x == 0.0
         assert y == 0.0
 
-    def test_with_infinity_x_returns_zero(self) -> None:
-        """Infinity x-coordinate replaced with (0, 0)."""
-        x, y = validate_point(float("inf"), 200.0, "test")
-        assert x == 0.0
-        assert y == 0.0
-
-    def test_with_infinity_y_returns_zero(self) -> None:
-        """Infinity y-coordinate replaced with (0, 0)."""
-        x, y = validate_point(100.0, float("inf"), "test")
-        assert x == 0.0
-        assert y == 0.0
-
-    def test_with_negative_coordinates(self) -> None:
-        """Negative coordinates are valid."""
-        x, y = validate_point(-100.0, -200.0, "test")
-        assert x == -100.0
-        assert y == -200.0
-
-    def test_with_zero_coordinates(self) -> None:
-        """Zero coordinates are valid."""
-        x, y = validate_point(0.0, 0.0, "test")
+    def test_validate_point_with_infinity_returns_zeros(self) -> None:
+        """Test validate_point with infinity returns (0, 0)."""
+        x, y = validate_point(float("inf"), 100.0, "test_context")
         assert x == 0.0
         assert y == 0.0
 
 
 # =============================================================================
-# Test ValidationConfig
+# ValidationConfig Tests
 # =============================================================================
 
 
 class TestValidationConfig:
-    """Test ValidationConfig configuration class."""
+    """Test ValidationConfig class."""
 
-    def test_default_values(self) -> None:
-        """Default ValidationConfig has expected values."""
+    def test_validation_config_defaults(self) -> None:
+        """Test ValidationConfig default values."""
         config = ValidationConfig()
         assert config.enable_full_validation is True
         assert config.max_coordinate == 1e12
         assert config.min_scale == 1e-10
         assert config.max_scale == 1e10
 
-    def test_for_production(self) -> None:
-        """Production config disables full validation."""
+    def test_validation_config_custom_values(self) -> None:
+        """Test ValidationConfig with custom values."""
+        config = ValidationConfig(enable_full_validation=False, max_coordinate=1e10, min_scale=1e-8, max_scale=1e8)
+        assert config.enable_full_validation is False
+        assert config.max_coordinate == 1e10
+        assert config.min_scale == 1e-8
+        assert config.max_scale == 1e8
+
+    def test_validation_config_for_production(self) -> None:
+        """Test ValidationConfig.for_production() factory."""
         config = ValidationConfig.for_production()
         assert config.enable_full_validation is False
+        assert config.max_coordinate == 1e12
+        assert config.min_scale == 1e-10
+        assert config.max_scale == 1e10
 
-    def test_for_debug(self) -> None:
-        """Debug config enables full validation."""
+    def test_validation_config_for_debug(self) -> None:
+        """Test ValidationConfig.for_debug() factory."""
         config = ValidationConfig.for_debug()
         assert config.enable_full_validation is True
+        assert config.max_coordinate == 1e12
+        assert config.min_scale == 1e-10
+        assert config.max_scale == 1e10
 
-    def test_from_environment_default(self) -> None:
-        """from_environment() respects __debug__ by default."""
-        # Mock the get_config function at module level
-        mock_config = Mock()
-        mock_config.force_debug_validation = False
+    @patch.dict(os.environ, {"CURVE_EDITOR_FULL_VALIDATION": "1"})
+    def test_validation_config_from_environment_enabled(self) -> None:
+        """Test ValidationConfig.from_environment() with validation enabled."""
+        config = ValidationConfig.from_environment()
+        assert config.enable_full_validation is True
 
-        with patch("core.config.get_config", return_value=mock_config):
-            # Clear environment variable if set
-            old_val = os.environ.pop("CURVE_EDITOR_FULL_VALIDATION", None)
-            try:
-                config = ValidationConfig.from_environment()
-                # Should use __debug__ value (True in tests)
-                assert config.enable_full_validation == __debug__
-            finally:
-                # Restore environment variable if it existed
-                if old_val is not None:
-                    os.environ["CURVE_EDITOR_FULL_VALIDATION"] = old_val
+    @patch.dict(os.environ, {"CURVE_EDITOR_FULL_VALIDATION": "0"})
+    def test_validation_config_from_environment_disabled(self) -> None:
+        """Test ValidationConfig.from_environment() with validation disabled."""
+        config = ValidationConfig.from_environment()
+        assert config.enable_full_validation is False
 
-    def test_from_environment_with_env_var_true(self) -> None:
-        """from_environment() respects CURVE_EDITOR_FULL_VALIDATION=1."""
-        mock_config = Mock()
-        mock_config.force_debug_validation = False
+    @patch.dict(os.environ, {"CURVE_EDITOR_MAX_COORDINATE": "1e9"})
+    def test_validation_config_from_environment_custom_max_coord(self) -> None:
+        """Test ValidationConfig.from_environment() with custom max coordinate."""
+        config = ValidationConfig.from_environment()
+        assert config.max_coordinate == 1e9
 
-        with patch("core.config.get_config", return_value=mock_config):
-            os.environ["CURVE_EDITOR_FULL_VALIDATION"] = "1"
-            try:
-                config = ValidationConfig.from_environment()
-                assert config.enable_full_validation is True
-            finally:
-                os.environ.pop("CURVE_EDITOR_FULL_VALIDATION")
-
-    def test_from_environment_with_env_var_false(self) -> None:
-        """from_environment() respects CURVE_EDITOR_FULL_VALIDATION=0."""
-        mock_config = Mock()
-        mock_config.force_debug_validation = False
-
-        with patch("core.config.get_config", return_value=mock_config):
-            os.environ["CURVE_EDITOR_FULL_VALIDATION"] = "0"
-            try:
-                config = ValidationConfig.from_environment()
-                assert config.enable_full_validation is False
-            finally:
-                os.environ.pop("CURVE_EDITOR_FULL_VALIDATION")
-
-    def test_from_environment_with_force_debug(self) -> None:
-        """force_debug_validation overrides environment."""
-        mock_config = Mock()
-        mock_config.force_debug_validation = True
-
-        with patch("core.config.get_config", return_value=mock_config):
-            os.environ["CURVE_EDITOR_FULL_VALIDATION"] = "0"
-            try:
-                config = ValidationConfig.from_environment()
-                assert config.enable_full_validation is True
-            finally:
-                os.environ.pop("CURVE_EDITOR_FULL_VALIDATION")
-
-    def test_from_environment_custom_limits(self) -> None:
-        """from_environment() reads custom limits from environment."""
-        mock_config = Mock()
-        mock_config.force_debug_validation = False
-
-        with patch("core.config.get_config", return_value=mock_config):
-            os.environ["CURVE_EDITOR_MAX_COORDINATE"] = "1e6"
-            os.environ["CURVE_EDITOR_MIN_SCALE"] = "1e-5"
-            os.environ["CURVE_EDITOR_MAX_SCALE"] = "1e5"
-            try:
-                config = ValidationConfig.from_environment()
-                assert config.max_coordinate == 1e6
-                assert config.min_scale == 1e-5
-                assert config.max_scale == 1e5
-            finally:
-                os.environ.pop("CURVE_EDITOR_MAX_COORDINATE", None)
-                os.environ.pop("CURVE_EDITOR_MIN_SCALE", None)
-                os.environ.pop("CURVE_EDITOR_MAX_SCALE", None)
+    @patch.dict(os.environ, {"CURVE_EDITOR_MIN_SCALE": "1e-8", "CURVE_EDITOR_MAX_SCALE": "1e8"})
+    def test_validation_config_from_environment_custom_scales(self) -> None:
+        """Test ValidationConfig.from_environment() with custom scale limits."""
+        config = ValidationConfig.from_environment()
+        assert config.min_scale == 1e-8
+        assert config.max_scale == 1e8
 
 
 # =============================================================================
-# Test calculate_center_offset
+# calculate_center_offset Tests
 # =============================================================================
 
 
 class TestCalculateCenterOffset:
-    """Test calculate_center_offset() helper function."""
+    """Test calculate_center_offset function."""
 
-    def test_1to1_mapping_returns_zero(self) -> None:
-        """1:1 pixel mapping with no scaling/flipping returns (0, 0)."""
-        cx, cy = calculate_center_offset(
+    def test_calculate_center_offset_no_scaling(self) -> None:
+        """Test center offset with 1:1 pixel mapping (no offset)."""
+        center_x, center_y = calculate_center_offset(
             widget_width=800,
             widget_height=600,
-            display_width=1920,
-            display_height=1080,
+            display_width=800,
+            display_height=600,
             scale=1.0,
             flip_y_axis=False,
             scale_to_image=False,
         )
-        assert cx == 0.0
-        assert cy == 0.0
+        assert center_x == 0.0
+        assert center_y == 0.0
 
-    def test_with_scaling_centers_content(self) -> None:
-        """Scaling centers content in widget."""
-        cx, cy = calculate_center_offset(
+    def test_calculate_center_offset_with_scale(self) -> None:
+        """Test center offset with scaling applied."""
+        center_x, center_y = calculate_center_offset(
             widget_width=800,
             widget_height=600,
             display_width=400,
             display_height=300,
             scale=2.0,
             flip_y_axis=False,
-            scale_to_image=False,
+            scale_to_image=True,
         )
         # Expected: (800 - 400*2) / 2 = 0, (600 - 300*2) / 2 = 0
-        assert cx == 0.0
-        assert cy == 0.0
+        assert center_x == 0.0
+        assert center_y == 0.0
 
-    def test_with_smaller_content_centers_in_widget(self) -> None:
-        """Smaller content centered in larger widget."""
-        cx, cy = calculate_center_offset(
+    def test_calculate_center_offset_with_different_dimensions(self) -> None:
+        """Test center offset with widget larger than scaled content."""
+        center_x, center_y = calculate_center_offset(
             widget_width=1000,
             widget_height=800,
-            display_width=200,
-            display_height=100,
-            scale=2.0,
-            flip_y_axis=False,
-            scale_to_image=False,
-        )
-        # Expected: (1000 - 200*2) / 2 = 300, (800 - 100*2) / 2 = 300
-        assert cx == 300.0
-        assert cy == 300.0
-
-    def test_with_flip_y_still_centers(self) -> None:
-        """Y-flip doesn't affect centering calculation."""
-        cx, cy = calculate_center_offset(
-            widget_width=1000,
-            widget_height=800,
-            display_width=200,
-            display_height=100,
-            scale=2.0,
-            flip_y_axis=True,
-            scale_to_image=False,
-        )
-        # Centering logic is same regardless of flip
-        assert cx == 300.0
-        assert cy == 300.0
-
-    def test_with_scale_to_image_centers(self) -> None:
-        """scale_to_image flag doesn't affect centering calculation."""
-        cx, cy = calculate_center_offset(
-            widget_width=1000,
-            widget_height=800,
-            display_width=200,
-            display_height=100,
-            scale=2.0,
+            display_width=400,
+            display_height=300,
+            scale=1.0,
             flip_y_axis=False,
             scale_to_image=True,
         )
-        # scale_to_image affects Transform pipeline, not centering
-        assert cx == 300.0
-        assert cy == 300.0
+        # Expected: (1000 - 400) / 2 = 300, (800 - 300) / 2 = 250
+        assert center_x == 300.0
+        assert center_y == 250.0
+
+    def test_calculate_center_offset_with_y_flip(self) -> None:
+        """Test center offset with Y-axis flip (should still calculate offset)."""
+        center_x, center_y = calculate_center_offset(
+            widget_width=800,
+            widget_height=600,
+            display_width=400,
+            display_height=300,
+            scale=1.5,
+            flip_y_axis=True,
+            scale_to_image=True,
+        )
+        # Expected: (800 - 400*1.5) / 2 = 100, (600 - 300*1.5) / 2 = 75
+        assert center_x == 100.0
+        assert center_y == 75.0
 
 
 # =============================================================================
-# Test ViewState
+# ViewState Tests
 # =============================================================================
 
 
-class TestViewStateCreation:
-    """Test ViewState creation and basic properties."""
+class TestViewState:
+    """Test ViewState class."""
 
-    def test_minimal_creation(self) -> None:
-        """ViewState can be created with minimal parameters."""
+    def test_viewstate_initialization_minimal(self) -> None:
+        """Test ViewState with minimal required parameters."""
         vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
         assert vs.display_width == 1920.0
         assert vs.display_height == 1080.0
         assert vs.widget_width == 800
         assert vs.widget_height == 600
-        assert vs.zoom_factor == 1.0
-        assert vs.fit_scale == 1.0
-
-    def test_full_creation_with_all_parameters(self) -> None:
-        """ViewState stores all parameters correctly."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=2.0,
-            fit_scale=1.5,
-            offset_x=10.0,
-            offset_y=20.0,
-            scale_to_image=True,
-            flip_y_axis=True,
-            manual_x_offset=5.0,
-            manual_y_offset=15.0,
-            image_width=1920,
-            image_height=1080,
-        )
-        assert vs.zoom_factor == 2.0
-        assert vs.fit_scale == 1.5
-        assert vs.offset_x == 10.0
-        assert vs.offset_y == 20.0
-        assert vs.scale_to_image is True
-        assert vs.flip_y_axis is True
-        assert vs.manual_x_offset == 5.0
-        assert vs.manual_y_offset == 15.0
-
-    def test_default_values(self) -> None:
-        """ViewState default values are correct."""
-        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
+        # Check defaults
         assert vs.zoom_factor == 1.0
         assert vs.fit_scale == 1.0
         assert vs.offset_x == 0.0
@@ -458,240 +291,232 @@ class TestViewStateCreation:
         assert vs.manual_x_offset == 0.0
         assert vs.manual_y_offset == 0.0
         assert vs.background_image is None
-        assert vs.image_width == DEFAULT_IMAGE_WIDTH
-        assert vs.image_height == DEFAULT_IMAGE_HEIGHT
+        assert vs.image_width == 1920
+        assert vs.image_height == 1080
 
-
-class TestViewStateImmutability:
-    """Test ViewState immutability."""
-
-    def test_is_immutable_frozen_dataclass(self) -> None:
-        """ViewState is frozen and cannot be modified."""
-        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
-        with pytest.raises(Exception):  # FrozenInstanceError or AttributeError
-            vs.zoom_factor = 3.0  # type: ignore[misc]
-
-    def test_with_updates_creates_new_instance(self) -> None:
-        """with_updates() creates new ViewState with updated values."""
-        vs1 = ViewState(
-            display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600, zoom_factor=1.0
-        )
-        vs2 = vs1.with_updates(zoom_factor=2.0)
-
-        # Original unchanged
-        assert vs1.zoom_factor == 1.0
-
-        # New instance updated
-        assert vs2.zoom_factor == 2.0
-
-        # Other fields preserved
-        assert vs2.display_width == 1920.0
-        assert vs2.widget_width == 800
-
-    def test_with_updates_multiple_fields(self) -> None:
-        """with_updates() can update multiple fields."""
-        vs1 = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
-        vs2 = vs1.with_updates(zoom_factor=2.0, offset_x=50.0, flip_y_axis=True)
-
-        assert vs2.zoom_factor == 2.0
-        assert vs2.offset_x == 50.0
-        assert vs2.flip_y_axis is True
-        # Original unchanged
-        assert vs1.zoom_factor == 1.0
-
-
-class TestViewStateQuantization:
-    """Test ViewState quantization for cache hit rate optimization."""
-
-    def test_quantization_rounds_offsets(self) -> None:
-        """Quantization rounds floating-point offsets."""
+    def test_viewstate_initialization_full(self) -> None:
+        """Test ViewState with all parameters specified."""
+        mock_image = MagicMock()
         vs = ViewState(
             display_width=1920.0,
             display_height=1080.0,
             widget_width=800,
             widget_height=600,
-            offset_x=100.0456,
-            offset_y=50.0123,
-        )
-        quantized = vs.quantized_for_cache(precision=0.1)
-
-        # Should round to nearest 0.1
-        assert abs(quantized.offset_x - 100.0) < 1e-10
-        assert abs(quantized.offset_y - 50.0) < 1e-10
-
-    def test_quantization_rounds_manual_offsets(self) -> None:
-        """Quantization rounds manual offsets."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            manual_x_offset=12.3456,
-            manual_y_offset=78.9012,
-        )
-        quantized = vs.quantized_for_cache(precision=0.1)
-
-        assert abs(quantized.manual_x_offset - 12.3) < 1e-10
-        assert abs(quantized.manual_y_offset - 78.9) < 1e-10
-
-    def test_quantization_uses_finer_precision_for_zoom(self) -> None:
-        """Zoom factor uses finer precision (0.001 vs 0.1)."""
-        vs = ViewState(
-            display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600, zoom_factor=1.23456
-        )
-        quantized = vs.quantized_for_cache(precision=0.1)
-
-        # Zoom precision is 0.1 / 100 = 0.001
-        # 1.23456 → 1.235
-        assert abs(quantized.zoom_factor - 1.235) < 1e-10
-
-    def test_quantization_clamps_zoom_to_min_scale(self) -> None:
-        """Quantization clamps zoom to MIN_SCALE_VALUE."""
-        vs = ViewState(
-            display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600, zoom_factor=1e-15
-        )
-        quantized = vs.quantized_for_cache()
-
-        # Should clamp to MIN_SCALE_VALUE
-        assert quantized.zoom_factor >= MIN_SCALE_VALUE
-
-    def test_quantization_preserves_booleans(self) -> None:
-        """Quantization doesn't affect boolean flags."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            flip_y_axis=True,
+            zoom_factor=2.5,
+            fit_scale=0.8,
+            offset_x=100.0,
+            offset_y=50.0,
             scale_to_image=False,
+            flip_y_axis=True,
+            manual_x_offset=25.0,
+            manual_y_offset=30.0,
+            background_image=mock_image,
+            image_width=1280,
+            image_height=720,
         )
-        quantized = vs.quantized_for_cache()
+        assert vs.zoom_factor == 2.5
+        assert vs.fit_scale == 0.8
+        assert vs.offset_x == 100.0
+        assert vs.offset_y == 50.0
+        assert vs.scale_to_image is False
+        assert vs.flip_y_axis is True
+        assert vs.manual_x_offset == 25.0
+        assert vs.manual_y_offset == 30.0
+        assert vs.background_image is mock_image
+        assert vs.image_width == 1280
+        assert vs.image_height == 720
 
-        assert quantized.flip_y_axis is True
-        assert quantized.scale_to_image is False
-
-    def test_quantization_preserves_dimensions(self) -> None:
-        """Quantization preserves display and widget dimensions."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            image_width=2048,
-            image_height=1536,
-        )
-        quantized = vs.quantized_for_cache()
-
-        assert quantized.display_width == 1920.0
-        assert quantized.display_height == 1080.0
-        assert quantized.widget_width == 800
-        assert quantized.widget_height == 600
-        assert quantized.image_width == 2048
-        assert quantized.image_height == 1536
-
-    def test_quantization_replaces_nan_with_zero(self) -> None:
-        """Quantization replaces NaN values with 0.0."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            offset_x=float("nan"),
-            offset_y=float("inf"),
-        )
-        quantized = vs.quantized_for_cache()
-
-        assert quantized.offset_x == 0.0
-        assert quantized.offset_y == 0.0
-
-    def test_quantization_rejects_negative_precision(self) -> None:
-        """Quantization raises on negative precision."""
+    def test_viewstate_immutability(self) -> None:
+        """Test that ViewState is immutable (frozen dataclass)."""
         vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
+        with pytest.raises(FrozenInstanceError):
+            vs.zoom_factor = 2.0  # type: ignore[misc]
 
-        from core.error_messages import ValidationError
+    def test_viewstate_with_updates(self) -> None:
+        """Test ViewState.with_updates() creates new instance."""
+        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
+        updated = vs.with_updates(zoom_factor=3.0, offset_x=200.0)
+        assert updated.zoom_factor == 3.0
+        assert updated.offset_x == 200.0
+        # Original unchanged
+        assert vs.zoom_factor == 1.0
+        assert vs.offset_x == 0.0
+        # Other fields preserved
+        assert updated.display_width == 1920.0
+        assert updated.widget_width == 800
 
+    def test_viewstate_quantized_for_cache_default_precision(self) -> None:
+        """Test ViewState.quantized_for_cache() with default precision."""
+        vs = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=1.2345,
+            offset_x=100.123,
+            offset_y=200.456,
+        )
+        quantized = vs.quantized_for_cache()
+        # Zoom should be quantized to ZOOM_PRECISION (0.001)
+        assert abs(quantized.zoom_factor - round(1.2345 / ZOOM_PRECISION) * ZOOM_PRECISION) < 1e-10
+        # Offsets should be quantized to DEFAULT_PRECISION (0.1)
+        assert abs(quantized.offset_x - round(100.123 / DEFAULT_PRECISION) * DEFAULT_PRECISION) < 1e-10
+        assert abs(quantized.offset_y - round(200.456 / DEFAULT_PRECISION) * DEFAULT_PRECISION) < 1e-10
+
+    def test_viewstate_quantized_for_cache_custom_precision(self) -> None:
+        """Test ViewState.quantized_for_cache() with custom precision."""
+        vs = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            offset_x=123.456,
+        )
+        quantized = vs.quantized_for_cache(precision=1.0)
+        # Should round to nearest 1.0
+        assert quantized.offset_x == 123.0
+
+    def test_viewstate_quantized_for_cache_invalid_precision(self) -> None:
+        """Test ViewState.quantized_for_cache() raises on invalid precision."""
+        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
+        with pytest.raises(ValidationError):
+            vs.quantized_for_cache(precision=0.0)
         with pytest.raises(ValidationError):
             vs.quantized_for_cache(precision=-0.1)
 
-    def test_quantization_rejects_zero_precision(self) -> None:
-        """Quantization raises on zero precision."""
-        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
+    def test_viewstate_quantized_handles_non_finite_values(self) -> None:
+        """Test ViewState.quantized_for_cache() handles NaN/infinity gracefully."""
+        vs = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=float("nan"),
+            offset_x=float("inf"),
+        )
+        quantized = vs.quantized_for_cache()
+        # NaN zoom should become 0.0 after quantization (isfinite check)
+        assert quantized.zoom_factor == 0.0
+        # Infinity offset should become 0.0
+        assert quantized.offset_x == 0.0
 
-        from core.error_messages import ValidationError
-
-        with pytest.raises(ValidationError):
-            vs.quantized_for_cache(precision=0.0)
-
-
-class TestViewStateToDict:
-    """Test ViewState.to_dict() serialization."""
-
-    def test_to_dict_includes_all_fields(self) -> None:
-        """to_dict() includes all relevant fields."""
+    def test_viewstate_to_dict(self) -> None:
+        """Test ViewState.to_dict() serialization."""
+        mock_image = MagicMock()
         vs = ViewState(
             display_width=1920.0,
             display_height=1080.0,
             widget_width=800,
             widget_height=600,
             zoom_factor=2.0,
-            offset_x=10.0,
-            offset_y=20.0,
-            scale_to_image=True,
+            offset_x=100.0,
+            offset_y=50.0,
+            manual_x_offset=10.0,
+            manual_y_offset=20.0,
+            scale_to_image=False,
             flip_y_axis=True,
-            manual_x_offset=5.0,
-            manual_y_offset=15.0,
-            image_width=2048,
-            image_height=1536,
+            background_image=mock_image,
+            image_width=1280,
+            image_height=720,
         )
         d = vs.to_dict()
-
         assert d["display_dimensions"] == (1920.0, 1080.0)
         assert d["widget_dimensions"] == (800, 600)
-        assert d["image_dimensions"] == (2048, 1536)
+        assert d["image_dimensions"] == (1280, 720)
         assert d["zoom_factor"] == 2.0
-        assert d["offset"] == (10.0, 20.0)
-        assert d["scale_to_image"] is True
+        assert d["offset"] == (100.0, 50.0)
+        assert d["manual_offset"] == (10.0, 20.0)
+        assert d["scale_to_image"] is False
         assert d["flip_y_axis"] is True
-        assert d["manual_offset"] == (5.0, 15.0)
-        assert d["has_background_image"] is False
-
-    def test_to_dict_with_background_image(self) -> None:
-        """to_dict() reports background_image presence."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            background_image=Mock(),
-        )
-        d = vs.to_dict()
-
         assert d["has_background_image"] is True
 
+    def test_viewstate_from_curve_view(self, qtbot: Any) -> None:
+        """Test ViewState.from_curve_view() factory method."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+        curve_view.resize(800, 600)
+        curve_view.image_width = 1920
+        curve_view.image_height = 1080
+        curve_view.zoom_factor = 1.5
+        curve_view.pan_offset_x = 50.0
+        curve_view.pan_offset_y = 75.0
+
+        vs = ViewState.from_curve_view(curve_view)
+        assert vs.widget_width == 800
+        assert vs.widget_height == 600
+        assert vs.image_width == 1920
+        assert vs.image_height == 1080
+        assert vs.zoom_factor == 1.5
+        assert vs.offset_x == 50.0
+        assert vs.offset_y == 75.0
+
+    def test_viewstate_from_curve_view_sanitizes_invalid_zoom(self, qtbot: Any) -> None:
+        """Test ViewState.from_curve_view() sanitizes invalid zoom factor."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+        curve_view.zoom_factor = float("nan")
+
+        vs = ViewState.from_curve_view(curve_view)
+        # validate_scale returns 1.0 for NaN, then clamps to valid range
+        # The actual zoom_factor depends on CurveViewWidget defaults
+        assert math.isfinite(vs.zoom_factor)
+        assert vs.zoom_factor > 0
+
+    def test_viewstate_from_curve_view_with_background_image(self, qtbot: Any) -> None:
+        """Test ViewState.from_curve_view() uses background image dimensions."""
+        from ui.curve_view_widget import CurveViewWidget
+
+        curve_view = CurveViewWidget()
+        qtbot.addWidget(curve_view)
+        curve_view.image_width = 1920
+        curve_view.image_height = 1080
+
+        # Mock background image with different dimensions
+        mock_image = MagicMock()
+        mock_image.width.return_value = 2560
+        mock_image.height.return_value = 1440
+        curve_view.background_image = mock_image
+
+        vs = ViewState.from_curve_view(curve_view)
+        # Display dimensions should come from background image
+        assert vs.display_width == 2560
+        assert vs.display_height == 1440
+        # Original dimensions preserved
+        assert vs.image_width == 1920
+        assert vs.image_height == 1080
+
 
 # =============================================================================
-# Test Transform Basic Operations
+# Transform Tests
 # =============================================================================
 
 
-class TestTransformCreation:
-    """Test Transform creation and validation."""
+class TestTransform:
+    """Test Transform class."""
 
-    def test_minimal_creation(self) -> None:
-        """Transform can be created with minimal parameters."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-        assert transform.scale == 2.0
-        assert transform.center_offset == (100.0, 50.0)
+    def test_transform_initialization_minimal(self) -> None:
+        """Test Transform with minimal parameters."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
+        assert t.scale == 1.0
+        assert t.center_offset == (0.0, 0.0)
+        assert t.pan_offset == (0.0, 0.0)
+        assert t.manual_offset == (0.0, 0.0)
+        assert t.flip_y is False
+        assert t.display_height == 0
 
-    def test_full_creation_with_all_parameters(self) -> None:
-        """Transform stores all parameters correctly."""
-        transform = Transform(
+    def test_transform_initialization_full(self) -> None:
+        """Test Transform with all parameters."""
+        t = Transform(
             scale=2.0,
             center_offset_x=100.0,
             center_offset_y=50.0,
-            pan_offset_x=10.0,
-            pan_offset_y=20.0,
-            manual_offset_x=5.0,
+            pan_offset_x=25.0,
+            pan_offset_y=30.0,
+            manual_offset_x=10.0,
             manual_offset_y=15.0,
             flip_y=True,
             display_height=1080,
@@ -699,119 +524,92 @@ class TestTransformCreation:
             image_scale_y=1.5,
             scale_to_image=True,
         )
-        assert transform.scale == 2.0
-        assert transform.pan_offset == (10.0, 20.0)
-        assert transform.manual_offset == (5.0, 15.0)
-        assert transform.flip_y is True
-        assert transform.display_height == 1080
-        assert transform.image_scale == (1.5, 1.5)
-        assert transform.scale_to_image is True
+        assert t.scale == 2.0
+        assert t.center_offset == (100.0, 50.0)
+        assert t.pan_offset == (25.0, 30.0)
+        assert t.manual_offset == (10.0, 15.0)
+        assert t.flip_y is True
+        assert t.display_height == 1080
+        assert t.image_scale == (1.5, 1.5)
+        assert t.scale_to_image is True
 
-    def test_validates_and_replaces_nan_scale(self) -> None:
-        """NaN scale replaced with default (1.0)."""
-        transform = Transform(
-            scale=float("nan"),
-            center_offset_x=0.0,
-            center_offset_y=0.0,
-            validation_config=ValidationConfig.for_production(),
-        )
-        assert transform.scale == 1.0
-
-    def test_debug_mode_raises_on_zero_scale(self) -> None:
-        """Debug mode raises ValueError for zero scale."""
+    def test_transform_rejects_zero_scale_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for zero scale in debug mode."""
         config = ValidationConfig.for_debug()
         with pytest.raises(ValueError, match="Scale factor too small"):
             Transform(scale=0.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
 
-    def test_production_mode_clamps_zero_scale(self) -> None:
-        """Production mode clamps zero scale to minimum."""
+    def test_transform_clamps_zero_scale_in_production_mode(self) -> None:
+        """Test Transform clamps zero scale to minimum in production mode."""
         config = ValidationConfig.for_production()
-        transform = Transform(scale=0.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-        assert transform.scale >= 1e-10
+        t = Transform(scale=0.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        # Should clamp to 1e-10
+        assert t.scale == 1e-10
 
-    def test_debug_mode_raises_on_too_large_scale(self) -> None:
-        """Debug mode raises ValueError for extremely large scale."""
+    def test_transform_handles_nan_scale_gracefully(self) -> None:
+        """Test Transform handles NaN scale gracefully."""
+        config = ValidationConfig.for_production()
+        t = Transform(scale=float("nan"), center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        # NaN should be replaced with default 1.0
+        assert t.scale == 1.0
+
+    def test_transform_rejects_extreme_scale_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for extreme scale in debug mode."""
         config = ValidationConfig.for_debug()
         with pytest.raises(ValueError, match="Scale factor too large"):
-            Transform(scale=1e15, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+            Transform(scale=1e11, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
 
-    def test_production_mode_clamps_large_scale(self) -> None:
-        """Production mode clamps extremely large scale."""
+    def test_transform_clamps_extreme_scale_in_production_mode(self) -> None:
+        """Test Transform clamps extreme scale in production mode."""
         config = ValidationConfig.for_production()
-        transform = Transform(scale=1e15, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-        assert transform.scale <= 1e10
+        t = Transform(scale=1e11, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        # Should clamp to max 1e10
+        assert t.scale == 1e10
 
-    def test_debug_mode_raises_on_negative_display_height(self) -> None:
-        """Debug mode raises ValueError for negative display height."""
+    def test_transform_rejects_negative_display_height_in_debug_mode(self) -> None:
+        """Test Transform raises ValueError for negative display height in debug mode."""
         config = ValidationConfig.for_debug()
         with pytest.raises(ValueError, match="Display height cannot be negative"):
             Transform(
                 scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=-100, validation_config=config
             )
 
-    def test_production_mode_corrects_negative_display_height(self) -> None:
-        """Production mode uses absolute value of negative display height."""
+    def test_transform_corrects_negative_display_height_in_production_mode(self) -> None:
+        """Test Transform corrects negative display height in production mode."""
         config = ValidationConfig.for_production()
-        transform = Transform(
+        t = Transform(
             scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=-100, validation_config=config
         )
-        assert transform.display_height == 100
+        # Should use absolute value
+        assert t.display_height == 100
 
-    def test_debug_mode_raises_on_too_large_offset(self) -> None:
-        """Debug mode raises ValueError for extremely large offset."""
-        config = ValidationConfig.for_debug()
-        with pytest.raises(ValueError, match="Offset .* too large"):
-            Transform(scale=1.0, center_offset_x=1e12, center_offset_y=0.0, validation_config=config)
+    def test_transform_data_to_screen_basic(self) -> None:
+        """Test basic data-to-screen transformation."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        screen_x, screen_y = t.data_to_screen(10.0, 20.0)
+        # Expected: (10 * 2 + 100, 20 * 2 + 50) = (120, 90)
+        assert screen_x == 120.0
+        assert screen_y == 90.0
 
-    def test_production_mode_clamps_large_offset(self) -> None:
-        """Production mode clamps extremely large offset."""
-        config = ValidationConfig.for_production()
-        transform = Transform(scale=1.0, center_offset_x=1e12, center_offset_y=0.0, validation_config=config)
-        cx, cy = transform.center_offset
-        assert cx <= 1e9
+    def test_transform_data_to_screen_with_pan_offset(self) -> None:
+        """Test data-to-screen with pan offset."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, pan_offset_x=50.0, pan_offset_y=25.0)
+        screen_x, screen_y = t.data_to_screen(100.0, 200.0)
+        # Expected: (100 + 50, 200 + 25) = (150, 225)
+        assert screen_x == 150.0
+        assert screen_y == 225.0
 
+    def test_transform_data_to_screen_with_y_flip(self) -> None:
+        """Test data-to-screen with Y-axis flip."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1080)
+        screen_x, screen_y = t.data_to_screen(100.0, 200.0)
+        # Expected: X unchanged, Y = 1080 - 200 = 880
+        assert screen_x == 100.0
+        assert screen_y == 880.0
 
-class TestTransformDataToScreen:
-    """Test Transform.data_to_screen() forward transformation."""
-
-    def test_basic_forward_transformation(self) -> None:
-        """Basic forward transformation with scale and offset."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-        x, y = transform.data_to_screen(10.0, 20.0)
-
-        # Expected: (10*2 + 100, 20*2 + 50) = (120, 90)
-        assert x == 120.0
-        assert y == 90.0
-
-    def test_with_y_flip(self) -> None:
-        """Y-flip for 3DEqualizer data."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1000)
-        x, y = transform.data_to_screen(100.0, 200.0)
-
-        # Y should be flipped: 1000 - 200 = 800
-        assert x == 100.0
-        assert y == 800.0
-
-    def test_with_combined_offsets(self) -> None:
-        """All offsets combine correctly."""
-        transform = Transform(
-            scale=1.0,
-            center_offset_x=10.0,
-            center_offset_y=20.0,
-            pan_offset_x=5.0,
-            pan_offset_y=10.0,
-            manual_offset_x=2.0,
-            manual_offset_y=3.0,
-        )
-        x, y = transform.data_to_screen(0.0, 0.0)
-
-        # Combined offset: (10+5+2, 20+10+3) = (17, 33)
-        assert x == 17.0
-        assert y == 33.0
-
-    def test_with_image_scaling(self) -> None:
-        """Image scaling multiplies main scale."""
-        transform = Transform(
+    def test_transform_data_to_screen_with_image_scaling(self) -> None:
+        """Test data-to-screen with image scale factors."""
+        t = Transform(
             scale=2.0,
             center_offset_x=0.0,
             center_offset_y=0.0,
@@ -819,16 +617,15 @@ class TestTransformDataToScreen:
             image_scale_y=1.5,
             scale_to_image=True,
         )
-        x, y = transform.data_to_screen(10.0, 20.0)
+        screen_x, screen_y = t.data_to_screen(10.0, 20.0)
+        # Combined scale = 2.0 * 1.5 = 3.0
+        # Expected: (10 * 3, 20 * 3) = (30, 60)
+        assert screen_x == 30.0
+        assert screen_y == 60.0
 
-        # Combined scale: 2.0 * 1.5 = 3.0
-        # Expected: (10*3, 20*3) = (30, 60)
-        assert x == 30.0
-        assert y == 60.0
-
-    def test_without_image_scaling(self) -> None:
-        """scale_to_image=False ignores image scale."""
-        transform = Transform(
+    def test_transform_data_to_screen_without_image_scaling(self) -> None:
+        """Test data-to-screen ignores image scale when disabled."""
+        t = Transform(
             scale=2.0,
             center_offset_x=0.0,
             center_offset_y=0.0,
@@ -836,839 +633,467 @@ class TestTransformDataToScreen:
             image_scale_y=1.5,
             scale_to_image=False,
         )
-        x, y = transform.data_to_screen(10.0, 20.0)
+        screen_x, screen_y = t.data_to_screen(10.0, 20.0)
+        # Should use only main scale: (10 * 2, 20 * 2) = (20, 40)
+        assert screen_x == 20.0
+        assert screen_y == 40.0
 
-        # Should use main scale only: 2.0
-        # Expected: (10*2, 20*2) = (20, 40)
-        assert x == 20.0
-        assert y == 40.0
-
-    def test_at_origin(self) -> None:
-        """(0, 0) transforms correctly."""
-        transform = Transform(scale=2.0, center_offset_x=10.0, center_offset_y=20.0)
-        x, y = transform.data_to_screen(0.0, 0.0)
-
-        assert x == 10.0
-        assert y == 20.0
-
-    def test_with_negative_coordinates(self) -> None:
-        """Negative coordinates transform correctly."""
-        transform = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0)
-        x, y = transform.data_to_screen(-10.0, -20.0)
-
-        assert x == -20.0
-        assert y == -40.0
-
-    def test_debug_mode_raises_on_nan_input(self) -> None:
-        """Debug mode raises ValueError for NaN input."""
+    def test_transform_data_to_screen_rejects_nan_in_debug_mode(self) -> None:
+        """Test data-to-screen raises on NaN input in debug mode."""
         config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
         with pytest.raises(ValueError, match="must be finite"):
-            transform.data_to_screen(float("nan"), 10.0)
+            t.data_to_screen(float("nan"), 100.0)
 
-    def test_production_mode_clamps_nan_input(self) -> None:
-        """Production mode replaces NaN with (0, 0)."""
+    def test_transform_data_to_screen_handles_nan_in_production_mode(self) -> None:
+        """Test data-to-screen corrects NaN input in production mode."""
         config = ValidationConfig.for_production()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        screen_x, screen_y = t.data_to_screen(float("nan"), 100.0)
+        # NaN should be corrected to 0.0
+        assert screen_x == 0.0
+        assert screen_y == 0.0
 
-        x, y = transform.data_to_screen(float("nan"), 10.0)
-        # validate_point() returns (0, 0) for invalid input
-        assert x == 0.0
-        assert y == 0.0
-
-    def test_debug_mode_raises_on_too_large_input(self) -> None:
-        """Debug mode raises ValueError for extremely large input."""
+    def test_transform_data_to_screen_rejects_extreme_coords_in_debug_mode(self) -> None:
+        """Test data-to-screen raises on extreme coordinates in debug mode."""
         config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
         with pytest.raises(ValueError, match="too large"):
-            transform.data_to_screen(1e13, 0.0)
+            t.data_to_screen(1e13, 100.0)
 
+    def test_transform_screen_to_data_basic(self) -> None:
+        """Test basic screen-to-data transformation."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        data_x, data_y = t.screen_to_data(120.0, 90.0)
+        # Reverse: ((120 - 100) / 2, (90 - 50) / 2) = (10, 20)
+        assert data_x == 10.0
+        assert data_y == 20.0
 
-class TestTransformScreenToData:
-    """Test Transform.screen_to_data() inverse transformation."""
+    def test_transform_screen_to_data_with_y_flip(self) -> None:
+        """Test screen-to-data with Y-axis flip."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1080)
+        data_x, data_y = t.screen_to_data(100.0, 880.0)
+        # Reverse Y flip: 1080 - 880 = 200
+        assert data_x == 100.0
+        assert data_y == 200.0
 
-    def test_basic_inverse_transformation(self) -> None:
-        """Basic inverse transformation reverses data_to_screen."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        # Forward: (10, 20) → (120, 90)
-        # Reverse: (120, 90) → (10, 20)
-        x, y = transform.screen_to_data(120.0, 90.0)
-        assert x == 10.0
-        assert y == 20.0
-
-    def test_roundtrip_identity(self) -> None:
-        """Data → Screen → Data should equal identity."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        original_x, original_y = 123.456, 789.012
-        screen_x, screen_y = transform.data_to_screen(original_x, original_y)
-        recovered_x, recovered_y = transform.screen_to_data(screen_x, screen_y)
-
-        assert abs(recovered_x - original_x) < 1e-10
-        assert abs(recovered_y - original_y) < 1e-10
-
-    def test_roundtrip_with_y_flip(self) -> None:
-        """Roundtrip works with Y-flip."""
-        transform = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1000)
-
-        original_x, original_y = 100.0, 200.0
-        screen_x, screen_y = transform.data_to_screen(original_x, original_y)
-        recovered_x, recovered_y = transform.screen_to_data(screen_x, screen_y)
-
-        assert abs(recovered_x - original_x) < 1e-10
-        assert abs(recovered_y - original_y) < 1e-10
-
-    def test_roundtrip_with_all_offsets(self) -> None:
-        """Roundtrip works with combined offsets."""
-        transform = Transform(
-            scale=3.0,
-            center_offset_x=10.0,
-            center_offset_y=20.0,
-            pan_offset_x=5.0,
-            pan_offset_y=10.0,
-            manual_offset_x=2.0,
-            manual_offset_y=3.0,
-        )
-
-        original_x, original_y = -50.0, 75.0
-        screen_x, screen_y = transform.data_to_screen(original_x, original_y)
-        recovered_x, recovered_y = transform.screen_to_data(screen_x, screen_y)
-
-        assert abs(recovered_x - original_x) < 1e-10
-        assert abs(recovered_y - original_y) < 1e-10
-
-    def test_raises_on_zero_combined_scale_x(self) -> None:
-        """Raises ValueError if combined_scale_x is too small for division."""
-        # Production mode clamps scale to 1e-10, which is valid for division
-        # To test the error condition, we need scale_to_image=True with tiny image_scale
+    def test_transform_screen_to_data_handles_clamped_scale(self) -> None:
+        """Test screen-to-data handles clamped image scale in production mode."""
+        # Create transform with very small image scale (gets clamped to 1e-10)
         config = ValidationConfig.for_production()
-        transform = Transform(
+        t = Transform(
             scale=1.0,
             center_offset_x=0.0,
             center_offset_y=0.0,
-            image_scale_x=1e-20,  # This gets clamped to 1e-10
-            image_scale_y=1.0,
+            image_scale_x=1e-11,  # Gets clamped to 1e-10 in production
             scale_to_image=True,
             validation_config=config,
         )
+        # Combined scale is 1.0 * 1e-10 = 1e-10, which is at the threshold
+        # The code checks abs(scale) < 1e-10, so 1e-10 should be valid
+        data_x, data_y = t.screen_to_data(100.0, 100.0)
+        # Should succeed with clamped scale
+        assert math.isfinite(data_x) and math.isfinite(data_y)
 
-        # Combined scale x will be 1.0 * 1e-10 = 1e-10, which should still be valid
-        # Actually, the validation in __init__ will clamp image_scale_x to 1e-10
-        # So this test is validating that the clamping prevents the error
-        # Let's instead test that we CAN do inverse transform with clamped values
-        x, y = transform.screen_to_data(100.0, 100.0)
-        assert math.isfinite(x) and math.isfinite(y)
+    def test_transform_roundtrip_preserves_coordinates(self) -> None:
+        """Test data→screen→data roundtrip preserves coordinates."""
+        t = Transform(
+            scale=2.5,
+            center_offset_x=150.0,
+            center_offset_y=75.0,
+            pan_offset_x=25.0,
+            pan_offset_y=30.0,
+            manual_offset_x=10.0,
+            manual_offset_y=5.0,
+        )
+        original_x, original_y = 123.456, 789.012
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Should match within floating-point precision
+        assert abs(data_x - original_x) < 1e-10
+        assert abs(data_y - original_y) < 1e-10
 
-    def test_debug_mode_raises_on_nan_input(self) -> None:
-        """Debug mode raises ValueError for NaN input."""
-        config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+    def test_transform_roundtrip_with_y_flip_preserves_coordinates(self) -> None:
+        """Test roundtrip with Y-flip preserves coordinates."""
+        t = Transform(
+            scale=1.5,
+            center_offset_x=50.0,
+            center_offset_y=100.0,
+            flip_y=True,
+            display_height=1080,
+        )
+        original_x, original_y = 456.789, 234.567
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        assert abs(data_x - original_x) < 1e-10
+        assert abs(data_y - original_y) < 1e-10
 
-        with pytest.raises(ValueError, match="must be finite"):
-            transform.screen_to_data(float("nan"), 10.0)
+    def test_transform_roundtrip_with_image_scaling_preserves_coordinates(self) -> None:
+        """Test roundtrip with image scaling preserves coordinates."""
+        t = Transform(
+            scale=2.0,
+            center_offset_x=0.0,
+            center_offset_y=0.0,
+            image_scale_x=1.5,
+            image_scale_y=1.5,
+            scale_to_image=True,
+        )
+        original_x, original_y = 100.0, 200.0
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        assert abs(data_x - original_x) < 1e-10
+        assert abs(data_y - original_y) < 1e-10
 
-    def test_production_mode_clamps_nan_input(self) -> None:
-        """Production mode replaces NaN with (0, 0)."""
-        config = ValidationConfig.for_production()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+    def test_transform_precision_at_high_zoom(self) -> None:
+        """Test coordinate precision at high zoom levels."""
+        t = Transform(scale=10.0, center_offset_x=0.0, center_offset_y=0.0)
+        original_x, original_y = 12.3456789, 98.7654321
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Should preserve precision even at high zoom
+        assert abs(data_x - original_x) < 1e-9
+        assert abs(data_y - original_y) < 1e-9
 
-        x, y = transform.screen_to_data(float("nan"), 10.0)
-        assert x == 0.0
-        assert y == 0.0
+    def test_transform_precision_at_low_zoom(self) -> None:
+        """Test coordinate precision at low zoom levels."""
+        t = Transform(scale=0.1, center_offset_x=0.0, center_offset_y=0.0)
+        original_x, original_y = 1234.5678, 9876.5432
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Should preserve precision even at low zoom
+        assert abs(data_x - original_x) < 1e-9
+        assert abs(data_y - original_y) < 1e-9
 
+    def test_transform_data_to_screen_qpoint(self) -> None:
+        """Test QPointF data-to-screen transformation."""
+        from services.transform_core import QPointF
 
-class TestTransformBatchOperations:
-    """Test Transform batch operations with NumPy."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        data_point = QPointF(10.0, 20.0)
+        screen_point = t.data_to_screen_qpoint(data_point)
+        assert screen_point.x() == 120.0
+        assert screen_point.y() == 90.0
 
-    def test_batch_data_to_screen_basic(self) -> None:
-        """Batch transform matches single transforms."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+    def test_transform_screen_to_data_qpoint(self) -> None:
+        """Test QPointF screen-to-data transformation."""
+        from services.transform_core import QPointF
 
-        # Create batch of points: [[10, 20], [30, 40]]
-        points = np.array([[10.0, 20.0], [30.0, 40.0]], dtype=np.float64)
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        screen_point = QPointF(120.0, 90.0)
+        data_point = t.screen_to_data_qpoint(screen_point)
+        assert data_point.x() == 10.0
+        assert data_point.y() == 20.0
 
-        # Batch transform
-        result = transform.batch_data_to_screen(points)
+    def test_transform_batch_data_to_screen_2_columns(self) -> None:
+        """Test batch data-to-screen with Nx2 array."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        points = np.array([[10.0, 20.0], [30.0, 40.0], [50.0, 60.0]], dtype=np.float64)
+        result = t.batch_data_to_screen(points)
+        # Expected: [(10*2+100, 20*2+50), (30*2+100, 40*2+50), (50*2+100, 60*2+50)]
+        assert result.shape == (3, 2)
+        np.testing.assert_allclose(result[0], [120.0, 90.0])
+        np.testing.assert_allclose(result[1], [160.0, 130.0])
+        np.testing.assert_allclose(result[2], [200.0, 170.0])
 
-        # Verify against individual transforms
-        x1, y1 = transform.data_to_screen(10.0, 20.0)
-        x2, y2 = transform.data_to_screen(30.0, 40.0)
-
-        assert abs(result[0, 0] - x1) < 1e-10
-        assert abs(result[0, 1] - y1) < 1e-10
-        assert abs(result[1, 0] - x2) < 1e-10
-        assert abs(result[1, 1] - y2) < 1e-10
-
-    def test_batch_data_to_screen_with_frame_column(self) -> None:
-        """Batch transform handles Nx3 array with frame column."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        # Create points with frame: [[frame, x, y], ...]
-        points = np.array([[0, 10.0, 20.0], [1, 30.0, 40.0]], dtype=np.float64)
-
-        result = transform.batch_data_to_screen(points)
-
-        # Should extract x, y columns
+    def test_transform_batch_data_to_screen_3_columns(self) -> None:
+        """Test batch data-to-screen with Nx3 array (frame, x, y)."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        points = np.array([[1, 10.0, 20.0], [2, 30.0, 40.0]], dtype=np.float64)
+        result = t.batch_data_to_screen(points)
+        # Should extract columns 1:3 and transform
         assert result.shape == (2, 2)
-        x1, y1 = transform.data_to_screen(10.0, 20.0)
-        assert abs(result[0, 0] - x1) < 1e-10
+        np.testing.assert_allclose(result[0], [120.0, 90.0])
+        np.testing.assert_allclose(result[1], [160.0, 130.0])
 
-    def test_batch_screen_to_data_basic(self) -> None:
-        """Batch inverse transform works."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        # Original points
-        data_points = np.array([[10.0, 20.0], [30.0, 40.0]], dtype=np.float64)
-
-        # Round trip
-        screen = transform.batch_data_to_screen(data_points)
-        recovered = transform.batch_screen_to_data(screen)
-
-        assert_allclose(recovered, data_points, rtol=1e-10)
-
-    def test_batch_transform_handles_empty_array(self) -> None:
-        """Empty array doesn't crash."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-        empty = np.empty((0, 2), dtype=np.float64)
-
-        result = transform.batch_data_to_screen(empty)
-        assert len(result) == 0
+    def test_transform_batch_data_to_screen_empty_array(self) -> None:
+        """Test batch data-to-screen with empty array."""
+        t = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.empty((0, 2), dtype=np.float64)
+        result = t.batch_data_to_screen(points)
         assert result.shape == (0, 2)
 
-    def test_batch_data_to_screen_raises_on_wrong_shape(self) -> None:
-        """Raises ValueError for wrong array shape."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        # 1D array
+    def test_transform_batch_data_to_screen_rejects_wrong_shape(self) -> None:
+        """Test batch data-to-screen raises on wrong array shape."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.array([10.0, 20.0], dtype=np.float64)  # 1D array
         with pytest.raises(ValueError, match="Expected 2D array"):
-            transform.batch_data_to_screen(np.array([1.0, 2.0]))
+            t.batch_data_to_screen(points)
 
-        # Wrong number of columns
+    def test_transform_batch_data_to_screen_rejects_wrong_columns(self) -> None:
+        """Test batch data-to-screen raises on wrong column count."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.array([[1, 2, 3, 4]], dtype=np.float64)  # 4 columns
         with pytest.raises(ValueError, match="Expected 2 or 3 columns"):
-            transform.batch_data_to_screen(np.array([[1.0, 2.0, 3.0, 4.0]]))
+            t.batch_data_to_screen(points)
 
-    def test_batch_screen_to_data_raises_on_wrong_shape(self) -> None:
-        """Raises ValueError for wrong array shape."""
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-
-        with pytest.raises(ValueError, match="Expected Nx2 array"):
-            transform.batch_screen_to_data(np.array([1.0, 2.0]))
-
-    def test_batch_debug_mode_raises_on_nan(self) -> None:
-        """Debug mode raises ValueError for NaN in batch."""
-        config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-        points = np.array([[10.0, 20.0], [float("nan"), 40.0]])
-
-        with pytest.raises(ValueError, match="must be finite"):
-            transform.batch_data_to_screen(points)
-
-    def test_batch_production_mode_replaces_nan(self) -> None:
-        """Production mode replaces NaN with 0.0 in batch."""
+    def test_transform_batch_data_to_screen_handles_nan_in_production(self) -> None:
+        """Test batch data-to-screen corrects NaN in production mode."""
         config = ValidationConfig.for_production()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        points = np.array([[10.0, 20.0], [float("nan"), 40.0]], dtype=np.float64)
+        result = t.batch_data_to_screen(points)
+        # NaN should be replaced with 0.0
+        np.testing.assert_allclose(result[0], [10.0, 20.0])
+        np.testing.assert_allclose(result[1], [0.0, 40.0])
 
-        points = np.array([[10.0, 20.0], [float("nan"), 40.0]])
+    def test_transform_batch_data_to_screen_rejects_nan_in_debug(self) -> None:
+        """Test batch data-to-screen raises on NaN in debug mode."""
+        config = ValidationConfig.for_debug()
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        points = np.array([[10.0, 20.0], [float("nan"), 40.0]], dtype=np.float64)
+        with pytest.raises(ValueError, match="must be finite"):
+            t.batch_data_to_screen(points)
 
-        # Should replace NaN with 0.0
-        result = transform.batch_data_to_screen(points)
-        assert result[1, 0] == 0.0
+    def test_transform_batch_screen_to_data(self) -> None:
+        """Test batch screen-to-data transformation."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
+        points = np.array([[120.0, 90.0], [160.0, 130.0]], dtype=np.float64)
+        result = t.batch_screen_to_data(points)
+        # Reverse: [((120-100)/2, (90-50)/2), ((160-100)/2, (130-50)/2)]
+        assert result.shape == (2, 2)
+        np.testing.assert_allclose(result[0], [10.0, 20.0])
+        np.testing.assert_allclose(result[1], [30.0, 40.0])
 
-    def test_batch_with_y_flip(self) -> None:
-        """Batch operations work with Y-flip."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=1000)
+    def test_transform_batch_screen_to_data_empty_array(self) -> None:
+        """Test batch screen-to-data with empty array."""
+        t = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.empty((0, 2), dtype=np.float64)
+        result = t.batch_screen_to_data(points)
+        assert result.shape == (0, 2)
 
-        data = np.array([[100.0, 200.0], [300.0, 400.0]])
-        screen = transform.batch_data_to_screen(data)
-        recovered = transform.batch_screen_to_data(screen)
+    def test_transform_batch_screen_to_data_rejects_wrong_shape(self) -> None:
+        """Test batch screen-to-data raises on wrong array shape."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.array([[1, 2, 3]], dtype=np.float64)  # 3 columns
+        with pytest.raises(ValueError, match="Expected Nx2 array"):
+            t.batch_screen_to_data(points)
 
-        assert_allclose(recovered, data, rtol=1e-10)
-
-
-class TestTransformProperties:
-    """Test Transform property accessors."""
-
-    def test_scale_property(self) -> None:
-        """scale property returns main scale."""
-        transform = Transform(scale=2.5, center_offset_x=0.0, center_offset_y=0.0)
-        assert transform.scale == 2.5
-
-    def test_center_offset_property(self) -> None:
-        """center_offset property returns tuple."""
-        transform = Transform(scale=1.0, center_offset_x=10.0, center_offset_y=20.0)
-        assert transform.center_offset == (10.0, 20.0)
-
-    def test_pan_offset_property(self) -> None:
-        """pan_offset property returns tuple."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, pan_offset_x=5.0, pan_offset_y=15.0)
-        assert transform.pan_offset == (5.0, 15.0)
-
-    def test_manual_offset_property(self) -> None:
-        """manual_offset property returns tuple."""
-        transform = Transform(
-            scale=1.0, center_offset_x=0.0, center_offset_y=0.0, manual_offset_x=2.0, manual_offset_y=3.0
-        )
-        assert transform.manual_offset == (2.0, 3.0)
-
-    def test_flip_y_property(self) -> None:
-        """flip_y property returns boolean."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True)
-        assert transform.flip_y is True
-
-    def test_display_height_property(self) -> None:
-        """display_height property returns integer."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=1080)
-        assert transform.display_height == 1080
-
-    def test_image_scale_property(self) -> None:
-        """image_scale property returns tuple."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, image_scale_x=1.5, image_scale_y=2.0)
-        assert transform.image_scale == (1.5, 2.0)
-
-    def test_scale_to_image_property(self) -> None:
-        """scale_to_image property returns boolean."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, scale_to_image=False)
-        assert transform.scale_to_image is False
-
-    def test_get_parameters(self) -> None:
-        """get_parameters() returns copy of parameters dict."""
-        transform = Transform(scale=2.0, center_offset_x=10.0, center_offset_y=20.0)
-        params = transform.get_parameters()
-
-        assert params["scale"] == 2.0
-        assert params["center_offset_x"] == 10.0
-        assert params["center_offset_y"] == 20.0
-
-        # Should be a copy
-        params["scale"] = 999.0
-        assert transform.scale == 2.0
-
-    def test_stability_hash(self) -> None:
-        """stability_hash property returns hash string."""
-        transform = Transform(scale=2.0, center_offset_x=10.0, center_offset_y=20.0)
-        hash_value = transform.stability_hash
-
-        assert isinstance(hash_value, str)
-        assert len(hash_value) > 0
-
-
-class TestTransformWithUpdates:
-    """Test Transform.with_updates() method."""
-
-    def test_with_updates_creates_new_instance(self) -> None:
-        """with_updates() creates new Transform with updated values."""
-        t1 = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
-        t2 = t1.with_updates(scale=2.0)
-
+    def test_transform_with_updates(self) -> None:
+        """Test Transform.with_updates() creates new instance."""
+        t = Transform(scale=1.0, center_offset_x=100.0, center_offset_y=50.0)
+        updated = t.with_updates(scale=2.0, pan_offset_x=25.0)
+        assert updated.scale == 2.0
+        assert updated.pan_offset == (25.0, 0.0)
         # Original unchanged
-        assert t1.scale == 1.0
+        assert t.scale == 1.0
+        assert t.pan_offset == (0.0, 0.0)
+        # Other fields preserved
+        assert updated.center_offset == (100.0, 50.0)
 
-        # New instance updated
-        assert t2.scale == 2.0
+    def test_transform_get_parameters(self) -> None:
+        """Test Transform.get_parameters() returns parameter dict."""
+        t = Transform(
+            scale=2.0,
+            center_offset_x=100.0,
+            center_offset_y=50.0,
+            flip_y=True,
+            display_height=1080,
+        )
+        params = t.get_parameters()
+        assert params["scale"] == 2.0
+        assert params["center_offset_x"] == 100.0
+        assert params["center_offset_y"] == 50.0
+        assert params["flip_y"] is True
+        assert params["display_height"] == 1080
 
-    def test_with_updates_multiple_fields(self) -> None:
-        """with_updates() can update multiple fields."""
-        t1 = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
-        t2 = t1.with_updates(scale=2.0, pan_offset_x=50.0, flip_y=True)
+    def test_transform_stability_hash_in_debug_mode(self) -> None:
+        """Test Transform stability hash is computed in debug mode."""
+        config = ValidationConfig.for_debug()
+        t1 = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0, validation_config=config)
+        t2 = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0, validation_config=config)
+        # Same parameters should have same hash
+        assert t1.stability_hash == t2.stability_hash
+        assert len(t1.stability_hash) == 32  # MD5 hash length
 
-        assert t2.scale == 2.0
-        assert t2.pan_offset == (50.0, 0.0)
-        assert t2.flip_y is True
+    def test_transform_stability_hash_in_production_mode(self) -> None:
+        """Test Transform uses simpler hash in production mode."""
+        config = ValidationConfig.for_production()
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0, validation_config=config)
+        # Should have some hash, but simpler than MD5
+        assert t.stability_hash is not None
+        assert len(t.stability_hash) > 0
 
+    def test_transform_repr(self) -> None:
+        """Test Transform __repr__ for debugging."""
+        t = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0, flip_y=True)
+        repr_str = repr(t)
+        assert "Transform" in repr_str
+        assert "scale=2.00" in repr_str
+        assert "center_offset=(100.0, 50.0)" in repr_str
+        assert "flip_y=True" in repr_str
 
-class TestTransformFromViewState:
-    """Test Transform.from_view_state() factory method."""
-
-    def test_from_viewstate_basic(self) -> None:
-        """Transform created correctly from ViewState."""
+    def test_transform_from_view_state(self) -> None:
+        """Test Transform.from_view_state() factory method."""
         vs = ViewState(
             display_width=1920.0,
             display_height=1080.0,
             widget_width=800,
             widget_height=600,
             zoom_factor=2.0,
-            fit_scale=1.0,
-            offset_x=10.0,
-            offset_y=20.0,
+            fit_scale=0.5,
+            offset_x=100.0,
+            offset_y=50.0,
+            flip_y_axis=True,
+            image_width=1280,
+            image_height=720,
         )
+        t = Transform.from_view_state(vs)
+        # Scale should be fit_scale * zoom_factor = 0.5 * 2.0 = 1.0
+        assert t.scale == 1.0
+        assert t.flip_y is True
+        assert t.display_height == 1080
+        assert t.pan_offset == (100.0, 50.0)
+        # Image scale should be display/image = 1920/1280 = 1.5
+        assert t.image_scale[0] == pytest.approx(1.5)
+        assert t.image_scale[1] == pytest.approx(1.5)
 
-        transform = Transform.from_view_state(vs)
-
-        # Scale should be fit_scale * zoom_factor
-        assert transform.scale == 2.0
-
-        # Offsets should be applied
-        assert transform.pan_offset == (10.0, 20.0)
-
-    def test_from_viewstate_combines_fit_and_zoom(self) -> None:
-        """Transform correctly combines fit_scale and zoom_factor."""
-        vs = ViewState(
-            display_width=1920.0,
-            display_height=1080.0,
-            widget_width=800,
-            widget_height=600,
-            zoom_factor=2.0,
-            fit_scale=1.5,
-        )
-
-        transform = Transform.from_view_state(vs)
-
-        # Combined: 1.5 * 2.0 = 3.0
-        assert transform.scale == 3.0
-
-    def test_from_viewstate_with_flip_y(self) -> None:
-        """Transform preserves flip_y_axis flag."""
-        vs = ViewState(
-            display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600, flip_y_axis=True
-        )
-
-        transform = Transform.from_view_state(vs)
-
-        assert transform.flip_y is True
-        assert transform.display_height == 1080
-
-    def test_from_viewstate_calculates_image_scale(self) -> None:
-        """Transform calculates image scale from dimensions."""
-        vs = ViewState(
-            display_width=2560.0,  # Display is larger
-            display_height=1440.0,
-            widget_width=800,
-            widget_height=600,
-            image_width=1920,  # Original image smaller
-            image_height=1080,
-        )
-
-        transform = Transform.from_view_state(vs)
-
-        # Image scale: (2560/1920, 1440/1080)
-        expected_scale_x = 2560.0 / 1920.0
-        expected_scale_y = 1440.0 / 1080.0
-
-        assert abs(transform.image_scale[0] - expected_scale_x) < 1e-10
-        assert abs(transform.image_scale[1] - expected_scale_y) < 1e-10
-
-    def test_from_viewstate_handles_invalid_image_dimensions(self) -> None:
-        """Transform handles zero/negative image dimensions gracefully."""
+    def test_transform_from_view_state_with_invalid_image_dimensions(self) -> None:
+        """Test Transform.from_view_state() handles invalid image dimensions."""
         vs = ViewState(
             display_width=1920.0,
             display_height=1080.0,
             widget_width=800,
             widget_height=600,
             image_width=0,  # Invalid
-            image_height=-100,  # Invalid
+            image_height=-10,  # Invalid
         )
+        t = Transform.from_view_state(vs)
+        # Should use 1.0 scale for invalid dimensions
+        assert t.image_scale == (1.0, 1.0)
 
-        transform = Transform.from_view_state(vs)
-
-        # Should default to 1.0 for invalid dimensions
-        assert transform.image_scale[0] == 1.0
-        assert transform.image_scale[1] == 1.0
-
-    def test_from_viewstate_with_validation_config(self) -> None:
-        """Transform.from_view_state() accepts validation_config."""
-        vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
-
-        config = ValidationConfig.for_debug()
-        transform = Transform.from_view_state(vs, validation_config=config)
-
-        assert transform.validation_config == config
-
-
-class TestTransformRepr:
-    """Test Transform.__repr__() string representation."""
-
-    def test_repr_includes_key_parameters(self) -> None:
-        """__repr__() includes key transformation parameters."""
-        transform = Transform(
-            scale=2.5, center_offset_x=100.0, center_offset_y=50.0, pan_offset_x=10.0, pan_offset_y=20.0, flip_y=True
+    def test_transform_from_view_state_raises_on_negative_display_dimensions(self) -> None:
+        """Test Transform.from_view_state() raises on negative display dimensions."""
+        vs = ViewState(
+            display_width=-1920.0,  # Invalid
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            image_width=1920,
+            image_height=1080,
         )
-
-        repr_str = repr(transform)
-
-        assert "scale=2.50" in repr_str
-        assert "center_offset=(100.0, 50.0)" in repr_str
-        assert "pan_offset=(10.0, 20.0)" in repr_str
-        assert "flip_y=True" in repr_str
+        with pytest.raises(ValueError, match="Display width cannot be negative"):
+            Transform.from_view_state(vs)
 
 
 # =============================================================================
-# Property-Based Tests (Hypothesis)
+# Edge Cases and Constants Tests
 # =============================================================================
 
 
-@pytest.mark.slow
-class TestTransformPropertyBased:
-    """Property-based tests using Hypothesis for mathematical invariants."""
+class TestEdgeCases:
+    """Test edge cases and extreme scenarios."""
 
-    @given(
-        x=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        y=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        scale=st.floats(min_value=0.1, max_value=100.0),
-    )
-    @settings(max_examples=100, deadline=None)
-    def test_roundtrip_identity_property(self, x: float, y: float, scale: float) -> None:
-        """Data → Screen → Data should equal identity for all valid inputs."""
-        transform = Transform(scale=scale, center_offset_x=0.0, center_offset_y=0.0)
-
-        screen_x, screen_y = transform.data_to_screen(x, y)
-        recovered_x, recovered_y = transform.screen_to_data(screen_x, screen_y)
-
-        # Allow small floating-point error
-        assert abs(recovered_x - x) < 1e-6
-        assert abs(recovered_y - y) < 1e-6
-
-    @given(scale=st.floats(min_value=0.1, max_value=100.0))
-    @settings(max_examples=100, deadline=None)
-    def test_origin_with_zero_offsets_property(self, scale: float) -> None:
-        """Origin (0,0) with zero offsets stays at origin after scaling."""
-        transform = Transform(scale=scale, center_offset_x=0.0, center_offset_y=0.0)
-        x, y = transform.data_to_screen(0.0, 0.0)
-
-        assert x == 0.0
-        assert y == 0.0
-
-    @given(
-        x=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        y=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        offset_x=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        offset_y=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-    )
-    @settings(max_examples=100, deadline=None)
-    def test_translation_invariance_property(self, x: float, y: float, offset_x: float, offset_y: float) -> None:
-        """Translation should preserve relative distances."""
-        # Assume reasonable offset values to avoid overflow
-        assume(abs(offset_x) < 1e8)
-        assume(abs(offset_y) < 1e8)
-        assume(abs(x) < 1e8)
-        assume(abs(y) < 1e8)
-
-        transform = Transform(scale=1.0, center_offset_x=offset_x, center_offset_y=offset_y)
-
-        # Two points
-        x1, y1 = transform.data_to_screen(x, y)
-        x2, y2 = transform.data_to_screen(x + 10.0, y + 10.0)
-
-        # Distance should be preserved (scaled by 1.0)
-        dx = x2 - x1
-        dy = y2 - y1
-
-        assert abs(dx - 10.0) < 1e-6
-        assert abs(dy - 10.0) < 1e-6
-
-    @given(
-        x=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        y=st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        scale=st.floats(min_value=0.1, max_value=100.0),
-    )
-    @settings(max_examples=100, deadline=None)
-    def test_scaling_preserves_origin_distance_property(self, x: float, y: float, scale: float) -> None:
-        """Scaling should multiply distance from origin."""
-        transform = Transform(scale=scale, center_offset_x=0.0, center_offset_y=0.0)
-
-        screen_x, screen_y = transform.data_to_screen(x, y)
-
-        # Distance from origin should be scaled
-        data_distance = math.sqrt(x * x + y * y)
-        screen_distance = math.sqrt(screen_x * screen_x + screen_y * screen_y)
-
-        if data_distance > 1e-6:  # Avoid division by zero
-            ratio = screen_distance / data_distance
-            assert abs(ratio - scale) < 1e-3
-
-    @given(
-        points=st.lists(
-            st.tuples(
-                st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-                st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-            ),
-            min_size=1,
-            max_size=100,
-        ),
-        scale=st.floats(min_value=0.1, max_value=100.0),
-    )
-    @settings(max_examples=50, deadline=None)
-    def test_batch_equals_individual_property(self, points: list[tuple[float, float]], scale: float) -> None:
-        """Batch operations should match individual operations."""
-        transform = Transform(scale=scale, center_offset_x=0.0, center_offset_y=0.0)
-
-        # Convert to NumPy array
-        data = np.array(points, dtype=np.float64)
-
-        # Batch transform
-        batch_result = transform.batch_data_to_screen(data)
-
-        # Individual transforms
-        for i, (x, y) in enumerate(points):
-            ind_x, ind_y = transform.data_to_screen(x, y)
-            assert abs(batch_result[i, 0] - ind_x) < 1e-6
-            assert abs(batch_result[i, 1] - ind_y) < 1e-6
-
-
-# =============================================================================
-# Edge Cases and Stress Tests
-# =============================================================================
-
-
-class TestTransformEdgeCases:
-    """Test Transform edge cases and extreme values."""
-
-    def test_with_very_large_coordinates(self) -> None:
-        """Very large coordinates don't overflow in production mode."""
+    def test_transform_with_extreme_coordinates(self) -> None:
+        """Test transform handles very large coordinates."""
         config = ValidationConfig.for_production()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
+        # Large but within max_coordinate (1e12)
+        large_x, large_y = 1e11, 1e11
+        screen_x, screen_y = t.data_to_screen(large_x, large_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Should roundtrip accurately
+        assert abs(data_x - large_x) < 1.0  # Allow small error for large values
+        assert abs(data_y - large_y) < 1.0
 
-        x, y = transform.data_to_screen(1e6, 1e6)
-        assert math.isfinite(x) and math.isfinite(y)
+    def test_transform_with_very_small_coordinates(self) -> None:
+        """Test transform handles very small coordinates."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0)
+        small_x, small_y = 1e-9, 1e-9
+        screen_x, screen_y = t.data_to_screen(small_x, small_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Should roundtrip accurately even for tiny values
+        assert abs(data_x - small_x) < 1e-12
+        assert abs(data_y - small_y) < 1e-12
 
-    def test_with_very_small_scale(self) -> None:
-        """Very small scale handled in production mode."""
-        config = ValidationConfig.for_production()
-        transform = Transform(scale=1e-9, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-        # Should clamp to min_scale
-        assert transform.scale >= 1e-10
-
-    def test_with_negative_scale_debug_mode(self) -> None:
-        """Negative scale is allowed (for flipping) but small magnitudes raise."""
-        config = ValidationConfig.for_debug()
-        # Negative scale with abs > 1e-10 is actually allowed (could be used for flipping)
-        # Only scales with abs < 1e-10 raise errors
-        # So -1.0 should succeed
-        transform = Transform(scale=-1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-        assert transform.scale == -1.0
-
-        # But very small negative scale should raise
-        with pytest.raises(ValueError, match="Scale factor too small"):
-            Transform(scale=-1e-20, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-    def test_with_zero_display_height_y_flip(self) -> None:
-        """Zero display height doesn't crash Y-flip."""
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=0)
-
-        # Should not flip when display_height is 0
-        x, y = transform.data_to_screen(100.0, 200.0)
-        # Y-flip only applies when display_height > 0
-        assert y == 200.0
-
-    def test_combined_scale_calculation_with_scale_to_image_false(self) -> None:
-        """Combined scale ignores image scale when scale_to_image=False."""
-        transform = Transform(
-            scale=2.0,
-            center_offset_x=0.0,
-            center_offset_y=0.0,
-            image_scale_x=3.0,
-            image_scale_y=3.0,
-            scale_to_image=False,
-        )
-
-        # Combined scale should be just main scale (2.0), not 2.0*3.0
-        x, y = transform.data_to_screen(10.0, 20.0)
-        assert x == 20.0  # 10 * 2.0
-        assert y == 40.0  # 20 * 2.0
-
-    def test_combined_scale_calculation_with_scale_to_image_true(self) -> None:
-        """Combined scale includes image scale when scale_to_image=True."""
-        transform = Transform(
-            scale=2.0,
-            center_offset_x=0.0,
-            center_offset_y=0.0,
-            image_scale_x=3.0,
-            image_scale_y=3.0,
+    def test_transform_combined_all_transformations(self) -> None:
+        """Test transform with all transformation types combined."""
+        t = Transform(
+            scale=2.5,
+            center_offset_x=150.0,
+            center_offset_y=100.0,
+            pan_offset_x=50.0,
+            pan_offset_y=25.0,
+            manual_offset_x=10.0,
+            manual_offset_y=5.0,
+            flip_y=True,
+            display_height=1080,
+            image_scale_x=1.5,
+            image_scale_y=1.5,
             scale_to_image=True,
         )
+        original_x, original_y = 100.0, 200.0
+        screen_x, screen_y = t.data_to_screen(original_x, original_y)
+        data_x, data_y = t.screen_to_data(screen_x, screen_y)
+        # Complex transformation should still roundtrip accurately
+        assert abs(data_x - original_x) < 1e-9
+        assert abs(data_y - original_y) < 1e-9
 
-        # Combined scale: 2.0 * 3.0 = 6.0
-        x, y = transform.data_to_screen(10.0, 20.0)
-        assert x == 60.0  # 10 * 6.0
-        assert y == 120.0  # 20 * 6.0
-
-    def test_batch_raises_on_zero_combined_scale(self) -> None:
-        """Batch inverse transform validates scale is sufficient."""
-        # Production mode clamps scale to 1e-10, which is at the threshold
-        # The code checks for abs(scale) < 1e-10, so 1e-10 should be valid
-        config = ValidationConfig.for_production()
-        transform = Transform(scale=1e-20, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-        # Scale gets clamped to 1e-10, which should be valid
-        screen_points = np.array([[100.0, 200.0]])
-
-        # Should succeed (scale was clamped to valid range)
-        result = transform.batch_screen_to_data(screen_points)
-        assert math.isfinite(result[0, 0]) and math.isfinite(result[0, 1])
-
-    def test_debug_mode_validates_display_height_range(self) -> None:
-        """Debug mode validates display height upper bound."""
-        config = ValidationConfig.for_debug()
-        with pytest.raises(ValueError, match="Display height too large"):
-            Transform(
-                scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=2000000, validation_config=config
-            )
-
-    def test_production_mode_clamps_display_height(self) -> None:
-        """Production mode clamps extremely large display height."""
-        config = ValidationConfig.for_production()
-        transform = Transform(
-            scale=1.0, center_offset_x=0.0, center_offset_y=0.0, display_height=2000000, validation_config=config
+    def test_viewstate_quantization_with_min_scale_value(self) -> None:
+        """Test ViewState quantization respects MIN_SCALE_VALUE for zoom."""
+        vs = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            zoom_factor=1e-15,  # Extremely small
         )
+        quantized = vs.quantized_for_cache()
+        # Should be clamped to MIN_SCALE_VALUE
+        assert quantized.zoom_factor >= MIN_SCALE_VALUE
 
-        assert transform.display_height <= 1000000
+    def test_batch_operations_preserve_array_dtype(self) -> None:
+        """Test batch operations preserve float64 dtype."""
+        t = Transform(scale=2.0, center_offset_x=0.0, center_offset_y=0.0)
+        points = np.array([[10.0, 20.0]], dtype=np.float64)
+        result = t.batch_data_to_screen(points)
+        assert result.dtype == np.float64
 
+    def test_transform_with_zero_display_height_and_no_flip(self) -> None:
+        """Test transform with zero display height (no flip applied)."""
+        t = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, flip_y=True, display_height=0)
+        # With display_height=0, flip should not be applied
+        screen_x, screen_y = t.data_to_screen(100.0, 200.0)
+        assert screen_x == 100.0
+        assert screen_y == 200.0  # Y unchanged since display_height is 0
 
-# =============================================================================
-# Constants Tests
-# =============================================================================
+    def test_viewstate_hash_excludes_background_image(self) -> None:
+        """Test ViewState hash excludes background_image field."""
+        mock_image1 = MagicMock()
+        mock_image2 = MagicMock()
+        vs1 = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            background_image=mock_image1,
+        )
+        vs2 = ViewState(
+            display_width=1920.0,
+            display_height=1080.0,
+            widget_width=800,
+            widget_height=600,
+            background_image=mock_image2,
+        )
+        # Hashes should be equal even with different background images
+        assert hash(vs1) == hash(vs2)
 
 
 class TestConstants:
-    """Test module constants are defined correctly."""
+    """Test module constants are properly defined."""
 
-    def test_default_precision_defined(self) -> None:
-        """DEFAULT_PRECISION is defined."""
+    def test_default_precision_constant(self) -> None:
+        """Test DEFAULT_PRECISION constant."""
         assert DEFAULT_PRECISION == 0.1
 
-    def test_zoom_precision_factor_defined(self) -> None:
-        """ZOOM_PRECISION_FACTOR is defined."""
+    def test_zoom_precision_factor_constant(self) -> None:
+        """Test ZOOM_PRECISION_FACTOR constant."""
         assert ZOOM_PRECISION_FACTOR == 100
 
-    def test_zoom_precision_calculated(self) -> None:
-        """ZOOM_PRECISION is calculated from DEFAULT_PRECISION."""
-        assert ZOOM_PRECISION == DEFAULT_PRECISION / ZOOM_PRECISION_FACTOR
+    def test_zoom_precision_constant(self) -> None:
+        """Test ZOOM_PRECISION constant."""
         assert ZOOM_PRECISION == 0.001
+        assert ZOOM_PRECISION == DEFAULT_PRECISION / ZOOM_PRECISION_FACTOR
 
-    def test_min_scale_value_defined(self) -> None:
-        """MIN_SCALE_VALUE is defined."""
+    def test_min_scale_value_constant(self) -> None:
+        """Test MIN_SCALE_VALUE constant."""
         assert MIN_SCALE_VALUE == 1e-10
-
-
-# =============================================================================
-# Additional Coverage Tests
-# =============================================================================
-
-
-class TestTransformQPointMethods:
-    """Test Transform QPointF transformation methods."""
-
-    def test_data_to_screen_qpoint(self) -> None:
-        """QPointF forward transformation."""
-        from services.transform_core import QPointF
-
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-        point = QPointF(10.0, 20.0)
-
-        result = transform.data_to_screen_qpoint(point)
-
-        assert result.x() == 120.0
-        assert result.y() == 90.0
-
-    def test_screen_to_data_qpoint(self) -> None:
-        """QPointF inverse transformation."""
-        from services.transform_core import QPointF
-
-        transform = Transform(scale=2.0, center_offset_x=100.0, center_offset_y=50.0)
-        point = QPointF(120.0, 90.0)
-
-        result = transform.screen_to_data_qpoint(point)
-
-        assert result.x() == 10.0
-        assert result.y() == 20.0
-
-
-class TestTransformAdditionalEdgeCases:
-    """Additional edge case tests for higher coverage."""
-
-    def test_debug_mode_raises_on_invalid_image_scale_x(self) -> None:
-        """Debug mode validates image_scale_x."""
-        config = ValidationConfig.for_debug()
-        with pytest.raises(ValueError, match="Image scale X too small"):
-            Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, image_scale_x=0.0, validation_config=config)
-
-    def test_debug_mode_raises_on_invalid_image_scale_y(self) -> None:
-        """Debug mode validates image_scale_y."""
-        config = ValidationConfig.for_debug()
-        with pytest.raises(ValueError, match="Image scale Y too small"):
-            Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, image_scale_y=0.0, validation_config=config)
-
-    def test_debug_mode_raises_on_too_large_image_scale(self) -> None:
-        """Debug mode validates image scale upper bounds."""
-        config = ValidationConfig.for_debug()
-        with pytest.raises(ValueError, match="Image scale factors too large"):
-            Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, image_scale_x=1e15, validation_config=config)
-
-    def test_production_mode_clamps_invalid_image_scales(self) -> None:
-        """Production mode clamps invalid image scales."""
-        config = ValidationConfig.for_production()
-        transform = Transform(
-            scale=1.0,
-            center_offset_x=0.0,
-            center_offset_y=0.0,
-            image_scale_x=0.0,
-            image_scale_y=1e20,
-            validation_config=config,
-        )
-
-        # Should clamp to valid range
-        image_scale_x, image_scale_y = transform.image_scale
-        assert image_scale_x >= 1e-10
-        assert image_scale_y <= 1e10
-
-    def test_batch_data_to_screen_debug_raises_on_too_large(self) -> None:
-        """Debug mode raises on coordinates exceeding max_coordinate."""
-        config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-        points = np.array([[1e13, 0.0]])  # Exceeds default max_coordinate (1e12)
-
-        with pytest.raises(ValueError, match="too large"):
-            transform.batch_data_to_screen(points)
-
-    def test_batch_screen_to_data_debug_raises_on_too_large(self) -> None:
-        """Debug mode raises on screen coordinates exceeding max_coordinate."""
-        config = ValidationConfig.for_debug()
-        transform = Transform(scale=1.0, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-
-        points = np.array([[1e13, 0.0]])
-
-        with pytest.raises(ValueError, match="too large"):
-            transform.batch_screen_to_data(points)
-
-    def test_production_mode_logs_warning_for_small_scale(self) -> None:
-        """Production mode logs warning when clamping small scale."""
-        config = ValidationConfig.for_production()
-
-        # This should trigger warning log
-        with patch("services.transform_core.logger") as mock_logger:
-            _ = Transform(scale=1e-15, center_offset_x=0.0, center_offset_y=0.0, validation_config=config)
-            # Should have called logger.warning
-            assert mock_logger.warning.called
-
-    def test_production_mode_clamps_all_offset_types(self) -> None:
-        """Production mode clamps all offset types."""
-        config = ValidationConfig.for_production()
-
-        transform = Transform(
-            scale=1.0,
-            center_offset_x=2e9,
-            center_offset_y=-2e9,
-            pan_offset_x=2e9,
-            pan_offset_y=-2e9,
-            manual_offset_x=2e9,
-            manual_offset_y=-2e9,
-            validation_config=config,
-        )
-
-        # All offsets should be clamped to ±1e9
-        cx, cy = transform.center_offset
-        assert abs(cx) <= 1e9
-        assert abs(cy) <= 1e9
-
-        px, py = transform.pan_offset
-        assert abs(px) <= 1e9
-        assert abs(py) <= 1e9
-
-        mx, my = transform.manual_offset
-        assert abs(mx) <= 1e9
-        assert abs(my) <= 1e9

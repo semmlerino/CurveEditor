@@ -22,6 +22,7 @@ if TYPE_CHECKING:
 from core.commands.base_command import Command
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
+from services import get_data_service
 from stores.application_state import get_application_state
 
 logger = get_logger("curve_commands")
@@ -764,7 +765,7 @@ class SetPointStatusCommand(CurveDataCommand):
 
     @override
     def execute(self, main_window: MainWindowProtocol) -> bool:
-        """Execute status changes."""
+        """Execute status changes with gap restoration logic."""
 
         def _execute_operation() -> bool:
             # Get active curve data
@@ -776,26 +777,38 @@ class SetPointStatusCommand(CurveDataCommand):
             # Store target curve for undo
             self._target_curve = curve_name
 
-            # Get current curve data from ApplicationState
-            curve_data = list(curve_data)
+            # Get data service for restoration logic
+            data_service = get_data_service()
+            app_state = get_application_state()
 
-            # Apply all status changes
+            # Initialize SegmentedCurve with current data
+            data_service.update_curve_data(list(curve_data))
+
+            # Apply status changes through restoration system
             for index, _, new_status in self.changes:
                 if 0 <= index < len(curve_data):
-                    point = curve_data[index]
-                    # Update status while preserving frame, x, y
-                    # Note: This intentionally normalizes 3-element to 4-element format
-                    # because status operations require a status field
-                    if len(point) >= 3:
-                        curve_data[index] = (point[0], point[1], point[2], new_status)
-                    else:
-                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                    data_service.handle_point_status_change(index, new_status)
                 else:
                     logger.warning(f"Point index {index} out of range")
 
-            # Update ApplicationState with modified data
-            app_state = get_application_state()
-            app_state.set_curve_data(curve_name, curve_data)
+            # Get restored data from SegmentedCurve
+            if data_service._segmented_curve:
+                restored_points = data_service._segmented_curve.all_points
+                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+            else:
+                # Fallback: apply changes directly if SegmentedCurve unavailable
+                logger.warning("SegmentedCurve not available, applying changes directly")
+                updated_data = list(curve_data)
+                for index, _, new_status in self.changes:
+                    if 0 <= index < len(updated_data):
+                        point = updated_data[index]
+                        if len(point) >= 3:
+                            updated_data[index] = (point[0], point[1], point[2], new_status)
+                        else:
+                            logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+
+            # Update ApplicationState with restored data
+            app_state.set_curve_data(curve_name, updated_data)
             self.executed = True
 
             return True
@@ -804,7 +817,7 @@ class SetPointStatusCommand(CurveDataCommand):
 
     @override
     def undo(self, main_window: MainWindowProtocol) -> bool:
-        """Undo status changes."""
+        """Undo status changes with gap restoration logic."""
 
         def _undo_operation() -> bool:
             if not self._target_curve:
@@ -812,25 +825,39 @@ class SetPointStatusCommand(CurveDataCommand):
                 return False
 
             app_state = get_application_state()
+            data_service = get_data_service()
 
             # Get current curve data from ApplicationState
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Restore all original statuses
+            # Initialize SegmentedCurve with current data
+            data_service.update_curve_data(curve_data)
+
+            # Restore original statuses through restoration system
             for index, old_status, _ in self.changes:
                 if 0 <= index < len(curve_data):
-                    point = curve_data[index]
-                    # Restore old status while preserving frame, x, y
-                    # Note: Data is already 4-element from execute() normalization
-                    if len(point) >= 3:
-                        curve_data[index] = (point[0], point[1], point[2], old_status)
-                    else:
-                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                    data_service.handle_point_status_change(index, old_status)
                 else:
                     logger.warning(f"Point index {index} out of range")
 
+            # Get restored data from SegmentedCurve
+            if data_service._segmented_curve:
+                restored_points = data_service._segmented_curve.all_points
+                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+            else:
+                # Fallback: apply changes directly if SegmentedCurve unavailable
+                logger.warning("SegmentedCurve not available, applying changes directly")
+                updated_data = list(curve_data)
+                for index, old_status, _ in self.changes:
+                    if 0 <= index < len(updated_data):
+                        point = updated_data[index]
+                        if len(point) >= 3:
+                            updated_data[index] = (point[0], point[1], point[2], old_status)
+                        else:
+                            logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+
             # Update ApplicationState with restored data
-            app_state.set_curve_data(self._target_curve, curve_data)
+            app_state.set_curve_data(self._target_curve, updated_data)
             self.executed = False
 
             return True
@@ -839,7 +866,7 @@ class SetPointStatusCommand(CurveDataCommand):
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
-        """Redo status changes."""
+        """Redo status changes with gap restoration logic."""
 
         def _redo_operation() -> bool:
             if not self._target_curve:
@@ -847,24 +874,39 @@ class SetPointStatusCommand(CurveDataCommand):
                 return False
 
             app_state = get_application_state()
+            data_service = get_data_service()
+
+            # Get current curve data from ApplicationState
             curve_data = list(app_state.get_curve_data(self._target_curve))
 
-            # Apply all status changes
+            # Initialize SegmentedCurve with current data
+            data_service.update_curve_data(curve_data)
+
+            # Apply status changes through restoration system
             for index, _, new_status in self.changes:
                 if 0 <= index < len(curve_data):
-                    point = curve_data[index]
-                    # Update status while preserving frame, x, y
-                    # Note: This intentionally normalizes 3-element to 4-element format
-                    # because status operations require a status field
-                    if len(point) >= 3:
-                        curve_data[index] = (point[0], point[1], point[2], new_status)
-                    else:
-                        logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+                    data_service.handle_point_status_change(index, new_status)
                 else:
                     logger.warning(f"Point index {index} out of range")
 
-            # Update ApplicationState with modified data
-            app_state.set_curve_data(self._target_curve, curve_data)
+            # Get restored data from SegmentedCurve
+            if data_service._segmented_curve:
+                restored_points = data_service._segmented_curve.all_points
+                updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
+            else:
+                # Fallback: apply changes directly if SegmentedCurve unavailable
+                logger.warning("SegmentedCurve not available, applying changes directly")
+                updated_data = list(curve_data)
+                for index, _, new_status in self.changes:
+                    if 0 <= index < len(updated_data):
+                        point = updated_data[index]
+                        if len(point) >= 3:
+                            updated_data[index] = (point[0], point[1], point[2], new_status)
+                        else:
+                            logger.warning(f"Point {index} has invalid format (need at least 3 elements)")
+
+            # Update ApplicationState with restored data
+            app_state.set_curve_data(self._target_curve, updated_data)
             self.executed = True
 
             return True

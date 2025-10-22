@@ -168,8 +168,8 @@ class TestUIErrorRecoveryCritical:
 
         # Test with None values in creation
         view_state_with_defaults = ViewState(
-            display_width=None,  # pyright: ignore[reportArgumentType]
-            display_height=None,  # pyright: ignore[reportArgumentType]
+            display_width=None,
+            display_height=None,
             widget_width=800,
             widget_height=600,
         )
@@ -217,7 +217,11 @@ class TestUIErrorRecoveryCritical:
         for thread in threads:
             thread.start()
         for thread in threads:
-            thread.join()
+            thread.join(timeout=5.0)
+            if thread.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {thread.name} did not stop within timeout")
 
         # Check that service remained functional
         error_list = []

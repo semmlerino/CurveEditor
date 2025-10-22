@@ -176,7 +176,7 @@ def format_offset_error(offset: float, name: str) -> str:
 
 def format_configuration_error(config_name: str, issue: str, suggestion: str) -> str:
     """Format error message for configuration issues."""
-    return f"Configuration error in '{config_name}':\n" f"  Issue: {issue}\n" f"  → {suggestion}"
+    return f"Configuration error in '{config_name}':\n  Issue: {issue}\n  → {suggestion}"
 
 
 def format_cache_error(operation: str, details: str) -> str:

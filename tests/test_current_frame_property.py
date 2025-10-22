@@ -96,7 +96,7 @@ def test_curve_view_can_access_current_frame(qtbot: QtBot):
     window.timeline_controller.get_current_frame = Mock(return_value=50)
 
     # Link them
-    widget.main_window = window  # pyright: ignore[reportAttributeAccessIssue]
+    widget.main_window = window
 
     # Test type-safe access
     if widget.main_window is not None:
@@ -132,7 +132,7 @@ def test_protocol_compliance(qtbot: QtBot):
     def track_frame(f):
         frame_set_to[0] = f
 
-    window.timeline_controller.set_frame = track_frame  # pyright: ignore[reportAttributeAccessIssue]
+    window.timeline_controller.set_frame = track_frame
     window.current_frame = 42
 
     # Verify behavior: frame was set correctly

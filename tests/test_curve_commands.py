@@ -1201,8 +1201,8 @@ class TestBug2CommandTargetIsolation:
         # Setup Track1 with initial data
         app_state.set_active_curve("Track1")
         original_track1_data = [
-            (1, 100.0, 200.0, "NORMAL"),
-            (2, 150.0, 250.0, "INTERPOLATED"),
+            (1, 100.0, 200.0, "normal"),  # PointStatus enum values are lowercase
+            (2, 150.0, 250.0, "interpolated"),
         ]
         app_state.set_curve_data("Track1", original_track1_data)
 
@@ -1220,12 +1220,12 @@ class TestBug2CommandTargetIsolation:
 
         # Verify Track1 was modified
         modified_track1_data = app_state.get_curve_data("Track1")
-        assert modified_track1_data[0][3] == "KEYFRAME"
-        assert modified_track1_data[1][3] == "NORMAL"
+        assert modified_track1_data[0][3] == "keyframe"  # PointStatus enum values are lowercase
+        assert modified_track1_data[1][3] == "normal"
 
         # Switch to Track2
         app_state.set_active_curve("Track2")
-        track2_data = [(1, 300.0, 400.0, "TRACKED")]
+        track2_data = [(1, 300.0, 400.0, "tracked")]  # PointStatus enum values are lowercase
         app_state.set_curve_data("Track2", track2_data)
 
         # Undo should target Track1

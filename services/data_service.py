@@ -65,6 +65,15 @@ class DataService:
         self._segmented_curve: SegmentedCurve | None = None
         self._current_curve_data: CurveDataList | None = None
 
+    @property
+    def segmented_curve(self) -> SegmentedCurve | None:
+        """Get the current SegmentedCurve for active curve data.
+
+        Returns:
+            SegmentedCurve instance for current curve, or None if no curve loaded
+        """
+        return self._segmented_curve
+
     # ==================== Public File I/O Methods (Sprint 11.5) ====================
 
     def load_csv(self, filepath: str) -> CurveDataList:
@@ -406,10 +415,15 @@ class DataService:
         # Convert status to PointStatus enum if needed
         if isinstance(new_status, str):
             try:
+                # Try exact match first, then case-insensitive
                 status_enum = PointStatus(new_status)
             except ValueError:
-                logger.warning(f"Invalid status value: {new_status}")
-                return
+                # Try case-insensitive match
+                try:
+                    status_enum = PointStatus(new_status.lower())
+                except ValueError:
+                    logger.warning(f"Invalid status value: {new_status}")
+                    return
         else:
             status_enum = new_status
 
@@ -448,7 +462,9 @@ class DataService:
                     frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
                 # Check status if available
-                status = point[3] if len(point) > 3 else "keyframe"
+                # Default to "normal" when status field missing (not "keyframe")
+                # This ensures points without explicit status display correctly
+                status = point[3] if len(point) > 3 else "normal"
                 if isinstance(status, bool):
                     # Legacy boolean format: True = interpolated, False = keyframe
                     if status:
@@ -490,7 +506,11 @@ class DataService:
 
         # Second pass: detect startframes and inactive regions using SegmentedCurve
         # This provides accurate gap detection and startframe identification
-        segmented_curve = SegmentedCurve.from_curve_data(points)
+        # Use cached SegmentedCurve if available (single source of truth)
+        if self._segmented_curve and self._current_curve_data == points:
+            segmented_curve = self._segmented_curve
+        else:
+            segmented_curve = SegmentedCurve.from_curve_data(points)
 
         # Get all frame numbers that need to be checked (including gaps)
         if sorted_points:

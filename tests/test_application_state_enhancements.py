@@ -44,7 +44,7 @@ class SignalSpy:
     def __init__(self, signal: Signal):
         self.signal = signal
         self.emissions: list[tuple[object, ...]] = []
-        self.signal.connect(self._on_emit)  # pyright: ignore[reportAttributeAccessIssue]
+        self.signal.connect(self._on_emit)
 
     def _on_emit(self, *args: object) -> None:
         self.emissions.append(args)

@@ -307,7 +307,7 @@ class TestUniqueNameGeneration:
     def test_unique_name_when_no_conflict(self) -> None:
         """Should return the same name when there's no conflict."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
 
         # No existing data
         unique_name = controller.get_unique_point_name("NewPoint")
@@ -316,7 +316,7 @@ class TestUniqueNameGeneration:
     def test_unique_name_with_conflict(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Should append suffix when name conflicts."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
 
         # Add existing data
         controller.tracked_data = make_multi_point_data(["Point1", "Point2"])
@@ -330,7 +330,7 @@ class TestUniqueNameGeneration:
     ) -> None:
         """Should increment suffix for multiple conflicts."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
 
         # Add existing data with conflicts
         controller.tracked_data = {
@@ -354,7 +354,7 @@ class TestUniqueNameGeneration:
     def test_unique_name_parametrized(self, base_name: str, existing_names: list[str], expected: str) -> None:
         """Test various conflict scenarios."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
 
         # Set up existing names
         controller.tracked_data = {name: [] for name in existing_names}
@@ -374,7 +374,7 @@ class TestMultiPointDataMerging:
     def test_load_first_multi_point_data(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Loading first multi-point file should set data directly."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first multi-point data
@@ -392,7 +392,7 @@ class TestMultiPointDataMerging:
     ) -> None:
         """Merging multi-point data without conflicts should preserve all points."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first data
@@ -412,7 +412,7 @@ class TestMultiPointDataMerging:
     ) -> None:
         """Merging with conflicting names should rename duplicates."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first data
@@ -435,7 +435,7 @@ class TestMultiPointDataMerging:
     ) -> None:
         """Active selection should be preserved when merging new data."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first data and select Point2
@@ -457,7 +457,7 @@ class TestSingleTrajectoryMerging:
     def test_load_first_single_trajectory(self, make_tracking_data: Callable[..., CurveDataList]) -> None:
         """First single trajectory should create Track1."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load single trajectory
@@ -476,7 +476,7 @@ class TestSingleTrajectoryMerging:
     ) -> None:
         """Single trajectory should be added to existing multi-point data."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load multi-point data first
@@ -498,7 +498,7 @@ class TestSingleTrajectoryMerging:
     ) -> None:
         """Multiple single trajectories should get unique Track names."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first single trajectory
@@ -536,10 +536,10 @@ class TestFileOpenMerging:
         """Opening single curve file should go through tracking controller."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        tracking_controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
+        action_controller = ActionHandlerController(state_manager, main_window)
 
         # Simulate opening a single curve file
         single_data = make_tracking_data(5)
@@ -556,10 +556,10 @@ class TestFileOpenMerging:
         """Opening multi-point file should go through tracking controller."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        tracking_controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
+        action_controller = ActionHandlerController(state_manager, main_window)
 
         # Simulate opening a multi-point file
         multi_data = make_multi_point_data(["Point1", "Point2"])
@@ -579,10 +579,10 @@ class TestFileOpenMerging:
         """Opening multiple files sequentially should merge all data."""
         main_window = MockMainWindow()
         state_manager = MockStateManager()
-        tracking_controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        tracking_controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = tracking_controller
 
-        action_controller = ActionHandlerController(state_manager, main_window)  # pyright: ignore[reportArgumentType]
+        action_controller = ActionHandlerController(state_manager, main_window)
 
         # Open first single file
         single_data1 = make_tracking_data(3)
@@ -620,7 +620,7 @@ class TestEdgeCases:
     def test_empty_data_handled_gracefully(self) -> None:
         """Empty data should not cause errors."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load empty multi-point data
@@ -633,7 +633,7 @@ class TestEdgeCases:
     def test_none_data_handled_gracefully(self) -> None:
         """None data should not cause errors."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load None data
@@ -645,7 +645,7 @@ class TestEdgeCases:
     def test_large_dataset_merging(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Large datasets should merge efficiently."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Create large dataset
@@ -667,7 +667,7 @@ class TestEdgeCases:
     def test_deep_conflict_resolution(self) -> None:
         """Should handle deep naming conflicts correctly."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Create data with many conflicts
@@ -698,7 +698,7 @@ class TestPanelUpdates:
     def test_panel_updated_on_data_load(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Panel should be updated when data is loaded."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load data
@@ -711,7 +711,7 @@ class TestPanelUpdates:
     def test_panel_updated_on_merge(self, make_multi_point_data: Callable[..., dict[str, CurveDataList]]) -> None:
         """Panel should be updated when data is merged."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first data
@@ -758,7 +758,7 @@ class TestParametrizedMerging:
     ) -> None:
         """Test various merge scenarios."""
         main_window = MockMainWindow()
-        controller = MultiPointTrackingController(main_window)  # pyright: ignore[reportArgumentType]
+        controller = MultiPointTrackingController(main_window)
         main_window.tracking_controller = controller
 
         # Load first data if not empty

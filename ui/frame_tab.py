@@ -13,6 +13,101 @@ from PySide6.QtGui import QBrush, QColor, QContextMenuEvent, QEnterEvent, QMouse
 from PySide6.QtWidgets import QSizePolicy, QWidget
 
 
+class StatusColorResolver:
+    """Centralized logic for determining frame tab colors based on point status.
+
+    ARCHITECTURAL PRINCIPLE:
+    ========================
+    Visual appearance reflects both point data status AND segment activity.
+
+    - Point status (NORMAL, KEYFRAME, TRACKED, etc.) determines color
+    - Segment activity (active/inactive) affects BOTH line rendering AND gap frame colors
+    - Inactive gap segments (frames after ENDFRAME until next KEYFRAME) use dark gray
+
+    Priority Order:
+    ===============
+    1. Selected (user selection - highest priority)
+    2. Endframe (segment boundary marker - red/cyan)
+    3. Inactive gap segments (dark gray for frames in gaps)
+    4. No points (regular gaps - lighter gray)
+    5. Startframe (segment start marker)
+    6. Single status (tracked, keyframe, interpolated, normal)
+    7. Mixed (multiple statuses present)
+
+    Historical Context:
+    ===================
+    Inactive gap segments are frames between ENDFRAME and the next KEYFRAME where
+    the curve is not active. These frames return held positions (ENDFRAME coords)
+    and are rendered with dashed lines. The timeline uses dark gray (30,30,30) to
+    visually distinguish gap segments from regular "no data" frames.
+    """
+
+    @staticmethod
+    def get_background_color(
+        colors: dict[str, QColor],
+        *,
+        point_count: int,
+        keyframe_count: int,
+        interpolated_count: int,
+        tracked_count: int,
+        endframe_count: int,
+        normal_count: int,
+        is_startframe: bool,
+        has_selected_points: bool,
+        is_inactive: bool = False,
+    ) -> QColor:
+        """Determine background color based on point status counts.
+
+        Args:
+            colors: Dictionary mapping status names to QColor objects
+            point_count: Total number of points
+            keyframe_count: Number of keyframe points
+            interpolated_count: Number of interpolated points
+            tracked_count: Number of tracked points
+            endframe_count: Number of endframe points
+            normal_count: Number of normal points
+            is_startframe: Whether this is a startframe
+            has_selected_points: Whether frame has selected points
+            is_inactive: Whether this frame is in an inactive gap segment
+
+        Returns:
+            QColor appropriate for the frame's status
+        """
+        # Priority 1: Selection overrides everything
+        if has_selected_points:
+            return colors["selected"]
+
+        # Priority 2: Endframes (segment boundaries)
+        if endframe_count > 0:
+            return colors["endframe"]
+
+        # Priority 3: Inactive segments (frames after ENDFRAME until next KEYFRAME)
+        # This applies to both frames with points and gap frames
+        if is_inactive:
+            return colors["inactive"]
+
+        # Priority 4: No points (regular gaps between keyframes, or frames without data)
+        if point_count == 0:
+            return colors["no_points"]
+
+        # Priority 5: Startframe (segment start)
+        if is_startframe:
+            return colors["startframe"]
+
+        # Priority 6: Single status types (pure states)
+        if tracked_count > 0 and keyframe_count == 0 and interpolated_count == 0 and normal_count == 0:
+            return colors["tracked"]
+        if keyframe_count > 0 and interpolated_count == 0 and tracked_count == 0 and normal_count == 0:
+            return colors["keyframe"]
+        if interpolated_count > 0 and keyframe_count == 0 and tracked_count == 0 and normal_count == 0:
+            return colors["interpolated"]
+        if normal_count > 0 and keyframe_count == 0 and interpolated_count == 0 and tracked_count == 0:
+            return colors["normal"]
+
+        # Priority 7: Mixed states (multiple statuses)
+        return colors["mixed"]
+
+
 class FrameTab(QWidget):
     """Individual frame tab with color coding and click interaction."""
 
@@ -39,6 +134,7 @@ class FrameTab(QWidget):
 
             cls.COLORS = {
                 "no_points": QColor(*STATUS_COLORS_TIMELINE["no_points"]),
+                "normal": QColor(*STATUS_COLORS_TIMELINE["normal"]),
                 "keyframe": QColor(*STATUS_COLORS_TIMELINE["keyframe"]),
                 "interpolated": QColor(*STATUS_COLORS_TIMELINE["interpolated"]),
                 "tracked": QColor(*STATUS_COLORS_TIMELINE["tracked"]),
@@ -63,6 +159,7 @@ class FrameTab(QWidget):
     interpolated_count: int
     tracked_count: int
     endframe_count: int
+    normal_count: int
     is_startframe: bool
     is_inactive: bool
     has_selected_points: bool
@@ -102,6 +199,7 @@ class FrameTab(QWidget):
         self.interpolated_count = 0
         self.tracked_count = 0
         self.endframe_count = 0
+        self.normal_count = 0
         self.is_startframe = False
         self.is_inactive = False
         self.has_selected_points = False
@@ -137,6 +235,7 @@ class FrameTab(QWidget):
         interpolated_count: int = 0,
         tracked_count: int = 0,
         endframe_count: int = 0,
+        normal_count: int = 0,
         is_startframe: bool = False,
         is_inactive: bool = False,
         has_selected: bool = False,
@@ -148,6 +247,7 @@ class FrameTab(QWidget):
             interpolated_count: Number of interpolated points
             tracked_count: Number of tracked points
             endframe_count: Number of endframe points
+            normal_count: Number of normal points
             is_startframe: Whether this frame contains a startframe
             is_inactive: Whether this frame is in an inactive segment
             has_selected: Whether this frame has selected points
@@ -156,9 +256,10 @@ class FrameTab(QWidget):
         self.interpolated_count = interpolated_count
         self.tracked_count = tracked_count
         self.endframe_count = endframe_count
+        self.normal_count = normal_count
         self.is_startframe = is_startframe
         self.is_inactive = is_inactive
-        self.point_count = keyframe_count + interpolated_count + tracked_count + endframe_count
+        self.point_count = keyframe_count + interpolated_count + tracked_count + endframe_count + normal_count
         self.has_selected_points = has_selected
 
         self._update_tooltip()
@@ -177,10 +278,10 @@ class FrameTab(QWidget):
     def _update_tooltip(self) -> None:
         """Update tooltip text based on current status."""
         # Always show frame number in tooltip since it's not displayed on tab
-        if self.is_inactive:
-            tooltip = f"Frame {self.frame_number}: Inactive segment"
-        elif self.point_count == 0:
+        if self.point_count == 0:
             tooltip = f"Frame {self.frame_number}: No tracked points"
+            if self.is_inactive:
+                tooltip += " (inactive segment)"
         else:
             parts: list[str] = []
             if self.is_startframe:
@@ -193,6 +294,8 @@ class FrameTab(QWidget):
                 parts.append(f"{self.interpolated_count} interpolated")
             if self.endframe_count > 0:
                 parts.append(f"{self.endframe_count} ENDFRAME")
+            if self.normal_count > 0:
+                parts.append(f"{self.normal_count} normal")
 
             status = ", ".join(parts)
             # Add "points" at the end for consistency with tests
@@ -200,38 +303,29 @@ class FrameTab(QWidget):
 
             if self.has_selected_points:
                 tooltip += " (selected)"
+            if self.is_inactive:
+                tooltip += " (inactive segment)"
 
         self.setToolTip(tooltip)
 
     def _get_background_color(self) -> QColor:
-        """Get background color based on current status."""
-        # Priority order: selected > endframe > inactive > specific states > mixed
-        if self.has_selected_points:
-            return self.COLORS["selected"]
+        """Get background color based on current status.
 
-        # Endframes should always be red, even in inactive segments
-        if self.endframe_count > 0:
-            return self.COLORS["endframe"]
-
-        if self.is_inactive:
-            return self.COLORS["inactive"]
-
-        # Determine color based on point status
-        if self.point_count == 0:
-            return self.COLORS["no_points"]
-
-        # Specific state priorities
-        elif self.is_startframe:
-            return self.COLORS["startframe"]
-        elif self.tracked_count > 0 and self.keyframe_count == 0 and self.interpolated_count == 0:
-            return self.COLORS["tracked"]
-        elif self.keyframe_count > 0 and self.interpolated_count == 0 and self.tracked_count == 0:
-            return self.COLORS["keyframe"]
-        elif self.interpolated_count > 0 and self.keyframe_count == 0 and self.tracked_count == 0:
-            return self.COLORS["interpolated"]
-        else:
-            # Mixed states
-            return self.COLORS["mixed"]
+        Delegates to StatusColorResolver for centralized, consistent color logic.
+        See StatusColorResolver class documentation for architectural principles.
+        """
+        return StatusColorResolver.get_background_color(
+            self.COLORS,
+            point_count=self.point_count,
+            keyframe_count=self.keyframe_count,
+            interpolated_count=self.interpolated_count,
+            tracked_count=self.tracked_count,
+            endframe_count=self.endframe_count,
+            normal_count=self.normal_count,
+            is_startframe=self.is_startframe,
+            has_selected_points=self.has_selected_points,
+            is_inactive=self.is_inactive,
+        )
 
     def _get_text_color(self) -> QColor:
         """Get text color - always white in 3DE style."""

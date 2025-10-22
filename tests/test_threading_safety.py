@@ -110,7 +110,11 @@ class TestServiceThreadSafety:
             t.start()
 
         for t in threads:
-            t.join()
+            t.join(timeout=5.0)
+            if t.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {t.name} did not stop within timeout")
 
         assert not errors, f"Errors detected: {errors[:5]}"  # Show first 5 errors
 
@@ -393,7 +397,11 @@ class TestStressTests:
             t.start()
 
         for t in threads:
-            t.join()
+            t.join(timeout=5.0)
+            if t.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {t.name} did not stop within timeout")
 
         # All seen values should be within valid range
         for value in seen_values:
@@ -539,7 +547,11 @@ class TestQtThreadingSafety:
         with patch("PySide6.QtGui.QPixmap", side_effect=check_thread_safety):
             worker_thread = threading.Thread(target=worker_thread_function)
             worker_thread.start()
-            worker_thread.join()
+            worker_thread.join(timeout=5.0)
+            if worker_thread.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {worker_thread.name} did not stop within timeout")
 
         # Verify violation was detected
         assert len(thread_violations) == 1, f"Expected 1 violation, got: {thread_violations}"

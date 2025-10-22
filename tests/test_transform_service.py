@@ -146,7 +146,7 @@ class TestViewState:
         from dataclasses import FrozenInstanceError
 
         with pytest.raises(FrozenInstanceError, match="cannot assign to field"):
-            basic_view_state.zoom_factor = 2.0  # pyright: ignore[reportAttributeAccessIssue]
+            basic_view_state.zoom_factor = 2.0
 
     def test_view_state_with_updates(self, basic_view_state: ViewState) -> None:
         """Test creating a new ViewState with updated values."""
@@ -205,7 +205,7 @@ class TestViewState:
             background_image=None,
         )
 
-        view_state = ViewState.from_curve_view(curve_view)  # pyright: ignore[reportArgumentType]
+        view_state = ViewState.from_curve_view(curve_view)
 
         assert view_state.widget_width == 800
         assert view_state.widget_height == 600
@@ -233,7 +233,7 @@ class TestViewState:
             qtbot, width=800, height=600, image_width=1920, image_height=1080, background_image=background_image
         )
 
-        view_state = ViewState.from_curve_view(curve_view)  # pyright: ignore[reportArgumentType]
+        view_state = ViewState.from_curve_view(curve_view)
 
         # Display dimensions should match background image
         assert view_state.display_width == 2560
@@ -816,7 +816,7 @@ class TestTransformServiceIntegration:
         )
 
         # Create ViewState from real CurveView
-        view_state = service.create_view_state(curve_view)  # pyright: ignore[reportArgumentType]
+        view_state = service.create_view_state(curve_view)
         assert view_state.widget_width == 1200
         assert view_state.zoom_factor == 1.5
 
@@ -859,7 +859,7 @@ class TestTransformServiceIntegration:
         )
 
         # Create transform and test with real components
-        view_state = service.create_view_state(curve_view)  # pyright: ignore[reportArgumentType]
+        view_state = service.create_view_state(curve_view)
         transform = service.create_transform_from_view_state(view_state)
 
         # Display dimensions should match background image
@@ -957,7 +957,11 @@ class TestTransformServiceIntegration:
 
         # Wait for all threads
         for thread in threads:
-            thread.join()
+            thread.join(timeout=5.0)
+            if thread.is_alive():
+                import warnings
+
+                warnings.warn(f"Thread {thread.name} did not stop within timeout")
 
         # Check results
         assert len(errors) == 0, f"Errors occurred: {errors}"

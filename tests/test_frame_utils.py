@@ -105,12 +105,12 @@ class TestGetFrameRangeFromCurve:
     def test_invalid_points_filtered(self):
         """Points with insufficient data should be filtered out."""
         data = [(1, 10.0), (5, 15.0, 25.0), (10, 20.0, 30.0)]  # First point missing y
-        assert get_frame_range_from_curve(data) == (5, 10)  # pyright: ignore[reportArgumentType]
+        assert get_frame_range_from_curve(data) == (5, 10)
 
     def test_all_invalid_points(self):
         """All invalid points should return None."""
         data = [(1,), (5,)]  # No x, y data
-        assert get_frame_range_from_curve(data) is None  # pyright: ignore[reportArgumentType]
+        assert get_frame_range_from_curve(data) is None
 
 
 class TestGetFrameRangeWithLimits:

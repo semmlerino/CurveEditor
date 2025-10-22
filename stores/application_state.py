@@ -185,7 +185,7 @@ class ApplicationState(QObject):
             curve_name = self._active_curve
             if curve_name is None:
                 raise ValueError(
-                    "No active curve set. Call set_active_curve() first or " "provide explicit curve_name parameter."
+                    "No active curve set. Call set_active_curve() first or provide explicit curve_name parameter."
                 )
         if curve_name not in self._curves_data:
             return []
@@ -834,9 +834,7 @@ class ApplicationState(QObject):
             all_curves = set(self._curves_data.keys())
             invalid = new_selection - all_curves
             if invalid:
-                logger.warning(
-                    f"Filtering invalid curves from selection: {invalid}. " f"Available curves: {all_curves}"
-                )
+                logger.warning(f"Filtering invalid curves from selection: {invalid}. Available curves: {all_curves}")
                 # Filter to only valid curves to prevent persistent invalid references
                 new_selection = new_selection & all_curves
 

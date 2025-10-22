@@ -21,7 +21,7 @@ def main():
 
     # Load logging configuration - simplified for startup
     # config = logging_config.load_config()  # Disabled - config module not available
-    config: dict[str, str | dict[str, str]] = {"global": "INFO", "services": {}}  # Simple fallback config
+    config: dict[str, str | dict[str, str]] = {"global": "DEBUG", "services": {}}  # DEBUG mode for zoom investigation
 
     # Get logging level from environment or config
     import os

@@ -353,7 +353,7 @@ class PerformanceMonitor:
         if not self.measurements:
             return "No measurements"
 
-        total = sum(m["time"] for m in self.measurements)
+        total = sum(float(m["time"]) for m in self.measurements)
         avg = total / len(self.measurements)
 
         return f"Total: {total:.3f}s, Average: {avg:.3f}s, Count: {len(self.measurements)}"

@@ -17,14 +17,14 @@ from PySide6.QtGui import QColor, QPen
 class CurveColors:
     """Standard colors for curve rendering.
 
-    Note: INACTIVE_GRAY is unique to this module and has no equivalent in
+    Note: INACTIVE_CYAN is unique to this module and has no equivalent in
     color_manager.py. WHITE corresponds to STATUS_COLORS["normal"] in
     color_manager.py.
     """
 
     # Base colors
     WHITE: QColor = QColor(255, 255, 255)
-    INACTIVE_GRAY: QColor = QColor(128, 128, 128, 128)  # Semi-transparent
+    INACTIVE_CYAN: QColor = QColor(0, 255, 255)  # Bright cyan for visibility on dark background
 
     @staticmethod
     def get_inactive_pen(width: int = 1) -> QPen:
@@ -34,9 +34,9 @@ class CurveColors:
             width: Pen width in pixels
 
         Returns:
-            QPen with inactive styling (gray, dashed)
+            QPen with inactive styling (bright cyan, dashed)
         """
-        pen = QPen(CurveColors.INACTIVE_GRAY)
+        pen = QPen(CurveColors.INACTIVE_CYAN)
         pen.setWidth(width)
         pen.setStyle(Qt.PenStyle.DashLine)
         return pen

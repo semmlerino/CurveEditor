@@ -123,8 +123,8 @@ class TestPointStatus:
     def test_from_legacy_invalid_type(self) -> None:
         """Test conversion from invalid types falls back to NORMAL."""
         assert PointStatus.from_legacy(123) == PointStatus.NORMAL
-        assert PointStatus.from_legacy([]) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
-        assert PointStatus.from_legacy({}) == PointStatus.NORMAL  # pyright: ignore[reportArgumentType]
+        assert PointStatus.from_legacy([]) == PointStatus.NORMAL
+        assert PointStatus.from_legacy({}) == PointStatus.NORMAL
 
     def test_to_legacy_string(self) -> None:
         """Test conversion to legacy string format."""
@@ -180,13 +180,13 @@ class TestCurvePoint:
         point = CurvePoint(100, 1920.0, 1080.0)
 
         with pytest.raises(AttributeError):
-            point.frame = 101  # pyright: ignore[reportAttributeAccessIssue]
+            point.frame = 101
 
         with pytest.raises(AttributeError):
-            point.x = 1921.0  # pyright: ignore[reportAttributeAccessIssue]
+            point.x = 1921.0
 
         with pytest.raises(AttributeError):
-            point.status = PointStatus.INTERPOLATED  # pyright: ignore[reportAttributeAccessIssue]
+            point.status = PointStatus.INTERPOLATED
 
     # === Property Tests ===
 
@@ -341,14 +341,14 @@ class TestCurvePoint:
     def test_from_tuple_invalid_length(self) -> None:
         """Test creation from invalid tuple length raises error."""
         with pytest.raises(ValueError, match="must have 3 or 4 elements"):
-            CurvePoint.from_tuple((100, 1920.0))  # pyright: ignore[reportArgumentType]
+            CurvePoint.from_tuple((100, 1920.0))
 
         with pytest.raises(ValueError, match="must have 3 or 4 elements"):
             CurvePoint.from_tuple((100,))
 
     def test_from_tuple_extra_elements_ignored(self) -> None:
         """Test creation from tuple with extra elements ignores them."""
-        point = CurvePoint.from_tuple((100, 1920.0, 1080.0, "keyframe", "extra", "data"))  # pyright: ignore[reportArgumentType]
+        point = CurvePoint.from_tuple((100, 1920.0, 1080.0, "keyframe", "extra", "data"))
         assert point.frame == 100
         assert point.x == 1920.0
         assert point.y == 1080.0
@@ -815,7 +815,7 @@ class TestUtilityFunctions:
     def test_normalize_legacy_point_invalid(self) -> None:
         """Test normalizing invalid point raises error."""
         with pytest.raises(ValueError, match="Invalid point format"):
-            normalize_legacy_point((100, 1920.0))  # pyright: ignore[reportArgumentType]
+            normalize_legacy_point((100, 1920.0))
 
     def test_convert_to_curve_point(self):
         """Test converting tuples to CurvePoint."""
@@ -927,7 +927,7 @@ class TestImageSequenceInfo:
     def test_post_init_validation(self):
         """Test __post_init__ ensures filenames is list."""
         # Test with non-list filenames
-        info = ImageSequenceInfo(filenames="not_a_list")  # pyright: ignore[reportArgumentType]
+        info = ImageSequenceInfo(filenames="not_a_list")
         assert info.filenames == []
         assert info.total_count == 0
 

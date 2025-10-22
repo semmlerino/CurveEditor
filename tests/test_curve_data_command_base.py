@@ -128,7 +128,7 @@ class TestUpdatePointPosition:
         invalid_point = (42, 100.0)
         new_pos = (150.0, 250.0)
 
-        result = cmd._update_point_position(invalid_point, new_pos)  # pyright: ignore[reportArgumentType]
+        result = cmd._update_point_position(invalid_point, new_pos)
 
         assert result == invalid_point  # Unchanged
 

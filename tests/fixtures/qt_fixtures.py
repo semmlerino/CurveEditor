@@ -164,7 +164,7 @@ def curve_view_widget(qapp: QApplication, qtbot):
     # so that commands execute on the real widget, not the mock
     mock_main_window.curve_widget = widget
     # Mock is protocol-compatible at runtime (has properties that match protocol requirements)
-    widget.set_main_window(mock_main_window)  # pyright: ignore[reportArgumentType]
+    widget.set_main_window(mock_main_window)
 
     # Store original set_curve_data method and wrap it to sync with data service
     original_set_curve_data = widget.set_curve_data

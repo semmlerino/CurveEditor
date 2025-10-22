@@ -316,8 +316,8 @@ class TestFillGapWithSource:
         assert frame_3_point[1] == pytest.approx(101.0)  # 51 + 50
         assert frame_3_point[2] == pytest.approx(201.0)  # 101 + 100
 
-    def test_gap_boundaries_marked_as_keyframes(self):
-        """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
+    def test_gap_boundaries_preserve_original_status(self):
+        """Test that overlap frames (outside gap) preserve their original status."""
         target = cast(CurveDataList, [(1, 100.0, 200.0), (10, 110.0, 210.0)])
         source = cast(CurveDataList, [(3, 51.0, 101.0), (4, 52.0, 102.0)])
 
@@ -333,15 +333,19 @@ class TestFillGapWithSource:
         frame_10_point = [p for p in result if p[0] == 10][0]
         frame_3_point = [p for p in result if p[0] == 3][0]
 
-        # Overlap frames (1, 10) should be marked as keyframes (original data)
+        # Overlap frames (1, 10) should preserve original status (normal, since input was 3-tuples)
         assert len(frame_1_point) >= 4
-        assert cast(PointTuple4Str, frame_1_point)[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
+        assert (
+            cast(PointTuple4Str, frame_1_point)[3] == "normal"
+        ), "Frame 1 (before gap) should preserve original status"
         assert len(frame_10_point) >= 4
-        assert cast(PointTuple4Str, frame_10_point)[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+        assert (
+            cast(PointTuple4Str, frame_10_point)[3] == "normal"
+        ), "Frame 10 (after gap) should preserve original status"
 
-        # Filled frames (3) should be marked as tracked, NOT keyframe
+        # Filled frames (3) should be marked as tracked
         assert len(frame_3_point) >= 4
-        assert cast(PointTuple4Str, frame_3_point)[3] == "tracked", "Frame 3 (filled) should be tracked, not keyframe"
+        assert cast(PointTuple4Str, frame_3_point)[3] == "tracked", "Frame 3 (filled) should be tracked"
 
     def test_partial_gap_coverage(self):
         """Test filling gap when source doesn't cover all gap frames."""
@@ -442,23 +446,27 @@ class TestInterpolateGap:
         assert frame_5_point[1] == pytest.approx(140.0)
         assert frame_5_point[2] == pytest.approx(240.0)
 
-    def test_interpolation_boundaries_keyframes(self):
-        """Test that overlap frames (outside gap) are marked as keyframes per 3DE spec."""
+    def test_interpolation_boundaries_preserve_original_status(self):
+        """Test that overlap frames (outside gap) preserve their original status."""
         curve = cast(CurveDataList, [(1, 100.0, 200.0), (10, 190.0, 290.0)])
 
         gap_start, gap_end = 2, 9
 
         result = interpolate_gap(curve, gap_start, gap_end)
 
-        # Overlap frames (before and after gap) should be marked as keyframes
+        # Overlap frames (before and after gap) should preserve original status (normal)
         frame_1_point = [p for p in result if p[0] == 1][0]
         frame_10_point = [p for p in result if p[0] == 10][0]
-        # Interpolated frames should NOT be keyframes
+        # Interpolated frames should be marked as interpolated
         frame_2_point = [p for p in result if p[0] == 2][0]
         frame_9_point = [p for p in result if p[0] == 9][0]
 
-        assert cast(PointTuple4Str, frame_1_point)[3] == "keyframe", "Frame 1 (before gap) should be keyframe"
-        assert cast(PointTuple4Str, frame_10_point)[3] == "keyframe", "Frame 10 (after gap) should be keyframe"
+        assert (
+            cast(PointTuple4Str, frame_1_point)[3] == "normal"
+        ), "Frame 1 (before gap) should preserve original status"
+        assert (
+            cast(PointTuple4Str, frame_10_point)[3] == "normal"
+        ), "Frame 10 (after gap) should preserve original status"
         assert cast(PointTuple4Str, frame_2_point)[3] == "interpolated", "Frame 2 (in gap) should be interpolated"
         assert cast(PointTuple4Str, frame_9_point)[3] == "interpolated", "Frame 9 (in gap) should be interpolated"
 

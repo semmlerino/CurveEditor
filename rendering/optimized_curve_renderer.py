@@ -250,6 +250,33 @@ class OptimizedCurveRenderer:
         self._fps_target = target_fps
         logger.info(f"Auto quality enabled with {target_fps} FPS target")
 
+    def _calculate_scaled_point_radius(self, base_radius: int | float, zoom_factor: float) -> float:
+        """Calculate point radius scaled by zoom factor with constraints.
+
+        Points should scale with zoom to maintain visual consistency - larger when
+        zoomed in, smaller when zoomed out. This prevents points from being
+        disproportionately large when viewing the full image.
+
+        Args:
+            base_radius: Base point radius in pixels at 1x zoom
+            zoom_factor: Current zoom level
+
+        Returns:
+            Scaled radius constrained to reasonable bounds
+        """
+        # Scale radius linearly with zoom for more noticeable effect
+        # At zoom=1.0, points are at base size
+        # At zoom=0.1, points are 10% of base size
+        scaled = base_radius * zoom_factor
+
+        # Constrain to prevent points from being too small or too large
+        min_radius = 1.0  # Minimum 1 pixel - visible but not obtrusive when zoomed out
+        max_radius = 12.0  # Maximum 12 pixels to avoid excessive overlap when zoomed in
+
+        result = max(min_radius, min(max_radius, scaled))
+
+        return result
+
     def _create_transform_from_render_state(self, render_state: "RenderState") -> "Transform":
         """
         Create a Transform object from RenderState properties.
@@ -710,6 +737,15 @@ class OptimizedCurveRenderer:
         # Check ALL points to ensure we detect endframes anywhere in curve
         has_status = any(len(pt) > 3 for pt in curve_data if pt)
 
+        # Debug logging
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(
+            f"[RENDER-PATH] has_status={has_status}, points={len(curve_data)}, "
+            f"first_point_len={len(curve_data[0]) if curve_data else 0}"
+        )
+
         if has_status:
             # Render with segment awareness (gaps at ENDFRAME points)
             self._render_lines_segmented_aware(
@@ -731,9 +767,28 @@ class OptimizedCurveRenderer:
         line_width: int,
     ) -> None:
         """Render lines with segment awareness for gaps at ENDFRAME points."""
-        # Create segmented curve from data
-        points = [CurvePoint.from_tuple(pt) for pt in curve_data]
-        segmented_curve = SegmentedCurve.from_points(points)
+        # Try to get SegmentedCurve from DataService (single source of truth)
+        # This ensures we use the same segmentation as timeline/data operations
+        from services import get_data_service
+
+        data_service = get_data_service()
+
+        segmented_curve = data_service.segmented_curve
+        if segmented_curve is None:
+            # Fallback: create from curve data if DataService doesn't have one
+            points = [CurvePoint.from_tuple(pt) for pt in curve_data]
+            segmented_curve = SegmentedCurve.from_points(points)
+
+        # Debug logging
+        import logging
+
+        logger = logging.getLogger(__name__)
+        logger.info(f"[SEGMENT-RENDER] Rendering {len(segmented_curve.segments)} segments:")
+        for i, seg in enumerate(segmented_curve.segments):
+            logger.info(
+                f"  Segment {i+1}: frames {seg.start_frame}-{seg.end_frame}, "
+                f"active={seg.is_active}, points={seg.point_count}"
+            )
 
         # Set line styles for different segment types
         active_pen = CurveColors.get_active_pen(color=curve_color, width=line_width)
@@ -811,7 +866,10 @@ class OptimizedCurveRenderer:
         if len(screen_points) == 0:
             return
 
-        point_radius = base_point_radius if base_point_radius is not None else render_state.point_radius
+        # Get base radius (unscaled)
+        base_radius = base_point_radius if base_point_radius is not None else render_state.point_radius
+        # Scale radius based on zoom for visual consistency
+        point_radius = self._calculate_scaled_point_radius(base_radius, render_state.zoom_factor)
         selected_points = render_state.selected_points
 
         # Get current frame directly from render_state
@@ -874,12 +932,11 @@ class OptimizedCurveRenderer:
                             elif status_value == PointStatus.ENDFRAME.value:
                                 status = "endframe"
 
-            # Skip points in inactive segments (except endframes which mark segment boundaries)
-            if segmented_curve and frame >= 0 and status != "endframe":
+            # Skip rendering points in inactive segments (show only dashed line)
+            if segmented_curve and frame != -1:
                 segment = segmented_curve.get_segment_at_frame(frame)
                 if segment and not segment.is_active:
-                    # Skip this point - it's in an inactive segment
-                    continue
+                    continue  # Don't render points in inactive gap segments
 
             if is_current_frame:
                 current_frame_points.append(screen_pos)
@@ -1134,6 +1191,7 @@ class OptimizedCurveRenderer:
                 )
 
             # Render points using unified status-aware rendering
+            # Use established conventions: 7 for active (like selected), 5 for inactive (normal)
             point_radius = 7 if is_active else 5  # Larger points for active curve
 
             # Use the unified point rendering that handles status, selection, and current frame

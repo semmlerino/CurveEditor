@@ -259,10 +259,10 @@ def tuple_status_to_string(status_value: str | bool | None) -> str:
 
 # Primary status colors for curve view points
 STATUS_COLORS = {
-    "normal": "#ffffff",  # White - default state
-    "keyframe": "#00ff66",  # Bright green - user-defined keyframes
+    "normal": "#5599ff",  # Blue - default state
+    "keyframe": "#ff4444",  # Red - user-defined keyframes
     "tracked": "#00bfff",  # Bright cyan - auto-tracked points
-    "interpolated": "#ff9500",  # Orange - calculated between keyframes
+    "interpolated": "#99ccff",  # Light blue - calculated between keyframes
     "endframe": "#ff4444",  # Red - marks segment end
 }
 
@@ -270,6 +270,7 @@ STATUS_COLORS = {
 # Dynamically generated from STATUS_COLORS for consistency
 STATUS_COLORS_TIMELINE = {
     "no_points": (52, 58, 64),  # Dark gray - no points at frame
+    "normal": darken_color(STATUS_COLORS["normal"], 0.6),  # Darkened white (light gray)
     "keyframe": darken_color(STATUS_COLORS["keyframe"], 0.6),  # Darkened green
     "tracked": darken_color(STATUS_COLORS["tracked"], 0.6),  # Darkened cyan
     "interpolated": darken_color(STATUS_COLORS["interpolated"], 0.6),  # Darkened orange
