@@ -16,22 +16,12 @@
 
 
 def test_qtbot_spy_availability(qtbot):
-    """Check if qtbot has spy method."""
+    """Check if qtbot has required signal testing methods.
 
-    # Check available qtbot methods
-    print("qtbot methods:")
-    for method in dir(qtbot):
-        if not method.startswith("_"):
-            print(f"  - {method}")
+    Verifies that qtbot provides the necessary methods for testing Qt signals.
+    """
+    # Assert that waitSignal is available (required for signal testing)
+    assert hasattr(qtbot, "waitSignal"), "qtbot.waitSignal is required for signal testing"
 
-    # Check if spy exists
-    if hasattr(qtbot, "spy"):
-        print("\n✅ qtbot.spy is available!")
-    else:
-        print("\n❌ qtbot.spy is NOT available")
-
-        # Check for alternative methods
-        if hasattr(qtbot, "SignalBlocker"):
-            print("  But qtbot.SignalBlocker is available")
-        if hasattr(qtbot, "waitSignal"):
-            print("  And qtbot.waitSignal is available for signal testing")
+    # Assert that waitSignals is available (bulk signal testing)
+    assert hasattr(qtbot, "waitSignals"), "qtbot.waitSignals is required for bulk signal testing"

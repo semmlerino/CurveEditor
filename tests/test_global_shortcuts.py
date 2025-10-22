@@ -88,7 +88,7 @@ class TestGlobalShortcuts:
         """
         window = main_window_with_shortcuts
 
-        if not window.curve_widget:
+        if window.curve_widget is None:
             pytest.skip("Curve widget not available")
 
         # Set current frame to frame 1 (index 0 in curve data)
