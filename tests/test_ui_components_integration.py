@@ -6,6 +6,19 @@ These tests validate the architectural integration methodology documented
 in CLAUDE.md and ensure proper widget mapping and validation.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from PySide6.QtWidgets import QApplication, QDoubleSpinBox, QLabel, QSlider, QSpinBox
 from pytestqt.qtbot import QtBot
 

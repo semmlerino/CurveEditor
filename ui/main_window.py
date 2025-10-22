@@ -136,6 +136,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     status_bar: QStatusBar | None = None
     zoom_label: QLabel | None = None
     position_label: QLabel | None = None
+    type_label: QLabel | None = None
     tracking_panel_dock: QDockWidget | None = None
     tracking_panel: TrackingPointsPanel | None = None
 
@@ -810,7 +811,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         if (cd := app_state.active_curve_data) is None:
             return 0, None
 
-        curve_name, curve_data = cd
+        _, curve_data = cd
 
         if not curve_data:
             return 0, None
@@ -842,11 +843,58 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._safe_set_label(self.point_count_label, f"Points: {point_count}")
         self._safe_set_label(self.bounds_label, self._format_bounds_text(bounds))
 
+    def _update_point_status_label(self) -> None:
+        """Update point status label with current frame's point status."""
+        from stores.application_state import get_application_state
+
+        app_state = get_application_state()
+
+        # Get active curve
+        active_curve = app_state.active_curve
+        if not active_curve:
+            self._safe_set_label(self.type_label, "Status: --")
+            return
+
+        # Get current frame
+        current_frame = app_state.current_frame
+
+        # Get point at current frame
+        curve_data = app_state.get_curve_data(active_curve)
+        if not curve_data:
+            self._safe_set_label(self.type_label, "Status: --")
+            return
+
+        # Check if frame is in an inactive segment (gap)
+        from core.curve_segments import SegmentedCurve
+
+        segmented_curve = SegmentedCurve.from_curve_data(curve_data)
+        segment = segmented_curve.get_segment_at_frame(current_frame)
+
+        # If segment exists and is inactive, show "Inactive" regardless of point status
+        if segment is not None and not segment.is_active:
+            self._safe_set_label(self.type_label, "Status: Inactive")
+            return
+
+        # Find point at current frame
+        from core.models import CurvePoint
+
+        points = [CurvePoint.from_tuple(p) for p in curve_data]
+        current_point = next((p for p in points if p.frame == current_frame), None)
+
+        if current_point:
+            # Display the status
+            status_name = current_point.status.name
+            self._safe_set_label(self.type_label, f"Status: {status_name}")
+        else:
+            # No point at current frame (true gap with no segment)
+            self._safe_set_label(self.type_label, "Status: Inactive")
+
     def update_ui_state(self) -> None:
         """Update UI elements based on current state."""
         self._update_history_actions()
         self._update_frame_controls()
         self._update_point_info_labels()
+        self._update_point_status_label()
 
     def update_zoom_label(self) -> None:
         """Update zoom label (delegated to ActionHandlerController)."""

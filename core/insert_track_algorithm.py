@@ -25,7 +25,11 @@ logger = get_logger("insert_track_algorithm")
 
 
 def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tuple[int, int] | None:
-    """Find continuous gap (frames without tracking data) containing current_frame.
+    """Find gap containing current_frame (missing frames OR status-based).
+
+    Detects two types of gaps:
+    1. Missing-frame gaps: Continuous sequence of frames with no data
+    2. Status-based gaps: Frames between endframe markers (3DEqualizer style)
 
     Args:
         curve_data: Trajectory data to search
@@ -34,9 +38,14 @@ def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tupl
     Returns:
         Tuple of (gap_start, gap_end) frame numbers, or None if no gap at current_frame
 
-    Example:
+    Example (missing-frame gap):
         curve_data = [(1, 10, 10), (2, 11, 11), (10, 20, 20), (11, 21, 21)]
         find_gap_around_frame(curve_data, 5) -> (3, 9)  # Gap from frame 3 to 9
+
+    Example (status-based gap):
+        curve_data = [(1, 10, 10, "keyframe"), (5, 20, 20, "endframe"),
+                      (10, 30, 30, "tracked"), (15, 40, 40, "keyframe")]
+        find_gap_around_frame(curve_data, 10) -> (6, 14)  # Gap from ENDFRAME to KEYFRAME
     """
     # Convert to CurvePoint objects
     points = [CurvePoint.from_tuple(p) for p in curve_data]
@@ -44,44 +53,85 @@ def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tupl
     if not points:
         return None
 
-    # Check if current_frame has data (no gap)
-    frames_with_data = {p.frame for p in points}
-    if current_frame in frames_with_data:
-        return None  # Current frame has data, no gap
-
     # Sort points by frame
     points.sort(key=lambda p: p.frame)
+    frames_with_data = {p.frame for p in points}
 
-    # Find the gap boundaries
-    gap_start = None
-    gap_end = None
+    # TYPE 1: Missing-frame gap detection
+    if current_frame not in frames_with_data:
+        # Find the gap boundaries
+        gap_start = None
+        gap_end = None
 
-    # Find last frame with data before current_frame
-    for point in reversed(points):
-        if point.frame < current_frame:
-            gap_start = point.frame + 1
-            break
+        # Find last frame with data before current_frame
+        for point in reversed(points):
+            if point.frame < current_frame:
+                gap_start = point.frame + 1
+                break
 
-    # Find first frame with data after current_frame
-    for point in points:
-        if point.frame > current_frame:
-            gap_end = point.frame - 1
-            break
+        # Find first frame with data after current_frame
+        for point in points:
+            if point.frame > current_frame:
+                gap_end = point.frame - 1
+                break
 
-    # Handle edge cases
-    if gap_start is None:
-        # No data before current_frame - gap starts from first possible frame
-        gap_start = 1 if points else current_frame
+        # Handle edge cases
+        if gap_start is None:
+            # No data before current_frame - gap starts from first possible frame
+            gap_start = 1 if points else current_frame
 
-    if gap_end is None:
-        # No data after current_frame - gap extends to infinity (or practical limit)
-        # Return None as we can't fill an open-ended gap
+        if gap_end is None:
+            # No data after current_frame - gap extends to infinity (or practical limit)
+            # Return None as we can't fill an open-ended gap
+            return None
+
+        # Verify current_frame is actually in the gap
+        if gap_start <= current_frame <= gap_end:
+            return (gap_start, gap_end)
+
         return None
 
-    # Verify current_frame is actually in the gap
-    if gap_start <= current_frame <= gap_end:
-        return (gap_start, gap_end)
+    # TYPE 2: Status-based gap detection (3DEqualizer endframe markers)
+    # Gap = frames after ENDFRAME until next KEYFRAME (STARTFRAME)
+    # Find the most recent ENDFRAME before or at current_frame
+    prev_endframe = None
+    for p in reversed(points):
+        if p.frame < current_frame and p.status == PointStatus.ENDFRAME:
+            prev_endframe = p
+            break
 
+    if prev_endframe:
+        # Find the next KEYFRAME after the ENDFRAME (this is the STARTFRAME)
+        next_keyframe = None
+        for p in points:
+            if p.frame > prev_endframe.frame and p.status == PointStatus.KEYFRAME:
+                next_keyframe = p
+                break
+
+        if next_keyframe:
+            # Gap is from frame after ENDFRAME to frame before KEYFRAME
+            gap_start = prev_endframe.frame + 1
+            gap_end = next_keyframe.frame - 1
+
+            # Check if current_frame is in this gap
+            if gap_start <= current_frame <= gap_end:
+                logger.debug(
+                    f"Status-based gap detected: frames {gap_start}-{gap_end} "
+                    + f"(between ENDFRAME at {prev_endframe.frame} and KEYFRAME at {next_keyframe.frame})"
+                )
+                return (gap_start, gap_end)
+        else:
+            # ENDFRAME exists but no KEYFRAME after it - open-ended gap
+            # Check if current frame is after the ENDFRAME
+            if current_frame > prev_endframe.frame:
+                # Can't fill open-ended gap
+                logger.debug(
+                    f"Open-ended gap detected after ENDFRAME at {prev_endframe.frame} "
+                    + "(no KEYFRAME found to close gap)"
+                )
+                return None
+
+    # No gap detected
     return None
 
 
@@ -317,7 +367,7 @@ def average_multiple_sources(
 
     logger.info(
         f"Averaged {len(averaged_points)} points from {len(source_data_list)} sources "
-        f"(only frames where ALL sources have data)"
+        + "(only frames where ALL sources have data)"
     )
 
     return averaged_points

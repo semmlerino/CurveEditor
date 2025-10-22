@@ -13,6 +13,19 @@ Following Qt testing best practices:
 - Mock only external dependencies
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from unittest.mock import Mock, patch
 
 import pytest
@@ -68,6 +81,7 @@ class TestTimelineControls:
                 window.total_frames_label.setText("37")
             # Phase 4 TODO: Remove StateManager total_frames setter (deprecated pattern)
             from stores.application_state import get_application_state
+
             get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 38)])
 
             qtbot.addWidget(window)

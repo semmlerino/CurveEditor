@@ -253,15 +253,11 @@ class ProgressManager(QObject):
     operation_started = Signal(str)  # operation_name
     operation_finished = Signal(str, bool)  # operation_name, success
 
-    # Attributes - will be initialized in __init__
-    active_operations: dict[str, ProgressWorker]
-    status_bar_widget: StatusBarProgress | None
-    _busy_cursor_count: int
-
     def __init__(self, parent: QObject | None = None):
         """Initialize the progress manager."""
         super().__init__(parent)
 
+        # Instance attributes
         self.active_operations: dict[str, ProgressWorker] = {}
         self.status_bar_widget: StatusBarProgress | None = None
         self._busy_cursor_count = 0

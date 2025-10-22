@@ -9,6 +9,19 @@ Following UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md best practices:
 - Mock only external dependencies
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
@@ -303,7 +316,10 @@ class TestTimelineTabWidget:
         # Create and connect StateManager for Single Source of Truth architecture
         state_manager = StateManager()
         from stores.application_state import get_application_state
-        get_application_state().set_image_files([f"frame_{i:04d}.png" for i in range(1, 201)])  # Set reasonable total frames for tests
+
+        get_application_state().set_image_files(
+            [f"frame_{i:04d}.png" for i in range(1, 201)]
+        )  # Set reasonable total frames for tests
         widget.set_state_manager(state_manager)
 
         return widget

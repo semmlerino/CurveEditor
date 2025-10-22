@@ -286,6 +286,4 @@ def update_keyframe_status_for_tracking_direction(
         return update_keyframe_status_for_bidirectional_tracking(
             curve_data, previous_direction or TrackingDirection.TRACKING_FW
         )
-    else:
-        logger.warning(f"Unknown tracking direction: {new_direction}")
-        return curve_data
+    # All TrackingDirection enum cases exhaustively handled above

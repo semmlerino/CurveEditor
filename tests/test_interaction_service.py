@@ -18,7 +18,20 @@ Following the testing guide principles:
 # pyright: reportAttributeAccessIssue=none
 # pyright: reportArgumentType=none
 
-from typing import TYPE_CHECKING, Any, cast
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
+from typing import TYPE_CHECKING, cast
 from unittest.mock import Mock
 
 import pytest
@@ -47,9 +60,8 @@ from tests.test_helpers import (
 class TestInteractionServiceCore:
     """Test core InteractionService functionality."""
 
-    # Class attributes - initialized in setup() fixture
-    service: "InteractionService"
-    transform_service: "TransformService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
+    transform_service: "TransformService" = cast("TransformService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -138,9 +150,8 @@ class TestInteractionServiceCore:
 class TestInteractionServiceSelection:
     """Test point selection functionality."""
 
-    # Class attributes - initialized in setup() fixture
-    service: "InteractionService"
-    transform_service: "TransformService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
+    transform_service: "TransformService" = cast("TransformService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -242,8 +253,7 @@ class TestInteractionServiceSelection:
 class TestInteractionServiceHistory:
     """Test history management (undo/redo) functionality."""
 
-    # Class attributes - initialized in setup() fixture
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -412,7 +422,7 @@ class TestInteractionServiceHistory:
 class TestInteractionServicePointManipulation:
     """Test point manipulation operations."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -464,8 +474,8 @@ class TestInteractionServicePointManipulation:
 class TestInteractionServiceSpatialIndex:
     """Test spatial indexing functionality."""
 
-    service: "InteractionService"
-    transform_service: Any
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
+    transform_service: "TransformService" = cast("TransformService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -577,7 +587,7 @@ class TestInteractionServiceSpatialIndex:
 class TestInteractionServiceMouseEvents:
     """Test mouse event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -639,7 +649,7 @@ class TestInteractionServiceMouseEvents:
 class TestInteractionServiceKeyboardEvents:
     """Test keyboard event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -693,7 +703,7 @@ class TestInteractionServiceKeyboardEvents:
 class TestKeyEventHandling:
     """Test comprehensive key event handling."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -797,7 +807,7 @@ class TestKeyEventHandling:
 class TestPointManipulation:
     """Test point manipulation methods."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -910,7 +920,7 @@ class TestPointManipulation:
 class TestMouseMoveEvents:
     """Test mouse move event handling for drag, pan, and rubber band operations."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -985,7 +995,7 @@ class TestMouseMoveEvents:
 class TestMouseReleaseEvents:
     """Test mouse release event handling for completing drag/pan/selection."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1079,7 +1089,7 @@ class TestMouseReleaseEvents:
 class TestWheelEvents:
     """Test mouse wheel event handling for zooming."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1136,7 +1146,7 @@ class TestWheelEvents:
 class TestStateManagement:
     """Test save_state and restore_state functionality."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1215,7 +1225,7 @@ class TestStateManagement:
 class TestHistoryWithMainWindow:
     """Test history management using MainWindow's history system."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1280,7 +1290,7 @@ class TestHistoryWithMainWindow:
 class TestHistoryEdgeCases:
     """Test edge cases in history management."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1369,7 +1379,7 @@ class TestHistoryEdgeCases:
 class TestCompatibilityMethods:
     """Test compatibility methods and legacy interfaces."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:
@@ -1477,7 +1487,7 @@ class TestCompatibilityMethods:
 class TestFindPointAtPositionEdgeCases:
     """Test edge cases for point finding functionality."""
 
-    service: "InteractionService"
+    service: "InteractionService" = cast("InteractionService", None)  # pyright: ignore[reportInvalidCast]
 
     @pytest.fixture(autouse=True)
     def setup(self, qapp) -> None:

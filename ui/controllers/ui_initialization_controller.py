@@ -489,6 +489,11 @@ class UIInitializationController:
         self.main_window.position_label = QLabel("X: 0.000, Y: 0.000")
         self.main_window.status_bar.addPermanentWidget(self.main_window.position_label)
 
+        # Point status label
+        self.main_window.type_label = QLabel("Status: --")
+        self.main_window.ui.point_edit.type_label = self.main_window.type_label
+        self.main_window.status_bar.addPermanentWidget(self.main_window.type_label)
+
     # Protocol compliance methods
     def _init_curve_view(self) -> None:
         """Initialize curve view widget (Protocol API)."""

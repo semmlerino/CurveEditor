@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
 
+from PySide6.QtCore import Qt
+
 from core.logger_utils import get_logger
 from stores import ConnectionVerifier
 
@@ -183,8 +185,24 @@ class SignalConnectionManager:
         """Connect to ApplicationState signals for automatic updates."""
         # Phase 6.3: CurveDataStore removed, using ApplicationState directly
         # ApplicationState signals now handle all state synchronization
+        from stores.application_state import get_application_state
 
-        logger.info("Store signal connections skipped (migrated to ApplicationState)")
+        app_state = get_application_state()
+
+        # Connect to curves_changed signal to update status label when curve data modified
+        # (e.g., E key toggle ENDFRAME, smooth operations, etc.)
+        _ = app_state.curves_changed.connect(
+            self.main_window._update_point_status_label,
+            Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]
+        )
+
+        # Connect to active_curve_changed to update status label when switching curves
+        _ = app_state.active_curve_changed.connect(
+            lambda _: self.main_window._update_point_status_label(),
+            Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]
+        )
+
+        logger.info("Connected ApplicationState signals for status label updates")
 
     def _connect_curve_widget_signals(self) -> None:
         """Connect signals from the curve widget."""

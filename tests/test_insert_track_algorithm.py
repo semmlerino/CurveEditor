@@ -6,6 +6,19 @@ Tests all core functions used in the Insert Track feature for gap detection,
 offset calculation, data merging, and averaging.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from typing import cast
 
 import pytest
@@ -83,6 +96,95 @@ class TestFindGapAroundFrame:
         assert result == (1, 4)
 
         # After the point (open-ended)
+        result = find_gap_around_frame(curve_data, 10)
+        assert result is None
+
+    def test_status_based_gap_between_endframe_and_keyframe(self):
+        """Test status-based gap detection (ENDFRAME to KEYFRAME)."""
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0, "keyframe"),
+                (5, 20.0, 20.0, "endframe"),
+                (10, 30.0, 30.0, "tracked"),  # In gap
+                (15, 40.0, 40.0, "tracked"),  # In gap
+                (20, 50.0, 50.0, "keyframe"),  # STARTFRAME - gap ends here
+                (25, 60.0, 60.0, "tracked"),
+            ],
+        )
+
+        # Frame 10 is in the gap (between ENDFRAME at 5 and KEYFRAME at 20)
+        result = find_gap_around_frame(curve_data, 10)
+        assert result is not None
+        assert result == (6, 19)  # Gap from frame after ENDFRAME to frame before KEYFRAME
+
+        # Frame 15 is also in the gap
+        result = find_gap_around_frame(curve_data, 15)
+        assert result is not None
+        assert result == (6, 19)
+
+    def test_status_based_gap_frame_with_data(self):
+        """Test that frames with data inside gap are still detected as gaps."""
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0, "keyframe"),
+                (5, 20.0, 20.0, "endframe"),
+                (8, 25.0, 25.0, "tracked"),  # Has data but is in gap
+                (12, 35.0, 35.0, "tracked"),  # Has data but is in gap
+                (15, 40.0, 40.0, "keyframe"),  # STARTFRAME
+            ],
+        )
+
+        # Frame 8 has data but is in the gap
+        result = find_gap_around_frame(curve_data, 8)
+        assert result is not None
+        assert result == (6, 14)
+
+    def test_status_based_gap_no_keyframe_after_endframe(self):
+        """Test open-ended gap when no KEYFRAME after ENDFRAME."""
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0, "keyframe"),
+                (5, 20.0, 20.0, "endframe"),
+                (10, 30.0, 30.0, "tracked"),  # After endframe but no keyframe follows
+                (15, 40.0, 40.0, "tracked"),
+            ],
+        )
+
+        # No KEYFRAME after ENDFRAME - open-ended gap, cannot fill
+        result = find_gap_around_frame(curve_data, 10)
+        assert result is None
+
+    def test_status_based_gap_frame_before_endframe(self):
+        """Test that frames before ENDFRAME are not considered gaps."""
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0, "keyframe"),
+                (3, 15.0, 15.0, "tracked"),
+                (5, 20.0, 20.0, "endframe"),
+                (10, 30.0, 30.0, "keyframe"),
+            ],
+        )
+
+        # Frame 3 is before ENDFRAME - not a gap
+        result = find_gap_around_frame(curve_data, 3)
+        assert result is None
+
+    def test_status_based_gap_frame_at_keyframe(self):
+        """Test that frame at KEYFRAME after gap is not considered gap."""
+        curve_data = cast(
+            CurveDataList,
+            [
+                (1, 10.0, 10.0, "keyframe"),
+                (5, 20.0, 20.0, "endframe"),
+                (10, 30.0, 30.0, "keyframe"),  # STARTFRAME
+            ],
+        )
+
+        # Frame 10 is the KEYFRAME/STARTFRAME - not in gap
         result = find_gap_around_frame(curve_data, 10)
         assert result is None
 

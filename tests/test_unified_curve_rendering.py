@@ -9,6 +9,19 @@ sophisticated rendering logic for point status, selection, and current frame hig
 Following the UNIFIED_TESTING_GUIDE to avoid Qt threading violations.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from typing import cast
 from unittest.mock import MagicMock, Mock, patch
 

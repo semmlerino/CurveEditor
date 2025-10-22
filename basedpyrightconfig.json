@@ -83,5 +83,9 @@
   "reportOverlappingOverload": "warning",
   "reportUninitializedInstanceVariable": "warning",
   "reportIgnoreCommentWithoutRule": "error",
-  "reportPrivateImportUsage": "warning"
+  "reportPrivateImportUsage": "warning",
+  "reportUnusedCallResult": "none",
+  "reportUnusedParameter": "warning",
+  "reportUnreachable": "warning",
+  "reportRedeclaration": "warning"
 }

@@ -532,12 +532,4 @@ def get_system_info(system: CoordinateSystem) -> dict[str, str | CoordinateOrigi
             "file_extensions": [],
             "default_dimensions": (1920, 1080),
         }
-    else:
-        # Default case
-        return {
-            "name": system.value,
-            "origin": CoordinateOrigin.TOP_LEFT,
-            "description": "",
-            "file_extensions": [],
-            "default_dimensions": (1920, 1080),
-        }
+    # All enum cases exhaustively handled above

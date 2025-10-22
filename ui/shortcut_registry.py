@@ -211,7 +211,7 @@ class ShortcutRegistry:
         # Check for duplicate normalized keys
         key_to_commands: dict[str, list[ShortcutCommand]] = {}
 
-        for original_key, normalized_key in self._key_to_normalized.items():
+        for _, normalized_key in self._key_to_normalized.items():
             if normalized_key not in key_to_commands:
                 key_to_commands[normalized_key] = []
             if self._shortcuts[normalized_key] not in key_to_commands[normalized_key]:

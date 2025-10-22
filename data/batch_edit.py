@@ -379,8 +379,8 @@ class BatchEditUI:
                 num_points = len(curve_view.points)
                 if num_points > 0:
                     # Select all points (properties have setters in CurveViewWidget)
-                    curve_view.selected_points = set(range(num_points))  # pyright: ignore[reportAttributeAccessIssue]
-                    curve_view.selected_point_idx = 0  # pyright: ignore[reportAttributeAccessIssue]
+                    curve_view.selected_points = set(range(num_points))
+                    curve_view.selected_point_idx = 0
                     # Update selection via ApplicationState
                     app_state = get_application_state()
                     active_curve = app_state.active_curve

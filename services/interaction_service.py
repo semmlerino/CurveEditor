@@ -157,7 +157,7 @@ class _MouseHandler:
                         # Use ApplicationState for active curve data
                         if (cd := self._app_state.active_curve_data) is None:
                             return
-                        curve_name, data = cd
+                        _, data = cd
                         for idx in view.selected_points:
                             if 0 <= idx < len(data):
                                 point = data[idx]
@@ -294,7 +294,7 @@ class _MouseHandler:
                     # Collect the moves using ApplicationState
                     if (cd := self._app_state.active_curve_data) is None:
                         return
-                    curve_name, data = cd
+                    _, data = cd
                     moves = []
                     for idx, old_pos in self._drag_original_positions.items():
                         if 0 <= idx < len(data):
@@ -334,7 +334,7 @@ class _MouseHandler:
                     # Find points in rectangle using ApplicationState
                     if (cd := self._app_state.active_curve_data) is None:
                         return
-                    curve_name, data = cd
+                    _, data = cd
 
                     selected_count = 0
                     transform_service = _get_transform_service()
@@ -401,7 +401,7 @@ class _MouseHandler:
                     # Collect points to delete using ApplicationState
                     if (cd := self._app_state.active_curve_data) is None:
                         return
-                    curve_name, data = cd
+                    _, data = cd
                     indices = list(view.selected_points)
                     deleted_points = []
                     for idx in sorted(indices):
@@ -429,7 +429,7 @@ class _MouseHandler:
                 # Select all points using ApplicationState
                 if (cd := self._app_state.active_curve_data) is None:
                     return
-                curve_name, data = cd
+                _, data = cd
                 view.selected_points = set(range(len(data)))
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
@@ -468,7 +468,7 @@ class _MouseHandler:
                     # Collect moves for command using ApplicationState
                     if (cd := self._app_state.active_curve_data) is None:
                         return
-                    curve_name, data = cd
+                    _, data = cd
                     moves = []
                     for idx in view.selected_points:
                         if 0 <= idx < len(data):
@@ -574,8 +574,8 @@ class _SelectionManager:
                 # CRITICAL: Clear spatial index before each curve to prevent cache collision
                 # The spatial index caches by transform hash + point count, but different
                 # curves can have the same point count, leading to stale index data
-                self._point_index._grid.clear()  # pyright: ignore[reportAttributeAccessIssue]
-                self._point_index._last_transform_hash = None  # pyright: ignore[reportAttributeAccessIssue]
+                self._point_index._grid.clear()
+                self._point_index._last_transform_hash = None
 
                 # Search this curve with clean API
                 idx = self._point_index.find_point_at_position(curve_data, transform, x, y, threshold, view)
@@ -591,16 +591,14 @@ class _SelectionManager:
                         best_match = PointSearchResult(idx, curve_name, distance)
 
             return best_match or PointSearchResult(index=-1, curve_name=None)
-
-        else:
-            raise ValueError(f"Invalid search mode: {mode}")
+        # All search modes exhaustively handled above
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
         # Use ApplicationState for active curve data
         if (cd := self._app_state.active_curve_data) is None:
             return -1
-        curve_name, data = cd
+        _, data = cd
 
         transform_service = _get_transform_service()
 
@@ -871,7 +869,7 @@ class _CommandHistory:
                 return
         else:
             # Primary path: Use ApplicationState data
-            curve_name, data = cd
+            _, data = cd
             # Convert lists to tuples for compression (as expected by tests)
             if data and isinstance(data[0], list):
                 history_state["curve_data"] = [tuple(point) for point in data]
@@ -1443,10 +1441,6 @@ class _PointManipulator:
             # Default reset behavior
             if getattr(view, "zoom_factor", None) is not None:
                 view.zoom_factor = 1.0
-            if getattr(view, "offset_x", None) is not None:
-                view.offset_x = 0
-            if getattr(view, "offset_y", None) is not None:
-                view.offset_y = 0
             if getattr(view, "pan_offset_x", None) is not None:
                 view.pan_offset_x = 0
             if getattr(view, "pan_offset_y", None) is not None:

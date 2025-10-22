@@ -165,13 +165,13 @@ def restore_view_state_and_selection(
         if getattr(curve_view, "set_selected_indices", None) is not None:
             curve_view.set_selected_indices(selected_indices)
         else:
-            curve_view.selected_points = set(selected_indices)  # pyright: ignore[reportAttributeAccessIssue]
+            curve_view.selected_points = set(selected_indices)
             if original_primary is not None and original_primary in selected_indices:
-                curve_view.selected_point_idx = original_primary  # pyright: ignore[reportAttributeAccessIssue]
+                curve_view.selected_point_idx = original_primary
             elif selected_indices:
-                curve_view.selected_point_idx = selected_indices[0]  # pyright: ignore[reportAttributeAccessIssue]
+                curve_view.selected_point_idx = selected_indices[0]
             else:
-                curve_view.selected_point_idx = -1  # pyright: ignore[reportAttributeAccessIssue]
+                curve_view.selected_point_idx = -1
     else:
         # No selection to restore
         if getattr(curve_view, "set_selected_indices", None) is not None:

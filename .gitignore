@@ -40,3 +40,4 @@ RENDER_STATE_DEMO.py
 session/
 .post-commit-output/
 id_ed25520*
+coverage.json

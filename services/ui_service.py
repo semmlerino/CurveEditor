@@ -370,7 +370,7 @@ class UIService:
             if (cd := app_state.active_curve_data) is None:
                 has_data = False
             else:
-                curve_name, data = cd
+                _, data = cd
                 has_data = len(data) > 0
             main_window.save_button.setEnabled(has_data)
 
@@ -437,7 +437,7 @@ class UIService:
         if (cd := app_state.active_curve_data) is None:
             point_count = 0
         else:
-            curve_name, data = cd
+            _, data = cd
             point_count = len(data)
         self.set_status(main_window, f"{point_count} points loaded")
 

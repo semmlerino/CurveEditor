@@ -86,45 +86,85 @@ class InsertTrackCommand(Command):
             # Save original data for undo
             for curve_name in self.selected_curves:
                 curve_data = app_state.get_curve_data(curve_name)
-                if curve_data is not None:
+                if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                     self.original_data[curve_name] = copy.deepcopy(curve_data)
 
-            # Determine scenario
-            curves_with_data_at_current = []
-            curves_without_data_at_current = []
+            # Determine scenario using gap detection
+            # A curve has a "gap" at current frame if find_gap_around_frame() returns non-None
+            curves_with_gap_at_current: list[str] = []  # Curves with gaps (missing data) at current frame
+            curves_without_gap_at_current: list[str] = []  # Curves with complete data at current frame
 
             for curve_name in self.selected_curves:
                 curve_data = app_state.get_curve_data(curve_name)
-                if curve_data is None:
+                if curve_data is None:  # pyright: ignore[reportUnnecessaryComparison]
                     continue
 
-                frames = {p[0] for p in curve_data}
+                # Log frames in this curve for diagnostic purposes
+                frames_in_curve = sorted([p[0] for p in curve_data])
+                logger.info(
+                    f"'{curve_name}' has {len(frames_in_curve)} frames: {frames_in_curve[:10]}...{frames_in_curve[-10:] if len(frames_in_curve) > 10 else ''}"
+                )
 
-                if self.current_frame in frames:
-                    curves_with_data_at_current.append(curve_name)
+                # Check if current frame is inside a gap (continuous sequence of missing frames)
+                gap = find_gap_around_frame(curve_data, self.current_frame)
+
+                if gap is not None:
+                    # Current frame is inside a gap
+                    curves_with_gap_at_current.append(curve_name)
+                    logger.info(f"'{curve_name}' has gap at frame {self.current_frame}: {gap}")
                 else:
-                    curves_without_data_at_current.append(curve_name)
+                    # Current frame has data (not in a gap)
+                    curves_without_gap_at_current.append(curve_name)
+                    current_frame_exists = self.current_frame in frames_in_curve
+                    logger.info(
+                        f"'{curve_name}' has NO gap at frame {self.current_frame} (frame exists in data: {current_frame_exists})"
+                    )
+
+            # Diagnostic logging
+            logger.info(
+                f"Gap detection: {len(curves_with_gap_at_current)} with gaps, {len(curves_without_gap_at_current)} without gaps"
+            )
 
             # Execute appropriate scenario
-            if len(self.selected_curves) == 1 and curves_without_data_at_current:
-                # Scenario 1: Single point with no data at current frame - interpolate
-                success = self._execute_scenario_1(main_window, curves_without_data_at_current[0])
+            if len(self.selected_curves) == 1 and curves_with_gap_at_current:
+                # Scenario 1: Single curve with gap at current frame - interpolate
+                success = self._execute_scenario_1(main_window, curves_with_gap_at_current[0])
                 self.scenario = 1
 
-            elif curves_without_data_at_current and curves_with_data_at_current:
-                # Scenario 2: Multiple points, one (or more) without data - fill gap
+            elif curves_with_gap_at_current and curves_without_gap_at_current:
+                # Scenario 2: Some curves have gaps, others don't - fill gaps using complete curves
+                # Target = curves with gaps (to be filled)
+                # Source = curves without gaps (data source)
                 success = self._execute_scenario_2(
-                    main_window, curves_without_data_at_current, curves_with_data_at_current
+                    main_window, curves_with_gap_at_current, curves_without_gap_at_current
                 )
                 self.scenario = 2
 
-            elif len(curves_without_data_at_current) == 0 and len(self.selected_curves) >= 2:
-                # Scenario 3: All selected curves have data - create averaged curve (requires 2+ curves)
-                success = self._execute_scenario_3(main_window, curves_with_data_at_current)
-                self.scenario = 3
+            elif len(curves_with_gap_at_current) == 0 and len(self.selected_curves) >= 2:
+                # Scenario 3: All curves have data at current frame - create averaged curve
+                # BUT: Verify at least one curve actually has data at current frame
+                # (gap detection returns None for frames beyond all data, which isn't a real "no gap")
+                curves_with_actual_data_at_frame = []
+                for curve_name in curves_without_gap_at_current:
+                    curve_data = app_state.get_curve_data(curve_name)
+                    if curve_data and any(p[0] == self.current_frame for p in curve_data):
+                        curves_with_actual_data_at_frame.append(curve_name)
+
+                if len(curves_with_actual_data_at_frame) >= 2:
+                    # Valid Scenario 3: Multiple curves have actual data at current frame
+                    success = self._execute_scenario_3(main_window, curves_with_actual_data_at_frame)
+                    self.scenario = 3
+                else:
+                    logger.error(
+                        f"Invalid scenario: no curves have data at frame {self.current_frame} "
+                        + f"({len(curves_with_actual_data_at_frame)} curves with data, need 2+)"
+                    )
+                    return False
 
             else:
-                logger.error(f"Invalid scenario: no data at current frame for all {len(self.selected_curves)} curves")
+                logger.error(
+                    f"Invalid scenario: all {len(self.selected_curves)} curves have gaps at frame {self.current_frame}"
+                )
                 return False
 
             if success:
@@ -154,7 +194,7 @@ class InsertTrackCommand(Command):
         app_state = get_application_state()
 
         curve_data = app_state.get_curve_data(target_curve)
-        if curve_data is None:
+        if curve_data is None:  # pyright: ignore[reportUnnecessaryComparison]
             logger.error(f"No data found for curve '{target_curve}'")
             return False
 
@@ -223,7 +263,7 @@ class InsertTrackCommand(Command):
         # Process each target curve
         for target_name in target_curves:
             target_data = app_state.get_curve_data(target_name)
-            if target_data is None:
+            if target_data is None:  # pyright: ignore[reportUnnecessaryComparison]
                 logger.warning(f"No data found for target curve '{target_name}'")
                 continue
 
@@ -236,12 +276,12 @@ class InsertTrackCommand(Command):
             gap_start, gap_end = gap
 
             # Collect source data and calculate offsets
-            source_data_list = []
-            offset_list = []
+            source_data_list: list[CurveDataList] = []
+            offset_list: list[tuple[float, float]] = []
 
             for source_name in source_curves:
                 source_data = app_state.get_curve_data(source_name)
-                if source_data is None:
+                if source_data is None:  # pyright: ignore[reportUnnecessaryComparison]
                     logger.warning(f"No data found for source curve '{source_name}'")
                     continue
 
@@ -286,7 +326,7 @@ class InsertTrackCommand(Command):
                 for source_name in source_curves:
                     # Check if this source's data is in our source_data_list
                     src_data = app_state.get_curve_data(source_name)
-                    if src_data is not None and any(src_data == sd for sd in source_data_list):
+                    if src_data is not None and any(src_data == sd for sd in source_data_list):  # pyright: ignore[reportUnnecessaryComparison]
                         logger.info(source_name)
 
             logger.info(f"section: [{gap_start}, {gap_end}]")
@@ -352,10 +392,10 @@ class InsertTrackCommand(Command):
             logger.info(source_name)
 
         # Collect source curves
-        source_curves_dict = {}
+        source_curves_dict: dict[str, CurveDataList] = {}
         for name in source_curves:
             curve_data = app_state.get_curve_data(name)
-            if curve_data is not None:
+            if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                 source_curves_dict[name] = curve_data
 
         # Create averaged curve
@@ -409,14 +449,14 @@ class InsertTrackCommand(Command):
                 if main_window.curve_widget:
                     app_state = get_application_state()
                     curve_data = app_state.get_curve_data(curve_name)
-                    if curve_data is not None:
+                    if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                         main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline
         if main_window.update_timeline_tabs is not None:
             app_state = get_application_state()
             curve_data = app_state.get_curve_data(curve_name)
-            if curve_data is not None:
+            if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                 main_window.update_timeline_tabs(curve_data)
 
     def _update_ui_new_curve(self, main_window: MainWindowProtocol, curve_name: str) -> None:
@@ -440,7 +480,7 @@ class InsertTrackCommand(Command):
         # Get curve data (needed for both curve widget and timeline updates)
         app_state = get_application_state()
         curve_data = app_state.get_curve_data(curve_name)
-        if curve_data is None:
+        if curve_data is None:  # pyright: ignore[reportUnnecessaryComparison]
             logger.warning(f"Cannot update UI: no data for new curve '{curve_name}'")
             return
 

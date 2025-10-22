@@ -379,6 +379,41 @@ class PointStatus(Enum):
 - **"Point"** = Position at ONE frame within a trajectory (e.g., frame 42 in "pp56_TM_138G")
 - **"Multiple Curves"** = Multiple independent tracking points
 
+## Gap Handling
+
+**Gaps** represent inactive segments in a curve trajectory, created by marking points with `PointStatus.ENDFRAME`.
+
+**How Gaps Work:**
+- `point.status = PointStatus.ENDFRAME` creates segment boundary
+- Frames after ENDFRAME (until next KEYFRAME) become "inactive"
+- Inactive segments return held position (ENDFRAME coordinates)
+- Active segments interpolate normally between keyframes
+
+**Key Files:**
+- `core/curve_segments.py` - `SegmentedCurve` breaks curves into active/inactive segments
+- `services/data_service.py:get_position_at_frame()` - Returns held positions during gaps
+- `rendering/optimized_curve_renderer.py` - Solid lines for active, dashed for gap segments
+
+**Visual Display:**
+- Active segments: Solid lines, interpolated positions
+- Gap segments: Dashed lines, held ENDFRAME position
+- Timeline colors: Cyan (ENDFRAME), dark gray (inactive), light blue (STARTFRAME)
+
+**Multi-Curve:**
+- Each curve maintains independent segment structure
+- Gaps in one curve don't affect others
+
+```python
+# Gap creation (E key shortcut)
+point.status = PointStatus.ENDFRAME  # Creates gap at this frame
+
+# Position retrieval handles gaps automatically
+data_service = get_data_service()
+x, y = data_service.get_position_at_frame(curve_name, frame)  # Returns held position in gaps
+```
+
+**Design**: Gaps preserve tracked data for restoration, enable clean rendering without lines crossing inactive regions.
+
 ## Selection State
 
 **Two types of selection:**

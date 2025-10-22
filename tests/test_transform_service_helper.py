@@ -6,6 +6,19 @@ This test suite validates the convenience method that simplifies the 3-step
 transform pattern into a single method call.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from __future__ import annotations
 
 import pytest
@@ -218,7 +231,9 @@ class TestServiceFacadeGetTransform:
         assert transform is None or isinstance(transform, Transform)
 
     def test_service_facade_get_transform_with_service_available(
-        self, service_facade, mock_view: MockCurveView  # type: ignore[no-untyped-def]
+        self,
+        service_facade,
+        mock_view: MockCurveView,  # type: ignore[no-untyped-def]
     ) -> None:
         """Test ServiceFacade.get_transform when transform service is available."""
         # Ensure transform service is available

@@ -6,6 +6,19 @@ This module tests the grid-based spatial index that provides O(1) point lookups
 instead of O(n) linear search, claimed to provide 64.7x performance improvement.
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 import threading
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, cast

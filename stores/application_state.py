@@ -609,7 +609,7 @@ class ApplicationState(QObject):
             self._active_curve = curve_name
             self._emit(self.active_curve_changed, (curve_name or "",))
 
-            logger.info(f"Active curve changed: '{old_curve}' → '{curve_name}'")
+            logger.info(f"Active curve changed: '{old_curve}' -> '{curve_name}'")
 
     # ==================== Frame Navigation ====================
 
@@ -964,7 +964,8 @@ class ApplicationState(QObject):
                 self._emitting = True
                 try:
                     # Emit accumulated signals (dict ensures deduplication, last args wins)
-                    for signal, args in self._pending_signals.items():
+                    # Iterate over a copy to allow dict modification during signal emission
+                    for signal, args in list(self._pending_signals.items()):
                         signal.emit(*args)
                 finally:
                     self._emitting = False
