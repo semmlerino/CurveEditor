@@ -9,6 +9,19 @@ Following best practices from UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md:
 - Test behavior, not implementation
 """
 
+# Per-file type checking relaxations for test code
+# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
+# pyright: reportAttributeAccessIssue=none
+# pyright: reportArgumentType=none
+# pyright: reportAny=none
+# pyright: reportUnknownMemberType=none
+# pyright: reportUnknownParameterType=none
+# pyright: reportUnknownVariableType=none
+# pyright: reportMissingParameterType=none
+# pyright: reportPrivateUsage=none
+# pyright: reportUnusedParameter=none
+# pyright: reportUnusedCallResult=none
+
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 from unittest.mock import Mock
@@ -535,6 +548,17 @@ class MockCurveView:
         self.zoom_factor = 1.0
         self.offset_x = 0.0
         self.offset_y = 0.0
+        self.x_offset = 0.0
+        self.y_offset = 0.0
+        self.pan_offset_x = 0.0
+        self.pan_offset_y = 0.0
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+        self.update()
+
+    def reset_transform(self) -> None:
+        """Reset transform (delegates to reset_view for InteractionService compatibility)."""
+        self.reset_view()
 
     def center_on_point(self, index: int) -> None:
         """Center view on a point."""

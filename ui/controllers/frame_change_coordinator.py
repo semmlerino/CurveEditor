@@ -105,6 +105,11 @@ class FrameChangeCoordinator:
         """
         from PySide6.QtCore import Qt
 
+        # Guard: Already connected, return early for idempotency
+        if self._connected:
+            logger.debug("FrameChangeCoordinator.connect() called but already connected (idempotent)")
+            return
+
         # Prevent duplicate connections - always try to disconnect first (idempotent)
         # Qt's disconnect is safe even if not currently connected
         try:
@@ -220,6 +225,10 @@ class FrameChangeCoordinator:
         # from coordinator as it only updates visual state without triggering signals
         if self.timeline_tabs:
             self.timeline_tabs.on_frame_changed(frame)
+
+        # Update point status label in status bar
+        if self.main_window:
+            self.main_window._update_point_status_label()
 
         logger.debug(f"[FRAME-COORDINATOR] Timeline widgets updated for frame {frame}")
 

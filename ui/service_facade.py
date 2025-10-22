@@ -175,17 +175,23 @@ class ServiceFacade:
             return self._transform_service.get_transform(curve_view)
         return None
 
-    def transform_to_screen(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
-        """Transform data coordinates to screen coordinates."""
-        if transform:
-            return transform.data_to_screen(x, y)
-        return (x, y)
+    def transform_to_screen(self, transform: Transform | None, x: float, y: float) -> tuple[float, float]:
+        """Transform data coordinates to screen coordinates.
 
-    def transform_to_data(self, transform: Transform, x: float, y: float) -> tuple[float, float]:
-        """Transform screen coordinates to data coordinates."""
-        if transform:
-            return transform.screen_to_data(x, y)
-        return (x, y)
+        If transform is None, returns coordinates unchanged (identity transform).
+        """
+        if transform is None:
+            return (x, y)
+        return transform.data_to_screen(x, y)
+
+    def transform_to_data(self, transform: Transform | None, x: float, y: float) -> tuple[float, float]:
+        """Transform screen coordinates to data coordinates.
+
+        If transform is None, returns coordinates unchanged (identity transform).
+        """
+        if transform is None:
+            return (x, y)
+        return transform.screen_to_data(x, y)
 
     # ==================== Data Service Methods ====================
 
