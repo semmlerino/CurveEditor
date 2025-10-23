@@ -258,7 +258,7 @@ class DataService:
         mean_vx = sum(v[0] for v in velocities) / len(velocities)
         mean_vy = sum(v[1] for v in velocities) / len(velocities)
 
-        outliers = []
+        outliers: list[int] = []
         if len(velocities) > 1:
             std_vx = statistics.stdev(v[0] for v in velocities)
             std_vy = statistics.stdev(v[1] for v in velocities)
@@ -285,9 +285,9 @@ class DataService:
             }
 
         # Extract data from points (handle both CurvePoint objects and tuples)
-        frames = []
-        x_coords = []
-        y_coords = []
+        frames: list[int] = []
+        x_coords: list[float] = []
+        y_coords: list[float] = []
 
         for point in points:
             # Handle CurvePoint object (check for frame attribute first)
@@ -694,7 +694,7 @@ class DataService:
 
             # Common image extensions
             image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
-            image_files = []
+            image_files: list[str] = []
 
             for file_path in sorted(path.iterdir()):
                 if file_path.is_file() and file_path.suffix.lower() in image_extensions:
@@ -748,7 +748,7 @@ class DataService:
                 data = json.load(f)
 
             # Convert to CurveDataList format
-            curve_data = []
+            curve_data: CurveDataList = []
 
             if isinstance(data, list):
                 for item in data:
@@ -887,7 +887,7 @@ class DataService:
                             point_count = int(lines[i + 2].strip())
 
                             # Read the trajectory data starting from i+3
-                            trajectory = []
+                            trajectory: CurveDataList = []
                             data_start = i + 3
 
                             for j in range(data_start, min(data_start + point_count, len(lines))):
@@ -941,7 +941,7 @@ class DataService:
         Lines 5+: frame_number x_coordinate y_coordinate
         """
         try:
-            curve_data = []
+            curve_data: CurveDataList = []
 
             with open(file_path, encoding="utf-8") as f:
                 lines = f.readlines()
@@ -1025,7 +1025,7 @@ class DataService:
     def _load_csv(self, file_path: str) -> CurveDataList:
         """Load CSV file implementation."""
         try:
-            curve_data = []
+            curve_data: CurveDataList = []
 
             with open(file_path, encoding="utf-8", newline="") as f:
                 # Try to detect delimiter
@@ -1148,7 +1148,7 @@ class DataService:
             return curve_data
 
         # Convert to list and sort by frame
-        processed_data = []
+        processed_data: CurveDataList = []
         sorted_data = sorted(curve_data, key=lambda p: p[0])
 
         for i, point in enumerate(sorted_data):

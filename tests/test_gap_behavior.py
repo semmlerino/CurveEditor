@@ -93,13 +93,13 @@ class TestDataServiceGapBehavior:
         frame1_status = status_dict[1]
         (
             keyframe_count,
-            interpolated_count,
-            tracked_count,
-            endframe_count,
-            normal_count,
+            _interpolated_count,
+            _tracked_count,
+            _endframe_count,
+            _normal_count,
             is_startframe,
             is_inactive,
-            has_selected,
+            _has_selected,
         ) = frame1_status
         assert keyframe_count == 1
         assert is_startframe is True  # First frame is startframe
@@ -108,14 +108,14 @@ class TestDataServiceGapBehavior:
         # Frame 3: endframe
         frame3_status = status_dict[3]
         (
-            keyframe_count,
-            interpolated_count,
-            tracked_count,
+            _keyframe_count,
+            _interpolated_count,
+            _tracked_count,
             endframe_count,
-            normal_count,
+            _normal_count,
             is_startframe,
             is_inactive,
-            has_selected,
+            _has_selected,
         ) = frame3_status
         assert endframe_count == 1
         assert is_startframe is False
@@ -125,13 +125,13 @@ class TestDataServiceGapBehavior:
         frame6_status = status_dict[6]
         (
             keyframe_count,
-            interpolated_count,
-            tracked_count,
-            endframe_count,
-            normal_count,
+            _interpolated_count,
+            _tracked_count,
+            _endframe_count,
+            _normal_count,
             is_startframe,
             is_inactive,
-            has_selected,
+            _has_selected,
         ) = frame6_status
         assert keyframe_count == 1
         assert is_startframe is True  # This should be detected as startframe

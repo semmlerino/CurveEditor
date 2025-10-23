@@ -96,7 +96,7 @@ class TestGridCentering:
         # Verify: Grid should be centered on the selected point
         # The grid lines should align with the selected point's screen position
         transform = curve_widget.get_transform()
-        screen_x, screen_y = transform.data_to_screen(100.0, 200.0)
+        _, _ = transform.data_to_screen(100.0, 200.0)
 
         # Grid should have lines passing through or near the selected point
         # This is a behavior test - we're checking the actual rendering result

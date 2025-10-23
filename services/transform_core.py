@@ -28,7 +28,7 @@ from core.defaults import DEFAULT_IMAGE_HEIGHT, DEFAULT_IMAGE_WIDTH
 
 
 # Simple validation helpers
-def validate_finite(value: float, name: str, default: float = 0.0) -> float:
+def validate_finite(value: float, _name: str, default: float = 0.0) -> float:
     """Ensure value is finite, return default if not."""
     if not math.isfinite(value):
         return default
@@ -36,7 +36,7 @@ def validate_finite(value: float, name: str, default: float = 0.0) -> float:
 
 
 def validate_scale(
-    value: float, name: str, min_scale: float = 1e-10, max_scale: float = 1e10, default: float = 1.0
+    value: float, _name: str, min_scale: float = 1e-10, max_scale: float = 1e10, default: float = 1.0
 ) -> float:
     """Validate scale value is positive and within bounds."""
     if not math.isfinite(value) or value <= 0:
@@ -44,7 +44,7 @@ def validate_scale(
     return max(min_scale, min(max_scale, value))
 
 
-def validate_point(x: float, y: float, context: str) -> tuple[float, float]:
+def validate_point(x: float, y: float, _context: str) -> tuple[float, float]:
     """Validate coordinate pair."""
     # Parameters are already typed as float, so we only need to check finiteness
     if not (math.isfinite(x) and math.isfinite(y)):
@@ -414,6 +414,7 @@ class Transform:
     _combined_scale_y: float
     _combined_offset_x: float
     _combined_offset_y: float
+    validation_config: ValidationConfig
 
     def __init__(
         self,

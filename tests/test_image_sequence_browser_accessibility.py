@@ -17,6 +17,7 @@ and other accessibility features added for WCAG 2.1 compliance.
 # pyright: reportPrivateUsage=none
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
+# pyright: reportUnknownLambdaType=none
 
 from pathlib import Path
 from unittest.mock import Mock

@@ -162,8 +162,8 @@ class TestLevelOfDetail:
 
         # Apply LOD to visible points only
         lod_points: Any
-        step: Any
-        lod_points, step = lod.get_lod_points(points, RenderQuality.NORMAL, visible_indices)
+        _step: Any
+        lod_points, _step = lod.get_lod_points(points, RenderQuality.NORMAL, visible_indices)
 
         # Should subsample from visible points
         assert len(lod_points) <= len(visible_indices)
@@ -361,8 +361,8 @@ class TestRenderingIntegration:
         # Apply LOD
         screen_points: Any = np.column_stack([x * 50, y])
         lod_points: Any
-        step: Any
-        lod_points, step = lod.get_lod_points(screen_points, RenderQuality.NORMAL)
+        _step: Any
+        lod_points, _step = lod.get_lod_points(screen_points, RenderQuality.NORMAL)
 
         # Check that we still have the general shape
         # Min and max should be preserved

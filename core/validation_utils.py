@@ -32,7 +32,7 @@ def clamp_value(value: float, min_val: float, max_val: float) -> float:
 
 def sanitize_point_data(points: list[object]) -> list[object]:
     """Ensure all points have valid coordinates."""
-    valid_points = []
+    valid_points: list[object] = []
     for point in points:
         # Use getattr with sentinel to avoid type narrowing issues with hasattr
         x = getattr(point, "x", None)
@@ -43,7 +43,7 @@ def sanitize_point_data(points: list[object]) -> list[object]:
     return valid_points
 
 
-def validate_finite(value: float, name: str = "", default: float = 0.0) -> float:
+def validate_finite(value: float, _name: str = "", default: float = 0.0) -> float:
     """Validate value is finite, return default if not."""
     if not math.isfinite(value):
         return default

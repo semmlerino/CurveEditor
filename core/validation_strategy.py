@@ -149,8 +149,8 @@ class MinimalValidationStrategy(BaseValidationStrategy):
         result = ValidationResult(is_valid=True)
 
         # Only check for NaN/infinity
-        x_valid = validate_finite(x, name=f"{context}_x")
-        y_valid = validate_finite(y, name=f"{context}_y")
+        x_valid = validate_finite(x, _name=f"{context}_x")
+        y_valid = validate_finite(y, _name=f"{context}_y")
 
         if x_valid != x or y_valid != y:
             result.validated_value = (x_valid, y_valid)

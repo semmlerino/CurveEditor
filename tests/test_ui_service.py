@@ -18,6 +18,7 @@ bugs in unused methods (like the timeline oscillation bug).
 # pyright: reportPrivateUsage=none
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
+# pyright: reportUnknownLambdaType=none
 
 from unittest.mock import Mock
 
@@ -606,9 +607,7 @@ class TestProtocolCompliance:
 
         # Get all public methods
         public_methods = [
-            name
-            for name, method in inspect.getmembers(ui_service, predicate=inspect.ismethod)
-            if not name.startswith("_")
+            name for name, _ in inspect.getmembers(ui_service, predicate=inspect.ismethod) if not name.startswith("_")
         ]
 
         # These are all the methods we've tested above

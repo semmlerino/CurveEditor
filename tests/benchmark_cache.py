@@ -50,6 +50,10 @@ if TYPE_CHECKING:
 class CacheMonitor:
     """Stub for legacy CacheMonitor tests."""
 
+    hits: int
+    misses: int
+    invalidations: int
+
     def __init__(self) -> None:
         self.hits = 0
         self.misses = 0
@@ -95,7 +99,7 @@ def benchmark_cache_hit_rate() -> float:
     print("\n1. Zoom Operations (small increments):")
     cache_monitor.reset()
 
-    for i in range(100):
+    for _ in range(100):
         widget.zoom_factor *= 1.005
         # Testing private method for benchmarking
         widget._invalidate_caches()
@@ -109,7 +113,7 @@ def benchmark_cache_hit_rate() -> float:
     print("\n2. Pan Operations (small movements):")
     cache_monitor.reset()
 
-    for i in range(100):
+    for _ in range(100):
         widget.pan_offset_x += 0.05  # Sub-threshold
         widget._invalidate_caches()
         widget.get_transform()  # Returns non-None Transform
@@ -241,7 +245,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
     cache_retrievals = 0
 
     # Multiple transform requests
-    for i in range(100):
+    for _ in range(100):
         widget.get_transform()  # Returns non-None Transform
         cache_retrievals += 1
 
@@ -318,7 +322,7 @@ def benchmark_cache_performance() -> tuple[float, float, int]:
 
     # Simulate zoom operations
     start_zoom = widget.zoom_factor
-    for i in range(50):
+    for _ in range(50):
         # Small zoom increments (should have good cache behavior)
         widget.zoom_factor *= 1.01
         widget.get_transform()
@@ -367,7 +371,7 @@ def main() -> int:
         max_render_time = benchmark_render_performance()
 
         # Legacy benchmarks for compatibility
-        speedup_legacy, avg_time, invalidations = benchmark_cache_performance()
+        avg_time, _max_time, _p99_time = benchmark_cache_performance()
 
         # Summary
         print("\n" + "=" * 60)

@@ -33,12 +33,14 @@ class DirectoryScanWorker(QThread):
     """
 
     # Signals
-    progress = Signal(int, int, str)  # current, total, message
-    sequences_found = Signal(list)  # list[ImageSequence]
-    error_occurred = Signal(str)  # error_message
+    progress: Signal = Signal(int, int, str)  # current, total, message
+    sequences_found: Signal = Signal(list)  # list[ImageSequence]
+    error_occurred: Signal = Signal(str)  # error_message
 
     # Supported image extensions
-    IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".exr", ".hdr", ".dpx"}
+    IMAGE_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".exr", ".hdr", ".dpx"}
+
+    directory: str
 
     def __init__(self, directory: str):
         """
@@ -96,7 +98,7 @@ class DirectoryScanWorker(QThread):
         Returns:
             Sorted list of image filenames
         """
-        image_files = []
+        image_files: list[str] = []
 
         try:
             if not os.path.isdir(self.directory):
@@ -174,7 +176,7 @@ class DirectoryScanWorker(QThread):
                 self.progress.emit(progress_pct, 100, f"Detecting sequences... ({len(sequence_groups)} found)")
 
         # Create sequence dictionaries
-        sequences = []
+        sequences: list[dict[str, str | int | list[int] | list[str]]] = []
 
         for (base_name, padding, extension), files in sequence_groups.items():
             if self.isInterruptionRequested():
@@ -214,7 +216,7 @@ class DirectoryScanWorker(QThread):
             sequences.append(sequence)
 
         # Sort by base name
-        sequences.sort(key=lambda x: x["base_name"])
+        sequences.sort(key=lambda x: x["base_name"])  # type: ignore[reportUnknownLambdaType]
 
         logger.debug(f"Detected {len(sequences)} sequences")
         return sequences

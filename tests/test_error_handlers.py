@@ -22,6 +22,7 @@ This file uses test-only monkey-patching which is safe but triggers type errors.
 
 import logging
 import unittest
+from typing import override
 from unittest.mock import MagicMock, patch
 
 from PySide6.QtWidgets import QApplication, QWidget
@@ -95,6 +96,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
     handler: DefaultTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
     error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
+    @override
     def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = DefaultTransformErrorHandler(verbose=False)
@@ -202,7 +204,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         context = ErrorContext(component="Test", operation="validate", severity=ErrorSeverity.WARNING, error=self.error)
 
         # First 10 errors should not be suppressed
-        for i in range(10):
+        for _ in range(10):
             strategy = self.handler.handle_validation_error(self.error, context)
             self.assertNotEqual(strategy, RecoveryStrategy.IGNORE)
 
@@ -235,6 +237,7 @@ class TestSilentTransformErrorHandler(unittest.TestCase):
     handler: SilentTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
     error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
+    @override
     def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = SilentTransformErrorHandler()
@@ -318,6 +321,7 @@ class TestStrictTransformErrorHandler(unittest.TestCase):
     handler: StrictTransformErrorHandler  # pyright: ignore[reportUninitializedInstanceVariable]
     error: ValueError  # pyright: ignore[reportUninitializedInstanceVariable]
 
+    @override
     def setUp(self) -> None:
         """Set up test fixtures."""
         self.handler = StrictTransformErrorHandler()
@@ -401,6 +405,7 @@ class TestErrorHandlerMixin(unittest.TestCase):
 
     widget: QWidget  # pyright: ignore[reportUninitializedInstanceVariable]
 
+    @override
     def setUp(self) -> None:
         """Set up test fixtures."""
 

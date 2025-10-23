@@ -297,7 +297,7 @@ class TestPainterResourceManagement:
         paint_event = QPaintEvent(curve_view_widget.rect())
 
         # Multiple paint events should not cause issues
-        for i in range(3):
+        for _ in range(3):
             curve_view_widget.paintEvent(paint_event)
             qapp.processEvents()
 

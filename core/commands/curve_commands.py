@@ -792,8 +792,8 @@ class SetPointStatusCommand(CurveDataCommand):
                     logger.warning(f"Point index {index} out of range")
 
             # Get restored data from SegmentedCurve
-            if data_service._segmented_curve:
-                restored_points = data_service._segmented_curve.all_points
+            if data_service.segmented_curve:
+                restored_points = data_service.segmented_curve.all_points
                 updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable
@@ -841,8 +841,8 @@ class SetPointStatusCommand(CurveDataCommand):
                     logger.warning(f"Point index {index} out of range")
 
             # Get restored data from SegmentedCurve
-            if data_service._segmented_curve:
-                restored_points = data_service._segmented_curve.all_points
+            if data_service.segmented_curve:
+                restored_points = data_service.segmented_curve.all_points
                 updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable
@@ -890,8 +890,8 @@ class SetPointStatusCommand(CurveDataCommand):
                     logger.warning(f"Point index {index} out of range")
 
             # Get restored data from SegmentedCurve
-            if data_service._segmented_curve:
-                restored_points = data_service._segmented_curve.all_points
+            if data_service.segmented_curve:
+                restored_points = data_service.segmented_curve.all_points
                 updated_data = [(p.frame, p.x, p.y, p.status.value) for p in restored_points]
             else:
                 # Fallback: apply changes directly if SegmentedCurve unavailable

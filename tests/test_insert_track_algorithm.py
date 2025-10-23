@@ -518,7 +518,7 @@ class TestCreateAveragedCurve:
             },
         )
 
-        name, curve = create_averaged_curve(sources)
+        _, curve = create_averaged_curve(sources)
 
         # Should only include frames 1 and 2 (common to both)
         assert len(curve) == 2
@@ -536,7 +536,7 @@ class TestCreateAveragedCurve:
             },
         )
 
-        name, curve = create_averaged_curve(sources)
+        _, curve = create_averaged_curve(sources)
 
         assert len(curve) == 1
         point = curve[0]
@@ -553,7 +553,7 @@ class TestCreateAveragedCurve:
             },
         )
 
-        name, curve = create_averaged_curve(sources)
+        _, curve = create_averaged_curve(sources)
 
         # No common frames - should return empty curve
         assert len(curve) == 0

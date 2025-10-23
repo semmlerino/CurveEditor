@@ -24,6 +24,10 @@ from ui.curve_view_widget import CurveViewWidget
 class CacheMonitor:
     """Stub for legacy CacheMonitor tests."""
 
+    hits: int
+    misses: int
+    invalidations: int
+
     def __init__(self) -> None:
         self.hits = 0
         self.misses = 0
@@ -63,7 +67,7 @@ class TestCachePerformance:
 
         # Test multiple rapid changes (stress test for efficiency)
         transforms_work = True
-        for i in range(10):
+        for _ in range(10):
             # Make small changes
             widget.pan_offset_x += 0.001
             widget.update()
@@ -153,7 +157,7 @@ class TestCachePerformance:
         last_transform = widget.get_transform()
 
         # Simulate zoom interaction with small changes
-        for i in range(10):
+        for _ in range(10):
             # Very small zoom changes
             widget.zoom_factor *= 1.001
             current_transform = widget.get_transform()
@@ -421,14 +425,14 @@ class TestSmartCacheInvalidation:
 
         # Simulate repeated transform requests (should hit cache)
         initial_zoom = widget.zoom_factor
-        for i in range(20):
+        for _ in range(20):
             # Get transform multiple times without changing anything
             widget.get_transform()
             widget.get_transform()
             widget.get_transform()
 
         # Now make small changes
-        for i in range(5):
+        for _ in range(5):
             widget.zoom_factor *= 1.001  # Very small change
             widget.update()  # Trigger any necessary updates
             widget.get_transform()

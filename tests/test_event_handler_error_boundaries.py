@@ -308,7 +308,7 @@ class TestErrorBoundaryStateConsistency:
 
         with patch.object(self.service._selection, "find_point_at", side_effect=raise_error):
             # Trigger 3 errors in a row
-            for i in range(3):
+            for _ in range(3):
                 event = Mock(spec=QMouseEvent)
                 event.button.return_value = Qt.MouseButton.LeftButton
                 event.position.return_value = QPoint(100, 100)

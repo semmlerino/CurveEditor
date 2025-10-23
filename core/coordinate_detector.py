@@ -132,12 +132,12 @@ class CoordinateDetector:
         return None
 
     @classmethod
-    def _detect_system_from_content(cls, content: str, file_path: str) -> CoordinateSystem | None:
+    def _detect_system_from_content(cls, content: str, _file_path: str) -> CoordinateSystem | None:
         """Detect coordinate system from file content.
 
         Args:
             content: File content to analyze
-            file_path: Path for context (reserved for future use)
+            _file_path: Path for context (reserved for future use)
 
         Returns:
             Detected coordinate system or None

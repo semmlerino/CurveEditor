@@ -717,7 +717,7 @@ class TestGapRenderingConsistency:
 
             # Should detect status info and use segmented rendering
             mock_segmented.assert_called_once()
-            args, kwargs = mock_segmented.call_args
+            args, _ = mock_segmented.call_args
             assert args[0] == mock_painter
             assert args[1] == render_state
             assert args[2] == segmented_curve_data
@@ -770,7 +770,7 @@ class TestGapRenderingConsistency:
 
             # Should use simple rendering for data without status
             mock_simple.assert_called_once()
-            args, kwargs = mock_simple.call_args
+            args, _ = mock_simple.call_args
             assert args[0] == mock_painter
             assert np.array_equal(args[1], screen_points)
 
@@ -823,7 +823,7 @@ class TestGapRenderingConsistency:
                 # Verify calls include gap data
                 calls = mock_unified.call_args_list
                 for call in calls:
-                    args, kwargs = call
+                    _, kwargs = call
                     assert "curve_data" in kwargs
                     assert "screen_points" in kwargs
                     assert "curve_color" in kwargs

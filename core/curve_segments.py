@@ -602,7 +602,7 @@ class SegmentedCurve:
 
         # Apply 3DEqualizer gap behavior: segments starting with TRACKED points
         # after endframes should be split so tracked points are in inactive segments
-        segments_to_split = []
+        segments_to_split: list[tuple[int, int]] = []
         for i, segment in enumerate(self.segments):
             if segment.points and segment.is_active:
                 # Skip segments that contain endframes - they should remain active as-is

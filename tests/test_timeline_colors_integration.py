@@ -105,7 +105,7 @@ class TestTimelineColorsIntegration:
 
         # Verify all colors are different
         color_values = set()
-        for status, color in colors.items():
+        for _, color in colors.items():
             color_tuple = (color.red(), color.green(), color.blue())
             color_values.add(color_tuple)
 

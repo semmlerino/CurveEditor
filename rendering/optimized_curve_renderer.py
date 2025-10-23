@@ -12,7 +12,7 @@ This renderer addresses the critical performance issues identified in the analys
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, TypeAlias
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 import numpy as np
 from numpy.typing import NDArray
@@ -93,7 +93,7 @@ class ViewportCuller:
 
     def _get_visible_points_spatial(self, points: FloatArray, viewport: QRectF) -> IntArray:
         """Use spatial index for large datasets."""
-        visible = []
+        visible: list[int] = []
 
         # Find grid cells that intersect with viewport
         min_grid_x = int(viewport.left() // self._grid_size) - 1
@@ -888,15 +888,15 @@ class OptimizedCurveRenderer:
             segmented_curve = SegmentedCurve.from_points(points)
 
         # Batch points by state for efficient rendering
-        points_by_status = {
+        points_by_status: dict[str, list[Any]] = {
             "normal": [],
             "keyframe": [],
             "tracked": [],
             "interpolated": [],
             "endframe": [],
         }
-        selected_points_list = []
-        current_frame_points = []
+        selected_points_list: list[Any] = []
+        current_frame_points: list[Any] = []
 
         for i, screen_pos in enumerate(screen_points):
             # Map back to original index (accounting for LOD step)

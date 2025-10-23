@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (96.5MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 231 files to bundle
+Skipping large file (97.2MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 242 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .pytest_tips.md
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -45,6 +45,10 @@ Bundled: post_phase6.0_types.txt
 Bundled: pre_phase6_types.txt
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
+Bundled: QT_AUDIT_CODE_EXAMPLES.md
+Bundled: QT_AUDIT_README.md
+Bundled: QT_AUDIT_SUMMARY.txt
+Bundled: QT_BEST_PRACTICES_AUDIT.md
 Bundled: QUICK-REFERENCE.md
 Bundled: README.md
 Bundled: REFACTORING_PLAN_VERIFICATION_SUMMARY.txt
@@ -61,10 +65,17 @@ Bundled: test_normalized_3de.txt
 Bundled: test_results.txt
 Bundled: TEST_SUITE_AUDIT_REPORT.md
 Bundled: transfer_config.json
+Bundled: TYPE_SAFETY_PRECISION_AUDIT.md
 Bundled: UX_VALIDATION_SUMMARY.txt
 Bundled: VALIDATION_EVIDENCE.txt
 Bundled: VERIFICATION_SUMMARY.txt
 Bundled: VERIFICATION_SUMMARY_TASKS_1_3_1_5.txt
+Bundled: ZOOM_DRIFT_BUG_REPORT.md
+Bundled: ZOOM_DRIFT_FIX_PLAN.md
+Bundled: ZOOM_DRIFT_MATHEMATICAL_ANALYSIS.md
+Bundled: ZOOM_DRIFT_ROOT_CAUSE_ANALYSIS.md
+Bundled: zoom_math_analysis.md
+Bundled: ZOOM_PERFORMANCE_CACHE_ANALYSIS.md
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
 Bundled: .serena/project.yml
@@ -237,9 +248,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.84 MB
+Folder size: 2.99 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 901580 bytes
+Encoded size: 957852 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

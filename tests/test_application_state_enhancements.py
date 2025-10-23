@@ -41,6 +41,8 @@ from stores.application_state import get_application_state, reset_application_st
 class SignalSpy:
     """Helper to track Qt signal emissions."""
 
+    signal: Signal
+
     def __init__(self, signal: Signal):
         self.signal = signal
         self.emissions: list[tuple[object, ...]] = []

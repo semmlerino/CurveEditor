@@ -157,7 +157,7 @@ class PointListWidget(QWidget):
         if self._updating:
             return
 
-        selected_indices = []
+        selected_indices: list[int] = []
         for item in self.table.selectedItems():
             row = item.row()
             if row not in selected_indices:

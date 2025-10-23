@@ -18,6 +18,7 @@ Follows the testing guide patterns for Qt components and file operations.
 # pyright: reportMissingParameterType=none
 # pyright: reportPrivateUsage=none
 # pyright: reportUnusedParameter=none
+# pyright: reportUnknownLambdaType=none
 # pyright: reportUnusedCallResult=none
 
 import os

@@ -214,7 +214,7 @@ class TestDataServiceSynchronization:
             [],  # Empty data
         ]
 
-        for i, data_set in enumerate(data_sets):
+        for _, data_set in enumerate(data_sets):
             # Set data
             curve_widget.set_curve_data(data_set)
 

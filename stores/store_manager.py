@@ -31,6 +31,10 @@ class StoreManager(QObject):
 
     _instance: "StoreManager | None" = None
 
+    frame_store: FrameStore
+    _app_state: Any
+    _initialized: bool
+
     def __new__(cls) -> "StoreManager":
         """Ensure singleton pattern."""
         if cls._instance is None:

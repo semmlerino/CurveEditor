@@ -26,7 +26,7 @@ Type Safety Note:
 # pyright: reportUnusedCallResult=none
 
 import copy
-from typing import Protocol, cast
+from typing import Protocol, cast, override
 from unittest.mock import Mock
 
 import pytest
@@ -68,7 +68,7 @@ class MockDataService:
         """Mock moving average smoothing."""
         # Return points with slightly different Y values to simulate smoothing
         result = []
-        for i, point in enumerate(points):
+        for _, point in enumerate(points):
             if len(point) >= 3:
                 smoothed_y = point[2] + 0.1  # Simple smoothing simulation
                 if len(point) == 3:
@@ -82,7 +82,7 @@ class MockDataService:
     def filter_median(self, points: CurveDataList, window_size: int) -> CurveDataList:
         """Mock median filter."""
         result = []
-        for i, point in enumerate(points):
+        for _, point in enumerate(points):
             if len(point) >= 3:
                 filtered_y = point[2] + 0.2  # Simple filter simulation
                 if len(point) == 3:
@@ -96,7 +96,7 @@ class MockDataService:
     def filter_butterworth(self, points: CurveDataList, order: int = 2) -> CurveDataList:
         """Mock butterworth filter."""
         result = []
-        for i, point in enumerate(points):
+        for _, point in enumerate(points):
             if len(point) >= 3:
                 filtered_y = point[2] + 0.3  # Simple filter simulation
                 if len(point) == 3:
@@ -1375,6 +1375,7 @@ class TestCompositeCommandRollback:
         class FailingCommand(MovePointCommand):
             """Mock command that always fails execution."""
 
+            @override
             def execute(self, main_window):
                 # Simulate failure
                 return False
@@ -1426,6 +1427,7 @@ class TestCompositeCommandRollback:
         class ExceptionCommand(MovePointCommand):
             """Mock command that raises exception."""
 
+            @override
             def execute(self, main_window):
                 raise RuntimeError("Simulated execution failure")
 
@@ -1473,6 +1475,7 @@ class TestCompositeCommandRollback:
         class FailingUndoCommand(MovePointCommand):
             """Mock command that fails undo."""
 
+            @override
             def undo(self, main_window):
                 return False
 

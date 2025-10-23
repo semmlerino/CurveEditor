@@ -154,7 +154,7 @@ class ConnectionVerifier:
         Returns:
             Tuple of (all_verified, error_messages)
         """
-        error_messages = []
+        error_messages: list[str] = []
         all_verified = True
 
         for component in components:
@@ -274,7 +274,7 @@ class ConnectionVerifier:
         """
         critical_failures = self.get_critical_failures()
         if critical_failures:
-            error_messages = []
+            error_messages: list[str] = []
             for report in critical_failures:
                 msg = f"{report.connection.source_name}.{report.connection.signal_name} -> "
                 msg += f"{report.connection.target_name}.{report.connection.slot_name}: "

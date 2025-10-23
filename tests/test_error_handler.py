@@ -307,7 +307,7 @@ class TestErrorHandler:
         assert ErrorCategory.PERMISSION in error_handler.recovery_actions
 
         # Check that actions are non-empty lists
-        for category, actions in error_handler.recovery_actions.items():
+        for _, actions in error_handler.recovery_actions.items():
             assert isinstance(actions, list)
             assert len(actions) > 0
             assert all(isinstance(action, str) for action in actions)

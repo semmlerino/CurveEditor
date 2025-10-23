@@ -178,7 +178,7 @@ class TestFileToDisplayPipeline:
 
             # 4. Verify all points can be transformed
             for point in loaded_data:
-                frame, x, y, status = safe_extract_point(point)
+                _, x, y, _ = safe_extract_point(point)
                 screen_coords = transform.data_to_screen(float(x), float(y))
                 assert len(screen_coords) == 2
                 assert all(isinstance(coord, int | float) for coord in screen_coords)
@@ -363,9 +363,9 @@ class TestPointManipulationPipeline:
         # 4. Verify modification occurred
         assert len(modified_data) == len(original_data)
         # Smoothed data should be slightly different
-        for i, (orig, smooth) in enumerate(zip(original_data, modified_data)):
-            orig_frame, orig_x, orig_y, orig_status = safe_extract_point(orig)
-            smooth_frame, smooth_x, smooth_y, smooth_status = safe_extract_point(smooth)
+        for _, (orig, smooth) in enumerate(zip(original_data, modified_data)):
+            orig_frame, _, _, orig_status = safe_extract_point(orig)
+            smooth_frame, _, _, smooth_status = safe_extract_point(smooth)
 
             assert orig_frame == smooth_frame  # Frame unchanged
             assert orig_status == smooth_status  # Status preserved
@@ -478,7 +478,7 @@ class TestImageSequencePipeline:
                 # Find corresponding curve point
                 matching_point: tuple[float, float] | None = None
                 for point in curve_data:
-                    point_frame, x, y, status = safe_extract_point(point)
+                    point_frame, x, y, _ = safe_extract_point(point)
                     if point_frame == frame_num:
                         matching_point = (float(x), float(y))
                         break

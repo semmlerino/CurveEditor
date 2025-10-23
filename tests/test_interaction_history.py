@@ -108,7 +108,7 @@ class TestHistoryOperations:
         main_window = MockMainWindow()
 
         # Add many history entries
-        for i in range(150):
+        for _ in range(150):
             self.service.add_to_history(main_window)
 
         # Should not exceed max size

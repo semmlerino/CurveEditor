@@ -303,7 +303,7 @@ class MockCurveView:
         if curve_data is not None:
             self.curve_data: CurveDataList = list(curve_data)
         else:
-            self.curve_data: CurveDataList = []
+            self.curve_data = []
         self.points: CurveDataList = self.curve_data  # Alias for service compatibility
         self.selected_points: set[int] = set()
         self.selected_point_idx: int = -1
@@ -378,7 +378,6 @@ class MockCurveView:
         # Image sequence properties
         self.image_sequence_path: str = ""
         self.image_filenames: list[str] = []
-        self.current_image_idx: int = 0
 
         # Transform (for spatial index tests)
         self.transform: object = None  # Transform object - set by tests

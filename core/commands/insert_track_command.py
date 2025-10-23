@@ -144,7 +144,7 @@ class InsertTrackCommand(Command):
                 # Scenario 3: All curves have data at current frame - create averaged curve
                 # BUT: Verify at least one curve actually has data at current frame
                 # (gap detection returns None for frames beyond all data, which isn't a real "no gap")
-                curves_with_actual_data_at_frame = []
+                curves_with_actual_data_at_frame: list[str] = []
                 for curve_name in curves_without_gap_at_current:
                     curve_data = app_state.get_curve_data(curve_name)
                     if curve_data and any(p[0] == self.current_frame for p in curve_data):

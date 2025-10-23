@@ -510,8 +510,8 @@ class TestCenteringStability:
         # Each frame should have consistent offsets across multiple visits
         for frame_num, frame_meas in [(1, frame1_measurements), (2, frame2_measurements), (3, frame3_measurements)]:
             if len(frame_meas) > 1:
-                x_values = [x for x, y in frame_meas]
-                y_values = [y for x, y in frame_meas]
+                x_values = [x for x, _ in frame_meas]
+                y_values = [y for _, y in frame_meas]
                 x_variance = max(x_values) - min(x_values)
                 y_variance = max(y_values) - min(y_values)
 

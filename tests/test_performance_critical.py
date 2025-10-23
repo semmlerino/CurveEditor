@@ -100,7 +100,7 @@ class TestDataProcessingPerformance:
         # Verify result correctness
         assert len(result) == 500
         for original, smoothed in zip(medium_data, result):
-            orig_frame, orig_x, orig_y = original
+            orig_frame, _, _ = original
             smooth_frame, smooth_x, smooth_y, _ = safe_extract_point(smoothed)
 
             assert orig_frame == smooth_frame  # Frame preserved
@@ -313,7 +313,7 @@ class TestMemoryUsagePatterns:
         # Create many temporary files and load them
         temp_files = []
         try:
-            for i in range(50):
+            for _ in range(50):
                 # Create small dataset
                 data = [{"frame": j, "x": float(j), "y": float(j * 2)} for j in range(1, 21)]  # 20 points each
 
@@ -396,7 +396,7 @@ class TestRealisticWorkflowPerformance:
             # Transform sample of coordinates
             for i in range(0, len(smoothed_data), 10):  # Every 10th point
                 point = smoothed_data[i]
-                frame, x, y, _ = safe_extract_point(point)
+                _, x, y, _ = safe_extract_point(point)
                 screen_coords = transform.data_to_screen(x, y)
                 # Just verify transformation works
                 assert len(screen_coords) == 2

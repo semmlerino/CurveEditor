@@ -7,7 +7,7 @@ using Qt threading (QThread) for proper Qt integration and thread safety.
 
 import logging
 from pathlib import Path
-from typing import ClassVar
+from typing import ClassVar, override
 
 from PySide6.QtCore import QMutex, QMutexLocker, QThread, Signal
 
@@ -74,6 +74,7 @@ class FileLoadWorker(QThread):
         """Thread-safe check of interruption flag."""
         return self.isInterruptionRequested()
 
+    @override
     def run(self) -> None:
         """Main worker method that runs in background Qt thread.
 

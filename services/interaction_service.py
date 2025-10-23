@@ -62,6 +62,8 @@ class _MouseHandler:
     Handles all mouse/keyboard interactions including drag, pan, and rubber band selection.
     """
 
+    _owner: InteractionService
+
     def __init__(self, owner: InteractionService) -> None:
         """Initialize mouse handler."""
         self._owner = owner
@@ -72,7 +74,7 @@ class _MouseHandler:
 
     def handle_mouse_press(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Handle mouse press events."""
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         try:
             from PySide6.QtCore import QPoint, QRect, QSize, Qt
@@ -88,7 +90,7 @@ class _MouseHandler:
             # Check for point selection first
             # When Ctrl is held, search across all visible curves for curve-level selection
             search_mode = "all_visible" if ctrl_held else "active"
-            point_result = self._owner._selection.find_point_at(view, pos.x(), pos.y(), mode=search_mode)
+            point_result = self._owner.selection.find_point_at(view, pos.x(), pos.y(), mode=search_mode)
 
             if point_result.found:
                 # Point clicked
@@ -196,7 +198,7 @@ class _MouseHandler:
 
     def handle_mouse_move(self, view: CurveViewProtocol, event: QMouseEvent) -> None:
         """Handle mouse move events."""
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         try:
             from PySide6.QtCore import QPoint, QRect
@@ -277,7 +279,7 @@ class _MouseHandler:
 
     def handle_mouse_release(self, view: CurveViewProtocol, _event: QMouseEvent) -> None:
         """Handle mouse release events."""
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         try:
             # drag_active is bool in CurveViewProtocol
@@ -295,7 +297,7 @@ class _MouseHandler:
                     if (cd := self._app_state.active_curve_data) is None:
                         return
                     _, data = cd
-                    moves = []
+                    moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
                     for idx, old_pos in self._drag_original_positions.items():
                         if 0 <= idx < len(data):
                             point = data[idx]
@@ -355,7 +357,7 @@ class _MouseHandler:
 
                     # Update history if points were selected
                     if selected_count > 0:
-                        self._owner._commands.update_history_buttons(view.main_window)
+                        self._owner.commands.update_history_buttons(view.main_window)
 
             view.update()
 
@@ -365,7 +367,7 @@ class _MouseHandler:
 
     def handle_wheel_event(self, view: CurveViewProtocol, event: QWheelEvent) -> None:
         """Handle mouse wheel events."""
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         try:
             # Zoom around mouse position
@@ -385,7 +387,7 @@ class _MouseHandler:
 
     def handle_key_event(self, view: CurveViewProtocol, event: QKeyEvent) -> None:
         """Handle keyboard events."""
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         try:
             from PySide6.QtCore import Qt
@@ -403,7 +405,9 @@ class _MouseHandler:
                         return
                     _, data = cd
                     indices = list(view.selected_points)
-                    deleted_points = []
+                    deleted_points: list[
+                        tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]
+                    ] = []
                     for idx in sorted(indices):
                         if 0 <= idx < len(data):
                             deleted_points.append((idx, data[idx]))
@@ -433,14 +437,14 @@ class _MouseHandler:
                 view.selected_points = set(range(len(data)))
                 view.selected_point_idx = 0
                 # main_window is defined in CurveViewProtocol
-                self._owner._commands.update_history_buttons(view.main_window)
+                self._owner.commands.update_history_buttons(view.main_window)
 
             elif key == Qt.Key.Key_Escape:
                 # Clear selection
                 view.selected_points = set()
                 view.selected_point_idx = -1
                 # main_window is defined in CurveViewProtocol
-                self._owner._commands.update_history_buttons(view.main_window)
+                self._owner.commands.update_history_buttons(view.main_window)
 
             elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
                 # Nudge selected points
@@ -469,7 +473,7 @@ class _MouseHandler:
                     if (cd := self._app_state.active_curve_data) is None:
                         return
                     _, data = cd
-                    moves = []
+                    moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
                     for idx in view.selected_points:
                         if 0 <= idx < len(data):
                             point = data[idx]
@@ -500,6 +504,8 @@ class _SelectionManager:
     NOT a QObject - lightweight helper owned by InteractionService.
     Manages point finding, selection, and spatial indexing.
     """
+
+    _owner: InteractionService
 
     def __init__(self, owner: InteractionService) -> None:
         """Initialize selection manager."""
@@ -536,7 +542,7 @@ class _SelectionManager:
             if result.found:
                 print(f"Point {result.index} in {result.curve_name}")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if mode == "active":
             # Single-curve mode (backward compatible)
@@ -574,8 +580,7 @@ class _SelectionManager:
                 # CRITICAL: Clear spatial index before each curve to prevent cache collision
                 # The spatial index caches by transform hash + point count, but different
                 # curves can have the same point count, leading to stale index data
-                self._point_index._grid.clear()
-                self._point_index._last_transform_hash = None
+                self._point_index.clear_cache()
 
                 # Search this curve with clean API
                 idx = self._point_index.find_point_at_position(curve_data, transform, x, y, threshold, view)
@@ -611,7 +616,7 @@ class _SelectionManager:
     def select_point_by_index(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         idx: int,
         add_to_selection: bool = False,
         curve_name: str | None = None,
@@ -629,7 +634,7 @@ class _SelectionManager:
         Returns:
             True if point was selected, False if invalid index
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
         if curve_name is None:
             curve_name = self._app_state.active_curve
         if curve_name is None:
@@ -650,7 +655,7 @@ class _SelectionManager:
         return False
 
     def clear_selection(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, curve_name: str | None = None
     ) -> None:
         """
         Clear selection for specified curve.
@@ -667,7 +672,7 @@ class _SelectionManager:
             # Multi-curve - clear specific curve:
             service.clear_selection(view, main_window, curve_name="pp56_TM_138G")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if curve_name is None:
             curve_name = self._app_state.active_curve
@@ -682,7 +687,7 @@ class _SelectionManager:
         view.update()
 
     def select_all_points(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, curve_name: str | None = None
     ) -> int:
         """
         Select all points in specified curve.
@@ -702,7 +707,7 @@ class _SelectionManager:
             # Multi-curve - select all in specific curve:
             count = service.select_all_points(view, main_window, curve_name="pp56_TM_138G")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if curve_name is None:
             curve_name = self._app_state.active_curve
@@ -728,7 +733,7 @@ class _SelectionManager:
         return len(all_indices)
 
     def select_points_in_rect(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, rect: QRect, curve_name: str | None = None
     ) -> int:
         """
         Select points in rectangle using spatial indexing for O(1) performance.
@@ -749,7 +754,7 @@ class _SelectionManager:
             # Multi-curve - select in specific curve:
             count = service.select_points_in_rect(view, main_window, selection_rect, curve_name="pp56_TM_138G")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if curve_name is None:
             curve_name = self._app_state.active_curve
@@ -804,9 +809,7 @@ class _SelectionManager:
 
     def clear_spatial_index(self) -> None:
         """Clear the spatial index cache to force rebuild."""
-        self._point_index._grid.clear()
-        self._point_index._last_transform_hash = None
-        self._point_index._last_point_count = 0
+        self._point_index.clear_cache()
 
 
 class _CommandHistory:
@@ -816,6 +819,8 @@ class _CommandHistory:
     NOT a QObject - lightweight helper owned by InteractionService.
     Manages legacy history state and undo/redo operations.
     """
+
+    _owner: InteractionService
 
     def __init__(self, owner: InteractionService) -> None:
         """Initialize command history."""
@@ -1159,6 +1164,8 @@ class _PointManipulator:
     Handles point updates, deletion, nudging, and notifications.
     """
 
+    _owner: InteractionService
+
     def __init__(self, owner: InteractionService) -> None:
         """Initialize point manipulator."""
         self._owner = owner
@@ -1167,7 +1174,7 @@ class _PointManipulator:
     def update_point_position(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         idx: int,
         x: float,
         y: float,
@@ -1187,7 +1194,7 @@ class _PointManipulator:
         Returns:
             True if point was updated, False if invalid index
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
         if curve_name is None:
             curve_name = self._app_state.active_curve
         if curve_name is None:
@@ -1227,7 +1234,7 @@ class _PointManipulator:
             # Multi-curve - delete from specific curve:
             service.delete_selected_points(view, main_window, curve_name="pp56_TM_138G")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if curve_name is None:
             curve_name = self._app_state.active_curve
@@ -1241,7 +1248,7 @@ class _PointManipulator:
 
             # Collect points to delete
             indices = list(view.selected_points)
-            deleted_points = []
+            deleted_points: list[tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]] = []
             for idx in sorted(indices):
                 if 0 <= idx < len(curve_data):
                     deleted_points.append((idx, curve_data[idx]))
@@ -1260,7 +1267,7 @@ class _PointManipulator:
             view.selected_point_idx = -1
 
             # Clear spatial index since points changed
-            self._owner._selection.clear_spatial_index()
+            self._owner.selection.clear_spatial_index()
 
             # Update view
             update_method = getattr(view, "update", None)
@@ -1270,7 +1277,7 @@ class _PointManipulator:
     def nudge_selected_points(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         dx: float,
         dy: float,
         curve_name: str | None = None,
@@ -1295,7 +1302,7 @@ class _PointManipulator:
             # Multi-curve - nudge specific curve:
             success = service.nudge_selected_points(view, main_window, 1.0, 0.0, curve_name="pp56_TM_138G")
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         if not view.selected_points:
             return False
@@ -1342,14 +1349,14 @@ class _PointManipulator:
             view: Curve view that changed
             curve_name: Curve that changed. None = all curves changed.
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
         if curve_name is None:
             logger.debug("All curve data changed")
         else:
             logger.debug(f"Curve '{curve_name}' data changed")
 
         # Clear spatial index since data changed
-        self._owner._selection.clear_spatial_index()
+        self._owner.selection.clear_spatial_index()
 
         # Update view
         update_method = getattr(view, "update", None)
@@ -1364,7 +1371,7 @@ class _PointManipulator:
             indices: Set of selected point indices
             curve_name: Curve whose selection changed. None = active curve.
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
         if curve_name is None:
             logger.debug(f"Selection changed: {len(indices)} points selected (active curve)")
         else:
@@ -1372,7 +1379,7 @@ class _PointManipulator:
 
         # Clear spatial index since selection affects rendering
         # (selected points may be highlighted differently)
-        self._owner._selection.clear_spatial_index()
+        self._owner.selection.clear_spatial_index()
 
     def on_frame_changed(self, frame: int, curve_name: str | None = None) -> None:
         """
@@ -1382,20 +1389,20 @@ class _PointManipulator:
             frame: New current frame
             curve_name: Curve to update. None = update all curves.
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
         if curve_name is None:
             logger.debug(f"Frame changed to {frame} (all curves)")
         else:
             logger.debug(f"Frame changed to {frame} for '{curve_name}'")
 
         # Clear spatial index since frame affects which points are visible/highlighted
-        self._owner._selection.clear_spatial_index()
+        self._owner.selection.clear_spatial_index()
 
-    def on_point_moved(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
+    def on_point_moved(self, _main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Handle point movement notifications."""
         logger.debug(f"Point {idx} moved to ({x}, {y})")
 
-    def on_point_selected(self, curve_view: CurveViewProtocol, main_window: MainWindowProtocol, idx: int) -> None:
+    def on_point_selected(self, _curve_view: CurveViewProtocol, _main_window: MainWindowProtocol, idx: int) -> None:
         """Handle point selection notifications."""
         logger.debug(f"Point {idx} selected")
 
@@ -1416,7 +1423,7 @@ class _PointManipulator:
             view: Curve view to pan
             delta_y: Delta Y in screen pixels
         """
-        self._owner._assert_main_thread()
+        self._owner.assert_main_thread()
 
         # Get current pan offset or initialize
         current_pan_y = getattr(view, "pan_offset_y", 0.0)
@@ -1469,6 +1476,11 @@ class InteractionService:
     Public API preserved for backward compatibility.
     """
 
+    _mouse: _MouseHandler
+    _selection: _SelectionManager
+    _commands: _CommandHistory
+    _points: _PointManipulator
+
     def __init__(self) -> None:
         """Initialize the interaction service with internal helpers."""
         # ApplicationState integration
@@ -1495,7 +1507,17 @@ class InteractionService:
 
         logger.info("InteractionService initialized with 4 internal helpers (Phase 3.2)")
 
-    def _assert_main_thread(self) -> None:
+    @property
+    def selection(self) -> _SelectionManager:
+        """Get the selection manager helper."""
+        return self._selection
+
+    @property
+    def commands(self) -> _CommandHistory:
+        """Get the command history helper."""
+        return self._commands
+
+    def assert_main_thread(self) -> None:
         """
         Verify method called from main thread (matches ApplicationState pattern).
 
@@ -1575,31 +1597,31 @@ class InteractionService:
     def select_point_by_index(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         idx: int,
         add_to_selection: bool = False,
         curve_name: str | None = None,
     ) -> bool:
         """Select point by index in specified curve."""
-        return self._selection.select_point_by_index(view, main_window, idx, add_to_selection, curve_name)
+        return self._selection.select_point_by_index(view, _main_window, idx, add_to_selection, curve_name)
 
     def clear_selection(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, curve_name: str | None = None
     ) -> None:
         """Clear selection for specified curve."""
-        self._selection.clear_selection(view, main_window, curve_name)
+        self._selection.clear_selection(view, _main_window, curve_name)
 
     def select_all_points(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, curve_name: str | None = None
     ) -> int:
         """Select all points in specified curve."""
-        return self._selection.select_all_points(view, main_window, curve_name)
+        return self._selection.select_all_points(view, _main_window, curve_name)
 
     def select_points_in_rect(
-        self, view: CurveViewProtocol, main_window: MainWindowProtocol, rect: QRect, curve_name: str | None = None
+        self, view: CurveViewProtocol, _main_window: MainWindowProtocol, rect: QRect, curve_name: str | None = None
     ) -> int:
         """Select points in rectangle using spatial indexing."""
-        return self._selection.select_points_in_rect(view, main_window, rect, curve_name)
+        return self._selection.select_points_in_rect(view, _main_window, rect, curve_name)
 
     def get_spatial_index_stats(self) -> dict[str, object]:
         """Get spatial index performance statistics."""
@@ -1673,14 +1695,14 @@ class InteractionService:
     def update_point_position(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         idx: int,
         x: float,
         y: float,
         curve_name: str | None = None,
     ) -> bool:
         """Update point position in curve."""
-        return self._points.update_point_position(view, main_window, idx, x, y, curve_name)
+        return self._points.update_point_position(view, _main_window, idx, x, y, curve_name)
 
     def delete_selected_points(
         self, view: CurveViewProtocol, main_window: MainWindowProtocol, curve_name: str | None = None
@@ -1691,13 +1713,13 @@ class InteractionService:
     def nudge_selected_points(
         self,
         view: CurveViewProtocol,
-        main_window: MainWindowProtocol,
+        _main_window: MainWindowProtocol,
         dx: float,
         dy: float,
         curve_name: str | None = None,
     ) -> bool:
         """Nudge selected points by a given delta."""
-        return self._points.nudge_selected_points(view, main_window, dx, dy, curve_name)
+        return self._points.nudge_selected_points(view, _main_window, dx, dy, curve_name)
 
     def on_data_changed(self, view: CurveViewProtocol, curve_name: str | None = None) -> None:
         """Handle curve data change notifications."""
@@ -1731,7 +1753,7 @@ class InteractionService:
         """Reset view to default state."""
         self._points.reset_view(view)
 
-    def _enable_point_controls(self, main_window: MainWindowProtocol) -> None:
+    def _enable_point_controls(self, _main_window: MainWindowProtocol) -> None:
         """Enable point manipulation controls."""
         # This would enable UI controls when points are selected
         pass

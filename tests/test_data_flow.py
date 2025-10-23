@@ -489,7 +489,7 @@ class TestDataFlowIntegration:
         app_state = get_application_state()
 
         # Perform rapid changes
-        for iteration in range(3):
+        for _ in range(3):
             # Add points
             test_data: CurveDataList = [(i, float(i * 10), float(i * 10), "normal") for i in range(1, 6)]
             app_state.set_curve_data("TestCurve", test_data)

@@ -139,7 +139,7 @@ class DataAnalysisService:
         if len(data) < 2:
             return data
 
-        result = []
+        result: CurveDataList = []
         filled_count = 0
 
         for i in range(len(data) - 1):
@@ -168,7 +168,7 @@ class DataAnalysisService:
             return []
 
         # Calculate velocities
-        velocities = []
+        velocities: list[tuple[float, float]] = []
         for i in range(1, len(data)):
             dx = data[i][1] - data[i - 1][1]
             dy = data[i][2] - data[i - 1][2]
@@ -183,7 +183,7 @@ class DataAnalysisService:
         mean_vx = sum(v[0] for v in velocities) / len(velocities)
         mean_vy = sum(v[1] for v in velocities) / len(velocities)
 
-        outliers = []
+        outliers: list[int] = []
         if len(velocities) > 1:
             std_vx = statistics.stdev(v[0] for v in velocities)
             std_vy = statistics.stdev(v[1] for v in velocities)
@@ -210,9 +210,9 @@ class DataAnalysisService:
             }
 
         # Extract data from points (LegacyPointData is tuple format)
-        frames = []
-        x_coords = []
-        y_coords = []
+        frames: list[int] = []
+        x_coords: list[float] = []
+        y_coords: list[float] = []
 
         for point in points:
             # CurveDataInput is Sequence[LegacyPointData] which are tuples

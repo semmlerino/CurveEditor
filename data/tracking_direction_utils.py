@@ -78,7 +78,7 @@ def update_keyframe_status_for_forward_tracking(curve_data: CurveDataInput) -> C
         Updated curve data with modified statuses
     """
     # Normalize data to ensure all points have 4 elements (frame, x, y, status)
-    normalized_data = []
+    normalized_data: CurveDataList = []
     for point_tuple in curve_data:
         if len(point_tuple) == 3:
             # Add default keyframe status for 3-element tuples
@@ -91,7 +91,7 @@ def update_keyframe_status_for_forward_tracking(curve_data: CurveDataInput) -> C
 
     for i, point_tuple in enumerate(normalized_data):
         frame, x, y = point_tuple[:3]
-        current_status = PointStatus.from_legacy(point_tuple[3])
+        current_status = PointStatus.from_legacy(point_tuple[3])  # pyright: ignore[reportGeneralTypeIssues,reportArgumentType]
 
         # Only process keyframes and endframes
         if current_status not in (PointStatus.KEYFRAME, PointStatus.ENDFRAME):
@@ -140,7 +140,7 @@ def update_keyframe_status_for_backward_tracking(curve_data: CurveDataInput) -> 
         Updated curve data with modified statuses
     """
     # Normalize data to ensure all points have 4 elements (frame, x, y, status)
-    normalized_data = []
+    normalized_data: CurveDataList = []
     for point_tuple in curve_data:
         if len(point_tuple) == 3:
             # Add default keyframe status for 3-element tuples
@@ -153,7 +153,7 @@ def update_keyframe_status_for_backward_tracking(curve_data: CurveDataInput) -> 
 
     for i, point_tuple in enumerate(normalized_data):
         frame, x, y = point_tuple[:3]
-        current_status = PointStatus.from_legacy(point_tuple[3])
+        current_status = PointStatus.from_legacy(point_tuple[3])  # pyright: ignore[reportGeneralTypeIssues,reportArgumentType]
 
         # Only process keyframes and endframes
         if current_status not in (PointStatus.KEYFRAME, PointStatus.ENDFRAME):
@@ -207,7 +207,7 @@ def update_keyframe_status_for_bidirectional_tracking(
         Updated curve data with modified statuses
     """
     # Normalize data to ensure all points have 4 elements (frame, x, y, status)
-    normalized_data = []
+    normalized_data: CurveDataList = []
     for point_tuple in curve_data:
         if len(point_tuple) == 3:
             # Add default keyframe status for 3-element tuples
@@ -225,7 +225,7 @@ def update_keyframe_status_for_bidirectional_tracking(
 
     for i, point_tuple in enumerate(normalized_data):
         frame, x, y = point_tuple[:3]
-        current_status = PointStatus.from_legacy(point_tuple[3])
+        current_status = PointStatus.from_legacy(point_tuple[3])  # pyright: ignore[reportGeneralTypeIssues,reportArgumentType]
 
         # Only process keyframes and endframes
         if current_status not in (PointStatus.KEYFRAME, PointStatus.ENDFRAME):

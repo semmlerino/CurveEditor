@@ -152,7 +152,7 @@ class TestApplicationStateThreadSafety:
 
         def rapid_batch_toggle(worker_id: int, iterations: int = 10) -> None:
             """Attempt to rapidly toggle batch mode (should be rejected)."""
-            for i in range(iterations):
+            for _ in range(iterations):
                 try:
                     with state.batch_updates():
                         state.set_curve_data(f"curve_{worker_id}", [(1, 0.0, 0.0, "normal")])

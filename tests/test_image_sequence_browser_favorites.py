@@ -12,6 +12,7 @@
 # pyright: reportPrivateUsage=none
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
+# pyright: reportUnknownLambdaType=none
 
 import tempfile
 from pathlib import Path
@@ -352,12 +353,6 @@ def test_populate_favorites_called_on_init(qtbot: QtBot, monkeypatch):
     populate_called = []
 
     # Patch _populate_favorites before dialog creation
-    original_init = ImageSequenceBrowserDialog.__init__
-
-    def patched_init(self, *args, **kwargs):
-        original_init(self, *args, **kwargs)
-        populate_called.append(True)
-
     with patch.object(ImageSequenceBrowserDialog, "_populate_favorites", lambda self: populate_called.append(True)):
         dialog = ImageSequenceBrowserDialog()
         qtbot.addWidget(dialog)

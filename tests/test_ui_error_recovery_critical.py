@@ -205,7 +205,7 @@ class TestUIErrorRecoveryCritical:
                 )
 
                 # Perform multiple operations
-                for i in range(10):
+                for _ in range(10):
                     transform = service.create_transform_from_view_state(view_state)
                     results.put(transform)
 

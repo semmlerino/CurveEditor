@@ -98,15 +98,15 @@ class ApplicationState(QObject):
     """
 
     # State change signals
-    state_changed = Signal()  # Emitted on any state change
-    curves_changed = Signal(dict)  # curves_data changed: dict[str, CurveDataList]
-    selection_changed = Signal(set, str)  # Point-level (frame indices)
-    active_curve_changed = Signal(str)  # active_curve_name: str
-    frame_changed = Signal(int)  # current_frame: int
-    curve_visibility_changed = Signal(str, bool)  # (curve_name, visible)
+    state_changed: Signal = Signal()  # Emitted on any state change
+    curves_changed: Signal = Signal(dict)  # curves_data changed: dict[str, CurveDataList]
+    selection_changed: Signal = Signal(set, str)  # Point-level (frame indices)
+    active_curve_changed: Signal = Signal(str)  # active_curve_name: str
+    frame_changed: Signal = Signal(int)  # current_frame: int
+    curve_visibility_changed: Signal = Signal(str, bool)  # (curve_name, visible)
 
     # NEW: Curve-level selection state changed (selected_curves, show_all)
-    selection_state_changed = Signal(set, bool)
+    selection_state_changed: Signal = Signal(set, bool)
 
     # Image sequence signal (total_frames is derived, no separate signal needed)
     image_sequence_changed: Signal = Signal()

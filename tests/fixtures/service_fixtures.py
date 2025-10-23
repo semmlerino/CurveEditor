@@ -99,6 +99,9 @@ def memory_monitor() -> Generator[Any, None, None]:
     import psutil
 
     class MemoryMonitor:
+        process: psutil.Process
+        initial_memory: float
+
         def __init__(self):
             self.process = psutil.Process(os.getpid())
             self.initial_memory = self.get_memory_usage()

@@ -245,7 +245,7 @@ class TestFileLoadWorkerMemoryManagement:
         test_file.write_text("1\nTestPoint\nPointType\n1\n1 100 200\n")
 
         # Multiple cycles
-        for i in range(5):
+        for _ in range(5):
             with qtbot.waitSignal(worker.finished, timeout=2000):
                 worker.start_work(str(test_file), None)
 
@@ -402,8 +402,12 @@ class TestFileLoadWorkerYFlipIntegration:
             "Point3\n0\n2\n1 300.0 300.0\n2 310.0 310.0\n"
         )
 
-        loaded_data = []
-        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+        loaded_data: list[object] = []
+
+        def on_data_loaded(data: object) -> None:
+            loaded_data.append(data)
+
+        worker.tracking_data_loaded.connect(on_data_loaded)
 
         with qtbot.waitSignal(worker.finished, timeout=2000):
             worker.start_work(str(test_file), None)
@@ -452,8 +456,12 @@ class TestFileLoadWorkerMetadataAwarePath:
         test_file = tmp_path / "test_metadata.csv"
         test_file.write_text("1\nTestPoint\nPointType\n2\n1 100.0 200.0\n2 150.0 250.0\n")
 
-        loaded_data = []
-        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+        loaded_data: list[object] = []
+
+        def on_data_loaded(data: object) -> None:
+            loaded_data.append(data)
+
+        worker.tracking_data_loaded.connect(on_data_loaded)
 
         with qtbot.waitSignal(worker.finished, timeout=2000):
             worker.start_work(str(test_file), None)
@@ -490,8 +498,12 @@ class TestFileLoadWorkerMetadataAwarePath:
         test_file = tmp_path / "multi_metadata.csv"
         test_file.write_text("2\n" "Point1\n0\n1\n1 100.0 100.0\n" "Point2\n0\n1\n1 200.0 200.0\n")
 
-        loaded_data = []
-        worker.tracking_data_loaded.connect(lambda d: loaded_data.append(d))
+        loaded_data: list[object] = []
+
+        def on_data_loaded(data: object) -> None:
+            loaded_data.append(data)
+
+        worker.tracking_data_loaded.connect(on_data_loaded)
 
         with qtbot.waitSignal(worker.finished, timeout=2000):
             worker.start_work(str(test_file), None)
@@ -544,8 +556,12 @@ class TestFileLoadWorkerLoadParity:
         manual_point_data = manual_data["Point01"]
 
         # Auto-load via FileLoadWorker
-        auto_data = []
-        worker.tracking_data_loaded.connect(lambda d: auto_data.append(d))
+        auto_data: list[object] = []
+
+        def on_auto_data_loaded(data: object) -> None:
+            auto_data.append(data)
+
+        worker.tracking_data_loaded.connect(on_auto_data_loaded)
 
         with qtbot.waitSignal(worker.finished, timeout=2000):
             worker.start_work(str(test_file), None)
@@ -554,10 +570,17 @@ class TestFileLoadWorkerLoadParity:
         assert len(auto_data) == 1
         auto_point_data = auto_data[0]
 
-        # CRITICAL: Both should have identical Y-flipped coordinates
-        assert len(manual_point_data) == len(auto_point_data)
+        from typing import cast
 
-        for i, (manual_point, auto_point) in enumerate(zip(manual_point_data, auto_point_data)):
+        from core.type_aliases import CurveDataList
+
+        # Cast to specific type for iteration
+        auto_point_list = cast(CurveDataList, auto_point_data)
+
+        # CRITICAL: Both should have identical Y-flipped coordinates
+        assert len(manual_point_data) == len(auto_point_list)
+
+        for i, (manual_point, auto_point) in enumerate(zip(manual_point_data, auto_point_list)):
             # Compare frame, x, y (ignore status field if present)
             assert manual_point[0] == auto_point[0], f"Point {i}: Frame mismatch"
             assert manual_point[1] == auto_point[1], f"Point {i}: X mismatch"
@@ -584,8 +607,12 @@ class TestFileLoadWorkerLoadParity:
         manual_data = get_data_service().load_tracked_data(str(test_file))
 
         # Auto-load
-        auto_data = []
-        worker.tracking_data_loaded.connect(lambda d: auto_data.append(d))
+        auto_data: list[object] = []
+
+        def on_auto_data_loaded(data: object) -> None:
+            auto_data.append(data)
+
+        worker.tracking_data_loaded.connect(on_auto_data_loaded)
 
         with qtbot.waitSignal(worker.finished, timeout=2000):
             worker.start_work(str(test_file), None)

@@ -39,7 +39,7 @@ class TestQtThreadingInvestigation:
         """Test multiple MainWindow creations sequentially."""
         windows = []
 
-        for i in range(3):
+        for _ in range(3):
             window = MainWindow()
             qtbot.addWidget(window)  # Critical: Auto cleanup
             windows.append(window)

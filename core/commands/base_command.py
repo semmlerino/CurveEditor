@@ -81,7 +81,7 @@ class Command(ABC):
         """
         pass
 
-    def can_merge_with(self, other: Command) -> bool:
+    def can_merge_with(self, _other: Command) -> bool:
         """
         Check if this command can be merged with another command.
 
@@ -89,19 +89,19 @@ class Command(ABC):
         (e.g., multiple point movements) into a single undo step.
 
         Args:
-            other: Another command to potentially merge with
+            _other: Another command to potentially merge with
 
         Returns:
             True if commands can be merged, False otherwise
         """
         return False
 
-    def merge_with(self, other: Command) -> Command:
+    def merge_with(self, _other: Command) -> Command:
         """
         Merge this command with another command.
 
         Args:
-            other: Another command to merge with
+            _other: Another command to merge with
 
         Returns:
             A new command representing the merged operation
