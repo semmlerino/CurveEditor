@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot  # pyright: ignore[reportUnknownVariableType]
+from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
 from PySide6.QtWidgets import (
     QApplication,
     QPushButton,
@@ -468,10 +468,10 @@ class TimelineController(QObject):
         parent = self.parent()  # Returns non-None QObject
         curve_widget = getattr(parent, "curve_widget", None)
         if curve_widget is not None:
-            curve_data = curve_widget.curve_data  # pyright: ignore[reportAny]
+            curve_data = curve_widget.curve_data
             if curve_data:
                 # Get actual frame range from curve data
-                frames = [point[0] for point in curve_data]  # pyright: ignore[reportAny]
+                frames = [point[0] for point in curve_data]
                 self.playback_state.min_frame = min(frames)
                 self.playback_state.max_frame = max(frames)
 

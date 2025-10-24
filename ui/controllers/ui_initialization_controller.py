@@ -438,7 +438,7 @@ class UIInitializationController:
                 # Widget was deleted or not yet initialized
                 pass
 
-        QTimer.singleShot(100, set_focus_safe)  # pyright: ignore[reportUnknownMemberType]
+        QTimer.singleShot(100, set_focus_safe)
 
         logger.info("CurveViewWidget created and integrated")
 

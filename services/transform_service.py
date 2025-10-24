@@ -149,7 +149,7 @@ class ViewState:
         zoom_factor_obj = getattr(curve_view, "zoom_factor", 1.0)
         if not isinstance(zoom_factor_obj, int | float):
             # Type name extraction - safe to ignore reportAny in error message
-            type_name = type(zoom_factor_obj).__name__  # pyright: ignore[reportAny]
+            type_name = type(zoom_factor_obj).__name__
             raise TypeError(f"zoom_factor must be real number, not {type_name}")
         zoom_factor: float = float(zoom_factor_obj)
 

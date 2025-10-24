@@ -117,8 +117,6 @@ class RenderCacheController:
                 screen_pos = self.widget.data_to_screen(x, y)
                 self._screen_points_cache[idx] = screen_pos
 
-            logger.debug(f"Updated screen points cache with {len(self._screen_points_cache)} points")
-
     def update_visible_indices(self, rect: QRect) -> None:
         """
         Update cache of visible point indices for viewport culling.
@@ -143,8 +141,6 @@ class RenderCacheController:
             if expanded.contains(pos.toPoint()):
                 self._visible_indices_cache.add(idx)
 
-        logger.debug(f"Updated visible indices: {len(self._visible_indices_cache)} visible")
-
     def update_single_point_cache(self, index: int, x: float, y: float) -> None:
         """
         Update screen position for a single point in the cache.
@@ -158,7 +154,6 @@ class RenderCacheController:
         """
         if index in self._screen_points_cache:
             self._screen_points_cache[index] = self.widget.data_to_screen(x, y)
-            logger.debug(f"Updated cache for point {index}")
 
     # ==================== Cache Queries ====================
 

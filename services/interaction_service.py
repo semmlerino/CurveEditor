@@ -1400,11 +1400,11 @@ class _PointManipulator:
 
     def on_point_moved(self, _main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Handle point movement notifications."""
-        logger.debug(f"Point {idx} moved to ({x}, {y})")
+        pass
 
     def on_point_selected(self, _curve_view: CurveViewProtocol, _main_window: MainWindowProtocol, idx: int) -> None:
         """Handle point selection notifications."""
-        logger.debug(f"Point {idx} selected")
+        pass
 
     def update_point_info(self, main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
         """Update point information display."""
@@ -1436,8 +1436,6 @@ class _PointManipulator:
         if getattr(view, "pan_offset_y", None) is not None:
             view.pan_offset_y = current_pan_y + adjusted_delta
             view.update()
-
-        logger.debug(f"Applied pan offset Y: {delta_y} -> {adjusted_delta} (flip={view.flip_y_axis})")
 
     def reset_view(self, view: CurveViewProtocol) -> None:
         """Reset view to default state."""

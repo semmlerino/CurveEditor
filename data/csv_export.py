@@ -92,22 +92,22 @@ def export_to_excel(file_path: str, curve_data: list[tuple[int, float, float]], 
         return False
 
     try:
-        workbook = xlsxwriter.Workbook(file_path)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
-        worksheet = workbook.add_worksheet(sheet_name)  # pyright: ignore[reportUnknownMemberType,reportUnknownVariableType]
+        workbook = xlsxwriter.Workbook(file_path)
+        worksheet = workbook.add_worksheet(sheet_name)
 
         # Add header
-        worksheet.write(0, 0, "Frame")  # pyright: ignore[reportUnknownMemberType]
-        worksheet.write(0, 1, "X")  # pyright: ignore[reportUnknownMemberType]
-        worksheet.write(0, 2, "Y")  # pyright: ignore[reportUnknownMemberType]
+        worksheet.write(0, 0, "Frame")
+        worksheet.write(0, 1, "X")
+        worksheet.write(0, 2, "Y")
 
         # Add data
         sorted_data = sorted(curve_data, key=lambda p: p[0])
         for i, (frame, x, y) in enumerate(sorted_data):
-            worksheet.write(i + 1, 0, frame)  # pyright: ignore[reportUnknownMemberType]
-            worksheet.write(i + 1, 1, x)  # pyright: ignore[reportUnknownMemberType]
-            worksheet.write(i + 1, 2, y)  # pyright: ignore[reportUnknownMemberType]
+            worksheet.write(i + 1, 0, frame)
+            worksheet.write(i + 1, 1, x)
+            worksheet.write(i + 1, 2, y)
 
-        workbook.close()  # pyright: ignore[reportUnknownMemberType]
+        workbook.close()
         logger.info(f"Successfully exported {len(curve_data)} points to Excel: {file_path}")
         return True
     except Exception as e:

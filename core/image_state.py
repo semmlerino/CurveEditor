@@ -421,7 +421,7 @@ class ImageState:
         curve_view = getattr(main_window, "curve_view", None)
         if curve_view is not None:
             # Type check for safety (getattr returns Any, but we check it)
-            if _is_curve_view_protocol(curve_view):  # pyright: ignore[reportAny]
+            if _is_curve_view_protocol(curve_view):
                 self.sync_from_curve_view(curve_view)
             else:
                 logger.warning("curve_view object does not conform to CurveViewProtocol")

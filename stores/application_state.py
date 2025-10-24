@@ -655,7 +655,7 @@ class ApplicationState(QObject):
             self._current_frame = frame
             self._emit(self.frame_changed, (frame,))
 
-            logger.debug(f"Frame changed: {old_frame} → {frame}")
+            logger.debug(f"Frame changed: {old_frame} -> {frame}")
 
     # ==================== Image Sequence Methods ====================
 

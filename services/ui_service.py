@@ -341,8 +341,8 @@ class UIService:
                 continue
 
             component = getattr(main_window, component_name, None)
-            if component is not None and callable(getattr(component, "setEnabled", None)):  # pyright: ignore[reportAny]
-                component.setEnabled(enabled)  # pyright: ignore[reportAny]
+            if component is not None and callable(getattr(component, "setEnabled", None)):
+                component.setEnabled(enabled)
 
     def update_button_states(self, main_window: "MainWindowProtocol") -> None:
         """Update the enabled state of various buttons based on application state.
@@ -383,7 +383,7 @@ class UIService:
         for button_name in selection_buttons:
             button = getattr(main_window, button_name, None)
             if button:
-                button.setEnabled(has_selection)  # pyright: ignore[reportAny]
+                button.setEnabled(has_selection)
 
     def update_window_title(
         self, main_window: "MainWindowProtocol", title: str | None = None, modified: bool = False

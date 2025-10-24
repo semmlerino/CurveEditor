@@ -86,12 +86,21 @@ class FileOperations(QObject):
         _ = self.file_load_worker.error_occurred.connect(self.error_occurred.emit)
         _ = self.file_load_worker.finished.connect(self.finished.emit)
 
-    def _on_tracking_data_loaded(self, data: object) -> None:
+    def _on_tracking_data_loaded(self, file_path: str, data: object) -> None:
         """Handle tracking data loaded from worker.
 
-        The new FileLoadWorker emits either single curve data or multi-point dict.
-        This handler splits the signal for backward compatibility.
+        The new FileLoadWorker emits file path and data.
+        This handler updates state and splits the signal for backward compatibility.
+
+        Args:
+            file_path: Path to the loaded file
+            data: Loaded data (single curve or multi-point dict)
         """
+        # Set state BEFORE emitting signals (for session persistence)
+        if self.state_manager:
+            self.state_manager.current_file = file_path
+            self.state_manager.is_modified = False
+
         if isinstance(data, dict):
             # Multi-point data
             self.multi_point_data_loaded.emit(data)
@@ -165,20 +174,22 @@ class FileOperations(QObject):
 
             if tracked_data:
                 # Successfully loaded multi-point data
-                self.file_loaded.emit(file_path)
+                # Set state BEFORE emitting signal (for session persistence)
                 if self.state_manager:
                     self.state_manager.current_file = file_path
                     self.state_manager.is_modified = False
+                self.file_loaded.emit(file_path)
                 return tracked_data
 
         # Fall back to single curve loading
         if self.services:
             data = self.services.load_track_data_from_file(file_path)
             if data:
-                self.file_loaded.emit(file_path)
+                # Set state BEFORE emitting signal (for session persistence)
                 if self.state_manager:
                     self.state_manager.current_file = file_path
                     self.state_manager.is_modified = False
+                self.file_loaded.emit(file_path)
                 # Cast to proper return type
                 return cast(CurveDataList, data)
 
@@ -207,10 +218,11 @@ class FileOperations(QObject):
         success = data_service.save_json(file_path, data)
 
         if success:
-            self.file_saved.emit(file_path)
+            # Set state BEFORE emitting signal (for session persistence)
             if self.state_manager:
                 self.state_manager.current_file = file_path
                 self.state_manager.is_modified = False
+            self.file_saved.emit(file_path)
             return True
 
         return False

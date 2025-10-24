@@ -66,7 +66,7 @@ def is_point3(point: object) -> TypeGuard[Point3]:
         return False
 
     # Direct length check on known tuple
-    if len(point) != 3:  # pyright: ignore[reportUnknownArgumentType]
+    if len(point) != 3:
         return False
 
     return isinstance(point[0], int) and isinstance(point[1], int | float) and isinstance(point[2], int | float)
@@ -92,7 +92,7 @@ def is_point4(point: object) -> TypeGuard[Point4]:
         return False
 
     # Direct length check on known tuple
-    if len(point) != 4:  # pyright: ignore[reportUnknownArgumentType]
+    if len(point) != 4:
         return False
 
     return (

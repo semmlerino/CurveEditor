@@ -30,9 +30,9 @@ class SessionManager:
         Args:
             project_root: Root directory of the project. If None, determined automatically.
         """
-        self.project_root = project_root or self._find_project_root()
-        self.session_dir = self.project_root / "session"
-        self.session_file = self.session_dir / "last_session.json"
+        self.project_root: Path = project_root or self._find_project_root()
+        self.session_dir: Path = self.project_root / "session"
+        self.session_file: Path = self.session_dir / "last_session.json"
 
         # Ensure session directory exists
         self.session_dir.mkdir(exist_ok=True)
@@ -139,7 +139,7 @@ class SessionManager:
             if "recent_directories" in processed_data and processed_data["recent_directories"]:
                 # Make paths relative where possible
                 processed_data["recent_directories"] = [
-                    self._make_relative_path(cast(str, path)) for path in cast(list[str], processed_data["recent_directories"])
+                    self._make_relative_path(path) for path in cast(list[str], processed_data["recent_directories"])
                 ]
 
             # Add metadata
@@ -315,16 +315,16 @@ class SessionManager:
 
             # Restore recent directories
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
-                if cast(object, main_window).state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
-                    cast(object, main_window).state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
+                if main_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                    main_window.state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
 
             # Load files using background thread if available
-            if cast(object, main_window).file_load_worker is not None:  # pyright: ignore[reportAttributeAccessIssue]
+            if main_window.file_load_worker is not None:  # pyright: ignore[reportAttributeAccessIssue]
                 logger.info("Loading session files via background thread")
-                cast(object, main_window).file_load_worker.start_work(tracking_file, image_directory)  # pyright: ignore[reportAttributeAccessIssue]
+                main_window.file_load_worker.start_work(tracking_file, image_directory)  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Store session data to restore state after files are loaded
-                cast(object, main_window)._pending_session_data = {  # pyright: ignore[reportAttributeAccessIssue]
+                main_window._pending_session_data = {  # pyright: ignore[reportAttributeAccessIssue]
                     "current_frame": current_frame,
                     "zoom_level": zoom_level,
                     "pan_offset": pan_offset,
@@ -335,9 +335,9 @@ class SessionManager:
             else:
                 # Fallback to direct loading if no worker available
                 logger.warning("No file load worker available, using direct loading")
-                if tracking_file and cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                if tracking_file and main_window.file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
                     # Simulate file opened event for session restoration
-                    cast(object, main_window).file_operations.open_file()  # pyright: ignore[reportAttributeAccessIssue]
+                    main_window.file_operations.open_file()  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Restore selection state immediately via ApplicationState
                 from stores.application_state import get_application_state
@@ -350,8 +350,8 @@ class SessionManager:
         except Exception as e:
             logger.error(f"Failed to restore session state: {e}")
             # Fallback to burger data on error
-            if cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
-                cast(object, main_window).file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]
+            if main_window.file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                main_window.file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]
 
     def load_session_or_fallback(self, main_window: object) -> None:
         """Load session data if available, otherwise fallback to burger data.
@@ -367,5 +367,5 @@ class SessionManager:
             self.restore_session_state(main_window, session_data)
         else:
             logger.info("No session found, falling back to burger data")
-            if cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
-                cast(object, main_window).file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]
+            if main_window.file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                main_window.file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]

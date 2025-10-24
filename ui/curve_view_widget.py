@@ -1101,7 +1101,7 @@ class CurveViewWidget(QWidget):
                     action.setChecked(True)
                 # Connect to handler
                 # Note: PySide6 signal connect requires Callable, lambda type hints not supported
-                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))  # pyright: ignore[reportUnknownLambdaType]
+                _ = action.triggered.connect(lambda checked, s=status, i=idx: self._set_point_status(i, s))
 
             # Add separator
             _ = menu.addSeparator()

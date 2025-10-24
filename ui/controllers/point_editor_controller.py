@@ -9,7 +9,7 @@ points are selected and applying changes when spinbox values are edited.
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QSignalBlocker, Slot  # pyright: ignore[reportUnknownVariableType]
+from PySide6.QtCore import QSignalBlocker, Slot
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow

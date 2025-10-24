@@ -166,7 +166,7 @@ class TrackingSelectionController(BaseTrackingController):
                         if callable(center_method):
                             _ = center_method()
 
-                QTimer.singleShot(10, safe_center_on_selection)  # pyright: ignore[reportUnknownMemberType]
+                QTimer.singleShot(10, safe_center_on_selection)
                 logger.debug("Scheduled centering on selected point after 10ms delay")
 
         logger.debug(f"Selected tracking points: {point_names}")

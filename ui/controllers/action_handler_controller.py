@@ -9,7 +9,7 @@ existing ShortcutManager connections and behavior.
 
 from typing import TYPE_CHECKING, cast
 
-from PySide6.QtCore import Slot  # pyright: ignore[reportUnknownVariableType]
+from PySide6.QtCore import Slot
 
 from core.type_aliases import CurveDataList
 from protocols.ui import MainWindowProtocol

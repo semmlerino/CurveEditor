@@ -806,7 +806,7 @@ def is_point_tuple(obj: object) -> TypeGuard[LegacyPointTuple]:
         return False
 
     # Use len() directly on the known tuple
-    obj_len = len(obj)  # pyright: ignore[reportUnknownArgumentType]
+    obj_len = len(obj)
     if obj_len < 3 or obj_len > 4:
         return False
 
@@ -838,8 +838,8 @@ def is_points_list(obj: object) -> TypeGuard[PointsList]:
         return False
 
     # Type check each item individually to help type inference
-    for item in obj:  # pyright: ignore[reportUnknownVariableType]
-        if not is_point_tuple(item):  # pyright: ignore[reportUnknownArgumentType]
+    for item in obj:
+        if not is_point_tuple(item):
             return False
     return True
 

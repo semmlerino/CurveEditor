@@ -317,7 +317,7 @@ class StateManager(QObject):
         total_frames = self._app_state.get_total_frames()
         clamped_frame = max(1, min(frame, total_frames))
         self._app_state.set_frame(clamped_frame)
-        logger.debug(f"Frame set (clamped): {frame} → {clamped_frame}")
+        logger.debug(f"Frame set (clamped): {frame} -> {clamped_frame}")
 
     # ==================== View State Properties ====================
 

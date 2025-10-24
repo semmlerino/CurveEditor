@@ -120,16 +120,17 @@ class TestDataAnalysis:
         assert result[0][0] == 1  # Frame preserved
         assert result[-1][0] == 6  # Last frame preserved
 
-    def test_filter_butterworth_without_scipy(self):
-        """Test Butterworth filter when scipy is not available."""
+    def test_filter_butterworth_uses_moving_average(self):
+        """Test Butterworth filter uses simple moving average (scipy removed)."""
         service = DataService()
-        data: CurveDataList = [(1, 10.0, 20.0), (2, 12.0, 22.0)]
+        data: CurveDataList = [(1, 10.0, 20.0), (2, 12.0, 22.0), (3, 14.0, 24.0)]
 
-        with patch("services.data_analysis.signal", None):
-            result = service.filter_butterworth(data)
+        # filter_butterworth now uses moving average, not scipy
+        result = service.filter_butterworth(data)
 
-            # Should return original data when scipy unavailable
-            assert result == data
+        # Should return smoothed data (not necessarily identical to input)
+        assert len(result) == len(data)
+        assert all(len(point) >= 3 for point in result)
 
     def test_filter_butterworth_error_handling(self):
         """Test Butterworth filter error handling."""

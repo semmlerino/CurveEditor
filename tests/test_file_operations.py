@@ -74,13 +74,15 @@ class TestFileLoadSignals:
         worker = ui_file_load_signals
         # FileLoadWorker is a QThread with signals as class attributes
 
-        # Test tracking_data_loaded signal with list data
+        # Test tracking_data_loaded signal with list data (now includes file_path)
         spy = qt_api.QtTest.QSignalSpy(worker.tracking_data_loaded)
         test_data = [(1, 100.0, 200.0)]
-        worker.tracking_data_loaded.emit(test_data)
+        test_file = "/test/path.txt"
+        worker.tracking_data_loaded.emit(test_file, test_data)
 
         assert spy.count() == 1
-        assert spy.at(0)[0] == test_data
+        assert spy.at(0)[0] == test_file
+        assert spy.at(0)[1] == test_data
 
         # Test error_occurred signal
         error_spy = qt_api.QtTest.QSignalSpy(worker.error_occurred)
@@ -520,7 +522,8 @@ class TestFileOperations:
 
         # Emit signals directly from the worker (which are connected to FileOperations signals)
         test_data = [(1, 100.0, 200.0)]
-        file_ops.file_load_worker.tracking_data_loaded.emit(test_data)
+        test_file = "/test/path.txt"
+        file_ops.file_load_worker.tracking_data_loaded.emit(test_file, test_data)
         file_ops.file_load_worker.finished.emit()
 
         # Process events to allow signal propagation

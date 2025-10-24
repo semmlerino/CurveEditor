@@ -166,7 +166,7 @@ class MockFileLoadWorker:
         # Simulate immediate completion for testing
         if tracking_file:
             data = get_sample_tracking_data()
-            self.tracking_data_loaded.emit(data)
+            self.tracking_data_loaded.emit(tracking_file, data)
 
         if image_dir:
             self.image_sequence_loaded.emit(image_dir, ["test1.png", "test2.png"])

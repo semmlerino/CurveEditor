@@ -38,7 +38,7 @@ class TrackingTableEventFilter(QObject):
             panel: The tracking points panel that owns the table
         """
         super().__init__()
-        self.panel = panel
+        self.panel: TrackingPointsPanel = panel
 
     @override
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -154,15 +154,15 @@ class TrackingPointsPanel(QWidget):
         self._active_point: str | None = None  # Active timeline point (whose timeline is displayed)
 
         # NEW: ApplicationState reference
-        from stores.application_state import get_application_state
+        from stores.application_state import ApplicationState, get_application_state
 
-        self._app_state = get_application_state()
+        self._app_state: ApplicationState = get_application_state()
 
         self._init_ui()
 
         # Install event filter for tracking direction shortcuts
         # Set self as parent for proper Qt ownership and automatic cleanup
-        self._table_event_filter = TrackingTableEventFilter(self)
+        self._table_event_filter: TrackingTableEventFilter = TrackingTableEventFilter(self)
         self._table_event_filter.setParent(self)
         self.table.installEventFilter(self._table_event_filter)
 
@@ -182,8 +182,10 @@ class TrackingPointsPanel(QWidget):
         # Add checkbox for toggling multi-curve display
         self.display_mode_checkbox: QCheckBox = QCheckBox("Show all curves")
         self.display_mode_checkbox.setToolTip(
-            "When checked, displays all visible curves simultaneously.\n"
-            "When unchecked, shows only the selected/active curve."
+            (
+                "When checked, displays all visible curves simultaneously.\n"
+                "When unchecked, shows only the selected/active curve."
+            )
         )
         self.display_mode_checkbox.setChecked(False)
         _ = self.display_mode_checkbox.toggled.connect(self._on_display_mode_checkbox_toggled)

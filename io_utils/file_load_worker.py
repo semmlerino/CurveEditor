@@ -27,7 +27,7 @@ class FileLoadWorker(QThread):
     """
 
     # Qt signals as class attributes
-    tracking_data_loaded: ClassVar[Signal] = Signal(object)  # CurveDataWithMetadata or list/dict
+    tracking_data_loaded: ClassVar[Signal] = Signal(str, object)  # file_path, CurveDataWithMetadata or list/dict
     image_sequence_loaded: ClassVar[Signal] = Signal(str, list)  # dir_path, file_list
     progress_updated: ClassVar[Signal] = Signal(int, str)  # progress%, message
     error_occurred: ClassVar[Signal] = Signal(str)  # error message
@@ -128,8 +128,8 @@ class FileLoadWorker(QThread):
                             f"[QTHREAD] Emitting tracking_data_loaded from Qt thread: {self.objectName() or 'FileLoadWorker'}"
                         )
 
-                    # Signal emission (Qt handles thread-safety)
-                    self.tracking_data_loaded.emit(data)
+                    # Signal emission (Qt handles thread-safety) - include file path for session persistence
+                    self.tracking_data_loaded.emit(self.tracking_file_path, data)
                     current_task += 1
                     progress = int((current_task / total_tasks) * 100)
                     # Handle different data types for length calculation
