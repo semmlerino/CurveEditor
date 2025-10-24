@@ -111,6 +111,52 @@ with state.batch_updates():
     # Signals emitted once at end
 ```
 
+### Focused Protocols for ApplicationState (Interface Segregation)
+
+**Phase 1 Addition** (October 2025): Use minimal protocols instead of depending on full ApplicationState.
+
+```python
+from protocols.state import FrameProvider, CurveDataProvider, SelectionProvider
+
+# ✅ RECOMMENDED - Depend on minimal protocol
+class FrameDisplay:
+    def __init__(self, frames: FrameProvider):
+        self._frames = frames  # Only needs current_frame property
+
+    def show_frame(self):
+        print(f"Frame: {self._frames.current_frame}")
+
+# ✅ Test with 1-line mock (98% simpler than mocking ApplicationState)
+class MockFrameProvider:
+    current_frame: int = 42
+
+test_frame_display(MockFrameProvider())  # Done!
+
+# ❌ OLD WAY - Depend on full ApplicationState (50+ methods)
+class FrameDisplay:
+    def __init__(self, state: ApplicationState):
+        self._state = state  # Depends on 50+ methods for 1 property!
+```
+
+**Available Protocols** (see `protocols/state.py` for details):
+- `FrameProvider` - Current frame access only
+- `CurveDataProvider` - Read-only curve data
+- `CurveDataModifier` - Write curve data
+- `SelectionProvider` - Read-only selection
+- `SelectionModifier` - Write selection
+- `ImageSequenceProvider` - Image sequence info
+- Composite: `CurveState`, `SelectionState`, `FrameAndCurveProvider`
+
+**Benefits**:
+- **Test mocks**: 1-3 methods instead of 50+ methods (98% reduction)
+- **Clear dependencies**: Protocol name documents exact needs
+- **Decoupling**: Changes to unrelated features don't affect clients
+- **Flexibility**: Easy to create lightweight test implementations
+
+**Compatibility**: ApplicationState automatically satisfies all protocols via structural typing (duck typing). No code changes needed to existing ApplicationState.
+
+---
+
 **StateManager** handles **UI preferences and view state**.
 
 ```python
@@ -198,50 +244,41 @@ if not data:
 - Only need selection (use `state.get_selection(curve_name)`)
 - Only need to check if active curve exists (partial pattern is fine)
 
-**Command Pattern: Store Target Curve** (Task 4.6 Bug Fix):
+**Command Pattern: Automatic Target Storage** (Phase 1 Refactoring - October 2025):
 
-Commands must store the target curve at `execute()` time for correct undo behavior:
+`CurveDataCommand` base class **automatically** stores target curve when you call `_get_active_curve_data()`:
 
 ```python
-class SmoothCommand(Command):
+class SmoothCommand(CurveDataCommand):
     def __init__(self, ...):
         super().__init__(...)
-        self._target_curve: str | None = None  # Store target for undo
-        # ... other fields
+        # self._target_curve inherited from base (stored automatically)
 
     def execute(self, main_window: MainWindowProtocol) -> bool:
-        # Use Pattern A to get curve
-        if (cd := state.active_curve_data) is None:
+        # Get active curve - AUTOMATIC target storage!
+        if (result := self._get_active_curve_data()) is None:
             return False
-        curve_name, data = cd
-
-        # ✅ CRITICAL: Store target curve for undo
-        self._target_curve = curve_name
+        curve_name, data = result
+        # self._target_curve is now set automatically (no manual storage needed)
 
         # ... execute logic
 
     def undo(self, main_window: MainWindowProtocol) -> bool:
-        # ✅ CORRECT: Use stored target, not current active
+        # ✅ Use stored target (set automatically during execute)
         if not self._target_curve:
             return False
         state.set_curve_data(self._target_curve, self._old_data)
 
-        # ❌ WRONG: Re-fetching active curve
-        # active = state.active_curve  # BUG: Uses wrong curve if user switched!
-
     def redo(self, main_window: MainWindowProtocol) -> bool:
-        # ✅ CORRECT: Use stored target, not current active
+        # ✅ Use stored target (NOT current active)
         if not self._target_curve:
             return False
         state.set_curve_data(self._target_curve, self._new_data)
-
-        # ❌ WRONG: Calling execute() which overwrites _target_curve
-        # return self.execute(main_window)  # BUG: Re-fetches active curve!
 ```
 
-**Why This Matters**: If user executes command on "Track1", switches to "Track2", then clicks Undo or Redo, both operations must target "Track1" (where command executed), not "Track2" (current active). Re-fetching or calling `execute()` causes data corruption.
+**Why This Matters**: Undo/redo must target the curve where command executed, not current active curve. Automatic storage eliminates Bug #2 (forgetting to store target manually).
 
-**Critical**: Both `undo()` AND `redo()` must use `self._target_curve`. Never call `self.execute(main_window)` in `redo()` as it will overwrite the stored target.
+**Key Benefit**: Impossible to forget target storage - it's automatic when you call `_get_active_curve_data()`.
 
 ### Data Access Patterns (Architectural Guidance)
 
@@ -296,13 +333,11 @@ class MyCustomCommand(CurveDataCommand):
     def execute(self, main_window: MainWindowProtocol) -> bool:
         """Execute command with base class helpers."""
         def _execute_operation() -> bool:
-            # Validate and get active curve
+            # Validate and get active curve (AUTOMATIC target storage)
             if (result := self._get_active_curve_data()) is None:
                 return False
             curve_name, curve_data = result
-
-            # CRITICAL: Store target curve for undo/redo
-            self._target_curve = curve_name
+            # self._target_curve is now set automatically!
 
             # ... perform operation
 
@@ -341,7 +376,7 @@ class MyCustomCommand(CurveDataCommand):
 ```
 
 **Available base class methods**:
-- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve (does NOT store target - caller MUST store `_target_curve` explicitly in execute())
+- `_get_active_curve_data() -> tuple[str, CurveDataList] | None`: Validates and retrieves active curve, **automatically stores `self._target_curve` for undo/redo** (Phase 1 improvement)
 - `_safe_execute(name: str, operation) -> bool`: Wraps operation in try/except with logging
 - `_update_point_position(point, new_pos) -> LegacyPointData`: Updates x/y while preserving frame/status
 - `_update_point_at_index(data, idx, updater) -> bool`: Safe indexed update with bounds check
@@ -632,9 +667,10 @@ transform = transform_service.create_transform_from_view_state(view_state)
 1. **Component Container**: UI attributes in `ui/ui_components.py`
 2. **Service Singleton**: Thread-safe service instances
 3. **Protocol-based**: Type-safe interfaces
-4. **Immutable Models**: Thread-safe CurvePoint
-5. **Transform Caching**: LRU cache
-6. **Command Pattern**: Undo/redo support
+4. **Interface Segregation**: Focused protocols in `protocols/state.py` (Phase 1)
+5. **Immutable Models**: Thread-safe CurvePoint
+6. **Transform Caching**: LRU cache
+7. **Command Pattern**: Undo/redo support with automatic target storage
 
 ## Common Pitfalls
 
