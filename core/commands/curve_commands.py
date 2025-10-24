@@ -45,22 +45,27 @@ class CurveDataCommand(Command, ABC):
             description: Human-readable command description
         """
         super().__init__(description)
-        self._target_curve: str | None = None  # Store target curve for undo (Bug #2 fix)
 
     def _get_active_curve_data(self) -> tuple[str, CurveDataList] | None:
-        """Get and validate active curve data.
+        """Get and validate active curve data, automatically storing target for undo/redo.
 
         Returns:
             Tuple of (curve_name, curve_data) if successful, None if no active curve
 
         Note:
-            Does NOT store target curve - caller must do this explicitly in execute().
+            AUTOMATICALLY stores target curve in self._target_curve for undo/redo.
+            This eliminates the bug-prone manual storage pattern (Bug #2 fix).
             Does NOT log errors - caller should handle logging as needed.
         """
         app_state = get_application_state()
         if (cd := app_state.active_curve_data) is None:
             return None
-        return cd  # Return tuple directly, no side effects
+        curve_name, curve_data = cd
+
+        # AUTOMATIC: Store target curve for undo/redo (no longer manual!)
+        self._target_curve = curve_name
+
+        return cd  # Return tuple directly
 
     def _safe_execute(self, operation_name: str, operation: Callable[[], bool]) -> bool:
         """Execute operation with standardized error handling.
@@ -152,8 +157,6 @@ class SetCurveDataCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Explicitly store target curve at start of execute()
-            self._target_curve = curve_name
 
             # Capture old data if not provided
             if self.old_data is None:
@@ -246,8 +249,6 @@ class SmoothCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             # Capture old points if not provided
             if self.old_points is None:
@@ -411,8 +412,6 @@ class MovePointCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             curve_data = list(curve_data)
             if 0 <= self.index < len(curve_data):
@@ -533,8 +532,6 @@ class DeletePointsCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             curve_data = list(curve_data)
 
@@ -647,8 +644,6 @@ class BatchMoveCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             curve_data = list(curve_data)
 
@@ -774,8 +769,6 @@ class SetPointStatusCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             # Get data service for restoration logic
             data_service = get_data_service()
@@ -973,8 +966,6 @@ class AddPointCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             curve_data = list(curve_data)
             if 0 <= self.index <= len(curve_data):
@@ -1074,8 +1065,6 @@ class ConvertToInterpolatedCommand(CurveDataCommand):
                 return False
             curve_name, curve_data = result
 
-            # Store target curve for undo
-            self._target_curve = curve_name
 
             curve_data = list(curve_data)
             if 0 <= self.index < len(curve_data):
