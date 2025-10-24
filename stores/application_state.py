@@ -60,6 +60,14 @@ from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal, SignalIns
 
 from core.display_mode import DisplayMode
 from core.models import CurvePoint, PointStatus
+from protocols.state import (
+    CurveDataModifier,
+    CurveDataProvider,
+    FrameProvider,
+    ImageSequenceProvider,
+    SelectionModifier,
+    SelectionProvider,
+)
 
 if TYPE_CHECKING:
     from core.type_aliases import CurveDataInput, CurveDataList
@@ -76,6 +84,18 @@ class ApplicationState(QObject):
     This is the ONLY location that stores application data.
     All components read from here via getters and subscribe
     to signals for updates. No component maintains local copies.
+
+    Protocol Compatibility (Interface Segregation Principle):
+        ApplicationState structurally implements these protocols from protocols/state.py:
+        - FrameProvider: Current frame access (current_frame property)
+        - CurveDataProvider: Curve data read (get_curve_data, get_all_curve_names, active_curve)
+        - CurveDataModifier: Curve data write (set_curve_data, delete_curve)
+        - SelectionProvider: Selection read (get_selection, selection_changed signal)
+        - SelectionModifier: Selection write (set_selection, clear_selection)
+        - ImageSequenceProvider: Image info (get_image_files, get_image_directory, get_total_frames)
+
+        Clients can depend on minimal protocols instead of full ApplicationState.
+        See protocols/state.py for usage examples and testing patterns.
 
     Thread Safety Contract:
     - All data access methods MUST be called from main thread only
