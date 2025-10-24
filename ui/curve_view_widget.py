@@ -1340,9 +1340,6 @@ class CurveViewWidget(QWidget):
         # PointSearchResult.index is always int, -1 if not found
         point_index: int = result.index
 
-        # Log for verification during integration testing
-        logger.debug(f"[SPATIAL INDEX] find_point_at({pos.x():.1f}, {pos.y():.1f}) -> {point_index}")
-
         return point_index
 
     def select_point(self, point_index: int, add_to_selection: bool = False, curve_name: str | None = None) -> None:

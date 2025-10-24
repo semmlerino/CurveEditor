@@ -741,10 +741,6 @@ class OptimizedCurveRenderer:
         import logging
 
         logger = logging.getLogger(__name__)
-        logger.info(
-            f"[RENDER-PATH] has_status={has_status}, points={len(curve_data)}, "
-            f"first_point_len={len(curve_data[0]) if curve_data else 0}"
-        )
 
         if has_status:
             # Render with segment awareness (gaps at ENDFRAME points)
@@ -1216,8 +1212,6 @@ class OptimizedCurveRenderer:
                         continue
                     frame_num = int(point_data[i][0])
                     painter.drawText(QPointF(x + 10, y - 10), str(frame_num))
-
-        logger.debug(f"Rendered {len(curves_data)} curves")
 
     def _render_background_optimized(self, painter: QPainter, render_state: "RenderState") -> None:
         """Optimized background rendering with proper transformations."""

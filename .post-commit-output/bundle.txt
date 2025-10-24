@@ -1,10 +1,9 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (98.6MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 235 files to bundle
+Skipping large file (98.7MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 179 files to bundle
 Bundled: .pre-commit-config.yaml
-Bundled: .pytest_tips.md
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
 Bundled: 2DTrackData_Point1_only.txt
@@ -12,64 +11,34 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
-Bundled: basedpyrightconfig.json
 Bundled: BASEDPYRIGHT_STRATEGY.md
 Bundled: baseline_lines.txt
 Bundled: baseline_tests.txt
 Bundled: baseline_types.txt
 Bundled: BEST_PRACTICES_SUMMARY.txt
+Bundled: BREAKING_CHANGES_QUICK_REFERENCE.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
-Bundled: curveview_method_categorization.txt
 Bundled: DEBUGGING_METHODOLOGY.md
 Bundled: IMPLEMENTATION_CHANGES_SUMMARY.txt
 Bundled: KeyFrameTest.txt
-Bundled: LAYER_VIOLATIONS_SUMMARY.txt
-Bundled: LAYER_VIOLATION_SUMMARY.txt
 Bundled: main.py
 Bundled: mainwindow_diff.txt
-Bundled: PERFORMANCE_BASELINE_REPORT.txt
-Bundled: phase3_task33_analysis.txt
-Bundled: phase3_task33_analysis_corrected.txt
-Bundled: phase3_task33_files.txt
-Bundled: phase3_task33_files_corrected.txt
-Bundled: phase3_task33_inventory.txt
-Bundled: phase3_task33_inventory_corrected.txt
-Bundled: phase3_task33_verification_report.txt
-Bundled: PHASE4_EXECUTIVE_SUMMARY.txt
 Bundled: phase6_type_check.txt
-Bundled: PHASE_2_PLAN.md
 Bundled: Point01.txt
 Bundled: Point01_only.txt
 Bundled: post_phase6.0_types.txt
 Bundled: pre_phase6_types.txt
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
-Bundled: QUICK-REFERENCE.md
 Bundled: README.md
-Bundled: REFACTORING_PLAN_VERIFICATION_SUMMARY.txt
-Bundled: REFACTORING_QUICK_START.md
-Bundled: REFACTORING_SYNTHESIS_REPORT.md
 Bundled: requirements.txt
-Bundled: REVIEW_SUMMARY.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
-Bundled: SetTrackingBwd.py
-Bundled: SetTrackingFwd.py
-Bundled: SetTrackingFwdBwd.py
-Bundled: SPRINT2_CHANGES.txt
 Bundled: testspline.txt
 Bundled: test_normalized_3de.txt
 Bundled: test_results.txt
-Bundled: TEST_SUITE_AUDIT_REPORT.md
 Bundled: transfer_config.json
-Bundled: UX_VALIDATION_SUMMARY.txt
-Bundled: VALIDATION_EVIDENCE.txt
-Bundled: VERIFICATION_REPORT.md
-Bundled: VERIFICATION_SUMMARY.txt
-Bundled: VERIFICATION_SUMMARY_TASKS_1_3_1_5.txt
-Bundled: YAGNI_ANALYSIS.md
-Bundled: YAGNI_QUICK_REFERENCE.md
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
 Bundled: .serena/project.yml
@@ -80,11 +49,6 @@ Bundled: .serena/memories/project_overview.md
 Bundled: .serena/memories/suggested_commands.md
 Bundled: .serena/memories/task_completion_workflow.md
 Bundled: .windsurf/rules/coding.md
-Bundled: archive_phase8/PHASE8_TEST_COVERAGE_REPORT.md
-Bundled: archive_phase8/PHASE_8_CRITICAL_FIXES.md
-Bundled: archive_phase8/PHASE_8_FINAL_IMPLEMENTATION_PLAN.md
-Bundled: archive_phase8/PHASE_8_REFACTOR_TRACKER.md
-Bundled: archive_phase8/README.md
 Bundled: core/config.py
 Bundled: core/coordinate_detector.py
 Bundled: core/coordinate_system.py
@@ -93,7 +57,6 @@ Bundled: core/curve_data.py
 Bundled: core/curve_segments.py
 Bundled: core/defaults.py
 Bundled: core/display_mode.py
-Bundled: core/DISPLAY_MODE_MIGRATION.md
 Bundled: core/error_handlers.py
 Bundled: core/error_messages.py
 Bundled: core/favorites_manager.py
@@ -140,19 +103,6 @@ Bundled: io_utils/__init__.py
 Bundled: LogicExamples/SetTrackingBwd.py
 Bundled: LogicExamples/SetTrackingFwd.py
 Bundled: LogicExamples/SetTrackingFwdBwd.py
-Bundled: plan_tau/00_executive_summary.md
-Bundled: plan_tau/AMENDMENTS.md
-Bundled: plan_tau/implementation_guide.md
-Bundled: plan_tau/ORIGINAL_PLAN_TAU.md
-Bundled: plan_tau/phase1_critical_safety_fixes.md
-Bundled: plan_tau/phase2_quick_wins.md
-Bundled: plan_tau/phase3_architectural_refactoring.md
-Bundled: plan_tau/phase4_polish_optimization.md
-Bundled: plan_tau/QUICK_START.md
-Bundled: plan_tau/README.md
-Bundled: plan_tau/risk_and_rollback.md
-Bundled: plan_tau/verification_and_testing.md
-Bundled: plan_tau/verify_implementation.sh
 Bundled: profiling/cache_analysis.py
 Bundled: profiling/cache_profiler.py
 Bundled: profiling/zoom_cache_performance_fix.py
@@ -161,12 +111,6 @@ Bundled: protocols/services.py
 Bundled: protocols/state.py
 Bundled: protocols/ui.py
 Bundled: protocols/__init__.py
-Bundled: refactoring/00_OVERVIEW.md
-Bundled: refactoring/01_PHASES_1_TO_3.md
-Bundled: refactoring/02_PHASES_4_TO_6.md
-Bundled: refactoring/03_PHASES_7_TO_8_AND_COMPLETION.md
-Bundled: refactoring/PHASE_6.1_MIGRATION_REPORT.md
-Bundled: refactoring/PHASE_6.3_RISK_ASSESSMENT.md
 Bundled: rendering/optimized_curve_renderer.py
 Bundled: rendering/rendering_protocols.py
 Bundled: rendering/render_state.py
@@ -241,9 +185,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.94 MB
+Folder size: 2.19 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 945104 bytes
+Encoded size: 665324 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json
