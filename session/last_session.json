@@ -1,6 +1,6 @@
 {
   "tracking_file": null,
-  "image_directory": "footage/Burger",
+  "image_directory": null,
   "current_frame": 1,
   "zoom_level": 1.0,
   "pan_offset": [
@@ -8,15 +8,24 @@
     0.0
   ],
   "window_geometry": [
-    154,
-    60,
+    0,
+    0,
     1400,
     900
   ],
   "active_points": [],
-  "view_bounds": null,
+  "view_bounds": [
+    0.0,
+    0.0,
+    100.0,
+    100.0
+  ],
+  "recent_directories": [],
+  "selected_curves": [],
+  "show_all_curves": false,
+  "log_level": 10,
   "_metadata": {
-    "saved_at": "C:\\CustomScripts\\Python\\Work\\Linux\\CurveEditor",
+    "saved_at": "/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor",
     "version": "1.0"
   }
 }

@@ -1391,7 +1391,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Add to recent directories
         parent_window = self.parent()
-        state_manager: Any = getattr(parent_window, "state_manager", None)
+        state_manager: object = getattr(parent_window, "state_manager", None)
         if state_manager is not None:
             add_recent = getattr(state_manager, "add_recent_directory", None)
             if add_recent is not None:
