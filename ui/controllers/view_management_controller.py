@@ -229,6 +229,9 @@ class ViewManagementController:
             self.image_filenames = image_files
             self.current_image_idx = 0
 
+            # Update StateManager for session persistence
+            self.main_window.state_manager.image_directory = image_dir
+
             # Update frame range to match image sequence
             num_images = len(image_files)
             self._update_frame_range_for_images(num_images)
