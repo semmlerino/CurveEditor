@@ -60,14 +60,6 @@ from PySide6.QtCore import QCoreApplication, QObject, QThread, Signal, SignalIns
 
 from core.display_mode import DisplayMode
 from core.models import CurvePoint, PointStatus
-from protocols.state import (
-    CurveDataModifier,
-    CurveDataProvider,
-    FrameProvider,
-    ImageSequenceProvider,
-    SelectionModifier,
-    SelectionProvider,
-)
 
 if TYPE_CHECKING:
     from core.type_aliases import CurveDataInput, CurveDataList

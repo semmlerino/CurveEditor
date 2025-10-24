@@ -38,6 +38,8 @@ class CurveDataCommand(Command, ABC):
     - Point tuple manipulation helpers
     """
 
+    _target_curve: str | None = None
+
     def __init__(self, description: str):
         """Initialize base curve data command.
 

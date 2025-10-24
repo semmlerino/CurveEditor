@@ -775,16 +775,6 @@ class OptimizedCurveRenderer:
             points = [CurvePoint.from_tuple(pt) for pt in curve_data]
             segmented_curve = SegmentedCurve.from_points(points)
 
-        # Debug logging
-        import logging
-
-        logger = logging.getLogger(__name__)
-        logger.info(f"[SEGMENT-RENDER] Rendering {len(segmented_curve.segments)} segments:")
-        for i, seg in enumerate(segmented_curve.segments):
-            logger.info(
-                f"  Segment {i+1}: frames {seg.start_frame}-{seg.end_frame}, "
-                f"active={seg.is_active}, points={seg.point_count}"
-            )
 
         # Set line styles for different segment types
         active_pen = CurveColors.get_active_pen(color=curve_color, width=line_width)

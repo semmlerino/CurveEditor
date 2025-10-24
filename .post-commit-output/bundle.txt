@@ -4,6 +4,7 @@ Creating application bundle...
 Skipping large file (98.7MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
 Found 179 files to bundle
 Bundled: .pre-commit-config.yaml
+Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
 Bundled: 2DTrackDatav2.txt
 Bundled: 2DTrackData_Point1_only.txt
@@ -16,7 +17,6 @@ Bundled: baseline_lines.txt
 Bundled: baseline_tests.txt
 Bundled: baseline_types.txt
 Bundled: BEST_PRACTICES_SUMMARY.txt
-Bundled: BREAKING_CHANGES_QUICK_REFERENCE.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
 Bundled: DEBUGGING_METHODOLOGY.md
@@ -187,7 +187,7 @@ Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
 Folder size: 2.19 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 665324 bytes
+Encoded size: 664612 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json
