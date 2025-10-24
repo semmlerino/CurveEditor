@@ -12,7 +12,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Protocol, override, runtime_checkable
+from typing import TYPE_CHECKING, Protocol, override, runtime_checkable
 
 if TYPE_CHECKING:
     from core.validation_strategy import ValidationIssue
@@ -41,7 +41,7 @@ class ErrorContext:
     operation: str  # Operation being performed
     severity: ErrorSeverity
     error: Exception
-    context_data: dict[str, Any] | None = None
+    context_data: dict[str, object] | None = None
     recovery_attempted: bool = False
     recovery_successful: bool = False
     user_message: str | None = None
@@ -157,9 +157,9 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
         """Initialize with optional verbosity."""
         super().__init__(parent_widget)
         self.verbose = verbose
-        self.recovery_callbacks: dict[str, Callable[[], Any]] = {}
+        self.recovery_callbacks: dict[str, Callable[[], object]] = {}
 
-    def set_recovery_callback(self, operation: str, callback: Callable[[], Any]) -> None:
+    def set_recovery_callback(self, operation: str, callback: Callable[[], object]) -> None:
         """Set a recovery callback for a specific operation."""
         self.recovery_callbacks[operation] = callback
 
@@ -460,7 +460,7 @@ def create_error_handler(mode: str = "default", parent_widget: "QWidget | None" 
 class ErrorHandlerMixin:
     """Mixin for UI components to add error handling."""
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(self, *args: object, **kwargs: object) -> None:
         """Initialize with error handler."""
         super().__init__(*args, **kwargs)
         self._error_handler: BaseErrorHandler | None = None
@@ -478,7 +478,7 @@ class ErrorHandlerMixin:
         """Set error handler."""
         self._error_handler = handler
 
-    def handle_error(self, error: Exception, operation: str, **context_data: Any) -> RecoveryStrategy:
+    def handle_error(self, error: Exception, operation: str, **context_data: object) -> RecoveryStrategy:
         """
         Handle an error with the configured handler.
 

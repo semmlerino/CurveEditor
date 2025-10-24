@@ -253,6 +253,7 @@ def test_recent_directories_persistence_integration(session_manager, temp_sessio
     assert len(loaded_data["recent_directories"]) == 2
 
     # Verify directories are restored (may be resolved to absolute)
-    loaded_dirs = loaded_data["recent_directories"]
+    from typing import cast
+    loaded_dirs = cast(list[str], loaded_data["recent_directories"])
     assert str(dir1) in loaded_dirs or Path(loaded_dirs[0]).resolve() == dir1.resolve()
     assert str(dir2) in loaded_dirs or Path(loaded_dirs[1]).resolve() == dir2.resolve()

@@ -1,10 +1,54 @@
 # Phase 2: Controller Consolidation - Detailed Plan
 
 **Date Created**: 2025-10-24
-**Estimated Time**: 12 hours
-**Current Controllers**: 17 files (5,492 lines)
-**Target Controllers**: 10-12 files (~4,800 lines)
-**Expected Savings**: ~700 lines
+**Date Verified**: 2025-10-24
+**Status**: REVISED (Tasks 1-2 rejected, Task 3 only)
+**Estimated Time**: 1-2 hours (Task 3 only)
+
+---
+
+## ⚠️ VERIFICATION RESULTS (2025-10-24)
+
+**5 specialized agents deployed to verify plan against codebase.**
+
+### Task 1: Tracking Controller Consolidation - ❌ REJECTED
+**Finding**: Controllers are **NOT tightly coupled**
+- Zero direct method calls between controllers (grep verified)
+- Signal-based coordination only (Qt idiomatic, intentional design)
+- MultiPointTrackingController facade already handles consolidation well
+- Current design is clean: 1,101 lines across 4 focused files
+
+**Verdict**: No consolidation needed. Current architecture is sound.
+
+### Task 2: View Controller Merge - ❌ REJECTED
+**Finding**: Controllers have **ZERO overlap** - orthogonal responsibilities
+- ViewManagementController: UI checkboxes, image loading (476 lines)
+- ViewCameraController: Transform math, zoom, pan (562 lines, embedded in CurveViewWidget)
+- Zero interaction, no shared state, different architectural layers
+- Merge would break encapsulation and create import cycles
+
+**Verdict**: Controllers exemplify good separation of concerns. Do not merge.
+
+### Task 3: SessionManager Integration - ✅ PROCEED
+**Finding**: Problem verified, solution is straightforward
+- SessionManager exists (372 lines, fully implemented)
+- MainWindow.session_manager property returns None (never instantiated)
+- Integration is simple: 4 code changes, 1-2 hours
+- **Bug found**: SessionManager uses wrong attribute name (file_operations_manager vs file_operations)
+
+**Verdict**: Only valid task in Phase 2. Proceed with integration.
+
+---
+
+## Revised Plan Summary
+
+**Original Plan:**
+- 3 tasks, 12 hours, ~700 lines saved
+
+**Revised Plan:**
+- 1 task (SessionManager integration), 1-2 hours, 0 lines saved
+- Tasks 1-2 rejected (controllers well-designed as-is)
+- Focus: Add session persistence capability
 
 ---
 

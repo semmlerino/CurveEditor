@@ -279,9 +279,11 @@ class TestSessionManager:
         # Assert - Metadata should be present
         assert loaded_data is not None
         assert "_metadata" in loaded_data
-        assert "saved_at" in loaded_data["_metadata"]
-        assert "version" in loaded_data["_metadata"]
-        assert loaded_data["_metadata"]["version"] == "1.0"
+        from typing import cast
+        metadata = cast(dict[str, object], loaded_data["_metadata"])
+        assert "saved_at" in metadata
+        assert "version" in metadata
+        assert metadata["version"] == "1.0"
 
     def test_windows_backslash_path_resolution(self, tmp_path):
         """Test that Windows-style paths with backslashes are resolved correctly."""

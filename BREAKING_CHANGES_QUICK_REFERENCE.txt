@@ -1,0 +1,234 @@
+PHASE 2 BREAKING CHANGES - QUICK REFERENCE
+===========================================
+
+CRITICAL FINDINGS
+=================
+
+✅ FOUND: 15 Critical + 8 Medium breaking changes
+✅ FOUND: Plan lacks API mapping and signal strategy  
+✅ FOUND: Tests will break if sub-controller properties removed
+✅ FOUND: MainWindow will break if property names change
+✅ FOUND: 37+ public methods at risk
+✅ FOUND: 4 signals with undefined consolidation strategy
+✅ FOUND: 8 properties with undefined preservation strategy
+
+===============================================
+BREAKING CHANGES AT A GLANCE
+===============================================
+
+TASK 1: TrackingController Consolidation
+-----------------------------------------
+CRITICAL:
+  1. Sub-controller properties not specified (data_controller, display_controller, selection_controller)
+  2. 37 public methods - no API mapping
+  3. 4 signals - consolidation strategy undefined
+  4. Tests directly access display_controller (will break)
+  5. 18+ MainWindow call sites depend on current API
+
+TASK 2: ViewportController Consolidation  
+----------------------------------------
+CRITICAL:
+  1. view_management_controller property will be removed
+  2. 4 MainWindow access sites will break
+  3. 8 properties at risk (image_filenames, current_image_idx, etc.)
+  4. ViewCameraController integration path unclear
+  5. Service-level dependencies not documented
+
+===============================================
+RECOMMENDED ACTIONS (BEFORE PROCEEDING)
+===============================================
+
+IMMEDIATE (Do First):
+  [ ] Read PHASE_2_BREAKING_CHANGES_ANALYSIS.md (detailed findings)
+  [ ] Review PHASE_2_CODE_LOCATIONS.md (exact code locations)
+  [ ] Review PHASE_2_VERIFICATION_SUMMARY.txt (executive summary)
+
+TASK 1 PLANNING:
+  [ ] Create explicit API preservation checklist (37 methods)
+  [ ] Decide: Preserve sub-controller properties? (recommend: YES)
+  [ ] Decide: Signal consolidation strategy? (recommend: preserve all 4)
+  [ ] Document: Method collision handling (on_data_loaded appears in 2 controllers)
+  [ ] Plan: Test updates (if sub-controllers not preserved)
+  [ ] Document: Rollback points for atomic commits
+
+TASK 2 PLANNING:
+  [ ] Create explicit API preservation checklist (34 methods)
+  [ ] Create property preservation checklist (8 properties)
+  [ ] Plan: MainWindow property updates (view_management_controller → viewport_controller)
+  [ ] Verify: Service-level dependencies on ViewCameraController
+  [ ] Create: Backward-compatibility aliases for MainWindow
+
+BEFORE IMPLEMENTATION:
+  [ ] Get team consensus on all breaking changes
+  [ ] Agree on backward-compatibility strategy
+  [ ] Define test update scope
+  [ ] Establish rollback procedure
+
+===============================================
+RISK MITIGATION STRATEGIES
+===============================================
+
+PRESERVE SUB-CONTROLLER PROPERTIES (Task 1)
+  - Keep data_controller, display_controller, selection_controller as properties
+  - Eliminates test failures (no code rewrite needed)
+  - Allows internal reorganization without breaking tests
+  - Risk reduces from HIGH → LOW
+
+PRESERVE ALL SIGNALS (Task 1)
+  - Keep data_loaded, load_error, data_changed, display_updated as separate signals
+  - Avoids updating internal signal connections
+  - Avoids listener updates throughout codebase
+  - Risk reduces from HIGH → LOW
+
+PRESERVE ALL PROPERTIES (Task 2)
+  - Keep image_directory, image_filenames, current_image_idx, zoom_factor, etc.
+  - Avoids MainWindow property access failures
+  - Allows internal consolidation without breaking external code
+  - Risk reduces from HIGH → LOW
+
+CREATE BACKWARD-COMPATIBILITY ALIASES (MainWindow)
+  - self.viewport_controller = ViewportController(...)
+  - self.view_management_controller = self.viewport_controller  # Alias
+  - self.background_controller = self.viewport_controller      # Alias
+  - Avoids MainWindow code changes
+  - Preserves semantic intent
+  - Risk reduces from HIGH → LOW
+
+===============================================
+WHAT WILL BREAK WITHOUT MITIGATION
+===============================================
+
+IF sub-controller properties removed:
+  ✗ test_multi_point_selection_signals.py (8+ assertions)
+  ✗ 50+ lines of test code need rewriting
+  ✗ Estimated 2-4 hours refactoring
+
+IF view_management_controller property removed:
+  ✗ MainWindow.toggle_tooltips() call (Line 301)
+  ✗ MainWindow.image_filenames access (Line 554)
+  ✗ MainWindow.current_image_idx access (Line 560)
+  ✗ MainWindow.get_view_options() call (Line 1077)
+  ✗ Estimated 2-3 hours refactoring
+
+IF any public methods removed/renamed:
+  ✗ MainWindow calls to removed methods fail
+  ✗ Test mocks expecting old API fail
+  ✗ Service layer integration fails
+  ✗ Estimated 3-6 hours debugging + fixing
+
+IF signals renamed/consolidated:
+  ✗ Internal signal connections break
+  ✗ test_multi_point_selection_signals.py fails
+  ✗ Signal listeners throughout codebase fail
+  ✗ Estimated 2-4 hours debugging + fixing
+
+===============================================
+TIMELINE IMPACT
+===============================================
+
+ORIGINAL ESTIMATE (PHASE_2_PLAN.md): 12 hours
+ADDITIONAL PLANNING REQUIRED: 4-6 hours
+ADDITIONAL TESTING REQUIRED: 1-2 hours
+
+NEW TOTAL ESTIMATE: 17-20 hours (vs 12 hours)
+
+IF PROBLEMS ARISE:
+  - No mitigation applied: +8-15 hours (debugging + fixing)
+  - With mitigation applied: +2-4 hours (verified compatibility)
+
+RECOMMENDATION: Invest 4-6 hours in planning now to save 8-15 hours
+later fixing regressions.
+
+===============================================
+ACCEPTANCE CRITERIA
+===============================================
+
+✓ All public methods from original controllers preserved
+✓ All signals preserved (not consolidated)
+✓ All properties preserved
+✓ Backward-compatibility aliases created
+✓ All 2,943+ tests pass
+✓ No new type errors (basedpyright)
+✓ No new linting warnings (ruff)
+✓ MainWindow loads and operates normally
+✓ Test failures: 0 (should be no regressions)
+✓ Code review: Consolidation logic clear, well-organized
+✓ Documentation: CLAUDE.md and PHASE_2_COMPLETE.md updated
+
+===============================================
+KEY FILES TO READ
+===============================================
+
+1. PHASE_2_BREAKING_CHANGES_ANALYSIS.md (Detailed - 1000+ lines)
+   - Complete API mapping for all controllers
+   - All breaking changes explained in detail
+   - Recommendations for each issue
+   - Signal analysis
+   - Test impact analysis
+
+2. PHASE_2_VERIFICATION_SUMMARY.txt (Executive - 500 lines)
+   - Quick summary of findings
+   - Risk assessment
+   - Timeline impact
+   - Immediate actions required
+
+3. PHASE_2_CODE_LOCATIONS.md (Reference - 300 lines)
+   - Line-by-line code locations
+   - File paths and imports
+   - Exact call sites
+   - Quick lookup for implementation
+
+4. PHASE_2_PLAN.md (Original - 457 lines)
+   - High-level consolidation strategy
+   - Task checklists
+   - Test strategy
+   - Rollback procedure
+
+===============================================
+DECISION CHECKLIST
+===============================================
+
+Before Task 1:
+  [ ] Will TrackingController keep sub-controller properties?
+  [ ] Will signals be preserved (recommended: YES)?
+  [ ] Will method collisions be handled? (recommend: make private)
+  [ ] Will tests be updated or properties preserved? (recommend: preserve)
+
+Before Task 2:
+  [ ] Will ViewportController have backward-compat aliases?
+  [ ] Will properties be preserved? (recommend: YES)
+  [ ] Will MainWindow be updated or aliases used? (recommend: aliases)
+  [ ] Will service dependencies be verified?
+
+Before Implementation:
+  [ ] Team consensus on all decisions?
+  [ ] API preservation checklist approved?
+  [ ] Test update scope defined?
+  [ ] Rollback procedure documented?
+
+===============================================
+CONTACT/NEXT STEPS
+===============================================
+
+To proceed safely:
+1. Share these analysis documents with team
+2. Discuss recommendations and mitigation strategies
+3. Get consensus on all key decisions
+4. Create detailed API preservation checklists
+5. Plan backward-compatibility aliases
+6. Define test update scope
+7. Begin implementation with atomic commits
+8. Run tests after each consolidation step
+
+Expected outcome: Clean consolidation with ZERO test failures
+
+===============================================
+
+Report Generated: 2025-10-24
+Analysis Type: Pre-implementation verification
+Status: READY FOR TEAM REVIEW
+
+For detailed findings, see:
+- PHASE_2_BREAKING_CHANGES_ANALYSIS.md
+- PHASE_2_CODE_LOCATIONS.md
+- PHASE_2_VERIFICATION_SUMMARY.txt

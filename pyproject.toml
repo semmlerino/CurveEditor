@@ -137,5 +137,77 @@ testpaths = ["tests"]
 minversion = "3.8"
 
 [tool.basedpyright]
-# Use the configuration from basedpyrightconfig.json
-# This section exists for IDE integration but the JSON file takes precedence
+# Consolidated type checking configuration
+typeCheckingMode = "recommended"
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+venvPath = "."
+venv = "venv"
+stubPath = "./typings"
+useLibraryCodeForTypes = true
+
+# Include only production code and tests directories
+include = ["core", "data", "io_utils", "rendering", "services", "stores", "tests", "ui", "main.py"]
+
+# Exclude legacy, profiling, and utility scripts
+exclude = [
+    "**/build",
+    "**/venv",
+    "**/.mypy_cache",
+    "**/node_modules",
+    "**/__pycache__",
+    "LogicExamples",
+    "profiling",
+    "tools",
+    "SetTrackingBwd.py",
+    "SetTrackingFwd.py",
+    "SetTrackingFwdBwd.py",
+    "test_zoom_bug_fix.py",
+    "analyze_handlers.py",
+    "bundle_app.py",
+    "count_mocks.py",
+    "fix_test_annotations.py",
+    "test_quick_check.py",
+]
+
+# Untyped library allowances
+allowedUntypedLibraries = ["numpy", "pytest"]
+
+# Error level settings
+reportMissingImports = "warning"
+reportMissingTypeStubs = "none"
+reportUndefinedVariable = "error"
+reportOptionalMemberAccess = "warning"
+reportOptionalCall = "warning"
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportImplicitStringConcatenation = "warning"
+reportDeprecated = "warning"
+reportUnnecessaryTypeIgnoreComment = "warning"
+
+# Strictness settings (balanced approach)
+reportExplicitAny = "warning"
+reportAny = "none"
+reportUnannotatedClassAttribute = "warning"  # STRICTER: Require type hints on class attributes
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownMemberType = "none"
+reportUnknownArgumentType = "none"
+reportUnknownLambdaType = "none"
+reportMissingParameterType = "warning"
+reportMissingTypeArgument = "warning"  # STRICTER: Require list[str] not bare list
+
+# Code quality
+reportPrivateUsage = "warning"
+reportUnnecessaryCast = "warning"
+reportUnnecessaryComparison = "warning"
+reportIncompatibleMethodOverride = "error"
+reportIncompatibleVariableOverride = "error"
+reportOverlappingOverload = "warning"
+reportUninitializedInstanceVariable = "warning"
+reportIgnoreCommentWithoutRule = "error"
+reportPrivateImportUsage = "warning"
+reportUnusedCallResult = "none"
+reportUnusedParameter = "warning"
+reportUnreachable = "warning"
+reportRedeclaration = "warning"

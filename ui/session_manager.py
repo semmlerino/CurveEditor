@@ -9,7 +9,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any
+from typing import cast
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +110,7 @@ class SessionManager:
             logger.warning(f"Error resolving path {path}: {e}")
             return None
 
-    def save_session(self, session_data: dict[str, Any]) -> bool:
+    def save_session(self, session_data: dict[str, object]) -> bool:
         """
         Save session data to file.
 
@@ -130,16 +130,16 @@ class SessionManager:
             processed_data = session_data.copy()
 
             if "tracking_file" in processed_data and processed_data["tracking_file"]:
-                processed_data["tracking_file"] = self._make_relative_path(processed_data["tracking_file"])
+                processed_data["tracking_file"] = self._make_relative_path(cast(str, processed_data["tracking_file"]))
 
             if "image_directory" in processed_data and processed_data["image_directory"]:
-                processed_data["image_directory"] = self._make_relative_path(processed_data["image_directory"])
+                processed_data["image_directory"] = self._make_relative_path(cast(str, processed_data["image_directory"]))
 
             # Save recent directories
             if "recent_directories" in processed_data and processed_data["recent_directories"]:
                 # Make paths relative where possible
                 processed_data["recent_directories"] = [
-                    self._make_relative_path(path) for path in processed_data["recent_directories"]
+                    self._make_relative_path(cast(str, path)) for path in cast(list[str], processed_data["recent_directories"])
                 ]
 
             # Add metadata
@@ -156,7 +156,7 @@ class SessionManager:
             logger.error(f"Failed to save session: {e}")
             return False
 
-    def load_session(self) -> dict[str, Any] | None:
+    def load_session(self) -> dict[str, object] | None:
         """
         Load session data from file.
 
@@ -253,7 +253,7 @@ class SessionManager:
         recent_directories: list[str] | None = None,
         selected_curves: list[str] | None = None,
         show_all_curves: bool = False,
-    ) -> dict[str, Any]:
+    ) -> dict[str, object]:
         """
         Create a session data dictionary with the provided values.
 
@@ -287,7 +287,7 @@ class SessionManager:
             "show_all_curves": show_all_curves,
         }
 
-    def restore_session_state(self, main_window: Any, session_data: dict[str, Any]) -> None:
+    def restore_session_state(self, main_window: object, session_data: dict[str, object]) -> None:
         """Restore application state from session data.
 
         Args:
@@ -304,7 +304,7 @@ class SessionManager:
 
             # Restore view state
             zoom_level = session_data.get("zoom_level", 1.0)
-            pan_offset = tuple(session_data.get("pan_offset", [0.0, 0.0]))
+            pan_offset = tuple(cast(list[float], session_data.get("pan_offset", [0.0, 0.0])))
 
             # Restore active points for multi-point data
             active_points = session_data.get("active_points", [])
@@ -315,16 +315,16 @@ class SessionManager:
 
             # Restore recent directories
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
-                if main_window.state_manager is not None:
-                    main_window.state_manager.set_recent_directories(session_data["recent_directories"])
+                if cast(object, main_window).state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                    cast(object, main_window).state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
 
             # Load files using background thread if available
-            if main_window.file_load_worker is not None:
+            if cast(object, main_window).file_load_worker is not None:  # pyright: ignore[reportAttributeAccessIssue]
                 logger.info("Loading session files via background thread")
-                main_window.file_load_worker.start_work(tracking_file, image_directory)
+                cast(object, main_window).file_load_worker.start_work(tracking_file, image_directory)  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Store session data to restore state after files are loaded
-                main_window._pending_session_data = {
+                cast(object, main_window)._pending_session_data = {  # pyright: ignore[reportAttributeAccessIssue]
                     "current_frame": current_frame,
                     "zoom_level": zoom_level,
                     "pan_offset": pan_offset,
@@ -335,25 +335,25 @@ class SessionManager:
             else:
                 # Fallback to direct loading if no worker available
                 logger.warning("No file load worker available, using direct loading")
-                if tracking_file and main_window.file_operations_manager is not None:
+                if tracking_file and cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
                     # Simulate file opened event for session restoration
-                    main_window.file_operations_manager.open_file()
+                    cast(object, main_window).file_operations.open_file()  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Restore selection state immediately via ApplicationState
                 from stores.application_state import get_application_state
 
                 app_state = get_application_state()
                 if selected_curves:
-                    app_state.set_selected_curves(set(selected_curves))
-                app_state.set_show_all_curves(show_all_curves)
+                    app_state.set_selected_curves(set(cast(list[str], selected_curves)))
+                app_state.set_show_all_curves(cast(bool, show_all_curves))
 
         except Exception as e:
             logger.error(f"Failed to restore session state: {e}")
             # Fallback to burger data on error
-            if main_window.file_operations_manager is not None:
-                main_window.file_operations_manager.load_burger_tracking_data()
+            if cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                cast(object, main_window).file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]
 
-    def load_session_or_fallback(self, main_window: Any) -> None:
+    def load_session_or_fallback(self, main_window: object) -> None:
         """Load session data if available, otherwise fallback to burger data.
 
         Args:
@@ -367,5 +367,5 @@ class SessionManager:
             self.restore_session_state(main_window, session_data)
         else:
             logger.info("No session found, falling back to burger data")
-            if main_window.file_operations_manager is not None:
-                main_window.file_operations_manager.load_burger_tracking_data()
+            if cast(object, main_window).file_operations is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                cast(object, main_window).file_operations.load_burger_data_async()  # pyright: ignore[reportAttributeAccessIssue]

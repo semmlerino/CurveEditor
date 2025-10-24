@@ -12,7 +12,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, override
+from typing import TYPE_CHECKING, cast, override
 
 from PySide6.QtCore import QDir, QEvent, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeyEvent, QKeySequence, QPixmap, QShortcut
@@ -481,11 +481,11 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Priority 2: Last used directory from state manager
         if parent is not None:
-            state_manager: Any = getattr(parent, "state_manager", None)
+            state_manager: object | None = getattr(parent, "state_manager", None)
             if state_manager is not None:
-                recent_dirs: Any = getattr(state_manager, "recent_directories", None)
-                if recent_dirs and len(recent_dirs) > 0:
-                    last_dir = recent_dirs[0]
+                recent_dirs: object | None = getattr(state_manager, "recent_directories", None)
+                if recent_dirs and len(cast(list[str], recent_dirs)) > 0:
+                    last_dir = cast(list[str], recent_dirs)[0]
                     if Path(last_dir).exists():
                         logger.debug(f"Using last directory from state: {last_dir}")
                         return last_dir
@@ -1040,12 +1040,12 @@ class ImageSequenceBrowserDialog(QDialog):
         """Populate address bar dropdown with recent directories from state manager."""
         # Get recent directories from parent's state manager if available
         parent_window = self.parent()
-        state_manager: Any = getattr(parent_window, "state_manager", None)
+        state_manager: object | None = getattr(parent_window, "state_manager", None)
         if state_manager is not None:
-            recents: Any = getattr(state_manager, "recent_directories", None)
+            recents: object | None = getattr(state_manager, "recent_directories", None)
             if recents:
                 self.address_bar.clear()
-                for path in recents:
+                for path in cast(list[str], recents):
                     if Path(path).exists():
                         self.address_bar.addItem(path)
 

@@ -11,7 +11,7 @@ from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import Enum, auto
-from typing import Any, cast, override
+from typing import cast, override
 
 from PySide6.QtCore import QObject, Qt, QThread, Signal, Slot
 from PySide6.QtGui import QCursor
@@ -66,12 +66,12 @@ class ProgressWorker(QThread):
     error_occurred = Signal(str)  # error message
 
     # Attributes - will be initialized in __init__
-    operation: Callable[..., Any]
+    operation: Callable[..., object]
     args: tuple[object, ...]
     kwargs: dict[str, object]
     result: object
 
-    def __init__(self, operation: Callable[..., Any], *args: object, **kwargs: object) -> None:
+    def __init__(self, operation: Callable[..., object], *args: object, **kwargs: object) -> None:
         """Initialize the worker with an operation to perform."""
         super().__init__()
         self.operation = operation
@@ -290,7 +290,7 @@ class ProgressManager(QObject):
     def show_progress_dialog(
         self,
         info: ProgressInfo,
-        operation: Callable[..., Any],
+        operation: Callable[..., object],
         parent: QWidget | None = None,
         *args: object,
         **kwargs: object,
@@ -344,7 +344,7 @@ class ProgressManager(QObject):
     def show_status_progress(
         self,
         message: str,
-        operation: Callable[..., Any],
+        operation: Callable[..., object],
         cancellable: bool = False,
         callback: Callable[[object], None] | None = None,
         *args: object,
@@ -428,10 +428,10 @@ def get_progress_manager() -> ProgressManager:
 # Decorator for adding progress to functions
 def with_progress(
     title: str = "Processing...", message: str = "Please wait...", show_dialog: bool = True
-) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+) -> Callable[[Callable[..., object]], Callable[..., object]]:
     """Decorator to add progress indicator to a function."""
 
-    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+    def decorator(func: Callable[..., object]) -> Callable[..., object]:
         def wrapper(*args: object, **kwargs: object) -> object:
             manager = get_progress_manager()
 

@@ -10,7 +10,7 @@ import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Protocol, override, runtime_checkable
+from typing import Protocol, cast, override, runtime_checkable
 
 from core.validation_utils import ensure_valid_scale as validate_scale
 from core.validation_utils import validate_finite, validate_point
@@ -29,11 +29,11 @@ class ValidationIssue:
     """Structured error reporting for validation failures."""
 
     field_name: str
-    value: Any
+    value: object
     severity: ValidationSeverity
     message: str
     suggestion: str | None = None
-    context: dict[str, Any] = field(default_factory=dict)
+    context: dict[str, object] = field(default_factory=dict)
 
     def format(self) -> str:
         """Format the validation issue as a user-friendly message."""
@@ -53,7 +53,7 @@ class ValidationResult:
 
     is_valid: bool
     issues: list[ValidationIssue] = field(default_factory=list)
-    validated_value: Any = None
+    validated_value: object | None = None
 
     def add_issue(self, issue: ValidationIssue) -> None:
         """Add an issue to the result."""
@@ -93,7 +93,7 @@ class ValidationStrategy(Protocol):
         """Validate dimensions."""
         ...
 
-    def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
+    def validate_transform_params(self, params: dict[str, object]) -> ValidationResult:
         """Validate transform parameters."""
         ...
 
@@ -122,7 +122,7 @@ class BaseValidationStrategy(ABC):
         pass
 
     @abstractmethod
-    def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
+    def validate_transform_params(self, params: dict[str, object]) -> ValidationResult:
         """Validate transform parameters."""
         pass
 
@@ -216,20 +216,21 @@ class MinimalValidationStrategy(BaseValidationStrategy):
         return result
 
     @override
-    def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
+    def validate_transform_params(self, params: dict[str, object]) -> ValidationResult:
         """Validate transform parameters with minimal checks."""
         result = ValidationResult(is_valid=True)
         validated = {}
 
         # Only validate critical parameters
         if "scale" in params:
-            scale_result = self.validate_scale_factor(params["scale"], "transform")
+            scale_result = self.validate_scale_factor(cast(float, params["scale"]), "transform")
             validated["scale"] = scale_result.validated_value
             result.issues.extend(scale_result.issues)
 
         if "width" in params and "height" in params:
-            dim_result = self.validate_dimensions(params["width"], params["height"], "transform")
-            validated["width"], validated["height"] = dim_result.validated_value
+            dim_result = self.validate_dimensions(cast(float, params["width"]), cast(float, params["height"]), "transform")
+            if dim_result.validated_value is not None:
+                validated["width"], validated["height"] = cast(tuple[float, float], dim_result.validated_value)
             result.issues.extend(dim_result.issues)
 
         # Pass through other parameters
@@ -437,7 +438,7 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
         return result
 
     @override
-    def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
+    def validate_transform_params(self, params: dict[str, object]) -> ValidationResult:
         """Validate transform parameters with comprehensive checks."""
         result = ValidationResult(is_valid=True)
         validated = {}
@@ -458,29 +459,34 @@ class ComprehensiveValidationStrategy(BaseValidationStrategy):
 
         # Validate each parameter
         if "scale" in params:
-            scale_result = self.validate_scale_factor(params["scale"], "transform")
+            scale_result = self.validate_scale_factor(cast(float, params["scale"]), "transform")
             validated["scale"] = scale_result.validated_value
             result.issues.extend(scale_result.issues)
 
         if "center_x" in params and "center_y" in params:
-            coord_result = self.validate_coordinate(params["center_x"], params["center_y"], "center")
-            validated["center_x"], validated["center_y"] = coord_result.validated_value
+            coord_result = self.validate_coordinate(cast(float, params["center_x"]), cast(float, params["center_y"]), "center")
+            if coord_result.validated_value is not None:
+                validated["center_x"], validated["center_y"] = cast(tuple[float, float], coord_result.validated_value)
             result.issues.extend(coord_result.issues)
 
         if "offset_x" in params and "offset_y" in params:
-            offset_result = self.validate_coordinate(params["offset_x"], params["offset_y"], "offset")
-            validated["offset_x"], validated["offset_y"] = offset_result.validated_value
+            offset_result = self.validate_coordinate(cast(float, params["offset_x"]), cast(float, params["offset_y"]), "offset")
+            if offset_result.validated_value is not None:
+                validated["offset_x"], validated["offset_y"] = cast(tuple[float, float], offset_result.validated_value)
             result.issues.extend(offset_result.issues)
 
         if "width" in params and "height" in params:
-            dim_result = self.validate_dimensions(params["width"], params["height"], "viewport")
-            validated["width"], validated["height"] = dim_result.validated_value
+            dim_result = self.validate_dimensions(cast(float, params["width"]), cast(float, params["height"]), "viewport")
+            if dim_result.validated_value is not None:
+                validated["width"], validated["height"] = cast(tuple[float, float], dim_result.validated_value)
             result.issues.extend(dim_result.issues)
 
         # Cross-parameter validation
         if "scale" in validated and "precision" in params:
-            quantized_scale = round(validated["scale"] / params["precision"]) * params["precision"]
-            if abs(quantized_scale - validated["scale"]) > params["precision"] * 0.1:
+            precision_value = cast(float, params["precision"])
+            scale_value = cast(float, validated["scale"]) if validated["scale"] is not None else 1.0
+            quantized_scale = round(scale_value / precision_value) * precision_value
+            if abs(quantized_scale - scale_value) > precision_value * 0.1:
                 result.add_issue(
                     ValidationIssue(
                         field_name="scale_quantization",
@@ -579,7 +585,7 @@ class AdaptiveValidationStrategy(BaseValidationStrategy):
         return self.current_strategy.validate_dimensions(width, height, context)
 
     @override
-    def validate_transform_params(self, params: dict[str, Any]) -> ValidationResult:
+    def validate_transform_params(self, params: dict[str, object]) -> ValidationResult:
         """Validate using current strategy."""
         return self.current_strategy.validate_transform_params(params)
 

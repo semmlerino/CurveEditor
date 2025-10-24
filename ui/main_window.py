@@ -218,6 +218,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.state_manager: StateManager = StateManager(self)
         self.shortcut_manager: ShortcutManager = ShortcutManager(self)
 
+        # Initialize session manager for automatic session persistence
+        from ui.session_manager import SessionManager
+        self._session_manager: SessionManager = SessionManager()
+
         # Get store manager (CurveDataStore removed in Phase 6.3)
         self._store_manager: StoreManager = get_store_manager()
 
@@ -293,9 +297,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Setup tab order for keyboard navigation
         self._setup_tab_order()
 
-        # Auto-load burger footage and tracking data if available
+        # Auto-load session data (or fallback to burger data if no session exists)
         if auto_load_data:
-            self.file_operations.load_burger_data_async()
+            self._session_manager.load_session_or_fallback(self)
 
         # Initialize tooltips as disabled by default
         self.view_management_controller.toggle_tooltips()
@@ -666,16 +670,22 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     def on_tracking_data_loaded(self, data: CurveDataInput) -> None:
         """Handle tracking data loaded (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_tracking_data_loaded(data)
+        # Save session after loading new data
+        self._save_current_session()
 
     @Slot(dict)
     def on_multi_point_data_loaded(self, multi_data: dict[str, CurveDataList]) -> None:
         """Handle multi-point data loaded (delegated to MultiPointTrackingController)."""
         self.tracking_controller.on_multi_point_data_loaded(multi_data)
+        # Save session after loading new data
+        self._save_current_session()
 
     @Slot(str, list)
     def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
         """Handle image sequence loaded (delegated to ViewManagementController)."""
         self.background_controller.on_image_sequence_loaded(image_dir, image_files)
+        # Save session after loading new images
+        self._save_current_session()
 
     @Slot(int, str)
     def on_file_load_progress(self, progress: int, message: str) -> None:
@@ -1227,6 +1237,36 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         except Exception:
             pass  # Suppress all exceptions in destructor
 
+    def _save_current_session(self) -> None:
+        """Save current application state to session file."""
+        try:
+            from stores.application_state import get_application_state
+
+            app_state = get_application_state()
+
+            # Gather current session data
+            from typing import cast
+
+            session_data = self._session_manager.create_session_data(
+                tracking_file=self.state_manager.current_file,
+                image_directory=self.state_manager.image_directory,
+                current_frame=self.timeline_controller.get_current_frame(),
+                zoom_level=self.state_manager.zoom_level,
+                pan_offset=self.state_manager.pan_offset,
+                window_geometry=cast(tuple[int, int, int, int], self.geometry().getRect()),
+                selected_curves=list(app_state.get_selected_curves()),
+                show_all_curves=app_state.get_show_all_curves(),
+            )
+
+            # Save session to file
+            if self._session_manager.save_session(session_data):
+                logger.info("Session saved successfully")
+            else:
+                logger.warning("Failed to save session")
+
+        except Exception as e:
+            logger.error(f"Error saving session: {e}")
+
     @override
     def closeEvent(self, event: QEvent) -> None:
         """Handle window close event with proper thread cleanup."""
@@ -1253,6 +1293,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.file_operations.cleanup_threads()
 
         logger.info("[KEEP-ALIVE] Worker and thread cleaned up")
+
+        # Save current session before closing
+        self._save_current_session()
 
         # Accept the close event
         event.accept()
