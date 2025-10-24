@@ -868,35 +868,35 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         # Get current frame
         current_frame = app_state.current_frame
 
-        # Get point at current frame
+        # Get curve data
         curve_data = app_state.get_curve_data(active_curve)
         if not curve_data:
             self._safe_set_label(self.type_label, "Status: --")
             return
 
-        # Check if frame is in an inactive segment (gap)
+        # Check segment activity FIRST
         from core.curve_segments import SegmentedCurve
 
         segmented_curve = SegmentedCurve.from_curve_data(curve_data)
         segment = segmented_curve.get_segment_at_frame(current_frame)
 
-        # If segment exists and is inactive, show "Inactive" regardless of point status
+        # If in an inactive segment, always show "Inactive" regardless of point presence
         if segment is not None and not segment.is_active:
             self._safe_set_label(self.type_label, "Status: Inactive")
             return
 
-        # Find point at current frame
+        # Check if there's an exact point at current frame
         from core.models import CurvePoint
 
         points = [CurvePoint.from_tuple(p) for p in curve_data]
         current_point = next((p for p in points if p.frame == current_frame), None)
 
         if current_point:
-            # Display the status
+            # Display the point's status
             status_name = current_point.status.name
             self._safe_set_label(self.type_label, f"Status: {status_name}")
         else:
-            # No point at current frame (true gap with no segment)
+            # No point at current frame
             self._safe_set_label(self.type_label, "Status: Inactive")
 
     def update_ui_state(self) -> None:

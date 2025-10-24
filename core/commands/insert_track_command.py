@@ -24,6 +24,7 @@ from core.insert_track_algorithm import (
     average_multiple_sources,
     calculate_offset,
     create_averaged_curve,
+    deform_curve_with_interpolated_offset,
     fill_gap_with_source,
     find_gap_around_frame,
     find_overlap_frames,
@@ -276,8 +277,10 @@ class InsertTrackCommand(Command):
             gap_start, gap_end = gap
 
             # Collect source data and calculate offsets
+            # Also track overlap points for deformation (3DEqualizer's keylist)
             source_data_list: list[CurveDataList] = []
             offset_list: list[tuple[float, float]] = []
+            overlap_points_per_source: list[list[tuple[int, tuple[float, float]]]] = []
 
             for source_name in source_curves:
                 source_data = app_state.get_curve_data(source_name)
@@ -294,11 +297,27 @@ class InsertTrackCommand(Command):
                     logger.warning(f"No overlap between '{target_name}' and '{source_name}'")
                     continue
 
-                # Calculate offset
+                # Calculate average offset (used when only 1 overlap point exists)
                 offset = calculate_offset(target_data, source_data, overlap_frames)
+
+                # Calculate per-frame offsets for deformation (when 2+ overlap points exist)
+                # Build list of (frame, (offset_x, offset_y)) for each overlap frame
+                from core.models import CurvePoint
+
+                target_points_dict = {p[0]: CurvePoint.from_tuple(p) for p in target_data}
+                source_points_dict = {p[0]: CurvePoint.from_tuple(p) for p in source_data}
+
+                overlap_points: list[tuple[int, tuple[float, float]]] = []
+                for frame in sorted(overlap_frames):
+                    if frame in target_points_dict and frame in source_points_dict:
+                        t_pt = target_points_dict[frame]
+                        s_pt = source_points_dict[frame]
+                        frame_offset = (t_pt.x - s_pt.x, t_pt.y - s_pt.y)
+                        overlap_points.append((frame, frame_offset))
 
                 source_data_list.append(source_data)
                 offset_list.append(offset)
+                overlap_points_per_source.append(overlap_points)
 
             if not source_data_list:
                 logger.error(f"No valid source curves found for '{target_name}'")
@@ -332,14 +351,26 @@ class InsertTrackCommand(Command):
             logger.info(f"section: [{gap_start}, {gap_end}]")
             logger.info(f"overlap: [{overlap_before}, {overlap_after}]")
 
-            # Fill gap
+            # Fill gap (choose algorithm based on overlap points)
             if len(source_data_list) == 1:
-                # Single source
-                new_curve_data = fill_gap_with_source(
-                    target_data, source_data_list[0], gap_start, gap_end, offset_list[0]
-                )
+                # Single source - check if we should use deformation
+                overlap_points = overlap_points_per_source[0]
+
+                if len(overlap_points) >= 2:
+                    # Use deformation (interpolated offset) - 3DEqualizer _deformCurve
+                    logger.info(f"Using deformation algorithm ({len(overlap_points)} overlap points)")
+                    new_curve_data = deform_curve_with_interpolated_offset(
+                        target_data, source_data_list[0], gap_start, gap_end, overlap_points
+                    )
+                else:
+                    # Use constant offset - 3DEqualizer _offsetCurve
+                    logger.info("Using constant offset algorithm (1 overlap point)")
+                    new_curve_data = fill_gap_with_source(
+                        target_data, source_data_list[0], gap_start, gap_end, offset_list[0]
+                    )
             else:
                 # Multiple sources - average them
+                logger.info(f"Using averaging algorithm ({len(source_data_list)} sources)")
                 gap_frames = list(range(gap_start, gap_end + 1))
                 averaged_points = average_multiple_sources(source_data_list, gap_frames, offset_list)
 

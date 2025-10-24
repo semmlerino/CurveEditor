@@ -183,9 +183,11 @@ class TestPointStatusDisplay:
         """Test that status label shows NORMAL for normal points."""
         app_state = get_application_state()
 
-        # Create curve with normal point at frame 5
+        # Create curve with normal point at frame 5 (within active segment bounded by keyframes)
         curve_data = [
+            (1, 10.0, 10.0, "keyframe"),
             (5, 20.0, 20.0, "normal"),
+            (10, 30.0, 30.0, "keyframe"),
         ]
 
         app_state.set_curve_data("test_curve", curve_data)
@@ -460,7 +462,7 @@ class TestPointStatusDisplayEdgeCases:
         # Should show Inactive (in gap after ENDFRAME)
         assert main_window.type_label.text() == "Status: Inactive"
 
-    def test_status_single_point_curve(self, main_window):
+    def test_status_single_point_curve(self, main_window, qtbot):
         """Test status with only one point in entire curve.
 
         Edge case: Minimal curve (single point). Tests that status
@@ -474,11 +476,17 @@ class TestPointStatusDisplayEdgeCases:
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 51)])
+
         app_state.set_frame(42)
 
+        # Update UI and check immediately
         main_window.update_ui_state()
+        result = main_window.type_label.text()
 
-        assert main_window.type_label.text() == "Status: KEYFRAME"
+        assert result == "Status: KEYFRAME", f"Expected 'Status: KEYFRAME' but got '{result}'"
 
     # ========== Empty/Minimal Data ==========
 
@@ -600,6 +608,10 @@ class TestPointStatusDisplayEdgeCases:
 
         app_state.set_curve_data("curve1", curve1_data)
         app_state.set_curve_data("curve2", curve2_data)
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
+
         app_state.set_frame(5)
 
         # Rapidly switch curves
@@ -628,6 +640,10 @@ class TestPointStatusDisplayEdgeCases:
         curve_data = [(5, 10.0, 10.0, "keyframe")]
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
+
         app_state.set_frame(5)
         main_window.update_ui_state()
 
@@ -777,6 +793,10 @@ class TestPointStatusDisplayEdgeCases:
         curve1_data = [(5, 10.0, 10.0, "keyframe")]
         app_state.set_curve_data("curve1", curve1_data)
         app_state.set_active_curve("curve1")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
+
         app_state.set_frame(5)
         main_window.update_ui_state()
 
@@ -817,6 +837,9 @@ class TestPointStatusDisplayEdgeCases:
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
 
         # Rapid frame changes (queued connections may not process immediately)
         app_state.set_frame(1)
@@ -866,7 +889,10 @@ class TestPointStatusDisplayBoundaries:
         app_state.set_active_curve("test_curve")
         app_state.set_frame(999999)
 
-        main_window.update_ui_state()
+        # Don't call update_ui_state() - it would clamp frame to total_frames
+        # This test verifies status display logic works with large frame numbers
+        # Call _update_point_status_label() directly instead
+        main_window._update_point_status_label()
 
         # Should display status correctly
         assert main_window.type_label.text() == "Status: TRACKED"
@@ -1023,6 +1049,10 @@ class TestPointStatusDisplayBoundaries:
         curve_data = [(5, 10.0, 10.0, "keyframe")]  # Frame is int
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
+
         app_state.set_frame(5)
 
         main_window.update_ui_state()
@@ -1074,6 +1104,10 @@ class TestPointStatusDisplayBoundaries:
 
         app_state.set_curve_data("test_curve", curve_data)
         app_state.set_active_curve("test_curve")
+
+        # Set image files to establish frame range (prevents frame reset during update_ui_state)
+        app_state.set_image_files([f"frame_{i:04d}.png" for i in range(1, 11)])
+
         app_state.set_frame(5)
 
         main_window.update_ui_state()

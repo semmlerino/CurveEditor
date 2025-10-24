@@ -267,7 +267,7 @@ class TestFileLoadWorkerIntegration:
 
         loaded_data = []
 
-        def on_loaded(data):
+        def on_loaded(file_path, data):
             loaded_data.append(data)
 
         worker.tracking_data_loaded.connect(on_loaded)
@@ -322,7 +322,7 @@ class TestFileLoadWorkerIntegration:
 
         signals_received = []
 
-        def on_tracking(data):
+        def on_tracking(file_path, data):
             signals_received.append("tracking")
 
         def on_images(dir_path, files):
@@ -364,7 +364,7 @@ class TestFileLoadWorkerYFlipIntegration:
 
         loaded_data = []
 
-        def capture_data(data):
+        def capture_data(file_path, data):
             loaded_data.append(data)
 
         worker.tracking_data_loaded.connect(capture_data)
@@ -404,7 +404,7 @@ class TestFileLoadWorkerYFlipIntegration:
 
         loaded_data: list[object] = []
 
-        def on_data_loaded(data: object) -> None:
+        def on_data_loaded(file_path: str, data: object) -> None:
             loaded_data.append(data)
 
         worker.tracking_data_loaded.connect(on_data_loaded)
@@ -458,7 +458,7 @@ class TestFileLoadWorkerMetadataAwarePath:
 
         loaded_data: list[object] = []
 
-        def on_data_loaded(data: object) -> None:
+        def on_data_loaded(file_path: str, data: object) -> None:
             loaded_data.append(data)
 
         worker.tracking_data_loaded.connect(on_data_loaded)
@@ -500,7 +500,7 @@ class TestFileLoadWorkerMetadataAwarePath:
 
         loaded_data: list[object] = []
 
-        def on_data_loaded(data: object) -> None:
+        def on_data_loaded(file_path: str, data: object) -> None:
             loaded_data.append(data)
 
         worker.tracking_data_loaded.connect(on_data_loaded)
@@ -558,7 +558,7 @@ class TestFileLoadWorkerLoadParity:
         # Auto-load via FileLoadWorker
         auto_data: list[object] = []
 
-        def on_auto_data_loaded(data: object) -> None:
+        def on_auto_data_loaded(file_path: str, data: object) -> None:
             auto_data.append(data)
 
         worker.tracking_data_loaded.connect(on_auto_data_loaded)
@@ -609,7 +609,7 @@ class TestFileLoadWorkerLoadParity:
         # Auto-load
         auto_data: list[object] = []
 
-        def on_auto_data_loaded(data: object) -> None:
+        def on_auto_data_loaded(file_path: str, data: object) -> None:
             auto_data.append(data)
 
         worker.tracking_data_loaded.connect(on_auto_data_loaded)

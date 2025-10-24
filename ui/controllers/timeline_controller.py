@@ -487,24 +487,31 @@ class TimelineController(QObject):
             min_frame: Minimum frame number (usually 1)
             max_frame: Maximum frame number
         """
-        # Update navigation controls
-        self.frame_spinbox.setMinimum(min_frame)
-        self.frame_spinbox.setMaximum(max_frame)
-        self.frame_slider.setMinimum(min_frame)
-        self.frame_slider.setMaximum(max_frame)
+        # Only update controls if we have a valid range
+        # Setting spinbox.setMaximum(0) when current value > 0 causes Qt to
+        # automatically change the value to 0, triggering unwanted frame changes
+        if max_frame > 0:
+            # Update navigation controls
+            self.frame_spinbox.setMinimum(min_frame)
+            self.frame_spinbox.setMaximum(max_frame)
+            self.frame_slider.setMinimum(min_frame)
+            self.frame_slider.setMaximum(max_frame)
 
-        # Update playback bounds
-        self.playback_state.min_frame = min_frame
-        self.playback_state.max_frame = max_frame
+            # Update playback bounds
+            self.playback_state.min_frame = min_frame
+            self.playback_state.max_frame = max_frame
 
-        # Ensure current value is within range
-        current = get_application_state().current_frame
-        if current < min_frame:
-            self.set_frame(min_frame)
-        elif current > max_frame:
-            self.set_frame(max_frame)
+            # Ensure current value is within range
+            current = get_application_state().current_frame
+            if current < min_frame:
+                self.set_frame(min_frame)
+            elif current > max_frame:
+                self.set_frame(max_frame)
 
-        logger.debug(f"Frame range set to {min_frame}-{max_frame}")
+            logger.debug(f"Frame range set to {min_frame}-{max_frame}")
+        else:
+            # Invalid range (max_frame <= 0) - skip update to preserve current state
+            logger.debug(f"Skipping frame range update: invalid range {min_frame}-{max_frame}")
 
     @Slot(int)
     def on_frame_changed(self, frame: int) -> None:

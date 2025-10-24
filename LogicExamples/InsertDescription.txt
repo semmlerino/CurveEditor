@@ -1,0 +1,14 @@
+Insert Track is a 2D tracking curve editing tool for 3DEqualizer that can 'heal' the gap in an existing track by inserting, prepending or appending the missing part from a variety of sources.
+
+The tool does not have any options or settings, but is point selection and timeline position sensitive: the number of points selected and their point status at the current frame when the tool is run tell it what action is to be performed. This is very practical and fast to use once functionality and features are understood.
+
+Example: Insert Track from one tracking curve to another, see more options below.
+1) target: a 2D tracking curve sporting a gap:
+Track with Gap
+2) source: another 2D track that has tracking information which is to be filled into the gap:
+Second 2D Track with Information
+3) with both curves selected and the current frame being within the gap of the target curve, running Insert Track will fill the gap of the target curve using the data from the source curve. The source tracking curve is matched to the target at the first two frames where both curves have tracking data earlier and later in the timeline, as seen from the current frame.
+At least one frame is required where both curves have tracking data for the tool to determine the offest. The example shown has two overlapping frames:
+Overlapping Frames
+4) running Insert Track closes the gap using the deformed tracking information of the source. Keyframes at the outer frames of the gap indicate where the gap has been.
+Applying Information to First 2D Track

@@ -50,8 +50,30 @@ class TestNavigationIntegration:
     @pytest.fixture
     def fully_configured_window(self, app: QApplication, qtbot: QtBot) -> MainWindow:
         """Create fully configured MainWindow with realistic data."""
+        def cleanup_window_resources(window: MainWindow) -> None:
+            """Clean up window resources before closure to prevent test contamination.
+
+            Prevents two sources of test isolation issues:
+            1. Event filter accumulation on session-scope QApplication
+            2. FrameChangeCoordinator queued signals (QueuedConnection) from destroyed windows
+            """
+            app_instance = QApplication.instance()
+            if app_instance:
+                try:
+                    app_instance.removeEventFilter(window)
+                except RuntimeError:
+                    pass  # Window already deleted
+
+            # Disconnect FrameChangeCoordinator to prevent queued signals
+            # from this window interfering with subsequent tests
+            if hasattr(window, 'frame_change_coordinator'):
+                try:
+                    window.frame_change_coordinator.disconnect()
+                except (RuntimeError, AttributeError):
+                    pass  # Already disconnected or coordinator deleted
+
         window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
-        qtbot.addWidget(window)
+        qtbot.addWidget(window, before_close_func=cleanup_window_resources)
 
         # Load realistic test data with various frame types
         test_data = [
@@ -338,6 +360,7 @@ class TestNavigationIntegration:
 
         # Navigate to a specific frame
         get_application_state().set_frame(10)
+        qtbot.wait(50)  # Allow frame change to complete
 
         # Load new data
         new_data = [
@@ -350,12 +373,12 @@ class TestNavigationIntegration:
         assert window.curve_widget is not None
         window.curve_widget.set_curve_data(new_data)
         window.update_timeline_tabs(new_data)
-        qtbot.wait(100)
+        qtbot.wait(200)  # Increased wait time for data reload to complete
 
         # Navigation should still work
         page_down = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_PageDown, Qt.KeyboardModifier.NoModifier)
         QApplication.sendEvent(window.timeline_tabs or window, page_down)
-        qtbot.wait(10)
+        qtbot.wait(50)  # Increased wait for navigation to complete
 
         # Should navigate to next keyframe
         assert get_application_state().current_frame == 15

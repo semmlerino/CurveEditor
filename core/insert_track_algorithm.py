@@ -228,6 +228,88 @@ def calculate_offset(
     return (avg_offset_x, avg_offset_y)
 
 
+def deform_curve_with_interpolated_offset(
+    target_data: CurveDataList,
+    source_data: CurveDataList,
+    gap_start: int,
+    gap_end: int,
+    overlap_offsets: list[tuple[int, tuple[float, float]]],
+) -> CurveDataList:
+    """Fill gap with source data using linearly interpolated offset (3DEqualizer deform).
+
+    This implements 3DEqualizer's _deformCurve() behavior: when 2+ overlap points exist,
+    the offset is linearly interpolated across the gap rather than using a constant offset.
+
+    Args:
+        target_data: Target trajectory (with gap to fill)
+        source_data: Source trajectory (to copy from)
+        gap_start: First frame of gap
+        gap_end: Last frame of gap
+        overlap_offsets: List of (frame, (offset_x, offset_y)) tuples for overlap points,
+                         sorted by frame. Must have length >= 2.
+
+    Returns:
+        New curve data with gap filled using interpolated offsets
+
+    Example:
+        If overlaps at frame 1 (offset 0,0) and frame 10 (offset 0,10),
+        frame 5 gets interpolated offset (0,5).
+    """
+    if len(overlap_offsets) < 2:
+        raise ValueError("deform_curve requires 2+ overlap points")
+
+    # Convert to CurvePoint objects
+    target_points = [CurvePoint.from_tuple(p) for p in target_data]
+    source_points_list = [CurvePoint.from_tuple(p) for p in source_data]
+    source_points = {p.frame: p for p in source_points_list}
+
+    # Create result with all existing target points
+    result_points = list(target_points)
+
+    # Sort overlap offsets by frame (should already be sorted, but ensure)
+    overlap_offsets.sort(key=lambda x: x[0])
+
+    # Process each segment between consecutive overlap points
+    gap_frames_filled = 0
+    for i in range(len(overlap_offsets) - 1):
+        # Segment boundaries
+        f0, (xo0, yo0) = overlap_offsets[i]
+        f1, (xo1, yo1) = overlap_offsets[i + 1]
+
+        # Interpolate offset for each frame in this segment
+        for frame in range(f0, f1):
+            if frame < gap_start or frame > gap_end:
+                continue  # Only fill gap frames
+
+            if frame in source_points:
+                source_point = source_points[frame]
+
+                # Linear interpolation of offset (3DEqualizer formula)
+                t = (frame - f0) / (f1 - f0) if f1 != f0 else 0.0
+                interp_offset_x = xo0 + t * (xo1 - xo0)
+                interp_offset_y = yo0 + t * (yo1 - yo0)
+
+                # Apply interpolated offset
+                new_x = source_point.x + interp_offset_x
+                new_y = source_point.y + interp_offset_y
+
+                # Create new point with TRACKED status (copied data)
+                new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=PointStatus.TRACKED)
+                result_points.append(new_point)
+                gap_frames_filled += 1
+
+    logger.info(
+        f"Filled {gap_frames_filled} frames in gap [{gap_start}, {gap_end}] "
+        f"using interpolated offset across {len(overlap_offsets)} overlap points"
+    )
+
+    # Sort by frame
+    result_points.sort(key=lambda p: p.frame)
+
+    # Convert back to tuple format
+    return [p.to_tuple4() for p in result_points]
+
+
 def fill_gap_with_source(
     target_data: CurveDataList, source_data: CurveDataList, gap_start: int, gap_end: int, offset: tuple[float, float]
 ) -> CurveDataList:

@@ -110,12 +110,8 @@ class FrameChangeCoordinator:
             logger.debug("FrameChangeCoordinator.connect() called but already connected (idempotent)")
             return
 
-        # Prevent duplicate connections - always try to disconnect first (idempotent)
-        # Qt's disconnect is safe even if not currently connected
-        try:
-            _ = self.main_window.state_manager.frame_changed.disconnect(self.on_frame_changed)
-        except (RuntimeError, TypeError):
-            pass  # Not connected or disconnect failed - either way, proceed to connect
+        # No need to disconnect if not already connected (_connected is False here)
+        # Attempting disconnect on unconnected signal causes Qt RuntimeWarning
 
         # Connect with QueuedConnection to defer execution until next event loop iteration
         # This breaks the synchronous nested execution that causes timeline desync bugs
