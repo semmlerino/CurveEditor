@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, cast
 from typing_extensions import override
 
 if TYPE_CHECKING:
+    from protocols.ui import CurveViewProtocol
     from ui.timeline_tabs import TimelineTabWidget
 
     from .curve_view_widget import CurveViewWidget
@@ -235,7 +236,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         from .service_facade import get_service_facade
 
         self.timeline_controller = TimelineController(self.state_manager, self)
-        self.action_controller = ActionHandlerController(self.state_manager, self)
+        self.action_controller = ActionHandlerController(
+            self.state_manager,  # pyright: ignore[reportArgumentType]
+            self,  # pyright: ignore[reportArgumentType]
+        )
         self.ui_init_controller = UIInitializationController(self)
         self.view_management_controller = ViewManagementController(self)  # pyright: ignore[reportAttributeAccessIssue]
         self.background_controller = self.view_management_controller
@@ -527,13 +531,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         return self.state_manager.is_modified
 
     @property
-    def curve_view(self) -> "CurveViewWidget | None":
+    def curve_view(self) -> "CurveViewProtocol | None":
         """Get the curve view widget (MainWindowProtocol requirement).
 
         Returns the curve_widget which implements CurveViewProtocol.
         This property exists for protocol conformance.
         """
-        return self.curve_widget
+        return cast("CurveViewProtocol | None", self.curve_widget)
 
     @property
     def active_timeline_point(self) -> str | None:

@@ -22,19 +22,33 @@ from protocols.services import SignalProtocol  # noqa: F401 - re-exported for co
 
 
 class StateManagerProtocol(Protocol):
-    """Protocol for state manager."""
+    """Protocol for state manager.
 
-    is_modified: bool
-    auto_center_enabled: bool
+    StateManager owns UI preferences and view state only.
+    ApplicationState owns all application data (curves, images, frames).
+
+    This protocol was updated to match the StateManager Simplified Migration
+    which separated UI state (StateManager) from application data (ApplicationState).
+    """
+
+    @property
+    def is_modified(self) -> bool:
+        """Get the modification status."""
+        ...
+
+    @is_modified.setter
+    def is_modified(self, modified: bool) -> None:
+        """Set the modification status."""
+        ...
 
     @property
     def current_frame(self) -> int:
-        """Get current frame."""
+        """Get current frame (delegates to ApplicationState)."""
         ...
 
     @current_frame.setter
     def current_frame(self, value: int) -> None:
-        """Set current frame."""
+        """Set current frame (delegates to ApplicationState)."""
         ...
 
     @property
@@ -52,7 +66,11 @@ class StateManagerProtocol(Protocol):
         """Get image directory."""
         ...
 
-    # Methods needed by file_operations_manager.py
+    @image_directory.setter
+    def image_directory(self, value: str | None) -> None:
+        """Set image directory."""
+        ...
+
     @property
     def current_file(self) -> str | None:
         """Get current file path."""
@@ -63,22 +81,7 @@ class StateManagerProtocol(Protocol):
         """Set current file path."""
         ...
 
-    @image_directory.setter
-    def image_directory(self, value: str | None) -> None:
-        """Set image directory."""
-        ...
-
-    @property
-    def track_data(self) -> object | None:  # CurveDataList | CurveDataWithMetadata
-        """Get track data."""
-        ...
-
-    @property
-    def total_frames(self) -> int:
-        """Get total frames (read-only, delegates to ApplicationState)."""
-        ...
-
-    # View state properties (Phase 2.1 - added for controller protocol adoption)
+    # View state properties
     @property
     def zoom_level(self) -> float:
         """Get current zoom level."""
@@ -113,28 +116,12 @@ class StateManagerProtocol(Protocol):
         """Reset state to defaults."""
         ...
 
-    def set_track_data(self, data: object, mark_modified: bool) -> None:
-        """Set track data."""
-        ...
-
-    def set_image_files(self, files: list[str]) -> None:
-        """Set image files."""
-        ...
-
     def get_window_title(self) -> str:
         """Get window title."""
         ...
 
     def set_selected_points(self, indices: list[int]) -> None:
         """Set selected point indices."""
-        ...
-
-    def undo(self) -> None:
-        """Undo the last operation."""
-        ...
-
-    def redo(self) -> None:
-        """Redo the last undone operation."""
         ...
 
     def set_history_state(self, can_undo: bool, can_redo: bool, position: int, size: int) -> None:
@@ -655,7 +642,10 @@ class MainWindowProtocol(Protocol):
         """Set curve data."""
         ...
 
-    curve_widget: MultiCurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
+    @property
+    def curve_widget(self) -> MultiCurveViewProtocol | None:
+        """Get curve widget (CurveViewWidget - replaces deprecated curve_view)."""
+        ...
 
     # UI label widgets (needed by ActionHandlerController)
     status_label: "QLabelProtocol | None"  # Status bar label
