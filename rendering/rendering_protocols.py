@@ -41,9 +41,17 @@ class CurveViewProtocol(Protocol):
     show_all_frame_numbers: bool
     flip_y_axis: bool
 
-    def width(self) -> int: ...
-    def height(self) -> int: ...
-    def get_transform(self) -> "Transform": ...
+    def width(self) -> int:
+        """Get widget width in pixels."""
+        ...
+
+    def height(self) -> int:
+        """Get widget height in pixels."""
+        ...
+
+    def get_transform(self) -> "Transform":
+        """Get coordinate transformation for data-to-screen conversions."""
+        ...
 
 
 class MainWindowProtocol(Protocol):

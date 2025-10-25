@@ -49,7 +49,7 @@ def fix_class_annotations(file_path: Path) -> int:
         class_match = re.match(r"^(\s*)class (\w+)", line)
         if class_match:
             indent = class_match.group(1)
-            class_name = class_match.group(2)
+            _ = class_match.group(2)  # class_name not used
 
             # Skip to __init__ or first method
             j = i + 1

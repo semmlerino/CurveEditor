@@ -38,9 +38,17 @@ logger = get_logger("batch_edit")
 class BatchEditParentWidgetProtocol(MainWindowProtocol, Protocol):
     # Extend MainWindowProtocol for proper typing
     # Additional attributes specific to batch editing
-    def setPoints(self, points: CurveDataList) -> None: ...
-    def set_curve_data(self, data: CurveDataInput) -> None: ...
-    def showMessage(self, message: str) -> None: ...
+    def setPoints(self, points: CurveDataList) -> None:
+        """Set curve points for display and editing."""
+        ...
+
+    def set_curve_data(self, data: CurveDataInput) -> None:
+        """Update curve data for the active curve."""
+        ...
+
+    def showMessage(self, message: str) -> None:
+        """Display status message to the user."""
+        ...
 
     image_width: int
     image_height: int
@@ -52,7 +60,9 @@ class BatchEditParentWidgetProtocol(MainWindowProtocol, Protocol):
     select_all_button: QPushButton
     point_edit_layout: QVBoxLayout | None
 
-    def update_curve_data(self, data: CurveDataList) -> None: ...
+    def update_curve_data(self, data: CurveDataList) -> None:
+        """Apply batch edit changes to curve data and refresh UI."""
+        ...
 
 
 # Avoid duplicate imports

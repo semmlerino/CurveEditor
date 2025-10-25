@@ -392,10 +392,10 @@ class ServiceFacade:
     def undo(self) -> None:
         """Undo the last action."""
         self.logger.info(
-            (
+
                 f"ServiceFacade.undo called - interaction_service: {self._interaction_service is not None}, "
                 f"main_window: {self.main_window is not None}"
-            )
+
         )
         if self._interaction_service and self.main_window:
             self.logger.info("Calling interaction_service.undo")

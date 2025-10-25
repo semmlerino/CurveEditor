@@ -299,7 +299,7 @@ def deform_curve_with_interpolated_offset(
                 gap_frames_filled += 1
 
     logger.info(
-        f"Filled {gap_frames_filled} frames in gap [{gap_start}, {gap_end}] "
+        f"Filled {gap_frames_filled} frames in gap [{gap_start}, {gap_end}] " +
         f"using interpolated offset across {len(overlap_offsets)} overlap points"
     )
 

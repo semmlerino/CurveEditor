@@ -231,6 +231,7 @@ class ViewManagementController:
 
             # Update StateManager for session persistence
             self.main_window.state_manager.image_directory = image_dir
+            logger.debug(f"[IMAGE-LOAD] Set image_directory to: {image_dir}")
 
             # Update frame range to match image sequence
             num_images = len(image_files)

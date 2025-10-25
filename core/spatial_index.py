@@ -187,8 +187,6 @@ class PointIndex:
                 # Index is still valid
                 return
 
-            logger.debug(f"Rebuilding spatial index for {current_point_count} points")
-
             # Clear existing index
             self._grid.clear()
 
@@ -220,8 +218,6 @@ class PointIndex:
             # Update tracking
             self._last_transform_hash = current_transform_hash
             self._last_point_count = current_point_count
-
-            logger.debug(f"Spatial index built with {len(self._grid)} occupied cells")
 
     def find_point_at_position(
         self,

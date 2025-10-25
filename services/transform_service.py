@@ -31,15 +31,19 @@ else:
                 self._y: float = y
 
             def x(self) -> float:
+                """Get x coordinate."""
                 return self._x
 
             def y(self) -> float:
+                """Get y coordinate."""
                 return self._y
 
             def setX(self, x: float) -> None:
+                """Set x coordinate."""
                 self._x = x
 
             def setY(self, y: float) -> None:
+                """Set y coordinate."""
                 self._y = y
 
 

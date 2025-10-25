@@ -182,10 +182,10 @@ class TrackingPointsPanel(QWidget):
         # Add checkbox for toggling multi-curve display
         self.display_mode_checkbox: QCheckBox = QCheckBox("Show all curves")
         self.display_mode_checkbox.setToolTip(
-            (
+
                 "When checked, displays all visible curves simultaneously.\n"
                 "When unchecked, shows only the selected/active curve."
-            )
+
         )
         self.display_mode_checkbox.setChecked(False)
         _ = self.display_mode_checkbox.toggled.connect(self._on_display_mode_checkbox_toggled)

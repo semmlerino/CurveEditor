@@ -100,6 +100,7 @@ class FileOperations(QObject):
         if self.state_manager:
             self.state_manager.current_file = file_path
             self.state_manager.is_modified = False
+            logger.debug(f"[FILE-LOAD] Set current_file to: {file_path}")
 
         if isinstance(data, dict):
             # Multi-point data

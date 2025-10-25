@@ -459,8 +459,8 @@ class FileLoadSignals(FileLoadWorker):
         """Initialize as FileLoadWorker."""
         super().__init__()
         logger.warning(
-            (
+
                 "FileLoadSignals is deprecated. Use FileLoadWorker directly. "
                 "FileLoadWorker now inherits from QThread with signals as class attributes."
-            )
+
         )

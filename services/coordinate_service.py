@@ -199,10 +199,10 @@ class CoordinateService:
 
             # Log the decision for debugging
             logger.debug(
-                (
+
                     f"[COORD] Transform from metadata: system={data_metadata.system.value}, "
                     f"origin={data_metadata.origin.value}, needs_flip={needs_flip}"
-                )
+
             )
         else:
             # Fall back to manual flag if no metadata

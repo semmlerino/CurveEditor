@@ -737,11 +737,6 @@ class OptimizedCurveRenderer:
         # Check ALL points to ensure we detect endframes anywhere in curve
         has_status = any(len(pt) > 3 for pt in curve_data if pt)
 
-        # Debug logging
-        import logging
-
-        logger = logging.getLogger(__name__)
-
         if has_status:
             # Render with segment awareness (gaps at ENDFRAME points)
             self._render_lines_segmented_aware(

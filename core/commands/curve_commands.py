@@ -62,7 +62,7 @@ class CurveDataCommand(Command, ABC):
         app_state = get_application_state()
         if (cd := app_state.active_curve_data) is None:
             return None
-        curve_name, curve_data = cd
+        curve_name, _ = cd  # Unpack curve_name, ignore curve_data (returned as cd)
 
         # AUTOMATIC: Store target curve for undo/redo (no longer manual!)
         self._target_curve = curve_name
