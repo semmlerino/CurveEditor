@@ -28,7 +28,7 @@ class TestFrameChangeCoordinator:
         # Should not raise
         coordinator.disconnect()
 
-    def test_deterministic_frame_change_order(self, coordinator, main_window_mock):
+    def test_deterministic_frame_change_order(self, coordinator, mock_main_window):
         """Test frame changes happen in deterministic order."""
         # This would test the three-phase frame change process:
         # Phase 1: Update ApplicationState frame
