@@ -27,10 +27,10 @@ Quick reference for CurveEditor - a Python/PySide6 application for editing anima
 
 **Professional-quality code for a personal tool, not enterprise software.**
 
-## Refactoring Status (October 2025 - Stopping Point)
+## Refactoring Status (October 2025)
 
 **Phase 1 Complete:** Quick wins delivered (docstrings, cleanup, nesting reduction)
-**Phase 2 Partial:** Protocol foundation established, partial controller migration
+**Phase 2 In Progress:** Protocol foundation established, ongoing controller migration
 
 ### Protocol Adoption Status
 
@@ -46,14 +46,13 @@ The project uses protocol-based typing for loose coupling and type safety:
 - ✅ ActionHandlerController: Uses StateManagerProtocol, MainWindowProtocol (100% migrated)
 - ⚠️ 7 other controllers: Still use concrete types (ViewManagementController, TimelineController, etc.)
 
-**Why Partial? (ROI-Based Decision)**
-Protocol adoption proved architecturally sound, but completing remaining 7 controllers has low ROI:
-- **Effort**: 3-4 hours to add 15-20 missing UI widget attributes to MainWindowProtocol
-- **Benefit**: Architectural consistency only (no functional improvement)
-- **ROI**: 0.5-1.0 points/hour (below stopping point threshold)
+**Current Approach (Pragmatic Migration)**
+Protocol adoption proved architecturally sound. Remaining 7 controllers use concrete types:
+- **Migration effort**: 3-4 hours to add 15-20 missing UI widget attributes to MainWindowProtocol
+- **Current priority**: Test coverage and functional improvements provide higher value
 - **Personal tool context**: Concrete types acceptable (no team coordination needs)
 
-ActionHandlerController establishes the pattern. Future controllers can adopt protocols if needed.
+ActionHandlerController establishes the pattern. Controllers will adopt protocols as they're refactored.
 
 ### Controller Tests Status
 
@@ -64,12 +63,12 @@ ActionHandlerController establishes the pattern. Future controllers can adopt pr
 - ⚠️ 4 tests implemented (17% complete)
 - ⚠️ 20 tests are stubs (pass placeholders)
 
-**October 2025 Update**: Fixed 4 critical constructor parameter mismatches and removed 80 lines of redundant pyright pragmas. Test infrastructure is now production-ready.
+**October 2025 Update**: Fixed 4 critical constructor parameter mismatches and removed 80 lines of redundant pyright pragmas. Test infrastructure is production-ready. Discovered and fixed production bug (pan_offset not synced for session save/restore).
 
-**Why Incomplete?**
-Test structure exists to enable future controller refactoring, but implementing all tests requires 12-18 hours with diminishing returns. Critical path coverage relies on integration tests and manual validation.
+**Current Status:**
+Test structure exists and infrastructure is solid. Implementing remaining test stubs provides high value for catching bugs early (already caught 1 production bug during refactoring).
 
-**Usage:** Tests are scaffolding for future work. If refactoring a controller heavily, implement the relevant test stubs first.
+**Priority:** Implement high-value test stubs for critical controller functionality.
 
 ### Refactoring Metrics
 
@@ -81,16 +80,13 @@ Test structure exists to enable future controller refactoring, but implementing 
 - Logging performance bug fixed
 - 4 test constructor bugs fixed (October 2025)
 - 80 lines of redundant code removed (October 2025)
+- Production bug fixed: pan_offset syncing for session save/restore (October 2025)
+- StateManagerProtocol aligned with Simplified Migration (October 2025)
 
-**Stopping Point Rationale:**
-- ✅ Stable, production-ready state
-- ✅ 56% of planned value delivered at 25% of effort (Phase 1)
-- ✅ ROI: 1.54 points/hour for Phase 1 (better than planned 1.0-1.3)
-- ✅ Remaining controller migrations: 0.5-1.0 points/hour (3× worse ROI)
-- ✅ Test infrastructure fixed and code quality improved (October 2025)
-- ✅ Natural checkpoint (Phase 1 complete, Phase 2 pragmatically complete)
-
-This is an intentional, pragmatic stopping point that balances improvement with effort for a personal tool. The October 2025 continuation fixed critical test issues and documented architectural decisions clearly.
+**Next Steps:**
+- Implement remaining 20 test stubs (high ROI for bug detection)
+- Continue protocol migration as controllers are refactored
+- Focus on functional improvements and test coverage
 
 ---
 
