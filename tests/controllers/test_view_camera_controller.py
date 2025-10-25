@@ -64,7 +64,22 @@ class TestViewCameraController:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-        pass
+        # Arrange
+        initial_pan_x = controller.pan_offset_x
+        initial_pan_y = controller.pan_offset_y
+
+        delta_x, delta_y = 50.0, 30.0
+
+        # Act - Apply pan
+        controller.pan(delta_x, delta_y)
+
+        # Assert - Offsets updated
+        assert controller.pan_offset_x == initial_pan_x + delta_x, \
+            f"Pan X should increase by {delta_x}"
+        # Note: pan_offset_y may be adjusted by apply_pan_offset_y based on flip_y_axis
+        # We just verify it changed
+        assert controller.pan_offset_y != initial_pan_y, \
+            "Pan Y should change"
 
     def test_zoom_updates_zoom_level(
         self,
@@ -85,4 +100,20 @@ class TestViewCameraController:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-        pass
+        # Arrange
+        initial_zoom = controller.zoom_factor
+
+        # Act - Zoom in
+        zoom_factor = 1.2
+        controller.set_zoom_factor(initial_zoom * zoom_factor)
+
+        # Assert - Zoom increased
+        assert controller.zoom_factor > initial_zoom, \
+            "Zoom factor should increase"
+
+        # Act - Zoom out
+        controller.set_zoom_factor(initial_zoom)
+
+        # Assert - Zoom back to original
+        assert abs(controller.zoom_factor - initial_zoom) < 0.01, \
+            "Zoom factor should return to original"

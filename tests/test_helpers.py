@@ -482,6 +482,14 @@ class MockCurveView:
         """Widget height for protocol compatibility."""
         return self.image_height
 
+    def get_display_size(self) -> tuple[int, int]:
+        """Get display dimensions for transform calculations."""
+        return (self.image_width, self.image_height)
+
+    def _get_display_dimensions(self) -> tuple[int, int]:
+        """Get display dimensions (private method used by ViewCameraController)."""
+        return (self.image_width, self.image_height)
+
     def update(self) -> None:
         """Mock update method."""
         self._update_called = True
@@ -824,6 +832,9 @@ class MockMainWindow:
         self.zoom_label: object = MagicMock()
         self.status_label: object = MagicMock()
 
+        # UI checkbox widgets
+        self.show_background_cb: object = MagicMock()
+
         # Connect zoom_changed signal to sync state_manager (matches production)
         # Production: SignalConnectionManager connects zoom_changed → MainWindow.on_curve_zoom_changed
         # This ensures state_manager.zoom_level stays in sync with curve_widget.zoom_factor
@@ -993,6 +1004,10 @@ class MockMainWindow:
 
     def update_zoom_label(self) -> None:
         """Update zoom level label (MainWindowProtocol)."""
+        pass  # Mock implementation
+
+    def _update_point_status_label(self) -> None:
+        """Update point status label (needed by FrameChangeCoordinator)."""
         pass  # Mock implementation
 
     def on_curve_zoom_changed(self, zoom: float) -> None:
