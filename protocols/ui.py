@@ -78,6 +78,37 @@ class StateManagerProtocol(Protocol):
         """Get total frames (read-only, delegates to ApplicationState)."""
         ...
 
+    # View state properties (Phase 2.1 - added for controller protocol adoption)
+    @property
+    def zoom_level(self) -> float:
+        """Get current zoom level."""
+        ...
+
+    @zoom_level.setter
+    def zoom_level(self, value: float) -> None:
+        """Set zoom level."""
+        ...
+
+    @property
+    def pan_offset(self) -> tuple[float, float]:
+        """Get current pan offset (x, y)."""
+        ...
+
+    @pan_offset.setter
+    def pan_offset(self, value: tuple[float, float]) -> None:
+        """Set pan offset (x, y)."""
+        ...
+
+    @property
+    def smoothing_window_size(self) -> int:
+        """Get smoothing window size (read-only)."""
+        ...
+
+    @property
+    def smoothing_filter_type(self) -> str:
+        """Get smoothing filter type (read-only)."""
+        ...
+
     def reset_to_defaults(self) -> None:
         """Reset state to defaults."""
         ...
