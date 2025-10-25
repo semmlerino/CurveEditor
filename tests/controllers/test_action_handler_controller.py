@@ -1,18 +1,5 @@
 #!/usr/bin/env python
 """Tests for ActionHandlerController.
-# Per-file type checking relaxations for test code
-# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
-# pyright: reportAttributeAccessIssue=none
-# pyright: reportArgumentType=none
-# pyright: reportAny=none
-# pyright: reportUnknownMemberType=none
-# pyright: reportUnknownParameterType=none
-# pyright: reportUnknownVariableType=none
-# pyright: reportMissingParameterType=none
-# pyright: reportPrivateUsage=none
-# pyright: reportUnusedParameter=none
-# pyright: reportUnusedCallResult=none
-
 
 Tests the critical action handling paths including:
 - Zoom operations (in/out/reset)
@@ -21,19 +8,6 @@ Tests the critical action handling paths including:
 - Smoothing operations
 - View reset
 """
-# Per-file type checking relaxations for test code
-# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
-# pyright: reportAttributeAccessIssue=none
-# pyright: reportArgumentType=none
-# pyright: reportAny=none
-# pyright: reportUnknownMemberType=none
-# pyright: reportUnknownParameterType=none
-# pyright: reportUnknownVariableType=none
-# pyright: reportMissingParameterType=none
-# pyright: reportPrivateUsage=none
-# pyright: reportUnusedParameter=none
-# pyright: reportUnusedCallResult=none
-
 
 import pytest
 from PySide6.QtWidgets import QApplication
@@ -45,19 +19,6 @@ from ui.controllers.action_handler_controller import ActionHandlerController
 @pytest.fixture
 def controller(mock_main_window: MockMainWindow) -> ActionHandlerController:
     """Create ActionHandlerController with mock main window."""
-# Per-file type checking relaxations for test code
-# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
-# pyright: reportAttributeAccessIssue=none
-# pyright: reportArgumentType=none
-# pyright: reportAny=none
-# pyright: reportUnknownMemberType=none
-# pyright: reportUnknownParameterType=none
-# pyright: reportUnknownVariableType=none
-# pyright: reportMissingParameterType=none
-# pyright: reportPrivateUsage=none
-# pyright: reportUnusedParameter=none
-# pyright: reportUnusedCallResult=none
-
     return ActionHandlerController(
         state_manager=mock_main_window.state_manager,
         main_window=mock_main_window
@@ -66,18 +27,6 @@ def controller(mock_main_window: MockMainWindow) -> ActionHandlerController:
 
 class TestActionHandlerController:
     """Test suite for ActionHandlerController."""
-# Per-file type checking relaxations for test code
-# Tests use mocks, fixtures, and Qt objects with incomplete type stubs
-# pyright: reportAttributeAccessIssue=none
-# pyright: reportArgumentType=none
-# pyright: reportAny=none
-# pyright: reportUnknownMemberType=none
-# pyright: reportUnknownParameterType=none
-# pyright: reportUnknownVariableType=none
-# pyright: reportMissingParameterType=none
-# pyright: reportPrivateUsage=none
-# pyright: reportUnusedParameter=none
-# pyright: reportUnusedCallResult=none
 
 
     def test_zoom_in_action(
