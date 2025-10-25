@@ -24,6 +24,7 @@ from tests.test_helpers import (
     BaseMockCurveView,
     BaseMockMainWindow,
     LazyUIMockMainWindow,
+    MockMainWindow,
     ProtocolCompliantMockCurveView,
     ProtocolCompliantMockMainWindow,
 )
@@ -54,17 +55,19 @@ def protocol_compliant_mock_main_window() -> ProtocolCompliantMockMainWindow:
 
 
 @pytest.fixture
-def mock_main_window() -> BaseMockMainWindow:
-    """Create a basic mock main window for testing."""
-    return BaseMockMainWindow()
+def mock_main_window() -> MockMainWindow:
+    """Create a full mock main window for testing with state_manager and all protocol attributes."""
+    return MockMainWindow()
 
 
 @pytest.fixture
-def mock_main_window_with_data() -> BaseMockMainWindow:
+def mock_main_window_with_data() -> MockMainWindow:
     """Create a mock main window with sample curve data."""
-    return BaseMockMainWindow(
-        curve_data=[(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)], selected_indices=[1]
-    )
+    window = MockMainWindow()
+    # Set curve data on the curve view
+    window.curve_view.curve_data = [(1, 100.0, 200.0), (2, 150.0, 250.0), (3, 200.0, 300.0)]
+    window.curve_view.selected_points = {1}
+    return window
 
 
 @pytest.fixture

@@ -403,6 +403,7 @@ class MockCurveView:
 
         self.point_selected: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.point_moved: SignalProtocol = cast(SignalProtocol, TestSignal())
+        self.zoom_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
 
         # Interaction tracking
         self._update_called: bool = False
@@ -595,6 +596,10 @@ class MockCurveView:
         """Invalidate any cached data."""
         pass
 
+    def invalidate_caches(self) -> None:
+        """Public wrapper for invalidating caches (called by controllers)."""
+        self._invalidate_caches()
+
     def toggleBackgroundVisible(self, visible: bool) -> None:
         """Toggle background visibility."""
         self.show_background = visible
@@ -757,6 +762,8 @@ class MockMainWindow:
         self._state_manager.is_modified = False
         self._state_manager.auto_center_enabled = True
         self._state_manager.current_frame = 1
+        self._state_manager.zoom_level = 1.0  # Default zoom
+        self._state_manager.pan_offset = (0.0, 0.0)  # Default pan
 
         # Additional MainWindowProtocol required attributes
         self._point_spinbox_connected: bool = False
@@ -780,6 +787,14 @@ class MockMainWindow:
         self.current_image_idx: int = 0
         self.session_manager: object = None
         self.view_update_manager: object = None
+
+        # Controller references (needed by some controllers)
+        self.view_management_controller: object = MagicMock()
+        self.timeline_controller: object = MagicMock()
+
+        # UI label widgets
+        self.zoom_label: object = MagicMock()
+        self.status_label: object = MagicMock()
 
     @property
     def selected_indices(self) -> list[int]:
