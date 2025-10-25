@@ -1046,14 +1046,17 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Only fail loud in debug mode
             if os.environ.get("DEBUG_MODE"):
                 verifier.raise_if_failed()
-            else:
-                # Log warning in production
-                failures = verifier.get_failed_connections()
-                if failures:
-                    logger.warning(f"Missing {len(failures)} connections")
-                    verifier.log_report()
-        else:
-            logger.debug("All critical connections verified")
+                return
+
+            # Guard: In production mode, log warnings instead of raising
+            failures = verifier.get_failed_connections()
+            if failures:
+                logger.warning(f"Missing {len(failures)} connections")
+                verifier.log_report()
+            return
+
+        # All critical connections verified
+        logger.debug("All critical connections verified")
 
     def add_to_history(self) -> None:
         """Add current state to history (called by curve widget)."""

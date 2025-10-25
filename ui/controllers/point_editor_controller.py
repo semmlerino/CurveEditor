@@ -60,12 +60,21 @@ class PointEditorController:
         """
         # Disconnect point editor spinbox signals (2 connections, if connected)
         try:
-            if self._spinbox_connected:
-                if self.main_window:
-                    if self.main_window.point_x_spinbox:
-                        _ = self.main_window.point_x_spinbox.valueChanged.disconnect(self._on_point_x_changed)
-                    if self.main_window.point_y_spinbox:
-                        _ = self.main_window.point_y_spinbox.valueChanged.disconnect(self._on_point_y_changed)
+            # Guard: Only disconnect if we connected in the first place
+            if not self._spinbox_connected:
+                return
+
+            # Guard: Require valid main_window
+            if not self.main_window:
+                return
+
+            # Disconnect X spinbox if present
+            if self.main_window.point_x_spinbox:
+                _ = self.main_window.point_x_spinbox.valueChanged.disconnect(self._on_point_x_changed)
+
+            # Disconnect Y spinbox if present
+            if self.main_window.point_y_spinbox:
+                _ = self.main_window.point_y_spinbox.valueChanged.disconnect(self._on_point_y_changed)
         except (RuntimeError, AttributeError):
             pass  # Already disconnected or objects destroyed
 
@@ -137,13 +146,13 @@ class PointEditorController:
             self._update_spinboxes_silently(x, y)
 
             # Connect spinbox changes if not already connected
-            if self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
-                if not self._spinbox_connected:
-                    _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
-                    _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
-                    self._spinbox_connected = True
+            # Guard: Only connect if both spinboxes exist and not yet connected
+            if not self._spinbox_connected and self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
+                _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
+                _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
+                self._spinbox_connected = True
 
-                logger.debug(f"Updated point editor for point {idx}: ({x:.3f}, {y:.3f})")
+            logger.debug(f"Updated point editor for point {idx}: ({x:.3f}, {y:.3f})")
 
         # Enable spinboxes
         self._set_spinboxes_enabled(True)

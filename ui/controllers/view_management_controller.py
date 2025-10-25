@@ -334,21 +334,26 @@ class ViewManagementController:
         # Clamp to valid range
         image_idx = max(0, min(image_idx, len(self.image_filenames) - 1))
 
+        # Guard: Validate image index
+        if not (0 <= image_idx < len(self.image_filenames)):
+            return
+
+        # Guard: Require image directory
+        if not self.image_directory:
+            logger.warning("Image directory not set")
+            return
+
         # Load the corresponding image
-        if 0 <= image_idx < len(self.image_filenames):
-            if self.image_directory:
-                image_path = Path(self.image_directory) / self.image_filenames[image_idx]
+        image_path = Path(self.image_directory) / self.image_filenames[image_idx]
 
-                # Use cached image (instant after first load)
-                pixmap = self._get_cached_image(str(image_path))
+        # Use cached image (instant after first load)
+        pixmap = self._get_cached_image(str(image_path))
 
-                if pixmap is not None:
-                    self.main_window.curve_widget.background_image = pixmap
-                    # NOTE: Don't call update() here - FrameChangeCoordinator handles the repaint
-                    # in phase 3 after centering, preventing visual jumps during playback
-                    logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
-            else:
-                logger.warning("Image directory not set")
+        if pixmap is not None:
+            self.main_window.curve_widget.background_image = pixmap
+            # NOTE: Don't call update() here - FrameChangeCoordinator handles the repaint
+            # in phase 3 after centering, preventing visual jumps during playback
+            logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
 
     def clear_background_images(self) -> None:
         """Clear all background image data and cache."""
