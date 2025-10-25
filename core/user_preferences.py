@@ -9,7 +9,7 @@ for the image sequence browser and other UI components.
 import json
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from core.logger_utils import get_logger
 
@@ -55,12 +55,12 @@ class UserPreferences:
     window_size: tuple[int, int] = (1200, 600)
     splitter_sizes: list[int] = field(default_factory=lambda: [250, 350, 600])
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Convert preferences to dictionary for serialization."""
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "UserPreferences":
+    def from_dict(cls, data: dict[str, Any]) -> "UserPreferences":
         """Create preferences from dictionary."""
         # Handle missing fields gracefully
         valid_fields = {f.name for f in fields(cls)}

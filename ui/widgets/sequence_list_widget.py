@@ -206,8 +206,10 @@ class SequenceListWidget(QListWidget):
         # Set accessible properties
         self.setAccessibleName("Image sequences")
         self.setAccessibleDescription(
+
             "List of image sequences found in the selected directory. "
             "Select a sequence to preview, double-click or press Enter to load."
+
         )
 
         # Enable keyboard navigation
@@ -355,7 +357,7 @@ class SequenceListWidget(QListWidget):
             logger.warning(f"Failed to sort sequences by {self._sort_key}: {e}")
             return sequences
 
-    def _on_current_item_changed(self, current: QListWidgetItem | None, previous: QListWidgetItem | None) -> None:
+    def _on_current_item_changed(self, current: QListWidgetItem | None, _previous: QListWidgetItem | None) -> None:
         """Handle current item change."""
         if current:
             sequence_index = current.data(Qt.ItemDataRole.UserRole)

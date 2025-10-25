@@ -9,7 +9,7 @@ and user-friendly error messages for the image sequence browser.
 import os
 from enum import Enum
 from pathlib import Path
-from typing import NamedTuple
+from typing import Any, NamedTuple
 
 from core.logger_utils import get_logger
 
@@ -34,7 +34,7 @@ class RecoveryAction(NamedTuple):
 
     action_type: str  # "retry", "alternative_path", "manual_browse", "ignore"
     message: str      # User-friendly message
-    data: dict        # Additional data for the action
+    data: dict[str, Any]        # Additional data for the action
 
 
 class ErrorRecoveryManager:
@@ -66,7 +66,7 @@ class ErrorRecoveryManager:
         # System-specific directories
         if os.name == 'nt':  # Windows
             # Common Windows locations
-            common_dirs.extend([
+            common_dirs.extend([  # pyright: ignore[reportUnreachable]
                 Path("C:/Users/Public/Documents"),
                 Path("C:/Users/Public/Pictures"),
                 Path("D:/"),  # Common secondary drive
@@ -307,7 +307,7 @@ class ErrorRecoveryManager:
             # Fix common Windows path issues
             if os.name == 'nt':
                 # Replace forward slashes with backslashes
-                corrected = corrected.replace('/', '\\')
+                corrected = corrected.replace('/', '\\')  # pyright: ignore[reportUnreachable]
 
                 # Add drive letter if missing
                 if corrected.startswith('\\') and not corrected.startswith('\\\\'):
@@ -381,7 +381,7 @@ class ErrorRecoveryManager:
 
         return guidance_messages.get(error_type, "Please try a different approach or contact support.")
 
-    def get_recovery_suggestions(self, path: str, error_type: ErrorType) -> list[str]:
+    def get_recovery_suggestions(self, _path: str, error_type: ErrorType) -> list[str]:
         """
         Get specific recovery suggestions for a path and error type.
 

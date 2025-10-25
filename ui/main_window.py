@@ -1265,8 +1265,10 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
             # Debug logging to see what values we're saving
             logger.debug(
+
                 f"[SESSION-SAVE] tracking_file={self.state_manager.current_file}, "
                 f"image_directory={self.state_manager.image_directory}"
+
             )
 
             session_data = self._session_manager.create_session_data(

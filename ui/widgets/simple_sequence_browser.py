@@ -273,7 +273,7 @@ class SimpleSequenceBrowser(QWidget):
         return self.sequence_list._sequences
 
     @_current_sequences.setter
-    def _current_sequences(self, sequences: list["ImageSequence"]) -> None:
+    def _current_sequences(self, _sequences: list["ImageSequence"]) -> None:
         """Set current sequences (delegates to sequence_list)."""
         # This setter is called by set_sequences() and clear()
         # The actual storage is in sequence_list._sequences

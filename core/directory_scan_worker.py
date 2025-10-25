@@ -10,13 +10,38 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, TypedDict, override
 
 from PySide6.QtCore import QThread, Signal
+
+if TYPE_CHECKING:
+    from PySide6.QtGui import QPixmap
 
 from core.logger_utils import get_logger
 
 logger = get_logger("directory_scan_worker")
+
+
+class SequenceInfo(TypedDict):
+    """Type definition for sequence information dictionary."""
+
+    base_name: str
+    padding: int
+    extension: str
+    frames: list[int]
+    file_list: list[str]
+    directory: str
+
+
+class CacheStats(TypedDict, total=False):
+    """Type definition for cache statistics dictionary."""
+
+    total_items: int
+    memory_items: int
+    disk_items: int
+    total_size_mb: float
+    cache_dir: str
+    error: str
 
 
 class DirectoryScanWorker(QThread):
@@ -31,14 +56,14 @@ class DirectoryScanWorker(QThread):
     """
 
     # Signals
-    progress = Signal(int, int, str)  # current, total, message
-    sequences_found = Signal(list)    # list of sequence dictionaries
-    error_occurred = Signal(str)      # error message
+    progress: Signal = Signal(int, int, str)  # current, total, message
+    sequences_found: Signal = Signal(list)    # list of sequence dictionaries
+    error_occurred: Signal = Signal(str)      # error message
 
     # Supported image extensions
-    IMAGE_EXTENSIONS = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.exr', '.dpx', '.cin', '.hdr'}
+    IMAGE_EXTENSIONS: set[str] = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.exr', '.dpx', '.cin', '.hdr'}
 
-    def __init__(self, directory_path: str, parent=None):
+    def __init__(self, directory_path: str, parent: QThread | None = None) -> None:
         """
         Initialize directory scan worker.
 
@@ -47,12 +72,12 @@ class DirectoryScanWorker(QThread):
             parent: Parent object
         """
         super().__init__(parent)
-        self.directory_path = directory_path
-        self._should_stop = False
-        self._lock = threading.Lock()
+        self.directory_path: str = directory_path
+        self._should_stop: bool = False
+        self._lock: threading.Lock = threading.Lock()
 
         # Sequence detection patterns (ordered by specificity)
-        self.sequence_patterns = [
+        self.sequence_patterns: list[re.Pattern[str]] = [
             # Standard patterns with frame numbers
             re.compile(r'^(.+?)(\d{4,})(\.\w+)$'),  # name0001.ext (4+ digits)
             re.compile(r'^(.+?)(\d{3})(\.\w+)$'),   # name001.ext (3 digits)
@@ -67,6 +92,7 @@ class DirectoryScanWorker(QThread):
             self._should_stop = True
         self.requestInterruption()
 
+    @override
     def run(self) -> None:
         """Run the directory scanning process."""
         try:
@@ -141,7 +167,7 @@ class DirectoryScanWorker(QThread):
         except Exception as e:
             self.error_occurred.emit(f"Error scanning directory: {str(e)}")
 
-    def _detect_sequences(self, image_files: list[str]) -> list[dict[str, Any]]:
+    def _detect_sequences(self, image_files: list[str]) -> list[SequenceInfo]:
         """
         Detect image sequences from list of image files.
 
@@ -151,8 +177,8 @@ class DirectoryScanWorker(QThread):
         Returns:
             List of sequence dictionaries
         """
-        sequences = []
-        processed_files = set()
+        sequences: list[SequenceInfo] = []
+        processed_files: set[str] = set()
 
         for filename in image_files:
             if self._should_stop:
@@ -165,14 +191,14 @@ class DirectoryScanWorker(QThread):
             sequence = self._find_sequence_for_file(filename, image_files, processed_files)
             if sequence:
                 sequences.append(sequence)
-                processed_files.update(sequence['file_list'])
+                processed_files.update(sequence["file_list"])
             else:
                 # Single file (not part of sequence)
                 processed_files.add(filename)
 
         return sequences
 
-    def _find_sequence_for_file(self, filename: str, all_files: list[str], processed: set[str]) -> dict[str, Any] | None:
+    def _find_sequence_for_file(self, filename: str, all_files: list[str], processed: set[str]) -> SequenceInfo | None:
         """
         Find sequence starting with given file.
 
@@ -192,8 +218,8 @@ class DirectoryScanWorker(QThread):
                 extension = match.group(3)
 
                 # Find all files matching this pattern
-                sequence_files = []
-                frames = []
+                sequence_files: list[str] = []
+                frames: list[int] = []
 
                 for other_file in all_files:
                     if other_file in processed:
@@ -221,13 +247,14 @@ class DirectoryScanWorker(QThread):
                     # Determine padding from first frame
                     padding = len(frame_str)
 
-                    return {
-                        'base_name': base_name,
-                        'padding': padding,
-                        'extension': extension,
-                        'frames': frames,
-                        'file_list': sequence_files,
-                    }
+                    return SequenceInfo(
+                        base_name=base_name,
+                        padding=padding,
+                        extension=extension,
+                        frames=frames,
+                        file_list=sequence_files,
+                        directory="",
+                    )
 
         return None
 
@@ -243,7 +270,7 @@ class ThumbnailCache:
     - Size-based cache limits
     """
 
-    def __init__(self, cache_dir: Path | None = None, max_size_mb: int = 500, max_items: int = 10000):
+    def __init__(self, cache_dir: Path | None = None, max_size_mb: int = 500, max_items: int = 10000) -> None:
         """
         Initialize thumbnail cache.
 
@@ -252,23 +279,23 @@ class ThumbnailCache:
             max_size_mb: Maximum cache size in megabytes
             max_items: Maximum number of cached items
         """
-        self.max_size_mb = max_size_mb
-        self.max_items = max_items
+        self.max_size_mb: int = max_size_mb
+        self.max_items: int = max_items
 
         # Set up cache directory
         if cache_dir is None:
             cache_dir = Path.home() / ".curveeditor" / "thumbnail_cache"
 
-        self.cache_dir = cache_dir
+        self.cache_dir: Path = cache_dir
         self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # In-memory cache for fast access
-        self._memory_cache: dict[str, Any] = {}
+        # In-memory cache for fast access (stores QPixmap objects at runtime)
+        self._memory_cache: dict[str, QPixmap] = {}  # type: ignore[name-defined]
         self._access_order: list[str] = []
-        self._lock = threading.Lock()
+        self._lock: threading.Lock = threading.Lock()
 
         # Cache metadata file
-        self.metadata_file = self.cache_dir / "cache_metadata.json"
+        self.metadata_file: Path = self.cache_dir / "cache_metadata.json"
         self._load_metadata()
 
     def _load_metadata(self) -> None:
@@ -323,7 +350,7 @@ class ThumbnailCache:
         """Get cache file path for given key."""
         return self.cache_dir / f"{cache_key}.thumbnail"
 
-    def get(self, file_path: str) -> Any | None:
+    def get(self, file_path: str) -> "QPixmap | None":
         """
         Get thumbnail from cache.
 
@@ -368,7 +395,7 @@ class ThumbnailCache:
 
         return None
 
-    def put(self, file_path: str, thumbnail: Any) -> None:
+    def put(self, file_path: str, thumbnail: "QPixmap") -> None:
         """
         Store thumbnail in cache.
 
@@ -464,7 +491,7 @@ class ThumbnailCache:
         with self._lock:
             return len(self._access_order)
 
-    def get_cache_stats(self) -> dict[str, Any]:
+    def get_cache_stats(self) -> CacheStats:
         """
         Get cache statistics.
 
@@ -477,17 +504,17 @@ class ThumbnailCache:
                 total_size_bytes = sum(f.stat().st_size for f in cache_files)
                 total_size_mb = total_size_bytes / (1024 * 1024)
 
-                return {
-                    'total_items': len(self._access_order),
-                    'memory_items': len(self._memory_cache),
-                    'disk_items': len(cache_files),
-                    'total_size_mb': total_size_mb,
-                    'cache_dir': str(self.cache_dir),
-                }
+                return CacheStats(
+                    total_items=len(self._access_order),
+                    memory_items=len(self._memory_cache),
+                    disk_items=len(cache_files),
+                    total_size_mb=total_size_mb,
+                    cache_dir=str(self.cache_dir),
+                )
             except Exception as e:
                 logger.warning(f"Failed to get cache stats: {e}")
-                return {
-                    'total_items': len(self._access_order),
-                    'memory_items': len(self._memory_cache),
-                    'error': str(e)
-                }
+                return CacheStats(
+                    total_items=len(self._access_order),
+                    memory_items=len(self._memory_cache),
+                    error=str(e),
+                )

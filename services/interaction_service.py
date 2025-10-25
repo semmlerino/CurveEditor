@@ -1398,11 +1398,11 @@ class _PointManipulator:
         # Clear spatial index since frame affects which points are visible/highlighted
         self._owner.selection.clear_spatial_index()
 
-    def on_point_moved(self, _main_window: MainWindowProtocol, idx: int, x: float, y: float) -> None:
+    def on_point_moved(self, _main_window: MainWindowProtocol, _idx: int, _x: float, _y: float) -> None:
         """Handle point movement notifications."""
         pass
 
-    def on_point_selected(self, _curve_view: CurveViewProtocol, _main_window: MainWindowProtocol, idx: int) -> None:
+    def on_point_selected(self, _curve_view: CurveViewProtocol, _main_window: MainWindowProtocol, _idx: int) -> None:
         """Handle point selection notifications."""
         pass
 

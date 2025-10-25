@@ -179,7 +179,7 @@ class StoreManager(QObject):
         logger.debug("Saved store state")
         return state
 
-    def restore_state(self, state: dict[str, Any]) -> None:
+    def restore_state(self, _state: dict[str, Any]) -> None:
         """
         Restore all store states.
 

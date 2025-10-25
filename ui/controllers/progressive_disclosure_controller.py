@@ -6,7 +6,7 @@ Manages transitions between simple and advanced interface modes with smooth anim
 and state preservation.
 """
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QEasingCurve, QObject, QPropertyAnimation, Signal
 from PySide6.QtWidgets import QSplitter, QWidget
@@ -31,7 +31,16 @@ class ProgressiveDisclosureController(QObject):
     """
 
     # Signals
-    mode_changed = Signal(str)  # Emits "simple" or "advanced"
+    mode_changed: Signal = Signal(str)  # Emits "simple" or "advanced"
+
+    # Instance attributes (initialized in __init__)
+    simple_widget: QWidget
+    advanced_widget: QWidget
+    splitter: QSplitter | None
+    state_manager: StateManager | None
+    _current_mode: str
+    _animation_duration: int
+    _is_animating: bool
 
     def __init__(self,
                  simple_widget: QWidget,
@@ -56,6 +65,8 @@ class ProgressiveDisclosureController(QObject):
         self._current_mode = "simple"
         self._animation_duration = 300  # milliseconds
         self._is_animating = False
+        self._fade_out_animation: QPropertyAnimation | None = None
+        self._fade_in_animation: QPropertyAnimation | None = None
 
         # Store original sizes for restoration
         self._simple_size: tuple[int, int] | None = None
@@ -270,7 +281,7 @@ class ProgressiveDisclosureController(QObject):
             self.state_manager.save_user_preferences(preferences)
             logger.debug(f"Saved mode preference: {self._current_mode}")
 
-    def preserve_state(self) -> dict:
+    def preserve_state(self) -> dict[str, Any]:
         """
         Preserve current state for restoration.
 
@@ -294,7 +305,7 @@ class ProgressiveDisclosureController(QObject):
 
         return state
 
-    def restore_state(self, state: dict) -> None:
+    def restore_state(self, state: dict[str, Any]) -> None:
         """
         Restore state from preserved data.
 

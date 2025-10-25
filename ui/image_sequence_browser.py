@@ -554,7 +554,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Windows drive selector (only on Windows)
         if sys.platform == "win32":
-            self.drive_selector = QComboBox()
+            self.drive_selector = QComboBox()  # pyright: ignore[reportUnreachable]
             self.drive_selector.setToolTip("Select drive")
             self.drive_selector.setMinimumWidth(60)
             self.drive_selector.setMaximumWidth(80)
@@ -1381,7 +1381,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         # Update drive selector on Windows
         if self.drive_selector is not None and sys.platform == "win32":
-            if len(normalized_path) >= 2 and normalized_path[1] == ":":
+            if len(normalized_path) >= 2 and normalized_path[1] == ":":  # pyright: ignore[reportUnreachable]
                 current_drive = normalized_path[0].upper() + ":"
                 drive_index = self.drive_selector.findText(current_drive)
                 if drive_index >= 0:
@@ -1898,7 +1898,7 @@ class ImageSequenceBrowserDialog(QDialog):
             return
 
         # Get available drives by checking A-Z
-        available_drives: list[str] = []
+        available_drives: list[str] = []  # pyright: ignore[reportUnreachable]
         for letter in "ABCDEFGHIJKLMNOPQRSTUVWXYZ":
             drive_path = Path(f"{letter}:/")
             if drive_path.exists():
@@ -1972,11 +1972,11 @@ class ImageSequenceBrowserDialog(QDialog):
         # Add platform-specific locations
         if sys.platform == "win32":
             # Windows-specific locations
-            if (home / "Videos").exists():
+            if (home / "Videos").exists():  # pyright: ignore[reportUnreachable]
                 locations["Videos"] = home / "Videos"
         elif sys.platform == "darwin":
             # macOS-specific locations
-            if (home / "Movies").exists():
+            if (home / "Movies").exists():  # pyright: ignore[reportUnreachable]
                 locations["Movies"] = home / "Movies"
 
         return locations
@@ -2009,7 +2009,7 @@ class ImageSequenceBrowserDialog(QDialog):
 
         if sys.platform == "win32" and len(parts) > 3:
             # Windows: "C:\...\parent\current"
-            drive = parts[0]
+            drive = parts[0]  # pyright: ignore[reportUnreachable]
             parent = parts[-2] if len(parts) > 1 else ""
             current = parts[-1]
             abbreviated = f"{drive}\\...\\{parent}\\{current}"
@@ -2047,9 +2047,9 @@ class ImageSequenceBrowserDialog(QDialog):
         # Open in File Manager action
         _ = menu.addSeparator()
         if sys.platform == "win32":
-            open_action = menu.addAction("Open in File Explorer")
+            open_action = menu.addAction("Open in File Explorer")  # pyright: ignore[reportUnreachable]
         elif sys.platform == "darwin":
-            open_action = menu.addAction("Open in Finder")
+            open_action = menu.addAction("Open in Finder")  # pyright: ignore[reportUnreachable]
         else:
             open_action = menu.addAction("Open in File Manager")
         _ = open_action.triggered.connect(lambda: self._open_in_file_manager(path))
@@ -2079,10 +2079,10 @@ class ImageSequenceBrowserDialog(QDialog):
         try:
             if sys.platform == "win32":
                 # Windows: use explorer
-                os.startfile(path)  # type: ignore[attr-defined]
+                os.startfile(path)  # type: ignore[attr-defined]  # pyright: ignore[reportUnreachable]
             elif sys.platform == "darwin":
                 # macOS: use open
-                _ = subprocess.run(["open", path], check=True)
+                _ = subprocess.run(["open", path], check=True)  # pyright: ignore[reportUnreachable]
             else:
                 # Linux: use xdg-open
                 _ = subprocess.run(["xdg-open", path], check=True)

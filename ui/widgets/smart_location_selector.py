@@ -83,8 +83,10 @@ class SmartLocationSelector(QWidget):
 
         # Tooltips
         self.location_combo.setToolTip(
+
             "Select from recent directories or type a path.\n"
             "Use Tab for path completion."
+
         )
 
         layout.addWidget(self.location_combo, stretch=1)
@@ -149,7 +151,7 @@ class SmartLocationSelector(QWidget):
         # Add system-specific locations
         if os.name == 'nt':  # Windows
             # Add common Windows locations
-            if Path("C:/").exists():
+            if Path("C:/").exists():  # pyright: ignore[reportUnreachable]
                 locations.append(("💾 C: Drive", "C:/"))
             if Path("D:/").exists():
                 locations.append(("💾 D: Drive", "D:/"))
