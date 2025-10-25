@@ -9,11 +9,11 @@ from ui.controllers.point_editor_controller import PointEditorController
 
 
 @pytest.fixture
-def controller(main_window_mock):
+def controller(mock_main_window):
     """Create PointEditorController with mock main window."""
     return PointEditorController(
-        main_window=main_window_mock,
-        state_manager=main_window_mock.state_manager
+        main_window=mock_main_window,
+        state_manager=mock_main_window.state_manager
     )
 
 

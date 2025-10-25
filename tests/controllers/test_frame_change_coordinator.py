@@ -11,9 +11,9 @@ from ui.controllers.frame_change_coordinator import FrameChangeCoordinator
 
 
 @pytest.fixture
-def coordinator(main_window_mock):
+def coordinator(mock_main_window):
     """Create FrameChangeCoordinator with mock main window."""
-    return FrameChangeCoordinator(main_window_mock)
+    return FrameChangeCoordinator(mock_main_window)
 
 
 class TestFrameChangeCoordinator:

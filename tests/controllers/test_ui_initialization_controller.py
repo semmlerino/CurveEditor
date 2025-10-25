@@ -9,9 +9,9 @@ from ui.controllers.ui_initialization_controller import UIInitializationControll
 
 
 @pytest.fixture
-def controller(main_window_mock):
+def controller(mock_main_window):
     """Create UIInitializationController with mock main window."""
-    return UIInitializationController(main_window_mock)
+    return UIInitializationController(mock_main_window)
 
 
 class TestUIInitializationController:

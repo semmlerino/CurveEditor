@@ -9,11 +9,11 @@ from ui.controllers.view_camera_controller import ViewCameraController
 
 
 @pytest.fixture
-def controller(main_window_mock):
+def controller(mock_main_window):
     """Create ViewCameraController with mock main window."""
     return ViewCameraController(
-        main_window=main_window_mock,
-        state_manager=main_window_mock.state_manager
+        main_window=mock_main_window,
+        state_manager=mock_main_window.state_manager
     )
 
 

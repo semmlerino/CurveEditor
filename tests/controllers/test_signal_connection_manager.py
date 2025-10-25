@@ -9,9 +9,9 @@ from ui.controllers.signal_connection_manager import SignalConnectionManager
 
 
 @pytest.fixture
-def manager(main_window_mock):
+def manager(mock_main_window):
     """Create SignalConnectionManager with mock main window."""
-    return SignalConnectionManager(main_window_mock)
+    return SignalConnectionManager(mock_main_window)
 
 
 class TestSignalConnectionManager:

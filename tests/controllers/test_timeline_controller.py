@@ -9,11 +9,11 @@ from ui.controllers.timeline_controller import TimelineController
 
 
 @pytest.fixture
-def controller(main_window_mock):
+def controller(mock_main_window):
     """Create TimelineController with mock main window."""
     return TimelineController(
-        main_window=main_window_mock,
-        state_manager=main_window_mock.state_manager
+        main_window=mock_main_window,
+        state_manager=mock_main_window.state_manager
     )
 
 
