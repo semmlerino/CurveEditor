@@ -151,8 +151,7 @@ class PointEditorController:
                 _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
                 _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
                 self._spinbox_connected = True
-
-            logger.debug(f"Updated point editor for point {idx}: ({x:.3f}, {y:.3f})")
+                logger.debug(f"Updated point editor for point {idx}: ({x:.3f}, {y:.3f})")
 
         # Enable spinboxes
         self._set_spinboxes_enabled(True)
