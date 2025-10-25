@@ -227,8 +227,44 @@ class TestSignal:
         """Clear all emissions for reuse."""
         self.emissions.clear()
 
+    def receivers(self) -> int:
+        """Return the number of connected receivers (Qt-like interface).
+
+        Used for testing signal connection verification.
+        """
+        return len(self.callbacks)
+
 
 # ==================== Qt Component Test Doubles ====================
+
+
+class MockStateManager:
+    """Mock StateManager with TestSignal attributes for proper signal testing."""
+
+    def __init__(self):
+        from unittest.mock import MagicMock
+
+        self.is_modified = False
+        self.auto_center_enabled = True
+        self.current_frame = 1
+        self.zoom_level = 1.0  # Default zoom
+        self.pan_offset = (0.0, 0.0)  # Default pan
+        # Signals for testing
+        self.file_changed = TestSignal()
+        self.modified_changed = TestSignal()
+        self.selection_changed = TestSignal()
+        self.view_state_changed = TestSignal()
+        self.total_frames_changed = TestSignal()
+        # Mock reset_to_defaults for testing
+        self.reset_to_defaults = MagicMock(side_effect=self._reset_to_defaults)
+
+    def _reset_to_defaults(self) -> None:
+        """Reset state to default values."""
+        self.is_modified = False
+        self.auto_center_enabled = True
+        self.current_frame = 1
+        self.zoom_level = 1.0
+        self.pan_offset = (0.0, 0.0)
 
 
 class MockUIComponents:
@@ -403,6 +439,7 @@ class MockCurveView:
 
         self.point_selected: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.point_moved: SignalProtocol = cast(SignalProtocol, TestSignal())
+        self.selection_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.zoom_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.view_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
 
@@ -789,14 +826,8 @@ class MockMainWindow:
         self.save_button: object = None  # QPushButton | None
 
         # State manager (required by MainWindowProtocol)
-        from unittest.mock import MagicMock
-
-        self._state_manager = MagicMock()
-        self._state_manager.is_modified = False
-        self._state_manager.auto_center_enabled = True
-        self._state_manager.current_frame = 1
-        self._state_manager.zoom_level = 1.0  # Default zoom
-        self._state_manager.pan_offset = (0.0, 0.0)  # Default pan
+        # Use module-level MockStateManager with TestSignal attributes for proper signal testing
+        self._state_manager = MockStateManager()
 
         # Additional MainWindowProtocol required attributes
         self._point_spinbox_connected: bool = False
@@ -824,6 +855,7 @@ class MockMainWindow:
         # Controller references (needed by some controllers)
         self.view_management_controller: object = MagicMock()
         self.timeline_controller: object = MagicMock()
+        self.frame_change_coordinator: object = MagicMock()
 
         # UI label widgets
         self.zoom_label: object = MagicMock()
@@ -854,6 +886,11 @@ class MockMainWindow:
 
         # UI checkbox widgets
         self.show_background_cb: object = MagicMock()
+        self.show_grid_cb: object = MagicMock()
+        self.show_info_cb: object = MagicMock()
+        self.show_tooltips_cb: object = MagicMock()
+        self.point_size_slider: object = MagicMock()
+        self.line_width_slider: object = MagicMock()
 
         # Connect zoom_changed signal to sync state_manager (matches production)
         # Production: SignalConnectionManager connects zoom_changed → MainWindow.on_curve_zoom_changed
@@ -1099,6 +1136,67 @@ class MockMainWindow:
     def frame_rate_changed(self) -> object:
         """Frame rate changed signal (MainWindowProtocol)."""
         return TestSignal()
+
+    # Signal handler methods for SignalConnectionManager
+    def on_tracking_data_loaded(self, data: object) -> None:
+        """Handle tracking data loaded signal (MainWindowProtocol)."""
+        pass
+
+    def on_multi_point_data_loaded(self, data: object) -> None:
+        """Handle multi-point data loaded signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_load_progress(self, progress: int) -> None:
+        """Handle file load progress signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_load_error(self, error: str) -> None:
+        """Handle file load error signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_load_finished(self) -> None:
+        """Handle file load finished signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_loaded(self, filepath: str) -> None:
+        """Handle file loaded signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_saved(self, filepath: str) -> None:
+        """Handle file saved signal (MainWindowProtocol)."""
+        pass
+
+    def on_file_changed(self, filepath: str) -> None:
+        """Handle file changed signal (MainWindowProtocol)."""
+        pass
+
+    def on_modified_changed(self, is_modified: bool) -> None:
+        """Handle modified state changed signal (MainWindowProtocol)."""
+        pass
+
+    def on_selection_changed(self, indices: object) -> None:
+        """Handle selection changed signal (MainWindowProtocol)."""
+        pass
+
+    def on_view_state_changed(self) -> None:
+        """Handle view state changed signal (MainWindowProtocol)."""
+        pass
+
+    def on_point_selected(self, index: int) -> None:
+        """Handle point selected signal (MainWindowProtocol)."""
+        pass
+
+    def on_point_moved(self, index: int, x: float, y: float) -> None:
+        """Handle point moved signal (MainWindowProtocol)."""
+        pass
+
+    def on_curve_selection_changed(self, indices: object) -> None:
+        """Handle curve selection changed signal (MainWindowProtocol)."""
+        pass
+
+    def on_curve_zoom_changed(self, zoom: float) -> None:
+        """Handle curve zoom changed signal (MainWindowProtocol)."""
+        self._state_manager.zoom_level = zoom
 
 
 class MockDataBuilder:

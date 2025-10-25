@@ -65,6 +65,27 @@ class TestTimelineController:
         controller: TimelineController,
         mock_main_window: MockMainWindow
     ) -> None:
-        """Test changing frame updates UI elements."""
-        controller.set_frame(10)
-        pass
+        """Test that UI widgets update when frame changes.
+
+        Verifies:
+        - Frame spinbox shows new frame value
+        - Frame slider shows new frame value
+        - Application state tracks current frame
+        """
+        # Arrange - Set frame range and ensure widgets are initialized
+        controller.set_frame_range(1, 100)
+
+        # Act - Change to frame 42
+        controller.set_frame(42)
+
+        # Assert - All UI widgets updated
+        assert controller.frame_spinbox.value() == 42, \
+            f"Frame spinbox should be 42, got {controller.frame_spinbox.value()}"
+        assert controller.frame_slider.value() == 42, \
+            f"Frame slider should be 42, got {controller.frame_slider.value()}"
+
+        # Verify application state was updated
+        from stores.application_state import get_application_state
+        app_state = get_application_state()
+        assert app_state.current_frame == 42, \
+            f"Application state frame should be 42, got {app_state.current_frame}"
