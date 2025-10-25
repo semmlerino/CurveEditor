@@ -829,6 +829,29 @@ class MockMainWindow:
         self.zoom_label: object = MagicMock()
         self.status_label: object = MagicMock()
 
+        # Point editor spinbox widgets
+        if HAS_QT:
+            from PySide6.QtWidgets import QDoubleSpinBox, QLabel
+
+            self.point_x_spinbox = QDoubleSpinBox()
+            self.point_x_spinbox.setMinimum(-99999.0)
+            self.point_x_spinbox.setMaximum(99999.0)
+            self.point_x_spinbox.setValue(0.0)
+
+            self.point_y_spinbox = QDoubleSpinBox()
+            self.point_y_spinbox.setMinimum(-99999.0)
+            self.point_y_spinbox.setMaximum(99999.0)
+            self.point_y_spinbox.setValue(0.0)
+
+            self.selected_point_label = QLabel("No point selected")
+            self.selected_count_label = QLabel("Selected: 0")
+        else:
+            # Fallback for non-Qt environments
+            self.point_x_spinbox = MagicMock()
+            self.point_y_spinbox = MagicMock()
+            self.selected_point_label = MagicMock()
+            self.selected_count_label = MagicMock()
+
         # UI checkbox widgets
         self.show_background_cb: object = MagicMock()
 
