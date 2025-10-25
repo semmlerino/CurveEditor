@@ -45,9 +45,10 @@ class ViewManagementController:
 
     Combines functionality from ViewOptionsController and BackgroundImageController
     into a single coherent controller managing all visual aspects of the application.
-    """
 
-    main_window: "MainWindow"
+    NOTE: This controller uses concrete MainWindow type (not protocol) because it
+    needs direct access to UI widgets (checkboxes, sliders) that aren't in MainWindowProtocol.
+    """
 
     def __init__(self, main_window: "MainWindow"):
         """
@@ -56,7 +57,7 @@ class ViewManagementController:
         Args:
             main_window: Reference to the main window for UI access
         """
-        self.main_window = main_window
+        self.main_window: "MainWindow" = main_window
 
         # View options state (WeakKeyDictionary prevents memory leaks)
         self._stored_tooltips: WeakKeyDictionary[QWidget, str] = WeakKeyDictionary()
