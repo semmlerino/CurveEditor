@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, cast
 from PySide6.QtCore import Slot
 
 from core.type_aliases import CurveDataList
-from protocols.ui import MainWindowProtocol
+from protocols.ui import MainWindowProtocol, StateManagerProtocol
 from services import get_data_service
 
 if TYPE_CHECKING:
@@ -30,18 +30,20 @@ class ActionHandlerController:
 
     Extracted from MainWindow to reduce complexity while maintaining exact
     compatibility with existing ShortcutManager connections.
+
+    Phase 2.2: Updated to use protocols for loose coupling and testability.
     """
 
-    def __init__(self, state_manager: "StateManager", main_window: "MainWindow"):
+    def __init__(self, state_manager: StateManagerProtocol, main_window: MainWindowProtocol):
         """
         Initialize the action handler controller.
 
         Args:
-            state_manager: Reference to the application state manager
-            main_window: Reference to the main window for UI access
+            state_manager: State manager implementing StateManagerProtocol
+            main_window: Main window implementing MainWindowProtocol
         """
-        self.state_manager: StateManager = state_manager
-        self.main_window: MainWindow = main_window
+        self.state_manager: StateManagerProtocol = state_manager
+        self.main_window: MainWindowProtocol = main_window
 
         logger.info("ActionHandlerController initialized")
 
