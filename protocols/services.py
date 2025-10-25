@@ -289,3 +289,7 @@ class SignalProtocol(Protocol):
     def disconnect(self, slot: object | None = None) -> None:
         """Disconnect signal from slot."""
         ...
+
+    def receivers(self) -> int:
+        """Return the number of connected receivers (Qt-like interface)."""
+        ...

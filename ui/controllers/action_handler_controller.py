@@ -16,8 +16,7 @@ from protocols.ui import MainWindowProtocol, StateManagerProtocol
 from services import get_data_service
 
 if TYPE_CHECKING:
-    from ui.main_window import MainWindow
-    from ui.state_manager import StateManager
+    pass
 
 from core.logger_utils import get_logger
 

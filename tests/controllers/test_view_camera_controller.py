@@ -6,6 +6,7 @@ Tests camera movement and view transformations.
 
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.view_camera_controller import ViewCameraController
 

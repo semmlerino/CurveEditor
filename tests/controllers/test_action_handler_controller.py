@@ -10,7 +10,6 @@ Tests the critical action handling paths including:
 """
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from tests.test_helpers import MockMainWindow
 from ui.controllers.action_handler_controller import ActionHandlerController

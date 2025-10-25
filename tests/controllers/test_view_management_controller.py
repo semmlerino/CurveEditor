@@ -6,6 +6,7 @@ Tests view state management including fit, center, and reset operations.
 
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.view_management_controller import ViewManagementController
 
@@ -65,6 +66,7 @@ class TestViewManagementController:
 # pyright: reportUnusedCallResult=none
 
         from PySide6.QtGui import QPixmap
+
         from ui.controllers.view_camera_controller import ViewCameraController
 
         # Arrange - Set widget with curve data
@@ -110,6 +112,7 @@ class TestViewManagementController:
 # pyright: reportUnusedCallResult=none
 
         from PySide6.QtGui import QPixmap
+
         from ui.controllers.view_camera_controller import ViewCameraController
 
         # Arrange - Set widget with curve and selection

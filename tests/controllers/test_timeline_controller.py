@@ -6,6 +6,7 @@ Tests frame navigation, playback controls, and timeline interactions.
 
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.timeline_controller import TimelineController
 

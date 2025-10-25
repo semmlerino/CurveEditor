@@ -22,7 +22,6 @@ import pytest
 # Import mock classes from test helpers
 from tests.test_helpers import (
     BaseMockCurveView,
-    BaseMockMainWindow,
     LazyUIMockMainWindow,
     MockMainWindow,
     ProtocolCompliantMockCurveView,

@@ -57,7 +57,7 @@ class ViewManagementController:
         Args:
             main_window: Reference to the main window for UI access
         """
-        self.main_window: "MainWindow" = main_window
+        self.main_window: MainWindow = main_window
 
         # View options state (WeakKeyDictionary prevents memory leaks)
         self._stored_tooltips: WeakKeyDictionary[QWidget, str] = WeakKeyDictionary()

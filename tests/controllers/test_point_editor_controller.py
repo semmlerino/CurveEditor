@@ -6,6 +6,7 @@ Tests point editing logic including spinbox updates and coordinate changes.
 
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.point_editor_controller import PointEditorController
 

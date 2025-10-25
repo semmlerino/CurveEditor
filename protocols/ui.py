@@ -128,6 +128,13 @@ class StateManagerProtocol(Protocol):
         """Update history state information for UI indicators."""
         ...
 
+    # Signals
+    file_changed: SignalProtocol  # Emits new file path (str)
+    modified_changed: SignalProtocol  # Emits modification status (bool)
+    selection_changed: SignalProtocol  # Emits set of selected indices (set)
+    view_state_changed: SignalProtocol  # Emits when view state changes
+    total_frames_changed: SignalProtocol  # Emits new total_frames value (int)
+
 
 class CurveViewProtocol(Protocol):
     """Protocol for curve view widgets.
@@ -261,6 +268,8 @@ class CurveViewProtocol(Protocol):
     # Qt signals
     point_selected: SignalProtocol
     point_moved: SignalProtocol
+    selection_changed: SignalProtocol  # Emits list of selected indices
+    view_changed: SignalProtocol  # Emits when view transform changes
 
     # Methods
     def update(self) -> None:

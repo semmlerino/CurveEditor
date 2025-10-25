@@ -664,7 +664,7 @@ class MockCurveView:
     def pan_offset(self) -> tuple[float, float]:
         """Get pan offset as tuple (matches production ViewCameraController pattern)."""
         return (self.pan_offset_x, self.pan_offset_y)
-    
+
     @pan_offset.setter
     def pan_offset(self, value: tuple[float, float]) -> None:
         """Set pan offset from tuple (matches production ViewCameraController pattern)."""
@@ -951,7 +951,7 @@ class MockMainWindow:
         return self._services
 
     @property
-    def state_manager(self) -> object:
+    def state_manager(self) -> MockStateManager:
         """Get state manager (MainWindowProtocol)."""
         return self._state_manager
 
@@ -1069,7 +1069,7 @@ class MockMainWindow:
 
     def on_curve_zoom_changed(self, zoom: float) -> None:
         """Handle zoom changes from curve widget (syncs state_manager).
-        
+
         This mirrors MainWindow.on_curve_zoom_changed() which keeps
         state_manager.zoom_level in sync with curve_widget.zoom_factor.
         """
@@ -1077,7 +1077,7 @@ class MockMainWindow:
 
     def on_curve_view_changed(self) -> None:
         """Handle view changes from curve widget (syncs pan_offset to state_manager).
-        
+
         This mirrors MainWindow.on_curve_view_changed(). Production only updates
         zoom display, but should also sync pan_offset for session save/restore.
         This test implementation exposes the missing pan_offset sync in production.
@@ -1193,10 +1193,6 @@ class MockMainWindow:
     def on_curve_selection_changed(self, indices: object) -> None:
         """Handle curve selection changed signal (MainWindowProtocol)."""
         pass
-
-    def on_curve_zoom_changed(self, zoom: float) -> None:
-        """Handle curve zoom changed signal (MainWindowProtocol)."""
-        self._state_manager.zoom_level = zoom
 
 
 class MockDataBuilder:

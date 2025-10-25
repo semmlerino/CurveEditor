@@ -4,16 +4,24 @@
 Tests signal/slot connection management and cleanup.
 """
 
+from typing import TYPE_CHECKING, cast
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.signal_connection_manager import SignalConnectionManager
+
+if TYPE_CHECKING:
+    from ui.main_window import MainWindow
 
 
 @pytest.fixture
 def manager(mock_main_window: MockMainWindow) -> SignalConnectionManager:
     """Create SignalConnectionManager with mock main window."""
-    return SignalConnectionManager(mock_main_window)
+    # Cast MockMainWindow to MainWindow for type checking
+    # MockMainWindow implements MainWindowProtocol which MainWindow requires
+    # Use double cast through object to satisfy type checker
+    return SignalConnectionManager(cast("MainWindow", cast(object, mock_main_window)))
 
 
 class TestSignalConnectionManager:
@@ -94,6 +102,7 @@ class TestSignalConnectionManager:
         # In real Qt environment, receivers would be 0 after cleanup
         # In test environment with TestSignal, we verify cleanup was attempted
         # by checking that manager had proper disconnection logic
-        assert final_receivers <= initial_receivers, \
-            f"Receiver count should not increase after manager deletion. " \
+        assert final_receivers <= initial_receivers, (
+            f"Receiver count should not increase after manager deletion. "
             f"Initial: {initial_receivers}, Final: {final_receivers}"
+        )

@@ -8,6 +8,7 @@ application-level state information.
 """
 
 from contextlib import contextmanager
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 
@@ -24,6 +25,17 @@ class PlaybackMode(Enum):
     STOPPED = "stopped"
     PLAYING = "playing"
     PAUSED = "paused"
+
+
+@dataclass
+class UserPreferences:
+    """User preferences for the application.
+
+    This is a minimal implementation to support progressive disclosure
+    and smart location selector features.
+    """
+    interface_mode: str = "simple"  # "simple" or "advanced"
+    recent_directories: dict[str, list[str]] = field(default_factory=dict)  # project_name -> [directories]
 
 
 class StateManager(QObject):
@@ -103,6 +115,10 @@ class StateManager(QObject):
         # Recent directories tracking (for quick access)
         self._recent_directories: list[str] = []
         self._max_recent_directories: int = 10
+
+        # User preferences (minimal implementation for new features)
+        self._user_preferences: UserPreferences = UserPreferences()
+        self._current_project_context: str | None = None
 
         # UI state
         self._window_size: tuple[int, int] = (1200, 800)
@@ -564,6 +580,80 @@ class StateManager(QObject):
         else:
             # Normal mode, emit immediately
             signal.emit(value)  # pyright: ignore[reportAttributeAccessIssue]
+
+    # ==================== User Preferences Methods ====================
+
+    def get_user_preferences(self) -> UserPreferences:
+        """Get the current user preferences.
+
+        Returns:
+            UserPreferences object with current settings
+        """
+        return self._user_preferences
+
+    def save_user_preferences(self, preferences: UserPreferences) -> None:
+        """Save user preferences.
+
+        Args:
+            preferences: UserPreferences object to save
+
+        Note:
+            This is a minimal stub implementation. Preferences are stored
+            in memory but not persisted to disk yet.
+        """
+        self._user_preferences = preferences
+        logger.debug(f"User preferences saved: interface_mode={preferences.interface_mode}")
+
+    def get_recent_directories_for_project(self) -> list[str]:
+        """Get recent directories for the current project context.
+
+        Returns:
+            List of recent directory paths for current project
+        """
+        if self._current_project_context:
+            return self._user_preferences.recent_directories.get(self._current_project_context, [])
+        # Fallback to global recent directories if no project context
+        return self._recent_directories
+
+    def add_recent_directory_for_project(self, directory: str) -> None:
+        """Add directory to recent list for current project context.
+
+        Args:
+            directory: Directory path to add
+        """
+        directory = str(Path(directory).resolve())
+
+        if self._current_project_context:
+            # Add to project-specific recent directories
+            if self._current_project_context not in self._user_preferences.recent_directories:
+                self._user_preferences.recent_directories[self._current_project_context] = []
+
+            recent_list = self._user_preferences.recent_directories[self._current_project_context]
+
+            # Remove if already exists (will re-add at top)
+            if directory in recent_list:
+                recent_list.remove(directory)
+
+            # Add to beginning
+            recent_list.insert(0, directory)
+
+            # Trim to max size
+            self._user_preferences.recent_directories[self._current_project_context] = \
+                recent_list[:self._max_recent_directories]
+
+            logger.debug(f"Added recent directory for project '{self._current_project_context}': {directory}")
+        else:
+            # Fallback to global recent directories
+            self.add_recent_directory(directory)
+
+    def set_project_context(self, project_name: str | None) -> None:
+        """Set the current project context.
+
+        Args:
+            project_name: Name of the current project, or None to clear
+        """
+        self._current_project_context = project_name
+        logger.debug(f"Project context set to: {project_name}")
 
     # ==================== Utility Methods ====================
 

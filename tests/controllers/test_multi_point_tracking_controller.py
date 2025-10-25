@@ -136,7 +136,6 @@ class TestLoadTrackingData:
         - Curve data matches input
         """
         # Arrange
-        curve_name = "pp56_TM_138G"
         curve_data = [
             (1, 100.0, 200.0, "keyframe"),
             (2, 105.0, 205.0, "normal"),

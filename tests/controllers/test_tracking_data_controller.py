@@ -33,13 +33,12 @@ Coverage Target: 18% → 85%+ (all public methods tested)
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.models import TrackingDirection
 from stores.application_state import get_application_state
-from tests.test_helpers import MockMainWindow, TestSignal
+from tests.test_helpers import MockMainWindow
 from ui.controllers.tracking_data_controller import TrackingDataController
 
 
@@ -837,7 +836,6 @@ class TestUniquePointNameGeneration:
         - Numbers are sequential
         """
         # Arrange
-        base_name = "Point"
         app_state.set_curve_data("Point", [(1, 100.0, 200.0, "keyframe")])
 
         # Act

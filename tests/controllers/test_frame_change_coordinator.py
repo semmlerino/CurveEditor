@@ -6,7 +6,6 @@ Tests the deterministic frame change coordination that eliminates race condition
 
 
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from tests.test_helpers import MockMainWindow
 from ui.controllers.frame_change_coordinator import FrameChangeCoordinator

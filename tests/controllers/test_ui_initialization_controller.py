@@ -6,6 +6,7 @@ Tests UI component setup and initialization.
 
 
 import pytest
+
 from tests.test_helpers import MockMainWindow
 from ui.controllers.ui_initialization_controller import UIInitializationController
 
