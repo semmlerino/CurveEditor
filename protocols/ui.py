@@ -505,6 +505,124 @@ class MultiCurveViewProtocol(CurveViewProtocol, Protocol):
         """Center the view on all selected curves."""
         ...
 
+    # Additional methods needed by ActionHandlerController
+    def select_all(self) -> None:
+        """Select all points in active curve."""
+        ...
+
+    def invalidate_caches(self) -> None:
+        """Invalidate rendering caches."""
+        ...
+
+    zoom_changed: SignalProtocol  # Signal emitted when zoom changes
+
+    def reset_view(self) -> None:
+        """Reset view to default state."""
+        ...
+
+    def fit_to_view(self) -> None:
+        """Fit view to show all curve data."""
+        ...
+
+
+class QLabelProtocol(Protocol):
+    """Protocol for QLabel widgets."""
+
+    def setText(self, text: str) -> None:
+        """Set label text."""
+        ...
+
+    def text(self) -> str:
+        """Get label text."""
+        ...
+
+
+class ServicesProtocol(Protocol):
+    """Protocol for services facade.
+
+    Provides access to application services like undo/redo.
+    """
+
+    def undo(self) -> None:
+        """Undo the last operation."""
+        ...
+
+    def redo(self) -> None:
+        """Redo the last undone operation."""
+        ...
+
+
+class FileOperationsProtocol(Protocol):
+    """Protocol for file operations manager.
+
+    Handles loading, saving, and exporting curve data and images.
+    """
+
+    def new_file(self) -> bool:
+        """Create new file, prompting to save if modified.
+
+        Returns:
+            True if new file created, False if cancelled
+        """
+        ...
+
+    def open_file(self, parent: object) -> object | None:
+        """Open file dialog and load curve data.
+
+        Args:
+            parent: Parent widget for dialog
+
+        Returns:
+            Loaded curve data or None if cancelled
+        """
+        ...
+
+    def save_file(self, data: object) -> bool:
+        """Save data to current file.
+
+        Args:
+            data: Curve data to save
+
+        Returns:
+            True if saved successfully, False otherwise
+        """
+        ...
+
+    def save_file_as(self, data: object, parent: object) -> bool:
+        """Save data to new file via dialog.
+
+        Args:
+            data: Curve data to save
+            parent: Parent widget for dialog
+
+        Returns:
+            True if saved successfully, False if cancelled
+        """
+        ...
+
+    def load_images(self, parent: object) -> bool:
+        """Load image sequence via dialog.
+
+        Args:
+            parent: Parent widget for dialog
+
+        Returns:
+            True if images loaded, False if cancelled
+        """
+        ...
+
+    def export_data(self, data: object, parent: object) -> bool:
+        """Export data to file via dialog.
+
+        Args:
+            data: Curve data to export
+            parent: Parent widget for dialog
+
+        Returns:
+            True if exported successfully, False if cancelled
+        """
+        ...
+
 
 class MainWindowProtocol(Protocol):
     """Protocol for main window widgets.
@@ -539,6 +657,13 @@ class MainWindowProtocol(Protocol):
 
     curve_widget: MultiCurveViewProtocol | None  # CurveViewWidget (replaces deprecated curve_view)
 
+    # UI label widgets (needed by ActionHandlerController)
+    status_label: "QLabelProtocol | None"  # Status bar label
+    zoom_label: "QLabelProtocol | None"  # Zoom level display
+
+    # Controller references (needed by ActionHandlerController)
+    tracking_controller: "MultiPointTrackingProtocol"  # Multi-point tracking controller
+
     # Frame management
     @property
     def current_frame(self) -> int:
@@ -559,11 +684,11 @@ class MainWindowProtocol(Protocol):
     redo_button: "QPushButton | None"
     save_button: "QPushButton | None"
     _point_spinbox_connected: bool
-    file_operations: object  # FileOperations instance
+    file_operations: FileOperationsProtocol  # File operations manager
 
     # Service references (readonly to allow covariance)
     @property
-    def services(self) -> object:
+    def services(self) -> ServicesProtocol:
         """Get services facade."""
         ...
 
@@ -900,6 +1025,22 @@ class MultiPointTrackingProtocol(Protocol):
 
     def update_tracking_panel(self) -> None:
         """Update the tracking panel display."""
+        ...
+
+    def on_multi_point_data_loaded(self, data: dict[str, object]) -> None:
+        """Handle multi-point tracking data loaded from file.
+
+        Args:
+            data: Dictionary mapping curve names to curve data
+        """
+        ...
+
+    def on_tracking_data_loaded(self, data: object) -> None:
+        """Handle single-curve tracking data loaded from file.
+
+        Args:
+            data: Single curve data to merge into tracked data
+        """
         ...
 
 
