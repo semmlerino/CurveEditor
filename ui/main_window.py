@@ -971,7 +971,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
     @Slot()
     def on_curve_view_changed(self) -> None:
-        """Handle view changes from curve widget."""
+        """Handle view changes from curve widget (syncs pan_offset to state_manager)."""
+        # Sync pan_offset from curve_widget to state_manager for session save/restore.
+        # Critical: Session persistence depends on this sync - without it, pan_offset
+        # contains stale values when session is saved at application closeout.
+        if self.curve_widget:
+            self.state_manager.pan_offset = (
+                self.curve_widget.pan_offset_x,
+                self.curve_widget.pan_offset_y,
+            )
+
         # Update zoom display
         self.update_zoom_label()
 
