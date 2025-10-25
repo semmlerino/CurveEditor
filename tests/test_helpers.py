@@ -404,6 +404,7 @@ class MockCurveView:
         self.point_selected: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.point_moved: SignalProtocol = cast(SignalProtocol, TestSignal())
         self.zoom_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
+        self.view_changed: SignalProtocol = cast(SignalProtocol, TestSignal())
 
         # Interaction tracking
         self._update_called: bool = False
@@ -599,6 +600,33 @@ class MockCurveView:
     def invalidate_caches(self) -> None:
         """Public wrapper for invalidating caches (called by controllers)."""
         self._invalidate_caches()
+
+    @property
+    def pan_offset(self) -> tuple[float, float]:
+        """Get pan offset as tuple (matches production ViewCameraController pattern)."""
+        return (self.pan_offset_x, self.pan_offset_y)
+    
+    @pan_offset.setter
+    def pan_offset(self, value: tuple[float, float]) -> None:
+        """Set pan offset from tuple (matches production ViewCameraController pattern)."""
+        self.pan_offset_x, self.pan_offset_y = value
+
+    def reset_view(self) -> None:
+        """Reset view to default zoom and pan (called by ActionHandlerController).
+        
+        This mirrors CurveViewWidget.reset_view() which resets zoom_factor,
+        pan_offset, and emits signals to notify MainWindow.
+        """
+        # Reset zoom and pan to defaults
+        self.zoom_factor = 1.0
+        self.pan_offset = (0.0, 0.0)
+        
+        # Invalidate caches and update
+        self._invalidate_caches()
+        
+        # Emit signals (MainWindow listens to zoom_changed)
+        self.zoom_changed.emit(self.zoom_factor)
+        self.view_changed.emit()
 
     def toggleBackgroundVisible(self, visible: bool) -> None:
         """Toggle background visibility."""
@@ -796,6 +824,16 @@ class MockMainWindow:
         self.zoom_label: object = MagicMock()
         self.status_label: object = MagicMock()
 
+        # Connect zoom_changed signal to sync state_manager (matches production)
+        # Production: SignalConnectionManager connects zoom_changed → MainWindow.on_curve_zoom_changed
+        # This ensures state_manager.zoom_level stays in sync with curve_widget.zoom_factor
+        self.curve_view.zoom_changed.connect(self.on_curve_zoom_changed)
+
+        # Connect view_changed signal to sync pan_offset (exposes production bug)
+        # Production connects view_changed but only updates zoom display, not pan_offset
+        # This test implementation properly syncs pan_offset for session save/restore
+        self.curve_view.view_changed.connect(self.on_curve_view_changed)
+
     @property
     def selected_indices(self) -> list[int]:
         """Get selected point indices (MainWindowProtocol)."""
@@ -956,6 +994,25 @@ class MockMainWindow:
     def update_zoom_label(self) -> None:
         """Update zoom level label (MainWindowProtocol)."""
         pass  # Mock implementation
+
+    def on_curve_zoom_changed(self, zoom: float) -> None:
+        """Handle zoom changes from curve widget (syncs state_manager).
+        
+        This mirrors MainWindow.on_curve_zoom_changed() which keeps
+        state_manager.zoom_level in sync with curve_widget.zoom_factor.
+        """
+        self._state_manager.zoom_level = zoom
+
+    def on_curve_view_changed(self) -> None:
+        """Handle view changes from curve widget (syncs pan_offset to state_manager).
+        
+        This mirrors MainWindow.on_curve_view_changed(). Production only updates
+        zoom display, but should also sync pan_offset for session save/restore.
+        This test implementation exposes the missing pan_offset sync in production.
+        """
+        # Sync pan_offset from curve_widget to state_manager
+        if self.curve_widget:
+            self._state_manager.pan_offset = self.curve_widget.pan_offset
 
     def _get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (controller friend method)."""
