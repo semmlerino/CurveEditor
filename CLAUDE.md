@@ -621,10 +621,17 @@ uv run ./bpr                → .venv/bin/python3 ./bpr
 # Linting
 uv run ruff check . --fix
 
-# Testing
-uv run pytest tests/
-python3 -m py_compile <file.py>  # Quick syntax check
+# Testing (prefer -x for development)
+uv run pytest tests/ -xq           # PREFERRED: Stop at first failure, quiet output
+uv run pytest tests/ -x            # Stop at first failure, normal output
+uv run pytest tests/ -v            # Full run (pre-commit validation)
+python3 -m py_compile <file.py>    # Quick syntax check
 ```
+
+**Test workflow**:
+- **Development** (default): Use `-x` to stop at first failure for fast iteration
+- **Pre-commit**: Use `-v` for full validation before committing
+- **Impact analysis**: Use full run to see total breakage after refactoring
 
 ## Type Safety
 
