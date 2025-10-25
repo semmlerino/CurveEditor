@@ -294,16 +294,16 @@ class TestTransformInteractionIntegration(TestServiceIntegration):
 
         # Modify view state
         self.curve_view.zoom_factor = 3.0
-        self.curve_view.offset_x = 100
-        self.curve_view.offset_y = 200
+        self.curve_view.pan_offset_x = 100
+        self.curve_view.pan_offset_y = 200
 
         # Reset view
         self.interaction_service.reset_view(self.curve_view)
 
         # Verify reset
         assert self.curve_view.zoom_factor == 1.0
-        assert self.curve_view.offset_x == 0
-        assert self.curve_view.offset_y == 0
+        assert self.curve_view.pan_offset_x == 0
+        assert self.curve_view.pan_offset_y == 0
 
         # Create new transform and verify it's identity-like
         view_state = self.transform_service.create_view_state(self.curve_view)

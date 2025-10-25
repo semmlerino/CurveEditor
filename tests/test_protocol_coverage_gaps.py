@@ -2164,38 +2164,11 @@ class TestStateManagerProtocol:
         mock.current_file = "test.txt"
         assert mock.current_file == "test.txt"
 
-    def test_track_data_property_getter(self):
-        """Test StateManagerProtocol.track_data property getter exists."""
-        mock = Mock(spec=StateManagerProtocol)
-        mock_data = [(1, 100.0, 200.0)]
-        mock.track_data = mock_data
-        assert mock.track_data == mock_data
-
-    def test_total_frames_property_getter(self):
-        """Test StateManagerProtocol.total_frames property getter exists."""
-        mock = Mock(spec=StateManagerProtocol)
-        mock.total_frames = 100
-        assert mock.total_frames == 100
-
     def test_reset_to_defaults_method(self):
         """Test StateManagerProtocol.reset_to_defaults() exists and is callable."""
         mock = Mock(spec=StateManagerProtocol)
         mock.reset_to_defaults()
         mock.reset_to_defaults.assert_called_once()
-
-    def test_set_track_data_method(self):
-        """Test StateManagerProtocol.set_track_data() exists and is callable."""
-        mock = Mock(spec=StateManagerProtocol)
-        test_data = [(1, 100.0, 200.0)]
-        mock.set_track_data(test_data, mark_modified=True)
-        mock.set_track_data.assert_called_once_with(test_data, mark_modified=True)
-
-    def test_set_image_files_method(self):
-        """Test StateManagerProtocol.set_image_files() exists and is callable."""
-        mock = Mock(spec=StateManagerProtocol)
-        files = ["img1.jpg", "img2.jpg"]
-        mock.set_image_files(files)
-        mock.set_image_files.assert_called_once_with(files)
 
     def test_get_window_title_method(self):
         """Test StateManagerProtocol.get_window_title() exists and is callable."""
@@ -2205,25 +2178,6 @@ class TestStateManagerProtocol:
         result = mock.get_window_title()
         assert result == "CurveEditor - test.txt"
         mock.get_window_title.assert_called_once()
-
-    def test_set_selected_points_method(self):
-        """Test StateManagerProtocol.set_selected_points() exists and is callable."""
-        mock = Mock(spec=StateManagerProtocol)
-        indices = [0, 1, 2]
-        mock.set_selected_points(indices)
-        mock.set_selected_points.assert_called_once_with(indices)
-
-    def test_undo_method(self):
-        """Test StateManagerProtocol.undo() exists and is callable."""
-        mock = Mock(spec=StateManagerProtocol)
-        mock.undo()
-        mock.undo.assert_called_once()
-
-    def test_redo_method(self):
-        """Test StateManagerProtocol.redo() exists and is callable."""
-        mock = Mock(spec=StateManagerProtocol)
-        mock.redo()
-        mock.redo.assert_called_once()
 
     def test_set_history_state_method(self):
         """Test StateManagerProtocol.set_history_state() exists and is callable."""

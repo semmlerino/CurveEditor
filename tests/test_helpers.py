@@ -553,17 +553,31 @@ class MockCurveView:
         self.offset_y += dy
 
     def reset_view(self) -> None:
-        """Reset view to default."""
+        """Reset view to default zoom and pan.
+
+        This mirrors CurveViewWidget.reset_view() which resets zoom_factor,
+        pan_offset, and emits signals to notify MainWindow. Also calls update()
+        for compatibility with InteractionService tests.
+        """
+        # Reset zoom and pan to defaults
         self.zoom_factor = 1.0
+        self.pan_offset = (0.0, 0.0)
+        self.manual_offset_x = 0.0
+        self.manual_offset_y = 0.0
+
+        # Also reset legacy offset attributes for old tests
         self.offset_x = 0.0
         self.offset_y = 0.0
         self.x_offset = 0.0
         self.y_offset = 0.0
-        self.pan_offset_x = 0.0
-        self.pan_offset_y = 0.0
-        self.manual_offset_x = 0.0
-        self.manual_offset_y = 0.0
+
+        # Invalidate caches and update
+        self._invalidate_caches()
         self.update()
+
+        # Emit signals (MainWindow listens to zoom_changed)
+        self.zoom_changed.emit(self.zoom_factor)
+        self.view_changed.emit()
 
     def reset_transform(self) -> None:
         """Reset transform (delegates to reset_view for InteractionService compatibility)."""
@@ -618,23 +632,6 @@ class MockCurveView:
     def pan_offset(self, value: tuple[float, float]) -> None:
         """Set pan offset from tuple (matches production ViewCameraController pattern)."""
         self.pan_offset_x, self.pan_offset_y = value
-
-    def reset_view(self) -> None:
-        """Reset view to default zoom and pan (called by ActionHandlerController).
-        
-        This mirrors CurveViewWidget.reset_view() which resets zoom_factor,
-        pan_offset, and emits signals to notify MainWindow.
-        """
-        # Reset zoom and pan to defaults
-        self.zoom_factor = 1.0
-        self.pan_offset = (0.0, 0.0)
-        
-        # Invalidate caches and update
-        self._invalidate_caches()
-        
-        # Emit signals (MainWindow listens to zoom_changed)
-        self.zoom_changed.emit(self.zoom_factor)
-        self.view_changed.emit()
 
     def toggleBackgroundVisible(self, visible: bool) -> None:
         """Toggle background visibility."""
