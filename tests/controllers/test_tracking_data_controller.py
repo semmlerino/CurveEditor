@@ -33,6 +33,7 @@ Coverage Target: 18% → 85%+ (all public methods tested)
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+from typing import Any
 
 import pytest
 
@@ -61,7 +62,7 @@ def app_state():
 
 
 @pytest.fixture
-def sample_single_trajectory() -> list:
+def sample_single_trajectory() -> list[Any]:
     """Create sample single-point tracking data."""
     return [
         (1, 100.0, 200.0, "keyframe"),
@@ -71,7 +72,7 @@ def sample_single_trajectory() -> list:
 
 
 @pytest.fixture
-def sample_multi_trajectory() -> dict[str, list]:
+def sample_multi_trajectory() -> dict[str, list[Any]]:
     """Create sample multi-point tracking data."""
     return {
         "pp56_TM_138G": [
@@ -130,7 +131,7 @@ class TestSinglePointDataLoading:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that loading single trajectory adds curve to ApplicationState.
 
@@ -154,7 +155,7 @@ class TestSinglePointDataLoading:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that loading single trajectory sets active_timeline_point.
 
@@ -173,7 +174,7 @@ class TestSinglePointDataLoading:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that tracking direction is initialized for loaded trajectory.
 
@@ -195,7 +196,7 @@ class TestSinglePointDataLoading:
     def test_load_single_trajectory_creates_curve_entry(
         self,
         controller: TrackingDataController,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that loading trajectory creates entry in ApplicationState.
 
@@ -213,7 +214,7 @@ class TestSinglePointDataLoading:
     def test_load_single_trajectory_verifies_state_change(
         self,
         controller: TrackingDataController,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that loading trajectory changes ApplicationState.
 
@@ -254,7 +255,7 @@ class TestSinglePointDataLoading:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_single_trajectory: list,
+        sample_single_trajectory: list[Any],
     ) -> None:
         """Test that multiple single trajectories get unique names.
 
@@ -285,7 +286,7 @@ class TestMultiPointDataLoading:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that multi-point data adds all curves to ApplicationState.
 
@@ -308,7 +309,7 @@ class TestMultiPointDataLoading:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that first trajectory is set as active_timeline_point.
 
@@ -329,7 +330,7 @@ class TestMultiPointDataLoading:
     def test_load_multi_point_initializes_all_tracking_directions(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that all loaded points get tracking direction initialized.
 
@@ -373,7 +374,7 @@ class TestMultiPointDataLoading:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that multi-point loading merges with existing curves.
 
@@ -442,7 +443,7 @@ class TestPointDeletion:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that deleted point is removed from ApplicationState.
 
@@ -468,7 +469,7 @@ class TestPointDeletion:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that deleting active point clears active_timeline_point.
 
@@ -491,7 +492,7 @@ class TestPointDeletion:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that deleting inactive point preserves active_timeline_point.
 
@@ -515,7 +516,7 @@ class TestPointDeletion:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that tracking direction is cleaned up when point deleted.
 
@@ -558,7 +559,7 @@ class TestPointDeletion:
     def test_delete_verifies_state_change(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that deleting point changes ApplicationState.
 
@@ -586,7 +587,7 @@ class TestPointRenaming:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that renamed point is updated in ApplicationState.
 
@@ -615,7 +616,7 @@ class TestPointRenaming:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that active_timeline_point is updated when active point renamed.
 
@@ -638,7 +639,7 @@ class TestPointRenaming:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that active_timeline_point unchanged when inactive point renamed.
 
@@ -664,7 +665,7 @@ class TestPointRenaming:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that tracking direction mapping is updated when point renamed.
 
@@ -692,7 +693,7 @@ class TestPointRenaming:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that curve metadata is preserved when point renamed.
 
@@ -737,7 +738,7 @@ class TestPointRenaming:
     def test_rename_verifies_state_change(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that renaming point changes ApplicationState.
 
@@ -779,7 +780,7 @@ class TestUniquePointNameGeneration:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test unique name generation with existing point matching base name.
 
@@ -855,7 +856,7 @@ class TestActiveTrajectoryRetrieval:
         self,
         controller: TrackingDataController,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test retrieving active trajectory when one is set.
 
@@ -924,7 +925,7 @@ class TestDataIntegrity:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test complex workflow: load, delete, rename preserves data integrity.
 
@@ -960,7 +961,7 @@ class TestDataIntegrity:
         controller: TrackingDataController,
         app_state,
         main_window: MockMainWindow,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that clear_tracking_data removes all curves and cleans up.
 
@@ -987,7 +988,7 @@ class TestDataIntegrity:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that has_tracking_data reflects current state.
 
@@ -1010,7 +1011,7 @@ class TestDataIntegrity:
     def test_get_tracking_point_names_lists_all_points(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that get_tracking_point_names returns all loaded point names.
 
@@ -1036,7 +1037,7 @@ class TestTrackedDataProperty:
     def test_tracked_data_getter_returns_dict_of_all_curves(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that tracked_data getter returns all curves as dict.
 
@@ -1062,7 +1063,7 @@ class TestTrackedDataProperty:
         self,
         controller: TrackingDataController,
         app_state,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that tracked_data setter replaces all existing curves.
 
@@ -1089,7 +1090,7 @@ class TestTrackedDataProperty:
     def test_tracked_data_getter_returns_fresh_dict(
         self,
         controller: TrackingDataController,
-        sample_multi_trajectory: dict,
+        sample_multi_trajectory: dict[str, list[Any]],
     ) -> None:
         """Test that tracked_data getter returns fresh dict on each call.
 

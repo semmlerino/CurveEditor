@@ -929,8 +929,7 @@ class _CommandHistory:
 
         # Notify workflow state service if available
         if (
-            main_window.services is not None
-            and getattr(main_window.services, "workflow_state", None) is not None
+            getattr(main_window.services, "workflow_state", None) is not None
             and getattr(getattr(main_window.services, "workflow_state"), "on_data_modified", None) is not None
         ):
             try:

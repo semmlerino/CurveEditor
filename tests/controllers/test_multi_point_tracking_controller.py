@@ -28,6 +28,8 @@ Focus Areas:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+from typing import Any
+
 import pytest
 
 from core.display_mode import DisplayMode
@@ -56,7 +58,7 @@ def app_state():
 
 
 @pytest.fixture
-def sample_tracking_data() -> dict[str, list]:
+def sample_tracking_data() -> dict[str, list[Any]]:
     """Create sample multi-point tracking data."""
     return {
         "pp56_TM_138G": [
@@ -157,7 +159,7 @@ class TestLoadTrackingData:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test loading multiple tracking trajectories via multi_point_data_loaded.
 
@@ -203,7 +205,7 @@ class TestLoadTrackingData:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that setting tracked_data property replaces all curves.
 
@@ -231,7 +233,7 @@ class TestLoadTrackingData:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that on_multi_point_data_loaded merges with existing data.
 
@@ -282,7 +284,7 @@ class TestInsertTrack:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test unique name generation with existing points.
 
@@ -343,7 +345,7 @@ class TestDeleteTracks:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test deleting a single tracking point removes it from state.
 
@@ -368,7 +370,7 @@ class TestDeleteTracks:
     def test_delete_point_cleans_tracking_direction_mapping(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that deletion removes point from tracking direction mapping.
 
@@ -395,7 +397,7 @@ class TestDeleteTracks:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test deleting all points leaves clean state.
 
@@ -428,7 +430,7 @@ class TestRenameTracks:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test renaming updates the curve name in ApplicationState.
 
@@ -483,7 +485,7 @@ class TestRenameTracks:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that renaming doesn't affect other points.
 
@@ -586,7 +588,7 @@ class TestClearTrackingData:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that clear removes all curves from ApplicationState.
 
@@ -607,7 +609,7 @@ class TestClearTrackingData:
     def test_clear_empties_tracking_direction_mapping(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that clear empties the tracking direction mapping.
 
@@ -636,7 +638,7 @@ class TestPropertyDelegation:
     def test_tracked_data_property_delegates_to_data_controller(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that tracked_data property delegates correctly.
 
@@ -688,7 +690,7 @@ class TestQueryMethods:
     def test_has_tracking_data_returns_true_with_data(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test has_tracking_data returns true when data loaded.
 
@@ -721,7 +723,7 @@ class TestQueryMethods:
     def test_get_tracking_point_names_returns_all_points(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test getting list of all point names.
 
@@ -866,7 +868,7 @@ class TestIntegrationScenarios:
         self,
         controller: MultiPointTrackingController,
         app_state,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test complete workflow: load, select, rename, delete.
 
@@ -963,7 +965,7 @@ class TestIntegrationScenarios:
     def test_tracking_direction_mapping_stays_in_sync(
         self,
         controller: MultiPointTrackingController,
-        sample_tracking_data: dict,
+        sample_tracking_data: dict[str, list[Any]],
     ) -> None:
         """Test that tracking direction mapping stays in sync with ApplicationState.
 

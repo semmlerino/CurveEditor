@@ -445,6 +445,6 @@ class TrackingDisplayController(BaseTrackingController):
         # Use the proper centering method that handles coordinate transformation and Y-flip
         widget._center_view_on_point(center_x, center_y)  # pyright: ignore[reportAttributeAccessIssue]  # Accessing concrete CurveViewWidget implementation
 
-        widget.invalidate_caches()  # pyright: ignore[reportAttributeAccessIssue]  # CurveViewWidget method not in protocol
+        widget.invalidate_caches()
         widget.update()
-        widget.view_changed.emit()  # pyright: ignore[reportAttributeAccessIssue]  # Signal not in protocol
+        widget.view_changed.emit()

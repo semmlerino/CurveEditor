@@ -184,7 +184,7 @@ reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportImplicitStringConcatenation = "warning"
 reportDeprecated = "warning"
-reportUnnecessaryTypeIgnoreComment = "warning"
+reportUnnecessaryTypeIgnoreComment = "error"  # STRICTER: Clean up unnecessary ignores
 
 # Strictness settings (balanced approach)
 reportExplicitAny = "warning"
@@ -196,12 +196,12 @@ reportUnknownMemberType = "none"
 reportUnknownArgumentType = "none"
 reportUnknownLambdaType = "none"
 reportMissingParameterType = "warning"
-reportMissingTypeArgument = "warning"  # STRICTER: Require list[str] not bare list
+reportMissingTypeArgument = "error"  # STRICTER: Require list[str] not bare list
 
 # Code quality
 reportPrivateUsage = "warning"
 reportUnnecessaryCast = "warning"
-reportUnnecessaryComparison = "warning"
+reportUnnecessaryComparison = "error"  # STRICTER: Catch logic bugs
 reportIncompatibleMethodOverride = "error"
 reportIncompatibleVariableOverride = "error"
 reportOverlappingOverload = "warning"

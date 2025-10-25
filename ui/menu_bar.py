@@ -389,7 +389,7 @@ class MenuBar(QMenuBar):
     def _handle_load_images(self) -> None:
         """Handle load image sequence action."""
         if self.main_window and self.main_window.file_operations:
-            self.main_window.file_operations.load_images(self.main_window)  # pyright: ignore[reportAttributeAccessIssue]
+            self.main_window.file_operations.load_images(self.main_window)
 
     # Tools menu handlers
     def _handle_smooth_selected(self) -> None:
