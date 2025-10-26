@@ -579,10 +579,7 @@ class TestRealFileNavigation:
         frame_status = data_service.get_frame_range_point_status(test_data)
 
         # Collect all navigation frames (keyframes, endframes, startframes)
-        nav_frames = []
-        for point in test_data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(point[0])
+        nav_frames = [point[0] for point in test_data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         # Add startframes
         for frame, status in frame_status.items():
