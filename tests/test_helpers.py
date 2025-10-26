@@ -404,6 +404,8 @@ class MockCurveView:
 
         # Display settings
         self.show_background: bool = True
+        # Visual settings (deprecated on real widget, exist in visual)
+        # Keep them here for backward compatibility with old protocol tests
         self.show_grid: bool = False
         self.show_points: bool = True
         self.show_lines: bool = True
@@ -412,7 +414,8 @@ class MockCurveView:
         self.flip_y_axis: bool = False
         self.scale_to_image: bool = True
 
-        # Rendering settings
+        # Rendering settings (deprecated on real widget, exist in visual)
+        # Keep them here for backward compatibility with old protocol tests
         self.point_radius: int = 5
         self.selected_point_radius: int = 7
         self.line_width: int = 2

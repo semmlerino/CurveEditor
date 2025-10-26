@@ -41,7 +41,7 @@ class TestGridCentering:
         """Create a real CurveViewWidget for testing."""
         widget = CurveViewWidget()
         widget.resize(800, 600)
-        widget.show_grid = True  # Enable grid
+        widget.visual.show_grid = True  # Enable grid
         return widget
 
     @pytest.fixture
@@ -393,17 +393,17 @@ class TestGridCentering:
         curve_widget._select_point(0)
 
         # Initially grid might be off
-        initial_state = curve_widget.show_grid
+        initial_state = curve_widget.visual.show_grid
 
         # Simulate Ctrl+Shift+G (this would normally go through ShortcutManager)
         # For unit test, we just toggle the property
-        curve_widget.show_grid = not initial_state
+        curve_widget.visual.show_grid = not initial_state
 
         # Grid should be toggled
-        assert curve_widget.show_grid != initial_state
+        assert curve_widget.visual.show_grid != initial_state
 
         # When grid is on and point is selected, it should center on that point
-        if curve_widget.show_grid:
+        if curve_widget.visual.show_grid:
             assert curve_widget.selected_indices == {0}
 
 
@@ -416,7 +416,8 @@ class TestGridCenteringProtocol:
 
         # Check all required protocol attributes exist
         assert hasattr(widget, "points")
-        assert hasattr(widget, "show_grid")
+        # show_grid migrated to visual (Phase 5)
+        assert hasattr(widget.visual, "show_grid")
         assert hasattr(widget, "zoom_factor")
         assert hasattr(widget, "selected_points")
         assert hasattr(widget, "get_transform")
@@ -435,12 +436,12 @@ class TestGridCenteringProtocol:
         test_data: CurveDataList = [(1, 100.0, 200.0), (2, 300.0, 400.0)]
         widget.set_curve_data(test_data)
         widget._select_point(1)
-        widget.show_grid = True
+        widget.visual.show_grid = True
 
         # Verify protocol provides correct data
         assert widget.points == test_data
         assert widget.selected_points == {1}
-        assert widget.show_grid is True
+        assert widget.visual.show_grid is True
 
         # Renderer should be able to access this through protocol
         # The actual rendering is tested in other tests

@@ -88,7 +88,7 @@ class RenderCacheController:
             pos = self._screen_points_cache[index]
 
             # Create update region around point
-            margin = self.widget.point_radius + 10
+            margin = self.widget.visual.point_radius + 10
             region = QRectF(pos.x() - margin, pos.y() - margin, margin * 2, margin * 2)
 
             if self._update_region:
@@ -129,10 +129,10 @@ class RenderCacheController:
 
         # Expand rect slightly for points on edges
         expanded = rect.adjusted(
-            -self.widget.point_radius,
-            -self.widget.point_radius,
-            self.widget.point_radius,
-            self.widget.point_radius,
+            -self.widget.visual.point_radius,
+            -self.widget.visual.point_radius,
+            self.widget.visual.point_radius,
+            self.widget.visual.point_radius,
         )
 
         for idx, pos in self._screen_points_cache.items():

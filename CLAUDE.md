@@ -730,6 +730,91 @@ transform = transform_service.create_transform_from_view_state(view_state)
 - Advanced test scenarios requiring view state manipulation
 - 99% of code should use `get_transform()` directly
 
+## Adding Configurable Visual Rendering Parameters
+
+**Pattern:** All visual rendering parameters are centralized in `VisualSettings` dataclass.
+
+### 4-Step Process
+
+1. **Add to VisualSettings** (`rendering/visual_settings.py`):
+   ```python
+   @dataclass
+   class VisualSettings:
+       # ... existing fields
+       new_param: int = 10  # Add new parameter with default
+   ```
+
+2. **Add Validation** (if numeric):
+   ```python
+   def __post_init__(self) -> None:
+       # ... existing validations
+       if self.new_param <= 0:
+           raise ValueError(f"new_param must be > 0, got {self.new_param}")
+   ```
+
+3. **Update Renderer** (`rendering/optimized_curve_renderer.py`):
+   ```python
+   # Access via render_state.visual.new_param
+   value = render_state.visual.new_param
+   ```
+
+4. **Add UI Control** (if user-configurable):
+   ```python
+   # In controller
+   def update_new_param(self, value: int) -> None:
+       self.curve_view.visual.new_param = value
+       self.curve_view.update()
+   ```
+
+### Test Pattern
+
+```python
+from rendering.visual_settings import VisualSettings
+
+def test_new_param_default():
+    visual = VisualSettings()
+    assert visual.new_param == 10
+
+def test_new_param_validation():
+    with pytest.raises(ValueError, match="new_param must be > 0"):
+        VisualSettings(new_param=0)
+
+def test_new_param_rendering():
+    visual = VisualSettings(new_param=15)
+    # Verify renderer uses new value
+```
+
+### Key Principles
+- **Single source**: VisualSettings is the ONLY place for visual parameters
+- **Validation**: All numeric fields validated in `__post_init__`
+- **Immutability NOT required**: VisualSettings is mutable for runtime updates
+- **Access pattern**: Always `widget.visual.param` or `render_state.visual.param`
+- **Migration complete**: Deprecated widget properties removed (Phase 5, Oct 2025)
+
+### Example: Adding Grid Opacity
+
+```python
+# 1. Add field (visual_settings.py)
+@dataclass
+class VisualSettings:
+    grid_opacity: float = 0.5  # 0.0-1.0
+
+# 2. Validate (visual_settings.py)
+def __post_init__(self) -> None:
+    if not 0.0 <= self.grid_opacity <= 1.0:
+        raise ValueError(f"grid_opacity must be 0.0-1.0, got {self.grid_opacity}")
+
+# 3. Use in renderer (optimized_curve_renderer.py)
+def _draw_grid(self, painter: QPainter, render_state: RenderState) -> None:
+    opacity = render_state.visual.grid_opacity
+    color = QColor(100, 100, 100, int(opacity * 255))
+
+# 4. Add UI slider (view_management_controller.py)
+def update_grid_opacity(self, value: float) -> None:
+    self.main_window.curve_widget.visual.grid_opacity = value
+    self.main_window.curve_widget.update()
+```
+
 ## Key Design Patterns
 
 1. **Component Container**: UI attributes in `ui/ui_components.py`

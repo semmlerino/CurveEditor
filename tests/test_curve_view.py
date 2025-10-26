@@ -63,11 +63,13 @@ class TestCurveViewWidgetInitialization:
         assert curve_view_widget.scale_to_image is True
 
         # Display options
-        assert curve_view_widget.show_grid is False
-        assert curve_view_widget.show_points is True
-        assert curve_view_widget.show_lines is True
-        assert curve_view_widget.show_velocity_vectors is False
-        assert curve_view_widget.show_all_frame_numbers is False
+        # Visual parameters migrated to VisualSettings (Phase 5)
+        assert curve_view_widget.visual.show_grid is False
+        assert curve_view_widget.visual.show_points is True
+        assert curve_view_widget.visual.show_lines is True
+        assert curve_view_widget.visual.show_velocity_vectors is False
+        assert curve_view_widget.visual.show_all_frame_numbers is False
+        # show_background is architectural setting, not visual
         assert curve_view_widget.show_background is True
 
         # Point management
@@ -84,10 +86,11 @@ class TestCurveViewWidgetInitialization:
 
     def test_rendering_settings(self, curve_view_widget: CurveViewWidget) -> None:
         """Test that rendering settings are properly initialized."""
-        assert curve_view_widget.point_radius == 5
-        assert curve_view_widget.selected_point_radius == 7
-        assert curve_view_widget.line_width == 2
-        assert curve_view_widget.selected_line_width == 3
+        # Visual parameters migrated to VisualSettings (Phase 5)
+        assert curve_view_widget.visual.point_radius == 5
+        assert curve_view_widget.visual.selected_point_radius == 7
+        assert curve_view_widget.visual.line_width == 2
+        assert curve_view_widget.visual.selected_line_width == 3
 
 
 class TestPointDataManagement:
@@ -283,29 +286,32 @@ class TestVisualizationOptions:
     """Test visualization options and display settings."""
 
     @pytest.mark.parametrize(
-        ("attribute_name", "initial_value"),
+        ("attribute_name", "initial_value", "is_visual"),
         [
-            pytest.param("show_grid", False, id="grid"),
-            pytest.param("show_points", True, id="points"),
-            pytest.param("show_lines", True, id="lines"),
-            pytest.param("show_velocity_vectors", False, id="velocity_vectors"),
-            pytest.param("show_background", True, id="background"),
+            pytest.param("show_grid", False, True, id="grid"),
+            pytest.param("show_points", True, True, id="points"),
+            pytest.param("show_lines", True, True, id="lines"),
+            pytest.param("show_velocity_vectors", False, True, id="velocity_vectors"),
+            pytest.param("show_background", True, False, id="background"),
         ],
     )
     def test_toggle_display_attributes(
-        self, curve_view_widget: CurveViewWidget, attribute_name: str, initial_value: bool
+        self, curve_view_widget: CurveViewWidget, attribute_name: str, initial_value: bool, is_visual: bool
     ) -> None:
         """Test toggling various display attributes on/off."""
+        # Determine the object to access (visual or widget) - Phase 5 migration
+        obj = curve_view_widget.visual if is_visual else curve_view_widget
+
         # Verify initial state
-        assert getattr(curve_view_widget, attribute_name) == initial_value
+        assert getattr(obj, attribute_name) == initial_value
 
         # Toggle to opposite state
-        setattr(curve_view_widget, attribute_name, not initial_value)
-        assert getattr(curve_view_widget, attribute_name) != initial_value
+        setattr(obj, attribute_name, not initial_value)
+        assert getattr(obj, attribute_name) != initial_value
 
         # Toggle back
-        setattr(curve_view_widget, attribute_name, initial_value)
-        assert getattr(curve_view_widget, attribute_name) == initial_value
+        setattr(obj, attribute_name, initial_value)
+        assert getattr(obj, attribute_name) == initial_value
 
 
 

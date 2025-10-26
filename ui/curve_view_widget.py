@@ -229,31 +229,10 @@ class CurveViewWidget(QWidget):
         self.flip_y_axis: bool = False
         self.scale_to_image: bool = True
 
-        # TODO(Phase 4): Remove scattered visual fields, use self.visual exclusively
         # Display settings
-        self.show_grid: bool = False
-        self.show_points: bool = True
-        self.show_lines: bool = True
-        self.show_labels: bool = False
-        self.show_velocity_vectors: bool = False
-        self.show_all_frame_numbers: bool = False
-        self.show_background: bool = True
-
-        # Grid settings
-        self.grid_size: int = 50
-        self.grid_color: QColor = QColor(100, 100, 100, 50)
-        self.grid_line_width: int = 1
-
-        # Point rendering settings
-        self.point_radius: int = 5
-        self.selected_point_radius: int = 7
-        # Colors are now centralized in ui_constants.py - use get_status_color() and SPECIAL_COLORS
-
-        # Line rendering settings
-        self.line_color: QColor = QColor(200, 200, 200)
-        self.line_width: int = 2
-        self.selected_line_color: QColor = QColor(255, 255, 100)
-        self.selected_line_width: int = 3
+        # Note: Visual rendering parameters (point_radius, line_width, show_grid, etc.)
+        # are centralized in self.visual (VisualSettings). See CLAUDE.md for pattern.
+        self.show_background: bool = True  # Architectural setting, not visual
 
         # Background image
         self.background_image: QPixmap | None = None
@@ -917,7 +896,7 @@ class CurveViewWidget(QWidget):
             # Draw highlight circle
             painter.setBrush(Qt.BrushStyle.NoBrush)
             painter.setPen(QPen(QColor(255, 255, 255, 100), 2))
-            painter.drawEllipse(pos, self.point_radius + 5, self.point_radius + 5)
+            painter.drawEllipse(pos, self.visual.point_radius + 5, self.visual.point_radius + 5)
 
             painter.restore()
 
@@ -977,7 +956,7 @@ class CurveViewWidget(QWidget):
         screen_pos = self.data_to_screen(x, y)
 
         # Calculate radius including hover and selection indicators
-        radius = max(self.point_radius, self.selected_point_radius) + 10  # Extra padding for hover
+        radius = max(self.visual.point_radius, self.visual.selected_point_radius) + 10  # Extra padding for hover
 
         # Return rectangle around point
         return QRect(int(screen_pos.x() - radius), int(screen_pos.y() - radius), int(radius * 2), int(radius * 2))
@@ -1961,8 +1940,8 @@ if __name__ == "__main__":
 
     # Enable features
     curve_widget.visual.show_grid = True
-    curve_widget.show_labels = True
-    curve_widget.show_all_frame_numbers = True
+    curve_widget.visual.show_labels = True
+    curve_widget.visual.show_all_frame_numbers = True
 
     # Set as central widget
     main_window.setCentralWidget(curve_widget)
