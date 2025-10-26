@@ -21,9 +21,14 @@ transform pattern into a single method call.
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import pytest
 
 from services.transform_service import Transform, TransformService
+
+if TYPE_CHECKING:
+    from ui.service_facade import ServiceFacade
 
 
 class MockCurveView:
@@ -204,7 +209,7 @@ class TestGetTransformHelper:
             if thread.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {thread.name} did not stop within timeout")
+                warnings.warn(f"Thread {thread.name} did not stop within timeout", stacklevel=2)
 
         # All should have succeeded
         assert all(isinstance(r, Transform) for r in results)
@@ -216,7 +221,7 @@ class TestServiceFacadeGetTransform:
     """Test ServiceFacade.get_transform() method."""
 
     @pytest.fixture
-    def service_facade(self):  # type: ignore[no-untyped-def]
+    def service_facade(self) -> ServiceFacade:
         """Create ServiceFacade instance."""
         from ui.service_facade import ServiceFacade
 

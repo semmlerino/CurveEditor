@@ -1,0 +1,214 @@
+CURVEEDITOR TEST SUITE - CRITICAL PATTERNS FOUND
+=================================================
+
+1. QObject LIFECYCLE MANAGEMENT (conftest.py + qt_fixtures.py)
+   ============================================================
+   
+   Pattern: setParent(qapp) → deleteLater() → processEvents()
+   
+   Location: tests/fixtures/qt_fixtures.py lines 275-319 (file_load_worker fixture)
+   
+   Code:
+   -----
+   worker = FileLoadWorker()
+   worker.setParent(qapp)  # Qt ownership
+   yield worker
+   
+   try:
+       worker.setParent(None)
+       worker.deleteLater()  # Deferred deletion
+       qapp.processEvents()  # Process pending deletions
+   except RuntimeError:
+       pass  # Already deleted
+   
+   Status: ✅ COMPLIANT
+   Applied to: file_load_signals, file_load_worker, ui_file_load_worker fixtures
+   Effectiveness: Prevents resource exhaustion segfaults after 850+ tests
+
+
+2. EVENT FILTER CLEANUP (qt_fixtures.py)
+   ======================================
+   
+   Pattern: before_close_func removes filters BEFORE widget destruction
+   
+   Location: tests/fixtures/qt_fixtures.py lines 185-239 (main_window fixture)
+   
+   Code:
+   -----
+   def _cleanup_main_window_event_filter(window):
+       app = QApplication.instance()
+       if app and hasattr(window, 'global_event_filter'):
+           app.removeEventFilter(window.global_event_filter)
+   
+   qtbot.addWidget(window, before_close_func=_cleanup_main_window_event_filter)
+   
+   Status: ✅ COMPLIANT
+   Prevents: Event filter accumulation (timeout after 1580+ tests)
+   Execution Order: CRITICAL - runs BEFORE widget destruction
+
+
+3. GLOBAL THREAD CLEANUP (conftest.py)
+   ====================================
+   
+   Pattern: Autouse fixture enumerates and cleans all orphaned threads
+   
+   Location: tests/conftest.py lines 64-233 (reset_all_services fixture)
+   
+   Code:
+   -----
+   @pytest.fixture(autouse=True)
+   def reset_all_services():
+       yield  # Test runs
+       
+       # After test:
+       active_threads = [t for t in threading.enumerate()
+                        if t != threading.main_thread() and not t.daemon]
+       for thread in active_threads:
+           thread.join(timeout=0.01)  # 10ms - minimal blocking
+       
+       if still_alive:
+           logger.debug(f"Threads still running: {[t.name]}")
+   
+   Status: ✅ COMPLIANT
+   Timeout: 0.01s (10ms) prevents accumulation: 0.01s × 2264 tests = 22s overhead
+   Alternative: 0.5s timeout would cause 18+ minute delays + hangs
+   Cleanup Order: CRITICAL - threads BEFORE processEvents()
+
+
+4. PRODUCTION WIDGET FACTORY (production_fixtures.py)
+   ===================================================
+   
+   Pattern: Factory fixture creates widgets in production-ready state
+   
+   Location: tests/fixtures/production_fixtures.py lines 35-94
+   
+   Code:
+   -----
+   @pytest.fixture
+   def production_widget_factory(curve_view_widget, qtbot):
+       def _create(curve_data=None, show=True, wait_for_render=True):
+           if curve_data:
+               app_state.set_curve_data("test_curve", curve_data)
+               curve_view_widget.set_curve_data(curve_data)
+           if show:
+               curve_view_widget.show()
+               qtbot.waitExposed(curve_view_widget)
+               if wait_for_render:
+                   qtbot.wait(50)  # Paint + cache rebuild
+           return curve_view_widget
+       return _create
+   
+   Status: ✅ COMPLIANT
+   Usage: Multiple configurations per test (factory as fixture pattern)
+   Benefits: Widget always in production state (not cached from previous test)
+
+
+5. SAFE TEST DATA GENERATION (production_fixtures.py)
+   ===================================================
+   
+   Pattern: Test data avoids (0,0) boundary where QTest.mouseClick fails
+   
+   Location: tests/fixtures/production_fixtures.py lines 97-135
+   
+   Code:
+   -----
+   @pytest.fixture
+   def safe_test_data_factory():
+       def _create(num_points, start_margin=50.0, spacing=100.0):
+           return [(i+1, start_margin + i*spacing, ...) 
+                   for i in range(num_points)]
+       return _create
+   
+   Status: ✅ COMPLIANT
+   Default: 50px margin from widget edge
+   Why: Qt boundary issue - QTest fails at exact (0,0) or edge coordinates
+   Result: All points click reliably in tests
+
+
+6. AUTO-TAGGING SYSTEM (conftest.py)
+   =================================
+   
+   Pattern: Automatically mark tests as production/unit based on fixtures
+   
+   Location: tests/conftest.py lines 235-252
+   
+   Code:
+   -----
+   def pytest_collection_modifyitems(items):
+       for item in items:
+           production_fixtures = {"production_widget_factory", "user_interaction"}
+           if any(f in item.fixturenames for f in production_fixtures):
+               item.add_marker(pytest.mark.production)
+           elif "qtbot" not in item.fixturenames:
+               item.add_marker(pytest.mark.unit)
+   
+   Status: ✅ COMPLIANT
+   Usage: pytest -m production | pytest -m unit
+   Benefit: Easy filtering without manual marker decoration
+
+
+7. ANTI-PATTERN VALIDATION DECORATOR (test_utils.py)
+   ==================================================
+   
+   Pattern: Automated detection of test-production mismatches
+   
+   Location: tests/test_utils.py lines 86-149
+   
+   Code:
+   -----
+   @assert_production_realistic
+   def test_selection(production_widget_factory):
+       # Detects if you call:
+       #   - widget._update_screen_points_cache()  [manual cache update]
+       #   - widget._spatial_index                  [direct cache access]
+       # Will FAIL with clear error message
+   
+   Status: ✅ COMPLIANT
+   Smart Features:
+     - Filters comments (avoids false positives on commented code)
+     - __tracebackhide__ for clean error messages
+     - Links to testing guide section
+   Protection: Only 2 anti-patterns allowed (benchmark/perf tests)
+
+
+8. UNIFIED CLEANUP FUNCTION (test_utils.py)
+   =========================================
+   
+   Pattern: Consolidated cleanup logic used across fixtures
+   
+   Location: tests/test_utils.py lines 25-61
+   
+   Code:
+   -----
+   def cleanup_qt_widgets(qapp):
+       # 1. Close all top-level widgets
+       # 2. Delete all timers
+       # 3. Final processEvents()
+   
+   Status: ✅ COMPLIANT
+   Reused by: qt_cleanup fixture (lines 122)
+   DRY: Single cleanup function prevents duplication
+
+
+VALIDATION CHECKLIST
+====================
+
+✅ QApplication - Session scope with cleanup
+✅ QObjects - setParent(qapp) + deleteLater() + processEvents()
+✅ Widgets - qtbot.addWidget() for automatic cleanup
+✅ Event Filters - before_close_func cleanup (BEFORE destruction)
+✅ Worker Threads - thread.join(timeout=2.0s) per fixture
+✅ Orphaned Threads - Global autouse cleanup (timeout=0.01s)
+✅ Thread Ordering - Threads BEFORE processEvents() BEFORE gc.collect()
+✅ QPixmap in Threads - ThreadSafeTestImage prevents FATAL crash
+✅ Production Factory - Widget state management
+✅ Safe Data - Boundary-safe test data generation
+✅ User Interaction - Realistic action simulation
+✅ Auto-Tagging - production/unit markers
+✅ Anti-Pattern Detection - Automated validation
+✅ Documentation - Example file + guide reference
+✅ Type Safety - Specific diagnostic codes (99.5%)
+
+RESULT: 15/15 Critical Patterns Implemented ✅
+Overall: EXCELLENT COMPLIANCE
+

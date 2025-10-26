@@ -330,7 +330,7 @@ class TestViewState:
         """Test that ViewState is immutable (frozen dataclass)."""
         vs = ViewState(display_width=1920.0, display_height=1080.0, widget_width=800, widget_height=600)
         with pytest.raises(FrozenInstanceError):
-            vs.zoom_factor = 2.0  # type: ignore[misc]
+            vs.zoom_factor = 2.0  # Intentional: testing immutability
 
     def test_viewstate_with_updates(self) -> None:
         """Test ViewState.with_updates() creates new instance."""
@@ -693,7 +693,8 @@ class TestTransform:
         # The code checks abs(scale) < 1e-10, so 1e-10 should be valid
         data_x, data_y = t.screen_to_data(100.0, 100.0)
         # Should succeed with clamped scale
-        assert math.isfinite(data_x) and math.isfinite(data_y)
+        assert math.isfinite(data_x)
+        assert math.isfinite(data_y)
 
     def test_transform_roundtrip_preserves_coordinates(self) -> None:
         """Test data→screen→data roundtrip preserves coordinates."""
