@@ -272,22 +272,6 @@ class RenderState:
         """
         return self.active_curve_name
 
-    # Backward compatibility properties (Phase 2 - Visual Settings Refactor)
-    @property
-    def show_grid(self) -> bool:
-        """Backward compatibility: delegate to visual.show_grid."""
-        return self.visual.show_grid if self.visual else False
-
-    @property
-    def point_radius(self) -> int:
-        """Backward compatibility: delegate to visual.point_radius."""
-        return self.visual.point_radius if self.visual else 5
-
-    @property
-    def line_width(self) -> int:
-        """Backward compatibility: delegate to visual.line_width."""
-        return self.visual.line_width if self.visual else 2
-
     def __repr__(self) -> str:  # pyright: ignore[reportImplicitOverride]
         """
         Return concise representation showing display mode and visible curves.
