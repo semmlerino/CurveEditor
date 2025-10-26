@@ -119,7 +119,7 @@ class CacheProfiler:
             self.current_session = None
 
     def record_cache_operation(
-        self, operation: str, cache_name: str, cache_key: Any = None, additional_data: dict[str, Any] = None
+        self, operation: str, cache_name: str, cache_key: Any = None, additional_data: dict[str, Any] | None = None
     ):
         """Record a cache operation with detailed context."""
         if not self.enabled:

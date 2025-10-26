@@ -136,7 +136,8 @@ class TestTimelineFocusBehavior:
 
         # Verify signal was emitted with correct frame
         assert blocker.signal_triggered
-        assert blocker.args is not None and blocker.args[0] == timeline_widget.current_frame
+        assert blocker.args is not None
+        assert blocker.args[0] == timeline_widget.current_frame
 
     def test_mouse_click_tab_navigation(self, timeline_widget: TimelineTabWidget, qtbot: QtBot) -> None:
         """Test clicking on timeline tabs navigates to that frame."""

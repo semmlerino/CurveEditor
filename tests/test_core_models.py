@@ -901,7 +901,7 @@ class TestBulkOperations:
         recovered_points = bulk_convert_from_tuples(tuples)
 
         assert len(recovered_points) == len(original_points)
-        for orig, recovered in zip(original_points, recovered_points):
+        for orig, recovered in zip(original_points, recovered_points, strict=True):
             assert orig == recovered
 
 

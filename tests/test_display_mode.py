@@ -197,10 +197,6 @@ class TestDisplayModeUsagePatterns:
         assert mode == DisplayMode.SELECTED
 
         # Use in new code
-        if mode == DisplayMode.SELECTED:
-            # Clear and self-documenting
-            curves_to_display = selected_curve_names
-        else:
-            curves_to_display = set()
+        curves_to_display = selected_curve_names if mode == DisplayMode.SELECTED else set()
 
         assert curves_to_display == {"curve1", "curve2"}

@@ -14,13 +14,13 @@ import json
 import statistics
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from core.curve_data import CurveDataWithMetadata
 from core.curve_segments import SegmentedCurve
 from core.logger_utils import get_logger
 from core.models import FrameStatus, PointStatus
-from core.type_aliases import CurveDataInput, CurveDataList
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from services.service_protocols import LoggingServiceProtocol, StatusServiceProtocol
 
 if TYPE_CHECKING:
@@ -149,7 +149,8 @@ class DataService:
 
             # Preserve frame and additional data
             if len(data[i]) > 3:
-                result.append((data[i][0], avg_x, avg_y, *data[i][3:]))
+                combined = (data[i][0], avg_x, avg_y, *data[i][3:])
+                result.append(cast(LegacyPointData, combined))
             else:
                 result.append((data[i][0], avg_x, avg_y))
 
@@ -172,7 +173,8 @@ class DataService:
             med_y = statistics.median(p[2] for p in window)
 
             if len(data[i]) > 3:
-                result.append((data[i][0], med_x, med_y, *data[i][3:]))
+                combined = (data[i][0], med_x, med_y, *data[i][3:])
+                result.append(cast(LegacyPointData, combined))
             else:
                 result.append((data[i][0], med_x, med_y))
 
@@ -709,7 +711,6 @@ class DataService:
     def set_current_image_by_frame(self, _view: object, _frame: int) -> None:
         """Set current image by frame number."""
         # No-op implementation for consolidated service
-        pass
 
     def load_current_image(self, _view: object) -> "QImage | None":
         """Load current image for view."""

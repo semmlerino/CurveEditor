@@ -470,11 +470,13 @@ class TestSegmentedCurve:
         prev, next = curve.get_interpolation_boundaries(2)
         assert prev is not None
         assert prev.frame == 1
-        assert next is not None and (next.frame == 3 or next.frame == 4)
+        assert next is not None
+        assert next.frame == 3 or next.frame == 4
 
         # Frame 7 is in inactive segment
         prev, next = curve.get_interpolation_boundaries(7)
-        assert prev is None and next is None
+        assert prev is None
+        assert next is None
 
 
 class TestPositionHolding:

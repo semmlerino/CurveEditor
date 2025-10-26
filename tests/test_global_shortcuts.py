@@ -107,7 +107,9 @@ class TestGlobalShortcuts:
             app_state = get_application_state()
             curve_data = list(app_state.get_curve_data())
             point0 = curve_data[0] if curve_data else None
-            assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
+            assert point0, "Point at frame 1 should exist"
+            assert len(point0) >= 4, f"Point should have at least 4 fields, got {len(point0)}"
+            assert point0[3] == PointStatus.ENDFRAME.value, f"Point should be ENDFRAME, got {point0[3]}"
 
             # Now test with frame 3 (index 2)
             get_application_state().set_frame(3)
@@ -116,7 +118,9 @@ class TestGlobalShortcuts:
             # Verify point at frame 3 (index 2) was toggled to ENDFRAME
             curve_data = list(app_state.get_curve_data())
             point2 = curve_data[2] if len(curve_data) > 2 else None
-            assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
+            assert point2, "Point at frame 3 should exist"
+            assert len(point2) >= 4, f"Point should have at least 4 fields, got {len(point2)}"
+            assert point2[3] == PointStatus.ENDFRAME.value, f"Point should be ENDFRAME, got {point2[3]}"
 
     def test_tracking_shortcuts_work_when_curve_has_focus(self, main_window_with_shortcuts, qtbot):
         """Test that tracking direction shortcuts work when curve widget has focus."""
@@ -140,8 +144,8 @@ class TestGlobalShortcuts:
         QTest.keyClick(window.curve_widget, Qt.Key.Key_1, Qt.KeyboardModifier.ShiftModifier)
 
         # Verify tracking direction was updated
-        assert window.tracking_panel._point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_BW
-        assert window.tracking_panel._point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_BW
+        assert window.tracking_panel.point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_BW
+        assert window.tracking_panel.point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_BW
 
     def test_c_key_centers_view_from_any_widget(self, main_window_with_shortcuts, qtbot):
         """Test that C key centers view regardless of focus."""

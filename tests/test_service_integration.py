@@ -31,6 +31,7 @@ Target: Increase service coverage from 25% to at least 50%.
 import json
 import os
 import tempfile
+from contextlib import suppress
 from unittest.mock import Mock
 
 from PySide6.QtCore import QPointF
@@ -400,10 +401,8 @@ class TestErrorHandlingIntegration:
         data_service = get_data_service()
 
         # Cause an error
-        try:
+        with suppress(OSError):
             data_service._load_json("/nonexistent.json")
-        except OSError:
-            pass  # Expected error
 
         # Service should still work after error
         valid_data = [(1, 100.0, 200.0), (2, 150.0, 250.0)]

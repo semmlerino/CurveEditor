@@ -22,12 +22,10 @@ if TYPE_CHECKING:
     class TimelineFrameMarker(Protocol):
         """Protocol for timeline frame marker."""
 
-        pass
 
     class MainWindow(Protocol):
         """Main window protocol for type checking."""
 
-        pass
 else:
     TimelineFrameMarker = Any
     MainWindow = Any

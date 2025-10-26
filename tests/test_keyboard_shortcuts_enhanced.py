@@ -437,10 +437,10 @@ class TestTrackingDirectionKeyboardShortcuts:
         assert cmd.execute(context)
 
         # Verify tracking direction was updated
-        assert panel._point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_BW
-        assert panel._point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_BW
+        assert panel.point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_BW
+        assert panel.point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_BW
         # Third point should remain unchanged
-        assert panel._point_metadata["Point_3"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
+        assert panel.point_metadata["Point_3"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
 
     def test_shift_2_sets_forward_tracking(self, tracking_panel_with_data, qtbot):
         """Test that Shift+2 sets selected points to forward tracking."""
@@ -470,17 +470,17 @@ class TestTrackingDirectionKeyboardShortcuts:
         assert cmd.execute(context)
 
         # Verify tracking direction was updated
-        assert panel._point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_FW
+        assert panel.point_metadata["Point_2"]["tracking_direction"] == TrackingDirection.TRACKING_FW
         # Other points should remain unchanged
-        assert panel._point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
-        assert panel._point_metadata["Point_3"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
+        assert panel.point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
+        assert panel.point_metadata["Point_3"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
 
     def test_shift_f3_sets_bidirectional_tracking(self, tracking_panel_with_data, qtbot):
         """Test that Shift+F3 sets selected points to bidirectional tracking."""
         panel = tracking_panel_with_data
 
         # First set a point to forward tracking
-        panel._point_metadata["Point_1"]["tracking_direction"] = TrackingDirection.TRACKING_FW
+        panel.point_metadata["Point_1"]["tracking_direction"] = TrackingDirection.TRACKING_FW
 
         # Select first row
         panel.table.setCurrentCell(0, 0)
@@ -506,7 +506,7 @@ class TestTrackingDirectionKeyboardShortcuts:
         assert cmd.execute(context)
 
         # Verify tracking direction was updated to bidirectional
-        assert panel._point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
+        assert panel.point_metadata["Point_1"]["tracking_direction"] == TrackingDirection.TRACKING_FW_BW
 
     def test_tracking_shortcuts_without_selection_apply_to_all_visible(self, tracking_panel_with_data, qtbot):
         """Test that tracking shortcuts without selection apply to all visible points."""
@@ -516,7 +516,7 @@ class TestTrackingDirectionKeyboardShortcuts:
         panel.table.clearSelection()
 
         # Store original directions (for reference, not used in test)
-        # original_directions = {name: metadata["tracking_direction"] for name, metadata in panel._point_metadata.items()}
+        # original_directions = {name: metadata["tracking_direction"] for name, metadata in panel.point_metadata.items()}
 
         # Create mock main window
         mock_window = Mock()
@@ -544,7 +544,7 @@ class TestTrackingDirectionKeyboardShortcuts:
         # Verify all visible points got the new direction
         visible_points = panel.get_visible_points()
         for point_name in visible_points:
-            assert panel._point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
+            assert panel.point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
 
     def test_tracking_shortcuts_without_shift_do_nothing(self, tracking_panel_with_data, qtbot):
         """Test that number keys without Shift don't change tracking direction."""
@@ -554,7 +554,7 @@ class TestTrackingDirectionKeyboardShortcuts:
         panel.table.setCurrentCell(0, 0)
 
         # Store original direction
-        original_direction = panel._point_metadata["Point_1"]["tracking_direction"]
+        original_direction = panel.point_metadata["Point_1"]["tracking_direction"]
 
         # Create mock main window
         mock_window = Mock()
@@ -580,7 +580,7 @@ class TestTrackingDirectionKeyboardShortcuts:
             assert not cmd.can_execute(context)
 
         # Verify nothing changed
-        assert panel._point_metadata["Point_1"]["tracking_direction"] == original_direction
+        assert panel.point_metadata["Point_1"]["tracking_direction"] == original_direction
 
 
 class TestShortcutCommandProtocolCompliance:
@@ -759,8 +759,8 @@ class TestRealComponentIntegration:
 
         # Verify using real panel state
         for point_name in selected:
-            if point_name in panel._point_metadata:
-                assert panel._point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
+            if point_name in panel.point_metadata:
+                assert panel.point_metadata[point_name]["tracking_direction"] == TrackingDirection.TRACKING_BW
 
 
 class TestNudgePointsCommandRegressions:

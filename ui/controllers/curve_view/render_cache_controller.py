@@ -52,7 +52,7 @@ class RenderCacheController:
         Args:
             widget: CurveViewWidget instance
         """
-        self.widget = widget
+        self.widget: CurveViewWidget = widget
 
         # Rendering caches (moved from widget)
         self._screen_points_cache: dict[int, QPointF] = {}
@@ -73,8 +73,6 @@ class RenderCacheController:
         self._screen_points_cache.clear()
         self._visible_indices_cache.clear()
         self._update_region = None
-
-        logger.debug("Invalidated all rendering caches")
 
     def invalidate_point_region(self, index: int) -> None:
         """

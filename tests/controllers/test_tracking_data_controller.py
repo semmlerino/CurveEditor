@@ -504,7 +504,7 @@ class TestPointDeletion:
         controller.on_multi_point_data_loaded(sample_multi_trajectory)
         active_point = main_window.active_timeline_point
         all_curves = get_application_state().get_all_curve_names()
-        point_to_delete = [c for c in all_curves if c != active_point][0]
+        point_to_delete = next(c for c in all_curves if c != active_point)
 
         # Act
         controller.on_point_deleted(point_to_delete)
@@ -651,7 +651,7 @@ class TestPointRenaming:
         controller.on_multi_point_data_loaded(sample_multi_trajectory)
         active_point = main_window.active_timeline_point
         all_curves = get_application_state().get_all_curve_names()
-        point_to_rename = [c for c in all_curves if c != active_point][0]
+        point_to_rename = next(c for c in all_curves if c != active_point)
         new_name = "InactiveRenamed"
 
         # Act

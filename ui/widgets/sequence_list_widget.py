@@ -48,7 +48,7 @@ class SequenceItemWidget(QWidget):
             parent: Parent widget
         """
         super().__init__(parent)
-        self.sequence = sequence
+        self.sequence: ImageSequence = sequence
         self._setup_ui()
 
     def _setup_ui(self) -> None:
@@ -177,8 +177,8 @@ class SequenceListWidget(QListWidget):
     """
 
     # Signals
-    sequence_selected = Signal(object)  # Emits ImageSequence when selected
-    sequence_activated = Signal(object)  # Emits ImageSequence when double-clicked/Enter
+    sequence_selected: Signal = Signal(object)  # Emits ImageSequence when selected
+    sequence_activated: Signal = Signal(object)  # Emits ImageSequence when double-clicked/Enter
 
     def __init__(self, parent: QWidget | None = None):
         """
@@ -206,10 +206,8 @@ class SequenceListWidget(QListWidget):
         # Set accessible properties
         self.setAccessibleName("Image sequences")
         self.setAccessibleDescription(
-
-            "List of image sequences found in the selected directory. "
+            "List of image sequences found in the selected directory. " +
             "Select a sequence to preview, double-click or press Enter to load."
-
         )
 
         # Enable keyboard navigation

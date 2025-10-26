@@ -283,7 +283,6 @@ class ViewManagementProtocol(ViewOptionsProtocol, BackgroundImageProtocol, Proto
     representing the unified ViewManagementController that handles both concerns.
     """
 
-    pass
 
 
 @runtime_checkable

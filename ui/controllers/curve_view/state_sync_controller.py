@@ -15,17 +15,19 @@ Architecture:
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from core.logger_utils import get_logger
 from core.type_aliases import CurveDataList
 from services import get_data_service
+from stores.application_state import ApplicationState
 from ui.qt_utils import safe_slot
 
 # Import cycle prevention: CurveViewWidget imports this controller
-# So we can't import CurveViewWidget here - use Any for the type
+# So we can't import CurveViewWidget here - use TYPE_CHECKING
 if TYPE_CHECKING:
-    pass  # Intentionally empty - no imports to avoid cycle
+    from ui.curve_view_widget import CurveViewWidget
+    from ui.state_manager import StateManager
 
 logger = get_logger("state_sync_controller")
 
@@ -43,18 +45,18 @@ class StateSyncController:
     The controller reads from stores and triggers widget updates (update(), emit signals).
     """
 
-    def __init__(self, widget: Any):  # CurveViewWidget - type hint removed to break cycle
+    def __init__(self, widget: CurveViewWidget):
         """
         Initialize StateSyncController.
 
         Args:
             widget: The CurveViewWidget this controller manages
         """
-        self.widget = widget
+        self.widget: CurveViewWidget = widget
 
         # Store references for signal connections
-        self._app_state = widget._app_state
-        self._state_manager = widget._state_manager
+        self._app_state: ApplicationState = widget._app_state  # pyright: ignore[reportPrivateUsage]
+        self._state_manager: StateManager = widget._state_manager  # pyright: ignore[reportPrivateUsage]
 
     def connect_all_signals(self) -> None:
         """Connect to all reactive store signals for automatic updates."""

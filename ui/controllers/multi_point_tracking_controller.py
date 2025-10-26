@@ -85,7 +85,6 @@ class MultiPointTrackingController(BaseTrackingController):
 
     def __del__(self) -> None:
         """Cleanup is now handled by sub-controllers."""
-        pass
 
     # ==================== Property Delegation ====================
 

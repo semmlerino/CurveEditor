@@ -999,14 +999,14 @@ class TestActionHandlerProtocol:
         mock.apply_smooth_operation.assert_called_once()
 
     def test_get_current_curve_data_method(self):
-        """Test ActionHandlerProtocol._get_current_curve_data() exists and is callable."""
+        """Test ActionHandlerProtocol.get_current_curve_data() exists and is callable."""
         mock = Mock(spec=ActionHandlerProtocol)
         mock_data = [(1, 100.0, 200.0)]
-        mock._get_current_curve_data.return_value = mock_data
+        mock.get_current_curve_data.return_value = mock_data
 
-        result = mock._get_current_curve_data()
+        result = mock.get_current_curve_data()
         assert result == mock_data
-        mock._get_current_curve_data.assert_called_once()
+        mock.get_current_curve_data.assert_called_once()
 
     def test_on_action_undo_method(self):
         """Test ActionHandlerProtocol.on_action_undo() exists and is callable."""

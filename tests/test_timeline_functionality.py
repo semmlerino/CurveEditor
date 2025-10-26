@@ -125,28 +125,28 @@ class TestFrameTab:
     def test_background_color_no_points(self, frame_tab: FrameTab) -> None:
         """Test background color when no points exist."""
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["no_points"]
+        expected = FrameTab._colors_cache["no_points"]
         assert color == expected
 
     def test_background_color_keyframe_points(self, frame_tab: FrameTab) -> None:
         """Test background color with keyframe points."""
         frame_tab.set_point_status(keyframe_count=2)
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["keyframe"]
+        expected = FrameTab._colors_cache["keyframe"]
         assert color == expected
 
     def test_background_color_interpolated_points(self, frame_tab: FrameTab) -> None:
         """Test background color with interpolated points."""
         frame_tab.set_point_status(interpolated_count=1)
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["interpolated"]
+        expected = FrameTab._colors_cache["interpolated"]
         assert color == expected
 
     def test_background_color_mixed_points(self, frame_tab: FrameTab) -> None:
         """Test background color with mixed point types."""
         frame_tab.set_point_status(keyframe_count=1, interpolated_count=1)
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["mixed"]
+        expected = FrameTab._colors_cache["mixed"]
         assert color == expected
 
     def test_background_color_current_frame_priority(self, frame_tab: FrameTab) -> None:
@@ -157,7 +157,7 @@ class TestFrameTab:
         # Current frame is highlighted with border, not background color
         # Background color should still be keyframe color
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["keyframe"]
+        expected = FrameTab._colors_cache["keyframe"]
         assert color == expected
 
     def test_background_color_selected_priority(self, frame_tab: FrameTab) -> None:
@@ -166,7 +166,7 @@ class TestFrameTab:
         frame_tab.set_current_frame(True)
 
         color = frame_tab._get_background_color()
-        expected = FrameTab.COLORS["selected"]
+        expected = FrameTab._colors_cache["selected"]
         assert color == expected
 
     def test_tooltip_no_points(self, frame_tab: FrameTab) -> None:
@@ -456,49 +456,49 @@ class TestTimelineColors:
         # Test no points - should use no_points color
         frame_tab.set_point_status()
         no_points_color = frame_tab._get_background_color()
-        assert no_points_color == frame_tab.COLORS["no_points"]
+        assert no_points_color == frame_tab._colors_cache["no_points"]
 
         # Test keyframe only - should use keyframe color
         frame_tab.set_point_status(keyframe_count=1)
         keyframe_color = frame_tab._get_background_color()
-        assert keyframe_color == frame_tab.COLORS["keyframe"]
+        assert keyframe_color == frame_tab._colors_cache["keyframe"]
         assert keyframe_color != no_points_color  # Should be different
 
         # Test interpolated only - should use interpolated color
         frame_tab.set_point_status(interpolated_count=1)
         interpolated_color = frame_tab._get_background_color()
-        assert interpolated_color == frame_tab.COLORS["interpolated"]
+        assert interpolated_color == frame_tab._colors_cache["interpolated"]
         assert interpolated_color != keyframe_color  # Should be different
         assert interpolated_color != no_points_color  # Should be different
 
         # Test tracked only - should use tracked color
         frame_tab.set_point_status(tracked_count=1)
         tracked_color = frame_tab._get_background_color()
-        assert tracked_color == frame_tab.COLORS["tracked"]
+        assert tracked_color == frame_tab._colors_cache["tracked"]
         assert tracked_color != keyframe_color  # Should be different
         assert tracked_color != interpolated_color  # Should be different
 
         # Test endframe - should use endframe color (takes priority)
         frame_tab.set_point_status(keyframe_count=1, endframe_count=1)
         endframe_color = frame_tab._get_background_color()
-        assert endframe_color == frame_tab.COLORS["endframe"]
+        assert endframe_color == frame_tab._colors_cache["endframe"]
         # Note: endframe and keyframe are both red, so we don't assert they're different
 
         # Test startframe - should use startframe color
         frame_tab.set_point_status(keyframe_count=1, is_startframe=True)
         startframe_color = frame_tab._get_background_color()
-        assert startframe_color == frame_tab.COLORS["startframe"]
+        assert startframe_color == frame_tab._colors_cache["startframe"]
         assert startframe_color != keyframe_color  # Should be different
 
         # Test mixed - should use mixed color
         frame_tab.set_point_status(keyframe_count=1, interpolated_count=1)
         mixed_color = frame_tab._get_background_color()
-        assert mixed_color == frame_tab.COLORS["mixed"]
+        assert mixed_color == frame_tab._colors_cache["mixed"]
 
         # Test selected - should override other colors
         frame_tab.set_point_status(keyframe_count=1, has_selected=True)
         selected_color = frame_tab._get_background_color()
-        assert selected_color == frame_tab.COLORS["selected"]
+        assert selected_color == frame_tab._colors_cache["selected"]
 
     def test_timeline_updates_with_different_statuses(self, app: QApplication, qtbot: QtBot) -> None:
         """Test that timeline widget properly displays different colors for different statuses."""

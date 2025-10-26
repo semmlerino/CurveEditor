@@ -60,10 +60,11 @@ class ProgressWorker(QThread):
     """Worker thread for progress operations."""
 
     # Signals
-    progress_updated = Signal(int)  # percentage
-    message_updated = Signal(str)  # message
-    finished = Signal(bool)  # True if successful, False if cancelled
-    error_occurred = Signal(str)  # error message
+    progress_updated: Signal = Signal(int)  # percentage
+    message_updated: Signal = Signal(str)  # message
+    # Note: Can't use 'finished' as it conflicts with QThread.finished
+    operation_finished: Signal = Signal(bool)  # True if successful, False if cancelled
+    error_occurred: Signal = Signal(str)  # error message
 
     # Attributes - will be initialized in __init__
     operation: Callable[..., object]
@@ -86,11 +87,11 @@ class ProgressWorker(QThread):
             # Pass self to operation so it can report progress
             self.result = self.operation(self, *self.args, **self.kwargs)
             if not self.isInterruptionRequested():
-                self.finished.emit(True)
+                self.operation_finished.emit(True)
         except Exception as e:
             logger.error(f"Progress operation failed: {e}")
             self.error_occurred.emit(str(e))
-            self.finished.emit(False)
+            self.operation_finished.emit(False)
 
     def report_progress(self, current: int, total: int = 100, message: str = "") -> bool:
         """Report progress from within the operation.
@@ -157,7 +158,6 @@ class ProgressDialog(QProgressDialog):
         """Setup time remaining display."""
         # This would require custom widget implementation
         # For now, we'll update the label text
-        pass
 
     def update_progress(self, value: int, message: str = "") -> None:
         """Update progress value and optionally the message."""
@@ -250,8 +250,8 @@ class ProgressManager(QObject):
     """Manages progress indicators throughout the application."""
 
     # Signals
-    operation_started = Signal(str)  # operation_name
-    operation_finished = Signal(str, bool)  # operation_name, success
+    operation_started: Signal = Signal(str)  # operation_name
+    operation_finished: Signal = Signal(str, bool)  # operation_name, success
 
     def __init__(self, parent: QObject | None = None):
         """Initialize the progress manager."""
@@ -260,7 +260,7 @@ class ProgressManager(QObject):
         # Instance attributes
         self.active_operations: dict[str, ProgressWorker] = {}
         self.status_bar_widget: StatusBarProgress | None = None
-        self._busy_cursor_count = 0
+        self._busy_cursor_count: int = 0
 
     def set_status_bar_widget(self, widget: StatusBarProgress) -> None:
         """Set the status bar progress widget."""
@@ -315,7 +315,7 @@ class ProgressManager(QObject):
         # Connect signals
         _ = worker.progress_updated.connect(dialog.setValue)
         _ = worker.message_updated.connect(dialog.setLabelText)
-        _ = worker.finished.connect(dialog.close)
+        _ = worker.operation_finished.connect(dialog.close)
         _ = worker.error_occurred.connect(lambda msg: self._handle_error(msg, dialog))
 
         if info.cancellable:
@@ -386,7 +386,7 @@ class ProgressManager(QObject):
         _ = worker.progress_updated.connect(
             lambda v: self.status_bar_widget.update_progress(v) if self.status_bar_widget else None
         )
-        _ = worker.finished.connect(on_finished)
+        _ = worker.operation_finished.connect(on_finished)
 
         if cancellable and self.status_bar_widget:
             _ = self.status_bar_widget.cancel_button.clicked.connect(worker.requestInterruption)

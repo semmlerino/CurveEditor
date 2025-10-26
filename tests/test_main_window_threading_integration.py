@@ -18,6 +18,7 @@ from QThread to Python threading.Thread.
 # pyright: reportUnusedCallResult=none
 
 import threading
+from contextlib import suppress
 from unittest.mock import patch
 
 import pytest
@@ -290,10 +291,8 @@ class TestThreadingCrashScenarios:
         finally:
             # Ensure cleanup
             for window in windows:
-                try:
+                with suppress(Exception):
                     window.deleteLater()
-                except Exception:
-                    pass  # Ignore cleanup errors
 
     def test_exception_in_file_loading(self, main_window, qtbot):
         """Test exception handling in file loading thread."""

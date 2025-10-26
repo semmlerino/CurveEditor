@@ -174,7 +174,7 @@ class TestApplyDefaultStatuses:
 
 
 @pytest.mark.parametrize(
-    "input_data,expected_statuses",
+    ("input_data", "expected_statuses"),
     [
         # Single point
         ([(1, 100.0, 200.0)], ["keyframe"]),

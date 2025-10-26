@@ -239,6 +239,12 @@ class InsertTrackCommand(CurveDataCommand):
         app_state = get_application_state()
         app_state.set_curve_data(target_curve, new_curve_data)
 
+        # Sync DataService for rendering (critical for gap visualization)
+        from services import get_data_service
+        data_service = get_data_service()
+        data_service.update_curve_data(new_curve_data)
+        logger.info(f"Synced {target_curve} to DataService ({len(new_curve_data)} points)")
+
         # Update UI
         self._update_ui(main_window, target_curve)
 
@@ -395,6 +401,13 @@ class InsertTrackCommand(CurveDataCommand):
             app_state = get_application_state()
             app_state.set_curve_data(target_name, list(new_curve_data))
 
+            # Sync DataService for rendering (critical for gap visualization)
+            # DataService.segmented_curve must be updated so renderer knows the gap is filled
+            from services import get_data_service
+            data_service = get_data_service()
+            data_service.update_curve_data(list(new_curve_data))
+            logger.info(f"Synced {target_name} to DataService ({len(new_curve_data)} points)")
+
             # Update UI
             self._update_ui(main_window, target_name)
 
@@ -479,6 +492,10 @@ class InsertTrackCommand(CurveDataCommand):
         # Update tracking panel
         main_window.multi_point_controller.update_tracking_panel()
 
+        # Get current active curve for diagnostics
+        active_curve = main_window.active_timeline_point
+        logger.info(f"Insert Track update: modified='{curve_name}', active='{active_curve}'")
+
         # If this is the active curve, update the display
         if (main_window.active_timeline_point is not None and main_window.active_timeline_point == curve_name
                 and main_window.curve_widget):
@@ -486,6 +503,14 @@ class InsertTrackCommand(CurveDataCommand):
             curve_data = app_state.get_curve_data(curve_name)
             if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
                 main_window.curve_widget.set_curve_data(curve_data)
+                logger.info(f"Updated curve widget display for active curve '{curve_name}'")
+
+        # Force repaint of curve view to ensure visibility (regardless of active curve)
+        # This ensures the modified curve is visible even if it's not currently active
+        if main_window.curve_widget:
+            main_window.curve_widget.invalidate_caches()
+            main_window.curve_widget.update()
+            logger.info("Forced curve view repaint after Insert Track")
 
         # Update timeline
         if main_window.update_timeline_tabs is not None:

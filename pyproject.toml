@@ -68,6 +68,10 @@ extend-exclude = [
     "*.sh",
     "footage/",
     "LogicExamples/",  # Python 2 reference code from 3DEqualizer
+    "fix_test_annotations.py",  # Utility script
+    "analyze_handlers.py",  # Utility script
+    "bundle_app.py",  # Utility script
+    "count_mocks.py",  # Utility script
 ]
 
 # Set the maximum line length
@@ -91,6 +95,10 @@ select = [
     "RUF",   # Ruff-specific rules
     "PERF",  # Performance anti-patterns
     "PT",    # pytest style
+    "ARG",   # flake8-unused-arguments (catch unused parameters)
+    "ERA",   # eradicate (find commented-out code)
+    "PIE",   # flake8-pie (misc linting improvements)
+    "T20",   # flake8-print (catch leftover print statements)
 ]
 
 # Ignore specific rules
@@ -98,6 +106,11 @@ ignore = [
     "E501",  # line too long (handled by formatter)
     "N802",  # function name should be lowercase (Qt override methods)
     "N815",  # variable in class scope should not be mixedCase (Qt properties)
+    "T201",  # print found (intentional for debug/benchmarks)
+    "ARG001",  # unused function argument (Qt callbacks require specific signatures)
+    "ARG002",  # unused method argument (Qt signals/slots require specific signatures)
+    "ARG005",  # unused lambda argument (Qt signal callbacks often unused)
+    "ERA001",  # commented-out code (often intentional for documentation)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -150,7 +163,7 @@ pythonVersion = "3.12"
 pythonPlatform = "Linux"
 venvPath = "."
 venv = "venv"
-stubPath = "./typings"
+# stubPath = "./typings"  # Disabled - directory not needed
 useLibraryCodeForTypes = true
 
 # Include only production code and tests directories
@@ -188,9 +201,11 @@ reportOptionalMemberAccess = "error"  # Phase 1: Stricter None checking
 reportOptionalCall = "error"  # Phase 1: Stricter None checking
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
-reportImplicitStringConcatenation = "warning"
+reportImplicitStringConcatenation = "error"  # STRICTER: Prevent bug-prone implicit concatenation
 reportDeprecated = "warning"
 reportUnnecessaryTypeIgnoreComment = "error"  # STRICTER: Clean up unnecessary ignores
+reportUnnecessaryIsInstance = "error"  # STRICTER: Catch always-true isinstance checks
+reportUnusedExpression = "warning"  # Catch unused expression results
 
 # Strictness settings (balanced approach)
 reportExplicitAny = "warning"

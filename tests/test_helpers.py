@@ -249,12 +249,17 @@ class MockStateManager:
         self.current_frame = 1
         self.zoom_level = 1.0  # Default zoom
         self.pan_offset = (0.0, 0.0)  # Default pan
+        # History state
+        self._history_position = 0
+        self._history_size = 0
         # Signals for testing
         self.file_changed = TestSignal()
         self.modified_changed = TestSignal()
         self.selection_changed = TestSignal()
         self.view_state_changed = TestSignal()
         self.total_frames_changed = TestSignal()
+        self.undo_state_changed = TestSignal()
+        self.redo_state_changed = TestSignal()
         # Mock reset_to_defaults for testing
         self.reset_to_defaults = MagicMock(side_effect=self._reset_to_defaults)
 
@@ -265,6 +270,21 @@ class MockStateManager:
         self.current_frame = 1
         self.zoom_level = 1.0
         self.pan_offset = (0.0, 0.0)
+
+    def set_history_state(self, can_undo: bool, can_redo: bool, position: int = 0, size: int = 0) -> None:
+        """Update history state information.
+
+        Args:
+            can_undo: Whether undo is available
+            can_redo: Whether redo is available
+            position: Current position in history (optional)
+            size: Total history size (optional)
+        """
+        self._history_position = position
+        self._history_size = size
+        # Emit signals if needed (for test verification)
+        self.undo_state_changed.emit(can_undo)
+        self.redo_state_changed.emit(can_redo)
 
 
 class MockUIComponents:
@@ -309,7 +329,6 @@ class MockServices:
 
     def add_to_history(self):
         """Mock history addition."""
-        pass
 
     def load_track_data_from_file(self, file_path):
         """Mock load track data - return empty list."""
@@ -491,10 +510,7 @@ class MockCurveView:
         """Update a point's position."""
         if 0 <= index < len(self.curve_data):
             old_point = self.curve_data[index]
-            if len(old_point) >= 4:
-                new_point = (old_point[0], x, y, old_point[3])
-            else:
-                new_point = (old_point[0], x, y)
+            new_point = (old_point[0], x, y, old_point[3]) if len(old_point) >= 4 else (old_point[0], x, y)
             self.curve_data[index] = new_point
             self.points[index] = new_point
 
@@ -633,11 +649,9 @@ class MockCurveView:
 
     def setCursor(self, cursor: object) -> None:
         """Mock setCursor method."""
-        pass
 
     def unsetCursor(self) -> None:
         """Mock unsetCursor method."""
-        pass
 
     def get_transform(self) -> object:
         """Get transform object (alias for compatibility)."""
@@ -654,7 +668,6 @@ class MockCurveView:
 
     def _invalidate_caches(self) -> None:
         """Invalidate any cached data."""
-        pass
 
     def invalidate_caches(self) -> None:
         """Public wrapper for invalidating caches (called by controllers)."""
@@ -676,7 +689,6 @@ class MockCurveView:
 
     def toggle_point_interpolation(self, idx: int) -> None:
         """Toggle interpolation status of a point."""
-        pass
 
     def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
         """Set points with image dimensions (legacy compatibility)."""
@@ -752,11 +764,9 @@ class MockCurveView:
 
     def update_curve_visibility(self, curve_name: str, visible: bool) -> None:
         """Update visibility of a specific curve (stub for testing)."""
-        pass
 
     def update_curve_color(self, curve_name: str, color: tuple[int, int, int]) -> None:
         """Update color of a specific curve (stub for testing)."""
-        pass
 
     def get_curve_metadata(self, curve_name: str) -> dict[str, object]:
         """Get metadata for a specific curve (stub for testing)."""
@@ -764,7 +774,6 @@ class MockCurveView:
 
     def center_on_selected_curves(self) -> None:
         """Center the view on all selected curves (stub for testing)."""
-        pass
 
 
 class MockMainWindow:
@@ -1006,7 +1015,6 @@ class MockMainWindow:
 
     def update_ui_state(self) -> None:
         """Update UI state for testing."""
-        pass
 
     def get_curve_view(self) -> MockCurveView:
         """Get the curve view component."""
@@ -1023,7 +1031,7 @@ class MockMainWindow:
 
     def setWindowTitle(self, title: str) -> None:
         """Set window title (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def statusBar(self) -> object:
         """Get status bar widget (MainWindowProtocol)."""
@@ -1040,11 +1048,11 @@ class MockMainWindow:
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def update_point_status_label(self) -> None:
         """Update point status label (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def _get_current_frame(self) -> int:
         """Get current frame (controller friend method)."""
@@ -1057,19 +1065,19 @@ class MockMainWindow:
 
     def update_timeline_tabs(self, curve_data: object | None) -> None:
         """Update timeline tabs (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def update_tracking_panel(self) -> None:
         """Update tracking panel (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def update_zoom_label(self) -> None:
         """Update zoom level label (MainWindowProtocol)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def _update_point_status_label(self) -> None:
         """Update point status label (needed by FrameChangeCoordinator)."""
-        pass  # Mock implementation
+        # Mock implementation
 
     def on_curve_zoom_changed(self, zoom: float) -> None:
         """Handle zoom changes from curve widget (syncs state_manager).
@@ -1096,7 +1104,7 @@ class MockMainWindow:
 
     def restore_state(self, state: dict[str, object]) -> None:
         """Restore state from history (MainWindowProtocol)."""
-        pass  # Mock implementation - tests may override
+        # Mock implementation - tests may override
 
     def add_to_history(self, action: object | None = None) -> None:
         """Add action to history (MainWindowProtocol)."""
@@ -1128,7 +1136,6 @@ class MockMainWindow:
 
     def set_file_loading_state(self, loading: bool) -> None:
         """Set file loading state (MainWindowProtocol)."""
-        pass
 
     # Signal protocol attributes
     @property
@@ -1144,59 +1151,45 @@ class MockMainWindow:
     # Signal handler methods for SignalConnectionManager
     def on_tracking_data_loaded(self, data: object) -> None:
         """Handle tracking data loaded signal (MainWindowProtocol)."""
-        pass
 
     def on_multi_point_data_loaded(self, data: object) -> None:
         """Handle multi-point data loaded signal (MainWindowProtocol)."""
-        pass
 
     def on_file_load_progress(self, progress: int) -> None:
         """Handle file load progress signal (MainWindowProtocol)."""
-        pass
 
     def on_file_load_error(self, error: str) -> None:
         """Handle file load error signal (MainWindowProtocol)."""
-        pass
 
     def on_file_load_finished(self) -> None:
         """Handle file load finished signal (MainWindowProtocol)."""
-        pass
 
     def on_file_loaded(self, filepath: str) -> None:
         """Handle file loaded signal (MainWindowProtocol)."""
-        pass
 
     def on_file_saved(self, filepath: str) -> None:
         """Handle file saved signal (MainWindowProtocol)."""
-        pass
 
     def on_file_changed(self, filepath: str) -> None:
         """Handle file changed signal (MainWindowProtocol)."""
-        pass
 
     def on_modified_changed(self, is_modified: bool) -> None:
         """Handle modified state changed signal (MainWindowProtocol)."""
-        pass
 
     def on_selection_changed(self, indices: object) -> None:
         """Handle selection changed signal (MainWindowProtocol)."""
-        pass
 
     def on_view_state_changed(self) -> None:
         """Handle view state changed signal (MainWindowProtocol)."""
-        pass
 
     def on_point_selected(self, index: int) -> None:
         """Handle point selected signal (MainWindowProtocol)."""
-        pass
 
     def on_point_moved(self, index: int, x: float, y: float) -> None:
         """Handle point moved signal (MainWindowProtocol)."""
-        pass
 
     def on_curve_selection_changed(self, indices: object) -> None:
         """Handle curve selection changed signal (MainWindowProtocol)."""
-        pass
 
 
 class MockDataBuilder:
@@ -1471,10 +1464,7 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
     from stores.application_state import get_application_state
 
     # Convert list to set if needed
-    if isinstance(indices, list):
-        indices_set = set(indices)
-    else:
-        indices_set = indices
+    indices_set = set(indices) if isinstance(indices, list) else indices
 
     # Sync to ApplicationState
     app_state = get_application_state()

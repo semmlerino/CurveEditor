@@ -99,7 +99,7 @@ class TestDataProcessingPerformance:
 
         # Verify result correctness
         assert len(result) == 500
-        for original, smoothed in zip(medium_data, result):
+        for original, smoothed in zip(medium_data, result, strict=True):
             orig_frame, _, _ = original
             smooth_frame, smooth_x, smooth_y, _ = safe_extract_point(smoothed)
 

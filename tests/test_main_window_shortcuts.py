@@ -141,7 +141,7 @@ class TestMainWindowShortcutRegistration:
             if shortcut:  # Skip empty shortcuts
                 if shortcut in shortcuts:
                     pytest.fail(
-                        f"Conflicting shortcut '{shortcut}' found in actions "
+                        f"Conflicting shortcut '{shortcut}' found in actions " +
                         f"'{shortcuts[shortcut].text()}' and '{action.text()}'"
                     )
                 shortcuts[shortcut] = action

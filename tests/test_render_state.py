@@ -414,13 +414,13 @@ class TestRenderStateImmutability:
         state = RenderState.compute(curve_widget)
 
         # Assert: Cannot modify attributes (dataclass frozen=True)
-        with pytest.raises(Exception, match="frozen|cannot assign"):
+        with pytest.raises(Exception, match=r"frozen|cannot assign"):
             state.display_mode = DisplayMode.ACTIVE_ONLY
 
-        with pytest.raises(Exception, match="frozen|cannot assign"):
+        with pytest.raises(Exception, match=r"frozen|cannot assign"):
             state.visible_curves = frozenset({"NewCurve"})
 
-        with pytest.raises(Exception, match="frozen|cannot assign"):
+        with pytest.raises(Exception, match=r"frozen|cannot assign"):
             state.active_curve = "Track2"
 
     def test_visible_curves_is_frozenset(self, curve_widget, sample_curves):

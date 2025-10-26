@@ -146,14 +146,12 @@ class TestCrossCurveCtrlClick:
 
         # Should find points on different curves (verifies cross-curve search works)
         result_a = interaction_service.find_point_at(curve_widget, screen_a.x(), screen_a.y(), mode="all_visible")
-        assert (
-            result_a.index >= 0 and result_a.curve_name == "curve_a"
-        ), f"Should find curve_a, got idx={result_a.index}, name={result_a.curve_name}"
+        assert result_a.index >= 0, f"Should find curve_a, got idx={result_a.index}, name={result_a.curve_name}"
+        assert result_a.curve_name == "curve_a", f"Should find curve_a, got idx={result_a.index}, name={result_a.curve_name}"
 
         result_b = interaction_service.find_point_at(curve_widget, screen_b.x(), screen_b.y(), mode="all_visible")
-        assert (
-            result_b.index >= 0 and result_b.curve_name == "curve_b"
-        ), f"Should find curve_b, got idx={result_b.index}, name={result_b.curve_name}"
+        assert result_b.index >= 0, f"Should find curve_b, got idx={result_b.index}, name={result_b.curve_name}"
+        assert result_b.curve_name == "curve_b", f"Should find curve_b, got idx={result_b.index}, name={result_b.curve_name}"
 
     def test_selecting_from_different_curve_switches_active(self, curve_widget):
         """Test that selecting a point on a different curve makes it active."""

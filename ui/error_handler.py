@@ -201,7 +201,6 @@ class ErrorDialog(QDialog):
     def _apply_styling(self) -> None:
         """Apply styling based on severity."""
         # Could add custom stylesheets here based on severity
-        pass
 
     def _toggle_details(self, checked: bool) -> None:
         """Toggle the details section."""

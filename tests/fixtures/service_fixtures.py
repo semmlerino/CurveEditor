@@ -60,13 +60,13 @@ def isolated_services() -> Generator[None, None, None]:
 
 
 @pytest.fixture
-def all_services() -> Generator[SimpleNamespace, None, None]:
+def all_services() -> SimpleNamespace:
     """Provide all service instances in a convenient namespace.
 
     This fixture consolidates the common pattern of initializing all services
     at the start of a test, reducing duplication across test files.
 
-    Yields:
+    Returns:
         SimpleNamespace: Object with data_service, transform_service,
                         interaction_service, and ui_service attributes
     """

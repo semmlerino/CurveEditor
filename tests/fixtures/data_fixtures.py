@@ -131,7 +131,7 @@ def animation_curve_data() -> list[Point4]:
     """Provide realistic animation curve data."""
     # Simulates a bouncing ball animation
     data = []
-    for frame in range(0, 100):
+    for frame in range(100):
         t = frame / 24.0  # Convert to seconds (24 fps)
 
         # Bouncing motion with decay

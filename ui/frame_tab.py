@@ -124,7 +124,7 @@ class FrameTab(QWidget):
 
     # Color scheme for frame status - uses dark theme
     # Initialize colors on first use to avoid import issues
-    colors_cache: ClassVar[dict[str, QColor]] = {}
+    _colors_cache: ClassVar[dict[str, QColor]] = {}
 
     @classmethod
     def _init_colors(cls) -> None:
@@ -395,4 +395,3 @@ class FrameTab(QWidget):
         # - Set as keyframe
         # - Interpolate from previous
         # - Copy frame data
-        pass

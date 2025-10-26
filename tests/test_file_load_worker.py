@@ -396,9 +396,9 @@ class TestFileLoadWorkerYFlipIntegration:
         # Create multi-point test file
         test_file = tmp_path / "multi_point.csv"
         test_file.write_text(
-            "3\n"  # 3 points
-            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n"
-            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n"
+            "3\n" +  # 3 points
+            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n" +
+            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n" +
             "Point3\n0\n2\n1 300.0 300.0\n2 310.0 310.0\n"
         )
 
@@ -496,7 +496,7 @@ class TestFileLoadWorkerMetadataAwarePath:
 
         # Create multi-point file
         test_file = tmp_path / "multi_metadata.csv"
-        test_file.write_text("2\n" "Point1\n0\n1\n1 100.0 100.0\n" "Point2\n0\n1\n1 200.0 200.0\n")
+        test_file.write_text("2\n" + "Point1\n0\n1\n1 100.0 100.0\n" + "Point2\n0\n1\n1 200.0 200.0\n")
 
         loaded_data: list[object] = []
 
@@ -580,7 +580,7 @@ class TestFileLoadWorkerLoadParity:
         # CRITICAL: Both should have identical Y-flipped coordinates
         assert len(manual_point_data) == len(auto_point_list)
 
-        for i, (manual_point, auto_point) in enumerate(zip(manual_point_data, auto_point_list)):
+        for i, (manual_point, auto_point) in enumerate(zip(manual_point_data, auto_point_list, strict=True)):
             # Compare frame, x, y (ignore status field if present)
             assert manual_point[0] == auto_point[0], f"Point {i}: Frame mismatch"
             assert manual_point[1] == auto_point[1], f"Point {i}: X mismatch"
@@ -595,9 +595,9 @@ class TestFileLoadWorkerLoadParity:
         # Create multi-point file
         test_file = tmp_path / "multi_parity.csv"
         test_file.write_text(
-            "3\n"
-            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n"
-            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n"
+            "3\n" +
+            "Point1\n0\n2\n1 100.0 100.0\n2 110.0 110.0\n" +
+            "Point2\n0\n2\n1 200.0 200.0\n2 210.0 210.0\n" +
             "Point3\n0\n2\n1 300.0 300.0\n2 310.0 310.0\n"
         )
 
@@ -631,7 +631,7 @@ class TestFileLoadWorkerLoadParity:
 
             assert len(manual_points) == len(auto_points)
 
-            for i, (m, a) in enumerate(zip(manual_points, auto_points)):
+            for i, (m, a) in enumerate(zip(manual_points, auto_points, strict=True)):
                 assert m[0] == a[0], f"{point_name}[{i}]: Frame mismatch"
                 assert m[1] == a[1], f"{point_name}[{i}]: X mismatch"
                 assert m[2] == a[2], f"{point_name}[{i}]: Y mismatch (Y-flip inconsistency)"

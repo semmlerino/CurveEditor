@@ -211,8 +211,6 @@ class TimelineController(QObject):
 
     def _on_frame_changed(self, value: int) -> None:
         """Handle frame spinbox value change."""
-        logger.debug(f"[FRAME] Spinbox changed to: {value}")
-
         # Update slider without triggering its signal
         _ = self.frame_slider.blockSignals(True)
         self.frame_slider.setValue(value)
@@ -223,8 +221,6 @@ class TimelineController(QObject):
 
     def _on_slider_changed(self, value: int) -> None:
         """Handle timeline slider value change."""
-        logger.debug(f"[FRAME] Slider changed to: {value}")
-
         # Update spinbox without triggering its signal
         _ = self.frame_spinbox.blockSignals(True)
         self.frame_spinbox.setValue(value)
@@ -237,7 +233,6 @@ class TimelineController(QObject):
         """Update the current frame and notify listeners."""
         # Update ApplicationState (single source of truth)
         get_application_state().set_frame(frame)
-        logger.debug(f"[FRAME] Current frame set to: {frame}")
 
         # REMOVED: self.frame_changed.emit(frame)
         # Reason: ApplicationState already emits frame_changed signal via StateManager.
@@ -549,7 +544,7 @@ class TimelineController(QObject):
     def on_timeline_tab_hovered(self, frame: int) -> None:
         """Handle timeline tab hover."""
         # Could show preview or status message
-        logger.debug(f"Timeline tab hovered: frame {frame}")
+        # frame parameter reserved for future preview functionality
 
     def update_for_tracking_data(self, num_images: int) -> None:
         """Update timeline for tracking data."""
@@ -563,8 +558,6 @@ class TimelineController(QObject):
 
         # Timeline tabs will update themselves via StateManager.frame_changed signal
 
-        logger.debug(f"Updated timeline for frame {frame}")
-
     def update_timeline_tabs(self, curve_data: object | None = None) -> None:
         """Update timeline tabs with curve data."""
         # Parameter kept for protocol compliance but intentionally unused
@@ -575,7 +568,6 @@ class TimelineController(QObject):
     def connect_signals(self) -> None:
         """Connect timeline-related signals."""
         # Compatibility method for old timeline controller
-        pass
 
     def clear(self) -> None:
         """Clear the timeline tabs."""

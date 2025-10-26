@@ -328,19 +328,19 @@ class MenuBar(QMenuBar):
     def _handle_add_track(self) -> None:
         """Handle add track action."""
         # TODO: Fix service method signature - needs proper data parameter
-        pass  # Temporarily disabled due to signature mismatch
+        # Temporarily disabled due to signature mismatch
 
     @Slot()
     def _handle_save_track(self) -> None:
         """Handle save track action."""
         # TODO: Fix service method signature - needs proper data parameter
-        pass  # Temporarily disabled due to signature mismatch
+        # Temporarily disabled due to signature mismatch
 
     @Slot()
     def _handle_export_csv(self) -> None:
         """Handle export to CSV action."""
         # TODO: Implement export_to_csv method in DataService
-        pass  # Temporarily disabled - method doesn't exist
+        # Temporarily disabled - method doesn't exist
 
     @Slot()
     def _handle_exit(self) -> None:

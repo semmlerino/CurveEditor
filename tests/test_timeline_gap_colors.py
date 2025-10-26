@@ -80,7 +80,7 @@ class TestTimelineGapColors:
             assert tab.interpolated_count == 0, f"Frame {frame} should have 0 interpolated"
             # Color should be keyframe color
             color = tab._get_background_color()
-            expected = tab.COLORS["keyframe"]
+            expected = tab._colors_cache["keyframe"]
             # Allow for gradient variations
             assert abs(color.red() - expected.red()) <= 30
             assert abs(color.green() - expected.green()) <= 30
@@ -97,7 +97,7 @@ class TestTimelineGapColors:
 
             # Color should be no_points color
             color = tab._get_background_color()
-            expected = tab.COLORS["no_points"]
+            expected = tab._colors_cache["no_points"]
             # Should match exactly (no gradient for no_points initially)
             assert color.red() == expected.red(), f"Frame {frame} red mismatch"
             assert color.green() == expected.green(), f"Frame {frame} green mismatch"
@@ -131,9 +131,9 @@ class TestTimelineGapColors:
             tab = timeline.frame_tabs[frame]
             assert tab.interpolated_count == 1
             color = tab._get_background_color()
-            expected = tab.COLORS["interpolated"]
+            expected = tab._colors_cache["interpolated"]
             # These should NOT be no_points color
-            no_points = tab.COLORS["no_points"]
+            no_points = tab._colors_cache["no_points"]
             assert color.red() != no_points.red() or color.green() != no_points.green()
 
         # Check gap frames (frames without any data)
@@ -141,7 +141,7 @@ class TestTimelineGapColors:
             tab = timeline.frame_tabs[frame]
             assert tab.point_count == 0
             color = tab._get_background_color()
-            expected = tab.COLORS["no_points"]
+            expected = tab._colors_cache["no_points"]
             assert color.red() == expected.red()
             assert color.green() == expected.green()
             assert color.blue() == expected.blue()
@@ -169,7 +169,7 @@ class TestTimelineGapColors:
                 tab = timeline.frame_tabs[frame]
                 assert tab.keyframe_count == 1
                 color = tab._get_background_color()
-                expected = tab.COLORS["keyframe"]
+                expected = tab._colors_cache["keyframe"]
                 # Allow gradient variations
                 assert abs(color.red() - expected.red()) <= 30
 
@@ -180,7 +180,7 @@ class TestTimelineGapColors:
                 tab = timeline.frame_tabs[frame]
                 assert tab.point_count == 0, f"Frame {frame} should have no points"
                 color = tab._get_background_color()
-                expected = tab.COLORS["no_points"]
+                expected = tab._colors_cache["no_points"]
                 assert color.red() == expected.red()
 
     def test_timeline_color_consistency_after_data_changes(self, main_window: MainWindow, qtbot: QtBot) -> None:
@@ -205,11 +205,12 @@ class TestTimelineGapColors:
             tab = timeline.frame_tabs[4]
             assert tab.point_count == 0
             color = tab._get_background_color()
-            no_points_color = tab.COLORS["no_points"]
+            no_points_color = tab._colors_cache["no_points"]
             assert color.red() == no_points_color.red()
 
         # Add more data that fills the gap
-        updated_data = initial_data + [
+        updated_data = [
+            *initial_data,
             (4, 130.0, 130.0, "keyframe"),
             (5, 140.0, 140.0, "tracked"),
         ]
@@ -223,7 +224,7 @@ class TestTimelineGapColors:
             tab = timeline.frame_tabs[4]
             assert tab.keyframe_count == 1
             color = tab._get_background_color()
-            expected = tab.COLORS["keyframe"]
+            expected = tab._colors_cache["keyframe"]
             assert abs(color.red() - expected.red()) <= 30
 
     def test_timeline_gap_colors_with_all_status_types(self, main_window: MainWindow, qtbot: QtBot) -> None:
@@ -286,7 +287,7 @@ class TestTimelineGapColors:
                 color = tab._get_background_color()
                 # The gap color should be darker/different than normal frames
                 # We'll just check it's not the same as a keyframe color
-                keyframe_color = tab.COLORS.get("keyframe", None)
+                keyframe_color = tab._colors_cache.get("keyframe", None)
                 if keyframe_color:
                     # Allow some tolerance in color comparison
                     assert color != keyframe_color, f"Gap frame {frame} should not have keyframe color"
@@ -308,7 +309,7 @@ class TestTimelineGapColors:
             tab = timeline.frame_tabs[5]
             assert tab.keyframe_count == 1
             color = tab._get_background_color()
-            expected = tab.COLORS["keyframe"]
+            expected = tab._colors_cache["keyframe"]
             assert abs(color.red() - expected.red()) <= 30
 
         # All other frames in range should be gaps
@@ -398,8 +399,8 @@ class TestTimelineGapColors:
 
         # Most important: verify color is RED (endframe color), not GRAY (inactive color)
         color = tab_10._get_background_color()
-        endframe_color = tab_10.COLORS["endframe"]
-        inactive_color = tab_10.COLORS["inactive"]
+        endframe_color = tab_10._colors_cache["endframe"]
+        inactive_color = tab_10._colors_cache["inactive"]
 
         # Color should match endframe color (red), NOT inactive color (gray)
         assert (
@@ -448,8 +449,8 @@ class TestTimelineGapColors:
             assert tab.endframe_count == 1, f"Frame {frame} should be endframe"
 
             color = tab._get_background_color()
-            endframe_color = tab.COLORS["endframe"]
-            inactive_color = tab.COLORS["inactive"]
+            endframe_color = tab._colors_cache["endframe"]
+            inactive_color = tab._colors_cache["inactive"]
 
             # All endframes should be red
             assert abs(color.red() - endframe_color.red()) <= 30, f"Frame {frame} endframe should be red"

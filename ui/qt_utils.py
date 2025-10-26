@@ -3,9 +3,12 @@
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
+
+# TypeVar for safe_slot_logging (needed for complex nested Callable types)
+R = TypeVar("R")
 
 
 def safe_slot[R](func: Callable[..., R]) -> Callable[..., R | None]:
@@ -48,7 +51,7 @@ def safe_slot[R](func: Callable[..., R]) -> Callable[..., R | None]:
     return wrapper
 
 
-def safe_slot_logging[R](verbose: bool = False) -> Callable[[Callable[..., R]], Callable[..., R | None]]:
+def safe_slot_logging(verbose: bool = False) -> Callable[[Callable[..., R]], Callable[..., R | None]]:
     """Parameterized version of safe_slot with configurable logging.
 
     Args:

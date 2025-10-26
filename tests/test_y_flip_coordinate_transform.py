@@ -298,7 +298,7 @@ Point01
         assert screen_pos.y() > 360
 
     @pytest.mark.parametrize(
-        "original_y,expected_flipped",
+        ("original_y", "expected_flipped"),
         [
             (100.0, 620.0),  # Near top -> near bottom
             (211.3, 508.7),  # Point01 actual data

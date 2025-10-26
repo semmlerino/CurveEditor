@@ -204,15 +204,15 @@ class TestProgressiveDisclosureController:
 
         # Test valid duration
         controller.set_animation_duration(500)
-        assert controller._animation_duration == 500
+        assert controller._animation_duration == 500  # pyright: ignore[reportPrivateUsage]
 
         # Test clamping to minimum
         controller.set_animation_duration(50)
-        assert controller._animation_duration == 100  # Clamped to minimum
+        assert controller._animation_duration == 100  # pyright: ignore[reportPrivateUsage]
 
         # Test clamping to maximum
         controller.set_animation_duration(2000)
-        assert controller._animation_duration == 1000  # Clamped to maximum
+        assert controller._animation_duration == 1000  # pyright: ignore[reportPrivateUsage]
 
     def test_recommended_mode_for_context(self, mock_widgets, mock_state_manager):
         """Test recommended mode based on context."""

@@ -299,11 +299,9 @@ class ConnectionVerifier:
             logger.error(f"Found {len(failures)} connection failures:")
             for report in failures:
                 logger.error(
-
-                        f"  - {report.connection.source_name}.{report.connection.signal_name} -> "
-                        f"{report.connection.target_name}.{report.connection.slot_name}: "
-                        f"{report.error_message}"
-
+                    f"  - {report.connection.source_name}.{report.connection.signal_name} -> " +
+                    f"{report.connection.target_name}.{report.connection.slot_name}: " +
+                    f"{report.error_message}"
                 )
         else:
             logger.info(f"All {len(self._reports)} connections verified successfully")
@@ -313,11 +311,9 @@ class ConnectionVerifier:
             for report in self._reports:
                 status_icon = "✓" if report.status == ConnectionStatus.CONNECTED else "✗"
                 logger.debug(
-
-                        f"  {status_icon} {report.connection.source_name}.{report.connection.signal_name} -> "
-                        f"{report.connection.target_name}.{report.connection.slot_name}: "
-                        f"{report.status.value}"
-
+                    f"  {status_icon} {report.connection.source_name}.{report.connection.signal_name} -> " +
+                    f"{report.connection.target_name}.{report.connection.slot_name}: " +
+                    f"{report.status.value}"
                 )
 
 

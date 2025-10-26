@@ -93,11 +93,10 @@ class TestApplicationStateThreadSafety:
         state = get_application_state()
 
         # Outer batch context
-        with state.batch_updates():
+        with state.batch_updates(), state.batch_updates():
             # Inner batch context (should no-op and pass through)
-            with state.batch_updates():
-                pass
             # Back in outer context
+            pass
 
         # Should be out of batch mode now
 

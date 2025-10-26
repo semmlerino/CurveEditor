@@ -52,7 +52,7 @@ class MinimalMainWindow(QWidget):
 
     def _update_timeline_tabs(self):
         """Update timeline tabs."""
-        pass  # Will be mocked in tests
+        # Will be mocked in tests
 
     def _on_selection_changed(self, selection, curve_name):
         """Handle selection changes from ApplicationState.
@@ -68,11 +68,11 @@ class MinimalMainWindow(QWidget):
 
     def _update_point_editor(self, idx):
         """Update point editor."""
-        pass  # Will be mocked in tests
+        # Will be mocked in tests
 
     def _update_ui_state(self):
         """Update UI state."""
-        pass  # Will be mocked in tests
+        # Will be mocked in tests
 
     @property
     def curve_data(self):

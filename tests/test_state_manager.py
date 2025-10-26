@@ -410,9 +410,8 @@ class TestStateManagerHistory:
         state_manager.set_history_state(can_undo=True, can_redo=False)
 
         # Try to set same state - should not emit signals
-        with qtbot.assertNotEmitted(state_manager.undo_state_changed):
-            with qtbot.assertNotEmitted(state_manager.redo_state_changed):
-                state_manager.set_history_state(can_undo=True, can_redo=False)
+        with qtbot.assertNotEmitted(state_manager.undo_state_changed), qtbot.assertNotEmitted(state_manager.redo_state_changed):
+            state_manager.set_history_state(can_undo=True, can_redo=False)
 
     def test_history_state_emits_only_changed_signals(self, state_manager, qtbot):
         """Only changed history values emit signals."""
@@ -420,9 +419,8 @@ class TestStateManagerHistory:
         state_manager.set_history_state(can_undo=True, can_redo=False)
 
         # Change only redo state - undo shouldn't emit, redo should
-        with qtbot.assertNotEmitted(state_manager.undo_state_changed):
-            with qtbot.waitSignal(state_manager.redo_state_changed, timeout=1000) as blocker:
-                state_manager.set_history_state(can_undo=True, can_redo=True)
+        with qtbot.assertNotEmitted(state_manager.undo_state_changed), qtbot.waitSignal(state_manager.redo_state_changed, timeout=1000) as blocker:
+            state_manager.set_history_state(can_undo=True, can_redo=True)
 
         # Verify redo signal payload
         assert blocker.args == [True]

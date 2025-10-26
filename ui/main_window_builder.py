@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QDockWidget,
     QDoubleSpinBox,
     QFrame,
+    QGridLayout,
     QLabel,
     QPushButton,
     QSlider,
@@ -423,6 +424,49 @@ class MainWindowBuilder:
 
         logger.info("Tracking points panel dock widget initialized")
 
+        # Create visualization panel dock widget
+        window.visualization_panel_dock = QDockWidget("Visualization", window)
+
+        # Ensure sliders exist (they're created in _create_ui_component_widgets)
+        assert window.point_size_slider is not None, "point_size_slider must be initialized"
+        assert window.line_width_slider is not None, "line_width_slider must be initialized"
+
+        # Create container widget with layout
+        viz_widget = QWidget()
+        viz_layout = QGridLayout(viz_widget)
+        viz_layout.setContentsMargins(10, 10, 10, 10)
+        viz_layout.setSpacing(10)
+
+        # Point Size slider
+        point_size_label = QLabel("Point Size:")
+        viz_layout.addWidget(point_size_label, 0, 0)
+        viz_layout.addWidget(window.point_size_slider, 0, 1)
+
+        point_size_value = QLabel(str(window.point_size_slider.value()))
+        viz_layout.addWidget(point_size_value, 0, 2)
+        window.point_size_slider.valueChanged.connect(lambda v: point_size_value.setText(str(v)))
+
+        # Line Width slider
+        line_width_label = QLabel("Line Width:")
+        viz_layout.addWidget(line_width_label, 1, 0)
+        viz_layout.addWidget(window.line_width_slider, 1, 1)
+
+        line_width_value = QLabel(str(window.line_width_slider.value()))
+        viz_layout.addWidget(line_width_value, 1, 2)
+        window.line_width_slider.valueChanged.connect(lambda v: line_width_value.setText(str(v)))
+
+        # Set the widget
+        window.visualization_panel_dock.setWidget(viz_widget)
+
+        # Set dock widget properties
+        window.visualization_panel_dock.setAllowedAreas(
+            Qt.DockWidgetArea.LeftDockWidgetArea | Qt.DockWidgetArea.RightDockWidgetArea
+        )
+        window.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, window.visualization_panel_dock)
+        window.visualization_panel_dock.setVisible(True)  # Make visible by default
+
+        logger.info("Visualization panel dock widget initialized")
+
     def _build_status_bar(self, window: MainWindow) -> None:
         """Initialize the status bar with additional widgets.
 
@@ -451,4 +495,3 @@ class MainWindowBuilder:
         """
         # Action connections are handled in MainWindowInitializer.connect_signals()
         # after controllers are created, so we skip them here
-        pass

@@ -14,12 +14,12 @@ Phase 4 extraction from CurveViewWidget god object refactoring.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from core.logger_utils import get_logger
 from core.models import CurvePoint, PointStatus
 from core.type_aliases import CurveDataInput, CurveDataList
-from stores.application_state import get_application_state
+from stores.application_state import ApplicationState, get_application_state
 
 if TYPE_CHECKING:
     from ui.curve_view_widget import CurveViewWidget
@@ -50,8 +50,8 @@ class CurveDataFacade:
         Args:
             widget: CurveViewWidget instance
         """
-        self.widget = widget
-        self._app_state = get_application_state()
+        self.widget: CurveViewWidget = widget
+        self._app_state: ApplicationState = get_application_state()
 
         logger.debug("CurveDataFacade initialized")
 
@@ -183,7 +183,7 @@ class CurveDataFacade:
     def set_curves_data(
         self,
         curves: dict[str, CurveDataList],
-        metadata: dict[str, dict[str, Any]] | None = None,
+        metadata: dict[str, dict[str, object]] | None = None,
         active_curve: str | None = None,
         selected_curves: list[str] | None = None,
     ) -> None:
@@ -243,7 +243,7 @@ class CurveDataFacade:
 
         logger.debug(f"Set {len(curves)} curves in ApplicationState, active: {self._app_state.active_curve}")
 
-    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, Any] | None = None) -> None:
+    def add_curve(self, name: str, data: CurveDataList, metadata: dict[str, object] | None = None) -> None:
         """
         Add a new curve to the display.
 

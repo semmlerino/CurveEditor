@@ -111,7 +111,7 @@ class TestTimelineColorsIntegration:
         # Verify specific color assignments match FrameTab expected colors
         # The colors should be from the right category even if exact values vary slightly
         # (May vary due to hover effects or gradients - up to 10% lighter)
-        keyframe_expected = tab1.COLORS["keyframe"]
+        keyframe_expected = tab1._colors_cache["keyframe"]
         # Increased tolerance to 30 to account for gradient effect (lighter(110) = 10% brighter)
         assert abs(colors["keyframe"].red() - keyframe_expected.red()) <= 30
         assert abs(colors["keyframe"].green() - keyframe_expected.green()) <= 30

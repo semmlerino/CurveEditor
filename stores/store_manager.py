@@ -163,7 +163,6 @@ class StoreManager(QObject):
         """
         # Example: When curve data changes, update frame store
         # self.curve_store.data_changed.connect(self.frame_store.update_from_curve_data)
-        pass
 
     def save_state(self) -> dict[str, Any]:
         """

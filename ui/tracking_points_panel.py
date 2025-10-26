@@ -3,7 +3,7 @@
 from typing import TypedDict, override
 
 from PySide6.QtCore import QEvent, QItemSelectionModel, QObject, QPoint, Qt, Signal
-from PySide6.QtGui import QAction, QBrush, QColor, QFont, QKeyEvent
+from PySide6.QtGui import QAction, QBrush, QCloseEvent, QColor, QFont, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QCheckBox,
@@ -180,10 +180,8 @@ class TrackingPointsPanel(QWidget):
         # Add checkbox for toggling multi-curve display
         self.display_mode_checkbox: QCheckBox = QCheckBox("Show all curves")
         self.display_mode_checkbox.setToolTip(
-
-                "When checked, displays all visible curves simultaneously.\n"
-                "When unchecked, shows only the selected/active curve."
-
+            "When checked, displays all visible curves simultaneously.\n" +
+            "When unchecked, shows only the selected/active curve."
         )
         self.display_mode_checkbox.setChecked(False)
         _ = self.display_mode_checkbox.toggled.connect(self._on_display_mode_checkbox_toggled)
@@ -726,7 +724,7 @@ class TrackingPointsPanel(QWidget):
         super().keyPressEvent(event)
 
     @override
-    def closeEvent(self, event) -> None:  # type: ignore[no-untyped-def]
+    def closeEvent(self, event: QCloseEvent) -> None:
         """Clean up event filters to prevent accumulation across tests.
 
         CRITICAL: Properly removes event filter to prevent resource exhaustion

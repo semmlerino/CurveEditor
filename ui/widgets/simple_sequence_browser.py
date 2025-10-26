@@ -41,9 +41,9 @@ class SimpleSequenceBrowser(QWidget):
     """
 
     # Signals
-    sequence_selected = Signal(object)  # Emits ImageSequence when selected
-    sequence_activated = Signal(object)  # Emits ImageSequence when activated (load)
-    location_changed = Signal(str)      # Emits when directory location changes
+    sequence_selected: Signal = Signal(object)  # Emits ImageSequence when selected
+    sequence_activated: Signal = Signal(object)  # Emits ImageSequence when activated (load)
+    location_changed: Signal = Signal(str)      # Emits when directory location changes
 
     def __init__(self, parent: QWidget | None = None, state_manager: "StateManager | None" = None):
         """
@@ -54,7 +54,7 @@ class SimpleSequenceBrowser(QWidget):
             state_manager: State manager for preferences and recent directories
         """
         super().__init__(parent)
-        self.state_manager = state_manager
+        self.state_manager: StateManager | None = state_manager
         # Note: _current_sequences is now a property (see line 270)
 
         self._setup_ui()
@@ -82,11 +82,11 @@ class SimpleSequenceBrowser(QWidget):
         location_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt;")
         location_layout.addWidget(location_label)
 
-        self.location_selector = SmartLocationSelector(self, self.state_manager)
+        self.location_selector: SmartLocationSelector = SmartLocationSelector(self, self.state_manager)
         location_layout.addWidget(self.location_selector, stretch=1)
 
         # Advanced mode button
-        self.advanced_button = QPushButton("Advanced >>")
+        self.advanced_button: QPushButton = QPushButton("Advanced >>")
         self.advanced_button.setToolTip("Switch to advanced mode with full directory tree")
         self.advanced_button.setMaximumWidth(100)
         location_layout.addWidget(self.advanced_button)
@@ -105,7 +105,7 @@ class SimpleSequenceBrowser(QWidget):
         sequence_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; font-weight: bold;")
         sequence_layout.addWidget(sequence_label)
 
-        self.sequence_list = SequenceListWidget()
+        self.sequence_list: SequenceListWidget = SequenceListWidget()
         self.sequence_list.setMinimumWidth(350)
         sequence_layout.addWidget(self.sequence_list)
 
@@ -118,7 +118,7 @@ class SimpleSequenceBrowser(QWidget):
         preview_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; font-weight: bold;")
         preview_layout.addWidget(preview_label)
 
-        self.preview_widget = SequencePreviewWidget()
+        self.preview_widget: SequencePreviewWidget = SequencePreviewWidget()
         self.preview_widget.setMinimumWidth(400)
         preview_layout.addWidget(self.preview_widget)
 
@@ -127,14 +127,14 @@ class SimpleSequenceBrowser(QWidget):
         layout.addLayout(content_layout, stretch=1)
 
         # Status label with contextual help
-        self.status_label = QLabel("Select a directory to browse image sequences")
+        self.status_label: QLabel = QLabel("Select a directory to browse image sequences")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; color: #666; padding: {SPACING_SM}px;")
         self.status_label.setWordWrap(True)
         layout.addWidget(self.status_label)
 
         # Help text (initially hidden)
-        self.help_label = QLabel()
+        self.help_label: QLabel = QLabel()
         self.help_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.help_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL - 1}pt; color: #888; padding: {SPACING_SM}px;")
         self.help_label.setWordWrap(True)
@@ -277,7 +277,7 @@ class SimpleSequenceBrowser(QWidget):
         """Set current sequences (delegates to sequence_list)."""
         # This setter is called by set_sequences() and clear()
         # The actual storage is in sequence_list.sequences
-        pass  # No-op, actual update happens via sequence_list.set_sequences()
+        # No-op, actual update happens via sequence_list.set_sequences()
 
     def set_sort_order(self, sort_key: str, ascending: bool = True) -> None:
         """

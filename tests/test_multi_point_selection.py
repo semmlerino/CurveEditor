@@ -204,7 +204,7 @@ class TestMultiPointTrackingController:
         get_application_state().set_frame(1)
 
         mock.tracking_panel = Mock(spec=TrackingPointsPanel)
-        mock.tracking_panel._point_metadata = {}
+        mock.tracking_panel.point_metadata = {}
         return mock
 
     @pytest.fixture
@@ -282,7 +282,7 @@ class TestMultiPointTrackingController:
     def test_update_curve_display_no_force_show_all(self, controller, mock_main_window):
         """Test that update_curve_display doesn't force show_all_curves."""
         # Set up mock tracking panel metadata
-        mock_main_window.tracking_panel._point_metadata = {
+        mock_main_window.tracking_panel.point_metadata = {
             "Track1": {"visible": True, "color": "#FF0000"},
             "Track2": {"visible": True, "color": "#00FF00"},
             "Track3": {"visible": False, "color": "#0000FF"},
@@ -585,7 +585,7 @@ def test_selection_bug_fix_tdd():
 
     main_window.curve_widget = curve_widget
     main_window.tracking_panel = Mock()
-    main_window.tracking_panel._point_metadata = {}
+    main_window.tracking_panel.point_metadata = {}
 
     controller = MultiPointTrackingController(main_window)
     controller.tracked_data = {

@@ -314,7 +314,7 @@ class TestDataLoading:
 
         # Mock the background_controller's handler to verify delegation
         with patch.object(main_window.background_controller, "on_image_sequence_loaded") as mock_handler:
-            main_window._on_image_sequence_loaded("/test/path", test_images)
+            main_window.on_image_sequence_loaded("/test/path", test_images)
             mock_handler.assert_called_once_with("/test/path", test_images)
 
     def test_file_load_progress_updates_status(self, main_window, qapp):
@@ -335,12 +335,12 @@ class TestKeyboardShortcuts:
     def test_delete_key_handled(self, main_window):
         """Delete key should trigger point deletion."""
         # This would need curve_widget to have selected points
-        pass  # Placeholder for keyboard tests
+        # Placeholder for keyboard tests
 
     def test_escape_key_deselects(self, main_window):
         """Escape key should deselect all."""
         # Would need to simulate key press
-        pass  # Placeholder
+        # Placeholder
 
 
 class TestMemoryAndResources:
@@ -360,9 +360,9 @@ class TestIntegrationScenarios:
     def test_load_edit_save_workflow(self, main_window):
         """Test complete load, edit, save workflow."""
         # This would be a comprehensive integration test
-        pass  # Placeholder for integration test
+        # Placeholder for integration test
 
     def test_image_then_tracking_workflow(self, main_window):
         """Test loading images then tracking data."""
         # Important for coordinate transform testing
-        pass  # Placeholder for integration test
+        # Placeholder for integration test

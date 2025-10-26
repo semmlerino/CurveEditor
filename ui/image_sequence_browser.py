@@ -2155,7 +2155,6 @@ class ImageSequenceBrowserDialog(QDialog):
         Note: Persistence not implemented. Dialog uses default state on each open.
         """
         # State persistence not implemented - StateManager lacks get_value/set_value
-        pass
 
     def _save_state(self) -> None:
         """Save dialog state to parent's state manager.
@@ -2163,7 +2162,6 @@ class ImageSequenceBrowserDialog(QDialog):
         Note: Persistence not implemented. See _restore_state() for details.
         """
         # State persistence not implemented - StateManager lacks get_value/set_value
-        pass
 
     @override
     def accept(self) -> None:

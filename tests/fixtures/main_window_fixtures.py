@@ -140,7 +140,6 @@ class MockCurveWidget:
 
     def update(self):
         """Mock update method."""
-        pass
 
 
 class MockFileLoadWorker:
@@ -197,7 +196,6 @@ class MockStateManager:
 
     def add_undo_state(self, description):
         """Mock undo state tracking."""
-        pass
 
 
 # --- Test Fixtures ---
@@ -222,7 +220,7 @@ def mock_state_manager() -> MockStateManager:
 
 
 @pytest.fixture
-def main_window_with_mocks(qapp, qtbot, monkeypatch) -> Generator[MainWindow, None, None]:
+def main_window_with_mocks(qapp, qtbot, monkeypatch) -> MainWindow:
     """Create MainWindow with mocked components.
 
     CRITICAL: Uses qtbot.addWidget() for automatic cleanup to prevent

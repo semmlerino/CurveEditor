@@ -195,7 +195,6 @@ class CurveState(CurveDataProvider, CurveDataModifier, Protocol):
     Use this when component needs both read and write access.
     Still more focused than full ApplicationState.
     """
-    pass
 
 
 @runtime_checkable
@@ -204,7 +203,6 @@ class SelectionState(SelectionProvider, SelectionModifier, Protocol):
 
     Use this when component needs both read and write selection access.
     """
-    pass
 
 
 @runtime_checkable
@@ -224,4 +222,3 @@ class FrameAndCurveProvider(FrameProvider, CurveDataProvider, Protocol):
                 data = self._state.get_curve_data(curve_name)
                 # Render curve at frame...
     """
-    pass

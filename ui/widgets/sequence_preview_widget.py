@@ -8,7 +8,7 @@ Optimized for performance with viewport culling and cancellable operations.
 
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import QSize, Qt, QThread, Signal
 from PySide6.QtGui import QPixmap
@@ -47,9 +47,9 @@ class ThumbnailWidget(QLabel):
             parent: Parent widget
         """
         super().__init__(parent)
-        self.frame_number = frame_number
-        self.file_path = file_path
-        self._is_loaded = False
+        self.frame_number: int = frame_number
+        self.file_path: str = file_path
+        self._is_loaded: bool = False
 
         self._setup_ui()
 
@@ -118,17 +118,17 @@ class ThumbnailLoader(QThread):
     """
 
     # Signals
-    thumbnail_loaded = Signal(int, QPixmap)  # frame_number, pixmap
-    thumbnail_error = Signal(int, str)       # frame_number, error_message
-    progress_updated = Signal(int, int)      # current, total
+    thumbnail_loaded: Signal = Signal(int, QPixmap)  # frame_number, pixmap
+    thumbnail_error: Signal = Signal(int, str)       # frame_number, error_message
+    progress_updated: Signal = Signal(int, int)      # current, total
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize thumbnail loader."""
         super().__init__(parent)
         self._load_queue: list[tuple[int, str]] = []  # (frame_number, file_path)
-        self._queue_lock = threading.Lock()
-        self._should_stop = False
-        self._current_total = 0
+        self._queue_lock: threading.Lock = threading.Lock()
+        self._should_stop: bool = False
+        self._current_total: int = 0
 
     def add_thumbnail_request(self, frame_number: int, file_path: str) -> None:
         """
@@ -156,6 +156,7 @@ class ThumbnailLoader(QThread):
         self._should_stop = True
         self.clear_queue()
 
+    @override
     def run(self) -> None:
         """Run the thumbnail loading process."""
         self._should_stop = False
@@ -210,8 +211,8 @@ class SequencePreviewWidget(QWidget):
         super().__init__(parent)
         self._current_sequence: ImageSequence | None = None
         self._thumbnail_widgets: dict[int, ThumbnailWidget] = {}
-        self._max_thumbnails = 12
-        self._thumbnails_per_row = 4
+        self._max_thumbnails: int = 12
+        self._thumbnails_per_row: int = 4
 
         self._setup_ui()
         self._setup_loader()
@@ -223,7 +224,7 @@ class SequencePreviewWidget(QWidget):
         layout.setContentsMargins(SPACING_SM, SPACING_SM, SPACING_SM, SPACING_SM)
 
         # Status label
-        self.status_label = QLabel("Select a sequence to preview thumbnails")
+        self.status_label: QLabel = QLabel("Select a sequence to preview thumbnails")
         self.status_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.status_label.setStyleSheet(f"font-size: {FONT_SIZE_NORMAL}pt; color: #666;")
         layout.addWidget(self.status_label)
@@ -231,13 +232,13 @@ class SequencePreviewWidget(QWidget):
         # Progress bar (initially hidden)
         progress_layout = QHBoxLayout()
 
-        self.progress_bar = QProgressBar()
+        self.progress_bar: QProgressBar = QProgressBar()
         self.progress_bar.setVisible(False)
         self.progress_bar.setMinimum(0)
         self.progress_bar.setMaximum(100)
         progress_layout.addWidget(self.progress_bar)
 
-        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button: QPushButton = QPushButton("Cancel")
         self.cancel_button.setVisible(False)
         self.cancel_button.setMaximumWidth(80)
         progress_layout.addWidget(self.cancel_button)
@@ -245,15 +246,15 @@ class SequencePreviewWidget(QWidget):
         layout.addLayout(progress_layout)
 
         # Scroll area for thumbnails
-        self.scroll_area = QScrollArea()
+        self.scroll_area: QScrollArea = QScrollArea()
         self.scroll_area.setWidgetResizable(True)
         self.scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
         self.scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll_area.setMinimumHeight(200)
 
         # Container for thumbnail grid
-        self.thumbnail_container = QWidget()
-        self.thumbnail_layout = QGridLayout(self.thumbnail_container)
+        self.thumbnail_container: QWidget = QWidget()
+        self.thumbnail_layout: QGridLayout = QGridLayout(self.thumbnail_container)
         self.thumbnail_layout.setSpacing(SPACING_SM)
         self.thumbnail_layout.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
 
@@ -261,12 +262,12 @@ class SequencePreviewWidget(QWidget):
         layout.addWidget(self.scroll_area)
 
         # Metadata panel
-        self.metadata_widget = QWidget()
-        self.metadata_layout = QVBoxLayout(self.metadata_widget)
+        self.metadata_widget: QWidget = QWidget()
+        self.metadata_layout: QVBoxLayout = QVBoxLayout(self.metadata_widget)
         self.metadata_layout.setContentsMargins(0, SPACING_SM, 0, 0)
 
         # Metadata labels
-        self.metadata_labels = {
+        self.metadata_labels: dict[str, QLabel] = {
             "resolution": QLabel("Resolution: -"),
             "frame_count": QLabel("Frame Count: -"),
             "total_size": QLabel("Total Size: -"),
@@ -282,7 +283,7 @@ class SequencePreviewWidget(QWidget):
 
     def _setup_loader(self) -> None:
         """Set up the thumbnail loader."""
-        self.thumbnail_loader = ThumbnailLoader(self)
+        self.thumbnail_loader: ThumbnailLoader = ThumbnailLoader(self)
 
     def _connect_signals(self) -> None:
         """Connect internal signals."""

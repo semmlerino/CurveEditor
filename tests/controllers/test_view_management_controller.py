@@ -75,6 +75,7 @@ class TestViewManagementController:
             (10, 100.0, 50.0, "keyframe"),
             (20, 200.0, 100.0, "keyframe"),
         ]
+        assert mock_main_window.curve_widget is not None
         mock_main_window.curve_widget.curve_data = curve_data
         mock_main_window.curve_widget.image_width = 1920
         mock_main_window.curve_widget.image_height = 1080
@@ -121,6 +122,7 @@ class TestViewManagementController:
             (2, 200.0, 200.0, "keyframe"),
             (3, 300.0, 300.0, "keyframe"),
         ]
+        assert mock_main_window.curve_widget is not None
         mock_main_window.curve_widget.curve_data = curve_data
         mock_main_window.curve_widget.selected_indices = {1}
         mock_main_window.curve_widget.image_width = 1920

@@ -1207,13 +1207,11 @@ class CurveViewWidget(QWidget):
         Args:
             frame: The new current frame number
         """
-        logger.debug(f"[FRAME] Legacy on_frame_changed called with frame {frame}")
         # The StateManager will be updated by the caller, which will trigger our signal handler
         # This method is kept for compatibility with any direct calls
 
         # Handle centering mode for legacy compatibility
         if self.centering_mode:
-            logger.debug(f"[CENTERING] Auto-centering on frame {frame} (centering mode enabled via legacy call)")
             self.center_on_frame(frame)
 
     @safe_slot
@@ -1795,7 +1793,6 @@ class CurveViewWidget(QWidget):
         """
         # Image index is managed by ViewManagementController in main_window
         # This setter exists for protocol compatibility but doesn't modify state
-        pass
 
     def findPointAt(self, pos: QPointF) -> int:
         """Find point at position (protocol compatibility).
@@ -1871,7 +1868,6 @@ class CurveViewWidget(QWidget):
         """
         # This is a no-op as interpolation status is managed differently
         # in the current architecture (via PointStatus)
-        pass
 
     def setPoints(self, data: CurveDataList, width: int, height: int) -> None:
         """Set points with image dimensions (protocol compatibility).

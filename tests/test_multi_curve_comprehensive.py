@@ -229,7 +229,7 @@ class TestPointSearchResultCompatibility:
         result_found = PointSearchResult(index=3, curve_name="curve_b")
         result_not_found = PointSearchResult(index=-1, curve_name=None)
 
-        assert not (result_found == -1)
+        assert result_found != -1
         assert result_not_found == -1
 
     def test_point_search_result_bool_truthiness(self):

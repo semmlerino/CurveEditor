@@ -43,12 +43,12 @@ class TestSignalConnectionManager:
         # This avoids the ConnectionVerifier which validates actual Qt Signal types
 
         # Act - Connect signals directly using internal methods
-        manager._connect_file_operations_signals()
-        manager._connect_signals()
-        manager._connect_store_signals()
+        manager._connect_file_operations_signals()  # pyright: ignore[reportPrivateUsage]
+        manager._connect_signals()  # pyright: ignore[reportPrivateUsage]
+        manager._connect_store_signals()  # pyright: ignore[reportPrivateUsage]
 
         if mock_main_window.curve_widget:
-            manager._connect_curve_widget_signals()
+            manager._connect_curve_widget_signals()  # pyright: ignore[reportPrivateUsage]
 
         # Assert - Critical signals connected
         # Curve widget signals should have receivers
@@ -77,14 +77,15 @@ class TestSignalConnectionManager:
         - Memory leak prevention through proper signal management
         """
         # Arrange - Connect signals using internal methods (avoids verifier)
-        manager._connect_file_operations_signals()
-        manager._connect_signals()
-        manager._connect_store_signals()
+        manager._connect_file_operations_signals()  # pyright: ignore[reportPrivateUsage]
+        manager._connect_signals()  # pyright: ignore[reportPrivateUsage]
+        manager._connect_store_signals()  # pyright: ignore[reportPrivateUsage]
 
         if mock_main_window.curve_widget:
-            manager._connect_curve_widget_signals()
+            manager._connect_curve_widget_signals()  # pyright: ignore[reportPrivateUsage]
 
         # Store initial receiver count
+        assert mock_main_window.curve_widget is not None
         initial_receivers = mock_main_window.curve_widget.selection_changed.receivers()
         assert initial_receivers > 0, \
             "Should have receivers after signal connection"
@@ -97,6 +98,7 @@ class TestSignalConnectionManager:
         # Note: In test environment with TestSignal, manual cleanup may not occur
         # So we verify the __del__ method exists and can be called
         # Real Qt signals would show reduced receiver count after disconnect
+        assert mock_main_window.curve_widget is not None
         final_receivers = mock_main_window.curve_widget.selection_changed.receivers()
 
         # In real Qt environment, receivers would be 0 after cleanup

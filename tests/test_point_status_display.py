@@ -891,8 +891,8 @@ class TestPointStatusDisplayBoundaries:
 
         # Don't call update_ui_state() - it would clamp frame to total_frames
         # This test verifies status display logic works with large frame numbers
-        # Call _update_point_status_label() directly instead
-        main_window._update_point_status_label()
+        # Call update_point_status_label() directly instead
+        main_window.update_point_status_label()
 
         # Should display status correctly
         assert main_window.type_label.text() == "Status: TRACKED"

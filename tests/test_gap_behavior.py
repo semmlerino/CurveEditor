@@ -32,7 +32,7 @@ class TestDataServiceGapBehavior:
     """Test DataService integration with gap behavior."""
 
     @pytest.mark.parametrize(
-        "frame,expected_position",
+        ("frame", "expected_position"),
         [
             pytest.param(1, (100.0, 100.0), id="active_start"),
             pytest.param(5, (150.0, 150.0), id="endframe"),
@@ -187,7 +187,7 @@ class TestGapWorkflow:
             assert frame10_status.is_startframe is True  # Should be detected as startframe
 
     @pytest.mark.parametrize(
-        "frame,expected_x,expected_y,description",
+        ("frame", "expected_x", "expected_y", "description"),
         [
             pytest.param(4, 120.0, 120.0, "first_gap_start", id="gap1_frame4"),
             pytest.param(5, 120.0, 120.0, "first_gap_end", id="gap1_frame5"),
@@ -218,7 +218,7 @@ class TestGapWorkflow:
             assert position == (expected_x, expected_y)
 
     @pytest.mark.parametrize(
-        "frame,expected_behavior",
+        ("frame", "expected_behavior"),
         [
             pytest.param(1, ("exact", (100.0, 100.0)), id="keyframe_1"),
             pytest.param(7, ("interpolated", None), id="interpolated_7"),

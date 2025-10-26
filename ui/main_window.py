@@ -101,7 +101,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     frame_rate_changed: Signal = Signal(int)
 
     # Class variables
-    _theme_initialized: bool = False  # Track application theme initialization
+    # _theme_initialized is set dynamically when theme is applied (do NOT pre-declare as False)
 
     # Attributes initialized in __init__ - declare for type safety
     _file_loading: bool = False  # Track file loading state
@@ -141,6 +141,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     type_label: QLabel | None = None
     tracking_panel_dock: QDockWidget | None = None
     tracking_panel: TrackingPointsPanel | None = None
+    visualization_panel_dock: QDockWidget | None = None
 
     # Actions initialized by UIInitializationController
     action_new: QAction | None = None
@@ -213,7 +214,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 _ = app.setStyle("Fusion")
                 # Apply the dark theme stylesheet
                 app.setStyleSheet(get_dark_theme_stylesheet())
-                MainWindow._theme_initialized = True
+                MainWindow._theme_initialized: bool = True
                 logger.info("Applied dark theme to application")
             else:
                 logger.debug("Dark theme already applied, skipping")
@@ -603,7 +604,6 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Restore state from history (delegate to state manager)."""
         # This method is required by MainWindowProtocol but actual implementation
         # is handled by the state manager and services
-        pass
 
     def set_tracked_data_atomic(self, data: dict[str, object]) -> None:
         """Set tracked data atomically using ApplicationState batch operations.
@@ -1265,10 +1265,8 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
             # Debug logging to see what values we're saving
             logger.debug(
-
-                f"[SESSION-SAVE] tracking_file={self.state_manager.current_file}, "
+                f"[SESSION-SAVE] tracking_file={self.state_manager.current_file}, " +
                 f"image_directory={self.state_manager.image_directory}"
-
             )
 
             session_data = self._session_manager.create_session_data(

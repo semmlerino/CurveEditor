@@ -139,9 +139,9 @@ def assert_production_realistic(test_func):
             __tracebackhide__ = True  # Hide this frame from traceback
             errors = "\n".join(f"  - {pattern}: {msg}" for pattern, msg in found)
             pytest.fail(
-                f"Test uses anti-pattern(s) that create test-production mismatch:\n{errors}\n\n"
-                f"See docs/testing/UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md section "
-                f"'Test-Production State Alignment' for correct patterns."
+                f"Test uses anti-pattern(s) that create test-production mismatch:\n{errors}\n\n" +
+                "See docs/testing/UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md section " +
+                "'Test-Production State Alignment' for correct patterns."
             )
 
         return test_func(*args, **kwargs)

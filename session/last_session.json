@@ -1,25 +1,28 @@
 {
   "tracking_file": "2DTrackDatav2.txt",
-  "image_directory": null,
-  "current_frame": 1,
-  "zoom_level": 1.0,
+  "image_directory": "C:/footage/Burger",
+  "current_frame": 22,
+  "zoom_level": 3.855432894295316,
   "pan_offset": [
-    0.0,
-    0.0
+    275.71691416603926,
+    -982.3637208752198
   ],
   "window_geometry": [
-    0,
-    0,
+    154,
+    60,
     1400,
     900
   ],
   "active_points": [],
   "view_bounds": null,
   "recent_directories": [],
-  "selected_curves": [],
+  "selected_curves": [
+    "Point1",
+    "Point07"
+  ],
   "show_all_curves": false,
   "_metadata": {
-    "saved_at": "/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor",
+    "saved_at": "C:\\CustomScripts\\Python\\Work\\Linux\\CurveEditor",
     "version": "1.0"
   }
 }

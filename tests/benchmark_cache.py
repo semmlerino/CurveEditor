@@ -81,7 +81,7 @@ class CacheMonitor:
 
 def benchmark_cache_hit_rate() -> float:
     """Benchmark cache hit rate improvements with monitoring."""
-    QApplication.instance() or QApplication(sys.argv)
+    _app = QApplication.instance() or QApplication(sys.argv)
     widget = CurveViewWidget()
 
     # Create monitoring object (widget doesn't have built-in cache monitoring)
@@ -191,7 +191,7 @@ def benchmark_render_performance() -> float:
     print("RENDER PERFORMANCE BENCHMARK")
     print("=" * 60)
 
-    QApplication.instance() or QApplication(sys.argv)
+    _app = QApplication.instance() or QApplication(sys.argv)
     widget = CurveViewWidget()
 
     # Large dataset
@@ -226,7 +226,7 @@ def benchmark_render_performance() -> float:
 
 def benchmark_cache_performance() -> tuple[float, float, int]:
     """Run legacy cache performance benchmarks."""
-    QApplication.instance() or QApplication(sys.argv)
+    _app = QApplication.instance() or QApplication(sys.argv)
     widget = CurveViewWidget()
 
     # Generate large dataset

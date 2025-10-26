@@ -404,8 +404,6 @@ class OptimizedCurveRenderer:
             logger.warning("No points to render - curve_view.points is empty")
             return
 
-        logger.debug(f"Rendering {len(points)} points")
-
         # Convert to NumPy array for vectorized operations
         if not isinstance(points, np.ndarray):
             # Convert list of tuples to NumPy array - handle variable tuple lengths
@@ -441,14 +439,6 @@ class OptimizedCurveRenderer:
             for i, point in enumerate(point_data):
                 x, y = transform.data_to_screen(point[1], point[2])
                 screen_points[i] = [x, y]
-
-            # Debug logging
-            if len(screen_points) > 0:
-                logger.debug(f"Transformed {len(screen_points)} points using Transform service")
-                logger.debug(
-                    f"First point: data ({point_data[0][1]:.1f}, {point_data[0][2]:.1f}) -> screen ({screen_points[0][0]:.1f}, {screen_points[0][1]:.1f})"
-                )
-                logger.debug(f"Viewport: {viewport}")
         else:
             # Fallback to old method if transform not available
             zoom = render_state.zoom_factor
@@ -755,17 +745,11 @@ class OptimizedCurveRenderer:
         line_width: int,
     ) -> None:
         """Render lines with segment awareness for gaps at ENDFRAME points."""
-        # Try to get SegmentedCurve from DataService (single source of truth)
-        # This ensures we use the same segmentation as timeline/data operations
-        from services import get_data_service
-
-        data_service = get_data_service()
-
-        segmented_curve = data_service.segmented_curve
-        if segmented_curve is None:
-            # Fallback: create from curve data if DataService doesn't have one
-            points = [CurvePoint.from_tuple(pt) for pt in curve_data]
-            segmented_curve = SegmentedCurve.from_points(points)
+        # ALWAYS create SegmentedCurve from the curve_data being rendered
+        # This ensures correct segmentation for multi-curve rendering where each curve
+        # has its own segment structure (DataService only stores ONE curve's segments)
+        points = [CurvePoint.from_tuple(pt) for pt in curve_data]
+        segmented_curve = SegmentedCurve.from_points(points)
 
 
         # Set line styles for different segment types
@@ -1095,6 +1079,7 @@ class OptimizedCurveRenderer:
             render_state: The render state with multi-curve support and pre-computed visibility
         """
         if not render_state.curves_data:
+            logger.warning("_render_multiple_curves: no curves_data in RenderState")
             return
 
         curves_data = render_state.curves_data
@@ -1103,16 +1088,24 @@ class OptimizedCurveRenderer:
         selected_curves_ordered = render_state.selected_curves_ordered or []
         visible_curves = render_state.visible_curves
 
+        # DIAGNOSTIC LOGGING
+        logger.info(f"_render_multiple_curves: Processing {len(curves_data)} curves")
+        logger.info(f"  visible_curves: {visible_curves}")
+
         # Get transform once for all curves
         transform = self._create_transform_from_render_state(render_state)
 
         for curve_name, curve_points in curves_data.items():
             if not curve_points:
+                logger.info(f"  {curve_name}: SKIPPED (no points)")
                 continue
 
             # Visibility check: use pre-computed visibility from RenderState
             if visible_curves is None or curve_name not in visible_curves:
+                logger.info(f"  {curve_name}: SKIPPED (not in visible_curves)")
                 continue
+
+            logger.info(f"  {curve_name}: RENDERING {len(curve_points)} points")
 
             # Determine curve styling
             is_active = curve_name == active_curve

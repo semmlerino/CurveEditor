@@ -51,7 +51,6 @@ class Command(ABC):
         Returns:
             True if execution was successful, False otherwise
         """
-        pass
 
     @abstractmethod
     def undo(self, main_window: MainWindowProtocol) -> bool:
@@ -64,7 +63,6 @@ class Command(ABC):
         Returns:
             True if undo was successful, False otherwise
         """
-        pass
 
     @abstractmethod
     def redo(self, main_window: MainWindowProtocol) -> bool:
@@ -77,7 +75,6 @@ class Command(ABC):
         Returns:
             True if redo was successful, False otherwise
         """
-        pass
 
     def can_merge_with(self, _other: Command) -> bool:
         """

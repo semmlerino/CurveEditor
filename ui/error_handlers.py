@@ -104,32 +104,26 @@ class BaseErrorHandler(ABC):
     @abstractmethod
     def handle_validation_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle validation errors."""
-        pass
 
     @abstractmethod
     def handle_transform_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle transformation errors."""
-        pass
 
     @abstractmethod
     def handle_cache_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle cache-related errors."""
-        pass
 
     @abstractmethod
     def handle_coordinate_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
         """Handle coordinate system errors."""
-        pass
 
     @abstractmethod
     def report_issues(self, issues: list["ValidationIssue"]) -> None:
         """Report validation issues to user."""
-        pass
 
     @abstractmethod
     def notify_recovery(self, context: ErrorContext, strategy: RecoveryStrategy) -> None:
         """Notify about recovery actions."""
-        pass
 
     def should_suppress_error(self, error_type: str) -> bool:
         """Check if error should be suppressed due to frequency."""

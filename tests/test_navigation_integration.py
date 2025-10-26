@@ -22,6 +22,8 @@ Following UNIFIED_TESTING_GUIDE principles:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+from contextlib import suppress
+
 import pytest
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeyEvent
@@ -59,18 +61,14 @@ class TestNavigationIntegration:
             """
             app_instance = QApplication.instance()
             if app_instance:
-                try:
+                with suppress(RuntimeError):
                     app_instance.removeEventFilter(window)
-                except RuntimeError:
-                    pass  # Window already deleted
 
             # Disconnect FrameChangeCoordinator to prevent queued signals
             # from this window interfering with subsequent tests
             if hasattr(window, 'frame_change_coordinator'):
-                try:
+                with suppress(RuntimeError, AttributeError):
                     window.frame_change_coordinator.disconnect()
-                except (RuntimeError, AttributeError):
-                    pass  # Already disconnected or coordinator deleted
 
         window = MainWindow(auto_load_data=False)  # Disable auto-loading test data
         qtbot.addWidget(window, before_close_func=cleanup_window_resources)
@@ -221,12 +219,12 @@ class TestNavigationIntegration:
 
                 if expected_type == "gap":
                     # Should show no_points color
-                    expected_color = tab.COLORS["no_points"]
+                    expected_color = tab._colors_cache["no_points"]
                     assert color.red() == expected_color.red()
                     assert tab.point_count == 0
                 else:
                     # Should NOT be no_points color
-                    no_points = tab.COLORS["no_points"]
+                    no_points = tab._colors_cache["no_points"]
                     assert color.red() != no_points.red() or color.green() != no_points.green()
                     assert tab.point_count > 0
 

@@ -37,9 +37,9 @@ class TrackingDataController(BaseTrackingController):
         data_changed: Emitted when any tracking data changes
     """
 
-    data_loaded = Signal(str, list)  # curve_name, curve_data
-    load_error = Signal(str)
-    data_changed = Signal()
+    data_loaded: Signal = Signal(str, list)  # curve_name, curve_data
+    load_error: Signal = Signal(str)
+    data_changed: Signal = Signal()
 
     def __init__(self, main_window: MainWindowProtocol) -> None:
         """Initialize tracking data controller.

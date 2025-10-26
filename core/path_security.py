@@ -16,7 +16,6 @@ logger = get_logger("path_security")
 class PathSecurityError(Exception):
     """Exception raised for path security violations."""
 
-    pass
 
 
 def validate_file_path(

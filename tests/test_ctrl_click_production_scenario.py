@@ -213,7 +213,8 @@ class TestCtrlClickProductionScenario:
         # Should have BOTH points selected in curve1 (point-level selection within active curve)
         selection = app_state.get_selection("curve1")
         assert len(selection) == 2, f"Expected 2 points selected in curve1, got {len(selection)}: {selection}"
-        assert 0 in selection and 1 in selection, "Both points should be selected in curve1"
+        assert 0 in selection, "Point 0 should be selected in curve1"
+        assert 1 in selection, "Point 1 should be selected in curve1"
 
         # Step 3: Ctrl+click point in DIFFERENT curve (should toggle curve-level selection)
         QTest.mouseClick(
@@ -287,4 +288,5 @@ class TestCtrlClickProductionScenario:
         selection = app_state.get_selection("test_curve")
         assert len(selection) == 2, f"Expected 2 points after deselecting point 1, got {len(selection)}: {selection}"
         assert 1 not in selection, "Point 1 should be deselected"
-        assert 0 in selection and 2 in selection, "Points 0 and 2 should remain selected"
+        assert 0 in selection, "Point 0 should remain selected"
+        assert 2 in selection, "Point 2 should remain selected"

@@ -240,9 +240,8 @@ class TestMouseMoveEvents:
         # With default transform (scale=1), delta in curve coords: +50, -50 (Y inverted)
         updated_data = app_state.get_curve_data("test_curve")
         updated_point = updated_data[0] if updated_data else None
-        assert updated_point is not None and (
-            updated_point[1] != 100.0 or updated_point[2] != 100.0
-        )  # Position changed
+        assert updated_point is not None
+        assert updated_point[1] != 100.0 or updated_point[2] != 100.0  # Position changed
 
     def test_mouse_move_pans_view(self) -> None:
         """Test mouse move pans view when pan is active."""

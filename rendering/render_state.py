@@ -69,7 +69,7 @@ class RenderState:
     display_mode: "DisplayMode | None" = None
     selected_curve_names: set[str] | None = None
     selected_curves_ordered: list[str] | None = None  # Ordered list for visual differentiation
-    curve_metadata: dict[str, dict[str, Any]] | None = None
+    curve_metadata: dict[str, dict[str, object]] | None = None
     active_curve_name: str | None = None
 
     # Pre-computed visibility (performance optimization)
@@ -94,7 +94,7 @@ class RenderState:
             raise ValueError(f"Background opacity must be between 0.0 and 1.0: {self.background_opacity}")
 
     @classmethod
-    def compute(cls, widget: Any) -> "RenderState":
+    def compute(cls, widget: Any) -> "RenderState":  # CurveViewWidget - Any to avoid import cycle
         """
         Compute RenderState from CurveViewWidget with pre-computed visibility.
 
@@ -135,10 +135,18 @@ class RenderState:
         # Pre-compute visible curves based on display mode and metadata visibility
         visible_curves: set[str] = set()
         curves_data = widget._get_live_curves_data() if hasattr(widget, "_get_live_curves_data") else {}
-        curve_metadata = {}
+        curve_metadata: dict[str, dict[str, object]] = {}
 
         # Use widget.curves_data as authoritative source (filters out "__default__")
         all_curve_names = widget.curves_data.keys() if hasattr(widget, "curves_data") else curves_data.keys()
+
+        # DIAGNOSTIC LOGGING (temp)
+        from core.logger_utils import get_logger
+        logger = get_logger("render_state")
+        logger.info(f"RenderState.compute: found {len(list(all_curve_names))} curves")
+        logger.info(f"Display mode: {widget.display_mode}")
+        logger.info(f"Selected curves: {widget.selected_curve_names}")
+        logger.info(f"Active curve: {app_state.active_curve}")
 
         # Build metadata dict and visible_curves set
         if all_curve_names:
@@ -149,6 +157,7 @@ class RenderState:
 
                 # Filter 1: Check metadata visibility flag
                 if not metadata.get("visible", True):
+                    logger.info(f"  {curve_name}: SKIPPED (metadata.visible=False)")
                     continue
 
                 # Filter 2: Check display mode (three-branch decision)
@@ -157,14 +166,23 @@ class RenderState:
                 if widget.display_mode == DisplayMode.ALL_VISIBLE:
                     # ALL_VISIBLE mode: render all visible curves
                     visible_curves.add(curve_name)
+                    logger.info(f"  {curve_name}: VISIBLE (ALL_VISIBLE mode)")
                 elif widget.display_mode == DisplayMode.SELECTED:
                     # SELECTED mode: render only selected curves
                     if curve_name in widget.selected_curve_names:
                         visible_curves.add(curve_name)
+                        logger.info(f"  {curve_name}: VISIBLE (in selected_curve_names)")
+                    else:
+                        logger.info(f"  {curve_name}: SKIPPED (not in selected_curve_names)")
                 else:  # DisplayMode.ACTIVE_ONLY
                     # ACTIVE_ONLY mode: render only active curve
                     if curve_name == app_state.active_curve:
                         visible_curves.add(curve_name)
+                        logger.info(f"  {curve_name}: VISIBLE (is active curve)")
+                    else:
+                        logger.info(f"  {curve_name}: SKIPPED (not active curve)")
+
+        logger.info(f"Final visible_curves: {visible_curves} (count={len(visible_curves)})")
 
         # Create RenderState with all necessary data
         return cls(

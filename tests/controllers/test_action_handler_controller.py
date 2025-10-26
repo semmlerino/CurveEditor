@@ -148,6 +148,7 @@ class TestActionHandlerController:
             (2, 110.0, 210.0, "normal"),
             (3, 120.0, 220.0, "normal"),
         ]
+        assert mock_main_window.curve_widget is not None
         mock_main_window.curve_widget.set_curve_data(sample_data)
         assert mock_main_window.curve_widget.curve_data == sample_data
 
@@ -197,6 +198,7 @@ class TestActionHandlerController:
             (4, 130.0, 230.0, "normal"),
             (5, 140.0, 240.0, "normal"),
         ]
+        assert mock_main_window.curve_widget is not None
         mock_main_window.curve_widget.set_curve_data(sample_data)
         mock_main_window.curve_widget.selected_indices = []  # No selection
 
@@ -257,6 +259,7 @@ class TestActionHandlerController:
             (9, 180.0, 280.0, "normal"),
             (10, 190.0, 290.0, "normal"),
         ]
+        assert mock_main_window.curve_widget is not None
         mock_main_window.curve_widget.set_curve_data(sample_data)
 
         # Select indices 2, 3, 4 (middle points)

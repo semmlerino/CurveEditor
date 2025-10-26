@@ -293,8 +293,11 @@ def deform_curve_with_interpolated_offset(
                 new_x = source_point.x + interp_offset_x
                 new_y = source_point.y + interp_offset_y
 
-                # Create new point with TRACKED status (copied data)
-                new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=PointStatus.TRACKED)
+                # First filled point gets KEYFRAME status (starts new active segment after gap)
+                # Subsequent points get TRACKED status (continuations of the interpolated data)
+                # This ensures SegmentedCurve recognizes the filled gap as an active segment
+                point_status = PointStatus.KEYFRAME if gap_frames_filled == 0 else PointStatus.TRACKED
+                new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=point_status)
                 result_points.append(new_point)
                 gap_frames_filled += 1
 
@@ -305,6 +308,26 @@ def deform_curve_with_interpolated_offset(
 
     # Sort by frame
     result_points.sort(key=lambda p: p.frame)
+
+    # Convert ENDFRAME that created the gap to KEYFRAME (gap is now filled)
+    # The ENDFRAME should be at gap_start - 1
+    endframe_idx = None
+    for idx, point in enumerate(result_points):
+        if point.frame == gap_start - 1 and point.status == PointStatus.ENDFRAME:
+            endframe_idx = idx
+            break
+
+    if endframe_idx is not None:
+        old_point = result_points[endframe_idx]
+        # Create new point with KEYFRAME status (preserving position)
+        new_point = CurvePoint(
+            frame=old_point.frame,
+            x=old_point.x,
+            y=old_point.y,
+            status=PointStatus.KEYFRAME
+        )
+        result_points[endframe_idx] = new_point
+        logger.info(f"Converted ENDFRAME at frame {gap_start - 1} to KEYFRAME (gap filled)")
 
     # Convert back to tuple format
     return [p.to_tuple4() for p in result_points]
@@ -349,8 +372,11 @@ def fill_gap_with_source(
             new_x = source_point.x + offset_x
             new_y = source_point.y + offset_y
 
-            # Create new point with TRACKED status (copied data)
-            new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=PointStatus.TRACKED)
+            # First filled point gets KEYFRAME status (starts new active segment after gap)
+            # Subsequent points get TRACKED status (continuations of the interpolated data)
+            # This ensures SegmentedCurve recognizes the filled gap as an active segment
+            point_status = PointStatus.KEYFRAME if gap_frames_filled == 0 else PointStatus.TRACKED
+            new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=point_status)
             result_points.append(new_point)
             gap_frames_filled += 1
 
@@ -361,6 +387,26 @@ def fill_gap_with_source(
 
     # Sort by frame
     final_points.sort(key=lambda p: p.frame)
+
+    # Convert ENDFRAME that created the gap to KEYFRAME (gap is now filled)
+    # The ENDFRAME should be at gap_start - 1
+    endframe_idx = None
+    for idx, point in enumerate(final_points):
+        if point.frame == gap_start - 1 and point.status == PointStatus.ENDFRAME:
+            endframe_idx = idx
+            break
+
+    if endframe_idx is not None:
+        old_point = final_points[endframe_idx]
+        # Create new point with KEYFRAME status (preserving position)
+        new_point = CurvePoint(
+            frame=old_point.frame,
+            x=old_point.x,
+            y=old_point.y,
+            status=PointStatus.KEYFRAME
+        )
+        final_points[endframe_idx] = new_point
+        logger.info(f"Converted ENDFRAME at frame {gap_start - 1} to KEYFRAME (gap filled)")
 
     # Convert back to tuple format
     return [p.to_tuple4() for p in final_points]

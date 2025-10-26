@@ -18,6 +18,7 @@ Tests breadcrumb navigation, history, sorting, and state persistence.
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+from contextlib import suppress
 from unittest.mock import Mock
 
 import pytest
@@ -367,10 +368,8 @@ class TestImageBrowserStatePersistence:
         yield dialog
 
         # Explicit cleanup to prevent teardown errors
-        try:
+        with suppress(RuntimeError):
             dialog.close()
-        except RuntimeError:
-            pass  # Already deleted
 
     def test_restore_state_called_on_init(self, dialog_with_state):
         """Test _restore_state initialization (no-op since persistence disabled)."""

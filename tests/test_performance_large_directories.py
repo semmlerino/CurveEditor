@@ -152,7 +152,7 @@ class TestPerformanceLargeDirectories:
                 assert not pixmap.isNull(), f"Invalid thumbnail for frame {frame_num}"
 
             avg_time_per_thumbnail = load_duration / len(thumbnails_loaded)
-            print(f"Generated {len(thumbnails_loaded)} thumbnails in {load_duration:.2f}s "
+            print(f"Generated {len(thumbnails_loaded)} thumbnails in {load_duration:.2f}s " +
                   f"({avg_time_per_thumbnail*1000:.1f}ms per thumbnail)")
 
     @pytest.mark.performance
@@ -164,7 +164,7 @@ class TestPerformanceLargeDirectories:
 
             # Create test pixmaps
             test_pixmaps = []
-            for i in range(100):
+            for _ in range(100):
                 pixmap = QPixmap(150, 150)
                 pixmap.fill()
                 test_pixmaps.append(pixmap)
@@ -233,7 +233,7 @@ class TestPerformanceLargeDirectories:
 
         # Memory usage assertions
         assert memory_increase < 100, f"Memory usage too high: {memory_increase:.1f}MB increase"
-        assert len(sequence_widget._sequences) == 100, "Not all sequences were loaded"
+        assert len(sequence_widget.sequences) == 100, "Not all sequences were loaded"
 
         print(f"Memory usage with 100 sequences (10,000 frames): {memory_increase:.1f}MB increase")
 

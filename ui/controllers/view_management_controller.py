@@ -288,11 +288,9 @@ class ViewManagementController:
             # Move to end of access order (most recently used)
             self._cache_access_order.remove(image_path)
             self._cache_access_order.append(image_path)
-            logger.debug(f"Cache HIT: {Path(image_path).name}")
             return self._image_cache[image_path]
 
         # Load from disk
-        logger.debug(f"Cache MISS: {Path(image_path).name} - loading from disk")
         pixmap = self._load_image_from_disk(Path(image_path))
 
         if pixmap is None:
@@ -354,7 +352,6 @@ class ViewManagementController:
             self.main_window.curve_widget.background_image = pixmap
             # NOTE: Don't call update() here - FrameChangeCoordinator handles the repaint
             # in phase 3 after centering, preventing visual jumps during playback
-            logger.debug(f"Updated background to frame {frame}: {self.image_filenames[image_idx]}")
 
     def clear_background_images(self) -> None:
         """Clear all background image data and cache."""

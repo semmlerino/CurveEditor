@@ -126,7 +126,8 @@ class TestEventFilterNavigation:
         # Verify navigation happened (should be at frame 5)
         assert get_application_state().current_frame == 5
         status_msg = window.statusBar().currentMessage().lower()
-        assert "frame" in status_msg and "5" in status_msg
+        assert "frame" in status_msg
+        assert "5" in status_msg
 
     def test_page_up_via_eventfilter_with_timeline_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test Page Up works through eventFilter when timeline has focus."""
@@ -155,7 +156,8 @@ class TestEventFilterNavigation:
         # Verify navigation happened (should be at frame 5)
         assert get_application_state().current_frame == 5
         status_msg = window.statusBar().currentMessage().lower()
-        assert "frame" in status_msg and "5" in status_msg
+        assert "frame" in status_msg
+        assert "5" in status_msg
 
     def test_navigation_with_curve_widget_focus(self, main_window_with_data: MainWindow, qtbot: QtBot) -> None:
         """Test navigation still works when curve widget has focus."""

@@ -125,7 +125,6 @@ class MockCurveWidget:
 
     def update(self) -> None:
         """Update the widget (required for some commands)."""
-        pass
 
 
 class MockMainWindow:
@@ -184,31 +183,24 @@ class MockMainWindow:
 
     def add_to_history(self) -> None:
         """Add current state to history."""
-        pass
 
     def restore_state(self, state: object) -> None:
         """Restore state from history."""
-        pass
 
     def update_status(self, message: str) -> None:
         """Update status bar message."""
-        pass
 
     def update_ui_state(self) -> None:
         """Update UI state."""
-        pass
 
     def update_curve_data(self, data: object) -> None:
         """Update curve data."""
-        pass
 
     def update_curve_view_options(self) -> None:
         """Update curve view options."""
-        pass
 
     def setWindowTitle(self, title: str) -> None:
         """Set window title."""
-        pass
 
     def statusBar(self) -> object:
         """Get status bar."""
@@ -222,11 +214,9 @@ class MockMainWindow:
 
     def set_centering_enabled(self, enabled: bool) -> None:
         """Enable or disable auto-centering."""
-        pass
 
     def apply_smooth_operation(self) -> None:
         """Apply smoothing operation."""
-        pass
 
 
 class TestSetCurveDataCommand:

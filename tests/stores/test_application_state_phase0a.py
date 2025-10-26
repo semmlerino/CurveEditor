@@ -39,7 +39,7 @@ class TestGetCurveDataValueError:
 
     def test_raises_value_error_when_no_active_curve(self, state):
         """ValueError should be raised when curve_name=None and no active curve set."""
-        with pytest.raises(ValueError, match="set_active_curve|curve_name"):
+        with pytest.raises(ValueError, match=r"set_active_curve|curve_name"):
             state.get_curve_data(curve_name=None)
 
     def test_error_message_mentions_both_solutions(self, state):

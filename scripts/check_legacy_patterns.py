@@ -81,18 +81,16 @@ def check_file(file_path: Path) -> list[Issue]:
 
         # Check for legacy get_curve_data() with no arguments
         for i, line in enumerate(lines, 1):
-            if match := LEGACY_GET_CURVE_DATA_PATTERN.search(line):  # noqa: F841
-                # Exclude ApplicationState itself (it defines the method)
-                if "stores/application_state.py" not in str(file_path):
-                    issues.append(
-                        Issue(
-                            file=file_path,
-                            line_num=i,
-                            line=line.strip(),
-                            rule="LEGACY002",
-                            message="Legacy get_curve_data() with no arguments. Use active_curve_data property instead",
-                        )
+            if (match := LEGACY_GET_CURVE_DATA_PATTERN.search(line)) and "stores/application_state.py" not in str(file_path):  # noqa: F841
+                issues.append(
+                    Issue(
+                        file=file_path,
+                        line_num=i,
+                        line=line.strip(),
+                        rule="LEGACY002",
+                        message="Legacy get_curve_data() with no arguments. Use active_curve_data property instead",
                     )
+                )
 
     except Exception as e:
         print(f"Error checking {file_path}: {e}", file=sys.stderr)

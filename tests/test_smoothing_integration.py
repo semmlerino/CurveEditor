@@ -96,7 +96,7 @@ class TestEndToEndSmoothing:
         assert smoothed_variation < original_variation  # Smoothing should reduce variation
 
         # Verify frames are preserved
-        for orig, smoothed in zip(original_data, smoothed_data):
+        for orig, smoothed in zip(original_data, smoothed_data, strict=True):
             assert orig[0] == smoothed[0]  # Frame numbers should match
 
     def test_real_smoothing_operation_median_filter(self, window_with_real_data, qtbot):
@@ -330,7 +330,7 @@ class TestSmoothingFileIO:
         # Verify data matches
         reloaded_data = list(window.curve_widget.curve_data)
         assert len(reloaded_data) == len(smoothed_data)
-        for orig, loaded in zip(smoothed_data, reloaded_data):
+        for orig, loaded in zip(smoothed_data, reloaded_data, strict=True):
             assert orig[0] == loaded[0]  # Frame
             assert abs(orig[1] - loaded[1]) < 0.01  # X (allow small float difference)
             assert abs(orig[2] - loaded[2]) < 0.01  # Y

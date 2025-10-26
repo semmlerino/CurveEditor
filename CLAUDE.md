@@ -56,37 +56,23 @@ ActionHandlerController establishes the pattern. Controllers will adopt protocol
 
 ### Controller Tests Status
 
-**Test Infrastructure** (`tests/controllers/`):
-- ✅ 8 test files created (one per controller) with clean docstrings
-- ✅ 24 test stubs defined with correct constructors and type annotations
-- ✅ 0 type errors in test files (constructor bugs fixed)
-- ⚠️ 4 tests implemented (17% complete)
-- ⚠️ 20 tests are stubs (pass placeholders)
+**Coverage:** 12/14 controllers tested (86%), 220+ tests, 100% pass rate
 
-**October 2025 Update**: Fixed 4 critical constructor parameter mismatches and removed 80 lines of redundant pyright pragmas. Test infrastructure is production-ready. Discovered and fixed production bug (pan_offset not synced for session save/restore).
+**October 2025 Update:** Created comprehensive test suites for 4 high-priority components (TrackingDisplayController, TrackingSelectionController, ViewCameraController, CommandManager). Test suite discovered and helped fix cache invalidation bug in ViewCameraController.pan().
 
-**Current Status:**
-Test structure exists and infrastructure is solid. Implementing remaining test stubs provides high value for catching bugs early (already caught 1 production bug during refactoring).
-
-**Priority:** Implement high-value test stubs for critical controller functionality.
+**Remaining:** base_tracking_controller (abstract base), progressive_disclosure_controller (lower priority)
 
 ### Refactoring Metrics
 
-**Improvements Delivered:**
-- +10 quality points (62 → 72/100)
-- 0 type errors (down from 47 during migration, maintained through October 2025)
-- 10+ methods documented with numpy-style docstrings
-- 5 methods with reduced nesting (guard clauses)
-- Logging performance bug fixed
-- 4 test constructor bugs fixed (October 2025)
-- 80 lines of redundant code removed (October 2025)
-- Production bug fixed: pan_offset syncing for session save/restore (October 2025)
-- StateManagerProtocol aligned with Simplified Migration (October 2025)
+**Key Metrics:**
+- Quality: 62 → 72/100 (+10 points)
+- Type errors: 47 → 0 (maintained)
+- Test coverage: 3,065 → 3,175 tests (+110 tests)
+- Controller coverage: 57% → 86%
 
-**Next Steps:**
-- Implement remaining 20 test stubs (high ROI for bug detection)
-- Continue protocol migration as controllers are refactored
-- Focus on functional improvements and test coverage
+**October 2025:** Completed high-priority test gap closure (+112 controller tests), fixed 2 production bugs (pan_offset sync, cache invalidation), documented 10+ methods, removed 80 lines redundant code, aligned StateManagerProtocol with migration.
+
+**Next:** Protocol migration for remaining controllers, functional improvements, feature development
 
 ---
 
@@ -511,6 +497,18 @@ x, y = data_service.get_position_at_frame(curve_name, frame)  # Returns held pos
 ```
 
 **Design**: Gaps preserve tracked data for restoration, enable clean rendering without lines crossing inactive regions.
+
+### Insert Track (Gap Filling)
+
+**Insert Track** fills gaps using 3DEqualizer-style deformation algorithm. Critical status handling:
+
+- **First filled point**: `KEYFRAME` status (starts new active segment after gap)
+- **Subsequent points**: `TRACKED` status (continuation of interpolated data)
+- **Original ENDFRAME**: Converted to `KEYFRAME` (gap is now closed)
+
+**Why this matters**: `SegmentedCurve` treats `TRACKED` points after `ENDFRAME` as inactive segments (3DEqualizer gap semantics). The first `KEYFRAME` signals "gap is filled, resume active segment" so renderer draws solid lines instead of dashed gap visualization.
+
+**Files**: `core/insert_track_algorithm.py` (status assignment), `core/curve_segments.py:from_points()` (segment activity logic)
 
 ## Selection State
 

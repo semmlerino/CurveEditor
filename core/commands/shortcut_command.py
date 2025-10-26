@@ -129,7 +129,6 @@ class ShortcutCommand(ABC):
         Returns:
             True if the command can execute, False otherwise
         """
-        pass
 
     @abstractmethod
     def execute(self, context: ShortcutContext) -> bool:
@@ -141,7 +140,6 @@ class ShortcutCommand(ABC):
         Returns:
             True if the command was executed successfully, False otherwise
         """
-        pass
 
     @property
     def description(self) -> str:

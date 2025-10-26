@@ -343,9 +343,10 @@ class TestFillGapWithSource:
             cast(PointTuple4Str, frame_10_point)[3] == "normal"
         ), "Frame 10 (after gap) should preserve original status"
 
-        # Filled frames (3) should be marked as tracked
+        # Filled frames (3) should be marked as keyframe (first filled point signals gap closure)
+        # Per CLAUDE.md: "First filled point: KEYFRAME status (starts new active segment after gap)"
         assert len(frame_3_point) >= 4
-        assert cast(PointTuple4Str, frame_3_point)[3] == "tracked", "Frame 3 (filled) should be tracked"
+        assert cast(PointTuple4Str, frame_3_point)[3] == "keyframe", "Frame 3 (first filled) should be keyframe"
 
     def test_partial_gap_coverage(self):
         """Test filling gap when source doesn't cover all gap frames."""

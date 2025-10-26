@@ -44,8 +44,8 @@ class SmartLocationSelector(QWidget):
     """
 
     # Signals
-    location_selected = Signal(str)  # Emitted when user selects a location
-    location_changed = Signal(str)   # Emitted when location changes (including typing)
+    location_selected: Signal = Signal(str)  # Emitted when user selects a location
+    location_changed: Signal = Signal(str)   # Emitted when location changes (including typing)
 
     def __init__(self, parent: QWidget | None = None, state_manager: "StateManager | None" = None):
         """
@@ -56,7 +56,7 @@ class SmartLocationSelector(QWidget):
             state_manager: State manager for accessing preferences and recent directories
         """
         super().__init__(parent)
-        self.state_manager = state_manager
+        self.state_manager: StateManager | None = state_manager
         self._current_location: str = ""
 
         self._setup_ui()
@@ -71,7 +71,7 @@ class SmartLocationSelector(QWidget):
         layout.setSpacing(4)
 
         # Location combo box (editable)
-        self.location_combo = QComboBox()
+        self.location_combo: QComboBox = QComboBox()
         self.location_combo.setEditable(True)
         self.location_combo.setInsertPolicy(QComboBox.InsertPolicy.NoInsert)
         self.location_combo.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
@@ -83,16 +83,14 @@ class SmartLocationSelector(QWidget):
 
         # Tooltips
         self.location_combo.setToolTip(
-
-            "Select from recent directories or type a path.\n"
+            "Select from recent directories or type a path.\n" +
             "Use Tab for path completion."
-
         )
 
         layout.addWidget(self.location_combo, stretch=1)
 
         # Quick access button
-        self.quick_access_button = QToolButton()
+        self.quick_access_button: QToolButton = QToolButton()
         self.quick_access_button.setText("⚡")
         self.quick_access_button.setToolTip("Quick access to common locations")
         self.quick_access_button.setPopupMode(QToolButton.ToolButtonPopupMode.InstantPopup)
@@ -101,7 +99,7 @@ class SmartLocationSelector(QWidget):
         layout.addWidget(self.quick_access_button)
 
         # Browse button
-        self.browse_button = QPushButton("Browse...")
+        self.browse_button: QPushButton = QPushButton("Browse...")
         self.browse_button.setToolTip("Browse for directory")
         self.browse_button.setMaximumWidth(80)
 
@@ -113,12 +111,12 @@ class SmartLocationSelector(QWidget):
     def _setup_completion(self) -> None:
         """Set up path completion for the combo box."""
         # Create directory model for completion
-        self.dir_model = QFileSystemModel()
+        self.dir_model: QFileSystemModel = QFileSystemModel()
         self.dir_model.setRootPath("")
         self.dir_model.setFilter(QDir.Filter.Dirs | QDir.Filter.NoDotAndDotDot)
 
         # Create completer
-        self.completer = QCompleter()
+        self.completer: QCompleter = QCompleter()
         self.completer.setModel(self.dir_model)
         self.completer.setCaseSensitivity(Qt.CaseSensitivity.CaseInsensitive)
         self.completer.setCompletionMode(QCompleter.CompletionMode.PopupCompletion)
@@ -260,13 +258,13 @@ class SmartLocationSelector(QWidget):
         """
         if Path(path).exists():
             self.set_location(path)
-            self.location_selected.emit(path)
         else:
             logger.warning(f"Selected location does not exist: {path}")
 
     def _on_location_changed(self, text: str) -> None:
         """Handle combo box text change."""
-        self._current_location = text
+        # Note: Do NOT set _current_location here - it's just display text
+        # Actual location is set in set_location() and _on_location_activated()
         self.location_changed.emit(text)
 
     def _on_location_activated(self, index: int) -> None:
@@ -317,7 +315,6 @@ class SmartLocationSelector(QWidget):
 
         if directory:
             self.set_location(directory)
-            self.location_selected.emit(directory)
 
     def set_location(self, path: str) -> None:
         """
@@ -345,6 +342,9 @@ class SmartLocationSelector(QWidget):
                 self.state_manager.add_recent_directory_for_project(path)
                 # Refresh the combo box to show updated recent list
                 self._populate_locations()
+
+            # Emit signal to notify that location has been set
+            self.location_selected.emit(path)
 
             logger.debug(f"Location set to: {path}")
         else:

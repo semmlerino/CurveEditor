@@ -9,6 +9,7 @@ handled directly in MainWindow, reducing MainWindow complexity.
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -17,6 +18,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
     QLabel,
+    QMenu,
     QPushButton,
     QSlider,
     QSpinBox,
@@ -158,7 +160,7 @@ class UIInitializationController:
         """Create menu bar with all actions."""
         menubar = self.main_window.menuBar()
 
-        def add_actions_to_menu(menu, actions):
+        def add_actions_to_menu(menu: QMenu, actions: list[QAction | None]) -> None:
             """Helper to add actions or separators to a menu."""
             for action in actions:
                 _ = menu.addSeparator() if action is None else menu.addAction(action)
@@ -483,28 +485,23 @@ class UIInitializationController:
     def _init_curve_view(self) -> None:
         """Initialize curve view widget (Protocol API)."""
         # Already handled in _init_central_widget
-        pass
 
     def _init_control_panel(self) -> None:
         """Initialize control panel (Protocol API)."""
         # Control panel elements are created in _create_ui_component_widgets
         # and integrated in _init_toolbar
-        pass
 
     def _init_properties_panel(self) -> None:
         """Initialize properties panel (Protocol API)."""
         # Properties panel elements are created in _create_ui_component_widgets
-        pass
 
     def _init_timeline_tabs(self) -> None:
         """Initialize timeline tabs (Protocol API)."""
         # Timeline tabs are created in _init_central_widget
-        pass
 
     def _init_tracking_panel(self) -> None:
         """Initialize tracking panel (Protocol API)."""
         # Tracking panel is created in _init_dock_widgets
-        pass
 
     def _on_smoothing_type_changed(self, text: str) -> None:
         """Handle smoothing type combo box change."""

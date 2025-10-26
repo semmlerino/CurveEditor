@@ -2,7 +2,7 @@
 
 from typing import override
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QPoint, Qt, Signal
 from PySide6.QtGui import QAction, QKeyEvent
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -21,10 +21,10 @@ class PointListWidget(QWidget):
     """Widget displaying curve points in a table format with editing capabilities."""
 
     # Signals
-    point_selected = Signal(list)  # List of selected indices
-    point_edited = Signal(int, float, float)  # Index, new_x, new_y
-    point_deleted = Signal(list)  # List of indices to delete
-    point_status_changed = Signal(int, PointStatus)  # Index, new_status
+    point_selected: Signal = Signal(list)  # List of selected indices
+    point_edited: Signal = Signal(int, float, float)  # Index, new_x, new_y
+    point_deleted: Signal = Signal(list)  # List of indices to delete
+    point_status_changed: Signal = Signal(int, PointStatus)  # Index, new_status
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize the point list widget."""
@@ -39,7 +39,7 @@ class PointListWidget(QWidget):
         layout.setContentsMargins(0, 0, 0, 0)
 
         # Create table widget
-        self.table = QTableWidget()
+        self.table: QTableWidget = QTableWidget()
         self.table.setColumnCount(5)
         self.table.setHorizontalHeaderLabels(["", "Frame", "X", "Y", "Status"])
 
@@ -200,7 +200,7 @@ class PointListWidget(QWidget):
                 original_y = item.data(Qt.ItemDataRole.UserRole)
                 item.setText(f"{original_y:.2f}")
 
-    def _show_context_menu(self, position) -> None:
+    def _show_context_menu(self, position: QPoint) -> None:
         """Show context menu for selected points."""
         selected_rows = []
         for item in self.table.selectedItems():

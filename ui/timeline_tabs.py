@@ -852,7 +852,6 @@ class TimelineTabWidget(QWidget):
     def _ensure_frame_visible(self, _frame: int) -> None:
         """Ensure the specified frame is visible (no-op since all frames are visible)."""
         # All frames are always visible with dynamic width
-        pass
 
     def _update_frame_info(self) -> None:
         """Update frame information label."""

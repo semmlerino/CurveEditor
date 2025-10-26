@@ -542,6 +542,7 @@ class ViewCameraController:
         """
         self.pan_offset_x += delta_x
         self.apply_pan_offset_y(delta_y)
+        self.invalidate_caches()  # Invalidate cache when pan offsets change
 
     def _get_image_top_coordinates(self, img_height: float, transform: Transform) -> tuple[float, float]:
         """

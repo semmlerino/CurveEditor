@@ -152,8 +152,6 @@ class FrameChangeCoordinator:
         Args:
             frame: New frame number
         """
-        logger.debug(f"[FRAME-COORDINATOR] Frame changed to {frame}")
-
         errors: list[str] = []
 
         # Phase 1: Pre-paint state updates (all must attempt even if one fails)
@@ -196,19 +194,16 @@ class FrameChangeCoordinator:
         """Update background image for frame (if images loaded)."""
         if self.view_management and self.view_management.image_filenames:
             self.view_management.update_background_for_frame(frame)
-            logger.debug(f"[FRAME-COORDINATOR] Background updated for frame {frame}")
 
     def _apply_centering(self, frame: int) -> None:
         """Apply centering if centering mode is enabled."""
         if self.curve_widget and self.curve_widget.centering_mode:
             self.curve_widget.center_on_frame(frame)
-            logger.debug(f"[FRAME-COORDINATOR] Centering applied for frame {frame}")
 
     def _invalidate_caches(self) -> None:
         """Invalidate render caches to prepare for repaint."""
         if self.curve_widget:
             self.curve_widget.invalidate_caches()
-            logger.debug("[FRAME-COORDINATOR] Caches invalidated")
 
     def _update_timeline_widgets(self, frame: int) -> None:
         """Update timeline widgets (spinbox, slider, tabs)."""
@@ -226,10 +221,7 @@ class FrameChangeCoordinator:
         if self.main_window:
             self.main_window.update_point_status_label()
 
-        logger.debug(f"[FRAME-COORDINATOR] Timeline widgets updated for frame {frame}")
-
     def _trigger_repaint(self) -> None:
         """Trigger single repaint with all state applied."""
         if self.curve_widget:
             self.curve_widget.update()
-            logger.debug("[FRAME-COORDINATOR] Repaint triggered")

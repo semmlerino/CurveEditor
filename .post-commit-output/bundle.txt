@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (101.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 203 files to bundle
+Skipping large file (116.9MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 194 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -12,38 +12,31 @@ Bundled: 3de_coordinate_test_20250911_084435.txt
 Bundled: 3de_export_analysis_20250911_084443.txt
 Bundled: 3DE_SCRIPTS_README.md
 Bundled: 3de_tracking_analysis_20250911_084452.txt
-Bundled: ANALYSIS_INDEX.txt
-Bundled: AUDIT_EXECUTIVE_SUMMARY.txt
 Bundled: BASEDPYRIGHT_STRATEGY.md
-Bundled: baseline_lines.txt
-Bundled: baseline_tests.txt
-Bundled: baseline_types.txt
-Bundled: BEST_PRACTICES_SUMMARY.txt
 Bundled: CLAUDE.md
+Bundled: COMPLIANCE_ANALYSIS_INDEX.md
+Bundled: COMPLIANCE_PATTERNS_FOUND.txt
+Bundled: COMPLIANCE_QUICK_REFERENCE.md
+Bundled: COMPLIANCE_SUMMARY.txt
 Bundled: conftest.py
 Bundled: curveeditor_latest_metadata.json
 Bundled: DEBUGGING_METHODOLOGY.md
-Bundled: IMPLEMENTATION_CHANGES_SUMMARY.txt
 Bundled: KeyFrameTest.txt
 Bundled: main.py
-Bundled: mainwindow_diff.txt
-Bundled: phase6_type_check.txt
 Bundled: Point01.txt
 Bundled: Point01_only.txt
-Bundled: post_phase6.0_types.txt
-Bundled: pre_phase6_types.txt
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QUICK_REFERENCE.md
 Bundled: README.md
 Bundled: REFACTORING_ROADMAP_KISS_DRY_YAGNI.md
+Bundled: REGRESSION_PREVENTION.md
 Bundled: requirements.txt
-Bundled: REVIEW_SUMMARY.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: testspline.txt
 Bundled: test_normalized_3de.txt
-Bundled: test_results.txt
+Bundled: TEST_SUITE_COMPLIANCE_ANALYSIS.md
 Bundled: transfer_config.json
 Bundled: .claude/settings.local.json
 Bundled: .claude/commands/TestRules.md
@@ -73,7 +66,6 @@ Bundled: core/curve_segments.py
 Bundled: core/defaults.py
 Bundled: core/directory_scan_worker.py
 Bundled: core/display_mode.py
-Bundled: core/error_handlers.py
 Bundled: core/error_messages.py
 Bundled: core/favorites_manager.py
 Bundled: core/frame_utils.py
@@ -107,7 +99,6 @@ Bundled: core/workers/directory_scanner.py
 Bundled: core/workers/thumbnail_cache.py
 Bundled: core/workers/thumbnail_worker.py
 Bundled: core/workers/__init__.py
-Bundled: data/batch_edit.py
 Bundled: data/csv_export.py
 Bundled: data/curve_data_utils.py
 Bundled: data/curve_view_plumbing.py
@@ -209,9 +200,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.41 MB
+Folder size: 2.31 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 739504 bytes
+Encoded size: 724340 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

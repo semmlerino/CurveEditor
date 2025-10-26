@@ -280,6 +280,7 @@ class MockMainWindow:
         self.total_frames_label: object = None
         self.status_label: object = None
         self.tracking_controller: MultiPointTrackingController | None = None
+        self.timeline_controller: object = None  # Add missing attribute
         self.active_timeline_point: str | None = None
 
     def update_tracking_panel(self) -> None:
@@ -289,11 +290,9 @@ class MockMainWindow:
 
     def update_timeline_tabs(self, data: object) -> None:
         """Mock timeline update."""
-        pass
 
     def update_ui_state(self) -> None:
         """Mock UI state update."""
-        pass
 
 
 # ============================================================================

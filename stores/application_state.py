@@ -225,8 +225,18 @@ class ApplicationState(QObject):
             curve_name: Name of curve to set
             data: New curve data (accepts any sequence of point data)
             metadata: Optional metadata (visibility, color, etc.)
+
+        Raises:
+            TypeError: If data is not a valid sequence (e.g., string or dict)
+            ValueError: If curve_name is None or empty
         """
         self._assert_main_thread()
+        # Validate curve_name
+        if curve_name is None or curve_name == "":
+            raise ValueError("curve_name cannot be None or empty")
+        # Validate data type - reject strings and dicts which are iterable but invalid
+        if isinstance(data, (str, dict)):
+            raise TypeError(f"data must be a sequence of point data, not {type(data).__name__}")
         # Store copy (immutability) - convert Sequence to list
         self._curves_data[curve_name] = list(data)
 
@@ -640,11 +650,8 @@ class ApplicationState(QObject):
             frame = 1
 
         if self._current_frame != frame:
-            old_frame = self._current_frame
             self._current_frame = frame
             self._emit(self.frame_changed, (frame,))
-
-            logger.debug(f"Frame changed: {old_frame} -> {frame}")
 
     # ==================== Image Sequence Methods ====================
 

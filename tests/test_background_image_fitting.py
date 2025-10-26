@@ -217,9 +217,8 @@ class TestBackgroundImageFitting:
         curve_view.background_image = test_image_1280x720
 
         # Use qtbot to wait for signals (testing guide best practice)
-        with qtbot.waitSignal(curve_view.view_changed, timeout=1000):
-            with qtbot.waitSignal(curve_view.zoom_changed, timeout=1000):
-                curve_view.fit_to_background_image()
+        with qtbot.waitSignal(curve_view.view_changed, timeout=1000), qtbot.waitSignal(curve_view.zoom_changed, timeout=1000):
+            curve_view.fit_to_background_image()
 
     def test_fit_multiple_times_is_idempotent(self, curve_view, test_image_1280x720):
         """Test that fitting multiple times produces consistent results."""

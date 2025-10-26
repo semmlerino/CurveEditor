@@ -25,6 +25,7 @@ Following UNIFIED_TESTING_GUIDE principles:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+from contextlib import suppress
 from unittest.mock import patch
 
 import pytest
@@ -313,17 +314,13 @@ class TestTimelineScrubbing:
 
         def cleanup_event_filter(window):
             """Remove event filter before window closes."""
-            try:
+            with suppress(Exception):
                 from PySide6.QtWidgets import QApplication
 
                 app = QApplication.instance()
                 if app and hasattr(window, "global_event_filter"):
-                    try:
+                    with suppress(RuntimeError):
                         app.removeEventFilter(window.global_event_filter)
-                    except RuntimeError:
-                        pass
-            except Exception:
-                pass
 
         # Mock file operations to prevent auto-loading
         with patch("ui.file_operations.FileOperations.load_burger_data_async"):

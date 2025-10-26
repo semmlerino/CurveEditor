@@ -65,7 +65,6 @@ class TestUIInitializationController:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-        pass
 
     def test_layout_setup(
         self,
@@ -86,4 +85,3 @@ class TestUIInitializationController:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-        pass

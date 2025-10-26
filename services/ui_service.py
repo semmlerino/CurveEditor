@@ -40,7 +40,6 @@ class UIService:
 
     def __init__(self) -> None:
         """Initialize the UIService."""
-        pass
 
     # ==================== Dialog Methods (from dialog_service) ====================
 
