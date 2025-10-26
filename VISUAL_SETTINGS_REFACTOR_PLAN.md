@@ -1099,23 +1099,23 @@ Phase 2 removes `show_background`, `show_grid`, `point_radius`, `line_width` as 
 - [x] Document current defaults in `tests/visual_regression/current_defaults.txt` - 16/16 ✅
 - [ ] Verify 10 .png files saved correctly - DEFERRED (GUI)
 
-### Phase 1: Create VisualSettings (Day 1 - 3h)
-- [ ] Create file: `rendering/visual_settings.py`
-- [ ] Define VisualSettings dataclass (15 fields total, mutable, NOT frozen)
-- [ ] Add COMPLETE validation in `__post_init__` (all 6 numeric fields)
-- [ ] Include all 15 fields: point_radius, selected_point_radius, line_width, selected_line_width, line_color, selected_line_color, show_grid, grid_size, grid_line_width, grid_color, show_points, show_lines, show_labels, show_velocity_vectors, show_all_frame_numbers
-- [ ] **EXCLUDE show_background** (stays in RenderState - architectural setting)
-- [ ] **CRITICAL:** Add to CurveViewWidget `__init__` as FIRST line after `super().__init__()`
-- [ ] Exact location: After line ~152 `super().__init__(parent)`
-- [ ] Code: `self.visual: VisualSettings = VisualSettings()`
-- [ ] Keep existing properties (parallel system for backward compatibility)
-- [ ] Create test file: `tests/test_visual_settings.py`
-- [ ] Test: Defaults match current behavior (point_radius=5, line_width=2, show_points=True, etc.)
-- [ ] Test: Validation raises on invalid values (6 numeric field tests)
-- [ ] Type check: `./bpr rendering/visual_settings.py`
-- [ ] Run tests: `pytest tests/test_visual_settings.py -v`
-- [ ] Verify `self.visual` initialized before properties (grep check)
-- [ ] Commit: "feat: Add VisualSettings dataclass with 15 visual parameters (Phase 1)"
+### Phase 1: Create VisualSettings (Day 1 - 3h) ✅ COMPLETE
+- [x] Create file: `rendering/visual_settings.py`
+- [x] Define VisualSettings dataclass (15 fields total, mutable, NOT frozen)
+- [x] Add COMPLETE validation in `__post_init__` (all 6 numeric fields)
+- [x] Include all 15 fields: point_radius, selected_point_radius, line_width, selected_line_width, line_color, selected_line_color, show_grid, grid_size, grid_line_width, grid_color, show_points, show_lines, show_labels, show_velocity_vectors, show_all_frame_numbers
+- [x] **EXCLUDE show_background** (stays in RenderState - architectural setting)
+- [x] **CRITICAL:** Add to CurveViewWidget `__init__` as FIRST line after `super().__init__()`
+- [x] Exact location: After line ~152 `super().__init__(parent)` (actual: line 163)
+- [x] Code: `self.visual: VisualSettings = VisualSettings()`
+- [x] Keep existing properties (parallel system for backward compatibility)
+- [x] Create test file: `tests/test_visual_settings.py`
+- [x] Test: Defaults match current behavior (point_radius=5, line_width=2, show_points=True, etc.)
+- [x] Test: Validation raises on invalid values (6 numeric field tests)
+- [x] Type check: `./bpr rendering/visual_settings.py` (0 errors)
+- [x] Run tests: `pytest tests/test_visual_settings.py -v` (18/18 passed)
+- [x] Verify `self.visual` initialized before properties (grep check)
+- [x] Commit: "feat: Add VisualSettings dataclass with 15 visual parameters (Phase 1)" - PENDING
 
 ### Phase 2: Integrate RenderState (Day 2 - 4h)
 - [ ] Edit `rendering/render_state.py`

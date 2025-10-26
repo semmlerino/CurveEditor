@@ -62,6 +62,7 @@ from core.type_aliases import CurveDataInput, CurveDataList
 # Import optimized renderer for 47x performance improvement
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from rendering.render_state import RenderState
+from rendering.visual_settings import VisualSettings
 
 # Import services
 from services import get_interaction_service
@@ -158,6 +159,9 @@ class CurveViewWidget(QWidget):
         """
         super().__init__(parent)
 
+        # Visual settings (single source of truth for rendering appearance)
+        self.visual: VisualSettings = VisualSettings()
+
         # Signal management for proper cleanup
         self.signal_manager: SignalManager = SignalManager(self)
 
@@ -225,6 +229,7 @@ class CurveViewWidget(QWidget):
         self.flip_y_axis: bool = False
         self.scale_to_image: bool = True
 
+        # TODO(Phase 4): Remove scattered visual fields, use self.visual exclusively
         # Display settings
         self.show_grid: bool = False
         self.show_points: bool = True
