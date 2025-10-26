@@ -1042,6 +1042,10 @@ class MockMainWindow:
         """Apply smoothing operation (MainWindowProtocol)."""
         pass  # Mock implementation
 
+    def update_point_status_label(self) -> None:
+        """Update point status label (MainWindowProtocol)."""
+        pass  # Mock implementation
+
     def _get_current_frame(self) -> int:
         """Get current frame (controller friend method)."""
         return self._current_frame
