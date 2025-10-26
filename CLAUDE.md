@@ -770,19 +770,49 @@ transform = transform_service.create_transform_from_view_state(view_state)
 
 ```python
 from rendering.visual_settings import VisualSettings
+from rendering.render_state import RenderState
 
 def test_new_param_default():
+    """Verify default value."""
     visual = VisualSettings()
     assert visual.new_param == 10
 
 def test_new_param_validation():
+    """Verify validation rejects invalid values."""
     with pytest.raises(ValueError, match="new_param must be > 0"):
         VisualSettings(new_param=0)
 
-def test_new_param_rendering():
-    visual = VisualSettings(new_param=15)
-    # Verify renderer uses new value
+def test_new_param_integration(curve_widget):
+    """Verify parameter flows through to renderer via RenderState."""
+    # Set custom value
+    curve_widget.visual.new_param = 15
+
+    # Create RenderState from widget
+    render_state = RenderState.compute(curve_widget)
+
+    # Verify value propagated
+    assert render_state.visual is not None
+    assert render_state.visual.new_param == 15
 ```
+
+**See also:** `tests/test_visual_settings.py` for 18 comprehensive test examples including parametrized tests, QColor factory validation, and mutability verification.
+
+### Architectural Context
+
+**What belongs in VisualSettings:**
+- Visual rendering parameters that affect **appearance only**
+- Parameters **passed to renderer** (accessed via `render_state.visual.*`)
+- Examples: point_radius, line_width, grid_size, colors, display toggles
+
+**What does NOT belong in VisualSettings:**
+- **Architectural settings** (e.g., `show_background` - controls background image pipeline, not visual styling)
+- **Widget-only state** (e.g., hover state, mouse position - never passed to renderer)
+- **View transform state** (e.g., zoom, pan - managed by StateManager)
+
+**Design Rationale:**
+- **VisualSettings is mutable** - Controllers modify fields directly during UI updates (slider changes, checkbox toggles)
+- **RenderState is frozen** - Immutability contract preserved (visual field is mutable nested object in frozen parent)
+- **Single source of truth** - All 15 visual parameters in one location eliminates duplication and sync bugs
 
 ### Key Principles
 - **Single source**: VisualSettings is the ONLY place for visual parameters
