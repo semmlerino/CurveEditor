@@ -7,6 +7,7 @@ with color coding to indicate tracking point status at each frame.
 Supports horizontal scrolling for many frames with performance optimizations.
 """
 
+import contextlib
 from typing import TYPE_CHECKING, override
 
 from PySide6.QtCore import Qt, QTimer, Signal
@@ -794,16 +795,10 @@ class TimelineTabWidget(QWidget):
 
         # Clear existing tabs
         for tab in self.frame_tabs.values():
-            try:
+            with contextlib.suppress(RuntimeError):
                 self.tabs_layout.removeWidget(tab)
-            except RuntimeError:
-                # Layout already deleted, skip removal
-                pass
-            try:
+            with contextlib.suppress(RuntimeError):
                 tab.deleteLater()
-            except RuntimeError:
-                # Tab already deleted, skip
-                pass
         self.frame_tabs.clear()
 
         # Calculate optimal tab width

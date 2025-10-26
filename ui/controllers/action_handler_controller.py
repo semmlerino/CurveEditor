@@ -86,15 +86,14 @@ class ActionHandlerController:
     @Slot()
     def on_action_save(self) -> None:
         """Handle save file action."""
-        data = self._get_current_curve_data()
-        if self.main_window.file_operations.save_file(data):
-            if self.main_window.status_label:
-                self.main_window.status_label.setText("File saved successfully")
+        data = self.get_current_curve_data()
+        if self.main_window.file_operations.save_file(data) and self.main_window.status_label:
+            self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
     def on_action_save_as(self) -> None:
         """Handle save as action."""
-        data = self._get_current_curve_data()
+        data = self.get_current_curve_data()
         if self.main_window.file_operations.save_file_as(data, self.main_window):
             if self.main_window.status_label:
                 self.main_window.status_label.setText("File saved successfully")
@@ -102,14 +101,13 @@ class ActionHandlerController:
     @Slot()
     def on_load_images(self) -> None:
         """Handle load background images action."""
-        if self.main_window.file_operations.load_images(self.main_window):
-            if self.main_window.status_label:
-                self.main_window.status_label.setText("Images loaded successfully")
+        if self.main_window.file_operations.load_images(self.main_window) and self.main_window.status_label:
+            self.main_window.status_label.setText("Images loaded successfully")
 
     @Slot()
     def on_export_data(self) -> None:
         """Handle export curve data action."""
-        data = self._get_current_curve_data()
+        data = self.get_current_curve_data()
         if self.main_window.file_operations.export_data(data, self.main_window):
             if self.main_window.status_label:
                 self.main_window.status_label.setText("Data exported successfully")
@@ -342,7 +340,7 @@ class ActionHandlerController:
 
     # ==================== Helper Methods ====================
 
-    def _get_current_curve_data(self) -> CurveDataList:
+    def get_current_curve_data(self) -> CurveDataList:
         """Get current curve data from the curve widget."""
         # Get data from curve widget (which uses ApplicationState internally)
         return self.main_window.curve_widget.curve_data if self.main_window.curve_widget else []

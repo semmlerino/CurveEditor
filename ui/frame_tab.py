@@ -124,15 +124,15 @@ class FrameTab(QWidget):
 
     # Color scheme for frame status - uses dark theme
     # Initialize colors on first use to avoid import issues
-    COLORS: dict[str, QColor] = {}
+    colors_cache: ClassVar[dict[str, QColor]] = {}
 
     @classmethod
     def _init_colors(cls) -> None:
         """Initialize colors from centralized theme."""
-        if not cls.COLORS:
+        if not cls._colors_cache:
             from ui.color_manager import COLORS_DARK, STATUS_COLORS_TIMELINE
 
-            cls.COLORS = {
+            cls._colors_cache = {
                 "no_points": QColor(*STATUS_COLORS_TIMELINE["no_points"]),
                 "normal": QColor(*STATUS_COLORS_TIMELINE["normal"]),
                 "keyframe": QColor(*STATUS_COLORS_TIMELINE["keyframe"]),
@@ -315,7 +315,7 @@ class FrameTab(QWidget):
         See StatusColorResolver class documentation for architectural principles.
         """
         return StatusColorResolver.get_background_color(
-            self.COLORS,
+            self._colors_cache,
             point_count=self.point_count,
             keyframe_count=self.keyframe_count,
             interpolated_count=self.interpolated_count,
@@ -329,7 +329,7 @@ class FrameTab(QWidget):
 
     def _get_text_color(self) -> QColor:
         """Get text color - always white in 3DE style."""
-        return self.COLORS["text"]  # Always white
+        return self._colors_cache["text"]  # Always white
 
     @override
     def paintEvent(self, event: QPaintEvent) -> None:
@@ -354,12 +354,12 @@ class FrameTab(QWidget):
         # Use golden border for current frame, subtle border otherwise
         if self.is_current_frame:
             # Draw golden border for current frame
-            painter.setPen(QPen(self.COLORS["current_border"], 2))
+            painter.setPen(QPen(self._colors_cache["current_border"], 2))
             painter.setBrush(QBrush(gradient))
             painter.drawRect(rect.adjusted(1, 1, -1, -1))
         else:
             # Draw with subtle border
-            painter.setPen(QPen(self.COLORS["border"], self.BORDER_WIDTH))
+            painter.setPen(QPen(self._colors_cache["border"], self.BORDER_WIDTH))
             painter.setBrush(QBrush(gradient))
             painter.drawRect(rect)
 

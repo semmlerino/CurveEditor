@@ -69,7 +69,7 @@ def test_quantization_precision():
         logger.info(f"  {original:.4f} -> {quantized:.4f} (loss: {loss:.6f})")
 
     # Check if small changes are being quantized to same value
-    unique_quantized = set(q for _, q in quantized_states)
+    unique_quantized = {q for _, q in quantized_states}
     logger.info(f"  Unique quantized values: {len(unique_quantized)}/{len(zoom_values)}")
 
     if len(unique_quantized) < len(zoom_values):
@@ -161,7 +161,7 @@ def simulate_zoom_sequence():
 
     # Check for repeated zoom levels
     zoom_to_hash = {}
-    for zoom, transform_hash in zip(zoom_sequence, transform_hashes):
+    for zoom, transform_hash in zip(zoom_sequence, transform_hashes, strict=True):
         if zoom in zoom_to_hash:
             if zoom_to_hash[zoom] != transform_hash:
                 logger.error(f"🐛 Same zoom level ({zoom}) produced different transforms!")

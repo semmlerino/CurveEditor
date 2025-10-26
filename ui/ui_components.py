@@ -582,11 +582,7 @@ class UIComponents:
             "redo_button",
         ]
 
-        for component_name in critical_components:
-            if getattr(self, component_name) is None:
-                missing.append(component_name)
-
-        return missing
+        return [name for name in critical_components if getattr(self, name) is None]
 
     def get_component_groups(self) -> dict[str, object]:
         """

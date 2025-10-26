@@ -324,7 +324,7 @@ class TestMultiPointDataLoading:
         assert main_window.active_timeline_point is not None
         assert (
             main_window.active_timeline_point
-            in sample_multi_trajectory.keys()
+            in sample_multi_trajectory
         )
 
     def test_load_multi_point_initializes_all_tracking_directions(
@@ -342,7 +342,7 @@ class TestMultiPointDataLoading:
         controller.on_multi_point_data_loaded(sample_multi_trajectory)
 
         # Assert
-        for point_name in sample_multi_trajectory.keys():
+        for point_name in sample_multi_trajectory:
             assert point_name in controller.point_tracking_directions
             assert (
                 controller.point_tracking_directions[point_name]
@@ -1027,7 +1027,7 @@ class TestDataIntegrity:
 
         # Assert
         assert len(point_names) == 3
-        for name in sample_multi_trajectory.keys():
+        for name in sample_multi_trajectory:
             assert name in point_names
 
 
@@ -1084,7 +1084,7 @@ class TestTrackedDataProperty:
         current_curves = app_state.get_all_curve_names()
         assert len(current_curves) == 1
         assert "SinglePoint" in current_curves
-        for old_name in sample_multi_trajectory.keys():
+        for old_name in sample_multi_trajectory:
             assert old_name not in current_curves
 
     def test_tracked_data_getter_returns_fresh_dict(

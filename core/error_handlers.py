@@ -248,7 +248,7 @@ class ErrorAccumulator:
         self.errors.clear()
 
 
-def validate_not_none(value: T | None, name: str = "value", message: str | None = None) -> T:
+def validate_not_none[T](value: T | None, name: str = "value", message: str | None = None) -> T:
     """
     Validate that a value is not None, with descriptive error.
 

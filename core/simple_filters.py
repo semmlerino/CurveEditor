@@ -41,7 +41,7 @@ def simple_lowpass_filter(data: CurveDataInput, window_size: int = 5) -> CurveDa
     for i in range(len(frames)):
         if len(sorted_data[i]) > 3:
             # Preserve extra elements like status
-            result.append((frames[i], filtered_x[i], filtered_y[i]) + sorted_data[i][3:])
+            result.append((frames[i], filtered_x[i], filtered_y[i], *sorted_data[i][3:]))
         else:
             result.append((frames[i], filtered_x[i], filtered_y[i]))
 

@@ -350,8 +350,8 @@ class DataService:
                         else:
                             keyframe_count += 1
             elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                if getattr(point, "frame") == frame:
-                    if getattr(getattr(point, "status"), "value", None) == "interpolated":
+                if point.frame == frame:
+                    if getattr(point.status, "value", None) == "interpolated":
                         interpolated_count += 1
                     else:
                         keyframe_count += 1
@@ -485,7 +485,7 @@ class DataService:
                     else:  # normal or unknown
                         frame_status[frame][4] += 1
             elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                frame = getattr(point, "frame")
+                frame = point.frame
                 if frame not in frame_status:
                     frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
 
@@ -568,10 +568,7 @@ class DataService:
                             pt_frame = pt[0] if len(pt) > 0 else pt.frame
                             if last_endframe_frame < pt_frame < frame:
                                 pt_status = pt[3] if len(pt) > 3 else getattr(pt, "status", "keyframe")
-                                if pt_status == "keyframe":
-                                    has_keyframe_between = True
-                                    break
-                                elif getattr(pt_status, "value", None) == "keyframe":
+                                if pt_status == "keyframe" or getattr(pt_status, "value", None) == "keyframe":
                                     has_keyframe_between = True
                                     break
 
@@ -694,11 +691,11 @@ class DataService:
 
             # Common image extensions
             image_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
-            image_files: list[str] = []
-
-            for file_path in sorted(path.iterdir()):
-                if file_path.is_file() and file_path.suffix.lower() in image_extensions:
-                    image_files.append(str(file_path))
+            image_files = [
+                str(file_path)
+                for file_path in sorted(path.iterdir())
+                if file_path.is_file() and file_path.suffix.lower() in image_extensions
+            ]
 
             if self._logger and image_files:
                 self._logger.log_info(f"Loaded {len(image_files)} images from {directory}")
@@ -1167,10 +1164,7 @@ class DataService:
                 # Check if this is the first frame after a gap
                 elif i > 0:
                     prev_frame = sorted_data[i - 1][0]
-                    if frame - prev_frame > 1:  # Gap detected before this frame
-                        status = "keyframe"
-                    # Check if this is the last frame
-                    elif i == len(sorted_data) - 1:
+                    if frame - prev_frame > 1 or i == len(sorted_data) - 1:  # Gap detected before this frame
                         status = "keyframe"
                     # Check if this is the last frame before a gap
                     elif i < len(sorted_data) - 1:

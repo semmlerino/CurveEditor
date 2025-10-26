@@ -192,7 +192,7 @@ class SignalConnectionManager:
         # Connect to curves_changed signal to update status label when curve data modified
         # (e.g., E key toggle ENDFRAME, smooth operations, etc.)
         _ = app_state.curves_changed.connect(
-            self.main_window._update_point_status_label,
+            self.main_window.update_point_status_label,
             Qt.QueuedConnection,  # pyright: ignore[reportAttributeAccessIssue]
         )
 
@@ -215,7 +215,7 @@ class SignalConnectionManager:
 
     def _on_active_curve_changed_update_status(self, _curve_name: str) -> None:
         """Handle active curve change by updating status label (ignores curve name)."""
-        self.main_window._update_point_status_label()
+        self.main_window.update_point_status_label()
 
     def _connect_curve_widget_signals(self) -> None:
         """Connect signals from the curve widget."""

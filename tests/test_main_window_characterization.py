@@ -32,7 +32,7 @@ def qapp():
     app = QApplication.instance()
     if not app:
         app = QApplication([])
-    yield app
+    return app
 
 
 @pytest.fixture

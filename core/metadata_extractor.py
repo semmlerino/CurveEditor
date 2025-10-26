@@ -147,7 +147,7 @@ class ImageMetadataExtractor:
             # OpenEXR typically uses HALF (16-bit) or FLOAT (32-bit)
             bit_depth = 32  # Default to 32-bit
             if channels:
-                first_channel = list(channels.values())[0]
+                first_channel = next(iter(channels.values()))
                 channel_type = first_channel.type
                 if channel_type == Imath.PixelType(Imath.PixelType.HALF):
                     bit_depth = 16

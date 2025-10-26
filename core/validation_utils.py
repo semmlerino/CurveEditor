@@ -37,9 +37,8 @@ def sanitize_point_data(points: list[object]) -> list[object]:
         # Use getattr with sentinel to avoid type narrowing issues with hasattr
         x = getattr(point, "x", None)
         y = getattr(point, "y", None)
-        if x is not None and y is not None:
-            if is_valid_coordinate(x, y):
-                valid_points.append(point)
+        if x is not None and y is not None and is_valid_coordinate(x, y):
+            valid_points.append(point)
     return valid_points
 
 

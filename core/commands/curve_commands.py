@@ -12,9 +12,7 @@ from __future__ import annotations
 import copy
 from abc import ABC
 from collections.abc import Callable, Sequence
-from typing import TYPE_CHECKING
-
-from typing_extensions import override
+from typing import TYPE_CHECKING, override
 
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol

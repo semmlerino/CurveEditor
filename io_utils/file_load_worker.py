@@ -147,7 +147,7 @@ class FileLoadWorker(QThread):
 
                 except Exception as e:
                     # Signal emission (Qt handles thread-safety)
-                    error_msg = f"Failed to load tracking data: {str(e)}"
+                    error_msg = f"Failed to load tracking data: {e!s}"
                     self.error_occurred.emit(error_msg)
 
             # Load image sequence if requested
@@ -174,12 +174,12 @@ class FileLoadWorker(QThread):
 
                 except Exception as e:
                     # Signal emission (Qt handles thread-safety)
-                    error_msg = f"Failed to load image sequence: {str(e)}"
+                    error_msg = f"Failed to load image sequence: {e!s}"
                     self.error_occurred.emit(error_msg)
 
         except Exception as e:
             # Signal emission (Qt handles thread-safety)
-            error_msg = f"Unexpected error in file loading: {str(e)}"
+            error_msg = f"Unexpected error in file loading: {e!s}"
             self.error_occurred.emit(error_msg)
 
         finally:
@@ -284,10 +284,7 @@ class FileLoadWorker(QThread):
                             x = float(parts[1])
 
                             # Apply Y-flip if needed (for bottom-origin to top-origin conversion)
-                            if flip_y:
-                                y = image_height - float(parts[2])
-                            else:
-                                y = float(parts[2])
+                            y = image_height - float(parts[2]) if flip_y else float(parts[2])
 
                             # Include status if present
                             if len(parts) > 3:
@@ -311,7 +308,7 @@ class FileLoadWorker(QThread):
                 return multi_point_data  # pyright: ignore[reportReturnType]
             elif num_points == 1 and multi_point_data:
                 # For single point, return the list directly for backward compatibility
-                point_name = list(multi_point_data.keys())[0]
+                point_name = next(iter(multi_point_data.keys()))
                 logger.info(
                     f"Loaded single point '{point_name}' with {len(multi_point_data[point_name])} frames from {file_path}"
                 )
@@ -436,9 +433,11 @@ class FileLoadWorker(QThread):
             path = Path(dir_path)
             if path.exists() and path.is_dir():
                 # Get all image files
-                for file_path in sorted(path.iterdir()):
-                    if file_path.is_file() and file_path.suffix.lower() in supported_formats:
-                        image_files.append(file_path.name)
+                image_files.extend(
+                    file_path.name
+                    for file_path in sorted(path.iterdir())
+                    if file_path.is_file() and file_path.suffix.lower() in supported_formats
+                )
 
         except Exception as e:
             logger.error(f"Error scanning image directory: {e}")

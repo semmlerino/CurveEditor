@@ -8,6 +8,7 @@ proper transformation without manual configuration.
 import os
 import re
 from pathlib import Path
+from typing import ClassVar
 
 from core.coordinate_system import CoordinateMetadata, CoordinateOrigin, CoordinateSystem
 
@@ -16,7 +17,7 @@ class CoordinateDetector:
     """Automatic detection of coordinate systems from files."""
 
     # File extension to coordinate system mapping
-    EXTENSION_MAP: dict[str, CoordinateSystem | None] = {
+    EXTENSION_MAP: ClassVar[dict[str, CoordinateSystem | None]] = {
         ".2dt": CoordinateSystem.THREE_DE_EQUALIZER,
         ".3de": CoordinateSystem.THREE_DE_EQUALIZER,
         ".txt": None,  # Need to check content
@@ -327,7 +328,7 @@ class CoordinateDetector:
 
         # Normalized coordinates should all be between 0 and 1
         # Allow small tolerance for floating point precision
-        if 0 <= min_x and max_x <= 1.001 and 0 <= min_y and max_y <= 1.001:
+        if min_x >= 0 and max_x <= 1.001 and min_y >= 0 and max_y <= 1.001:
             # Handle single point case first
             if len(xs) == 1:  # Single point case
                 return True

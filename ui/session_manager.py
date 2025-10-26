@@ -129,14 +129,14 @@ class SessionManager:
             # Process file paths to make them relative when possible
             processed_data = session_data.copy()
 
-            if "tracking_file" in processed_data and processed_data["tracking_file"]:
+            if processed_data.get("tracking_file"):
                 processed_data["tracking_file"] = self._make_relative_path(cast(str, processed_data["tracking_file"]))
 
-            if "image_directory" in processed_data and processed_data["image_directory"]:
+            if processed_data.get("image_directory"):
                 processed_data["image_directory"] = self._make_relative_path(cast(str, processed_data["image_directory"]))
 
             # Save recent directories
-            if "recent_directories" in processed_data and processed_data["recent_directories"]:
+            if processed_data.get("recent_directories"):
                 # Make paths relative where possible
                 processed_data["recent_directories"] = [
                     self._make_relative_path(path) for path in cast(list[str], processed_data["recent_directories"])
@@ -183,7 +183,7 @@ class SessionManager:
                 session_data = json.load(f)
 
             # Validate and resolve file paths
-            if "tracking_file" in session_data and session_data["tracking_file"]:
+            if session_data.get("tracking_file"):
                 resolved_path = self._resolve_path(session_data["tracking_file"])
                 if resolved_path:
                     session_data["tracking_file"] = resolved_path
@@ -191,7 +191,7 @@ class SessionManager:
                     logger.warning("Stored tracking file no longer exists")
                     session_data["tracking_file"] = None
 
-            if "image_directory" in session_data and session_data["image_directory"]:
+            if session_data.get("image_directory"):
                 resolved_path = self._resolve_path(session_data["image_directory"])
                 if resolved_path and Path(resolved_path).is_dir():
                     session_data["image_directory"] = resolved_path

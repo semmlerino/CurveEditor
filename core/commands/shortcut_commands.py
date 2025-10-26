@@ -8,10 +8,9 @@ keyboard shortcuts in the application.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, cast
+from typing import TYPE_CHECKING, cast, override
 
 from PySide6.QtCore import Qt
-from typing_extensions import override
 
 if TYPE_CHECKING:
     from core.models import TrackingDirection
@@ -138,11 +137,7 @@ class SetEndframeCommand(ShortcutCommand):
             _, curve_data = cd
 
             # Check if any point exists at the current frame
-            for point in curve_data:
-                if point[0] == context.current_frame:  # point[0] is the frame number
-                    return True
-
-            return False
+            return any(point[0] == context.current_frame for point in curve_data)
 
         except ValueError:
             # No active curve set

@@ -14,12 +14,12 @@ from .controller_protocols import (
 
 __all__ = [
     "ActionHandlerProtocol",
-    "ViewOptionsProtocol",
-    "ViewManagementProtocol",
-    "TimelineControllerProtocol",
     "BackgroundImageProtocol",
     "MultiPointTrackingProtocol",
     "PointEditorProtocol",
     "SignalConnectionProtocol",
+    "TimelineControllerProtocol",
     "UIInitializationProtocol",
+    "ViewManagementProtocol",
+    "ViewOptionsProtocol",
 ]

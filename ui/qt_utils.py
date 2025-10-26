@@ -3,14 +3,12 @@
 import logging
 from collections.abc import Callable
 from functools import wraps
-from typing import Any, TypeVar
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-R = TypeVar("R")
 
-
-def safe_slot(func: Callable[..., R]) -> Callable[..., R | None]:
+def safe_slot[R](func: Callable[..., R]) -> Callable[..., R | None]:
     """Decorator to guard Qt slot handlers against widget destruction.
 
     If the widget is being destroyed (raises RuntimeError on attribute access),

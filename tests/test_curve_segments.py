@@ -313,13 +313,16 @@ class TestSegmentedCurve:
 
         # Frame 3: between two keyframes in active segment
         prev, next = curve.get_interpolation_boundaries(3)
-        assert prev is not None and prev.frame == 1
-        assert next is not None and next.frame == 5
+        assert prev is not None
+        assert prev.frame == 1
+        assert next is not None
+        assert next.frame == 5
 
         # Frame 7: between keyframe and endframe in active segment
         # ENDFRAME is not considered a valid interpolation boundary
         prev, next = curve.get_interpolation_boundaries(7)
-        assert prev is not None and prev.frame == 5
+        assert prev is not None
+        assert prev.frame == 5
         assert next is None  # ENDFRAME at frame 10 is not returned as boundary
 
         # Frame 17: in inactive segment
@@ -329,8 +332,10 @@ class TestSegmentedCurve:
 
         # Frame 22: in new active segment started by KEYFRAME at frame 20
         prev, next = curve.get_interpolation_boundaries(22)
-        assert prev is not None and prev.frame == 20
-        assert next is not None and next.frame == 25
+        assert prev is not None
+        assert prev.frame == 20
+        assert next is not None
+        assert next.frame == 25
 
     def test_get_interpolation_boundaries_edge_cases(self):
         """Test get_interpolation_boundaries edge cases."""
@@ -353,8 +358,10 @@ class TestSegmentedCurve:
 
         # Frame exactly on a keyframe
         prev, next = curve.get_interpolation_boundaries(5)
-        assert prev is not None and prev.frame == 1
-        assert next is not None and next.frame == 10
+        assert prev is not None
+        assert prev.frame == 1
+        assert next is not None
+        assert next.frame == 10
 
     def test_update_segment_activity(self):
         """Test update_segment_activity method."""
@@ -461,7 +468,8 @@ class TestSegmentedCurve:
         # Verify interpolation boundaries
         # Frame 2 is in active segment
         prev, next = curve.get_interpolation_boundaries(2)
-        assert prev is not None and prev.frame == 1
+        assert prev is not None
+        assert prev.frame == 1
         assert next is not None and (next.frame == 3 or next.frame == 4)
 
         # Frame 7 is in inactive segment

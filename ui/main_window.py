@@ -18,9 +18,7 @@ Key architecture components:
 
 # Standard library imports
 import sys
-from typing import TYPE_CHECKING, cast
-
-from typing_extensions import override
+from typing import TYPE_CHECKING, cast, override
 
 if TYPE_CHECKING:
     from protocols.ui import CurveViewProtocol
@@ -101,6 +99,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
     # Custom signals for internal communication
     play_toggled: Signal = Signal(bool)
     frame_rate_changed: Signal = Signal(int)
+
+    # Class variables
+    _theme_initialized: bool = False  # Track application theme initialization
 
     # Attributes initialized in __init__ - declare for type safety
     _file_loading: bool = False  # Track file loading state
@@ -205,12 +206,14 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         app = QApplication.instance()
         if app and isinstance(app, QApplication):
             # Check if stylesheet already applied (avoid reapplying in tests)
-            if not getattr(app, "_dark_theme_applied", False):
+            # Track application initialization state in MainWindow instead of QApplication
+            # This avoids type checking issues with dynamic attributes
+            if not hasattr(MainWindow, "_theme_initialized"):
                 # Use Fusion style for better dark theme support
                 _ = app.setStyle("Fusion")
                 # Apply the dark theme stylesheet
                 app.setStyleSheet(get_dark_theme_stylesheet())
-                setattr(app, "_dark_theme_applied", True)
+                MainWindow._theme_initialized = True
                 logger.info("Applied dark theme to application")
             else:
                 logger.debug("Dark theme already applied, skipping")
@@ -685,7 +688,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._save_current_session()
 
     @Slot(str, list)
-    def _on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
+    def on_image_sequence_loaded(self, image_dir: str, image_files: list[str]) -> None:
         """Handle image sequence loaded (delegated to ViewManagementController)."""
         self.background_controller.on_image_sequence_loaded(image_dir, image_files)
         # Save session after loading new images
@@ -857,7 +860,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._safe_set_label(self.point_count_label, f"Points: {point_count}")
         self._safe_set_label(self.bounds_label, self._format_bounds_text(bounds))
 
-    def _update_point_status_label(self) -> None:
+    def update_point_status_label(self) -> None:
         """Update point status label with current frame's point status."""
         from stores.application_state import get_application_state
 
@@ -908,7 +911,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self._update_history_actions()
         self._update_frame_controls()
         self._update_point_info_labels()
-        self._update_point_status_label()
+        self.update_point_status_label()
 
     def update_zoom_label(self) -> None:
         """Update zoom label (delegated to ActionHandlerController)."""
@@ -938,11 +941,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Handle Page Up/Down globally for keyframe navigation
             elif key == Qt.Key.Key_PageUp:
                 logger.debug("[EVENT_FILTER] Page Up pressed, navigating to previous keyframe")
-                self._navigate_to_prev_keyframe()
+                self.navigate_to_prev_keyframe()
                 return True  # Consume event
             elif key == Qt.Key.Key_PageDown:
                 logger.debug("[EVENT_FILTER] Page Down pressed, navigating to next keyframe")
-                self._navigate_to_next_keyframe()
+                self.navigate_to_next_keyframe()
                 return True  # Consume event
 
         return super().eventFilter(watched, event)  # Proper delegation to parent
@@ -1033,9 +1036,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         """Update timeline tabs (delegated to TimelineController)."""
         self.timeline_controller.update_timeline_tabs(curve_data)
 
-    def _get_current_curve_data(self) -> CurveDataList:
+    def get_current_curve_data(self) -> CurveDataList:
         """Get current curve data (delegated to ActionHandlerController)."""
-        return self.action_controller._get_current_curve_data()
+        return self.action_controller.get_current_curve_data()
 
     def _verify_connections(self) -> None:
         """
@@ -1147,10 +1150,7 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             return []
 
         # Collect keyframes and endframes from point data
-        nav_frames: list[int] = []
-        for point in curve_data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(int(point[0]))
+        nav_frames = [int(point[0]) for point in curve_data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         # Add startframes from DataService analysis
         try:
@@ -1197,11 +1197,11 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         else:
             self.statusBar().showMessage(f"Already at {boundary_msg} navigation frame", 2000)
 
-    def _navigate_to_prev_keyframe(self) -> None:
+    def navigate_to_prev_keyframe(self) -> None:
         """Navigate to the previous keyframe, endframe, or startframe relative to current frame."""
         self._navigate_to_adjacent_frame(-1)
 
-    def _navigate_to_next_keyframe(self) -> None:
+    def navigate_to_next_keyframe(self) -> None:
         """Navigate to the next keyframe, endframe, or startframe relative to current frame."""
         self._navigate_to_adjacent_frame(1)
 
@@ -1223,13 +1223,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         # PageUp: Navigate to previous keyframe
         elif event.key() == Qt.Key.Key_PageUp:
-            self._navigate_to_prev_keyframe()
+            self.navigate_to_prev_keyframe()
             event.accept()
             return
 
         # PageDown: Navigate to next keyframe
         elif event.key() == Qt.Key.Key_PageDown:
-            self._navigate_to_next_keyframe()
+            self.navigate_to_next_keyframe()
             event.accept()
             return
 

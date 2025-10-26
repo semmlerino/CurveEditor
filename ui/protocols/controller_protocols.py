@@ -63,7 +63,7 @@ class ActionHandlerProtocol(Protocol):
         """Apply smoothing operation to curve."""
         ...
 
-    def _get_current_curve_data(self) -> CurveDataList:
+    def get_current_curve_data(self) -> CurveDataList:
         """Get current curve data."""
         ...
 
@@ -157,6 +157,9 @@ class ViewOptionsProtocol(Protocol):
 class TimelineControllerProtocol(Protocol):
     """Protocol for timeline controller."""
 
+    btn_play_pause: Any  # QPushButton but avoiding circular imports
+    fps_spinbox: Any  # QSpinBox but avoiding circular imports
+    frame_slider: Any  # QSlider but avoiding circular imports
     frame_spinbox: Any  # QSpinBox but avoiding circular imports
     frame_changed: Any  # Signal(int) - emitted when frame changes
     status_message: Any  # Signal(str) - emitted to update status bar
@@ -196,6 +199,10 @@ class TimelineControllerProtocol(Protocol):
 
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """Set the timeline frame range."""
+        ...
+
+    def update_frame_range(self, min_frame: int, max_frame: int) -> None:
+        """Update the timeline frame range."""
         ...
 
     def set_frame(self, frame: int) -> None:

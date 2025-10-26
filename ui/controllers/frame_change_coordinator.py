@@ -224,7 +224,7 @@ class FrameChangeCoordinator:
 
         # Update point status label in status bar
         if self.main_window:
-            self.main_window._update_point_status_label()
+            self.main_window.update_point_status_label()
 
         logger.debug(f"[FRAME-COORDINATOR] Timeline widgets updated for frame {frame}")
 

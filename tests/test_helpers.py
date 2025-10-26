@@ -1493,36 +1493,27 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
 # ==================== Export all helpers ====================
 
 __all__ = [
-    # Type aliases
-    "PointsList",
-    "Point3",
-    "Point4",
-    # Thread-safe image handling
-    "ThreadSafeTestImage",
-    "TestImagePool",
-    # Signal test doubles
-    "TestSignal",
-    # Test implementation classes
-    "MockCurveView",
-    "MockMainWindow",
-    "MockDataBuilder",
+    "assert_behavior_changed",
+    "assert_qt_container_exists",
     "BaseMockCurveView",
     "BaseMockMainWindow",
+    "HAS_QT",
+    "LazyUIMockMainWindow",
+    "make_curve_data",
+    "make_curve_point",
+    "mock_dialog_exec",
+    "MockCurveView",
+    "MockDataBuilder",
+    "MockMainWindow",
+    "PerformanceTimer",
+    "Point3",
+    "Point4",
+    "PointsList",
     "ProtocolCompliantMockCurveView",
     "ProtocolCompliantMockMainWindow",
-    "LazyUIMockMainWindow",
-    # Factories
-    "make_curve_point",
-    "make_curve_data",
-    # Utilities
-    "assert_qt_container_exists",
-    "safe_qt_cleanup",  # Now imported from test_utils
-    "mock_dialog_exec",
-    "set_test_selection",  # Phase 6 migration helper
-    # Performance
-    "PerformanceTimer",
-    # Assertions
-    "assert_behavior_changed",
-    # Constants
-    "HAS_QT",
+    "safe_qt_cleanup",
+    "set_test_selection",
+    "TestImagePool",
+    "TestSignal",
+    "ThreadSafeTestImage",
 ]

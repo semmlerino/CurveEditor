@@ -25,6 +25,7 @@ import unittest
 from typing import override
 from unittest.mock import MagicMock, patch
 
+import pytest
 from PySide6.QtWidgets import QApplication, QWidget
 
 from core.validation_strategy import ValidationIssue, ValidationSeverity
@@ -66,11 +67,11 @@ class TestErrorContext(unittest.TestCase):
             component="TestComponent", operation="test_op", severity=ErrorSeverity.ERROR, error=error
         )
 
-        self.assertEqual(context.component, "TestComponent")
-        self.assertEqual(context.operation, "test_op")
-        self.assertEqual(context.severity, ErrorSeverity.ERROR)
-        self.assertEqual(context.error, error)
-        self.assertIsNotNone(context.technical_details)
+        assert context.component == "TestComponent"
+        assert context.operation == "test_op"
+        assert context.severity == ErrorSeverity.ERROR
+        assert context.error == error
+        assert context.technical_details is not None
 
     def test_error_context_with_data(self):
         """Test error context with additional data."""
@@ -86,8 +87,8 @@ class TestErrorContext(unittest.TestCase):
             user_message="Please check input",
         )
 
-        self.assertEqual(context.context_data, context_data)
-        self.assertEqual(context.user_message, "Please check input")
+        assert context.context_data == context_data
+        assert context.user_message == "Please check input"
 
 
 class TestDefaultTransformErrorHandler(unittest.TestCase):
@@ -113,14 +114,14 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.FALLBACK)
+        assert strategy == RecoveryStrategy.FALLBACK
 
     def test_validation_error_non_critical(self):
         """Test non-critical validation error."""
         context = ErrorContext(component="Test", operation="validate", severity=ErrorSeverity.INFO, error=self.error)
 
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.NOTIFY)
+        assert strategy == RecoveryStrategy.NOTIFY
 
     def test_validation_error_critical(self):
         """Test critical validation error."""
@@ -129,7 +130,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RESET)
+        assert strategy == RecoveryStrategy.RESET
 
     def test_transform_error_render_operation(self):
         """Test transform error during render."""
@@ -138,7 +139,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_transform_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.IGNORE)
+        assert strategy == RecoveryStrategy.IGNORE
 
     def test_transform_error_with_callback(self):
         """Test transform error with recovery callback."""
@@ -149,7 +150,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
 
         strategy = self.handler.handle_transform_error(self.error, context)
         callback.assert_called_once()
-        self.assertEqual(strategy, RecoveryStrategy.RESET)
+        assert strategy == RecoveryStrategy.RESET
 
     def test_cache_error_retry(self):
         """Test cache error with retry."""
@@ -162,7 +163,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_cache_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RETRY)
+        assert strategy == RecoveryStrategy.RETRY
 
     def test_cache_error_after_retry(self):
         """Test cache error after retry attempt."""
@@ -175,7 +176,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_cache_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RESET)
+        assert strategy == RecoveryStrategy.RESET
 
     def test_coordinate_error_with_normalized(self):
         """Test coordinate error with normalized fallback."""
@@ -188,7 +189,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_coordinate_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.FALLBACK)
+        assert strategy == RecoveryStrategy.FALLBACK
 
     def test_coordinate_error_display_operation(self):
         """Test coordinate error in display operation."""
@@ -197,7 +198,7 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_coordinate_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.NOTIFY)
+        assert strategy == RecoveryStrategy.NOTIFY
 
     def test_error_suppression(self):
         """Test error suppression after threshold."""
@@ -206,11 +207,11 @@ class TestDefaultTransformErrorHandler(unittest.TestCase):
         # First 10 errors should not be suppressed
         for _ in range(10):
             strategy = self.handler.handle_validation_error(self.error, context)
-            self.assertNotEqual(strategy, RecoveryStrategy.IGNORE)
+            assert strategy != RecoveryStrategy.IGNORE
 
         # 11th error should be suppressed
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.IGNORE)
+        assert strategy == RecoveryStrategy.IGNORE
 
     def test_report_issues(self):
         """Test reporting validation issues."""
@@ -254,19 +255,19 @@ class TestSilentTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.FALLBACK)
+        assert strategy == RecoveryStrategy.FALLBACK
 
         # Error should be captured
-        self.assertEqual(len(self.handler.captured_errors), 1)
-        self.assertEqual(self.handler.captured_errors[0], context)
+        assert len(self.handler.captured_errors) == 1
+        assert self.handler.captured_errors[0] == context
 
     def test_transform_error_silent(self):
         """Test silent handling of transform error."""
         context = ErrorContext(component="Test", operation="transform", severity=ErrorSeverity.ERROR, error=self.error)
 
         strategy = self.handler.handle_transform_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RESET)
-        self.assertEqual(len(self.handler.captured_errors), 1)
+        assert strategy == RecoveryStrategy.RESET
+        assert len(self.handler.captured_errors) == 1
 
     def test_cache_error_silent(self):
         """Test silent handling of cache error."""
@@ -279,12 +280,12 @@ class TestSilentTransformErrorHandler(unittest.TestCase):
         )
 
         strategy = self.handler.handle_cache_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RETRY)
+        assert strategy == RecoveryStrategy.RETRY
 
         # Try again after retry
         context.recovery_attempted = True
         strategy = self.handler.handle_cache_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.RESET)
+        assert strategy == RecoveryStrategy.RESET
 
     def test_report_issues_silent(self):
         """Test silent issue reporting."""
@@ -308,11 +309,11 @@ class TestSilentTransformErrorHandler(unittest.TestCase):
             errors.append(context)
 
         captured = self.handler.get_captured_errors()
-        self.assertEqual(len(captured), 5)
+        assert len(captured) == 5
 
         # Clear captured errors
         self.handler.clear_captured_errors()
-        self.assertEqual(len(self.handler.captured_errors), 0)
+        assert len(self.handler.captured_errors) == 0
 
 
 class TestStrictTransformErrorHandler(unittest.TestCase):
@@ -333,7 +334,7 @@ class TestStrictTransformErrorHandler(unittest.TestCase):
             component="Test", operation="validate", severity=ErrorSeverity.CRITICAL, error=self.error
         )
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="Test error"):
             self.handler.handle_validation_error(self.error, context)
 
     def test_validation_error_non_critical_aborts(self):
@@ -341,34 +342,34 @@ class TestStrictTransformErrorHandler(unittest.TestCase):
         context = ErrorContext(component="Test", operation="validate", severity=ErrorSeverity.WARNING, error=self.error)
 
         strategy = self.handler.handle_validation_error(self.error, context)
-        self.assertEqual(strategy, RecoveryStrategy.ABORT)
+        assert strategy == RecoveryStrategy.ABORT
 
     def test_transform_error_raises(self):
         """Test transform error raises."""
         context = ErrorContext(component="Test", operation="transform", severity=ErrorSeverity.ERROR, error=self.error)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="Test error"):
             self.handler.handle_transform_error(self.error, context)
 
     def test_cache_error_raises(self):
         """Test cache error raises."""
         context = ErrorContext(component="Test", operation="cache", severity=ErrorSeverity.ERROR, error=self.error)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="Test error"):
             self.handler.handle_cache_error(self.error, context)
 
     def test_coordinate_error_raises(self):
         """Test coordinate error raises."""
         context = ErrorContext(component="Test", operation="coordinate", severity=ErrorSeverity.ERROR, error=self.error)
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="Test error"):
             self.handler.handle_coordinate_error(self.error, context)
 
     def test_report_issues_critical_raises(self):
         """Test reporting critical issues raises."""
         issues = [ValidationIssue("field", 1.0, ValidationSeverity.CRITICAL, "Critical")]
 
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="field"):
             self.handler.report_issues(issues)
 
 
@@ -378,26 +379,26 @@ class TestErrorHandlerFactory(unittest.TestCase):
     def test_create_default_handler(self):
         """Test creating default handler."""
         handler = create_error_handler("default")
-        self.assertIsInstance(handler, DefaultTransformErrorHandler)
+        assert isinstance(handler, DefaultTransformErrorHandler)
 
     def test_create_silent_handler(self):
         """Test creating silent handler."""
         handler = create_error_handler("silent")
-        self.assertIsInstance(handler, SilentTransformErrorHandler)
+        assert isinstance(handler, SilentTransformErrorHandler)
 
     def test_create_strict_handler(self):
         """Test creating strict handler."""
         handler = create_error_handler("strict")
-        self.assertIsInstance(handler, StrictTransformErrorHandler)
+        assert isinstance(handler, StrictTransformErrorHandler)
 
     def test_create_auto_handler(self):
         """Test creating auto handler."""
         handler = create_error_handler("auto")
-        self.assertIsInstance(handler, DefaultTransformErrorHandler)
+        assert isinstance(handler, DefaultTransformErrorHandler)
 
         # In debug mode should be verbose
         if __debug__:
-            self.assertTrue(handler.verbose)
+            assert handler.verbose
 
 
 class TestErrorHandlerMixin(unittest.TestCase):
@@ -419,17 +420,17 @@ class TestErrorHandlerMixin(unittest.TestCase):
         """Test error handler property."""
         # Should create default handler
         handler = self.widget.error_handler
-        self.assertIsInstance(handler, DefaultTransformErrorHandler)
+        assert isinstance(handler, DefaultTransformErrorHandler)
 
         # Should return same instance
         handler2 = self.widget.error_handler
-        self.assertIs(handler, handler2)
+        assert handler is handler2
 
     def test_set_error_handler(self):
         """Test setting custom error handler."""
         custom_handler = SilentTransformErrorHandler()
         self.widget.error_handler = custom_handler
-        self.assertIs(self.widget.error_handler, custom_handler)
+        assert self.widget.error_handler is custom_handler
 
     def test_handle_error(self):
         """Test handling errors through mixin."""
@@ -439,12 +440,12 @@ class TestErrorHandlerMixin(unittest.TestCase):
         # Handle validation error
         error = ValueError("validation failed")
         strategy = self.widget.handle_error(error, "test_operation", fallback=10.0)
-        self.assertEqual(strategy, RecoveryStrategy.FALLBACK)
+        assert strategy == RecoveryStrategy.FALLBACK
 
         # Handle transform error
         error = TypeError("transform error")
         strategy = self.widget.handle_error(error, "transform_operation")
-        self.assertIn(strategy, [RecoveryStrategy.RESET, RecoveryStrategy.ABORT])
+        assert strategy in [RecoveryStrategy.RESET, RecoveryStrategy.ABORT]
 
     def test_error_routing(self):
         """Test error routing based on error message."""
@@ -514,9 +515,9 @@ class TestIntegrationScenarios(unittest.TestCase):
         errors_handled.append((context, strategy))
 
         # Verify recovery strategies
-        self.assertEqual(errors_handled[0][1], RecoveryStrategy.FALLBACK)
-        self.assertEqual(errors_handled[1][1], RecoveryStrategy.IGNORE)
-        self.assertEqual(errors_handled[2][1], RecoveryStrategy.RETRY)
+        assert errors_handled[0][1] == RecoveryStrategy.FALLBACK
+        assert errors_handled[1][1] == RecoveryStrategy.IGNORE
+        assert errors_handled[2][1] == RecoveryStrategy.RETRY
 
     def test_testing_with_silent_handler(self):
         """Test using silent handler for testing."""
@@ -534,11 +535,11 @@ class TestIntegrationScenarios(unittest.TestCase):
 
         # Check captured errors
         captured = handler.get_captured_errors()
-        self.assertEqual(len(captured), 10)
+        assert len(captured) == 10
 
         # Verify all errors were handled silently
         for error_context in captured:
-            self.assertEqual(error_context.component, "TestOp")
+            assert error_context.component == "TestOp"
 
     def test_development_with_strict_handler(self):
         """Test using strict handler for development."""
@@ -552,7 +553,7 @@ class TestIntegrationScenarios(unittest.TestCase):
             error=RuntimeError("Development error"),
         )
 
-        with self.assertRaises(RuntimeError):
+        with pytest.raises(RuntimeError):
             handler.handle_transform_error(context.error, context)
 
 

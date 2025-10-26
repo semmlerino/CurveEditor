@@ -12,7 +12,7 @@ This renderer addresses the critical performance issues identified in the analys
 import time
 from collections.abc import Sequence
 from enum import Enum
-from typing import TYPE_CHECKING, Any, TypeAlias
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -34,8 +34,8 @@ else:
     RenderState = object
 
 # NumPy array type aliases - performance critical for vectorized operations
-FloatArray: TypeAlias = NDArray[np.float64]  # np.ndarray with float64 elements
-IntArray: TypeAlias = NDArray[np.int32]  # np.ndarray with int32 elements
+type FloatArray = NDArray[np.float64]  # np.ndarray with float64 elements
+type IntArray = NDArray[np.int32]  # np.ndarray with int32 elements
 
 logger = get_logger("optimized_curve_renderer")
 
@@ -152,10 +152,7 @@ class LevelOfDetail:
             return points, 1
 
         # Use visible indices if provided, otherwise use all points
-        if visible_indices is not None and len(visible_indices) > 0:
-            working_points = points[visible_indices]
-        else:
-            working_points = points
+        working_points = points[visible_indices] if visible_indices is not None and len(visible_indices) > 0 else points
 
         threshold = self._lod_thresholds[quality]
 
@@ -996,10 +993,7 @@ class OptimizedCurveRenderer:
 
         # Only show frame numbers for a subset of points to avoid clutter
         max_labels = 50  # Maximum number of labels to show
-        if len(screen_points) > max_labels:
-            label_step = len(screen_points) // max_labels
-        else:
-            label_step = 1
+        label_step = len(screen_points) // max_labels if len(screen_points) > max_labels else 1
 
         from ui.color_manager import COLORS_DARK
 
@@ -1235,10 +1229,7 @@ class OptimizedCurveRenderer:
         # Draw the background image scaled to fit the transformed rectangle
         # This ensures it goes through the exact same transformation as curve points
         # Convert QImage to QPixmap if needed
-        if isinstance(bg_image, QImage):
-            pixmap = QPixmap.fromImage(bg_image)
-        else:
-            pixmap = bg_image
+        pixmap = QPixmap.fromImage(bg_image) if isinstance(bg_image, QImage) else bg_image
         painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
 
         if opacity < 1.0:

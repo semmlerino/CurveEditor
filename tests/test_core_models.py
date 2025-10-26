@@ -564,10 +564,12 @@ class TestPointCollection:
         collection = PointCollection(points)
 
         closest = collection.find_closest_to_frame(105)
-        assert closest is not None and closest.frame == 100  # Closer than 110
+        assert closest is not None
+        assert closest.frame == 100  # Closer than 110
 
         closest = collection.find_closest_to_frame(95)
-        assert closest is not None and closest.frame == 100  # Closer than 90
+        assert closest is not None
+        assert closest.frame == 100  # Closer than 90
 
     def test_find_at_frame(self) -> None:
         """Test finding all points at specific frame."""

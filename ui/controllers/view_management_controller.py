@@ -410,17 +410,9 @@ class ViewManagementController:
         Args:
             num_images: Total number of images in the sequence
         """
-        try:
-            if self.main_window.frame_spinbox:
-                self.main_window.frame_spinbox.setMaximum(num_images)
-            if self.main_window.frame_slider:
-                self.main_window.frame_slider.setMaximum(num_images)
-            if self.main_window.total_frames_label:
-                self.main_window.total_frames_label.setText(str(num_images))
+        if self.main_window.timeline_controller:
+            self.main_window.timeline_controller.update_frame_range(1, num_images)
             logger.info(f"Set frame range to match {num_images} images (1-{num_images})")
-        except RuntimeError:
-            # Widgets may have been deleted during application shutdown
-            pass
 
     def _load_initial_background(self, image_dir: str, image_files: list[str]) -> None:
         """

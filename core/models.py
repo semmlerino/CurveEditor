@@ -819,10 +819,7 @@ def is_point_tuple(obj: object) -> TypeGuard[LegacyPointTuple]:
         return False
 
     # Check status if present (we know obj has 4 elements here)
-    if obj_len == 4 and not isinstance(obj[3], str | bool):
-        return False
-
-    return True
+    return not (obj_len == 4 and not isinstance(obj[3], str | bool))
 
 
 def is_points_list(obj: object) -> TypeGuard[PointsList]:
@@ -838,10 +835,7 @@ def is_points_list(obj: object) -> TypeGuard[PointsList]:
         return False
 
     # Type check each item individually to help type inference
-    for item in obj:
-        if not is_point_tuple(item):
-            return False
-    return True
+    return all(is_point_tuple(item) for item in obj)
 
 
 # Utility functions for common operations
@@ -869,10 +863,7 @@ def normalize_legacy_point(
         return (frame, x, y, "normal")
     elif len(point) >= 4:
         frame, x, y, status = point[:4]
-        if isinstance(status, bool):
-            status_str = "interpolated" if status else "normal"
-        else:
-            status_str = str(status)
+        status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
         return (frame, x, y, status_str)
     else:
         raise ValueError(f"Invalid point format: {point}")

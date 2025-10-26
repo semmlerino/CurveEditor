@@ -153,7 +153,7 @@ class ErrorDialog(QDialog):
             if self.error_info.exception:
                 details_content += "Exception Details:\n"
                 details_content += f"Type: {type(self.error_info.exception).__name__}\n"
-                details_content += f"Message: {str(self.error_info.exception)}\n\n"
+                details_content += f"Message: {self.error_info.exception!s}\n\n"
                 details_content += "Traceback:\n"
                 details_content += traceback.format_exc()
 
@@ -444,7 +444,7 @@ class ErrorHandler(QObject):
 
         else:
             # Generic message
-            return f"An unexpected error occurred: {str(exception)}"
+            return f"An unexpected error occurred: {exception!s}"
 
     def _log_error(self, error_info: ErrorInfo) -> None:
         """Log error to history and logger."""

@@ -64,19 +64,16 @@ _service_lock = threading.Lock()
 
 # Export all public symbols - include conditionally imported types
 __all__ = [
-    # Service Protocols for type safety (always available)
     "BatchEditableProtocol",
     "CurveViewProtocol",
     "LoggingServiceProtocol",
     "MainWindowProtocol",
     "StateManagerProtocol",
     "StatusServiceProtocol",
-    # Service getters (4 core) - always available
-    "get_transform_service",
     "get_data_service",
     "get_interaction_service",
+    "get_transform_service",
     "get_ui_service",
-    # Utility
     "reset_all_services",
 ]
 
@@ -85,9 +82,9 @@ __all__ = [
 if not TYPE_CHECKING:
     __all__.extend(
         [
-            "TransformService",
             "DataService",
             "InteractionService",
+            "TransformService",
             "UIService",
         ]
     )

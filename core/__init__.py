@@ -20,10 +20,9 @@ from .path_security import (
 )
 
 __all__ = [
-    # Display Mode
-    "DisplayMode",
     # Path Security
+    "DisplayMode",
     "PathSecurityError",
-    "validate_file_path",
     "validate_directory_path",
+    "validate_file_path",
 ]

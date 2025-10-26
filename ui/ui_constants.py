@@ -70,11 +70,11 @@ FONT_FAMILIES = {
 # ============================================================================
 
 # 8px base grid system for consistent spacing
-SPACING_XS = 4  # Extra small (0.5 × base)
-SPACING_SM = 8  # Small (1 × base)
-SPACING_MD = 16  # Medium (2 × base)
-SPACING_LG = 24  # Large (3 × base)
-SPACING_XL = 32  # Extra large (4 × base)
+SPACING_XS = 4  # Extra small (0.5 x base)
+SPACING_SM = 8  # Small (1 x base)
+SPACING_MD = 16  # Medium (2 x base)
+SPACING_LG = 24  # Large (3 x base)
+SPACING_XL = 32  # Extra large (4 x base)
 
 # Legacy dict for backward compatibility
 SPACING = {

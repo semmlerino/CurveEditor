@@ -4,8 +4,8 @@
   "current_frame": 1,
   "zoom_level": 1.0,
   "pan_offset": [
-    0.0,
-    0.0
+    100.0,
+    -50.0
   ],
   "window_geometry": [
     0,

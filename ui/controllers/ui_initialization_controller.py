@@ -158,45 +158,30 @@ class UIInitializationController:
         """Create menu bar with all actions."""
         menubar = self.main_window.menuBar()
 
+        def add_actions_to_menu(menu, actions):
+            """Helper to add actions or separators to a menu."""
+            for action in actions:
+                _ = menu.addSeparator() if action is None else menu.addAction(action)
+
         # File menu
         file_menu = menubar.addMenu("&File")
-        for action in self.main_window.shortcut_manager.get_file_actions():
-            if action is None:
-                _ = file_menu.addSeparator()
-            else:
-                _ = file_menu.addAction(action)
+        add_actions_to_menu(file_menu, self.main_window.shortcut_manager.get_file_actions())
 
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
-        for action in self.main_window.shortcut_manager.get_edit_actions():
-            if action is None:
-                _ = edit_menu.addSeparator()
-            else:
-                _ = edit_menu.addAction(action)
+        add_actions_to_menu(edit_menu, self.main_window.shortcut_manager.get_edit_actions())
 
         # View menu
         view_menu = menubar.addMenu("&View")
-        for action in self.main_window.shortcut_manager.get_view_actions():
-            if action is None:
-                _ = view_menu.addSeparator()
-            else:
-                _ = view_menu.addAction(action)
+        add_actions_to_menu(view_menu, self.main_window.shortcut_manager.get_view_actions())
 
         # Curve menu
         curve_menu = menubar.addMenu("&Curve")
-        for action in self.main_window.shortcut_manager.get_curve_actions():
-            if action is None:
-                _ = curve_menu.addSeparator()
-            else:
-                _ = curve_menu.addAction(action)
+        add_actions_to_menu(curve_menu, self.main_window.shortcut_manager.get_curve_actions())
 
         # Navigation menu
         nav_menu = menubar.addMenu("&Navigation")
-        for action in self.main_window.shortcut_manager.get_navigation_actions():
-            if action is None:
-                _ = nav_menu.addSeparator()
-            else:
-                _ = nav_menu.addAction(action)
+        add_actions_to_menu(nav_menu, self.main_window.shortcut_manager.get_navigation_actions())
 
     def _init_toolbar(self) -> None:
         """Initialize the main toolbar."""
@@ -286,7 +271,7 @@ class UIInitializationController:
         # Add frame control to toolbar (from TimelineController)
         _ = toolbar.addWidget(QLabel("Frame:"))
         # Access timeline controller widgets via cast - not exposed in protocol
-        frame_spinbox = cast(QSpinBox, getattr(self.main_window.timeline_controller, "frame_spinbox"))
+        frame_spinbox = cast(QSpinBox, self.main_window.timeline_controller.frame_spinbox)
         self.main_window.frame_spinbox = frame_spinbox
         _ = toolbar.addWidget(frame_spinbox)
         self.main_window.ui.timeline.frame_spinbox = self.main_window.frame_spinbox  # Map to timeline group
@@ -348,17 +333,17 @@ class UIInitializationController:
 
         # Playback controls from TimelineController
         # Access timeline controller widgets via cast - not exposed in protocol
-        btn_play_pause = cast(QPushButton, getattr(self.main_window.timeline_controller, "btn_play_pause"))
+        btn_play_pause = cast(QPushButton, self.main_window.timeline_controller.btn_play_pause)
         self.main_window.btn_play_pause = btn_play_pause
         self.main_window.ui.timeline.play_button = self.main_window.btn_play_pause
 
         # FPS control from TimelineController
-        fps_spinbox = cast(QSpinBox, getattr(self.main_window.timeline_controller, "fps_spinbox"))
+        fps_spinbox = cast(QSpinBox, self.main_window.timeline_controller.fps_spinbox)
         self.main_window.fps_spinbox = fps_spinbox
         self.main_window.ui.timeline.fps_spinbox = self.main_window.fps_spinbox
 
         # Frame slider from TimelineController
-        frame_slider = cast(QSlider, getattr(self.main_window.timeline_controller, "frame_slider"))
+        frame_slider = cast(QSlider, self.main_window.timeline_controller.frame_slider)
         self.main_window.frame_slider = frame_slider
         self.main_window.ui.timeline.timeline_slider = self.main_window.frame_slider
 

@@ -52,7 +52,7 @@ def export_to_csv(
         logger.info(f"Successfully exported {len(curve_data)} points to CSV: {file_path}")
         return True
     except Exception as e:
-        logger.error(f"Error exporting to CSV: {str(e)}")
+        logger.error(f"Error exporting to CSV: {e!s}")
         return False
 
 
@@ -111,5 +111,5 @@ def export_to_excel(file_path: str, curve_data: list[tuple[int, float, float]], 
         logger.info(f"Successfully exported {len(curve_data)} points to Excel: {file_path}")
         return True
     except Exception as e:
-        logger.error(f"Error exporting to Excel: {str(e)}")
+        logger.error(f"Error exporting to Excel: {e!s}")
         return False

@@ -198,10 +198,10 @@ class TrackingDataController(BaseTrackingController):
             for point_name, trajectory in multi_data.items():
                 self._app_state.set_curve_data(point_name, trajectory)
             # Set first point as active timeline point by default
-            first_point = list(multi_data.keys())[0] if multi_data else None
+            first_point = next(iter(multi_data.keys())) if multi_data else None
             self.main_window.active_timeline_point = first_point
             # Initialize all points with default tracking direction
-            for point_name in multi_data.keys():
+            for point_name in multi_data:
                 self.point_tracking_directions[point_name] = TrackingDirection.TRACKING_FW
             logger.info(f"Loaded {len(multi_data)} tracking points from multi-point file")
 
@@ -313,7 +313,7 @@ class TrackingDataController(BaseTrackingController):
 
         # Detect status changes - build list of (index, old_status, new_status)
         status_changes: list[tuple[int, str, str]] = []
-        for i, (old_point, new_point) in enumerate(zip(curve_data, updated_data)):
+        for i, (old_point, new_point) in enumerate(zip(curve_data, updated_data, strict=True)):
             old_status = str(old_point[3]) if len(old_point) > 3 else "keyframe"
             new_status = str(new_point[3]) if len(new_point) > 3 else "keyframe"
             if old_status != new_status:

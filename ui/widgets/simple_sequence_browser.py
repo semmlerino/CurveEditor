@@ -270,13 +270,13 @@ class SimpleSequenceBrowser(QWidget):
     @property
     def _current_sequences(self) -> list["ImageSequence"]:
         """Get current sequences (delegates to sequence_list for sorted order)."""
-        return self.sequence_list._sequences
+        return self.sequence_list.sequences
 
     @_current_sequences.setter
     def _current_sequences(self, _sequences: list["ImageSequence"]) -> None:
         """Set current sequences (delegates to sequence_list)."""
         # This setter is called by set_sequences() and clear()
-        # The actual storage is in sequence_list._sequences
+        # The actual storage is in sequence_list.sequences
         pass  # No-op, actual update happens via sequence_list.set_sequences()
 
     def set_sort_order(self, sort_key: str, ascending: bool = True) -> None:

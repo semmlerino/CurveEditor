@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING, override
+from typing import TYPE_CHECKING, ClassVar, override
 
 from PySide6.QtCore import QThread, Signal
 
@@ -38,7 +38,7 @@ class DirectoryScanWorker(QThread):
     error_occurred: Signal = Signal(str)  # error_message
 
     # Supported image extensions
-    IMAGE_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".exr", ".hdr", ".dpx"}
+    IMAGE_EXTENSIONS: ClassVar[set[str]] = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".exr", ".hdr", ".dpx"}
 
     directory: str
 

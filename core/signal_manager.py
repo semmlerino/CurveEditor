@@ -151,10 +151,9 @@ class SignalManager:
         Returns:
             bool: True if successful, False otherwise
         """
-        if connection in self.connections:
-            if connection.disconnect():
-                self.connections.remove(connection)
-                return True
+        if connection in self.connections and connection.disconnect():
+            self.connections.remove(connection)
+            return True
         return False
 
     def disconnect_all(self) -> None:

@@ -14,6 +14,7 @@ Phase 3.2: Refactored with internal helpers for separation of concerns.
 
 from __future__ import annotations
 
+import contextlib
 from typing import TYPE_CHECKING, cast
 
 from PySide6.QtCore import QCoreApplication, QThread
@@ -405,12 +406,7 @@ class _MouseHandler:
                         return
                     _, data = cd
                     indices = list(view.selected_points)
-                    deleted_points: list[
-                        tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]
-                    ] = []
-                    for idx in sorted(indices):
-                        if 0 <= idx < len(data):
-                            deleted_points.append((idx, data[idx]))
+                    deleted_points = [(idx, data[idx]) for idx in sorted(indices) if 0 <= idx < len(data)]
 
                     if deleted_points:
                         # Create and execute delete command
@@ -859,7 +855,7 @@ class _CommandHistory:
                 main_window.curve_widget is not None
                 and getattr(main_window.curve_widget, "curve_data", None) is not None
             ):
-                widget_curve_data = getattr(main_window.curve_widget, "curve_data")
+                widget_curve_data = main_window.curve_widget.curve_data
                 if (
                     widget_curve_data
                     and isinstance(widget_curve_data, list)
@@ -928,14 +924,14 @@ class _CommandHistory:
         self.update_history_buttons(main_window)
 
         # Notify workflow state service if available
+        # Use getattr for optional service that may not exist in all configurations
+        workflow_state = getattr(main_window.services, "workflow_state", None)
         if (
-            getattr(main_window.services, "workflow_state", None) is not None
-            and getattr(getattr(main_window.services, "workflow_state"), "on_data_modified", None) is not None
+            workflow_state is not None
+            and getattr(workflow_state, "on_data_modified", None) is not None
         ):
-            try:
-                getattr(main_window.services, "workflow_state").on_data_modified()
-            except Exception:
-                pass  # Ignore errors in workflow notification
+            with contextlib.suppress(Exception):
+                workflow_state.on_data_modified()
 
         logger.debug("Added state to history")
 
@@ -1062,13 +1058,7 @@ class _CommandHistory:
                 main_window.curve_widget is not None
                 and getattr(main_window.curve_widget, "curve_data", None) is not None
             ):
-                setattr(main_window.curve_widget, "curve_data", curve_data)
-
-            # Also set on curve_widget if present
-            if (
-                main_window.curve_widget is not None
-                and getattr(main_window.curve_widget, "curve_data", None) is not None
-            ):
+                # Legacy: set curve data on widget (may be property)
                 setattr(main_window.curve_widget, "curve_data", curve_data)
 
         # Restore point_name
@@ -1247,10 +1237,7 @@ class _PointManipulator:
 
             # Collect points to delete
             indices = list(view.selected_points)
-            deleted_points: list[tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]] = []
-            for idx in sorted(indices):
-                if 0 <= idx < len(curve_data):
-                    deleted_points.append((idx, curve_data[idx]))
+            deleted_points = [(idx, curve_data[idx]) for idx in sorted(indices) if 0 <= idx < len(curve_data)]
 
             if deleted_points:
                 # Create and execute delete command

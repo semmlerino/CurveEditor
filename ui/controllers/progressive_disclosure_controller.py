@@ -37,7 +37,7 @@ class ProgressiveDisclosureController(QObject):
     simple_widget: QWidget
     advanced_widget: QWidget
     splitter: QSplitter | None
-    state_manager: StateManager | None
+    state_manager: "StateManager | None"
     _current_mode: str
     _animation_duration: int
     _is_animating: bool
@@ -211,7 +211,8 @@ class ProgressiveDisclosureController(QObject):
             if self.splitter and self._splitter_sizes:
                 self.splitter.setSizes(self._splitter_sizes)
 
-        self._fade_in_animation.start()
+        if self._fade_in_animation is not None:
+            self._fade_in_animation.start()
 
     def _on_animation_finished(self, target_mode: str) -> None:
         """Handle animation completion."""

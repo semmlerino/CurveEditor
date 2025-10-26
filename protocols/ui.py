@@ -18,7 +18,7 @@ from protocols.data import CurveDataInput, CurveDataList, HistoryState, QtPointF
 
 # Import authoritative SignalProtocol from protocols.services
 # to avoid duplicate incompatible definitions
-from protocols.services import SignalProtocol  # noqa: F401 - re-exported for convenience
+from protocols.services import SignalProtocol
 
 
 class StateManagerProtocol(Protocol):
@@ -784,6 +784,7 @@ class MainWindowProtocol(Protocol):
     fps_spinbox: object | None  # QSpinBox
     btn_play_pause: object | None  # QPushButton
     timeline_tabs: "TimelineTabsProtocol | None"
+    timeline_controller: "TimelineControllerProtocol | None"  # TimelineController
     tracking_panel: "TrackingPointsPanelProtocol | None"
 
     @property

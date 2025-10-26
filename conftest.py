@@ -10,7 +10,7 @@ import os
 import pytest
 
 # Import all fixtures to make them globally available
-from tests.fixtures import *  # noqa: F403, F401 - fixtures need to be available globally
+from tests.fixtures import *  # noqa: F403 - fixtures need to be available globally
 
 
 def pytest_configure(config: object) -> None:  # pyright: ignore[reportUnusedParameter]

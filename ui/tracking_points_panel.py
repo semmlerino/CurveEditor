@@ -81,9 +81,7 @@ class TrackingTableEventFilter(QObject):
         # Check for symbol keys !, ", and @ (international keyboard layouts - separate check)
         if key == Qt.Key.Key_Exclam:  # ! (Shift+1 on most layouts)
             tracking_direction = TrackingDirection.TRACKING_BW
-        elif key == Qt.Key.Key_QuoteDbl:  # " (Shift+2 on German layout)
-            tracking_direction = TrackingDirection.TRACKING_FW
-        elif key == Qt.Key.Key_At:  # @ (Shift+2 on US layout)
+        elif key == Qt.Key.Key_QuoteDbl or key == Qt.Key.Key_At:  # " (Shift+2 on German layout)
             tracking_direction = TrackingDirection.TRACKING_FW
 
         # If we found a tracking direction shortcut, handle it
@@ -111,12 +109,12 @@ class TrackingTableEventFilter(QObject):
 
         # Set tracking direction for all selected points
         for point_name in selected_points:
-            if point_name in self.panel._point_metadata:
-                self.panel._point_metadata[point_name]["tracking_direction"] = direction
+            if point_name in self.panel.point_metadata:
+                self.panel.point_metadata[point_name]["tracking_direction"] = direction
                 self.panel.tracking_direction_changed.emit(point_name, direction)
 
         # Update the direction dropdowns in the table
-        self.panel._update_direction_dropdowns_for_points(selected_points, direction)
+        self.panel.update_direction_dropdowns_for_points(selected_points, direction)
 
         # Event was handled, consume it
         return True
@@ -147,7 +145,7 @@ class TrackingPointsPanel(QWidget):
         # Signal management for proper cleanup
         self.signal_manager: SignalManager = SignalManager(self)
 
-        self._point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
+        self.point_metadata: dict[str, PointMetadata] = {}  # Store visibility, color, etc.
         self._updating: bool = False  # Prevent recursive updates
         self._update_depth: int = 0  # Track recursion depth for app state sync (more robust than boolean)
         self._updating_display_mode: bool = False  # Prevent display mode signal loops
@@ -255,8 +253,8 @@ class TrackingPointsPanel(QWidget):
 
         color_index = 0
         for point_name in tracked_data:
-            if point_name not in self._point_metadata:
-                self._point_metadata[point_name] = {
+            if point_name not in self.point_metadata:
+                self.point_metadata[point_name] = {
                     "visible": True,
                     "color": colors[color_index % len(colors)],
                     "tracking_direction": TrackingDirection.TRACKING_FW_BW,  # Default
@@ -267,7 +265,7 @@ class TrackingPointsPanel(QWidget):
         self.table.setRowCount(len(tracked_data))
 
         for i, (point_name, trajectory) in enumerate(tracked_data.items()):
-            metadata = self._point_metadata[point_name]
+            metadata = self.point_metadata[point_name]
 
             # Visible checkbox
             checkbox = QCheckBox()
@@ -422,27 +420,27 @@ class TrackingPointsPanel(QWidget):
     def get_visible_points(self) -> list[str]:
         """Get list of visible tracking point names."""
         visible_points = []
-        for point_name, metadata in self._point_metadata.items():
+        for point_name, metadata in self.point_metadata.items():
             if metadata["visible"]:
                 visible_points.append(point_name)
         return visible_points
 
     def get_point_color(self, point_name: str) -> str:
         """Get color for a tracking point."""
-        if point_name in self._point_metadata:
-            return self._point_metadata[point_name]["color"]
+        if point_name in self.point_metadata:
+            return self.point_metadata[point_name]["color"]
         return "#FFFFFF"
 
     def get_tracking_direction(self, point_name: str) -> TrackingDirection:
         """Get tracking direction for a tracking point."""
-        if point_name in self._point_metadata:
-            return self._point_metadata[point_name]["tracking_direction"]
+        if point_name in self.point_metadata:
+            return self.point_metadata[point_name]["tracking_direction"]
         return TrackingDirection.TRACKING_FW_BW  # Default
 
     def get_point_visibility(self, point_name: str) -> bool:
         """Get visibility status for a tracking point."""
-        if point_name in self._point_metadata:
-            return self._point_metadata[point_name]["visible"]
+        if point_name in self.point_metadata:
+            return self.point_metadata[point_name]["visible"]
         return True  # Default to visible
 
     def _on_display_mode_checkbox_toggled(self, checked: bool) -> None:
@@ -562,8 +560,8 @@ class TrackingPointsPanel(QWidget):
 
     def _on_visibility_changed(self, point_name: str, visible: bool) -> None:
         """Handle visibility checkbox changes."""
-        if point_name in self._point_metadata:
-            self._point_metadata[point_name]["visible"] = visible
+        if point_name in self.point_metadata:
+            self.point_metadata[point_name]["visible"] = visible
             self.point_visibility_changed.emit(point_name, visible)
 
     def _on_direction_changed(self, point_name: str, direction_text: str) -> None:
@@ -571,19 +569,19 @@ class TrackingPointsPanel(QWidget):
         if self._updating:
             return
 
-        if point_name in self._point_metadata:
+        if point_name in self.point_metadata:
             new_direction = TrackingDirection.from_abbreviation(direction_text)
-            self._point_metadata[point_name]["tracking_direction"] = new_direction
+            self.point_metadata[point_name]["tracking_direction"] = new_direction
             self.tracking_direction_changed.emit(point_name, new_direction)
 
     def _on_color_button_clicked(self, point_name: str) -> None:
         """Handle color button click."""
-        current_color = QColor(self._point_metadata[point_name]["color"])
+        current_color = QColor(self.point_metadata[point_name]["color"])
         color = QColorDialog.getColor(current_color, self, f"Choose color for {point_name}")
 
         if color.isValid():
             color_hex = color.name()
-            self._point_metadata[point_name]["color"] = color_hex
+            self.point_metadata[point_name]["color"] = color_hex
 
             # Update button color
             for row in range(self.table.rowCount()):
@@ -653,8 +651,8 @@ class TrackingPointsPanel(QWidget):
     def _set_visibility_for_points(self, points: list[str], visible: bool) -> None:
         """Set visibility for multiple points."""
         for point_name in points:
-            if point_name in self._point_metadata:
-                self._point_metadata[point_name]["visible"] = visible
+            if point_name in self.point_metadata:
+                self.point_metadata[point_name]["visible"] = visible
                 self.point_visibility_changed.emit(point_name, visible)
 
         # Update checkboxes
@@ -680,8 +678,8 @@ class TrackingPointsPanel(QWidget):
     def _set_direction_for_points(self, points: list[str], direction: TrackingDirection) -> None:
         """Set tracking direction for multiple points (internal implementation)."""
         for point_name in points:
-            if point_name in self._point_metadata:
-                self._point_metadata[point_name]["tracking_direction"] = direction
+            if point_name in self.point_metadata:
+                self.point_metadata[point_name]["tracking_direction"] = direction
                 self.tracking_direction_changed.emit(point_name, direction)
 
         # Update dropdowns
@@ -692,7 +690,7 @@ class TrackingPointsPanel(QWidget):
                 if direction_combo and isinstance(direction_combo, QComboBox):
                     direction_combo.setCurrentText(direction.abbreviation)
 
-    def _update_direction_dropdowns_for_points(self, points: list[str], direction: TrackingDirection) -> None:
+    def update_direction_dropdowns_for_points(self, points: list[str], direction: TrackingDirection) -> None:
         """Update direction dropdowns for specified points without changing metadata."""
         for row in range(self.table.rowCount()):
             point_name_item = self.table.item(row, 1)

@@ -79,7 +79,7 @@ class MainWindowBuilder:
         # Note: Handler names match the public API in MainWindow (without underscore prefix)
         # Type warnings about Unknown in list types are from PySide6 Signal stubs - handlers have proper types
         _ = window.file_load_worker.tracking_data_loaded.connect(window.on_tracking_data_loaded)
-        _ = window.file_load_worker.image_sequence_loaded.connect(window._on_image_sequence_loaded)
+        _ = window.file_load_worker.image_sequence_loaded.connect(window.on_image_sequence_loaded)
         _ = window.file_load_worker.progress_updated.connect(window.on_file_load_progress)
         _ = window.file_load_worker.error_occurred.connect(window.on_file_load_error)
         _ = window.file_load_worker.finished.connect(window.on_file_load_finished)
@@ -150,7 +150,7 @@ class MainWindowBuilder:
         window.action_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
         window.action_zoom_out.setStatusTip("Zoom out the view")
         # Create a text-based icon for zoom out
-        window.action_zoom_out.setText("🔍−")
+        window.action_zoom_out.setText("🔍-")
         window.action_zoom_out.setToolTip("Zoom Out (Ctrl+-)")
 
         window.action_reset_view = QAction("Reset View", window)

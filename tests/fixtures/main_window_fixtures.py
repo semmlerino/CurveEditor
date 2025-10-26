@@ -247,7 +247,7 @@ def main_window_with_mocks(qapp, qtbot, monkeypatch) -> Generator[MainWindow, No
     window.show()
     qapp.processEvents()
 
-    yield window
+    return window
 
     # qtbot.addWidget handles cleanup automatically
 

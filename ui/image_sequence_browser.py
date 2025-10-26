@@ -12,7 +12,7 @@ import sys
 import warnings
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, cast, override
+from typing import TYPE_CHECKING, ClassVar, cast, override
 
 from PySide6.QtCore import QDir, QEvent, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeyEvent, QKeySequence, QPixmap, QShortcut
@@ -49,6 +49,7 @@ from ui.ui_constants import (
     SPACING_XS,
 )
 from ui.widgets.card import Card
+import contextlib
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QModelIndex
@@ -118,11 +119,8 @@ class BreadcrumbBar(QWidget):
 
         # Split path into segments
         path_obj = Path(path)
-        segments: list[tuple[str, str]] = []
-
         # Build segment list from root to current
-        for parent in reversed(list(path_obj.parents)):
-            segments.append((str(parent), parent.name or str(parent)))
+        segments = [(str(parent), parent.name or str(parent)) for parent in reversed(list(path_obj.parents))]
 
         # Add current directory
         segments.append((path, path_obj.name or str(path_obj)))
@@ -382,7 +380,7 @@ class ImageSequenceBrowserDialog(QDialog):
     """
 
     # Supported image formats (must match data_service.py and file_operations.py)
-    IMAGE_EXTENSIONS: set[str] = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
+    IMAGE_EXTENSIONS: ClassVar[set[str]] = {".jpg", ".jpeg", ".png", ".bmp", ".tiff", ".tif", ".gif", ".exr"}
 
     # Thumbnail display settings
     THUMBNAIL_SIZE: int = 150
@@ -1004,10 +1002,7 @@ class ImageSequenceBrowserDialog(QDialog):
                     sequence_data = item.data(Qt.ItemDataRole.UserRole)
                     if isinstance(sequence_data, ImageSequence):
                         # Search in directory path
-                        if filter_text in sequence_data.directory.lower():
-                            match = True
-                        # Search in base name
-                        elif filter_text in sequence_data.base_name.lower():
+                        if filter_text in sequence_data.directory.lower() or filter_text in sequence_data.base_name.lower():
                             match = True
 
                 item.setHidden(not match)
@@ -1163,10 +1158,8 @@ class ImageSequenceBrowserDialog(QDialog):
             total_size = 0
             for filename in sequence.file_list:
                 file_path = os.path.join(sequence.directory, filename)
-                try:
+                with contextlib.suppress(OSError):
                     total_size += os.path.getsize(file_path)
-                except OSError:
-                    pass
             sequence.total_size_bytes = total_size
 
             sequences.append(sequence)
@@ -1799,11 +1792,10 @@ class ImageSequenceBrowserDialog(QDialog):
             self, "Add to Favorites", "Enter name for this favorite:", text=Path(current_path).name
         )
 
-        if ok and name:
-            if self.favorites_manager.add(name, current_path):
-                self._populate_favorites()
-                self._update_favorite_button_state()
-                self.info_label.setText(f"Added '{name}' to favorites")
+        if ok and name and self.favorites_manager.add(name, current_path):
+            self._populate_favorites()
+            self._update_favorite_button_state()
+            self.info_label.setText(f"Added '{name}' to favorites")
 
     def _on_favorite_double_clicked(self, item: QListWidgetItem) -> None:
         """Navigate to favorite on double-click.

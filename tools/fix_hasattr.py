@@ -77,7 +77,7 @@ def process_file(file_path: Path) -> tuple[int, list[str]]:
         original_lines = original.split("\n")
         new_lines = content.split("\n")
 
-        for i, (old, new) in enumerate(zip(original_lines, new_lines), 1):
+        for i, (old, new) in enumerate(zip(original_lines, new_lines, strict=True), 1):
             if old != new and "hasattr" in old:
                 changes.append(f"  Line {i}: {old.strip()} -> {new.strip()}")
 

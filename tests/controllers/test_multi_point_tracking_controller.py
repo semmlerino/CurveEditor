@@ -619,7 +619,7 @@ class TestClearTrackingData:
         """
         # Arrange
         controller.on_multi_point_data_loaded(sample_tracking_data)
-        for point_name in sample_tracking_data.keys():
+        for point_name in sample_tracking_data:
             controller.on_tracking_direction_changed(
                 point_name, TrackingDirection.TRACKING_FW
             )
@@ -976,7 +976,7 @@ class TestIntegrationScenarios:
         """
         # Arrange - Load and set directions
         controller.on_multi_point_data_loaded(sample_tracking_data)
-        for point_name in sample_tracking_data.keys():
+        for point_name in sample_tracking_data:
             controller.on_tracking_direction_changed(
                 point_name, TrackingDirection.TRACKING_FW
             )

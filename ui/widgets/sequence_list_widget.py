@@ -162,7 +162,7 @@ class SequenceItemWidget(QWidget):
             (7680, 4320): "8K",
         }
 
-        return labels.get((width, height), f"{width}×{height}")
+        return labels.get((width, height), f"{width}x{height}")
 
 
 class SequenceListWidget(QListWidget):
@@ -188,7 +188,7 @@ class SequenceListWidget(QListWidget):
             parent: Parent widget
         """
         super().__init__(parent)
-        self._sequences: list[ImageSequence] = []
+        self.sequences: list[ImageSequence] = []
         self._sort_key: str = "name"
         self._sort_ascending: bool = True
 
@@ -228,7 +228,7 @@ class SequenceListWidget(QListWidget):
         Args:
             sequences: List of ImageSequence objects
         """
-        self._sequences = sequences.copy()
+        self.sequences = sequences.copy()
         self._refresh_display()
 
     def add_sequence(self, sequence: "ImageSequence") -> None:
@@ -238,12 +238,12 @@ class SequenceListWidget(QListWidget):
         Args:
             sequence: ImageSequence to add
         """
-        self._sequences.append(sequence)
+        self.sequences.append(sequence)
         self._refresh_display()
 
     def clear_sequences(self) -> None:
         """Clear all sequences from the list."""
-        self._sequences.clear()
+        self.sequences.clear()
         self.clear()
 
     def set_sort_order(self, sort_key: str, ascending: bool = True) -> None:
@@ -269,8 +269,8 @@ class SequenceListWidget(QListWidget):
         if current_item:
             # Get sequence from item data
             sequence_index = current_item.data(Qt.ItemDataRole.UserRole)
-            if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-                return self._sequences[sequence_index]
+            if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+                return self.sequences[sequence_index]
         return None
 
     def select_sequence_by_name(self, sequence_name: str) -> bool:
@@ -287,8 +287,8 @@ class SequenceListWidget(QListWidget):
             item = self.item(i)
             if item:
                 sequence_index = item.data(Qt.ItemDataRole.UserRole)
-                if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-                    sequence = self._sequences[sequence_index]
+                if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+                    sequence = self.sequences[sequence_index]
                     if sequence.display_name == sequence_name:
                         self.setCurrentItem(item)
                         return True
@@ -299,11 +299,11 @@ class SequenceListWidget(QListWidget):
         # Clear current items
         self.clear()
 
-        if not self._sequences:
+        if not self.sequences:
             return
 
         # Sort sequences
-        sorted_sequences = self._sort_sequences(self._sequences)
+        sorted_sequences = self._sort_sequences(self.sequences)
 
         # Create list items
         for i, sequence in enumerate(sorted_sequences):
@@ -320,9 +320,9 @@ class SequenceListWidget(QListWidget):
             self.setItemWidget(item, item_widget)
 
         # Update sequences list to match sorted order
-        self._sequences = sorted_sequences
+        self.sequences = sorted_sequences
 
-        logger.debug(f"Refreshed display with {len(self._sequences)} sequences, sorted by {self._sort_key}")
+        logger.debug(f"Refreshed display with {len(self.sequences)} sequences, sorted by {self._sort_key}")
 
     def _sort_sequences(self, sequences: list["ImageSequence"]) -> list["ImageSequence"]:
         """
@@ -361,24 +361,24 @@ class SequenceListWidget(QListWidget):
         """Handle current item change."""
         if current:
             sequence_index = current.data(Qt.ItemDataRole.UserRole)
-            if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-                sequence = self._sequences[sequence_index]
+            if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+                sequence = self.sequences[sequence_index]
                 self.sequence_selected.emit(sequence)
                 logger.debug(f"Selected sequence: {sequence.display_name}")
 
     def _on_item_double_clicked(self, item: QListWidgetItem) -> None:
         """Handle item double-click."""
         sequence_index = item.data(Qt.ItemDataRole.UserRole)
-        if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-            sequence = self._sequences[sequence_index]
+        if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+            sequence = self.sequences[sequence_index]
             self.sequence_activated.emit(sequence)
             logger.debug(f"Activated sequence: {sequence.display_name}")
 
     def _on_item_activated(self, item: QListWidgetItem) -> None:
         """Handle item activation (Enter key)."""
         sequence_index = item.data(Qt.ItemDataRole.UserRole)
-        if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-            sequence = self._sequences[sequence_index]
+        if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+            sequence = self.sequences[sequence_index]
             self.sequence_activated.emit(sequence)
             logger.debug(f"Activated sequence via keyboard: {sequence.display_name}")
 
@@ -404,8 +404,8 @@ class SequenceListWidget(QListWidget):
             item = self.item(i)
             if item:
                 sequence_index = item.data(Qt.ItemDataRole.UserRole)
-                if sequence_index is not None and 0 <= sequence_index < len(self._sequences):
-                    sequence = self._sequences[sequence_index]
+                if sequence_index is not None and 0 <= sequence_index < len(self.sequences):
+                    sequence = self.sequences[sequence_index]
 
                     # Check if filter matches sequence name or path
                     matches = (

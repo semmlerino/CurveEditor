@@ -80,7 +80,7 @@ def all_services() -> Generator[SimpleNamespace, None, None]:
         ui=get_ui_service(),
     )
 
-    yield services_ns
+    return services_ns
 
     # Services are singletons, no cleanup needed
 
@@ -184,6 +184,6 @@ def curve_with_data(app_state) -> Generator[Any, None, None]:
     app_state.set_curve_data("test_curve", test_data)
     app_state.set_active_curve("test_curve")
 
-    yield app_state
+    return app_state
 
     # Cleanup happens in app_state fixture

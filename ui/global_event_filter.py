@@ -70,10 +70,10 @@ class GlobalEventFilter(QObject):
             logger.debug(f"[GLOBAL_EVENT_FILTER] KeyPress: key={key}, watching {watched.__class__.__name__}")
             if key == Qt.Key.Key_PageUp:
                 logger.debug("[GLOBAL_EVENT_FILTER] Page Up pressed, navigating to previous keyframe")
-                self.main_window._navigate_to_prev_keyframe()
+                self.main_window.navigate_to_prev_keyframe()
             else:
                 logger.debug("[GLOBAL_EVENT_FILTER] Page Down pressed, navigating to next keyframe")
-                self.main_window._navigate_to_next_keyframe()
+                self.main_window.navigate_to_next_keyframe()
             event.accept()
             return True
 
@@ -192,7 +192,4 @@ class GlobalEventFilter(QObject):
         # Check for combo box dropdown
         from PySide6.QtWidgets import QComboBox
 
-        if isinstance(obj, QComboBox) and obj.isEditable():
-            return True
-
-        return False
+        return bool(isinstance(obj, QComboBox) and obj.isEditable())

@@ -15,10 +15,9 @@ from enum import Enum
 from typing import TYPE_CHECKING, Protocol, override, runtime_checkable
 
 if TYPE_CHECKING:
-    from core.validation_strategy import ValidationIssue
-
-if TYPE_CHECKING:
     from PySide6.QtWidgets import QWidget
+
+    from core.validation_types import ValidationIssue
 
 logger = logging.getLogger("error_handlers")
 
@@ -98,9 +97,9 @@ class BaseErrorHandler(ABC):
 
     def __init__(self, parent_widget: "QWidget | None" = None):
         """Initialize error handler."""
-        self.parent_widget = parent_widget
+        self.parent_widget: QWidget | None = parent_widget
         self.error_count: dict[str, int] = {}
-        self.max_errors_per_type = 10
+        self.max_errors_per_type: int = 10
 
     @abstractmethod
     def handle_validation_error(self, error: Exception, context: ErrorContext) -> RecoveryStrategy:
@@ -156,7 +155,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
     def __init__(self, parent_widget: "QWidget | None" = None, verbose: bool = True):
         """Initialize with optional verbosity."""
         super().__init__(parent_widget)
-        self.verbose = verbose
+        self.verbose: bool = verbose
         self.recovery_callbacks: dict[str, Callable[[], object]] = {}
 
     def set_recovery_callback(self, operation: str, callback: Callable[[], object]) -> None:
@@ -259,7 +258,7 @@ class DefaultTransformErrorHandler(BaseErrorHandler):
 
         # Log issues at appropriate levels based on severity
         for issue in issues:
-            from core.validation_strategy import ValidationSeverity
+            from core.validation_types import ValidationSeverity
 
             message = issue.format()
             if issue.severity == ValidationSeverity.CRITICAL:
@@ -415,7 +414,7 @@ class StrictTransformErrorHandler(BaseErrorHandler):
     @override
     def report_issues(self, issues: list["ValidationIssue"]) -> None:
         """Report all issues as errors."""
-        from core.validation_strategy import ValidationSeverity
+        from core.validation_types import ValidationSeverity
 
         for issue in issues:
             message = f"STRICT: {issue.format()}"

@@ -479,6 +479,30 @@ class TimelineController(QObject):
 
     # ========== Shared Methods ==========
 
+    def update_frame_range(self, min_frame: int, max_frame: int) -> None:
+        """
+        Update all frame range UI elements (spinbox, slider, label).
+
+        Single source of truth for frame range UI updates across controllers.
+
+        Args:
+            min_frame: Minimum frame number
+            max_frame: Maximum frame number
+        """
+        try:
+            if self.frame_spinbox:
+                self.frame_spinbox.setRange(min_frame, max_frame)
+            if self.frame_slider:
+                self.frame_slider.setRange(min_frame, max_frame)
+            if self.main_window:
+                total_frames_label = getattr(self.main_window, "total_frames_label", None)
+                if total_frames_label:
+                    total_frames_label.setText(str(max_frame))
+            logger.debug(f"Frame range updated: {min_frame}-{max_frame}")
+        except RuntimeError:
+            # Widgets may have been deleted during application shutdown
+            pass
+
     def set_frame_range(self, min_frame: int, max_frame: int) -> None:
         """
         Set the valid frame range for both navigation and playback.
@@ -491,11 +515,8 @@ class TimelineController(QObject):
         # Setting spinbox.setMaximum(0) when current value > 0 causes Qt to
         # automatically change the value to 0, triggering unwanted frame changes
         if max_frame > 0:
-            # Update navigation controls
-            self.frame_spinbox.setMinimum(min_frame)
-            self.frame_spinbox.setMaximum(max_frame)
-            self.frame_slider.setMinimum(min_frame)
-            self.frame_slider.setMaximum(max_frame)
+            # Update UI elements via centralized method
+            self.update_frame_range(min_frame, max_frame)
 
             # Update playback bounds
             self.playback_state.min_frame = min_frame

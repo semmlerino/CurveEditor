@@ -19,18 +19,15 @@ from core.commands.curve_commands import (
 )
 
 __all__ = [
-    # Base classes
-    "Command",
-    "CompositeCommand",
-    "NullCommand",
-    # Manager
-    "CommandManager",
-    # Curve commands
-    "SetCurveDataCommand",
-    "SmoothCommand",
-    "MovePointCommand",
-    "BatchMoveCommand",
-    "DeletePointsCommand",
-    "SetPointStatusCommand",
     "AddPointCommand",
+    "BatchMoveCommand",
+    "Command",
+    "CommandManager",
+    "CompositeCommand",
+    "DeletePointsCommand",
+    "MovePointCommand",
+    "NullCommand",
+    "SetCurveDataCommand",
+    "SetPointStatusCommand",
+    "SmoothCommand",
 ]

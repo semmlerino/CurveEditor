@@ -2,6 +2,7 @@
 # pyright: reportUnknownMemberType=false, reportUnknownArgumentType=false, reportMissingTypeStubs=false
 
 # Standard library imports
+import contextlib
 from typing import TYPE_CHECKING, cast
 
 # Third-party imports
@@ -416,9 +417,6 @@ class MenuBar(QMenuBar):
 
     def __del__(self) -> None:
         """Destructor to ensure all signals are disconnected."""
-        try:
+        with contextlib.suppress(AttributeError):
             # signal_manager is non-None SignalManager
             self.signal_manager.disconnect_all()
-        except AttributeError:
-            # signal_manager not yet initialized
-            pass

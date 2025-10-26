@@ -12,14 +12,12 @@ providing full undo/redo support for all three scenarios:
 from __future__ import annotations
 
 import copy
-from typing import TYPE_CHECKING
-
-from typing_extensions import override
+from typing import TYPE_CHECKING, override
 
 if TYPE_CHECKING:
     from protocols.ui import MainWindowProtocol
 
-from core.commands.base_command import Command
+from core.commands.curve_commands import CurveDataCommand
 from core.insert_track_algorithm import (
     average_multiple_sources,
     calculate_offset,
@@ -37,10 +35,14 @@ from stores.application_state import get_application_state
 logger = get_logger("insert_track_command")
 
 
-class InsertTrackCommand(Command):
-    """Command for Insert Track operation with undo/redo support."""
+class InsertTrackCommand(CurveDataCommand):
+    """Command for Insert Track operation with undo/redo support.
 
-    executed: bool
+    Supports three scenarios:
+    1. Single curve with gap - interpolate the gap
+    2. Multiple curves (some with gaps) - fill gaps using source curves
+    3. All curves have data - create averaged curve
+    """
 
     def __init__(self, selected_curves: list[str], current_frame: int):
         """Initialize Insert Track command.
@@ -72,17 +74,23 @@ class InsertTrackCommand(Command):
         Returns:
             True if successful, False otherwise
         """
-        try:
-            # Get tracked data from ApplicationState
+
+        def _execute_operation() -> bool:
+            # Validate controller availability
             controller = main_window.multi_point_controller
             if controller is None:
                 logger.error("Multi-point controller not available")
                 return False
+
             app_state = get_application_state()
 
             if not self.selected_curves:
                 logger.error("No curves selected for Insert Track")
                 return False
+
+            # Set target curve for undo/redo (use first selected curve)
+            # This differs from _get_active_curve_data() which requires active curve
+            self._target_curve = self.selected_curves[0]
 
             # Save original data for undo
             for curve_name in self.selected_curves:
@@ -174,9 +182,7 @@ class InsertTrackCommand(Command):
 
             return success
 
-        except Exception as e:
-            logger.error(f"Error executing Insert Track: {e}")
-            return False
+        return self._safe_execute("executing", _execute_operation)
 
     def _execute_scenario_1(self, main_window: MainWindowProtocol, target_curve: str) -> bool:
         """Execute Scenario 1: Interpolate gap in single curve.
@@ -474,14 +480,12 @@ class InsertTrackCommand(Command):
         main_window.multi_point_controller.update_tracking_panel()
 
         # If this is the active curve, update the display
-        if main_window.active_timeline_point is not None:
-            if main_window.active_timeline_point == curve_name:
-                # Update curve display
-                if main_window.curve_widget:
-                    app_state = get_application_state()
-                    curve_data = app_state.get_curve_data(curve_name)
-                    if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
-                        main_window.curve_widget.set_curve_data(curve_data)
+        if (main_window.active_timeline_point is not None and main_window.active_timeline_point == curve_name
+                and main_window.curve_widget):
+            app_state = get_application_state()
+            curve_data = app_state.get_curve_data(curve_name)
+            if curve_data is not None:  # pyright: ignore[reportUnnecessaryComparison]
+                main_window.curve_widget.set_curve_data(curve_data)
 
         # Update timeline
         if main_window.update_timeline_tabs is not None:
@@ -533,8 +537,13 @@ class InsertTrackCommand(Command):
         Returns:
             True if successful
         """
-        try:
+
+        def _undo_operation() -> bool:
             if not self.executed:
+                return False
+
+            if not self._target_curve:
+                logger.error("Missing target curve for undo")
                 return False
 
             controller = main_window.multi_point_controller
@@ -562,13 +571,11 @@ class InsertTrackCommand(Command):
             logger.info("Insert Track undone")
             return True
 
-        except Exception as e:
-            logger.error(f"Error undoing Insert Track: {e}")
-            return False
+        return self._safe_execute("undoing", _undo_operation)
 
     @override
     def redo(self, main_window: MainWindowProtocol) -> bool:
-        """Redo Insert Track operation.
+        """Redo Insert Track operation (uses stored target curve, not current active).
 
         Args:
             main_window: Reference to main window
@@ -576,7 +583,12 @@ class InsertTrackCommand(Command):
         Returns:
             True if successful
         """
-        try:
+
+        def _redo_operation() -> bool:
+            if not self._target_curve:
+                logger.error("Missing target curve for redo")
+                return False
+
             controller = main_window.multi_point_controller
             if controller is None:
                 logger.error("Multi-point controller not available")
@@ -588,7 +600,7 @@ class InsertTrackCommand(Command):
                 app_state.set_curve_data(self.created_curve_name, copy.deepcopy(self.new_data[self.created_curve_name]))
                 self._update_ui_new_curve(main_window, self.created_curve_name)
 
-            # Scenarios 1 & 2: Re-apply new data
+            # Scenarios 1 & 2: Re-apply new data (use stored target, NOT current active)
             app_state = get_application_state()
             for curve_name, new_data in self.new_data.items():
                 if curve_name != self.created_curve_name:  # Skip scenario 3's created curve
@@ -602,6 +614,4 @@ class InsertTrackCommand(Command):
             logger.info("Insert Track redone")
             return True
 
-        except Exception as e:
-            logger.error(f"Error redoing Insert Track: {e}")
-            return False
+        return self._safe_execute("redoing", _redo_operation)

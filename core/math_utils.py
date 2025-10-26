@@ -403,9 +403,7 @@ class ValidationUtils:
         """
         if x_range and not ValidationUtils.is_in_range(x, x_range[0], x_range[1]):
             return False
-        if y_range and not ValidationUtils.is_in_range(y, y_range[0], y_range[1]):
-            return False
-        return True
+        return not (y_range and not ValidationUtils.is_in_range(y, y_range[0], y_range[1]))
 
     @staticmethod
     def normalize(value: float, min_val: float, max_val: float) -> float:

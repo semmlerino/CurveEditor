@@ -370,10 +370,7 @@ class ApplicationState(QObject):
             return False
 
         # Convert status to PointStatus enum
-        if isinstance(status, str):
-            status_enum = PointStatus.from_legacy(status)
-        else:
-            status_enum = status
+        status_enum = PointStatus.from_legacy(status) if isinstance(status, str) else status
 
         # Get current point and create new point with updated status
         current_point_tuple = curve[index]
@@ -592,7 +589,7 @@ class ApplicationState(QObject):
                 logger.debug("No selections to clear, no signal emitted")
         else:
             # Clear specific curve - only emit if it had a non-empty selection
-            if curve_name in self._selection and self._selection[curve_name]:
+            if self._selection.get(curve_name):
                 self._selection[curve_name] = set()
                 self._emit(self.selection_changed, (set(), curve_name))
                 logger.debug(f"Cleared selection for '{curve_name}'")

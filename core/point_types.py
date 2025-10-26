@@ -168,10 +168,7 @@ def safe_extract_point(point: object) -> tuple[int, float, float, str]:
     if is_point4(point):
         frame, x, y, status = point
         # Normalize status to string
-        if isinstance(status, bool):
-            status_str = "interpolated" if status else "normal"
-        else:
-            status_str = str(status)
+        status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
         return frame, float(x), float(y), status_str
 
     # Fallback for invalid input
@@ -219,10 +216,7 @@ def normalize_point(point: PointType) -> Point4:
     if is_point4(point):
         frame, x, y, status = point
         # Normalize status to string
-        if isinstance(status, bool):
-            status_str = "interpolated" if status else "normal"
-        else:
-            status_str = str(status)
+        status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
         return (frame, x, y, status_str)
 
     # This should never happen with proper TypeGuard usage
@@ -250,10 +244,7 @@ def set_point_status(point: PointType, status: StatusType) -> Point4:
     frame, x, y, _ = normalize_point(point)
 
     # Normalize status to string
-    if isinstance(status, bool):
-        status_str = "interpolated" if status else "normal"
-    else:
-        status_str = str(status)
+    status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
 
     return (frame, x, y, status_str)
 
@@ -296,14 +287,7 @@ def validate_point_data(points: list[object]) -> list[Point4]:
         >>> validated = validate_point_data(mixed_points)
         >>> # Returns [(1, 2.0, 3.0, 'normal'), (2, 4.0, 5.0, 'keyframe')]
     """
-    validated_points: list[Point4] = []
-
-    for point in points:
-        if is_valid_point(point):
-            validated_points.append(normalize_point(point))
-        # Skip invalid points silently
-
-    return validated_points
+    return [normalize_point(point) for point in points if is_valid_point(point)]
 
 
 def get_point_frame(point: PointType) -> int:
@@ -431,9 +415,6 @@ def create_point4(frame: int, x: float, y: float, status: StatusType = "normal")
         (1, 2.0, 3.0, 'interpolated')
     """
     # Normalize status to string
-    if isinstance(status, bool):
-        status_str = "interpolated" if status else "normal"
-    else:
-        status_str = str(status)
+    status_str = ("interpolated" if status else "normal") if isinstance(status, bool) else str(status)
 
     return (int(frame), float(x), float(y), status_str)

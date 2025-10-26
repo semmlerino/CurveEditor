@@ -103,16 +103,12 @@ def qt_cleanup(qapp: QApplication) -> Generator[None, None, None]:
 
             # Close widget to trigger cleanup
             if hasattr(widget, "close"):
-                try:
+                with contextlib.suppress(RuntimeError):
                     widget.close()
-                except RuntimeError:
-                    pass
 
             # Force immediate deletion
-            try:
+            with contextlib.suppress(RuntimeError):
                 widget.deleteLater()
-            except RuntimeError:
-                pass  # Widget may already be deleted
         except Exception:
             pass  # Don't let cleanup failures break tests
 
@@ -179,7 +175,7 @@ def curve_view_widget(qapp: QApplication, qtbot):
     # Ensure widget is properly initialized
     qapp.processEvents()
 
-    yield widget
+    return widget
 
     # qtbot.addWidget handles cleanup automatically
     # No manual cleanup needed
@@ -201,20 +197,16 @@ def _cleanup_main_window_event_filter(window):
         # This prevents segfault when reset_all_services calls app.processEvents()
         # after gc.collect() triggers __del__ with threads still running
         if hasattr(window, "file_operations"):
-            try:
+            with contextlib.suppress(RuntimeError, AttributeError):
                 window.file_operations.cleanup_threads()
-            except (RuntimeError, AttributeError):
-                pass  # Already stopped or not initialized
 
         # STEP 2: Remove event filters (original cleanup)
         from PySide6.QtWidgets import QApplication
 
         app = QApplication.instance()
         if app and hasattr(window, "global_event_filter"):
-            try:
+            with contextlib.suppress(RuntimeError):
                 app.removeEventFilter(window.global_event_filter)
-            except RuntimeError:
-                pass  # App or filter already deleted
     except Exception:
         pass  # Suppress all exceptions in cleanup  # Suppress all exceptions in cleanup
 
@@ -271,7 +263,7 @@ def main_window(qapp: QApplication, qtbot):
     # Process events to ensure widgets are ready
     qapp.processEvents()
 
-    yield window
+    return window
 
     # qtbot.addWidget handles cleanup automatically including before_close_func
     # No manual cleanup needed

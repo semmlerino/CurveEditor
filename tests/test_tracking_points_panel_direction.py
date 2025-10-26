@@ -69,7 +69,7 @@ class TestTrackingPointsPanelDirection:
         """Test that new tracking data gets default direction FW+BW."""
         tracking_panel.set_tracked_data(sample_tracking_data)
 
-        for point_name in sample_tracking_data.keys():
+        for point_name in sample_tracking_data:
             direction = tracking_panel.get_tracking_direction(point_name)
             assert direction == TrackingDirection.TRACKING_FW_BW
 

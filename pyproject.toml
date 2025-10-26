@@ -74,7 +74,7 @@ extend-exclude = [
 line-length = 120
 
 # Python version target
-target-version = "py311"
+target-version = "py312"
 
 [tool.ruff.lint]
 # Enable common linting rules
@@ -85,6 +85,12 @@ select = [
     "I",     # isort
     "N",     # pep8-naming
     "UP",    # pyupgrade
+    "B",     # flake8-bugbear (catches common bugs)
+    "C4",    # flake8-comprehensions (better list/dict comprehensions)
+    "SIM",   # flake8-simplify (simplification suggestions)
+    "RUF",   # Ruff-specific rules
+    "PERF",  # Performance anti-patterns
+    "PT",    # pytest style
 ]
 
 # Ignore specific rules
@@ -178,8 +184,8 @@ allowedUntypedLibraries = ["numpy", "pytest"]
 reportMissingImports = "warning"
 reportMissingTypeStubs = "none"
 reportUndefinedVariable = "error"
-reportOptionalMemberAccess = "warning"
-reportOptionalCall = "warning"
+reportOptionalMemberAccess = "error"  # Phase 1: Stricter None checking
+reportOptionalCall = "error"  # Phase 1: Stricter None checking
 reportUnusedImport = "warning"
 reportUnusedVariable = "warning"
 reportImplicitStringConcatenation = "warning"
@@ -199,7 +205,7 @@ reportMissingParameterType = "warning"
 reportMissingTypeArgument = "error"  # STRICTER: Require list[str] not bare list
 
 # Code quality
-reportPrivateUsage = "warning"
+reportPrivateUsage = "error"  # STRICTER: Enforce proper API boundaries
 reportUnnecessaryCast = "warning"
 reportUnnecessaryComparison = "error"  # STRICTER: Catch logic bugs
 reportIncompatibleMethodOverride = "error"

@@ -247,16 +247,8 @@ class TrackingDisplayController(BaseTrackingController):
         """
         if data:
             max_frame = max(point[0] for point in data)
-            try:
-                if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSlider method, None already checked
-                if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSpinBox method, None already checked
-                if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))  # pyright: ignore[reportAttributeAccessIssue]  # QLabel method, None already checked
-            except RuntimeError:
-                # Widgets may have been deleted during application shutdown
-                pass
+            if self.main_window.timeline_controller:
+                self.main_window.timeline_controller.update_frame_range(1, max_frame)
 
     def _update_frame_range_from_multi_data(self) -> None:
         """Update frame range based on all trajectories in multi-point data."""
@@ -267,17 +259,8 @@ class TrackingDisplayController(BaseTrackingController):
                 traj_max = max(point[0] for point in traj)
                 max_frame = max(max_frame, traj_max)
 
-        if max_frame > 0:
-            try:
-                if self.main_window.frame_slider:
-                    self.main_window.frame_slider.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSlider method, None already checked
-                if self.main_window.frame_spinbox:
-                    self.main_window.frame_spinbox.setMaximum(max_frame)  # pyright: ignore[reportAttributeAccessIssue]  # QSpinBox method, None already checked
-                if self.main_window.total_frames_label:
-                    self.main_window.total_frames_label.setText(str(max_frame))  # pyright: ignore[reportAttributeAccessIssue]  # QLabel method, None already checked
-            except RuntimeError:
-                # Widgets may have been deleted during application shutdown
-                pass
+        if max_frame > 0 and self.main_window.timeline_controller:
+            self.main_window.timeline_controller.update_frame_range(1, max_frame)
 
     @Slot(str, bool)
     def on_point_visibility_changed(self, point_name: str, visible: bool) -> None:
@@ -355,10 +338,7 @@ class TrackingDisplayController(BaseTrackingController):
         # display_mode is computed from _selected_curves and _show_all_curves
         if mode == DisplayMode.ALL_VISIBLE:
             self._app_state.set_show_all_curves(True)
-        elif mode == DisplayMode.SELECTED:
-            self._app_state.set_show_all_curves(False)
-            # Ensure we have a selection (already handled above)
-        elif mode == DisplayMode.ACTIVE_ONLY:
+        elif mode == DisplayMode.SELECTED or mode == DisplayMode.ACTIVE_ONLY:
             self._app_state.set_show_all_curves(False)
             # Selection already cleared above
 
@@ -422,9 +402,9 @@ class TrackingDisplayController(BaseTrackingController):
             if curve_name in all_curve_names:
                 curve_data = self._app_state.get_curve_data(curve_name)
                 logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
-                for point in curve_data:
-                    if len(point) >= 3:
-                        all_points.append((float(point[1]), float(point[2])))
+                all_points.extend(
+                    (float(point[1]), float(point[2])) for point in curve_data if len(point) >= 3
+                )
 
         if not all_points:
             logger.debug("No points found in selected curves")

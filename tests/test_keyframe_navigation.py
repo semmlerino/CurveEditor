@@ -176,22 +176,14 @@ class TestNavigationLogic:
     def test_identifies_keyframes_for_navigation(self, make_navigation_dataset):
         """Navigation should identify all keyframes as navigation points."""
         data = make_navigation_dataset("only_keyframes")
-        nav_frames = []
-
-        for point in data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(point[0])
+        nav_frames = [point[0] for point in data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         assert nav_frames == [5, 10, 15]
 
     def test_identifies_endframes_for_navigation(self, make_navigation_dataset):
         """Navigation should identify endframes as navigation points."""
         data = make_navigation_dataset("with_endframes")
-        nav_frames = []
-
-        for point in data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(point[0])
+        nav_frames = [point[0] for point in data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         assert 10 in nav_frames  # Endframe should be included
 
@@ -213,12 +205,8 @@ class TestNavigationLogic:
     def test_navigation_frame_ordering(self, make_navigation_dataset):
         """Navigation frames should be properly sorted."""
         data = make_navigation_dataset("complex")
-        nav_frames = []
-
         # Collect keyframes and endframes
-        for point in data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(point[0])
+        nav_frames = [point[0] for point in data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         # Add startframes
         data_service = get_data_service()
@@ -445,12 +433,8 @@ class TestParametrizedNavigation:
         data = make_navigation_dataset(dataset_scenario)
 
         # Collect all navigation frames
-        nav_frames = []
-
         # Get keyframes and endframes
-        for point in data:
-            if len(point) >= 4 and point[3] in ["keyframe", "endframe"]:
-                nav_frames.append(point[0])
+        nav_frames = [point[0] for point in data if len(point) >= 4 and point[3] in ["keyframe", "endframe"]]
 
         # Get startframes
         if data:  # Only if there's data

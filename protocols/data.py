@@ -182,27 +182,25 @@ class VoidSignalProtocol(Protocol):
 
 # Export all type aliases and protocols
 __all__ = [
-    # Type aliases
+    "BatchEditableProtocol",
     "CurveDataInput",
     "CurveDataList",
+    "CurveDataProtocol",
+    "HistoryCommandProtocol",
+    "HistoryContainerProtocol",
     "HistoryState",
+    "ImageProtocol",
     "LegacyPointData",
+    "Point4",
     "PointData",
     "PointList",
+    "PointMovedSignalProtocol",
+    "PointProtocol",
     "PointTuple3",
     "PointTuple4Bool",
     "PointTuple4Str",
-    "Point4",
     "QtPointF",
     "TrackingPointData",
     "TrackedData",
-    # Protocols
-    "PointProtocol",
-    "CurveDataProtocol",
-    "ImageProtocol",
-    "HistoryContainerProtocol",
-    "HistoryCommandProtocol",
-    "BatchEditableProtocol",
-    "PointMovedSignalProtocol",
     "VoidSignalProtocol",
 ]

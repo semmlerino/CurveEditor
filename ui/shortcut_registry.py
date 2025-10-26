@@ -199,7 +199,7 @@ class ShortcutRegistry:
 
         # Combine modifiers and key
         if mod_strs:
-            return "+".join(mod_strs + [key_str])
+            return "+".join([*mod_strs, key_str])
         return key_str
 
     def has_conflicts(self) -> list[tuple[str, list[ShortcutCommand]]]:
@@ -211,7 +211,7 @@ class ShortcutRegistry:
         # Check for duplicate normalized keys
         key_to_commands: dict[str, list[ShortcutCommand]] = {}
 
-        for _, normalized_key in self._key_to_normalized.items():
+        for normalized_key in self._key_to_normalized.values():
             if normalized_key not in key_to_commands:
                 key_to_commands[normalized_key] = []
             if self._shortcuts[normalized_key] not in key_to_commands[normalized_key]:

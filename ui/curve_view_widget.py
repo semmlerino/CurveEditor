@@ -739,9 +739,9 @@ class CurveViewWidget(QWidget):
                 if curve_name in all_curve_names:
                     curve_data = self._app_state.get_curve_data(curve_name)
                     logger.debug(f"Processing curve {curve_name} with {len(curve_data)} points")
-                    for point in curve_data:
-                        if len(point) >= 3:
-                            all_points.append((float(point[1]), float(point[2])))
+                    all_points.extend(
+                        (float(point[1]), float(point[2])) for point in curve_data if len(point) >= 3
+                    )
 
             if not all_points:
                 logger.debug("No points found in selected curves")
@@ -1626,10 +1626,7 @@ class CurveViewWidget(QWidget):
 
         # Collect points to delete
         indices = list(self.selected_indices)
-        deleted_points: list[tuple[int, tuple[int, float, float] | tuple[int, float, float, str | bool]]] = []
-        for idx in sorted(indices):
-            if 0 <= idx < len(self.curve_data):
-                deleted_points.append((idx, self.curve_data[idx]))
+        deleted_points = [(idx, self.curve_data[idx]) for idx in sorted(indices) if 0 <= idx < len(self.curve_data)]
 
         if deleted_points:
             # Create and execute delete command (lazy import to avoid cycle)

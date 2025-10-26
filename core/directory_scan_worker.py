@@ -10,7 +10,7 @@ import os
 import re
 import threading
 from pathlib import Path
-from typing import TYPE_CHECKING, TypedDict, override
+from typing import TYPE_CHECKING, ClassVar, TypedDict, override
 
 from PySide6.QtCore import QThread, Signal
 
@@ -61,7 +61,7 @@ class DirectoryScanWorker(QThread):
     error_occurred: Signal = Signal(str)      # error message
 
     # Supported image extensions
-    IMAGE_EXTENSIONS: set[str] = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.exr', '.dpx', '.cin', '.hdr'}
+    IMAGE_EXTENSIONS: ClassVar[set[str]] = {'.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.tif', '.gif', '.exr', '.dpx', '.cin', '.hdr'}
 
     def __init__(self, directory_path: str, parent: QThread | None = None) -> None:
         """
@@ -165,7 +165,7 @@ class DirectoryScanWorker(QThread):
         except PermissionError:
             self.error_occurred.emit(f"Permission denied accessing: {self.directory_path}")
         except Exception as e:
-            self.error_occurred.emit(f"Error scanning directory: {str(e)}")
+            self.error_occurred.emit(f"Error scanning directory: {e!s}")
 
     def _detect_sequences(self, image_files: list[str]) -> list[SequenceInfo]:
         """
@@ -240,7 +240,7 @@ class DirectoryScanWorker(QThread):
                 # Only consider it a sequence if we have multiple files
                 if len(sequence_files) > 1:
                     # Sort by frame number
-                    sorted_pairs = sorted(zip(frames, sequence_files))
+                    sorted_pairs = sorted(zip(frames, sequence_files, strict=True))
                     frames = [pair[0] for pair in sorted_pairs]
                     sequence_files = [pair[1] for pair in sorted_pairs]
 

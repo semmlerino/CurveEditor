@@ -10,18 +10,15 @@ from .connection_verifier import ConnectionRegistry, ConnectionReport, Connectio
 from .store_manager import StoreManager
 
 __all__ = [
-    # ApplicationState architecture
     "ApplicationState",
-    "get_application_state",
-    "reset_application_state",
-    # Legacy stores (maintained for compatibility)
-    "StoreManager",
-    "get_store_manager",
-    # Connection verification
-    "ConnectionVerifier",
     "ConnectionRegistry",
-    "ConnectionStatus",
     "ConnectionReport",
+    "ConnectionStatus",
+    "ConnectionVerifier",
+    "StoreManager",
+    "get_application_state",
+    "get_store_manager",
+    "reset_application_state",
 ]
 
 

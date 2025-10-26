@@ -48,35 +48,30 @@ from tests.fixtures.service_fixtures import (
 )
 
 __all__ = [
-    # Data fixtures
-    "sample_curve_data",
+    "all_services",
+    "app_state",
+    "curve_view_widget",
+    "curve_with_data",
+    "file_load_signals",
+    "file_load_worker",
+    "isolated_services",
     "keyframe_curve_data",
-    "sample_points",
     "large_sample_points",
-    # Mock fixtures
+    "lazy_mock_main_window",
+    "memory_monitor",
     "mock_curve_view",
     "mock_curve_view_with_selection",
     "mock_main_window",
     "mock_main_window_with_data",
+    "production_widget_factory",
     "protocol_compliant_mock_curve_view",
     "protocol_compliant_mock_main_window",
-    "lazy_mock_main_window",
-    # Production fixtures
-    "production_widget_factory",
-    "safe_test_data_factory",
-    "user_interaction",
-    # Qt fixtures
     "qapp",
     "qt_cleanup",
-    "curve_view_widget",
-    "file_load_signals",
-    "file_load_worker",
+    "safe_test_data_factory",
+    "sample_curve_data",
+    "sample_points",
     "ui_file_load_signals",
     "ui_file_load_worker",
-    # Service fixtures
-    "all_services",
-    "app_state",
-    "curve_with_data",
-    "isolated_services",
-    "memory_monitor",
+    "user_interaction",
 ]
