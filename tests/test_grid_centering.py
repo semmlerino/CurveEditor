@@ -28,8 +28,8 @@ from PySide6.QtWidgets import QApplication
 
 from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
-from rendering.render_state import RenderState
 from tests.qt_test_helpers import safe_painter
+from tests.test_helpers import create_test_render_state
 from ui.curve_view_widget import CurveViewWidget
 
 
@@ -71,7 +71,7 @@ class TestGridCentering:
         curve_widget._select_point(0)  # Select first point at (100, 200)
 
         # Behavior: Render the grid
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -122,7 +122,7 @@ class TestGridCentering:
         # avg_y = (200.0 + 400.0 + 600.0) / 3  # Would be 400.0
 
         # Behavior: Render the grid
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -161,7 +161,7 @@ class TestGridCentering:
         curve_widget.clear_selection()
 
         # Behavior: Render the grid
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -205,7 +205,7 @@ class TestGridCentering:
         curve_widget._select_point(0)
 
         # Render with first selection
-        render_state1 = RenderState(
+        render_state1 = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -234,7 +234,7 @@ class TestGridCentering:
         test_image.fill(0)
 
         # Render with new selection
-        render_state2 = RenderState(
+        render_state2 = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -267,7 +267,7 @@ class TestGridCentering:
         curve_widget.set_curve_data([])
         curve_widget.clear_selection()
 
-        render_state1 = RenderState(
+        render_state1 = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -301,7 +301,7 @@ class TestGridCentering:
         app_state.set_selection("__default__", {5})  # Invalid index for edge case test
 
         test_image.fill(0)
-        render_state2 = RenderState(
+        render_state2 = create_test_render_state(
             points=curve_widget.curve_data,
             current_frame=1,
             selected_points=curve_widget.selected_indices,
@@ -340,7 +340,7 @@ class TestGridCentering:
             curve_widget.zoom_factor = zoom
 
             test_image.fill(0)
-            render_state = RenderState(
+            render_state = create_test_render_state(
                 points=curve_widget.curve_data,
                 current_frame=1,
                 selected_points=curve_widget.selected_indices,

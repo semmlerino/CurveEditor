@@ -30,6 +30,7 @@ from rendering.optimized_curve_renderer import OptimizedCurveRenderer
 from services import get_data_service, get_interaction_service, get_transform_service, get_ui_service
 from stores.application_state import get_application_state
 from tests.qt_test_helpers import create_test_image, safe_painter
+from tests.test_helpers import create_test_render_state
 
 
 class TestServiceIntegration:
@@ -151,9 +152,7 @@ class TestRenderingPipeline:
         renderer = OptimizedCurveRenderer()
 
         # Create RenderState with test data
-        from rendering.render_state import RenderState
-
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=[
                 (1, 100, 100),
                 (2, 200, 200),
@@ -199,7 +198,7 @@ class TestRenderingPipeline:
         # Create RenderState with background
         from rendering.render_state import RenderState
 
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=[(1, 100, 100), (2, 400, 300)],
             current_frame=1,
             selected_points=set(),
@@ -241,7 +240,7 @@ class TestRenderingPipeline:
         # Create RenderState with large dataset
         from rendering.render_state import RenderState
 
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=large_points,
             current_frame=1,
             selected_points=set(),

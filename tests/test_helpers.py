@@ -1483,6 +1483,89 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
                 curve_store.select(idx, add_to_selection=True)
 
 
+def create_test_render_state(
+    *,
+    points: CurveDataList,
+    current_frame: int = 1,
+    selected_points: set[int] | None = None,
+    widget_width: int = 800,
+    widget_height: int = 600,
+    zoom_factor: float = 1.0,
+    pan_offset_x: float = 0.0,
+    pan_offset_y: float = 0.0,
+    manual_offset_x: float = 0.0,
+    manual_offset_y: float = 0.0,
+    flip_y_axis: bool = False,
+    show_background: bool = False,
+    background_image: Any = None,
+    image_width: int = 800,
+    image_height: int = 600,
+    show_grid: bool = False,
+    point_radius: int = 5,
+    line_width: int = 2,
+    **kwargs: Any,
+) -> Any:  # RenderState type to avoid import cycle
+    """Create RenderState with VisualSettings for tests (Phase 2).
+
+    This helper wraps the RenderState constructor to handle the transition
+    from individual visual parameters (show_grid, point_radius, line_width)
+    to the consolidated VisualSettings object.
+
+    Args:
+        points: Curve data points
+        current_frame: Current frame number
+        selected_points: Set of selected point indices
+        widget_width: Widget width in pixels
+        widget_height: Widget height in pixels
+        zoom_factor: Zoom factor
+        pan_offset_x: Pan offset X
+        pan_offset_y: Pan offset Y
+        manual_offset_x: Manual offset X
+        manual_offset_y: Manual offset Y
+        flip_y_axis: Whether to flip Y axis
+        show_background: Whether to show background image
+        background_image: Background image
+        image_width: Image width
+        image_height: Image height
+        show_grid: Whether to show grid (visual setting)
+        point_radius: Point radius (visual setting)
+        line_width: Line width (visual setting)
+        **kwargs: Additional RenderState arguments
+
+    Returns:
+        RenderState instance with visual settings properly configured
+    """
+    from rendering.render_state import RenderState
+    from rendering.visual_settings import VisualSettings
+
+    # Create visual settings from individual parameters
+    visual = VisualSettings(
+        show_grid=show_grid,
+        point_radius=point_radius,
+        line_width=line_width,
+    )
+
+    return RenderState(
+        points=points,
+        current_frame=current_frame,
+        selected_points=selected_points or set(),
+        widget_width=widget_width,
+        widget_height=widget_height,
+        zoom_factor=zoom_factor,
+        pan_offset_x=pan_offset_x,
+        pan_offset_y=pan_offset_y,
+        manual_offset_x=manual_offset_x,
+        manual_offset_y=manual_offset_y,
+        flip_y_axis=flip_y_axis,
+        show_background=show_background,
+        background_image=background_image,
+        image_width=image_width,
+        image_height=image_height,
+        visual=visual,
+        **kwargs,
+    )
+
+
 # ==================== Export all helpers ====================
 
 __all__ = [
@@ -1504,6 +1587,7 @@ __all__ = [
     "ThreadSafeTestImage",
     "assert_behavior_changed",
     "assert_qt_container_exists",
+    "create_test_render_state",
     "make_curve_data",
     "make_curve_point",
     "mock_dialog_exec",

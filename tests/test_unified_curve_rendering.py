@@ -32,6 +32,7 @@ from core.display_mode import DisplayMode
 from core.models import PointStatus
 from core.type_aliases import CurveDataList
 from rendering.optimized_curve_renderer import OptimizedCurveRenderer
+from tests.test_helpers import create_test_render_state
 
 
 class TestUnifiedCurveRendering:
@@ -107,7 +108,6 @@ class TestUnifiedCurveRendering:
         """Test that _render_points_with_status correctly renders different point statuses."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         # Setup test data with different statuses (avoiding current frame to prevent special handling)
         points_data = [
@@ -121,7 +121,7 @@ class TestUnifiedCurveRendering:
         screen_points = np.array([[100.0, 200.0], [150.0, 250.0], [200.0, 300.0], [250.0, 350.0], [300.0, 400.0]])
 
         # Create RenderState object with test data (avoiding current frame conflicts)
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
@@ -175,10 +175,9 @@ class TestUnifiedCurveRendering:
 
     def test_current_frame_highlighting_works_across_curves(self, renderer, mock_curve_view, mock_painter):
         """Test that current frame highlighting works in multi-curve rendering."""
-        from rendering.render_state import RenderState
 
         # Create RenderState with multi-curve data
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=[],  # Not used for multi-curve rendering
             current_frame=10,
             selected_points=set(),
@@ -247,7 +246,6 @@ class TestUnifiedCurveRendering:
         """Test that selected points are highlighted correctly in multi-curve mode."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         # Test with selected points
         points_data = [
@@ -259,7 +257,7 @@ class TestUnifiedCurveRendering:
         screen_points = np.array([[100.0, 200.0], [150.0, 250.0], [200.0, 300.0]])
 
         # Create RenderState with selected points
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data to avoid current frame highlighting
             selected_points={0, 2},  # First and third points selected
@@ -311,7 +309,6 @@ class TestUnifiedCurveRendering:
         """Test that inactive curves use their base color for normal points."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         points_data = [
             (5, 100.0, 200.0, PointStatus.NORMAL.value),
@@ -322,7 +319,7 @@ class TestUnifiedCurveRendering:
         curve_color = QColor("#00FF00")  # Green
 
         # Create RenderState avoiding current frame and selection conflicts
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
@@ -365,10 +362,9 @@ class TestUnifiedCurveRendering:
 
     def test_multi_curve_rendering_uses_unified_logic(self, renderer, mock_curve_view, mock_painter):
         """Test that _render_multiple_curves delegates to unified rendering logic."""
-        from rendering.render_state import RenderState
 
         # Create RenderState with multi-curve data matching the mock_curve_view fixture
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=[],  # Not used for multi-curve rendering
             current_frame=10,
             selected_points={0, 2},  # From mock_curve_view fixture
@@ -518,7 +514,6 @@ class TestUnifiedRenderingLogic:
 
     def test_curve_color_logic_for_active_vs_inactive(self):
         """Test the logic that determines when to use curve color vs status color."""
-        from rendering.render_state import RenderState
 
         renderer = OptimizedCurveRenderer()
 
@@ -532,7 +527,7 @@ class TestUnifiedRenderingLogic:
         curve_color = QColor("#00FF00")
 
         # Create RenderState avoiding current frame and selection conflicts
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=cast(CurveDataList, points_data),
             current_frame=999,  # Different from test data
             selected_points=set(),  # No selections
@@ -596,7 +591,6 @@ class TestUnifiedRenderingLogic:
 
     def test_edge_case_empty_points_handling(self):
         """Test that unified rendering handles edge cases gracefully."""
-        from rendering.render_state import RenderState
 
         renderer = OptimizedCurveRenderer()
         import numpy as np
@@ -608,7 +602,7 @@ class TestUnifiedRenderingLogic:
         empty_points_data = []
 
         # Create RenderState with empty data
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=empty_points_data,
             current_frame=1,
             selected_points=set(),
@@ -678,12 +672,11 @@ class TestGapRenderingConsistency:
         """Test that _render_lines_with_segments correctly detects and handles segmented data."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         screen_points = np.array([[100, 200], [110, 210], [120, 220], [130, 230], [140, 240], [150, 250]])
 
         # Create RenderState for line rendering test
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=segmented_curve_data,
             current_frame=10,
             selected_points=set(),
@@ -726,7 +719,6 @@ class TestGapRenderingConsistency:
         """Test that _render_lines_with_segments falls back to simple rendering for data without status."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         simple_curve_data = [
             (0, 100.0, 200.0),  # No status info
@@ -736,7 +728,7 @@ class TestGapRenderingConsistency:
         screen_points = np.array([[100, 200], [110, 210], [120, 220]])
 
         # Create RenderState for simple data test
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=cast(CurveDataList, simple_curve_data),
             current_frame=5,
             selected_points=set(),
@@ -775,10 +767,9 @@ class TestGapRenderingConsistency:
 
     def test_multi_curve_rendering_uses_unified_line_method(self, renderer, mock_painter, segmented_curve_data):
         """Test that multi-curve rendering uses the unified line rendering method."""
-        from rendering.render_state import RenderState
 
         # Create RenderState with multiple curves that have gaps
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=[],  # Not used for multi-curve rendering
             current_frame=10,
             selected_points=set(),
@@ -831,10 +822,9 @@ class TestGapRenderingConsistency:
         """Test that single curve rendering properly handles gaps (behavioral test)."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         # Create RenderState for single curve gap rendering test
-        render_state = RenderState(
+        render_state = create_test_render_state(
             points=segmented_curve_data,
             current_frame=1,
             selected_points=set(),
@@ -870,7 +860,6 @@ class TestGapRenderingConsistency:
         """Test that gaps render consistently between views (behavioral test)."""
         import numpy as np
 
-        from rendering.render_state import RenderState
 
         # Create separate mock painters to track drawing operations
         single_painter = MagicMock()
@@ -884,7 +873,7 @@ class TestGapRenderingConsistency:
         screen_points = np.array([[100, 200], [110, 210], [120, 220], [130, 230], [140, 240], [150, 250]])
 
         # Create RenderState for single curve view
-        single_curve_render_state = RenderState(
+        single_curve_render_state = create_test_render_state(
             points=segmented_curve_data,
             current_frame=1,
             selected_points=set(),
@@ -905,7 +894,7 @@ class TestGapRenderingConsistency:
         )
 
         # Create RenderState for multi-curve view
-        multi_curve_render_state = RenderState(
+        multi_curve_render_state = create_test_render_state(
             points=[],  # Not used for multi-curve rendering
             current_frame=1,
             selected_points=set(),

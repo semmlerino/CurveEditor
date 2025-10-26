@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtGui import QImage, QPixmap
 
 from core.type_aliases import CurveDataList
+from rendering.visual_settings import VisualSettings
 
 if TYPE_CHECKING:
     from core.display_mode import DisplayMode
@@ -59,10 +60,8 @@ class RenderState:
     image_width: int = 0
     image_height: int = 0
 
-    # Grid and visual settings
-    show_grid: bool = True
-    point_radius: int = 3
-    line_width: int = 2
+    # Visual settings (single source of truth)
+    visual: VisualSettings | None = None
 
     # Multi-curve support (for future extensibility)
     curves_data: dict[str, CurveDataList] | None = None
@@ -85,9 +84,7 @@ class RenderState:
         if self.zoom_factor <= 0:
             raise ValueError(f"Zoom factor must be positive: {self.zoom_factor}")
 
-        # Ensure point radius is positive
-        if self.point_radius <= 0:
-            raise ValueError(f"Point radius must be positive: {self.point_radius}")
+        # Visual settings validation is now handled in VisualSettings.__post_init__
 
     @classmethod
     def compute(cls, widget: Any) -> "RenderState":  # CurveViewWidget - Any to avoid import cycle
@@ -202,10 +199,8 @@ class RenderState:
             # Image dimensions
             image_width=widget.image_width,
             image_height=widget.image_height,
-            # Grid and visual settings
-            show_grid=widget.show_grid,
-            point_radius=widget.point_radius,
-            line_width=widget.line_width,
+            # Visual settings (single source of truth)
+            visual=widget.visual,
             # Multi-curve support
             curves_data=curves_data,
             display_mode=widget.display_mode,
@@ -276,6 +271,22 @@ class RenderState:
             Name of active curve or None
         """
         return self.active_curve_name
+
+    # Backward compatibility properties (Phase 2 - Visual Settings Refactor)
+    @property
+    def show_grid(self) -> bool:
+        """Backward compatibility: delegate to visual.show_grid."""
+        return self.visual.show_grid if self.visual else False
+
+    @property
+    def point_radius(self) -> int:
+        """Backward compatibility: delegate to visual.point_radius."""
+        return self.visual.point_radius if self.visual else 5
+
+    @property
+    def line_width(self) -> int:
+        """Backward compatibility: delegate to visual.line_width."""
+        return self.visual.line_width if self.visual else 2
 
     def __repr__(self) -> str:  # pyright: ignore[reportImplicitOverride]
         """

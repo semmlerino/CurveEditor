@@ -275,6 +275,10 @@ class TestOptimizedCurveRenderer:
 
         # Create a RenderState object with test data
         from rendering.render_state import RenderState
+        from rendering.visual_settings import VisualSettings
+
+        # Create visual settings (Phase 2 - Visual Settings Refactor)
+        visual = VisualSettings(show_grid=False, point_radius=5, line_width=2)
 
         render_state = RenderState(
             points=[
@@ -296,8 +300,7 @@ class TestOptimizedCurveRenderer:
             background_image=None,
             image_width=800,
             image_height=600,
-            show_grid=False,
-            point_radius=5,
+            visual=visual,
         )
 
         # Use safe painter context manager for guaranteed cleanup
