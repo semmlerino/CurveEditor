@@ -289,19 +289,18 @@ class TestUnifiedCurveRendering:
 
         mock_painter.setBrush.side_effect = track_setBrush
 
-        with patch("ui.color_manager.get_status_color", return_value="#ffffff"):
-            with patch("ui.color_manager.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
-                renderer._render_points_with_status(
-                    painter=mock_painter,
-                    render_state=render_state,
-                    screen_points=screen_points,
-                    points_data=points_data,
-                    visible_indices=None,
-                    step=1,
-                    base_point_radius=5,
-                    curve_color=QColor("#FF0000"),
-                    is_active_curve=True,
-                )
+        with patch("ui.color_manager.get_status_color", return_value="#ffffff"), patch("ui.color_manager.SPECIAL_COLORS", {"selected_point": "#ffff00", "current_frame": "#ff00ff"}):
+            renderer._render_points_with_status(
+                painter=mock_painter,
+                render_state=render_state,
+                screen_points=screen_points,
+                points_data=points_data,
+                visible_indices=None,
+                step=1,
+                base_point_radius=5,
+                curve_color=QColor("#FF0000"),
+                is_active_curve=True,
+            )
 
         # Verify setBrush was called multiple times (for different point types)
         assert len(brush_calls) > 0, "setBrush should be called for rendering points"
@@ -813,21 +812,20 @@ class TestGapRenderingConsistency:
         )
 
         # Mock the unified line rendering method
-        with patch.object(renderer, "_render_lines_with_segments") as mock_unified:
-            with patch.object(renderer, "_render_points_with_status"):
-                renderer._render_multiple_curves(mock_painter, render_state)
+        with patch.object(renderer, "_render_lines_with_segments") as mock_unified, patch.object(renderer, "_render_points_with_status"):
+            renderer._render_multiple_curves(mock_painter, render_state)
 
-                # Should call unified line rendering for each curve
-                assert mock_unified.call_count == 2
+            # Should call unified line rendering for each curve
+            assert mock_unified.call_count == 2
 
-                # Verify calls include gap data
-                calls = mock_unified.call_args_list
-                for call in calls:
-                    _, kwargs = call
-                    assert "curve_data" in kwargs
-                    assert "screen_points" in kwargs
-                    assert "curve_color" in kwargs
-                    assert "line_width" in kwargs
+            # Verify calls include gap data
+            calls = mock_unified.call_args_list
+            for call in calls:
+                _, kwargs = call
+                assert "curve_data" in kwargs
+                assert "screen_points" in kwargs
+                assert "curve_color" in kwargs
+                assert "line_width" in kwargs
 
     def test_single_curve_gap_rendering_behavior(self, renderer, mock_painter, segmented_curve_data):
         """Test that single curve rendering properly handles gaps (behavioral test)."""
@@ -859,17 +857,14 @@ class TestGapRenderingConsistency:
         screen_points = np.array([[100, 200], [110, 210], [120, 220], [130, 230], [140, 240], [150, 250]])
 
         # Mock LOD system
-        with patch.object(renderer._lod_system, "get_lod_points", return_value=(screen_points, 1)):
-            with patch.object(renderer, "_render_point_markers_optimized"):
-                with patch.object(renderer, "_render_point_state_labels"):
-                    with patch.object(renderer, "_render_frame_numbers_optimized"):
-                        # Test the behavior: rendering should complete without error
-                        # and should handle the segmented data (has status information)
-                        renderer._render_points_ultra_optimized(mock_painter, render_state)
+        with patch.object(renderer._lod_system, "get_lod_points", return_value=(screen_points, 1)), patch.object(renderer, "_render_point_markers_optimized"), patch.object(renderer, "_render_point_state_labels"), patch.object(renderer, "_render_frame_numbers_optimized"):
+            # Test the behavior: rendering should complete without error
+            # and should handle the segmented data (has status information)
+            renderer._render_points_ultra_optimized(mock_painter, render_state)
 
-                        # Verify drawing operations occurred (behavior, not implementation)
-                        assert mock_painter.setPen.called, "Should set pen for line drawing"
-                        assert mock_painter.drawPath.called, "Should draw path for curve lines"
+            # Verify drawing operations occurred (behavior, not implementation)
+            assert mock_painter.setPen.called, "Should set pen for line drawing"
+            assert mock_painter.drawPath.called, "Should draw path for curve lines"
 
     def test_gap_rendering_consistency_behavioral(self, renderer, segmented_curve_data):
         """Test that gaps render consistently between views (behavioral test)."""
@@ -938,10 +933,8 @@ class TestGapRenderingConsistency:
         )
 
         # Test single curve rendering behavior
-        with patch.object(renderer._lod_system, "get_lod_points", return_value=(screen_points, 1)):
-            with patch.object(renderer, "_render_point_markers_optimized"):
-                with patch.object(renderer, "_render_point_state_labels"):
-                    renderer._render_points_ultra_optimized(single_painter, single_curve_render_state)
+        with patch.object(renderer._lod_system, "get_lod_points", return_value=(screen_points, 1)), patch.object(renderer, "_render_point_markers_optimized"), patch.object(renderer, "_render_point_state_labels"):
+            renderer._render_points_ultra_optimized(single_painter, single_curve_render_state)
 
         # Test multi-curve rendering behavior
         with patch.object(renderer, "_render_points_with_status"):
@@ -991,18 +984,17 @@ class TestGapRenderingConsistency:
             mock_curve.segments = [mock_active_segment, mock_inactive_segment]
             mock_segmented_curve.return_value = mock_curve
 
-            with patch.object(renderer, "_draw_active_segment") as mock_active:
-                with patch.object(renderer, "_draw_gap_segment") as mock_gap:
-                    renderer._render_lines_segmented_aware(
-                        mock_painter, mock_curve_view, segmented_curve_data, screen_points, QColor(255, 255, 255), 2
-                    )
+            with patch.object(renderer, "_draw_active_segment") as mock_active, patch.object(renderer, "_draw_gap_segment") as mock_gap:
+                renderer._render_lines_segmented_aware(
+                    mock_painter, mock_curve_view, segmented_curve_data, screen_points, QColor(255, 255, 255), 2
+                )
 
-                    # Should call both active and gap segment rendering
-                    mock_active.assert_called_once()
-                    mock_gap.assert_called_once()
+                # Should call both active and gap segment rendering
+                mock_active.assert_called_once()
+                mock_gap.assert_called_once()
 
-                    # Verify the gap segment was called with a dashed pen
-                    gap_call_args = mock_gap.call_args[0]
-                    gap_call_args[4]  # pen parameter
-                    # Note: We can't directly test the pen style due to mocking, but we verify
-                    # that the gap segment method was called, which uses dashed lines
+                # Verify the gap segment was called with a dashed pen
+                gap_call_args = mock_gap.call_args[0]
+                gap_call_args[4]  # pen parameter
+                # Note: We can't directly test the pen style due to mocking, but we verify
+                # that the gap segment method was called, which uses dashed lines

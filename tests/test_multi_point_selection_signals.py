@@ -58,8 +58,8 @@ def controller(mock_main_window, qapp):
     controller = MultiPointTrackingController(mock_main_window)
 
     # Patch the display controller methods to track calls
-    _ = controller.display_controller.update_display_with_selection  # noqa: F841
-    _ = controller.display_controller.center_on_selected_curves  # noqa: F841
+    _ = controller.display_controller.update_display_with_selection
+    _ = controller.display_controller.center_on_selected_curves
 
     controller.display_controller.update_call_count = 0
     controller.display_controller.last_selected_curves = None

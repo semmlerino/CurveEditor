@@ -395,16 +395,20 @@ class TestInactiveSegmentRendering:
 
         # Check segment detection
         segment_at_2 = segmented_curve.get_segment_at_frame(2)
-        assert segment_at_2 is not None and segment_at_2.is_active
+        assert segment_at_2 is not None
+        assert segment_at_2.is_active
 
         segment_at_4 = segmented_curve.get_segment_at_frame(4)
-        assert segment_at_4 is not None and not segment_at_4.is_active
+        assert segment_at_4 is not None
+        assert not segment_at_4.is_active
 
         segment_at_5 = segmented_curve.get_segment_at_frame(5)
-        assert segment_at_5 is not None and not segment_at_5.is_active
+        assert segment_at_5 is not None
+        assert not segment_at_5.is_active
 
         segment_at_6 = segmented_curve.get_segment_at_frame(6)
-        assert segment_at_6 is not None and segment_at_6.is_active
+        assert segment_at_6 is not None
+        assert segment_at_6.is_active
 
     def test_gap_segment_detection(self) -> None:
         """Test that gap segments are correctly identified for dashed line rendering."""
@@ -427,25 +431,29 @@ class TestInactiveSegmentRendering:
 
         # First segment (frames 1-2) should be active
         segment = segmented_curve.get_segment_at_frame(1)
-        assert segment is not None and segment.is_active
+        assert segment is not None
+        assert segment.is_active
         assert segment.start_frame == 1
         assert segment.end_frame == 2
 
         # First gap (frame 3) should be inactive - single tracked point segment
         gap_segment = segmented_curve.get_segment_at_frame(3)
-        assert gap_segment is not None and not gap_segment.is_active
+        assert gap_segment is not None
+        assert not gap_segment.is_active
         assert gap_segment.start_frame == 3
         assert gap_segment.end_frame == 3
 
         # Second active segment (frames 4-5)
         segment = segmented_curve.get_segment_at_frame(4)
-        assert segment is not None and segment.is_active
+        assert segment is not None
+        assert segment.is_active
         assert segment.start_frame == 4
         assert segment.end_frame == 5
 
         # Second gap (frames 6-7) should be inactive - tracked points segment
         gap_segment = segmented_curve.get_segment_at_frame(6)
-        assert gap_segment is not None and not gap_segment.is_active
+        assert gap_segment is not None
+        assert not gap_segment.is_active
         assert gap_segment.start_frame == 6
         assert gap_segment.end_frame == 7
 

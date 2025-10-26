@@ -276,7 +276,7 @@ class TestViewManagementController:
 
             # Assert - Frame 1 evicted, cache contains 2, 3, 4
             assert len(controller._image_cache) == 3, "Cache should still have 3 items"
-            cache_keys_2 = [Path(p).name for p in controller._image_cache.keys()]
+            cache_keys_2 = [Path(p).name for p in controller._image_cache]
             expected_frames_2 = {"frame_0002.jpg", "frame_0003.jpg", "frame_0004.jpg"}
             assert set(cache_keys_2) == expected_frames_2, \
                 f"Cache should contain frames 2,3,4 after eviction, got {set(cache_keys_2)}"
@@ -293,7 +293,7 @@ class TestViewManagementController:
 
             # Assert - Frame 3 evicted, cache contains frames 2, 4, 5
             assert len(controller._image_cache) == 3, "Cache should still have 3 items"
-            cache_keys_4 = [Path(p).name for p in controller._image_cache.keys()]
+            cache_keys_4 = [Path(p).name for p in controller._image_cache]
             expected_frames_4 = {"frame_0002.jpg", "frame_0004.jpg", "frame_0005.jpg"}
             assert set(cache_keys_4) == expected_frames_4, \
                 f"Cache should contain frames 2,4,5 after second eviction, got {set(cache_keys_4)}"
@@ -314,7 +314,7 @@ class TestViewManagementController:
 
             # Assert - Final cache state: frames 5, 6, 7
             assert len(controller._image_cache) == 3, "Cache should still have 3 items"
-            cache_keys_final = [Path(p).name for p in controller._image_cache.keys()]
+            cache_keys_final = [Path(p).name for p in controller._image_cache]
             expected_frames_final = {"frame_0005.jpg", "frame_0006.jpg", "frame_0007.jpg"}
             assert set(cache_keys_final) == expected_frames_final, \
                 f"Cache should contain frames 5,6,7 after final loads, got {set(cache_keys_final)}"

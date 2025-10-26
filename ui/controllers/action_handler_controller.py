@@ -94,9 +94,8 @@ class ActionHandlerController:
     def on_action_save_as(self) -> None:
         """Handle save as action."""
         data = self.get_current_curve_data()
-        if self.main_window.file_operations.save_file_as(data, self.main_window):
-            if self.main_window.status_label:
-                self.main_window.status_label.setText("File saved successfully")
+        if self.main_window.file_operations.save_file_as(data, self.main_window) and self.main_window.status_label:
+            self.main_window.status_label.setText("File saved successfully")
 
     @Slot()
     def on_load_images(self) -> None:
@@ -108,9 +107,8 @@ class ActionHandlerController:
     def on_export_data(self) -> None:
         """Handle export curve data action."""
         data = self.get_current_curve_data()
-        if self.main_window.file_operations.export_data(data, self.main_window):
-            if self.main_window.status_label:
-                self.main_window.status_label.setText("Data exported successfully")
+        if self.main_window.file_operations.export_data(data, self.main_window) and self.main_window.status_label:
+            self.main_window.status_label.setText("Data exported successfully")
 
     # ==================== Edit Action Handlers ====================
 

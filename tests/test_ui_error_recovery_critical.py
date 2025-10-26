@@ -50,10 +50,12 @@ class TestUIErrorRecoveryCritical:
                 assert hasattr(transform, "data_to_screen")
                 # Verify transform works with basic operations
                 x, y = transform.data_to_screen(100.0, 100.0)
-                assert isinstance(x, float) and isinstance(y, float)
+                assert isinstance(x, float)
+                assert isinstance(y, float)
             except (ValueError, RuntimeError) as e:
                 # If it still raises, verify error is informative
-                assert "Invalid configuration" in str(e) or "Transform creation failed" in str(e)
+                error_str = str(e)
+                assert ("Invalid configuration" in error_str) or ("Transform creation failed" in error_str)
 
     def test_transform_coordinate_overflow_fallback(self):
         """Test that coordinate transformations handle overflow gracefully."""
@@ -66,14 +68,17 @@ class TestUIErrorRecoveryCritical:
         try:
             x, y = transform.data_to_screen(large_coord, large_coord)
             # If successful, verify values are clamped or handled
-            assert x is not None and y is not None
+            assert x is not None
+            assert y is not None
             # Values should be finite
             import math
 
-            assert math.isfinite(x) and math.isfinite(y)
+            assert math.isfinite(x)
+            assert math.isfinite(y)
         except ValueError as e:
             # If it raises, verify message is clear
-            assert "too large" in str(e).lower() or "overflow" in str(e).lower()
+            error_str = str(e).lower()
+            assert ("too large" in error_str) or ("overflow" in error_str)
 
     def test_view_state_from_corrupted_curve_view(self):
         """Test ViewState creation from curve view with missing/invalid attributes."""
@@ -98,19 +103,18 @@ class TestUIErrorRecoveryCritical:
         except (AttributeError, TypeError, ValueError) as e:
             # If it raises, verify error is informative
             # TypeError is acceptable for invalid type (string for zoom_factor)
-            assert any(
-                keyword in str(e).lower()
-                for keyword in [
-                    "image_width",
-                    "image_height",
-                    "zoom_factor",
-                    "invalid",
-                    "none",
-                    "must be real number",
-                    "real number",
-                    "not str",
-                ]
-            )
+            error_str = str(e).lower()
+            expected_keywords = [
+                "image_width",
+                "image_height",
+                "zoom_factor",
+                "invalid",
+                "none",
+                "must be real number",
+                "real number",
+                "not str",
+            ]
+            assert any(keyword in error_str for keyword in expected_keywords)
 
     def test_view_state_with_negative_dimensions_fallback(self):
         """Test ViewState handles negative dimensions safely."""
@@ -129,10 +133,12 @@ class TestUIErrorRecoveryCritical:
             transform = Transform.from_view_state(view_state)
             # If successful, verify it can still do basic operations
             x, y = transform.data_to_screen(100.0, 100.0)
-            assert isinstance(x, float) and isinstance(y, float)
+            assert isinstance(x, float)
+            assert isinstance(y, float)
         except ValueError as e:
             # If it raises, ensure error is clear
-            assert "negative" in str(e).lower() or "invalid" in str(e).lower()
+            error_str = str(e).lower()
+            assert ("negative" in error_str) or ("invalid" in error_str)
 
     def test_transform_with_extreme_display_height_validation(self):
         """Test Transform handles extreme display height values."""
@@ -142,7 +148,8 @@ class TestUIErrorRecoveryCritical:
             # If successful, should use absolute value or default
             assert transform.display_height > 0
         except ValueError as e:
-            assert "negative" in str(e).lower() or "invalid" in str(e).lower()
+            error_str = str(e).lower()
+            assert ("negative" in error_str) or ("invalid" in error_str)
 
         # Test with extremely large display height
         try:
@@ -155,7 +162,8 @@ class TestUIErrorRecoveryCritical:
             # If successful, should clamp to max allowed
             assert transform.display_height <= 1_000_000  # Max allowed
         except ValueError as e:
-            assert "too large" in str(e).lower() or "max" in str(e).lower()
+            error_str = str(e).lower()
+            assert ("too large" in error_str) or ("max" in error_str)
 
     def test_view_state_to_dict_with_corrupted_state(self):
         """Test ViewState.to_dict() handles internal corruption gracefully."""
@@ -181,7 +189,8 @@ class TestUIErrorRecoveryCritical:
             assert corrupted_dict is not None
         except (AttributeError, TypeError, ValueError) as e:
             # If it raises, verify error is clear
-            assert "display" in str(e).lower() or "None" in str(e)
+            error_str = str(e)
+            assert ("display" in error_str.lower()) or ("None" in error_str)
 
     def test_transform_service_concurrent_error_recovery(self):
         """Test TransformService error recovery under concurrent access."""
@@ -221,7 +230,7 @@ class TestUIErrorRecoveryCritical:
             if thread.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {thread.name} did not stop within timeout")
+                warnings.warn(f"Thread {thread.name} did not stop within timeout", stacklevel=2)
 
         # Check that service remained functional
         error_list = []
@@ -258,7 +267,8 @@ class TestUIErrorRecoveryCritical:
 
         # Should be able to perform basic transformations
         x, y = transform.data_to_screen(0.0, 0.0)
-        assert isinstance(x, float) and isinstance(y, float)
+        assert isinstance(x, float)
+        assert isinstance(y, float)
 
 
 if __name__ == "__main__":

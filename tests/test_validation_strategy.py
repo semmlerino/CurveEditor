@@ -18,10 +18,7 @@ Tests the different validation strategies and their behavior under various condi
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
-import unittest
-
-from typing_extensions import override
-
+import pytest
 from core.validation_strategy import (
     AdaptiveValidationStrategy,
     ComprehensiveValidationStrategy,
@@ -33,15 +30,15 @@ from core.validation_strategy import (
 )
 
 
-class TestValidationResult(unittest.TestCase):
+class TestValidationResult:
     """Test ValidationResult functionality."""
 
     def test_validation_result_creation(self):
         """Test creating validation results."""
         result = ValidationResult(is_valid=True)
-        self.assertTrue(result.is_valid)
-        self.assertEqual(len(result.issues), 0)
-        self.assertIsNone(result.validated_value)
+        assert result.is_valid
+        assert len(result.issues) == 0
+        assert result.validated_value is None
 
     def test_add_issue(self):
         """Test adding issues to result."""
@@ -51,7 +48,7 @@ class TestValidationResult(unittest.TestCase):
         result.add_issue(
             ValidationIssue(field_name="test", value=1.0, severity=ValidationSeverity.INFO, message="Info message")
         )
-        self.assertTrue(result.is_valid)
+        assert result.is_valid
 
         # Add warning - shouldn't affect validity
         result.add_issue(
@@ -59,7 +56,7 @@ class TestValidationResult(unittest.TestCase):
                 field_name="test", value=2.0, severity=ValidationSeverity.WARNING, message="Warning message"
             )
         )
-        self.assertTrue(result.is_valid)
+        assert result.is_valid
 
         # Add critical - should affect validity
         result.add_issue(
@@ -67,7 +64,7 @@ class TestValidationResult(unittest.TestCase):
                 field_name="test", value=3.0, severity=ValidationSeverity.CRITICAL, message="Critical message"
             )
         )
-        self.assertFalse(result.is_valid)
+        assert not result.is_valid
 
     def test_raise_if_invalid(self):
         """Test raising exception for invalid results."""
@@ -80,190 +77,183 @@ class TestValidationResult(unittest.TestCase):
             )
         )
 
-        with self.assertRaises(ValueError) as ctx:
+        with pytest.raises(ValueError, match="NaN detected"):
             result.raise_if_invalid()
-        self.assertIn("NaN detected", str(ctx.exception))
 
 
-class TestMinimalValidationStrategy(unittest.TestCase):
+class TestMinimalValidationStrategy:
     """Test minimal validation strategy."""
 
-    strategy: MinimalValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
+    @pytest.fixture
+    def strategy(self) -> MinimalValidationStrategy:
+        """Create minimal validation strategy."""
+        return MinimalValidationStrategy()
 
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.strategy = MinimalValidationStrategy()
-
-    def test_validate_coordinate_valid(self):
+    def test_validate_coordinate_valid(self, strategy: MinimalValidationStrategy):
         """Test validating valid coordinates."""
-        result = self.strategy.validate_coordinate(10.0, 20.0)
-        self.assertTrue(result.is_valid)
-        self.assertIsNone(result.validated_value)
+        result = strategy.validate_coordinate(10.0, 20.0)
+        assert result.is_valid
+        assert result.validated_value is None
 
-    def test_validate_coordinate_nan(self):
+    def test_validate_coordinate_nan(self, strategy: MinimalValidationStrategy):
         """Test handling NaN coordinates."""
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertTrue(result.is_valid)  # Minimal strategy doesn't fail
-        self.assertEqual(result.validated_value, (0.0, 20.0))  # Replaced with default
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert result.is_valid  # Minimal strategy doesn't fail
+        assert result.validated_value == (0.0, 20.0)  # Replaced with default
 
-    def test_validate_coordinate_infinity(self):
+    def test_validate_coordinate_infinity(self, strategy: MinimalValidationStrategy):
         """Test handling infinity coordinates."""
-        result = self.strategy.validate_coordinate(float("inf"), float("-inf"))
-        self.assertTrue(result.is_valid)
+        result = strategy.validate_coordinate(float("inf"), float("-inf"))
+        assert result.is_valid
         # validate_finite replaces inf with 0.0, not clamping to max
-        self.assertEqual(result.validated_value, (0.0, 0.0))  # Replaced with defaults
+        assert result.validated_value == (0.0, 0.0)  # Replaced with defaults
 
-    def test_validate_scale(self):
+    def test_validate_scale(self, strategy: MinimalValidationStrategy):
         """Test scale validation."""
         # Valid scale
-        result = self.strategy.validate_scale_factor(2.0)
-        self.assertTrue(result.is_valid)
+        result = strategy.validate_scale_factor(2.0)
+        assert result.is_valid
 
         # Zero scale - should be replaced
-        result = self.strategy.validate_scale_factor(0.0)
-        self.assertTrue(result.is_valid)
-        self.assertEqual(result.validated_value, 1e-10)
+        result = strategy.validate_scale_factor(0.0)
+        assert result.is_valid
+        assert result.validated_value == 1e-10
 
         # Negative scale - should be made positive
-        result = self.strategy.validate_scale_factor(-5.0)
-        self.assertTrue(result.is_valid)
-        self.assertEqual(result.validated_value, 5.0)
+        result = strategy.validate_scale_factor(-5.0)
+        assert result.is_valid
+        assert result.validated_value == 5.0
 
-    def test_validate_dimensions(self):
+    def test_validate_dimensions(self, strategy: MinimalValidationStrategy):
         """Test dimension validation."""
         # Valid dimensions
-        result = self.strategy.validate_dimensions(800, 600)
-        self.assertTrue(result.is_valid)
+        result = strategy.validate_dimensions(800, 600)
+        assert result.is_valid
 
         # Zero dimension
-        result = self.strategy.validate_dimensions(0, 600)
-        self.assertTrue(result.is_valid)
-        self.assertEqual(result.validated_value, (1, 600))
+        result = strategy.validate_dimensions(0, 600)
+        assert result.is_valid
+        assert result.validated_value == (1, 600)
 
         # Negative dimension
-        result = self.strategy.validate_dimensions(800, -600)
-        self.assertTrue(result.is_valid)
-        self.assertEqual(result.validated_value, (800, 600))
+        result = strategy.validate_dimensions(800, -600)
+        assert result.is_valid
+        assert result.validated_value == (800, 600)
 
 
-class TestComprehensiveValidationStrategy(unittest.TestCase):
+class TestComprehensiveValidationStrategy:
     """Test comprehensive validation strategy."""
 
-    strategy: ComprehensiveValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
+    @pytest.fixture
+    def strategy(self) -> ComprehensiveValidationStrategy:
+        """Create comprehensive validation strategy."""
+        return ComprehensiveValidationStrategy()
 
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.strategy = ComprehensiveValidationStrategy()
-
-    def test_validate_coordinate_valid(self):
+    def test_validate_coordinate_valid(self, strategy: ComprehensiveValidationStrategy):
         """Test validating valid coordinates."""
-        result = self.strategy.validate_coordinate(10.0, 20.0)
-        self.assertTrue(result.is_valid)
+        result = strategy.validate_coordinate(10.0, 20.0)
+        assert result.is_valid
 
-    def test_validate_coordinate_nan(self):
+    def test_validate_coordinate_nan(self, strategy: ComprehensiveValidationStrategy):
         """Test NaN detection in comprehensive mode."""
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertFalse(result.is_valid)
-        self.assertEqual(len(result.issues), 1)
-        self.assertEqual(result.issues[0].severity, ValidationSeverity.CRITICAL)
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert not result.is_valid
+        assert len(result.issues) == 1
+        assert result.issues[0].severity == ValidationSeverity.CRITICAL
 
-    def test_validate_coordinate_extreme(self):
+    def test_validate_coordinate_extreme(self, strategy: ComprehensiveValidationStrategy):
         """Test extreme coordinate detection."""
-        result = self.strategy.validate_coordinate(1e13, 20.0)
+        result = strategy.validate_coordinate(1e13, 20.0)
         # Extreme values generate warnings but don't invalidate the result
-        self.assertTrue(result.is_valid)
-        self.assertGreater(len(result.issues), 0)
-        self.assertIn("exceeds maximum", result.issues[0].message)
+        assert result.is_valid
+        assert len(result.issues) > 0
+        assert "exceeds maximum" in result.issues[0].message
 
-    def test_validate_transform_params(self):
+    def test_validate_transform_params(self, strategy: ComprehensiveValidationStrategy):
         """Test transform parameter validation."""
         # Valid params
         params = {"scale": 2.0, "center_x": 100.0, "center_y": 200.0, "offset_x": 10.0, "offset_y": 20.0}
-        result = self.strategy.validate_transform_params(params)
-        self.assertTrue(result.is_valid)
+        result = strategy.validate_transform_params(params)
+        assert result.is_valid
 
         # Invalid scale
         params["scale"] = 0.0
-        result = self.strategy.validate_transform_params(params)
-        self.assertFalse(result.is_valid)
+        result = strategy.validate_transform_params(params)
+        assert not result.is_valid
 
         # NaN in params
         params["scale"] = 2.0
         params["center_x"] = float("nan")
-        result = self.strategy.validate_transform_params(params)
-        self.assertFalse(result.is_valid)
+        result = strategy.validate_transform_params(params)
+        assert not result.is_valid
 
 
-class TestAdaptiveValidationStrategy(unittest.TestCase):
+class TestAdaptiveValidationStrategy:
     """Test adaptive validation strategy."""
 
-    strategy: AdaptiveValidationStrategy  # pyright: ignore[reportUninitializedInstanceVariable]
+    @pytest.fixture
+    def strategy(self) -> AdaptiveValidationStrategy:
+        """Create adaptive validation strategy."""
+        return AdaptiveValidationStrategy()
 
-    @override
-    def setUp(self) -> None:
-        """Set up test fixtures."""
-        self.strategy = AdaptiveValidationStrategy()
-
-    def test_default_mode(self):
+    def test_default_mode(self, strategy: AdaptiveValidationStrategy):
         """Test default adaptive mode."""
         # Uses __debug__ setting, which is True in test environment, so uses comprehensive
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertFalse(result.is_valid)  # Comprehensive fails on NaN
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert not result.is_valid  # Comprehensive fails on NaN
 
-    def test_user_input_mode(self):
+    def test_user_input_mode(self, strategy: AdaptiveValidationStrategy):
         """Test user input mode switches to comprehensive."""
-        self.strategy.set_context(is_user_input=True)
+        strategy.set_context(is_user_input=True)
 
         # Should use comprehensive for user input
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertFalse(result.is_valid)  # Comprehensive fails on NaN
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert not result.is_valid  # Comprehensive fails on NaN
 
-    def test_render_loop_mode(self):
+    def test_render_loop_mode(self, strategy: AdaptiveValidationStrategy):
         """Test render loop always uses minimal."""
-        self.strategy.set_context(is_render_loop=True, is_user_input=True)
+        strategy.set_context(is_render_loop=True, is_user_input=True)
 
         # Should use minimal in render loop even with user input
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertTrue(result.is_valid)  # Minimal doesn't fail
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert result.is_valid  # Minimal doesn't fail
 
-    def test_batch_operation_mode(self):
+    def test_batch_operation_mode(self, strategy: AdaptiveValidationStrategy):
         """Test batch operation mode."""
-        self.strategy.set_context(is_batch_operation=True)
+        strategy.set_context(is_batch_operation=True)
 
         # Should use minimal for batch operations
-        result = self.strategy.validate_coordinate(1e13, 20.0)
-        self.assertTrue(result.is_valid)  # Minimal allows extreme values
+        result = strategy.validate_coordinate(1e13, 20.0)
+        assert result.is_valid  # Minimal allows extreme values
 
-    def test_debug_mode(self):
+    def test_debug_mode(self, strategy: AdaptiveValidationStrategy):
         """Test debug mode forces comprehensive."""
-        self.strategy.set_context(is_debug=True)
+        strategy.set_context(is_debug=True)
 
         # Should use comprehensive in debug, but extreme values only generate warnings
-        result = self.strategy.validate_coordinate(1e13, 20.0)
-        self.assertTrue(result.is_valid)  # Comprehensive warns on extreme but doesn't fail
-        self.assertGreater(len(result.issues), 0)  # But should have warnings
+        result = strategy.validate_coordinate(1e13, 20.0)
+        assert result.is_valid  # Comprehensive warns on extreme but doesn't fail
+        assert len(result.issues) > 0  # But should have warnings
 
-    def test_switching_context(self):
+    def test_switching_context(self, strategy: AdaptiveValidationStrategy):
         """Test switching between contexts."""
         # Start with user input
-        self.strategy.set_context(is_user_input=True)
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertFalse(result.is_valid)
+        strategy.set_context(is_user_input=True)
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert not result.is_valid
 
         # Switch to render loop
-        self.strategy.set_context(is_render_loop=True)
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertTrue(result.is_valid)
+        strategy.set_context(is_render_loop=True)
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert result.is_valid
 
         # Back to default
-        self.strategy.set_context()
-        result = self.strategy.validate_coordinate(float("nan"), 20.0)
-        self.assertTrue(result.is_valid)
+        strategy.set_context()
+        result = strategy.validate_coordinate(float("nan"), 20.0)
+        assert result.is_valid
 
 
-class TestValidationStrategySingletons(unittest.TestCase):
+class TestValidationStrategySingletons:
     """Test singleton strategy instances."""
 
     def test_get_validation_strategy(self):
@@ -271,23 +261,23 @@ class TestValidationStrategySingletons(unittest.TestCase):
         # Get minimal
         minimal1 = get_validation_strategy("minimal")
         minimal2 = get_validation_strategy("minimal")
-        self.assertIs(minimal1, minimal2)  # Same instance
-        self.assertIsInstance(minimal1, MinimalValidationStrategy)
+        assert minimal1 is minimal2  # Same instance
+        assert isinstance(minimal1, MinimalValidationStrategy)
 
         # Get comprehensive
         comp1 = get_validation_strategy("comprehensive")
         comp2 = get_validation_strategy("comprehensive")
-        self.assertIs(comp1, comp2)
-        self.assertIsInstance(comp1, ComprehensiveValidationStrategy)
+        assert comp1 is comp2
+        assert isinstance(comp1, ComprehensiveValidationStrategy)
 
         # Get adaptive
         adaptive1 = get_validation_strategy("adaptive")
         adaptive2 = get_validation_strategy("adaptive")
-        self.assertIs(adaptive1, adaptive2)
-        self.assertIsInstance(adaptive1, AdaptiveValidationStrategy)
+        assert adaptive1 is adaptive2
+        assert isinstance(adaptive1, AdaptiveValidationStrategy)
 
         # Invalid mode
-        with self.assertRaises(ValueError):
+        with pytest.raises(ValueError, match="Unknown validation strategy"):
             get_validation_strategy("invalid")
 
     def test_auto_mode_selection(self):
@@ -295,10 +285,10 @@ class TestValidationStrategySingletons(unittest.TestCase):
         # Auto mode should return adaptive strategy
         strategy = get_validation_strategy("auto")
         # Auto mode returns adaptive, not minimal/comprehensive
-        self.assertIsInstance(strategy, AdaptiveValidationStrategy)
+        assert isinstance(strategy, AdaptiveValidationStrategy)
 
 
-class TestValidationIntegration(unittest.TestCase):
+class TestValidationIntegration:
     """Test validation integration scenarios."""
 
     def test_pipeline_validation(self):
@@ -316,9 +306,9 @@ class TestValidationIntegration(unittest.TestCase):
         dims_result.raise_if_invalid()
 
         # All should pass
-        self.assertTrue(coords_result.is_valid)
-        self.assertTrue(scale_result.is_valid)
-        self.assertTrue(dims_result.is_valid)
+        assert coords_result.is_valid
+        assert scale_result.is_valid
+        assert dims_result.is_valid
 
     def test_error_accumulation(self):
         """Test accumulating errors across validations."""
@@ -342,9 +332,9 @@ class TestValidationIntegration(unittest.TestCase):
             errors.extend(result.issues)
 
         # Should have collected multiple errors
-        self.assertGreater(len(errors), 0)
+        assert len(errors) > 0
         critical_errors = [e for e in errors if e.severity == ValidationSeverity.CRITICAL]
-        self.assertGreater(len(critical_errors), 0)
+        assert len(critical_errors) > 0
 
     def test_performance_sensitive_validation(self):
         """Test validation in performance-sensitive context."""
@@ -357,9 +347,5 @@ class TestValidationIntegration(unittest.TestCase):
         # Should handle invalid values quickly without failing
         for _ in range(1000):
             result = strategy.validate_coordinate(float("nan"), float("inf"))
-            self.assertTrue(result.is_valid)  # Minimal mode, always valid
-            self.assertIsNotNone(result.validated_value)  # But values corrected
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert result.is_valid  # Minimal mode, always valid
+            assert result.validated_value is not None  # But values corrected

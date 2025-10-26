@@ -153,16 +153,13 @@ class PointStatus(Enum):
             return cls.INTERPOLATED if value else cls.NORMAL
         elif isinstance(value, int):
             # Convert int to corresponding status (0=NORMAL, 1=INTERPOLATED, 2=KEYFRAME, 3=TRACKED, 4=ENDFRAME)
-            if value == 1:
-                return cls.INTERPOLATED
-            elif value == 2:
-                return cls.KEYFRAME
-            elif value == 3:
-                return cls.TRACKED
-            elif value == 4:
-                return cls.ENDFRAME
-            else:
-                return cls.NORMAL
+            status_map = {
+                1: cls.INTERPOLATED,
+                2: cls.KEYFRAME,
+                3: cls.TRACKED,
+                4: cls.ENDFRAME,
+            }
+            return status_map.get(value, cls.NORMAL)
         else:
             # Must be str at this point due to type annotation
             try:
@@ -416,9 +413,8 @@ class CurvePoint:
             # Find the last endframe before this point
             last_endframe = None
             for point in all_points:
-                if point.frame < self.frame and point.is_endframe:
-                    if last_endframe is None or point.frame > last_endframe.frame:
-                        last_endframe = point
+                if point.frame < self.frame and point.is_endframe and (last_endframe is None or point.frame > last_endframe.frame):
+                    last_endframe = point
 
             # If there's an endframe before this keyframe, check if this is the first keyframe after it
             if last_endframe:

@@ -169,13 +169,16 @@ class TestEndframeKeyboardShortcut:
         app_state = get_application_state()
         curve_data = list(app_state.get_curve_data())
         point0_after = curve_data[0] if curve_data else None
-        assert point0_after and len(point0_after) >= 4
+        assert point0_after is not None
+        assert len(point0_after) >= 4
         # Should toggle to ENDFRAME
         assert point0_after[3] == PointStatus.ENDFRAME.value
 
         # Other points should remain unchanged
         point1 = curve_data[1] if len(curve_data) > 1 else None
-        assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
+        assert point1 is not None
+        assert len(point1) >= 4
+        assert point1[3] == PointStatus.KEYFRAME.value
 
     def test_e_key_converts_current_frame_point_when_none_selected(self, curve_widget_with_data, qtbot):
         """Test that E key converts point at current frame when no points are selected."""
@@ -212,12 +215,18 @@ class TestEndframeKeyboardShortcut:
         curve_data = list(app_state.get_curve_data())
 
         point2 = curve_data[2] if len(curve_data) > 2 else None
-        assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
+        assert point2 is not None
+        assert len(point2) >= 4
+        assert point2[3] == PointStatus.ENDFRAME.value
         # Other points should remain unchanged
         point0 = curve_data[0] if curve_data else None
-        assert point0 and len(point0) >= 4 and point0[3] == PointStatus.NORMAL.value
+        assert point0 is not None
+        assert len(point0) >= 4
+        assert point0[3] == PointStatus.NORMAL.value
         point1 = curve_data[1] if len(curve_data) > 1 else None
-        assert point1 and len(point1) >= 4 and point1[3] == PointStatus.KEYFRAME.value
+        assert point1 is not None
+        assert len(point1) >= 4
+        assert point1[3] == PointStatus.KEYFRAME.value
 
     def test_e_key_ignores_selection_and_uses_current_frame(self, curve_widget_with_data, qtbot):
         """Test that E key ignores selection and only uses current_frame.
@@ -262,12 +271,15 @@ class TestEndframeKeyboardShortcut:
         # CRITICAL: Point at current_frame (1) should be toggled to ENDFRAME
         curve_data_after = list(app_state.get_curve_data())
         point0_after = curve_data_after[0] if curve_data_after else None
-        assert point0_after and len(point0_after) >= 4
+        assert point0_after is not None
+        assert len(point0_after) >= 4
         assert point0_after[3] == PointStatus.ENDFRAME.value, "Point at frame 1 should be toggled"
 
         # CRITICAL: Selected point at frame 4 should be UNCHANGED
         point3_after = curve_data_after[3] if len(curve_data_after) > 3 else None
-        assert point3_after and len(point3_after) >= 4 and point3_before is not None
+        assert point3_after is not None
+        assert len(point3_after) >= 4
+        assert point3_before is not None
         # After length check - we've verified it has status info
         from core.type_aliases import PointTuple4
 
@@ -336,7 +348,9 @@ class TestEndframeKeyboardShortcut:
         # Status should remain unchanged
         curve_data_after = list(app_state.get_curve_data())
         point0 = curve_data_after[0] if curve_data_after else None
-        assert point0 and len(point0) >= 4 and point0[3] == original_status
+        assert point0 is not None
+        assert len(point0) >= 4
+        assert point0[3] == original_status
 
     def test_e_key_with_3element_data_format(self, curve_widget_with_3element_data, qtbot):
         """REGRESSION TEST: E key must work with 3-element tuples (frame, x, y).
@@ -678,7 +692,9 @@ class TestRealComponentIntegration:
         app_state = get_application_state()
         curve_data = list(app_state.get_curve_data())
         point0 = curve_data[0] if curve_data else None
-        assert point0 and len(point0) >= 4 and point0[3] == PointStatus.ENDFRAME.value
+        assert point0 is not None
+        assert len(point0) >= 4
+        assert point0[3] == PointStatus.ENDFRAME.value
 
         # Now test frame 3 (index 2)
         get_application_state().set_frame(3)
@@ -696,7 +712,9 @@ class TestRealComponentIntegration:
         # Verify point at frame 3 (index 2) was toggled to ENDFRAME
         curve_data = list(app_state.get_curve_data())
         point2 = curve_data[2] if len(curve_data) > 2 else None
-        assert point2 and len(point2) >= 4 and point2[3] == PointStatus.ENDFRAME.value
+        assert point2 is not None
+        assert len(point2) >= 4
+        assert point2[3] == PointStatus.ENDFRAME.value
 
     def test_tracking_direction_with_real_components(self, qtbot):
         """Test tracking direction commands with real tracking panel."""

@@ -200,7 +200,7 @@ __all__ = [
     "PointTuple4Bool",
     "PointTuple4Str",
     "QtPointF",
-    "TrackingPointData",
     "TrackedData",
+    "TrackingPointData",
     "VoidSignalProtocol",
 ]

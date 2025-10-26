@@ -560,11 +560,14 @@ class TestStatistics:
         assert stats["total_cells"] == 100  # 10 * 10 (clamped to minimum)
         assert stats["total_points"] == 3
         occupied_cells = stats["occupied_cells"]
-        assert isinstance(occupied_cells, int | float) and occupied_cells > 0  # At least some cells occupied
+        assert isinstance(occupied_cells, int | float)
+        assert occupied_cells > 0  # At least some cells occupied
         occupancy_ratio = stats["occupancy_ratio"]
-        assert isinstance(occupancy_ratio, float) and occupancy_ratio > 0.0
+        assert isinstance(occupancy_ratio, float)
+        assert occupancy_ratio > 0.0
         avg_points = stats["avg_points_per_cell"]
-        assert isinstance(avg_points, float) and avg_points > 0.0
+        assert isinstance(avg_points, float)
+        assert avg_points > 0.0
         assert stats["transform_hash"] == "stats_hash"
 
     def test_get_stats_multiple_points_per_cell(self) -> None:
@@ -784,7 +787,8 @@ class TestPerformanceOptimizations:
 
         assert stats["total_points"] == 1000
         occupied_cells = stats["occupied_cells"]
-        assert isinstance(occupied_cells, int | float) and occupied_cells > 0
+        assert isinstance(occupied_cells, int | float)
+        assert occupied_cells > 0
 
         # Test point lookup still works
         result = index.find_point_at_position(view.curve_data, _as_transform(transform), 0.0, 0.0, threshold=5.0)
@@ -812,7 +816,8 @@ class TestPerformanceOptimizations:
         assert stats["total_points"] == 4
         # Should have low occupancy ratio (sparse)
         occupancy_ratio = stats["occupancy_ratio"]
-        assert isinstance(occupancy_ratio, float) and occupancy_ratio < 0.1
+        assert isinstance(occupancy_ratio, float)
+        assert occupancy_ratio < 0.1
 
     def test_dense_grid_handling(self) -> None:
         """Test handling of dense point clusters."""
@@ -836,7 +841,8 @@ class TestPerformanceOptimizations:
         assert stats["total_points"] == 50
         # Should have high average points per cell
         avg_points = stats["avg_points_per_cell"]
-        assert isinstance(avg_points, float) and avg_points > 5.0
+        assert isinstance(avg_points, float)
+        assert avg_points > 5.0
 
 
 class TestEdgeCases:

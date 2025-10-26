@@ -156,18 +156,17 @@ class TrackingSelectionController(BaseTrackingController):
 
         # Center view on selected point at current frame
         # Small delay to ensure curve data and point selection are processed
-        if self.main_window.curve_widget and point_names:
-            if callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
-                # Use small delay to allow widget updates to complete
-                def safe_center_on_selection() -> None:
-                    curve_widget = self.main_window.curve_widget
-                    if curve_widget and not getattr(curve_widget, "isHidden", lambda: True)():
-                        center_method = getattr(curve_widget, "center_on_selection", None)
-                        if callable(center_method):
-                            _ = center_method()
+        if self.main_window.curve_widget and point_names and callable(getattr(self.main_window.curve_widget, "center_on_selection", None)):
+            # Use small delay to allow widget updates to complete
+            def safe_center_on_selection() -> None:
+                curve_widget = self.main_window.curve_widget
+                if curve_widget and not getattr(curve_widget, "isHidden", lambda: True)():
+                    center_method = getattr(curve_widget, "center_on_selection", None)
+                    if callable(center_method):
+                        _ = center_method()
 
-                QTimer.singleShot(10, safe_center_on_selection)
-                logger.debug("Scheduled centering on selected point after 10ms delay")
+            QTimer.singleShot(10, safe_center_on_selection)
+            logger.debug("Scheduled centering on selected point after 10ms delay")
 
         logger.debug(f"Selected tracking points: {point_names}")
 

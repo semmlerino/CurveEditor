@@ -343,7 +343,7 @@ class TestUniqueNameGeneration:
         assert unique_name == "Track_4"
 
     @pytest.mark.parametrize(
-        "base_name,existing_names,expected",
+        ("base_name", "existing_names", "expected"),
         [
             ("Point", ["Point", "Point_2"], "Point_3"),
             ("Track", ["Track", "Track_2", "Track_4"], "Track_3"),
@@ -672,11 +672,7 @@ class TestEdgeCases:
 
         # Create data with many conflicts
         for i in range(10):
-            data: dict[str, CurveDataList]
-            if i == 0:
-                data = {"Track": [(1, 10.0, 20.0)]}
-            else:
-                data = {"Track": [(i, i * 10.0, i * 20.0)]}
+            data: dict[str, CurveDataList] = {"Track": [(1, 10.0, 20.0)]} if i == 0 else {"Track": [(i, i * 10.0, i * 20.0)]}
 
             controller.on_multi_point_data_loaded(data)
 
@@ -735,7 +731,7 @@ class TestParametrizedMerging:
     """Comprehensive parametrized tests for various scenarios."""
 
     @pytest.mark.parametrize(
-        "first_data,second_data,expected_count,expected_names",
+        ("first_data", "second_data", "expected_count", "expected_names"),
         [
             # No conflicts
             ({"A": []}, {"B": []}, 2, ["A", "B"]),

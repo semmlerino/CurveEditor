@@ -105,9 +105,8 @@ class TestSafeSlot:
         qtbot.addWidget(widget)
 
         # Capture log messages at DEBUG level
-        with caplog.at_level(logging.DEBUG):
-            with patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
-                widget.handler()
+        with caplog.at_level(logging.DEBUG), patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
+            widget.handler()
 
         # Verify debug log message
         assert any("Skipped handler - widget being destroyed" in record.message for record in caplog.records)
@@ -128,9 +127,8 @@ class TestSafeSlotLogging:
         qtbot.addWidget(widget)
 
         # Capture log messages at INFO level
-        with caplog.at_level(logging.INFO):
-            with patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
-                widget.handler()
+        with caplog.at_level(logging.INFO), patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
+            widget.handler()
 
         # Verify info-level log message
         info_messages = [record for record in caplog.records if record.levelname == "INFO"]
@@ -149,9 +147,8 @@ class TestSafeSlotLogging:
         qtbot.addWidget(widget)
 
         # Capture log messages at DEBUG level
-        with caplog.at_level(logging.DEBUG):
-            with patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
-                widget.handler()
+        with caplog.at_level(logging.DEBUG), patch.object(widget, "isVisible", side_effect=RuntimeError("destroyed")):
+            widget.handler()
 
         # Verify debug-level log message
         debug_messages = [record for record in caplog.records if record.levelname == "DEBUG"]

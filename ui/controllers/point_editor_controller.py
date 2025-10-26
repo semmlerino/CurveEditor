@@ -293,12 +293,11 @@ class PointEditorController:
 
         This should be called after the UI is fully initialized.
         """
-        if self.main_window.point_x_spinbox and self.main_window.point_y_spinbox:
-            if not self._spinbox_connected:
-                _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
-                _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
-                self._spinbox_connected = True
-                logger.info("Point editor spinbox signals connected")
+        if self.main_window.point_x_spinbox and self.main_window.point_y_spinbox and not self._spinbox_connected:
+            _ = self.main_window.point_x_spinbox.valueChanged.connect(self._on_point_x_changed)
+            _ = self.main_window.point_y_spinbox.valueChanged.connect(self._on_point_y_changed)
+            self._spinbox_connected = True
+            logger.info("Point editor spinbox signals connected")
 
     # Protocol compliance methods
     @Slot(float)

@@ -757,10 +757,7 @@ class TimelineTabWidget(QWidget):
         # Use parent width if available, otherwise use a default
         try:
             parent = self.parent()
-            if parent and isinstance(parent, QWidget):
-                available_width = parent.width() - 100  # Subtract space for nav buttons and margins
-            else:
-                available_width = 1300  # Default for 1400px window
+            available_width = parent.width() - 100 if parent and isinstance(parent, QWidget) else 1300  # Default for 1400px window
         except RuntimeError:
             # Parent already deleted during teardown
             available_width = 1300  # Default for 1400px window

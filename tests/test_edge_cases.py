@@ -108,17 +108,12 @@ class TestNullAndNoneChecks:
         # Edge case: None as curve_name parameter
         # ApplicationState may handle None gracefully or raise error
         # Either behavior is acceptable as long as it doesn't crash with AttributeError
-        try:
+        with pytest.raises((ValueError, TypeError, AttributeError), match=r"(curve|none)"):
             app_state.set_curve_data(None, [(1, 100.0, 200.0)])
-        except (ValueError, TypeError, AttributeError) as e:
-            # Expected - some kind of validation error
-            assert "curve" in str(e).lower() or "none" in str(e).lower()
 
-        try:
+        # get_curve_data with None should also raise
+        with pytest.raises((ValueError, TypeError, AttributeError)):
             app_state.get_curve_data(None)  # type: ignore[arg-type]
-        except (ValueError, TypeError, AttributeError):
-            # Expected - some kind of validation error
-            pass
 
 
 class TestInvalidInputTypes:
@@ -160,10 +155,8 @@ class TestInvalidInputTypes:
 
         for invalid_data in invalid_data_sets:
             # Should handle gracefully or raise clear error
-            try:
+            with pytest.raises((TypeError, ValueError, AttributeError)):
                 app_state.set_curve_data("test_curve", invalid_data)
-            except (TypeError, ValueError, AttributeError):
-                pass  # Expected - type validation working
 
 
 class TestEmptyCollections:

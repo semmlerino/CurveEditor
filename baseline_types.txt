@@ -1,5 +1,0 @@
-        Type parameter "_T@list" is invariant, but "LegacyPointData" is not the same as "tuple[int, float, float] | tuple[int, float, float, str | bool]"
-        Consider switching from "list" to "Sequence" which is covariant
-      "list[LegacyPointData]" is not assignable to "CurveDataWithMetadata"[90m (reportArgumentType)[39m
-  /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/ui/main_window.py:[33m1455[39m:[33m9[39m - [36mwarning[39m: Method "closeEvent" is not marked as override but is overriding a method in class "QWidget"[90m (reportImplicitOverride)[39m
-28 errors, 31 warnings, 0 notes

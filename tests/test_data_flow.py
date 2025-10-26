@@ -97,13 +97,16 @@ class TestDataFlowIntegration:
         # Check status cache updated
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
         status_5 = timeline.status_cache.get_status(5)
-        assert status_5 is not None and status_5[0] == 1  # keyframe_count
+        assert status_5 is not None
+        assert status_5[0] == 1  # keyframe_count
 
         status_10 = timeline.status_cache.get_status(10)
-        assert status_10 is not None and status_10[1] == 1  # interpolated_count
+        assert status_10 is not None
+        assert status_10[1] == 1  # interpolated_count
 
         status_15 = timeline.status_cache.get_status(15)
-        assert status_15 is not None and status_15[0] == 1  # keyframe_count
+        assert status_15 is not None
+        assert status_15[0] == 1  # keyframe_count
 
     def test_store_to_curve_widget_data_flow(self, qtbot):
         """Test that curve store updates propagate to curve widget."""
@@ -189,7 +192,7 @@ class TestDataFlowIntegration:
         # Add a new point
         existing_data = app_state.get_curve_data("TestCurve")
         if existing_data:
-            new_data = list(existing_data) + [(5, 200.0, 200.0, "keyframe")]
+            new_data = [*existing_data, (5, 200.0, 200.0, "keyframe")]
             app_state.set_curve_data("TestCurve", new_data)
 
         # Verify signal was emitted
@@ -202,7 +205,8 @@ class TestDataFlowIntegration:
         assert timeline.max_frame == 5
         assert frame_store.max_frame == 5
         status_5 = timeline.status_cache.get_status(5)
-        assert status_5 is not None and status_5[0] == 1  # keyframe_count
+        assert status_5 is not None
+        assert status_5[0] == 1  # keyframe_count
 
     def test_point_removal_propagates_to_all_components(self, qtbot):
         """Test that removing a point updates all connected components."""
@@ -244,7 +248,8 @@ class TestDataFlowIntegration:
         # All components should have updated
         assert len(widget.curve_data) == 2
         status_5 = timeline.status_cache.get_status(5)
-        assert status_5 is not None and status_5[0] == 0  # keyframe_count
+        assert status_5 is not None
+        assert status_5[0] == 0  # keyframe_count
         # Frame range should still be 1-10 since endpoints remain
         assert timeline.max_frame == 10
         assert frame_store.max_frame == 10
@@ -271,11 +276,14 @@ class TestDataFlowIntegration:
         # All should be normal initially
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
         status1 = timeline.status_cache.get_status(1)
-        assert status1 is not None and status1[4] == 1  # normal_count
+        assert status1 is not None
+        assert status1[4] == 1  # normal_count
         status2 = timeline.status_cache.get_status(2)
-        assert status2 is not None and status2[4] == 1  # normal_count
+        assert status2 is not None
+        assert status2[4] == 1  # normal_count
         status3 = timeline.status_cache.get_status(3)
-        assert status3 is not None and status3[4] == 1  # normal_count
+        assert status3 is not None
+        assert status3[4] == 1  # normal_count
 
         # Change point 2 to keyframe
         existing_data = app_state.get_curve_data("TestCurve")
@@ -291,8 +299,9 @@ class TestDataFlowIntegration:
         # Timeline should reflect the change
         # get_status returns tuple: (keyframe, interpolated, tracked, endframe, normal, start, inactive, selected)
         status_2 = timeline.status_cache.get_status(2)
-        assert status_2 is not None and status_2[4] == 0  # normal_count
-        assert status_2 is not None and status_2[0] == 1  # keyframe_count
+        assert status_2 is not None
+        assert status_2[4] == 0  # normal_count
+        assert status_2[0] == 1  # keyframe_count
 
     def test_selection_propagates_between_components(self, qtbot):
         """Test that selection changes propagate between components."""
@@ -398,7 +407,8 @@ class TestDataFlowIntegration:
             # Test behavior: each frame should be marked
             status = timeline.status_cache.get_status(i)
             # get_status returns FrameStatus namedtuple
-            assert status is not None and status.normal_count == 1  # Each point is normal by default
+            assert status is not None
+            assert status.normal_count == 1  # Each point is normal by default
 
     def test_no_manual_updates_override_store(self, qtbot):
         """Test that ApplicationState data updates propagate to timeline.
@@ -518,7 +528,8 @@ class TestDataFlowIntegration:
         for i in range(1, 4):
             status = timeline.status_cache.get_status(i)
             # get_status returns FrameStatus namedtuple
-            assert status is not None and status.normal_count == 1  # normal_count
+            assert status is not None
+            assert status.normal_count == 1  # normal_count
 
 
 class TestMultiControllerSignalChains:

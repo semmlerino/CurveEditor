@@ -1,11 +1,11 @@
 {
-  "tracking_file": null,
+  "tracking_file": "2DTrackDatav2.txt",
   "image_directory": null,
   "current_frame": 1,
   "zoom_level": 1.0,
   "pan_offset": [
-    100.0,
-    -50.0
+    0.0,
+    0.0
   ],
   "window_geometry": [
     0,

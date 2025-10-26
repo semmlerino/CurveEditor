@@ -336,10 +336,9 @@ class CurveDataFacade:
             logger.debug(f"Set active curve to '{name}' in ApplicationState")
 
             # Auto-center on the current frame if centering mode is active
-            if self.widget.centering_mode:
-                if self.widget.main_window and getattr(self.widget.main_window, "current_frame", None) is not None:
-                    current_frame = self.widget.main_window.current_frame
-                    logger.debug(
-                        f"[CENTERING] Auto-centering on frame {current_frame} for newly selected curve '{name}'"
-                    )
-                    self.widget.center_on_frame(current_frame)
+            if self.widget.centering_mode and self.widget.main_window and getattr(self.widget.main_window, "current_frame", None) is not None:
+                current_frame = self.widget.main_window.current_frame
+                logger.debug(
+                    f"[CENTERING] Auto-centering on frame {current_frame} for newly selected curve '{name}'"
+                )
+                self.widget.center_on_frame(current_frame)

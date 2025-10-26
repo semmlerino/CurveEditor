@@ -244,11 +244,8 @@ def _compute_interpolated_optimized(
             p = old_data[i]
             status = get_point_status(p)
             if status != "interpolated":
-                if is_endframe_point(p):
-                    # ENDFRAME can be used as next point but resets chain
-                    last_valid_idx = i
-                else:
-                    last_valid_idx = i
+                # Both branches assign to last_valid_idx, so just assign directly
+                last_valid_idx = i
 
     # Interpolate using pre-computed neighbors
     for idx in sorted(selected_indices):

@@ -245,7 +245,7 @@ class TestViewState:
         assert view_state.background_image is background_image
 
     @pytest.mark.parametrize(
-        "width,height",
+        ("width", "height"),
         [
             (0, 0),  # Zero dimensions
             (1, 1),  # Minimal dimensions
@@ -326,7 +326,7 @@ class TestTransform:
         assert different_transform.stability_hash != hash1
 
     @pytest.mark.parametrize(
-        "data_x,data_y",
+        ("data_x", "data_y"),
         [
             (0.0, 0.0),  # Origin
             (100.0, 200.0),  # Positive coordinates
@@ -961,7 +961,7 @@ class TestTransformServiceIntegration:
             if thread.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {thread.name} did not stop within timeout")
+                warnings.warn(f"Thread {thread.name} did not stop within timeout", stacklevel=2)
 
         # Check results
         assert len(errors) == 0, f"Errors occurred: {errors}"

@@ -71,10 +71,10 @@ class TestServiceThreadSafety:
             results = set()
             barrier = threading.Barrier(10)
 
-            def get_service():
-                barrier.wait()
-                service = getter_func()
-                results.add(id(service))
+            def get_service(func=getter_func, barrier_obj=barrier, result_set=results):
+                barrier_obj.wait()
+                service = func()
+                result_set.add(id(service))
                 return service
 
             with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
@@ -114,7 +114,7 @@ class TestServiceThreadSafety:
             if t.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {t.name} did not stop within timeout")
+                warnings.warn(f"Thread {t.name} did not stop within timeout", stacklevel=2)
 
         assert not errors, f"Errors detected: {errors[:5]}"  # Show first 5 errors
 
@@ -386,7 +386,7 @@ class TestStressTests:
 
         # Start readers and writers
         threads = []
-        for i in range(3):
+        for _ in range(3):
             t = threading.Thread(target=reader_thread)
             threads.append(t)
             t.start()
@@ -401,7 +401,7 @@ class TestStressTests:
             if t.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {t.name} did not stop within timeout")
+                warnings.warn(f"Thread {t.name} did not stop within timeout", stacklevel=2)
 
         # All seen values should be within valid range
         for value in seen_values:
@@ -551,7 +551,7 @@ class TestQtThreadingSafety:
             if worker_thread.is_alive():
                 import warnings
 
-                warnings.warn(f"Thread {worker_thread.name} did not stop within timeout")
+                warnings.warn(f"Thread {worker_thread.name} did not stop within timeout", stacklevel=2)
 
         # Verify violation was detected
         assert len(thread_violations) == 1, f"Expected 1 violation, got: {thread_violations}"

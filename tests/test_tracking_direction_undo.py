@@ -110,9 +110,8 @@ class TestTrackingDirectionUndo:
 
         # Verify command description
         command_desc = command_manager.get_undo_description()
-        assert (
-            command_desc is not None and "backward" in command_desc.lower()
-        ), f"Command description should mention direction: {command_desc}"
+        assert command_desc is not None, f"Command description should not be None: {command_desc}"
+        assert "backward" in command_desc.lower(), f"Command description should mention direction: {command_desc}"
 
     def test_tracking_direction_undo_reverses_status_changes(self, main_window_with_tracking_data):
         """Test that undo reverses the status changes from direction change."""
@@ -136,7 +135,7 @@ class TestTrackingDirectionUndo:
 
         # Count status differences
         status_differences = 0
-        for i, (old_pt, new_pt) in enumerate(zip(initial_data, changed_data)):
+        for old_pt, new_pt in zip(initial_data, changed_data, strict=False):
             old_status = old_pt[3] if len(old_pt) > 3 else "keyframe"
             new_status = new_pt[3] if len(new_pt) > 3 else "keyframe"
             if old_status != new_status:
@@ -155,7 +154,7 @@ class TestTrackingDirectionUndo:
         # Verify data is back to initial state
         assert len(undone_data) == len(initial_data), "Should have same number of points after undo"
 
-        for i, (initial_pt, undone_pt) in enumerate(zip(initial_data, undone_data)):
+        for i, (initial_pt, undone_pt) in enumerate(zip(initial_data, undone_data, strict=False)):
             initial_status = initial_pt[3] if len(initial_pt) > 3 else "keyframe"
             undone_status = undone_pt[3] if len(undone_pt) > 3 else "keyframe"
             assert (
@@ -191,7 +190,7 @@ class TestTrackingDirectionUndo:
         # Verify data matches the changed state
         assert len(redone_data) == len(changed_data), "Should have same number of points after redo"
 
-        for i, (changed_pt, redone_pt) in enumerate(zip(changed_data, redone_data)):
+        for i, (changed_pt, redone_pt) in enumerate(zip(changed_data, redone_data, strict=False)):
             changed_status = changed_pt[3] if len(changed_pt) > 3 else "keyframe"
             redone_status = redone_pt[3] if len(redone_pt) > 3 else "keyframe"
             assert (

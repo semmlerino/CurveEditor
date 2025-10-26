@@ -442,49 +442,48 @@ class _MouseHandler:
                 # main_window is defined in CurveViewProtocol
                 self._owner.commands.update_history_buttons(view.main_window)
 
-            elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down):
+            elif key in (Qt.Key.Key_Left, Qt.Key.Key_Right, Qt.Key.Key_Up, Qt.Key.Key_Down) and view.selected_points:
                 # Nudge selected points
                 # selected_points is defined in CurveViewProtocol
-                if view.selected_points:
-                    from core.commands.curve_commands import BatchMoveCommand
+                from core.commands.curve_commands import BatchMoveCommand
 
-                    nudge_distance = 1.0
-                    delta_x = (
-                        nudge_distance
-                        if key == Qt.Key.Key_Right
-                        else (-nudge_distance if key == Qt.Key.Key_Left else 0)
+                nudge_distance = 1.0
+                delta_x = (
+                    nudge_distance
+                    if key == Qt.Key.Key_Right
+                    else (-nudge_distance if key == Qt.Key.Key_Left else 0)
+                )
+                delta_y = (
+                    nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
+                )
+
+                # Convert to curve coordinates
+                transform_service = _get_transform_service()
+                transform = transform_service.get_transform(view)
+
+                curve_delta_x = delta_x / transform.scale
+                curve_delta_y = -delta_y / transform.scale  # Invert Y
+
+                # Collect moves for command using ApplicationState
+                if (cd := self._app_state.active_curve_data) is None:
+                    return
+                _, data = cd
+                moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
+                for idx in view.selected_points:
+                    if 0 <= idx < len(data):
+                        point = data[idx]
+                        old_pos = (point[1], point[2])
+                        new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
+                        moves.append((idx, old_pos, new_pos))
+
+                if moves:
+                    # Create and execute move command
+                    command = BatchMoveCommand(
+                        description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
+                        moves=moves,
                     )
-                    delta_y = (
-                        nudge_distance if key == Qt.Key.Key_Up else (-nudge_distance if key == Qt.Key.Key_Down else 0)
-                    )
-
-                    # Convert to curve coordinates
-                    transform_service = _get_transform_service()
-                    transform = transform_service.get_transform(view)
-
-                    curve_delta_x = delta_x / transform.scale
-                    curve_delta_y = -delta_y / transform.scale  # Invert Y
-
-                    # Collect moves for command using ApplicationState
-                    if (cd := self._app_state.active_curve_data) is None:
-                        return
-                    _, data = cd
-                    moves: list[tuple[int, tuple[float, float], tuple[float, float]]] = []
-                    for idx in view.selected_points:
-                        if 0 <= idx < len(data):
-                            point = data[idx]
-                            old_pos = (point[1], point[2])
-                            new_pos = (point[1] + curve_delta_x, point[2] + curve_delta_y)
-                            moves.append((idx, old_pos, new_pos))
-
-                    if moves:
-                        # Create and execute move command
-                        command = BatchMoveCommand(
-                            description=f"Nudge {len(moves)} point{'s' if len(moves) > 1 else ''}",
-                            moves=moves,
-                        )
-                        _ = self._owner.command_manager.execute_command(command, view.main_window)
-                        # Note: No need to add_to_history - command manager handles it
+                    _ = self._owner.command_manager.execute_command(command, view.main_window)
+                    # Note: No need to add_to_history - command manager handles it
 
             view.update()
 
@@ -1050,8 +1049,8 @@ class _CommandHistory:
 
                 # Legacy compatibility: also set on old storage locations
                 # Set on main_window directly if it has the attribute
-                # Use setattr since curve_data may be a property - Protocol compatibility
-                setattr(main_window, "curve_data", curve_data)
+                # curve_data may be a property - Protocol compatibility
+                main_window.curve_data = curve_data
 
             # Also set on curve_widget if present
             if (
@@ -1059,7 +1058,7 @@ class _CommandHistory:
                 and getattr(main_window.curve_widget, "curve_data", None) is not None
             ):
                 # Legacy: set curve data on widget (may be property)
-                setattr(main_window.curve_widget, "curve_data", curve_data)
+                main_window.curve_widget.curve_data = curve_data
 
         # Restore point_name
         if "point_name" in state and getattr(main_window, "point_name", None) is not None:

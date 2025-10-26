@@ -283,7 +283,7 @@ class TestVisualizationOptions:
     """Test visualization options and display settings."""
 
     @pytest.mark.parametrize(
-        "attribute_name,initial_value",
+        ("attribute_name", "initial_value"),
         [
             pytest.param("show_grid", False, id="grid"),
             pytest.param("show_points", True, id="points"),
@@ -379,7 +379,8 @@ class TestInteractionHandling:
         # Verify it's interpolated before nudging
         point_before = curve_view_widget.curve_data[1]
         # Safe access for PointTuple4
-        assert len(point_before) == 4 and point_before[3] == "interpolated", "Point should be interpolated before nudge"
+        assert len(point_before) == 4
+        assert point_before[3] == "interpolated", "Point should be interpolated before nudge"
 
         # Nudge the point
         curve_view_widget.nudge_selected(5.0, 5.0)
@@ -387,9 +388,8 @@ class TestInteractionHandling:
         # Verify the point is now a keyframe
         point_after = curve_view_widget.curve_data[1]
         # Safe access for PointTuple4
-        assert (
-            len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value
-        ), "Point should be keyframe after nudge"
+        assert len(point_after) == 4
+        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should be keyframe after nudge"
 
         # Verify position changed
         assert point_after[1] == 115.0, "X coordinate should have moved"
@@ -437,9 +437,8 @@ class TestInteractionHandling:
         # Verify the point is still a keyframe
         point_after = curve_view_widget.curve_data[0]
         # Safe access for PointTuple4
-        assert (
-            len(point_after) == 4 and point_after[3] == PointStatus.KEYFRAME.value
-        ), "Point should remain keyframe after nudge"
+        assert len(point_after) == 4
+        assert point_after[3] == PointStatus.KEYFRAME.value, "Point should remain keyframe after nudge"
 
 
 class TestServiceIntegration:

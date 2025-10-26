@@ -184,10 +184,9 @@ class GlobalEventFilter(QObject):
         # Skip text input widgets when they have focus
         skip_types = (QLineEdit, QTextEdit, QPlainTextEdit, QSpinBox, QDoubleSpinBox)
 
-        if isinstance(obj, skip_types):
+        if isinstance(obj, skip_types) and obj.hasFocus():
             # Check if the widget is in edit mode
-            if obj.hasFocus():
-                return True
+            return True
 
         # Check for combo box dropdown
         from PySide6.QtWidgets import QComboBox

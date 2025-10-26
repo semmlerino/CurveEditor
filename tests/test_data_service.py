@@ -65,11 +65,14 @@ class TestDataAnalysis:
 
         assert result[0][0] == 10  # Frame preserved
         # Safe access for PointTuple4
-        assert len(result[0]) == 4 and result[0][3] == "keyframe"  # Status preserved
+        assert len(result[0]) == 4
+        assert result[0][3] == "keyframe"  # Status preserved
         assert result[1][0] == 11
-        assert len(result[1]) == 4 and result[1][3] == "interpolated"
+        assert len(result[1]) == 4
+        assert result[1][3] == "interpolated"
         assert result[2][0] == 12
-        assert len(result[2]) == 4 and result[2][3] is True
+        assert len(result[2]) == 4
+        assert result[2][3] is True
 
     def test_smooth_moving_average_insufficient_data(self):
         """Test smoothing with insufficient data points."""
@@ -284,7 +287,7 @@ class TestFileOperations:
     """Test file I/O operations: JSON, CSV, 2DTrackData formats."""
 
     @pytest.mark.parametrize(
-        "json_data,expected_count,test_id",
+        ("json_data", "expected_count", "test_id"),
         [
             pytest.param(
                 [
@@ -381,7 +384,7 @@ class TestFileOperations:
         mock_logger.log_info.assert_called_once()
 
     @pytest.mark.parametrize(
-        "csv_content,file_ext,description",
+        ("csv_content", "file_ext", "description"),
         [
             pytest.param(
                 """frame,x,y,status

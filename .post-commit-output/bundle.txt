@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (101.0MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 201 files to bundle
+Skipping large file (101.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 203 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -21,6 +21,7 @@ Bundled: baseline_types.txt
 Bundled: BEST_PRACTICES_SUMMARY.txt
 Bundled: CLAUDE.md
 Bundled: conftest.py
+Bundled: curveeditor_latest_metadata.json
 Bundled: DEBUGGING_METHODOLOGY.md
 Bundled: IMPLEMENTATION_CHANGES_SUMMARY.txt
 Bundled: KeyFrameTest.txt
@@ -35,7 +36,9 @@ Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QUICK_REFERENCE.md
 Bundled: README.md
+Bundled: REFACTORING_ROADMAP_KISS_DRY_YAGNI.md
 Bundled: requirements.txt
+Bundled: REVIEW_SUMMARY.txt
 Bundled: run_tests.sh
 Bundled: run_typecheck.sh
 Bundled: testspline.txt
@@ -72,7 +75,6 @@ Bundled: core/directory_scan_worker.py
 Bundled: core/display_mode.py
 Bundled: core/error_handlers.py
 Bundled: core/error_messages.py
-Bundled: core/error_recovery_manager.py
 Bundled: core/favorites_manager.py
 Bundled: core/frame_utils.py
 Bundled: core/image_state.py
@@ -90,7 +92,7 @@ Bundled: core/simple_filters.py
 Bundled: core/spatial_index.py
 Bundled: core/type_aliases.py
 Bundled: core/user_preferences.py
-Bundled: core/validation_strategy.py
+Bundled: core/validation_types.py
 Bundled: core/validation_utils.py
 Bundled: core/y_flip_strategy.py
 Bundled: core/__init__.py
@@ -209,7 +211,7 @@ Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
 Folder size: 2.41 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 735396 bytes
+Encoded size: 739504 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

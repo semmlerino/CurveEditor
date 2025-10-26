@@ -1,6 +1,8 @@
 """Simple filter implementations to replace scipy dependency."""
 
-from core.type_aliases import CurveDataInput, CurveDataList
+from typing import cast
+
+from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 
 
 def simple_lowpass_filter(data: CurveDataInput, window_size: int = 5) -> CurveDataList:
@@ -41,7 +43,8 @@ def simple_lowpass_filter(data: CurveDataInput, window_size: int = 5) -> CurveDa
     for i in range(len(frames)):
         if len(sorted_data[i]) > 3:
             # Preserve extra elements like status
-            result.append((frames[i], filtered_x[i], filtered_y[i], *sorted_data[i][3:]))
+            combined = (frames[i], filtered_x[i], filtered_y[i]) + tuple(sorted_data[i][3:])  # noqa: RUF005
+            result.append(cast(LegacyPointData, combined))
         else:
             result.append((frames[i], filtered_x[i], filtered_y[i]))
 

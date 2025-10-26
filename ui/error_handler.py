@@ -377,7 +377,6 @@ class ErrorHandler(QObject):
 
     def _categorize_exception(self, exception: Exception) -> ErrorCategory:
         """Categorize an exception for better handling."""
-        type(exception).__name__
         exc_msg = str(exception).lower()
 
         # Permission errors (check before OSError since PermissionError inherits from OSError)

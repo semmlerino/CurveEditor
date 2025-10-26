@@ -1,5 +1,0 @@
-
-Legend:
-  Outliers: 1 Standard Deviation from Mean; 1.5 IQR (InterQuartile Range) from 1st Quartile and 3rd Quartile.
-  OPS: Operations Per Second, computed as 1 / Mean
-=========== 1102 passed, 7 skipped, 13 warnings in 73.92s (0:01:13) ============

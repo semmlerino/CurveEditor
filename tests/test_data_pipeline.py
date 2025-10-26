@@ -122,7 +122,7 @@ class TestFileToDisplayPipeline:
                 screen_coordinates.append((int(frame), float(screen_x), float(screen_y), str(status)))
 
             # 6. Verify screen coordinates are reasonable
-            for frame, screen_x, screen_y, status in screen_coordinates:
+            for _frame, screen_x, screen_y, _status in screen_coordinates:
                 assert isinstance(screen_x, int | float)
                 assert isinstance(screen_y, int | float)
                 # Should be within reasonable screen bounds (with margin for pan/zoom)
@@ -130,7 +130,7 @@ class TestFileToDisplayPipeline:
                 assert -1000 <= screen_y <= 2000
 
             # 7. Test reverse transformation for consistency
-            for i, (frame, screen_x, screen_y, status) in enumerate(screen_coordinates):
+            for i, (_frame, screen_x, screen_y, _status) in enumerate(screen_coordinates):
                 data_x, data_y = transform.screen_to_data(screen_x, screen_y)
                 original_point = safe_extract_point(loaded_data[i])
                 original_x, original_y = float(original_point[1]), float(original_point[2])
@@ -363,7 +363,7 @@ class TestPointManipulationPipeline:
         # 4. Verify modification occurred
         assert len(modified_data) == len(original_data)
         # Smoothed data should be slightly different
-        for _, (orig, smooth) in enumerate(zip(original_data, modified_data)):
+        for _, (orig, smooth) in enumerate(zip(original_data, modified_data, strict=False)):
             orig_frame, _, _, orig_status = safe_extract_point(orig)
             smooth_frame, _, _, smooth_status = safe_extract_point(smooth)
 
@@ -376,7 +376,7 @@ class TestPointManipulationPipeline:
 
         # 6. Verify undo restored original data
         assert len(restored_data) == len(original_data)
-        for orig, restored in zip(original_data, restored_data):
+        for orig, restored in zip(original_data, restored_data, strict=False):
             assert orig == restored
 
         # 7. Simulate redo (reapply modification)
@@ -384,7 +384,7 @@ class TestPointManipulationPipeline:
 
         # 8. Verify redo produces consistent results
         assert len(redone_data) == len(modified_data)
-        for modified_point, redone_point in zip(modified_data, redone_data):
+        for modified_point, redone_point in zip(modified_data, redone_data, strict=False):
             mod_frame, mod_x, mod_y, mod_status = safe_extract_point(modified_point)
             redo_frame, redo_x, redo_y, redo_status = safe_extract_point(redone_point)
 
@@ -565,7 +565,7 @@ class TestDataConsistencyPipeline:
 
             # 9. Verify data consistency
             assert len(reloaded_data) == len(processed_data)
-            for original, reloaded in zip(processed_data, reloaded_data):
+            for original, reloaded in zip(processed_data, reloaded_data, strict=False):
                 orig_frame, orig_x, orig_y, orig_status = safe_extract_point(original)
                 reload_frame, reload_x, reload_y, reload_status = safe_extract_point(reloaded)
 
@@ -620,7 +620,7 @@ class TestDataConsistencyPipeline:
             # 4. Test data operations preserve coordinate validity
             smoothed_data = self.data_service.smooth_moving_average(test_data, window_size=3)
 
-            for original, smoothed in zip(test_data, smoothed_data):
+            for original, smoothed in zip(test_data, smoothed_data, strict=False):
                 orig_frame = original[0]
                 smooth_frame, smooth_x, smooth_y, _ = safe_extract_point(smoothed)
 
@@ -630,8 +630,8 @@ class TestDataConsistencyPipeline:
                 # Coordinates should remain in reasonable range
                 assert isinstance(smooth_x, int | float)
                 assert isinstance(smooth_y, int | float)
-                assert not (smooth_x != smooth_x)  # Check for NaN
-                assert not (smooth_y != smooth_y)  # Check for NaN
+                assert smooth_x == smooth_x  # Check for NaN
+                assert smooth_y == smooth_y  # Check for NaN
 
     def test_error_recovery_and_data_preservation(self) -> None:
         """Test that data is preserved during error conditions."""
@@ -640,10 +640,10 @@ class TestDataConsistencyPipeline:
 
         # 2. Test data service error recovery
         # Try invalid file operation
-        try:
+        import contextlib
+
+        with contextlib.suppress(OSError):
             self.data_service._load_json("/nonexistent/path/file.json")
-        except OSError:
-            pass  # Expected error
 
         # Service should still work with valid data after error
         _ = self.data_service.smooth_moving_average(valid_data, window_size=2)
@@ -667,7 +667,7 @@ class TestDataConsistencyPipeline:
             pass  # Error handling is acceptable
 
         # 4. Verify original data remains unmodified
-        for original, current in zip([(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "keyframe")], valid_data):
+        for original, current in zip([(1, 100.0, 200.0, "keyframe"), (2, 150.0, 250.0, "keyframe")], valid_data, strict=False):
             # Handle both 3-tuple and 4-tuple point formats
             if len(current) > 3:
                 assert original == current[:4]

@@ -149,7 +149,7 @@ class DataService:
 
             # Preserve frame and additional data
             if len(data[i]) > 3:
-                result.append((data[i][0], avg_x, avg_y) + data[i][3:])
+                result.append((data[i][0], avg_x, avg_y, *data[i][3:]))
             else:
                 result.append((data[i][0], avg_x, avg_y))
 
@@ -172,7 +172,7 @@ class DataService:
             med_y = statistics.median(p[2] for p in window)
 
             if len(data[i]) > 3:
-                result.append((data[i][0], med_x, med_y) + data[i][3:])
+                result.append((data[i][0], med_x, med_y, *data[i][3:]))
             else:
                 result.append((data[i][0], med_x, med_y))
 
@@ -536,9 +536,8 @@ class DataService:
                             # Find previous point for startframe detection
                             prev_point = None
                             for pt in segmented_curve.all_points:
-                                if pt.frame < frame:
-                                    if prev_point is None or pt.frame > prev_point.frame:
-                                        prev_point = pt
+                                if pt.frame < frame and (prev_point is None or pt.frame > prev_point.frame):
+                                    prev_point = pt
 
                             # Use CurvePoint's startframe detection
                             if frame_point.is_startframe(prev_point, segmented_curve.all_points):
@@ -724,11 +723,10 @@ class DataService:
         """Add an item to the image cache (thread-safe)."""
         with self._lock:
             # Trim cache if it exceeds max size
-            if len(self._image_cache) >= self._max_cache_size:
+            if len(self._image_cache) >= self._max_cache_size and self._image_cache:
                 # Remove oldest item (first key)
-                if self._image_cache:
-                    oldest_key = next(iter(self._image_cache))
-                    del self._image_cache[oldest_key]
+                oldest_key = next(iter(self._image_cache))
+                del self._image_cache[oldest_key]
             self._image_cache[key] = value
 
     def set_cache_size(self, size: int) -> None:
@@ -1169,10 +1167,7 @@ class DataService:
                     # Check if this is the last frame before a gap
                     elif i < len(sorted_data) - 1:
                         next_frame = sorted_data[i + 1][0]
-                        if next_frame - frame > 1:  # Gap detected after
-                            status = "endframe"
-                        else:
-                            status = "tracked"
+                        status = "endframe" if next_frame - frame > 1 else "tracked"
                     else:
                         status = "tracked"
                 else:

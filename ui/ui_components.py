@@ -568,8 +568,6 @@ class UIComponents:
         Returns:
             List of missing component names, empty if all are present
         """
-        missing: list[str] = []
-
         # Define critical components that must exist
         critical_components = [
             "save_button",

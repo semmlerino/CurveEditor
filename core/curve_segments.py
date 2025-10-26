@@ -427,9 +427,8 @@ class SegmentedCurve:
         preceding_endframe: CurvePoint | None = None
 
         for point in self.all_points:
-            if point.frame < frame and point.is_endframe:
-                if preceding_endframe is None or point.frame > preceding_endframe.frame:
-                    preceding_endframe = point
+            if point.frame < frame and point.is_endframe and (preceding_endframe is None or point.frame > preceding_endframe.frame):
+                preceding_endframe = point
 
         if preceding_endframe:
             return (preceding_endframe.x, preceding_endframe.y)
@@ -437,11 +436,10 @@ class SegmentedCurve:
         # If no preceding endframe found, check if we're in an inactive segment
         # and try to find the last point of the previous active segment
         for segment in self.segments:
-            if segment.is_active and segment.end_frame < frame:
+            if segment.is_active and segment.end_frame < frame and segment.points:
                 # This active segment ends before our frame
-                if segment.points:
-                    last_point = segment.points[-1]
-                    return (last_point.x, last_point.y)
+                last_point = segment.points[-1]
+                return (last_point.x, last_point.y)
 
         return None
 
@@ -615,9 +613,8 @@ class SegmentedCurve:
                     # Find the previous point to check if it's an endframe
                     prev_point = None
                     for point in self.all_points:
-                        if point.frame < first_point.frame:
-                            if prev_point is None or point.frame > prev_point.frame:
-                                prev_point = point
+                        if point.frame < first_point.frame and (prev_point is None or point.frame > prev_point.frame):
+                            prev_point = point
 
                     # If previous point is endframe, split this segment at first keyframe
                     if prev_point and prev_point.is_endframe:

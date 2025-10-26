@@ -312,7 +312,7 @@ class TestFillGapWithSource:
         assert 10 in frames
 
         # Check offset was applied
-        frame_3_point = [p for p in result if p[0] == 3][0]
+        frame_3_point = next(p for p in result if p[0] == 3)
         assert frame_3_point[1] == pytest.approx(101.0)  # 51 + 50
         assert frame_3_point[2] == pytest.approx(201.0)  # 101 + 100
 
@@ -329,9 +329,9 @@ class TestFillGapWithSource:
         # Find overlap frames (frames OUTSIDE gap boundaries where original data exists)
         # overlap_before = gap_start - 1 = 2, but frame 1 is the actual existing frame
         # overlap_after = gap_end + 1 = 10
-        frame_1_point = [p for p in result if p[0] == 1][0]
-        frame_10_point = [p for p in result if p[0] == 10][0]
-        frame_3_point = [p for p in result if p[0] == 3][0]
+        frame_1_point = next(p for p in result if p[0] == 1)
+        frame_10_point = next(p for p in result if p[0] == 10)
+        frame_3_point = next(p for p in result if p[0] == 3)
 
         # Overlap frames (1, 10) should preserve original status (normal, since input was 3-tuples)
         assert len(frame_1_point) >= 4
@@ -416,7 +416,7 @@ class TestAverageMultipleSources:
         assert len(result) == 1, "Should only include frames where ALL sources have data"
 
         # Frame 3: both sources present, should be averaged
-        point_3 = [p for p in result if p.frame == 3][0]
+        point_3 = next(p for p in result if p.frame == 3)
         assert point_3.x == pytest.approx(105.0), "Should average both sources: (100+110)/2 = 105"
         assert point_3.y == pytest.approx(205.0), "Should average both sources: (200+210)/2 = 205"
 
@@ -438,7 +438,7 @@ class TestInterpolateGap:
 
         # Check middle point (frame 5.5 conceptually)
         # Linear interpolation from (1, 100, 200) to (10, 190, 290)
-        frame_5_point = [p for p in result if p[0] == 5][0]
+        frame_5_point = next(p for p in result if p[0] == 5)
 
         # At frame 5: t = (5-1)/(10-1) = 4/9
         # x = 100 + 4/9 * (190-100) = 100 + 40 = 140
@@ -455,11 +455,11 @@ class TestInterpolateGap:
         result = interpolate_gap(curve, gap_start, gap_end)
 
         # Overlap frames (before and after gap) should preserve original status (normal)
-        frame_1_point = [p for p in result if p[0] == 1][0]
-        frame_10_point = [p for p in result if p[0] == 10][0]
+        frame_1_point = next(p for p in result if p[0] == 1)
+        frame_10_point = next(p for p in result if p[0] == 10)
         # Interpolated frames should be marked as interpolated
-        frame_2_point = [p for p in result if p[0] == 2][0]
-        frame_9_point = [p for p in result if p[0] == 9][0]
+        frame_2_point = next(p for p in result if p[0] == 2)
+        frame_9_point = next(p for p in result if p[0] == 9)
 
         assert (
             cast(PointTuple4Str, frame_1_point)[3] == "normal"
@@ -560,5 +560,5 @@ class TestCreateAveragedCurve:
 
     def test_empty_sources(self):
         """Test error handling with no sources."""
-        with pytest.raises(ValueError, match="No source curves provided|at least one"):
+        with pytest.raises(ValueError, match=r"No source curves provided|at least one"):
             create_averaged_curve({})

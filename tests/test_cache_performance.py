@@ -243,7 +243,8 @@ class TestCachePerformance:
 
         # Check that cached positions are valid QPointF objects
         for idx, pos in cache_items:
-            assert pos.x is not None and pos.y is not None, f"Cached position for index {idx} is not a valid point"
+            assert pos.x is not None, f"Cached position for index {idx} x is None"
+            assert pos.y is not None, f"Cached position for index {idx} y is None"
 
     def test_performance_during_large_dataset(self, qtbot):
         """Test performance with large datasets."""
@@ -381,8 +382,8 @@ class TestSmartCacheInvalidation:
         qtbot.addWidget(widget)
 
         # Enable monitoring (test-only monkey-patching)
-        setattr(widget, "_enable_monitoring", True)
-        setattr(widget, "_cache_monitor", CacheMonitor())
+        widget._enable_monitoring = True
+        widget._cache_monitor = CacheMonitor()
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)
@@ -417,8 +418,8 @@ class TestSmartCacheInvalidation:
         qtbot.addWidget(widget)
 
         # Test-only monkey-patching
-        setattr(widget, "_enable_monitoring", True)
-        setattr(widget, "_cache_monitor", CacheMonitor())
+        widget._enable_monitoring = True
+        widget._cache_monitor = CacheMonitor()
 
         test_data = [(i, i * 10, i * 20) for i in range(100)]
         widget.set_curve_data(test_data)

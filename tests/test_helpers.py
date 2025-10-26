@@ -1493,15 +1493,10 @@ def set_test_selection(widget: object, indices: set[int] | list[int]) -> None:
 # ==================== Export all helpers ====================
 
 __all__ = [
-    "assert_behavior_changed",
-    "assert_qt_container_exists",
+    "HAS_QT",
     "BaseMockCurveView",
     "BaseMockMainWindow",
-    "HAS_QT",
     "LazyUIMockMainWindow",
-    "make_curve_data",
-    "make_curve_point",
-    "mock_dialog_exec",
     "MockCurveView",
     "MockDataBuilder",
     "MockMainWindow",
@@ -1511,9 +1506,14 @@ __all__ = [
     "PointsList",
     "ProtocolCompliantMockCurveView",
     "ProtocolCompliantMockMainWindow",
-    "safe_qt_cleanup",
-    "set_test_selection",
     "TestImagePool",
     "TestSignal",
     "ThreadSafeTestImage",
+    "assert_behavior_changed",
+    "assert_qt_container_exists",
+    "make_curve_data",
+    "make_curve_point",
+    "mock_dialog_exec",
+    "safe_qt_cleanup",
+    "set_test_selection",
 ]

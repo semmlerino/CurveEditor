@@ -454,9 +454,12 @@ class TestMixedStatusNudgeUndo:
 
         # Verify all moved
         result = list(curve_widget.curve_data)
-        assert result[0][1] == 105.0 and result[0][2] == 105.0, "Point 0 should move"
-        assert result[1][1] == 115.0 and result[1][2] == 115.0, "Point 1 should move"
-        assert result[2][1] == 125.0 and result[2][2] == 125.0, "Point 2 should move"
+        assert result[0][1] == 105.0, "Point 0 x should move"
+        assert result[0][2] == 105.0, "Point 0 y should move"
+        assert result[1][1] == 115.0, "Point 1 x should move"
+        assert result[1][2] == 115.0, "Point 1 y should move"
+        assert result[2][1] == 125.0, "Point 2 x should move"
+        assert result[2][2] == 125.0, "Point 2 y should move"
 
         # Verify all are now keyframes
         assert result[0][3] == PointStatus.KEYFRAME.value, "Point 0 should stay keyframe"

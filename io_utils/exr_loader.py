@@ -169,12 +169,7 @@ def _load_exr_with_pillow(file_path: str) -> "QImage | None":
 
             # EXR data is typically 0-1 range but can exceed 1.0 (HDR)
             # Normalize if needed
-            if img_data.max() > 1.0:
-                # Apply tone mapping for HDR data
-                img_data = _tone_map_hdr(img_data / 255.0)  # Pillow returns 0-255 for float
-            else:
-                # Already in 0-1 range
-                img_data = _tone_map_hdr(img_data)
+            img_data = _tone_map_hdr(img_data / 255.0 if img_data.max() > 1.0 else img_data)
 
             # Convert to 8-bit
             img_8bit = (img_data * 255).astype(np.uint8)

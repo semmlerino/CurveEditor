@@ -135,7 +135,7 @@ class TestCurveDataWithMetadata:
         restored = normalized.from_normalized(metadata)
 
         # Should match original
-        for i, (orig, rest) in enumerate(zip(original_data, restored.data)):
+        for i, (orig, rest) in enumerate(zip(original_data, restored.data, strict=False)):
             assert orig[0] == rest[0], f"Frame mismatch at index {i}"
             assert abs(orig[1] - rest[1]) < 0.001, f"X mismatch at index {i}"
             assert abs(orig[2] - rest[2]) < 0.001, f"Y mismatch at index {i}"
@@ -326,9 +326,11 @@ class TestHelperFunctions:
         assert info["origin"] == CoordinateOrigin.BOTTOM_LEFT
         # Type narrow before using "in" operator
         description = info["description"]
-        assert isinstance(description, str) and "3DEqualizer" in description
+        assert isinstance(description, str)
+        assert "3DEqualizer" in description
         file_extensions = info["file_extensions"]
-        assert isinstance(file_extensions, list) and ".3de" in file_extensions
+        assert isinstance(file_extensions, list)
+        assert ".3de" in file_extensions
         assert info["default_dimensions"] == (1280, 720)
 
 

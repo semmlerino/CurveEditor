@@ -41,7 +41,7 @@ def main():
     print("ApplicationState Memory Measurement (Week 10)")
     print("=" * 60)
     print()
-    print("Test Dataset: 3 curves × 10,000 points = 30,000 total points")
+    print("Test Dataset: 3 curves x 10,000 points = 30,000 total points")
     print()
 
     # Measure ApplicationState

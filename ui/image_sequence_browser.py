@@ -6,6 +6,7 @@ Provides a visual browser for selecting image sequences with thumbnail previews,
 similar to 3DEqualizer or Nuke's sequence view.
 """
 
+import contextlib
 import os
 import re
 import sys
@@ -49,7 +50,6 @@ from ui.ui_constants import (
     SPACING_XS,
 )
 from ui.widgets.card import Card
-import contextlib
 
 if TYPE_CHECKING:
     from PySide6.QtCore import QModelIndex
@@ -191,9 +191,8 @@ class NavigationHistory:
             path: Directory path to add
         """
         # Don't add if it's the same as current
-        if self.current_index >= 0 and self.current_index < len(self.history):
-            if self.history[self.current_index] == path:
-                return
+        if self.current_index >= 0 and self.current_index < len(self.history) and self.history[self.current_index] == path:
+            return
 
         # Truncate forward history when navigating to new location
         self.history = self.history[: self.current_index + 1]
@@ -933,14 +932,12 @@ class ImageSequenceBrowserDialog(QDialog):
     def eventFilter(self, arg__1: QObject, arg__2: QEvent) -> bool:
         """Handle events for keyboard navigation."""
         # Handle Enter key on sequence list
-        if arg__1 == self.sequence_list and isinstance(arg__2, QKeyEvent):
-            if arg__2.type() == QEvent.Type.KeyPress:
-                if arg__2.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                    # Enter key on sequence list = load sequence
-                    current_item = self.sequence_list.currentItem()
-                    if current_item and self.load_button.isEnabled():
-                        self.accept()
-                        return True
+        if arg__1 == self.sequence_list and isinstance(arg__2, QKeyEvent) and arg__2.type() == QEvent.Type.KeyPress and arg__2.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            # Enter key on sequence list = load sequence
+            current_item = self.sequence_list.currentItem()
+            if current_item and self.load_button.isEnabled():
+                self.accept()
+                return True
 
         # Call parent's eventFilter
         return super().eventFilter(arg__1, arg__2)
@@ -1000,10 +997,9 @@ class ImageSequenceBrowserDialog(QDialog):
                 # Also search in sequence metadata if available
                 if not match:
                     sequence_data = item.data(Qt.ItemDataRole.UserRole)
-                    if isinstance(sequence_data, ImageSequence):
+                    if isinstance(sequence_data, ImageSequence) and (filter_text in sequence_data.directory.lower() or filter_text in sequence_data.base_name.lower()):
                         # Search in directory path
-                        if filter_text in sequence_data.directory.lower() or filter_text in sequence_data.base_name.lower():
-                            match = True
+                        match = True
 
                 item.setHidden(not match)
 

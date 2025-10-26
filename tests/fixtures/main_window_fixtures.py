@@ -81,11 +81,9 @@ Point1
 4 683.064889159724544 215.828024768162948
 5 683.318386159606803 217.806226221166156"""
 
-    temp_file = tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False)
-    temp_file.write(content)
-    temp_file.close()
-
-    return Path(temp_file.name)
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
+        temp_file.write(content)
+        return Path(temp_file.name)
 
 
 def create_test_image_sequence(num_images: int = 5) -> tuple[Path, list[str]]:

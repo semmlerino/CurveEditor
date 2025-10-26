@@ -1243,13 +1243,13 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         After 1580+ tests, accumulated event filters cause timeouts when
         setStyleSheet() triggers events through all filters (see UNIFIED_TESTING_GUIDE).
         """
+        from contextlib import suppress
+
         try:
             app = QApplication.instance()
             if app and getattr(self, "global_event_filter", None) is not None:
-                try:
+                with suppress(RuntimeError):
                     app.removeEventFilter(self.global_event_filter)
-                except RuntimeError:
-                    pass  # QApplication may already be destroyed
         except Exception:
             pass  # Suppress all exceptions in destructor
 

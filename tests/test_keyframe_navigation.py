@@ -148,13 +148,12 @@ def main_window_with_data(qtbot, make_navigation_dataset):
         qtbot.addWidget(window)
 
         # Update frame range via timeline controller (updates spinbox max)
-        if test_data:
-            if processed_data:
-                max_frame = max(point[0] for point in processed_data)
-                # Extend frame range to 30 to allow testing beyond the data (navigation tests may go beyond)
-                window.timeline_controller.set_frame_range(1, max(max_frame, 30))
-                # Note: curve_widget.curve_data is read-only and gets data from ApplicationState
-                # Data is already set via app_state.set_curve_data() at line 129
+        if test_data and processed_data:
+            max_frame = max(point[0] for point in processed_data)
+            # Extend frame range to 30 to allow testing beyond the data (navigation tests may go beyond)
+            window.timeline_controller.set_frame_range(1, max(max_frame, 30))
+            # Note: curve_widget.curve_data is read-only and gets data from ApplicationState
+            # Data is already set via app_state.set_curve_data() at line 129
 
         # Show and wait for exposure
         window.show()
@@ -396,7 +395,7 @@ class TestParametrizedNavigation:
     """Parametrized tests for various navigation scenarios."""
 
     @pytest.mark.parametrize(
-        "current_frame,direction,expected_frame",
+        ("current_frame", "direction", "expected_frame"),
         [
             (3, "down", 5),  # Navigate to next keyframe
             (12, "up", 5),  # Navigate to previous keyframe
@@ -420,7 +419,7 @@ class TestParametrizedNavigation:
         assert get_application_state().current_frame == expected_frame
 
     @pytest.mark.parametrize(
-        "dataset_scenario,frame_count",
+        ("dataset_scenario", "frame_count"),
         [
             ("basic", 2),  # 2 keyframes
             ("with_endframes", 4),  # 2 keyframes + 1 endframe + at least 1 startframe

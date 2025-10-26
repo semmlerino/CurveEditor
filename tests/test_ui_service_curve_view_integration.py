@@ -27,8 +27,10 @@ Based on UNIFIED_TESTING_GUIDE_DO_NOT_DELETE.md principles:
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+import contextlib
 from unittest.mock import patch
 
+import pytest
 from PySide6.QtCore import QPointF
 from PySide6.QtGui import QPaintEvent
 from PySide6.QtWidgets import QMessageBox, QWidget
@@ -159,10 +161,8 @@ class TestUIServiceErrorRecovery:
             curve_view_widget.pan_offset_y = 2e9  # Exceeds validation limit
 
             # This should trigger error recovery which calls show_warning
-            try:
+            with contextlib.suppress(ValueError):
                 curve_view_widget.view_camera._update_transform()
-            except ValueError:
-                pass  # Expected during error recovery
 
             qapp.processEvents()
 
@@ -195,11 +195,9 @@ class TestUIServiceErrorRecovery:
             curve_view_widget.pan_offset_x = 1.5e9  # Exceeds limit
             curve_view_widget.pan_offset_y = 1.5e9
 
-            try:
-                # This should trigger validation error and recovery
+            # This should trigger validation error and recovery
+            with contextlib.suppress(ValueError):
                 curve_view_widget.get_transform()
-            except ValueError:
-                pass  # Expected during validation
 
             qapp.processEvents()
 
@@ -235,14 +233,10 @@ class TestUIServiceErrorRecovery:
             ui_service = get_ui_service()
             with patch.object(ui_service, "show_warning"):
                 # This should trigger transform service failure and recovery
-                try:
+                # Recovery should succeed, so we get a valid transform or None
+                # (None is okay since _update_transform doesn't return the transform)
+                with contextlib.suppress(ValueError, RuntimeError):
                     curve_view_widget.view_camera._update_transform()
-                    # Recovery should succeed, so we get a valid transform or None
-                    # (None is okay since _update_transform doesn't return the transform)
-                except (ValueError, RuntimeError):
-                    # If all recovery fails, that's also valid behavior
-                    # ValueError from validation, RuntimeError from recovery failure
-                    pass
 
                 qapp.processEvents()
 
@@ -267,10 +261,8 @@ class TestPainterResourceManagement:
             mock_render.side_effect = RuntimeError("Test rendering error")
 
             # This should not crash or leave active painters
-            try:
+            with contextlib.suppress(RuntimeError):
                 curve_view_widget.paintEvent(paint_event)
-            except RuntimeError:
-                pass  # Expected from our mock
 
             qapp.processEvents()
 
@@ -327,9 +319,9 @@ class TestTransformServiceIntegration:
             # Either we get a transform (fallback) or None (also acceptable)
             # The key is we don't crash
             assert True  # If we reach here, error handling worked
-        except (ValueError, RuntimeError):
+        except (ValueError, RuntimeError) as e:
             # These should be caught by error handling, but if they aren't that's also a bug
-            assert False, "Coordinate overflow should be caught by error handling"
+            pytest.fail(f"Coordinate overflow should be caught by error handling: {e}")
 
     def test_pan_offset_validation_with_ui_feedback(self, curve_view_widget: CurveViewWidget, qapp):
         """Pan offset validation failures provide proper UI feedback."""

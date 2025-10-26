@@ -122,11 +122,10 @@ class FileOperations(QObject):
             True if new file was created, False if cancelled
         """
         # Check for unsaved changes
-        if self.state_manager and self.state_manager.is_modified:
-            if self.services and not self.services.confirm_action(
-                "Current curve has unsaved changes. Continue?", self.parent_widget
-            ):
-                return False
+        if self.state_manager and self.state_manager.is_modified and self.services and not self.services.confirm_action(
+            "Current curve has unsaved changes. Continue?", self.parent_widget
+        ):
+            return False
 
         # Clear state
         if self.state_manager:
@@ -150,11 +149,10 @@ class FileOperations(QObject):
         parent = parent_widget or self.parent_widget
 
         # Check for unsaved changes
-        if self.state_manager and self.state_manager.is_modified:
-            if self.services and not self.services.confirm_action(
-                "Current curve has unsaved changes. Continue?", parent
-            ):
-                return None
+        if self.state_manager and self.state_manager.is_modified and self.services and not self.services.confirm_action(
+            "Current curve has unsaved changes. Continue?", parent
+        ):
+            return None
 
         # Show file dialog
         file_path, _ = QFileDialog.getOpenFileName(

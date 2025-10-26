@@ -14,6 +14,8 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QPixmap
     from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
 
+    from ui.protocols.controller_protocols import TimelineControllerProtocol
+
 from protocols.data import CurveDataInput, CurveDataList, HistoryState, QtPointF
 
 # Import authoritative SignalProtocol from protocols.services

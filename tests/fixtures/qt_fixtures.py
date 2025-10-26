@@ -18,6 +18,7 @@ and Qt-specific test utilities.
 # pyright: reportUnusedParameter=none
 # pyright: reportUnusedCallResult=none
 
+import contextlib
 import os
 import sys
 from collections.abc import Generator
@@ -254,11 +255,13 @@ def main_window(qapp: QApplication, qtbot):
             window.frame_spinbox.setMaximum(9999)
 
     # Use frame slider from timeline_controller if available
-    if not hasattr(window, "frame_slider") or window.frame_slider is None:
-        if hasattr(window, "timeline_controller"):
-            # Access frame_slider attribute from concrete implementation
-            if hasattr(window.timeline_controller, "frame_slider"):
-                window.frame_slider = getattr(window.timeline_controller, "frame_slider")
+    if (
+        (not hasattr(window, "frame_slider") or window.frame_slider is None)
+        and hasattr(window, "timeline_controller")
+        and hasattr(window.timeline_controller, "frame_slider")
+    ):
+        # Access frame_slider attribute from concrete implementation
+        window.frame_slider = window.timeline_controller.frame_slider
 
     # Process events to ensure widgets are ready
     qapp.processEvents()
@@ -349,7 +352,7 @@ def file_load_worker(qtbot, qapp):
                 # Thread didn't stop - log warning but don't fail test
                 import warnings
 
-                warnings.warn("Worker thread did not stop within timeout")
+                warnings.warn("Worker thread did not stop within timeout", stacklevel=2)
 
         # Clean up QObject
         worker.setParent(None)
@@ -421,6 +424,6 @@ def ui_file_load_worker(ui_file_load_signals):
             if ui_file_load_signals.isRunning():
                 import warnings
 
-                warnings.warn("FileLoadWorker thread did not stop within timeout")
+                warnings.warn("FileLoadWorker thread did not stop within timeout", stacklevel=2)
     except (RuntimeError, AttributeError):
         pass

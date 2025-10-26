@@ -39,7 +39,7 @@ class TestGetCurveDataValueError:
 
     def test_raises_value_error_when_no_active_curve(self, state):
         """ValueError should be raised when curve_name=None and no active curve set."""
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="set_active_curve|curve_name"):
             state.get_curve_data(curve_name=None)
 
     def test_error_message_mentions_both_solutions(self, state):
@@ -302,11 +302,14 @@ class TestBatchUpdatesContextManager:
 
         state.curves_changed.connect(on_curves_changed)
 
-        # Exception during batch
-        with pytest.raises(ValueError):
+        # Exception during batch - use pytest.raises context manager
+        def raise_in_batch():
             with state.batch_updates():
                 state.set_curve_data("Track2", [(1, 15.0, 25.0, "normal")])
                 raise ValueError("Test exception")
+
+        with pytest.raises(ValueError, match="Test exception"):
+            raise_in_batch()
 
         # Signals should NOT have been emitted (cleared on exception)
         assert signal_count == 0

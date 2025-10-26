@@ -92,12 +92,8 @@ class SessionManager:
             normalized_path = path.replace("\\", "/")
             stored_path = Path(normalized_path)
 
-            if stored_path.is_absolute():
-                # Already absolute path
-                resolved_path = stored_path
-            else:
-                # Relative path - resolve against project root
-                resolved_path = (self.project_root / stored_path).resolve()
+            # Already absolute path or relative path - resolve against project root
+            resolved_path = stored_path if stored_path.is_absolute() else (self.project_root / stored_path).resolve()
 
             if resolved_path.exists():
                 logger.debug(f"Resolved path: {path} -> {resolved_path}")
@@ -314,9 +310,8 @@ class SessionManager:
             show_all_curves = session_data.get("show_all_curves", False)
 
             # Restore recent directories
-            if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list):
-                if main_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
-                    main_window.state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
+            if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list) and main_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                main_window.state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
 
             # Load files using background thread if available
             if main_window.file_load_worker is not None:  # pyright: ignore[reportAttributeAccessIssue]

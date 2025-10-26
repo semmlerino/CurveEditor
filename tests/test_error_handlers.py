@@ -26,9 +26,9 @@ from typing import override
 from unittest.mock import MagicMock, patch
 
 import pytest
+from core.validation_strategy import ValidationIssue, ValidationSeverity
 from PySide6.QtWidgets import QApplication, QWidget
 
-from core.validation_strategy import ValidationIssue, ValidationSeverity
 from ui.error_handlers import (
     DefaultTransformErrorHandler,
     ErrorContext,

@@ -104,10 +104,7 @@ class TestTimelineColorsIntegration:
         colors["endframe"] = timeline.frame_tabs[9]._get_background_color()
 
         # Verify all colors are different
-        color_values = set()
-        for _, color in colors.items():
-            color_tuple = (color.red(), color.green(), color.blue())
-            color_values.add(color_tuple)
+        color_values = {(color.red(), color.green(), color.blue()) for color in colors.values()}
 
         assert len(color_values) == 4, f"Expected 4 different colors for different statuses, got {len(color_values)}"
 

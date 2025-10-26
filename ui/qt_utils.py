@@ -48,7 +48,7 @@ def safe_slot[R](func: Callable[..., R]) -> Callable[..., R | None]:
     return wrapper
 
 
-def safe_slot_logging(verbose: bool = False) -> Callable[[Callable[..., R]], Callable[..., R | None]]:
+def safe_slot_logging[R](verbose: bool = False) -> Callable[[Callable[..., R]], Callable[..., R | None]]:
     """Parameterized version of safe_slot with configurable logging.
 
     Args:
