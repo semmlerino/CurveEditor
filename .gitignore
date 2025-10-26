@@ -36,6 +36,11 @@ FIX_*.sh
 htmlcov/
 RENDER_STATE_DEMO.py
 
+# Phase validation artifacts (large test outputs, screenshots)
+phase0_test_results.txt
+phase*_test_results.txt
+tests/visual_regression/baseline/
+
 # Session data (user-specific, should not be committed)
 session/
 .post-commit-output/

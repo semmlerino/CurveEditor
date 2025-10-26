@@ -1,0 +1,39 @@
+# Current Visual Parameter Defaults
+# Baseline captured for Visual Settings Refactor (Phase 0)
+# Date: 2025-10-26
+#
+# Source: ui/curve_view_widget.py (lines 228-251)
+#         rendering/render_state.py (lines 63-65)
+
+# Display toggles (CurveViewWidget)
+show_grid=False
+show_points=True
+show_lines=True
+show_labels=False
+show_velocity_vectors=False
+show_all_frame_numbers=False
+show_background=True
+
+# Grid settings (CurveViewWidget)
+grid_size=50
+grid_color=QColor(100, 100, 100, 50)
+grid_line_width=1
+
+# Point rendering (CurveViewWidget)
+point_radius=5
+selected_point_radius=7
+
+# Line rendering (CurveViewWidget)
+line_color=QColor(200, 200, 200)
+line_width=2
+selected_line_color=QColor(255, 255, 100)
+selected_line_width=3
+
+# RenderState overrides (rendering/render_state.py)
+# NOTE: RenderState has different defaults for some parameters:
+render_state.show_grid=True
+render_state.point_radius=3
+render_state.line_width=2
+
+# Total configurable parameters: 16
+# Parameters with conflicting defaults: 3 (show_grid, point_radius, line_width)
