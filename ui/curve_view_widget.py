@@ -1960,7 +1960,7 @@ if __name__ == "__main__":
     curve_widget.set_curve_data(list(test_data))
 
     # Enable features
-    curve_widget.show_grid = True
+    curve_widget.visual.show_grid = True
     curve_widget.show_labels = True
     curve_widget.show_all_frame_numbers = True
 

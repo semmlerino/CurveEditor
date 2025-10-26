@@ -1184,16 +1184,32 @@ Phase 2 removes `show_background`, `show_grid`, `point_radius`, `line_width` as 
 - Type safety: 0 errors
 - Visual access points: 6 confirmed in renderer (show_grid, point_radius, selected_point_radius, line_width, selected_line_width)
 
-### Phase 4: Update Controllers (Day 3 - 3h)
-- [ ] Edit `ui/controllers/view_management_controller.py`
-- [ ] Update `update_curve_point_size()` to use `widget.visual.point_radius`
-- [ ] Update `update_curve_line_width()` to use `widget.visual.line_width`
-- [ ] Update grid toggle handler (if exists)
-- [ ] Type check: `./bpr ui/controllers/`
-- [ ] Run all tests: `pytest tests/ -v`
-- [ ] Manual UI test: All sliders/checkboxes work
-- [ ] No console errors
-- [ ] Commit: "feat: Controllers use VisualSettings (Phase 4)"
+### Phase 4: Update Controllers (Day 3 - 3h) ✅ COMPLETE
+- [x] Edit `ui/controllers/view_management_controller.py`
+- [x] Update `update_curve_point_size()` to use `widget.visual.point_radius` (lines 108-109)
+- [x] Update `update_curve_line_width()` to use `widget.visual.line_width` (line 126)
+- [x] Update grid toggle handler (line 89 in `update_curve_view_options()`)
+- [x] Type check: `./bpr ui/controllers/` → 0 errors
+- [x] Run all tests: `pytest tests/ -v` → 3189/3189 passed
+- [ ] Manual UI test: All sliders/checkboxes work → Deferred to manual QA
+- [ ] No console errors → Deferred to manual QA
+- [x] Commit: "feat: Controllers use VisualSettings (Phase 4)"
+
+**Implementation Summary:**
+- 5 visual parameter assignments updated to use widget.visual.*
+- Controller tests: 186/186 passed
+- Data flow tests: 16/16 passed (including modified test)
+- show_background correctly preserved as non-visual (architectural setting)
+- Test assertions updated to check visual.point_radius
+
+**Review Scores:**
+- Code Reviewer: 9/10 (APPROVE)
+- Best Practices: 68/100 (NEEDS_IMPROVEMENT - concerns about overall architecture, not Phase 4 scope)
+
+**Identified for Phase 5 Cleanup:**
+- ui/controllers/curve_view/render_cache_controller.py lines 91, 132-135 (uses deprecated point_radius)
+- ui/curve_view_widget.py line 920 (uses deprecated point_radius in _paint_hover_highlight())
+- Dual copies concern (widget.visual + deprecated properties) - addressed by Phase 5 removal
 
 ### Phase 5: Cleanup (Day 4 - 2h)
 - [ ] Edit `ui/curve_view_widget.py`

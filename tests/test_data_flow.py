@@ -722,13 +722,13 @@ class TestMultiControllerSignalChains:
         if window.curve_widget is not None:
             # Change view through view management - update point radius
             _ = (
-                window.curve_widget.point_radius if hasattr(window.curve_widget, "point_radius") else 5
+                window.curve_widget.visual.point_radius if hasattr(window.curve_widget, "visual") else 5
             )  # Store initial for comparison
             window.view_management_controller.update_curve_point_size(10)
             qtbot.wait(100)
 
-            # Verify UI responded
-            assert window.curve_widget.point_radius == 10, "Point radius should have changed"
+            # Verify UI responded (check visual settings, not deprecated property)
+            assert window.curve_widget.visual.point_radius == 10, "Point radius should have changed"
 
             # Change view through UI and verify view options is aware
             window.curve_widget.zoom_factor = 2.0

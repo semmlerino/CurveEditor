@@ -86,7 +86,7 @@ class ViewManagementController:
         if self.main_window.show_background_cb:
             self.main_window.curve_widget.show_background = self.main_window.show_background_cb.isChecked()
         if self.main_window.show_grid_cb:
-            self.main_window.curve_widget.show_grid = self.main_window.show_grid_cb.isChecked()
+            self.main_window.curve_widget.visual.show_grid = self.main_window.show_grid_cb.isChecked()
         # Note: show_info is not implemented on CurveViewWidget yet
         # TODO: Add show_info attribute to CurveViewWidget or map to existing attribute
 
@@ -105,8 +105,8 @@ class ViewManagementController:
         if not self.main_window.curve_widget:
             return
 
-        self.main_window.curve_widget.point_radius = value
-        self.main_window.curve_widget.selected_point_radius = value + 2  # Selected points slightly larger
+        self.main_window.curve_widget.visual.point_radius = value
+        self.main_window.curve_widget.visual.selected_point_radius = value + 2  # Selected points slightly larger
 
         # Trigger repaint
         self.main_window.curve_widget.update()
@@ -123,7 +123,7 @@ class ViewManagementController:
         if not self.main_window.curve_widget:
             return
 
-        self.main_window.curve_widget.line_width = value
+        self.main_window.curve_widget.visual.line_width = value
         # Trigger repaint
         self.main_window.curve_widget.update()
         logger.debug(f"Updated line width to {value}")
