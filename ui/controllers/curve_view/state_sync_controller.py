@@ -13,6 +13,9 @@ Architecture:
 - Clean separation: signal handling logic isolated from widget's core responsibilities
 """
 
+# Import cycle is expected: CurveViewWidget imports this controller
+# pyright: reportImportCycles=false
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -56,7 +59,7 @@ class StateSyncController:
 
         # Store references for signal connections
         self._app_state: ApplicationState = widget._app_state  # pyright: ignore[reportPrivateUsage]
-        self._state_manager: StateManager = widget._state_manager  # pyright: ignore[reportPrivateUsage]
+        self._state_manager: StateManager | None = widget._state_manager  # pyright: ignore[reportPrivateUsage]
 
     def connect_all_signals(self) -> None:
         """Connect to all reactive store signals for automatic updates."""

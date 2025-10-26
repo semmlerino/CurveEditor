@@ -411,7 +411,6 @@ class MockCurveView:
         self.show_all_frame_numbers: bool = False
         self.flip_y_axis: bool = False
         self.scale_to_image: bool = True
-        self.background_opacity: float = 1.0
 
         # Rendering settings
         self.point_radius: int = 5

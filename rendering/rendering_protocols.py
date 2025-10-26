@@ -30,7 +30,6 @@ class CurveViewProtocol(Protocol):
     manual_offset_y: float
     image_width: int
     image_height: int
-    background_opacity: float
     selected_points: set[int]
     point_radius: int
     main_window: "MainWindowProtocol | None"

@@ -54,7 +54,6 @@ class RenderState:
     # Background settings
     show_background: bool
     background_image: QImage | QPixmap | None = None
-    background_opacity: float = 1.0
 
     # Image dimensions (for background scaling)
     image_width: int = 0
@@ -63,6 +62,7 @@ class RenderState:
     # Grid and visual settings
     show_grid: bool = True
     point_radius: int = 3
+    line_width: int = 2
 
     # Multi-curve support (for future extensibility)
     curves_data: dict[str, CurveDataList] | None = None
@@ -88,10 +88,6 @@ class RenderState:
         # Ensure point radius is positive
         if self.point_radius <= 0:
             raise ValueError(f"Point radius must be positive: {self.point_radius}")
-
-        # Ensure background opacity is in valid range
-        if not 0.0 <= self.background_opacity <= 1.0:
-            raise ValueError(f"Background opacity must be between 0.0 and 1.0: {self.background_opacity}")
 
     @classmethod
     def compute(cls, widget: Any) -> "RenderState":  # CurveViewWidget - Any to avoid import cycle
@@ -203,13 +199,13 @@ class RenderState:
             # Background settings
             show_background=widget.show_background,
             background_image=widget.background_image,
-            background_opacity=widget.background_opacity,
             # Image dimensions
             image_width=widget.image_width,
             image_height=widget.image_height,
             # Grid and visual settings
             show_grid=widget.show_grid,
             point_radius=widget.point_radius,
+            line_width=widget.line_width,
             # Multi-curve support
             curves_data=curves_data,
             display_mode=widget.display_mode,

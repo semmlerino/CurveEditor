@@ -210,7 +210,6 @@ class OptimizedCurveRenderer:
 
     def __init__(self):
         """Initialize the optimized renderer."""
-        self.background_opacity: float = 1.0
         self._viewport_culler: ViewportCuller = ViewportCuller()
         self._lod_system: LevelOfDetail = LevelOfDetail()
         self._render_quality: RenderQuality = RenderQuality.NORMAL
@@ -1148,7 +1147,8 @@ class OptimizedCurveRenderer:
 
             # Render curve lines using unified segmented rendering
             if len(screen_points) > 1:
-                line_width = 3 if is_active else 2  # Thicker line for active curve
+                # Use configurable line width from render_state, with +1 for active curve
+                line_width = render_state.line_width + (1 if is_active else 0)
                 self._render_lines_with_segments(
                     painter=painter,
                     render_state=render_state,
@@ -1159,8 +1159,8 @@ class OptimizedCurveRenderer:
                 )
 
             # Render points using unified status-aware rendering
-            # Use established conventions: 7 for active (like selected), 5 for inactive (normal)
-            point_radius = 7 if is_active else 5  # Larger points for active curve
+            # Use configurable point radius from render_state, with +2 for active curve
+            point_radius = render_state.point_radius + (2 if is_active else 0)
 
             # Use the unified point rendering that handles status, selection, and current frame
             self._render_points_with_status(
@@ -1191,10 +1191,6 @@ class OptimizedCurveRenderer:
         if not background_image:
             return
 
-        opacity = render_state.background_opacity
-        if opacity < 1.0:
-            painter.setOpacity(opacity)
-
         # Use fast scaling hint for better performance
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform, self._render_quality == RenderQuality.HIGH)
 
@@ -1224,9 +1220,6 @@ class OptimizedCurveRenderer:
         # Convert QImage to QPixmap if needed
         pixmap = QPixmap.fromImage(bg_image) if isinstance(bg_image, QImage) else bg_image
         painter.drawPixmap(int(top_left_x), int(top_left_y), int(target_width), int(target_height), pixmap)
-
-        if opacity < 1.0:
-            painter.setOpacity(1.0)
 
     def _render_grid_optimized(self, painter: QPainter, render_state: RenderState) -> None:
         """Optimized grid rendering with adaptive density, centered on selected points."""

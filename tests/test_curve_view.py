@@ -307,10 +307,6 @@ class TestVisualizationOptions:
         setattr(curve_view_widget, attribute_name, initial_value)
         assert getattr(curve_view_widget, attribute_name) == initial_value
 
-    def test_background_opacity(self, curve_view_widget: CurveViewWidget) -> None:
-        """Test background opacity settings."""
-        curve_view_widget.background_opacity = 0.5
-        assert curve_view_widget.background_opacity == 0.5
 
 
 class TestInteractionHandling:

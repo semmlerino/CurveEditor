@@ -105,7 +105,6 @@ class TestRenderingProtocols:
         mock_view.manual_offset_y = 0.0
         mock_view.image_width = 1920
         mock_view.image_height = 1080
-        mock_view.background_opacity = 1.0
         mock_view.selected_points = set()
         mock_view.point_radius = 3
         mock_view.main_window = None
@@ -126,7 +125,6 @@ class TestRenderingProtocols:
         assert mock_view.manual_offset_y == 0.0
         assert mock_view.image_width == 1920
         assert mock_view.image_height == 1080
-        assert mock_view.background_opacity == 1.0
         assert mock_view.selected_points == set()
         assert mock_view.point_radius == 3
         assert mock_view.main_window is None

@@ -134,6 +134,7 @@ class TestDataLoadedHandling:
         app_state.set_active_curve(curve_name)
         app_state.set_frame(5)  # Frame 5 is in the data
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act
@@ -163,6 +164,7 @@ class TestDataLoadedHandling:
         app_state.set_active_curve(curve_name)
         app_state.set_frame(999)  # No point at frame 999
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act
@@ -190,6 +192,7 @@ class TestDataLoadedHandling:
         empty_data: list[tuple[int, float, float, str]] = []
         app_state.set_active_curve(curve_name)
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = empty_data
 
         # Act - Should not raise
@@ -242,6 +245,7 @@ class TestAutoSelectPointAtFrame:
         app_state.set_active_curve(curve_name)
         app_state.set_frame(10)  # Frame 10 is at index 2
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act
@@ -272,6 +276,7 @@ class TestAutoSelectPointAtFrame:
         app_state.set_active_curve(curve_name)
         app_state.set_frame(7)  # No point at frame 7
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act
@@ -299,6 +304,7 @@ class TestAutoSelectPointAtFrame:
         """
         # Arrange
         app_state.set_frame(5)
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act - Should not raise
@@ -657,6 +663,7 @@ class TestSelectionStateConsistency:
         app_state.set_active_curve(curve_name)
         app_state.set_frame(5)
 
+        assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
         # Act - Perform multiple operations

@@ -238,7 +238,6 @@ class TestOptimizedCurveRenderer:
         assert renderer._render_quality == RenderQuality.NORMAL
         assert renderer._quality_auto_adjust is True
         assert renderer._fps_target == 30.0
-        assert renderer.background_opacity == 1.0
 
     def test_render_quality_settings(self) -> None:
         """Test setting render quality levels."""

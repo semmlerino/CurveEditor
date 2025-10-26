@@ -232,7 +232,7 @@ class ApplicationState(QObject):
         """
         self._assert_main_thread()
         # Validate curve_name
-        if curve_name is None or curve_name == "":
+        if not curve_name:
             raise ValueError("curve_name cannot be None or empty")
         # Validate data type - reject strings and dicts which are iterable but invalid
         if isinstance(data, (str, dict)):

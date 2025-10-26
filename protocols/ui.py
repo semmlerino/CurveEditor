@@ -256,7 +256,6 @@ class CurveViewProtocol(Protocol):
 
     # Background image
     background_image: "QPixmap | None"
-    background_opacity: float
 
     # Image and display settings
     image_width: int

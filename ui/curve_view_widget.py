@@ -68,7 +68,6 @@ from services import get_interaction_service
 from services.transform_service import Transform, ViewState
 from ui.qt_utils import safe_slot
 from ui.ui_constants import (
-    DEFAULT_BACKGROUND_OPACITY,
     DEFAULT_IMAGE_HEIGHT,
     DEFAULT_IMAGE_WIDTH,
 )
@@ -234,7 +233,6 @@ class CurveViewWidget(QWidget):
         self.show_velocity_vectors: bool = False
         self.show_all_frame_numbers: bool = False
         self.show_background: bool = True
-        self.background_opacity: float = DEFAULT_BACKGROUND_OPACITY
 
         # Grid settings
         self.grid_size: int = 50
@@ -290,7 +288,6 @@ class CurveViewWidget(QWidget):
 
         # Initialize optimized renderer for 47x performance improvement
         self._optimized_renderer: OptimizedCurveRenderer = OptimizedCurveRenderer()
-        self._optimized_renderer.background_opacity = self.background_opacity
 
         # Widget setup
         self._setup_widget()

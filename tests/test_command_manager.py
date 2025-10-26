@@ -77,13 +77,13 @@ class SimpleTestCommand:
         self.redo_called = True
         return True
 
-    def can_merge_with(self, other):
+    def can_merge_with(self, other) -> bool:
         """Check if this command can be merged with another."""
         return False  # Don't merge by default
 
     def merge_with(self, other):
         """Try to merge with another command."""
-        return None  # Don't merge by default
+        raise NotImplementedError("Command merging not implemented")
 
     def get_memory_usage(self) -> int:
         """Get approximate memory usage of this command in bytes."""
@@ -113,7 +113,7 @@ class MergeableTestCommand(SimpleTestCommand):
         self.merge_target = merge_target
         self.merged_with = None
 
-    def can_merge_with(self, other):
+    def can_merge_with(self, other) -> bool:
         """Check if this command can be merged with another."""
         return isinstance(other, MergeableTestCommand)
 
@@ -126,7 +126,7 @@ class MergeableTestCommand(SimpleTestCommand):
             )
             merged.merged_with = other
             return merged
-        return None
+        raise NotImplementedError("Cannot merge with non-MergeableTestCommand")
 
 
 @pytest.fixture

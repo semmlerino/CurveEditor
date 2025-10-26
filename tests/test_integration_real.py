@@ -213,7 +213,6 @@ class TestRenderingPipeline:
             flip_y_axis=False,
             show_background=True,
             background_image=background_image,
-            background_opacity=0.5,
             image_width=800,
             image_height=600,
             show_grid=False,

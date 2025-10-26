@@ -724,12 +724,6 @@ class TestCurveViewProtocol:
         mock.background_image = None
         assert mock.background_image is None
 
-    def test_background_opacity_attribute(self):
-        """Test CurveViewProtocol.background_opacity attribute exists."""
-        mock = Mock(spec=CurveViewProtocol)
-        mock.background_opacity = 0.5
-        assert mock.background_opacity == 0.5
-
     # Image and display settings
     def test_image_width_attribute(self):
         """Test CurveViewProtocol.image_width attribute exists."""
