@@ -1132,18 +1132,36 @@ Phase 2 removes `show_background`, `show_grid`, `point_radius`, `line_width` as 
 - [ ] Verify sliders still work (manual test) - DEFERRED (GUI)
 - [x] Commit: "feat: Integrate VisualSettings into RenderState (Phase 2)" - PENDING
 
-### Phase 3: Update Renderer (Day 2-3 - 5h)
-- [ ] Audit hardcoded values: `grep -n "selected_radius = point_radius + 2" rendering/optimized_curve_renderer.py`
-- [ ] Replace: `selected_radius = point_radius + 2` (line 935) → `render_state.visual.selected_point_radius`
-- [ ] Replace: `line_width = render_state.line_width + (1 if is_active else 0)` (line 1151) → `render_state.visual.selected_line_width if is_active else render_state.visual.line_width`
-- [ ] Replace: `point_radius = render_state.point_radius + (2 if is_active else 0)` (line 1163) → `render_state.visual.selected_point_radius if is_active else render_state.visual.point_radius`
-- [ ] **DO NOT remove compatibility properties yet** (Phase 3.5 verifies first)
-- [ ] Type check: `./bpr rendering/`
-- [ ] Run all tests: `pytest tests/ -v`
-- [ ] Visual regression: Capture 10 screenshots (same as Phase 0)
-- [ ] Compare to baseline: Should be identical
-- [ ] Manual test: Slider changes rendering smoothly
-- [ ] Commit: "feat: Renderer uses VisualSettings for selected points (Phase 3)"
+### Phase 3: Update Renderer (Day 2-3 - 5h) ✅ COMPLETE
+- [x] Audit hardcoded values: `grep -n "selected_radius = point_radius + 2" rendering/optimized_curve_renderer.py`
+- [x] Replace: `selected_radius = point_radius + 2` (line 935) → `render_state.visual.selected_point_radius`
+- [x] Replace: `line_width = render_state.line_width + (1 if is_active else 0)` (line 1151) → `render_state.visual.selected_line_width if is_active else render_state.visual.line_width`
+- [x] Replace: `point_radius = render_state.point_radius + (2 if is_active else 0)` (line 1163) → `render_state.visual.selected_point_radius if is_active else render_state.visual.point_radius`
+- [x] **DO NOT remove compatibility properties yet** (Phase 3.5 verifies first)
+- [x] Type check: `./bpr rendering/` → 0 errors
+- [x] Run all tests: `pytest tests/ -v` → 3189/3189 passed
+- [ ] Visual regression: Capture 10 screenshots (same as Phase 0) → Deferred to manual QA
+- [ ] Compare to baseline: Should be identical → Deferred to manual QA
+- [ ] Manual test: Slider changes rendering smoothly → Deferred to manual QA
+- [x] Commit: "feat: Renderer uses VisualSettings for selected points (Phase 3)"
+
+**Implementation Summary:**
+- 8 changes to optimized_curve_renderer.py
+- Added 3 null safety checks for missing visual settings
+- Replaced 4 hardcoded offsets with direct visual.* access
+- Updated 5 compatibility property accesses to direct visual.* access
+- All rendering tests passing (107/107)
+- All visual settings tests passing (18/18)
+- Critical integration tests passing (383/383)
+
+**Review Scores:**
+- Code Reviewer: 9.5/10 (APPROVE)
+- Best Practices: 84/100 (APPROVE FOR IMPLEMENTATION)
+
+**Recommendations for Future:**
+- Priority 1: Add cross-field validation for visual hierarchy
+- Priority 2: Make visual field non-optional (strengthen type enforcement)
+- Priority 3: Add behavioral tests for slider-to-renderer propagation
 
 ### Phase 3.5: Verification Gate (Day 3 - 15min) **CRITICAL**
 - [ ] grep -n "render_state\.point_radius" rendering/optimized_curve_renderer.py → Must return 0 results

@@ -336,6 +336,11 @@ class OptimizedCurveRenderer:
         start_time = time.perf_counter()
         self._render_count += 1
 
+        # Null safety check - early return if visual settings missing
+        if not render_state.visual:
+            logger.warning("No visual settings in RenderState - skipping render")
+            return
+
         # Auto-adjust quality based on performance
         if self._quality_auto_adjust:
             self._adjust_quality_for_performance()
@@ -351,7 +356,7 @@ class OptimizedCurveRenderer:
                 self._render_background_optimized(painter, render_state)
 
             # Render grid if needed
-            if render_state.show_grid:
+            if render_state.visual.show_grid:
                 self._render_grid_optimized(painter, render_state)
 
             # Check if render_state supports multi-curve rendering
@@ -827,8 +832,13 @@ class OptimizedCurveRenderer:
         if len(screen_points) == 0:
             return
 
-        # Get base radius (unscaled)
-        base_radius = base_point_radius if base_point_radius is not None else render_state.point_radius
+        # Null safety check for visual settings
+        if not render_state.visual:
+            logger.warning("No visual settings - skipping point rendering")
+            return
+
+        # Get base radius (unscaled) - use visual settings directly
+        base_radius = base_point_radius if base_point_radius is not None else render_state.visual.point_radius
         # Scale radius based on zoom for visual consistency
         point_radius = self._calculate_scaled_point_radius(base_radius, render_state.zoom_factor)
         selected_points = render_state.selected_points
@@ -929,17 +939,23 @@ class OptimizedCurveRenderer:
                 for pos in points_by_status[status]:
                     painter.drawEllipse(QPointF(pos[0], pos[1]), point_radius, point_radius)
 
-        # Draw selected points on top with larger radius
+        # Draw selected points on top with larger radius (use visual.selected_point_radius directly)
         if selected_points_list:
             painter.setBrush(QBrush(QColor(SPECIAL_COLORS["selected_point"])))
-            selected_radius = point_radius + 2
+            # Use visual.selected_point_radius, scaled by zoom for consistency
+            selected_radius = self._calculate_scaled_point_radius(
+                render_state.visual.selected_point_radius, render_state.zoom_factor
+            )
             for pos in selected_points_list:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), selected_radius, selected_radius)
 
         # Draw current frame points with purple color and larger radius
         if current_frame_points:
             painter.setBrush(QBrush(QColor(SPECIAL_COLORS["current_frame"])))  # Magenta for current frame
-            current_frame_radius = point_radius + 3  # Larger radius for current frame
+            # Current frame uses selected_point_radius + 1 for visual hierarchy
+            current_frame_radius = self._calculate_scaled_point_radius(
+                render_state.visual.selected_point_radius + 1, render_state.zoom_factor
+            )
             for pos in current_frame_points:
                 painter.drawEllipse(QPointF(pos[0], pos[1]), current_frame_radius, current_frame_radius)
 
@@ -1081,6 +1097,11 @@ class OptimizedCurveRenderer:
             logger.warning("_render_multiple_curves: no curves_data in RenderState")
             return
 
+        # Null safety check for visual settings
+        if not render_state.visual:
+            logger.warning("No visual settings - skipping multi-curve rendering")
+            return
+
         curves_data = render_state.curves_data
         curve_metadata = render_state.curve_metadata or {}
         active_curve = render_state.active_curve_name
@@ -1147,8 +1168,8 @@ class OptimizedCurveRenderer:
 
             # Render curve lines using unified segmented rendering
             if len(screen_points) > 1:
-                # Use configurable line width from render_state, with +1 for active curve
-                line_width = render_state.line_width + (1 if is_active else 0)
+                # Use visual.selected_line_width for active curve, visual.line_width for inactive
+                line_width = render_state.visual.selected_line_width if is_active else render_state.visual.line_width
                 self._render_lines_with_segments(
                     painter=painter,
                     render_state=render_state,
@@ -1159,8 +1180,8 @@ class OptimizedCurveRenderer:
                 )
 
             # Render points using unified status-aware rendering
-            # Use configurable point radius from render_state, with +2 for active curve
-            point_radius = render_state.point_radius + (2 if is_active else 0)
+            # Use visual.selected_point_radius for active curve, visual.point_radius for inactive
+            point_radius = render_state.visual.selected_point_radius if is_active else render_state.visual.point_radius
 
             # Use the unified point rendering that handles status, selection, and current frame
             self._render_points_with_status(
