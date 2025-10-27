@@ -36,14 +36,19 @@ class TrackingSelectionController(BaseTrackingController):
 
     @Slot(str, list)
     def on_data_loaded(self, _curve_name: str, _curve_data: list[object]) -> None:
-        """Handle data loaded signal - auto-select point at current frame.
+        """Handle data loaded signal.
 
         Args:
             _curve_name: Name of the loaded curve (unused)
             _curve_data: The loaded curve data (unused)
         """
-        # AUTO-SELECT point at current frame for immediate superior selection experience
-        self._auto_select_point_at_current_frame()
+        # REMOVED: Auto-selection of points when selecting curves from list
+        # This created a conflict between curve-level selection (which curves to display)
+        # and point-level selection (which points within a curve are selected).
+        # Selecting a curve from the list should only affect curve visibility,
+        # not point selection. Point selection persisting across frame navigation
+        # was confusing and unintended.
+        # self._auto_select_point_at_current_frame()
 
     def _auto_select_point_at_current_frame(self) -> None:
         """Auto-select the point at the current frame.
@@ -148,8 +153,11 @@ class TrackingSelectionController(BaseTrackingController):
         # TrackingPanel already updates ApplicationState directly (Phase 2)
         # No need to call set_selected_points() back to panel (causes race condition)
 
-        # Synchronize selection state to CurveDataStore (fix TrackingPanel→CurveDataStore gap)
-        self._sync_tracking_selection_to_curve_store(point_names)
+        # REMOVED: Auto point selection (creates conflict between curve-level and point-level selection)
+        # Selecting a curve from the tracking panel should only affect curve visibility,
+        # not automatically select points at the current frame. Point selection should be
+        # explicit user action only.
+        # self._sync_tracking_selection_to_curve_store(point_names)
 
         # Update the curve display with explicit selection to preserve user selection intent
         display_ctrl.update_display_with_selection(point_names)

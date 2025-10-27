@@ -32,6 +32,8 @@ Focus Areas:
 # pyright: reportUnusedCallResult=none
 
 
+from typing import override
+
 import pytest
 
 from core.commands.command_manager import CommandManager
@@ -90,11 +92,13 @@ class SimpleTestCommand:
         import sys
         return sys.getsizeof(self)
 
-    def __str__(self):
+    @override
+    def __str__(self) -> str:
         """String representation."""
         return self.description
 
-    def __repr__(self):
+    @override
+    def __repr__(self) -> str:
         """Repr."""
         return f"SimpleTestCommand({self.description})"
 
@@ -113,10 +117,12 @@ class MergeableTestCommand(SimpleTestCommand):
         self.merge_target = merge_target
         self.merged_with = None
 
+    @override
     def can_merge_with(self, other) -> bool:
         """Check if this command can be merged with another."""
         return isinstance(other, MergeableTestCommand)
 
+    @override
     def merge_with(self, other):
         """Merge with another command if compatible."""
         if isinstance(other, MergeableTestCommand):

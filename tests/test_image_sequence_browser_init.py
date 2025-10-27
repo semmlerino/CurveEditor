@@ -80,6 +80,6 @@ class TestImageSequenceBrowserInitialization:
         import sys
 
         if sys.platform == "win32":
-            assert hasattr(dialog, "drive_selector")
+            assert hasattr(dialog, "drive_selector")  # pyright: ignore[reportUnreachable]
 
         dialog.close()

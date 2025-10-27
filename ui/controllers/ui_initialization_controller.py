@@ -321,10 +321,11 @@ class UIInitializationController:
         self.main_window.ui.point_edit.y_edit = self.main_window.point_y_spinbox
 
         # Visualization sliders (used in properties panel if it exists)
+        # Slider range 1-20 maps to point radius 0.25-5.0 (each tick = 0.25)
         self.main_window.point_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.main_window.point_size_slider.setMinimum(2)
+        self.main_window.point_size_slider.setMinimum(1)
         self.main_window.point_size_slider.setMaximum(20)
-        self.main_window.point_size_slider.setValue(6)
+        self.main_window.point_size_slider.setValue(10)  # Default 2.5 (10 * 0.25)
         self.main_window.ui.visualization.point_size_slider = self.main_window.point_size_slider
 
         self.main_window.line_width_slider = QSlider(Qt.Orientation.Horizontal)

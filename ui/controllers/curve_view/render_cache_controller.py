@@ -128,12 +128,8 @@ class RenderCacheController:
         self._visible_indices_cache.clear()
 
         # Expand rect slightly for points on edges
-        expanded = rect.adjusted(
-            -self.widget.visual.point_radius,
-            -self.widget.visual.point_radius,
-            self.widget.visual.point_radius,
-            self.widget.visual.point_radius,
-        )
+        margin = int(self.widget.visual.point_radius)
+        expanded = rect.adjusted(-margin, -margin, margin, margin)
 
         for idx, pos in self._screen_points_cache.items():
             if expanded.contains(pos.toPoint()):

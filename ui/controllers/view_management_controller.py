@@ -100,17 +100,21 @@ class ViewManagementController:
         Update curve point size from slider.
 
         Args:
-            value: New point size value
+            value: Slider value (1-20), maps to point radius 0.25-5.0
         """
         if not self.main_window.curve_widget:
             return
 
-        self.main_window.curve_widget.visual.point_radius = value
-        self.main_window.curve_widget.visual.selected_point_radius = value + 2  # Selected points slightly larger
+        # Convert slider value (1-20) to point radius (0.25-5.0)
+        # Each slider tick = 0.25 pixel increment
+        point_radius = value * 0.25
+
+        self.main_window.curve_widget.visual.point_radius = point_radius
+        self.main_window.curve_widget.visual.selected_point_radius = point_radius + 0.5  # Selected points slightly larger
 
         # Trigger repaint
         self.main_window.curve_widget.update()
-        logger.debug(f"Updated point size to {value}")
+        logger.debug(f"Updated point size to {point_radius:.2f} (slider value: {value})")
 
     @Slot(int)
     def update_curve_line_width(self, value: int) -> None:

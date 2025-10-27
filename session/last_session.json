@@ -1,25 +1,28 @@
 {
-  "tracking_file": null,
+  "tracking_file": "2DTrackDatav2.txt",
   "image_directory": null,
   "current_frame": 1,
   "zoom_level": 1.0,
   "pan_offset": [
-    0.0,
-    0.0
+    276.789258551668,
+    -155.74369700475353
   ],
   "window_geometry": [
-    0,
-    0,
+    700,
+    31,
     1400,
     900
   ],
   "active_points": [],
   "view_bounds": null,
   "recent_directories": [],
-  "selected_curves": [],
+  "selected_curves": [
+    "Point06"
+  ],
   "show_all_curves": false,
+  "image_files": [],
   "_metadata": {
-    "saved_at": "/mnt/c/CustomScripts/Python/Work/Linux/CurveEditor",
+    "saved_at": "C:\\CustomScripts\\Python\\Work\\Linux\\CurveEditor",
     "version": "1.0"
   }
 }

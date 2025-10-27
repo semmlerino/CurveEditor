@@ -76,8 +76,8 @@ class VisualSettings:
     grid_line_width: int = 1
 
     # Point rendering (2 fields)
-    point_radius: int = 5
-    selected_point_radius: int = 7
+    point_radius: float = 2.5
+    selected_point_radius: float = 3.0
 
     # Line rendering (4 fields)
     line_color: QColor = field(default_factory=lambda: QColor(200, 200, 200))

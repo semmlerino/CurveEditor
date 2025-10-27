@@ -114,19 +114,23 @@ class TestTrackingSelectionControllerInitialization:
 class TestDataLoadedHandling:
     """Test data loading and auto-selection."""
 
-    def test_on_data_loaded_auto_selects_point_at_current_frame(
+    def test_on_data_loaded_does_not_auto_select_points(
         self,
         controller: TrackingSelectionController,
         main_window: MockMainWindow,
         app_state,
         sample_curve_data: list[tuple[int, float, float, str]],
     ) -> None:
-        """Test that loading data auto-selects point at current frame.
+        """Test that loading data does NOT auto-select points.
 
         Verifies:
-        - Point at current frame is automatically selected
-        - Selection stored in ApplicationState
-        - Correct index selected
+        - Curve-level selection (loading data) doesn't affect point-level selection
+        - Selection remains empty after loading data
+        - Prevents conflict between curve selection and point selection
+
+        Context:
+        Auto-selection was removed to fix conflict where selecting a curve from
+        the list would auto-select a point, which persisted across frame navigation.
         """
         # Arrange
         curve_name = "TestPoint001"
@@ -140,23 +144,23 @@ class TestDataLoadedHandling:
         # Act
         controller.on_data_loaded(curve_name, sample_curve_data)
 
-        # Assert - Point at frame 5 should be selected (index 1)
+        # Assert - No points should be auto-selected
         selection = app_state.get_selection(curve_name)
-        # Should have selected the point at frame 5
-        assert len(selection) > 0
+        assert len(selection) == 0, "on_data_loaded should not auto-select points"
 
-    def test_on_data_loaded_defaults_to_first_point_if_no_frame_match(
+    def test_on_data_loaded_with_no_point_at_frame(
         self,
         controller: TrackingSelectionController,
         main_window: MockMainWindow,
         app_state,
         sample_curve_data: list[tuple[int, float, float, str]],
     ) -> None:
-        """Test fallback to first point when no point at current frame.
+        """Test that loading data doesn't select points even with non-matching frame.
 
         Verifies:
-        - First point selected as fallback
+        - No auto-selection even when current frame has no point
         - No crash with non-existent frame
+        - Consistent behavior regardless of frame
         """
         # Arrange
         curve_name = "TestPoint002"
@@ -170,9 +174,9 @@ class TestDataLoadedHandling:
         # Act
         controller.on_data_loaded(curve_name, sample_curve_data)
 
-        # Assert - Should fall back to first point (index 0)
+        # Assert - No points should be selected
         selection = app_state.get_selection(curve_name)
-        assert len(selection) > 0
+        assert len(selection) == 0, "on_data_loaded should not auto-select points"
 
     def test_on_data_loaded_handles_empty_data(
         self,
@@ -651,10 +655,12 @@ class TestSelectionStateConsistency:
         app_state,
         sample_curve_data: list[tuple[int, float, float, str]],
     ) -> None:
-        """Test that selection is maintained across operations.
+        """Test that manual selection is maintained across operations.
 
         Verifies:
-        - Selection doesn't get lost
+        - Manual selection doesn't get lost
+        - on_data_loaded doesn't clear existing selection
+        - _auto_select_point_at_current_frame works when called directly
         - State remains consistent
         """
         # Arrange
@@ -666,14 +672,21 @@ class TestSelectionStateConsistency:
         assert main_window.curve_widget is not None
         main_window.curve_widget.curve_data = sample_curve_data
 
-        # Act - Perform multiple operations
+        # Manually select a point first
+        app_state.set_selection(curve_name, {1})
+        selection_initial = app_state.get_selection(curve_name)
+
+        # Act - Verify selection persists through on_data_loaded
         controller.on_data_loaded(curve_name, sample_curve_data)
         selection_after_load = app_state.get_selection(curve_name)
 
-        # Simulate another operation
+        # Simulate manual auto-select operation
         controller._auto_select_point_at_current_frame()
         selection_after_auto = app_state.get_selection(curve_name)
 
         # Assert
-        assert len(selection_after_load) > 0
-        assert len(selection_after_auto) > 0
+        assert len(selection_initial) > 0, "Initial selection should exist"
+        # on_data_loaded should NOT clear existing selection
+        assert selection_after_load == selection_initial, "on_data_loaded should not modify selection"
+        # _auto_select_point_at_current_frame should update selection when called directly
+        assert len(selection_after_auto) > 0, "_auto_select_point_at_current_frame should select points"

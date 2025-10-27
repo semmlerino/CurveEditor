@@ -44,7 +44,6 @@ try:
         QSlider,
         QSpinBox,
         QStatusBar,
-        QWidget,
     )
     from PySide6.QtWidgets import QRubberBand as _QRubberBandRuntime
 

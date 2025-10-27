@@ -196,7 +196,6 @@ class TestRenderingPipeline:
         background_image.fill(Qt.GlobalColor.blue)
 
         # Create RenderState with background
-        from rendering.render_state import RenderState
 
         render_state = create_test_render_state(
             points=[(1, 100, 100), (2, 400, 300)],
@@ -238,7 +237,6 @@ class TestRenderingPipeline:
         large_points = cast(CurveDataList, [(i, i * 10, i * 5) for i in range(1000)])
 
         # Create RenderState with large dataset
-        from rendering.render_state import RenderState
 
         render_state = create_test_render_state(
             points=large_points,

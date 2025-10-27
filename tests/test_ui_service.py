@@ -96,17 +96,6 @@ class TestDialogMethods:
 
     def test_get_filter_params_median_accepted(self, ui_service, parent_widget, monkeypatch):
         """Test getting median filter params when accepted."""
-        # First dialog returns filter type
-        # Second dialog returns window size
-        call_count = [0]
-
-        def mock_dialog(*args):
-            call_count[0] += 1
-            if call_count[0] == 1:
-                return ("Median", True)  # getItem for filter type
-            else:
-                return (7, True)  # getInt for window size
-
         monkeypatch.setattr(QInputDialog, "getItem", lambda *args: ("Median", True))
         monkeypatch.setattr(QInputDialog, "getInt", lambda *args: (7, True))
 

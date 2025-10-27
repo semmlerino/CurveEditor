@@ -166,8 +166,45 @@ class _MouseHandler:
                                 point = data[idx]
                                 self._drag_original_positions[idx] = (point[1], point[2])
 
+            elif ctrl_held and event.button() == Qt.MouseButton.LeftButton:
+                # No point found, but Ctrl is held - try curve line selection
+                curve_name = self._owner.selection.find_curve_at(view, pos.x(), pos.y())
+                if curve_name:
+                    # Ctrl+click on curve line: Toggle curve-level selection
+                    active_curve = self._app_state.active_curve
+                    current_curves = self._app_state.get_selected_curves()
+
+                    # Toggle the clicked curve
+                    if curve_name in current_curves:
+                        # Remove from selection
+                        new_selection = current_curves - {curve_name}
+                    else:
+                        # Add to selection
+                        new_selection = current_curves | {curve_name}
+
+                    # Update selected curves
+                    self._app_state.set_selected_curves(new_selection)
+
+                    # Make clicked curve active (unless we just deselected it)
+                    if curve_name in new_selection or curve_name == active_curve:
+                        self._app_state.set_active_curve(curve_name)
+
+                    logger.info(f"Curve line selection: toggled '{curve_name}' (active: {self._app_state.active_curve})")
+                    return
+
+                # No curve line found - fall through to rectangle selection
+                if view.rubber_band is None:
+                    # Create rubber band with parent widget workaround
+                    parent_widget = getattr(view, "parentWidget", lambda: None)() or None
+                    view.rubber_band = QRubberBand(QRubberBand.Shape.Rectangle, parent_widget)
+                view.rubber_band_origin = pos
+                view.rubber_band_active = True
+                view.rubber_band.setGeometry(QRect(pos, QSize()))
+                view.rubber_band.show()
+
             elif event.button() == Qt.MouseButton.LeftButton:
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    # This branch should not be reached anymore (handled above)
                     # Start rectangle selection
                     # rubber_band is Optional in CurveViewProtocol
                     if view.rubber_band is None:
@@ -591,6 +628,110 @@ class _SelectionManager:
                         best_match = PointSearchResult(idx, curve_name, distance)
 
             return best_match or PointSearchResult(index=-1, curve_name=None)
+
+    def find_curve_at(self, view: CurveViewProtocol, x: float, y: float, threshold: float = 8.0) -> str | None:
+        """
+        Find which curve line is near the given screen coordinates.
+
+        This allows selecting curves by clicking on their line segments, not just points.
+
+        Args:
+            view: Curve view to search in
+            x, y: Screen coordinates in pixels
+            threshold: Maximum distance in pixels to consider a "hit" (default: 8.0)
+
+        Returns:
+            Name of the closest curve within threshold, or None if no curve found
+
+        Algorithm:
+            For each visible curve:
+            1. Iterate through consecutive point pairs (line segments)
+            2. Calculate perpendicular distance from click to each segment
+            3. Track the closest segment across all curves
+            4. Return curve name if within threshold
+        """
+        self._owner.assert_main_thread()
+
+        # Get transform for coordinate conversion
+        transform_service = _get_transform_service()
+        transform = transform_service.get_transform(view)
+
+        # Get all visible curves
+        all_curve_names = self._app_state.get_all_curve_names()
+        visible_curves = [
+            name for name in all_curve_names if self._app_state.get_curve_metadata(name).get("visible", True)
+        ]
+
+        best_curve: str | None = None
+        best_distance = float("inf")
+
+        for curve_name in visible_curves:
+            curve_data = self._app_state.get_curve_data(curve_name)
+            if not curve_data or len(curve_data) < 2:
+                # Need at least 2 points to form a line segment
+                continue
+
+            # Check each line segment in the curve
+            for i in range(len(curve_data) - 1):
+                p1 = curve_data[i]
+                p2 = curve_data[i + 1]
+
+                # Convert data coordinates to screen coordinates
+                x1, y1 = transform.data_to_screen(float(p1[1]), float(p1[2]))
+                x2, y2 = transform.data_to_screen(float(p2[1]), float(p2[2]))
+
+                # Calculate distance from click point to line segment
+                distance = self._point_to_segment_distance(x, y, x1, y1, x2, y2)
+
+                if distance < best_distance:
+                    best_distance = distance
+                    best_curve = curve_name
+
+        # Return curve if within threshold
+        return best_curve if best_distance <= threshold else None
+
+    @staticmethod
+    def _point_to_segment_distance(px: float, py: float, x1: float, y1: float, x2: float, y2: float) -> float:
+        """
+        Calculate perpendicular distance from point to line segment.
+
+        Args:
+            px, py: Point coordinates
+            x1, y1: Line segment start
+            x2, y2: Line segment end
+
+        Returns:
+            Distance in pixels (same units as input coordinates)
+
+        Algorithm:
+            1. Project point onto infinite line through segment
+            2. Clamp projection to segment endpoints (parameter t ∈ [0, 1])
+            3. Calculate distance from point to clamped projection
+        """
+        # Vector from segment start to end
+        dx = x2 - x1
+        dy = y2 - y1
+
+        # Segment length squared
+        length_sq = dx * dx + dy * dy
+
+        # Handle degenerate case: segment is a point
+        if length_sq == 0:
+            return ((px - x1) ** 2 + (py - y1) ** 2) ** 0.5
+
+        # Parameter t represents projection onto segment (0 = start, 1 = end)
+        # Calculate via dot product: (P-P1)·(P2-P1) / |P2-P1|²
+        t = ((px - x1) * dx + (py - y1) * dy) / length_sq
+
+        # Clamp to segment bounds [0, 1]
+        t = max(0.0, min(1.0, t))
+
+        # Closest point on segment
+        closest_x = x1 + t * dx
+        closest_y = y1 + t * dy
+
+        # Euclidean distance from point to closest point on segment
+        return ((px - closest_x) ** 2 + (py - closest_y) ** 2) ** 0.5
         # All search modes exhaustively handled above
 
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
@@ -1573,6 +1714,10 @@ class InteractionService:
     def find_point_at_position(self, view: CurveViewProtocol, x: float, y: float, tolerance: float = 5.0) -> int:
         """Find point at position with tolerance parameter."""
         return self._selection.find_point_at_position(view, x, y, tolerance)
+
+    def find_curve_at(self, view: CurveViewProtocol, x: float, y: float, threshold: float = 8.0) -> str | None:
+        """Find which curve line is near the given screen coordinates."""
+        return self._selection.find_curve_at(view, x, y, threshold)
 
     def select_point_by_index(
         self,

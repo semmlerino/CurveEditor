@@ -21,10 +21,6 @@ class AppConfig:
     Only optional features with performance impact are configurable.
     """
 
-    # Monitoring - opt-in due to performance overhead
-    enable_cache_monitoring: bool = False
-    enable_performance_metrics: bool = False
-
     # Debug mode - forces expensive validation in production
     force_debug_validation: bool = False
 
@@ -37,8 +33,6 @@ class AppConfig:
         """Load configuration from environment variables.
 
         Environment variables:
-        - CURVE_EDITOR_MONITORING: Enable cache monitoring (true/false)
-        - CURVE_EDITOR_METRICS: Enable performance metrics (true/false)
         - CURVE_EDITOR_DEBUG_VALIDATION: Force debug validation (true/false)
         - USE_METADATA_AWARE_DATA: Use new coordinate metadata system (true/false)
         """
@@ -47,8 +41,6 @@ class AppConfig:
             return value.lower() in ("true", "1", "yes", "on")
 
         return cls(
-            enable_cache_monitoring=parse_bool(os.getenv("CURVE_EDITOR_MONITORING", "")),
-            enable_performance_metrics=parse_bool(os.getenv("CURVE_EDITOR_METRICS", "")),
             force_debug_validation=parse_bool(os.getenv("CURVE_EDITOR_DEBUG_VALIDATION", "")),
             use_metadata_aware_data=parse_bool(
                 os.getenv("USE_METADATA_AWARE_DATA", "true")
@@ -59,8 +51,6 @@ class AppConfig:
         """Get human-readable summary of configuration."""
         lines = [
             "CurveEditor Configuration:",
-            f"  Cache Monitoring: {'ON' if self.enable_cache_monitoring else 'OFF'}",
-            f"  Performance Metrics: {'ON' if self.enable_performance_metrics else 'OFF'}",
             f"  Debug Validation: {'ON' if self.force_debug_validation else 'OFF'}",
             f"  Metadata-Aware Data: {'ON' if self.use_metadata_aware_data else 'OFF'}",
         ]

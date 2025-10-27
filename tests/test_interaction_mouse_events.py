@@ -426,3 +426,128 @@ class TestWheelEvents:
         # Zoom should be called with factor < 1.0
         assert zoom_called is True
         assert zoom_factor_arg < 1.0
+
+
+class TestCurveLineSelection:
+    """Test curve line selection (clicking on curve lines, not points)."""
+
+    service: "InteractionService"  # pyright: ignore[reportUninitializedInstanceVariable]
+
+    @pytest.fixture(autouse=True)
+    def setup(self, qapp) -> None:
+        """Setup test environment."""
+        self.service = get_interaction_service()
+        self.service._commands._history = []
+        self.service._commands._current_index = -1
+
+    def test_ctrl_click_curve_line_selects_curve(self) -> None:
+        """Test Ctrl+clicking on a curve line selects that curve."""
+        app_state = get_application_state()
+
+        # Create two curves with distinct positions
+        curve1_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        curve2_data = cast(CurveDataList, [(1, 100.0, 300.0), (2, 200.0, 400.0)])
+
+        app_state.set_curve_data("curve1", curve1_data, metadata={"visible": True})
+        app_state.set_curve_data("curve2", curve2_data, metadata={"visible": True})
+        app_state.set_active_curve("curve1")
+        app_state.set_selected_curves({"curve1"})
+
+        # Use curve1 view
+        view = MockCurveView(curve1_data)
+
+        # Click on curve2's line (midpoint between its two points)
+        # curve2 goes from (100, 300) to (200, 400), so midpoint is (150, 350)
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPointF(150.0, 350.0)
+        event.button.return_value = Qt.MouseButton.LeftButton
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        self.service.clear_spatial_index()
+        self.service.handle_mouse_press(view, event)
+
+        # Should add curve2 to selection
+        selected = app_state.get_selected_curves()
+        assert "curve2" in selected
+        # curve2 should now be active
+        assert app_state.active_curve == "curve2"
+
+    def test_ctrl_click_curve_line_toggles_selection(self) -> None:
+        """Test Ctrl+clicking on already selected curve removes it from selection."""
+        app_state = get_application_state()
+
+        # Create two curves
+        curve1_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        curve2_data = cast(CurveDataList, [(1, 100.0, 300.0), (2, 200.0, 400.0)])
+
+        app_state.set_curve_data("curve1", curve1_data, metadata={"visible": True})
+        app_state.set_curve_data("curve2", curve2_data, metadata={"visible": True})
+        app_state.set_active_curve("curve1")
+        # Both curves already selected
+        app_state.set_selected_curves({"curve1", "curve2"})
+
+        view = MockCurveView(curve1_data)
+
+        # Click on curve2's line to deselect it
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPointF(150.0, 350.0)
+        event.button.return_value = Qt.MouseButton.LeftButton
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        self.service.clear_spatial_index()
+        self.service.handle_mouse_press(view, event)
+
+        # Should remove curve2 from selection
+        selected = app_state.get_selected_curves()
+        assert "curve2" not in selected
+        assert "curve1" in selected
+
+    def test_ctrl_click_away_from_curves_starts_rubber_band(self) -> None:
+        """Test Ctrl+click far from any curve starts rubber band selection."""
+        app_state = get_application_state()
+
+        curve1_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        app_state.set_curve_data("curve1", curve1_data, metadata={"visible": True})
+        app_state.set_active_curve("curve1")
+
+        view = MockCurveView(curve1_data)
+
+        # Click far away from any curve
+        event = Mock(spec=QMouseEvent)
+        event.position.return_value = QPointF(1000.0, 1000.0)
+        event.button.return_value = Qt.MouseButton.LeftButton
+        event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
+
+        self.service.handle_mouse_press(view, event)
+
+        # Should start rubber band selection (no curve found)
+        assert view.rubber_band_active is True
+
+    def test_find_curve_at_detects_curve_line(self) -> None:
+        """Test find_curve_at method correctly identifies curve from line segment."""
+        app_state = get_application_state()
+
+        # Create a curve
+        curve_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        app_state.set_curve_data("test_curve", curve_data, metadata={"visible": True})
+
+        view = MockCurveView(curve_data)
+
+        # Test clicking on the line segment midpoint
+        curve_name = self.service.find_curve_at(view, 150.0, 150.0, threshold=10.0)
+
+        assert curve_name == "test_curve"
+
+    def test_find_curve_at_returns_none_when_far(self) -> None:
+        """Test find_curve_at returns None when click is far from any curve."""
+        app_state = get_application_state()
+
+        curve_data = cast(CurveDataList, [(1, 100.0, 100.0), (2, 200.0, 200.0)])
+        app_state.set_curve_data("test_curve", curve_data, metadata={"visible": True})
+
+        view = MockCurveView(curve_data)
+
+        # Click far from curve
+        curve_name = self.service.find_curve_at(view, 500.0, 500.0, threshold=10.0)
+
+        assert curve_name is None

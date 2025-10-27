@@ -602,7 +602,7 @@ class TestNudgePointsCommand:
 
     @patch("ui.ui_constants.DEFAULT_NUDGE_AMOUNT", 1.0)
     def test_execute_nudge_selected_points(self, basic_context):
-        """Test execute nudges selected points."""
+        """Test execute nudges selected points and centers view."""
         cmd = NudgePointsCommand("2", 0.0, 1.0)
         basic_context.selected_curve_points = {1, 2}
 
@@ -610,16 +610,19 @@ class TestNudgePointsCommand:
         mock_widget = basic_context.main_window.curve_widget
         mock_widget.nudge_selected = Mock()
         mock_widget.update = Mock()
+        mock_widget.view_camera = Mock()
+        mock_widget.view_camera.center_on_selection = Mock()
 
         result = cmd.execute(basic_context)
 
         assert result is True
         mock_widget.nudge_selected.assert_called_once_with(0.0, 1.0)  # base_dx * 1.0, base_dy * 1.0
+        mock_widget.view_camera.center_on_selection.assert_called_once()
         mock_widget.update.assert_called_once()
 
     @patch("ui.ui_constants.DEFAULT_NUDGE_AMOUNT", 1.0)
     def test_execute_nudge_with_shift_modifier(self, basic_context):
-        """Test execute with Shift modifier (10x nudge)."""
+        """Test execute with Shift modifier (10x nudge) and centers view."""
         cmd = NudgePointsCommand("4", -1.0, 0.0)
         basic_context.selected_curve_points = {1}
         basic_context.key_event.modifiers.return_value = Qt.KeyboardModifier.ShiftModifier
@@ -628,15 +631,18 @@ class TestNudgePointsCommand:
         mock_widget = basic_context.main_window.curve_widget
         mock_widget.nudge_selected = Mock()
         mock_widget.update = Mock()
+        mock_widget.view_camera = Mock()
+        mock_widget.view_camera.center_on_selection = Mock()
 
         result = cmd.execute(basic_context)
 
         assert result is True
         mock_widget.nudge_selected.assert_called_once_with(-10.0, 0.0)  # -1.0 * 10.0
+        mock_widget.view_camera.center_on_selection.assert_called_once()
 
     @patch("ui.ui_constants.DEFAULT_NUDGE_AMOUNT", 1.0)
     def test_execute_nudge_with_ctrl_modifier(self, basic_context):
-        """Test execute with Ctrl modifier (0.1x nudge)."""
+        """Test execute with Ctrl modifier (0.1x nudge) and centers view."""
         cmd = NudgePointsCommand("6", 1.0, 0.0)
         basic_context.selected_curve_points = {1}
         basic_context.key_event.modifiers.return_value = Qt.KeyboardModifier.ControlModifier
@@ -645,11 +651,14 @@ class TestNudgePointsCommand:
         mock_widget = basic_context.main_window.curve_widget
         mock_widget.nudge_selected = Mock()
         mock_widget.update = Mock()
+        mock_widget.view_camera = Mock()
+        mock_widget.view_camera.center_on_selection = Mock()
 
         result = cmd.execute(basic_context)
 
         assert result is True
         mock_widget.nudge_selected.assert_called_once_with(0.1, 0.0)  # 1.0 * 0.1
+        mock_widget.view_camera.center_on_selection.assert_called_once()
 
 
 class TestUndoCommand:

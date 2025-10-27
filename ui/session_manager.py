@@ -294,6 +294,7 @@ class SessionManager:
             # Extract file paths
             tracking_file = session_data.get("tracking_file")
             image_directory = session_data.get("image_directory")
+            image_files = session_data.get("image_files", [])
 
             # Restore frame position
             current_frame = session_data.get("current_frame", 1)
@@ -313,10 +314,30 @@ class SessionManager:
             if "recent_directories" in session_data and isinstance(session_data["recent_directories"], list) and main_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
                 main_window.state_manager.set_recent_directories(session_data["recent_directories"])  # pyright: ignore[reportAttributeAccessIssue]
 
+            # Restore image sequence directly if available (faster than re-scanning)
+            if image_files and isinstance(image_files, list) and image_directory:
+                logger.info(f"Restoring image sequence directly: {len(image_files)} files from {image_directory}")
+                from stores.application_state import get_application_state
+
+                app_state = get_application_state()
+                app_state.set_image_files(cast(list[str], image_files), directory=cast(str, image_directory))
+
+                # Update StateManager for consistency
+                if main_window.state_manager is not None:  # pyright: ignore[reportAttributeAccessIssue]
+                    main_window.state_manager.image_directory = image_directory  # pyright: ignore[reportAttributeAccessIssue]
+
+                # Trigger background loading via ViewManagementController
+                if hasattr(main_window, "view_management_controller"):
+                    main_window.view_management_controller.on_image_sequence_loaded(  # pyright: ignore[reportAttributeAccessIssue]
+                        cast(str, image_directory), cast(list[str], image_files)
+                    )
+
             # Load files using background thread if available
             if main_window.file_load_worker is not None:  # pyright: ignore[reportAttributeAccessIssue]
                 logger.info("Loading session files via background thread")
-                main_window.file_load_worker.start_work(tracking_file, image_directory)  # pyright: ignore[reportAttributeAccessIssue]
+                # Only pass image_directory if we haven't already restored images
+                image_dir_to_load = None if image_files else image_directory
+                main_window.file_load_worker.start_work(tracking_file, image_dir_to_load)  # pyright: ignore[reportAttributeAccessIssue]
 
                 # Store session data to restore state after files are loaded
                 main_window._pending_session_data = {  # pyright: ignore[reportAttributeAccessIssue]

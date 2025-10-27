@@ -37,8 +37,8 @@ class TestVisualSettingsDefaults:
     def test_point_rendering_defaults(self) -> None:
         """Verify all 2 point rendering defaults."""
         visual = VisualSettings()
-        assert visual.point_radius == 5
-        assert visual.selected_point_radius == 7
+        assert visual.point_radius == 2.5
+        assert visual.selected_point_radius == 3.0
 
     def test_line_rendering_defaults(self) -> None:
         """Verify all 4 line rendering defaults."""

@@ -541,10 +541,14 @@ class TimelineController(QObject):
         self.set_frame(frame)
         logger.debug(f"Timeline tab clicked: frame {frame}")
 
-    def on_timeline_tab_hovered(self, frame: int) -> None:
-        """Handle timeline tab hover."""
+    def on_timeline_tab_hovered(self, frame: int) -> None:  # noqa: ARG002
+        """Handle timeline tab hover.
+
+        Args:
+            frame: Frame number (reserved for future preview functionality)
+        """
         # Could show preview or status message
-        # frame parameter reserved for future preview functionality
+        _ = frame  # Suppress unused parameter warning
 
     def update_for_tracking_data(self, num_images: int) -> None:
         """Update timeline for tracking data."""

@@ -705,6 +705,8 @@ class NudgePointsCommand(ShortcutCommand):
             if context.has_curve_selection:
                 logger.info(f"Nudging {len(context.selected_curve_points)} selected points by ({dx}, {dy})")
                 curve_widget.nudge_selected(dx, dy)
+                # Center view on selection after nudging
+                curve_widget.view_camera.center_on_selection()
             elif context.current_frame is not None:
                 # Find the point at the current frame using ApplicationState
                 app_state = get_application_state()
@@ -719,6 +721,8 @@ class NudgePointsCommand(ShortcutCommand):
                     # Temporarily select the point, nudge it, then clear
                     curve_widget.select_point(point_index, add_to_selection=False)
                     curve_widget.nudge_selected(dx, dy)
+                    # Center view on selection before clearing it
+                    curve_widget.view_camera.center_on_selection()
                     curve_widget.clear_selection()
 
             curve_widget.update()
