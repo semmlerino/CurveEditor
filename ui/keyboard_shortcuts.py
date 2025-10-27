@@ -6,14 +6,11 @@ This module provides a centralized way to manage keyboard shortcuts for the
 application, creating and managing all QActions with their shortcuts.
 """
 
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import QWidget
-
-if TYPE_CHECKING:
-    pass
 
 from core.logger_utils import get_logger
 

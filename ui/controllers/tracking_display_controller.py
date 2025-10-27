@@ -6,7 +6,7 @@ Part of the MultiPointTrackingController split (PLAN TAU Phase 3 Task 3.1).
 """
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from PySide6.QtCore import Signal, Slot
 
@@ -15,9 +15,6 @@ from core.logger_utils import get_logger
 from core.type_aliases import CurveDataInput, CurveDataList, LegacyPointData
 from protocols.ui import MainWindowProtocol
 from ui.controllers.base_tracking_controller import BaseTrackingController
-
-if TYPE_CHECKING:
-    pass
 
 logger = get_logger("tracking_display_controller")
 

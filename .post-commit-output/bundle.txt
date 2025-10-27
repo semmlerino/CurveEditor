@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (129.1MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 208 files to bundle
+Skipping large file (129.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 205 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -24,10 +24,12 @@ Bundled: CONSOLIDATION_EXECUTIVE_SUMMARY.txt
 Bundled: CONSOLIDATION_INDEX.md
 Bundled: CONSOLIDATION_QUICK_REFERENCE.txt
 Bundled: CONSOLIDATION_SYNTHESIS.md
+Bundled: CORRECTED_QUICK_WINS.md
 Bundled: CRITICAL_FINDINGS.md
 Bundled: DEBUGGING_METHODOLOGY.md
 Bundled: KeyFrameTest.txt
 Bundled: main.py
+Bundled: NEXT_STEPS.md
 Bundled: PHASE4_SUMMARY.txt
 Bundled: PHASE5_SUMMARY.txt
 Bundled: Point01.txt
@@ -88,7 +90,6 @@ Bundled: core/logger_utils.py
 Bundled: core/math_utils.py
 Bundled: core/metadata_extractor.py
 Bundled: core/models.py
-Bundled: core/monitoring.py
 Bundled: core/path_security.py
 Bundled: core/point_types.py
 Bundled: core/signal_manager.py
@@ -141,8 +142,6 @@ Bundled: rendering/visual_settings.py
 Bundled: rendering/__init__.py
 Bundled: scripts/check_legacy_patterns.py
 Bundled: scripts/measure_memory.py
-Bundled: services/cache_service.py
-Bundled: services/coordinate_service.py
 Bundled: services/data_service.py
 Bundled: services/interaction_service.py
 Bundled: services/service_protocols.py
@@ -163,8 +162,6 @@ Bundled: ui/color_constants.py
 Bundled: ui/color_manager.py
 Bundled: ui/curve_view_widget.py
 Bundled: ui/dark_theme_stylesheet.py
-Bundled: ui/error_handler.py
-Bundled: ui/error_handlers.py
 Bundled: ui/file_operations.py
 Bundled: ui/frame_tab.py
 Bundled: ui/global_event_filter.py
@@ -214,9 +211,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.54 MB
+Folder size: 2.50 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 811900 bytes
+Encoded size: 803128 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

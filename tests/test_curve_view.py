@@ -87,8 +87,8 @@ class TestCurveViewWidgetInitialization:
     def test_rendering_settings(self, curve_view_widget: CurveViewWidget) -> None:
         """Test that rendering settings are properly initialized."""
         # Visual parameters migrated to VisualSettings (Phase 5)
-        assert curve_view_widget.visual.point_radius == 5
-        assert curve_view_widget.visual.selected_point_radius == 7
+        assert curve_view_widget.visual.point_radius == 2.5
+        assert curve_view_widget.visual.selected_point_radius == 3.0
         assert curve_view_widget.visual.line_width == 2
         assert curve_view_widget.visual.selected_line_width == 3
 

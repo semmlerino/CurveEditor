@@ -728,7 +728,8 @@ class TestMultiControllerSignalChains:
             qtbot.wait(100)
 
             # Verify UI responded (check visual settings, not deprecated property)
-            assert window.curve_widget.visual.point_radius == 10, "Point radius should have changed"
+            # Note: update_curve_point_size converts slider value (1-20) to radius via * 0.25
+            assert window.curve_widget.visual.point_radius == 2.5, "Point radius should have changed to 2.5 (10 * 0.25)"
 
             # Change view through UI and verify view options is aware
             window.curve_widget.zoom_factor = 2.0

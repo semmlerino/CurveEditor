@@ -9,8 +9,6 @@ All values are designed to be DPI-aware and follow modern UI/UX best practices.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 # Import all color functionality from color_manager for backward compatibility
 # These are re-exported for other modules - pyright: ignore
 from ui.color_manager import (  # noqa: F401
@@ -27,9 +25,6 @@ from ui.color_manager import (  # noqa: F401
     hex_to_rgb,  # pyright: ignore[reportUnusedImport]
     tuple_status_to_string,  # pyright: ignore[reportUnusedImport]
 )
-
-if TYPE_CHECKING:
-    pass
 
 # ============================================================================
 # FONT SYSTEM

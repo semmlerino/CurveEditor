@@ -9,12 +9,9 @@ from __future__ import annotations
 
 import os
 import re
-from typing import TYPE_CHECKING, ClassVar, override
+from typing import ClassVar, override
 
 from PySide6.QtCore import QThread, Signal
-
-if TYPE_CHECKING:
-    pass
 
 # Configure logger
 from core.logger_utils import get_logger

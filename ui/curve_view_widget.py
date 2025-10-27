@@ -1107,20 +1107,21 @@ class CurveViewWidget(QWidget):
             idx: Index of the point to change
             status: New PointStatus value
         """
-        # Update via ApplicationState
-        active_curve = self._app_state.active_curve
-        if active_curve:
-            curve_data = self._app_state.get_curve_data(active_curve)
-            if 0 <= idx < len(curve_data):
-                point = curve_data[idx]
-                frame = point[0]
-                logger.info(f"Changed point {idx} (frame {frame}) status to {status.value}")
+        # Update via ApplicationState - use active_curve_data property
+        if (cd := self._app_state.active_curve_data) is None:
+            return
+        curve_name, curve_data = cd
 
-                # Update point status via ApplicationState
-                from core.models import CurvePoint
+        if 0 <= idx < len(curve_data):
+            point = curve_data[idx]
+            frame = point[0]
+            logger.info(f"Changed point {idx} (frame {frame}) status to {status.value}")
 
-                updated_point = CurvePoint.from_tuple(point).with_status(status)
-                self._app_state.update_point(active_curve, idx, updated_point)
+            # Update point status via ApplicationState
+            from core.models import CurvePoint
+
+            updated_point = CurvePoint.from_tuple(point).with_status(status)
+            self._app_state.update_point(curve_name, idx, updated_point)
 
     @override
     def wheelEvent(self, event: QWheelEvent) -> None:

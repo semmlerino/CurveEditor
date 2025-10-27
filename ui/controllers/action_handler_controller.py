@@ -7,17 +7,13 @@ handled directly in MainWindow. It maintains exact compatibility with the
 existing ShortcutManager connections and behavior.
 """
 
-from typing import TYPE_CHECKING, cast
+from typing import cast
 
 from PySide6.QtCore import Slot
 
 from core.type_aliases import CurveDataList
 from protocols.ui import MainWindowProtocol, StateManagerProtocol
 from services import get_data_service
-
-if TYPE_CHECKING:
-    pass
-
 from core.logger_utils import get_logger
 
 logger = get_logger("action_handler_controller")

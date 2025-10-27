@@ -716,14 +716,13 @@ class StateManager(QObject):
 
     def get_state_summary(self) -> dict[str, object]:
         """Get a summary of the current state for debugging (Phase 3.3: Updated to use ApplicationState)."""
-        # Get data from ApplicationState for active curve
-        active_curve = self._app_state.active_curve
+        # Get data from ApplicationState for active curve - use active_curve_data property
         has_data = False
         point_count = 0
         data_bounds = None
 
-        if active_curve:
-            curve_data = self._app_state.get_curve_data(active_curve)
+        if (cd := self._app_state.active_curve_data) is not None:
+            curve_name, curve_data = cd
             if curve_data:
                 has_data = True
                 point_count = len(curve_data)

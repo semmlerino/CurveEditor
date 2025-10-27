@@ -918,17 +918,16 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
 
         app_state = get_application_state()
 
-        # Get active curve
-        active_curve = app_state.active_curve
-        if not active_curve:
+        # Get active curve data - use active_curve_data property
+        if (cd := app_state.active_curve_data) is None:
             self._safe_set_label(self.type_label, "Status: --")
             return
+        curve_name, curve_data = cd
 
         # Get current frame
         current_frame = app_state.current_frame
 
-        # Get curve data
-        curve_data = app_state.get_curve_data(active_curve)
+        # Check if curve has data
         if not curve_data:
             self._safe_set_label(self.type_label, "Status: --")
             return

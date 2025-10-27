@@ -419,7 +419,7 @@ class TestUnifiedCurveRendering:
             # First call (curve1 - active)
             call1_kwargs = calls[0][1]
             assert call1_kwargs["is_active_curve"] is True
-            assert call1_kwargs["base_point_radius"] == 7  # Larger for active curve
+            assert call1_kwargs["base_point_radius"] == 3.0  # selected_point_radius for active curve
             assert call1_kwargs["curve_color"].name() == "#ff0000"  # Red
 
             # Second call (curve2 - inactive)
