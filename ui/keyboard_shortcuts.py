@@ -52,6 +52,8 @@ class ShortcutManager(QObject):
     action_zoom_fit: QAction
     action_reset_view: QAction
     action_toggle_grid: QAction
+    action_increase_grid_size: QAction
+    action_decrease_grid_size: QAction
 
     # Curve actions
     action_smooth_curve: QAction
@@ -137,12 +139,12 @@ class ShortcutManager(QObject):
     def _create_view_actions(self) -> None:
         """Create view-related QActions."""
         self.action_zoom_in = QAction("Zoom &In", self.parent_widget)
-        self.action_zoom_in.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        self.action_zoom_in.setStatusTip("Zoom in the view")
+        # No keyboard shortcut - use mouse wheel
+        self.action_zoom_in.setStatusTip("Zoom in the view (use mouse wheel)")
 
         self.action_zoom_out = QAction("Zoom &Out", self.parent_widget)
-        self.action_zoom_out.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        self.action_zoom_out.setStatusTip("Zoom out the view")
+        # No keyboard shortcut - use mouse wheel
+        self.action_zoom_out.setStatusTip("Zoom out the view (use mouse wheel)")
 
         self.action_zoom_fit = QAction("Zoom &Fit", self.parent_widget)
         self.action_zoom_fit.setShortcut("Ctrl+0")
@@ -155,6 +157,14 @@ class ShortcutManager(QObject):
         self.action_toggle_grid = QAction("Toggle &Grid", self.parent_widget)
         self.action_toggle_grid.setShortcut("Ctrl+Shift+G")
         self.action_toggle_grid.setStatusTip("Show/hide the grid overlay")
+
+        self.action_increase_grid_size = QAction("Increase Grid Size", self.parent_widget)
+        self.action_increase_grid_size.setShortcut("Ctrl++")
+        self.action_increase_grid_size.setStatusTip("Increase grid cell size (Ctrl++)")
+
+        self.action_decrease_grid_size = QAction("Decrease Grid Size", self.parent_widget)
+        self.action_decrease_grid_size.setShortcut("Ctrl+-")
+        self.action_decrease_grid_size.setStatusTip("Decrease grid cell size (Ctrl+-)")
 
     def _create_curve_actions(self) -> None:
         """Create curve manipulation QActions."""
@@ -249,6 +259,9 @@ class ShortcutManager(QObject):
             None,  # Separator
             self.action_reset_view,
             self.action_toggle_grid,
+            None,  # Separator
+            self.action_increase_grid_size,
+            self.action_decrease_grid_size,
         ]
 
     def get_curve_actions(self) -> list[QAction | None]:
@@ -305,6 +318,8 @@ class ShortcutManager(QObject):
             "zoom_fit": self.action_zoom_fit,
             "reset_view": self.action_reset_view,
             "toggle_grid": self.action_toggle_grid,
+            "increase_grid_size": self.action_increase_grid_size,
+            "decrease_grid_size": self.action_decrease_grid_size,
             "smooth_curve": self.action_smooth_curve,
             "filter_curve": self.action_filter_curve,
             "analyze_curve": self.action_analyze_curve,
@@ -342,8 +357,9 @@ class ShortcutManager(QObject):
         _ = self.action_zoom_out.triggered.connect(main_window.on_action_zoom_out)
         _ = self.action_zoom_fit.triggered.connect(main_window.on_zoom_fit)
         _ = self.action_reset_view.triggered.connect(main_window.on_action_reset_view)
-        # TODO: Implement toggle_grid handler in MainWindow
-        # _ = self.action_toggle_grid.triggered.connect(main_window.on_toggle_grid)
+        _ = self.action_toggle_grid.triggered.connect(main_window.on_toggle_grid)
+        _ = self.action_increase_grid_size.triggered.connect(main_window.on_increase_grid_size)
+        _ = self.action_decrease_grid_size.triggered.connect(main_window.on_decrease_grid_size)
 
         # Curve actions
         _ = self.action_smooth_curve.triggered.connect(main_window.on_smooth_curve)
@@ -357,6 +373,9 @@ class ShortcutManager(QObject):
         main_window.addAction(self.action_zoom_in)
         main_window.addAction(self.action_zoom_out)
         main_window.addAction(self.action_reset_view)
+        main_window.addAction(self.action_toggle_grid)
+        main_window.addAction(self.action_increase_grid_size)
+        main_window.addAction(self.action_decrease_grid_size)
 
         # Navigation actions (now handled by TimelineController)
         _ = self.action_next_frame.triggered.connect(main_window.timeline_controller._on_next_frame)

@@ -265,9 +265,12 @@ class OptimizedCurveRenderer:
         # At zoom=0.1, points are 10% of base size
         scaled = base_radius * zoom_factor
 
-        # Constrain to prevent points from being too small or too large
-        min_radius = 1.0  # Minimum 1 pixel - visible but not obtrusive when zoomed out
-        max_radius = 12.0  # Maximum 12 pixels to avoid excessive overlap when zoomed in
+        # Constrain to prevent points from being too large
+        # Minimum 0.25 pixel - allows very small but still visible points when zoomed out
+        min_radius = 0.25
+        # Maximum respects user's point size preference (slider range: 2-20)
+        # Multiplier of 2.5 allows reasonable zoom before clamping
+        max_radius = base_radius * 2.5
 
         result = max(min_radius, min(max_radius, scaled))
 
@@ -812,7 +815,7 @@ class OptimizedCurveRenderer:
         ],
         visible_indices: IntArray | None = None,
         step: int = 1,
-        base_point_radius: int | None = None,
+        base_point_radius: float | None = None,
         curve_color: QColor | None = None,
         is_active_curve: bool = True,
     ) -> None:
@@ -1108,24 +1111,16 @@ class OptimizedCurveRenderer:
         selected_curves_ordered = render_state.selected_curves_ordered or []
         visible_curves = render_state.visible_curves
 
-        # DIAGNOSTIC LOGGING
-        logger.info(f"_render_multiple_curves: Processing {len(curves_data)} curves")
-        logger.info(f"  visible_curves: {visible_curves}")
-
         # Get transform once for all curves
         transform = self._create_transform_from_render_state(render_state)
 
         for curve_name, curve_points in curves_data.items():
             if not curve_points:
-                logger.info(f"  {curve_name}: SKIPPED (no points)")
                 continue
 
             # Visibility check: use pre-computed visibility from RenderState
             if visible_curves is None or curve_name not in visible_curves:
-                logger.info(f"  {curve_name}: SKIPPED (not in visible_curves)")
                 continue
-
-            logger.info(f"  {curve_name}: RENDERING {len(curve_points)} points")
 
             # Determine curve styling
             is_active = curve_name == active_curve
@@ -1252,10 +1247,13 @@ class OptimizedCurveRenderer:
         pen.setWidth(1)
         painter.setPen(pen)
 
-        # Adaptive grid spacing based on zoom
+        # Grid spacing from visual settings
         zoom = render_state.zoom_factor
-        base_step = 50
-        step = max(25, int(base_step / max(1, zoom / 2)))  # Adjust grid density
+        if render_state.visual:
+            base_step = render_state.visual.grid_size
+        else:
+            base_step = 50  # Fallback
+        step = max(10, int(base_step / max(1, zoom / 2)))  # Adjust grid density with zoom
 
         width = render_state.widget_width
         height = render_state.widget_height

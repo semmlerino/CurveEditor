@@ -744,11 +744,63 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
         self.action_controller.on_action_reset_view()
 
     @Slot()
-    def _on_toggle_grid(self) -> None:
-        """Toggle the grid visibility."""
+    def on_toggle_grid(self) -> None:
+        """Toggle the grid visibility and center on current frame's point."""
         if self.show_grid_cb:
             # Toggle the checkbox state, which will trigger the existing handler
-            self.show_grid_cb.setChecked(not self.show_grid_cb.isChecked())
+            new_state = not self.show_grid_cb.isChecked()
+            self.show_grid_cb.setChecked(new_state)
+
+            # If enabling the grid, center view on current frame's point and select it
+            # This ensures the grid origin is at the current point
+            if new_state and self.curve_view:
+                from stores.application_state import get_application_state
+                app_state = get_application_state()
+                current_frame = app_state.current_frame
+
+                # Find the point at the current frame
+                if (curve_data := app_state.active_curve_data) is not None:
+                    curve_name, data = curve_data
+
+                    # Find index of point at current frame
+                    point_idx = None
+                    for idx, point in enumerate(data):
+                        if point[0] == current_frame:
+                            point_idx = idx
+                            break
+
+                    if point_idx is not None:
+                        # Select only the current frame's point
+                        # This makes the grid center on it (grid renderer uses selected points)
+                        app_state.set_selection(curve_name, {point_idx})
+
+                        # Center view on the current frame's point
+                        self.curve_view.center_on_frame(current_frame)
+                    else:
+                        # No point at current frame, just center on interpolated position
+                        self.curve_view.center_on_frame(current_frame)
+
+    @Slot()
+    def on_increase_grid_size(self) -> None:
+        """Increase the grid cell size."""
+        if self.curve_view:
+            current_size = self.curve_view.visual.grid_size
+            # Increase by 10 pixels, max 200
+            new_size = min(current_size + 10, 200)
+            self.curve_view.visual.grid_size = new_size
+            self.curve_view.update()
+            logger.info(f"Grid size increased to {new_size}")
+
+    @Slot()
+    def on_decrease_grid_size(self) -> None:
+        """Decrease the grid cell size."""
+        if self.curve_view:
+            current_size = self.curve_view.visual.grid_size
+            # Decrease by 10 pixels, min 10
+            new_size = max(current_size - 10, 10)
+            self.curve_view.visual.grid_size = new_size
+            self.curve_view.update()
+            logger.info(f"Grid size decreased to {new_size}")
 
     @Slot()
     def on_load_images(self) -> None:
@@ -1263,15 +1315,19 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             # Gather current session data
             from typing import cast
 
+            # Get image data from ApplicationState (single source of truth)
+            image_directory = app_state.get_image_directory()
+            image_files = app_state.get_image_files()
+
             # Debug logging to see what values we're saving
             logger.debug(
                 f"[SESSION-SAVE] tracking_file={self.state_manager.current_file}, " +
-                f"image_directory={self.state_manager.image_directory}"
+                f"image_directory={image_directory}, image_files={len(image_files) if image_files else 0}"
             )
 
             session_data = self._session_manager.create_session_data(
                 tracking_file=self.state_manager.current_file,
-                image_directory=self.state_manager.image_directory,
+                image_directory=image_directory,
                 current_frame=self.timeline_controller.get_current_frame(),
                 zoom_level=self.state_manager.zoom_level,
                 pan_offset=self.state_manager.pan_offset,
@@ -1279,6 +1335,9 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
                 selected_curves=list(app_state.get_selected_curves()),
                 show_all_curves=app_state.get_show_all_curves(),
             )
+
+            # Add image files to session data (not part of create_session_data signature)
+            session_data["image_files"] = image_files
 
             # Save session to file
             if self._session_manager.save_session(session_data):

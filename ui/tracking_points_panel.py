@@ -329,9 +329,6 @@ class TrackingPointsPanel(QWidget):
             if item:
                 selected_points.append(item.text())
 
-        # DEBUG: Log selected points
-        logger.info(f"[MULTI-CURVE-DEBUG] get_selected_points() returning: {selected_points}")
-
         return selected_points
 
     def set_selected_points(self, point_names: list[str]) -> None:

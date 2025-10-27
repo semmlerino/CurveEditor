@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from PySide6.QtGui import QPixmap
     from PySide6.QtWidgets import QPushButton, QRubberBand, QStatusBar
 
+    from rendering.visual_settings import VisualSettings
     from ui.protocols.controller_protocols import TimelineControllerProtocol
 
 from protocols.data import CurveDataInput, CurveDataList, HistoryState, QtPointF
@@ -263,6 +264,9 @@ class CurveViewProtocol(Protocol):
     scale_to_image: bool
     flip_y_axis: bool
 
+    # Visual settings (rendering configuration)
+    visual: "VisualSettings"
+
     # Parent reference
     main_window: "MainWindowProtocol"
 
@@ -347,6 +351,10 @@ class CurveViewProtocol(Protocol):
 
     def setup_for_pixel_tracking(self) -> None:
         """Set up the view for screen/pixel-coordinate tracking data."""
+        ...
+
+    def center_on_frame(self, frame: int) -> None:
+        """Center view on a specific frame's point position."""
         ...
 
 
