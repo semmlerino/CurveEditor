@@ -11,23 +11,20 @@ from typing import TYPE_CHECKING, cast
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction
 from PySide6.QtWidgets import (
-    QCheckBox,
-    QComboBox,
     QDockWidget,
-    QDoubleSpinBox,
     QFrame,
     QHBoxLayout,
     QLabel,
     QMenu,
-    QPushButton,
     QSlider,
-    QSpinBox,
     QStatusBar,
     QStyle,
     QToolBar,
     QVBoxLayout,
     QWidget,
 )
+
+from ui import widget_factory
 
 if TYPE_CHECKING:
     from ui.main_window import MainWindow
@@ -229,14 +226,15 @@ class UIInitializationController:
         smoothing_layout.setSpacing(4)
 
         # Add smoothing label
-        smoothing_layout.addWidget(QLabel("Smoothing:"))
+        smoothing_layout.addWidget(widget_factory.create_label("Smoothing:"))
 
         # Filter type combo box with retry logic for test environments
         try:
-            self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
-            self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average", "Median", "Butterworth"])
-            self.main_window.ui.toolbar.smoothing_type_combo.setCurrentIndex(0)
-            self.main_window.ui.toolbar.smoothing_type_combo.setToolTip("Select smoothing filter type")
+            self.main_window.ui.toolbar.smoothing_type_combo = widget_factory.create_combobox(
+                items=["Moving Average", "Median", "Butterworth"],
+                current_index=0,
+                tooltip="Select smoothing filter type",
+            )
             _ = self.main_window.ui.toolbar.smoothing_type_combo.currentTextChanged.connect(
                 self._on_smoothing_type_changed
             )
@@ -251,17 +249,17 @@ class UIInitializationController:
         except Exception as e:
             logger.warning(f"Failed to create smoothing type combo: {e}")
             # Create a minimal fallback widget to prevent attribute errors
-            self.main_window.ui.toolbar.smoothing_type_combo = QComboBox()
-            self.main_window.ui.toolbar.smoothing_type_combo.addItems(["Moving Average"])
+            self.main_window.ui.toolbar.smoothing_type_combo = widget_factory.create_combobox(
+                items=["Moving Average"], current_index=0
+            )
 
         # Size label
-        smoothing_layout.addWidget(QLabel("Size:"))
+        smoothing_layout.addWidget(widget_factory.create_label("Size:"))
 
         # Window size spin box
-        self.main_window.ui.toolbar.smoothing_size_spinbox = QSpinBox()
-        self.main_window.ui.toolbar.smoothing_size_spinbox.setRange(3, 15)
-        self.main_window.ui.toolbar.smoothing_size_spinbox.setValue(5)
-        self.main_window.ui.toolbar.smoothing_size_spinbox.setToolTip("Smoothing window size (3-15)")
+        self.main_window.ui.toolbar.smoothing_size_spinbox = widget_factory.create_spinbox(
+            minimum=3, maximum=15, value=5, tooltip="Smoothing window size (3-15)"
+        )
         _ = self.main_window.ui.toolbar.smoothing_size_spinbox.valueChanged.connect(self._on_smoothing_size_changed)
         smoothing_layout.addWidget(self.main_window.ui.toolbar.smoothing_size_spinbox)
 
@@ -271,8 +269,10 @@ class UIInitializationController:
         _ = toolbar.addSeparator()
 
         # Add frame control to toolbar (from TimelineController)
-        _ = toolbar.addWidget(QLabel("Frame:"))
+        _ = toolbar.addWidget(widget_factory.create_label("Frame:"))
         # Access timeline controller widgets via cast - not exposed in protocol
+        from PySide6.QtWidgets import QSpinBox
+
         frame_spinbox = cast(QSpinBox, self.main_window.timeline_controller.frame_spinbox)
         self.main_window.frame_spinbox = frame_spinbox
         _ = toolbar.addWidget(frame_spinbox)
@@ -280,21 +280,17 @@ class UIInitializationController:
         _ = toolbar.addSeparator()
 
         # Add view option checkboxes to toolbar
-        self.main_window.show_background_cb = QCheckBox("Background")
-        self.main_window.show_background_cb.setChecked(True)
+        self.main_window.show_background_cb = widget_factory.create_checkbox("Background", checked=True)
         _ = toolbar.addWidget(self.main_window.show_background_cb)
 
-        self.main_window.show_grid_cb = QCheckBox("Grid")
-        self.main_window.show_grid_cb.setChecked(False)
+        self.main_window.show_grid_cb = widget_factory.create_checkbox("Grid", checked=False)
         _ = toolbar.addWidget(self.main_window.show_grid_cb)
 
-        self.main_window.show_info_cb = QCheckBox("Info")
-        self.main_window.show_info_cb.setChecked(True)
+        self.main_window.show_info_cb = widget_factory.create_checkbox("Info", checked=True)
         _ = toolbar.addWidget(self.main_window.show_info_cb)
 
         # Add tooltip toggle checkbox
-        self.main_window.show_tooltips_cb = QCheckBox("Tooltips")
-        self.main_window.show_tooltips_cb.setChecked(False)  # Off by default
+        self.main_window.show_tooltips_cb = widget_factory.create_checkbox("Tooltips", checked=False)
         _ = toolbar.addWidget(self.main_window.show_tooltips_cb)
 
         # Create widgets needed for UIComponents compatibility
@@ -308,34 +304,32 @@ class UIInitializationController:
     def _create_ui_component_widgets(self) -> None:
         """Create widgets needed for UIComponents compatibility."""
         # Point editing widgets (used in properties panel if it exists)
-        self.main_window.point_x_spinbox = QDoubleSpinBox()
-        self.main_window.point_x_spinbox.setRange(-10000, 10000)
-        self.main_window.point_x_spinbox.setDecimals(3)
-        self.main_window.point_x_spinbox.setEnabled(False)
+        self.main_window.point_x_spinbox = widget_factory.create_double_spinbox(
+            minimum=-10000, maximum=10000, decimals=3, enabled=False
+        )
         self.main_window.ui.point_edit.x_edit = self.main_window.point_x_spinbox
 
-        self.main_window.point_y_spinbox = QDoubleSpinBox()
-        self.main_window.point_y_spinbox.setRange(-10000, 10000)
-        self.main_window.point_y_spinbox.setDecimals(3)
-        self.main_window.point_y_spinbox.setEnabled(False)
+        self.main_window.point_y_spinbox = widget_factory.create_double_spinbox(
+            minimum=-10000, maximum=10000, decimals=3, enabled=False
+        )
         self.main_window.ui.point_edit.y_edit = self.main_window.point_y_spinbox
 
         # Visualization sliders (used in properties panel if it exists)
         # Slider range 1-20 maps to point radius 0.25-5.0 (each tick = 0.25)
-        self.main_window.point_size_slider = QSlider(Qt.Orientation.Horizontal)
-        self.main_window.point_size_slider.setMinimum(1)
-        self.main_window.point_size_slider.setMaximum(20)
-        self.main_window.point_size_slider.setValue(10)  # Default 2.5 (10 * 0.25)
+        self.main_window.point_size_slider = widget_factory.create_slider(
+            minimum=1, maximum=20, value=10, orientation=Qt.Orientation.Horizontal  # Default 2.5 (10 * 0.25)
+        )
         self.main_window.ui.visualization.point_size_slider = self.main_window.point_size_slider
 
-        self.main_window.line_width_slider = QSlider(Qt.Orientation.Horizontal)
-        self.main_window.line_width_slider.setMinimum(1)
-        self.main_window.line_width_slider.setMaximum(10)
-        self.main_window.line_width_slider.setValue(2)
+        self.main_window.line_width_slider = widget_factory.create_slider(
+            minimum=1, maximum=10, value=2, orientation=Qt.Orientation.Horizontal
+        )
         self.main_window.ui.visualization.line_width_slider = self.main_window.line_width_slider
 
         # Playback controls from TimelineController
         # Access timeline controller widgets via cast - not exposed in protocol
+        from PySide6.QtWidgets import QPushButton, QSpinBox
+
         btn_play_pause = cast(QPushButton, self.main_window.timeline_controller.btn_play_pause)
         self.main_window.btn_play_pause = btn_play_pause
         self.main_window.ui.timeline.play_button = self.main_window.btn_play_pause
@@ -351,13 +345,13 @@ class UIInitializationController:
         self.main_window.ui.timeline.timeline_slider = self.main_window.frame_slider
 
         # Labels
-        self.main_window.total_frames_label = QLabel("1")
+        self.main_window.total_frames_label = widget_factory.create_label("1")
         self.main_window.ui.status.info_label = self.main_window.total_frames_label
-        self.main_window.point_count_label = QLabel("Points: 0")
+        self.main_window.point_count_label = widget_factory.create_label("Points: 0")
         self.main_window.ui.status.quality_score_label = self.main_window.point_count_label
-        self.main_window.selected_count_label = QLabel("Selected: 0")
+        self.main_window.selected_count_label = widget_factory.create_label("Selected: 0")
         self.main_window.ui.status.quality_coverage_label = self.main_window.selected_count_label
-        self.main_window.bounds_label = QLabel("Bounds: N/A")
+        self.main_window.bounds_label = widget_factory.create_label("Bounds: N/A")
         self.main_window.ui.status.quality_consistency_label = self.main_window.bounds_label
 
     def _init_central_widget(self) -> None:
@@ -477,20 +471,20 @@ class UIInitializationController:
         viz_layout.setSpacing(10)
 
         # Point Size slider
-        point_size_label = QLabel("Point Size:")
+        point_size_label = widget_factory.create_label("Point Size:")
         viz_layout.addWidget(point_size_label, 0, 0)
         viz_layout.addWidget(self.main_window.point_size_slider, 0, 1)
 
-        point_size_value = QLabel(str(self.main_window.point_size_slider.value()))
+        point_size_value = widget_factory.create_label(str(self.main_window.point_size_slider.value()))
         viz_layout.addWidget(point_size_value, 0, 2)
         self.main_window.point_size_slider.valueChanged.connect(lambda v: point_size_value.setText(str(v)))
 
         # Line Width slider
-        line_width_label = QLabel("Line Width:")
+        line_width_label = widget_factory.create_label("Line Width:")
         viz_layout.addWidget(line_width_label, 1, 0)
         viz_layout.addWidget(self.main_window.line_width_slider, 1, 1)
 
-        line_width_value = QLabel(str(self.main_window.line_width_slider.value()))
+        line_width_value = widget_factory.create_label(str(self.main_window.line_width_slider.value()))
         viz_layout.addWidget(line_width_value, 1, 2)
         self.main_window.line_width_slider.valueChanged.connect(lambda v: line_width_value.setText(str(v)))
 
@@ -512,18 +506,18 @@ class UIInitializationController:
         self.main_window.setStatusBar(self.main_window.status_bar)
 
         # Add primary status label (left side)
-        self.main_window.status_label = QLabel("Ready")
+        self.main_window.status_label = widget_factory.create_label("Ready")
         self.main_window.status_bar.addWidget(self.main_window.status_label)
 
         # Add permanent widgets to status bar (right side)
-        self.main_window.zoom_label = QLabel("Zoom: 100%")
+        self.main_window.zoom_label = widget_factory.create_label("Zoom: 100%")
         self.main_window.status_bar.addPermanentWidget(self.main_window.zoom_label)
 
-        self.main_window.position_label = QLabel("X: 0.000, Y: 0.000")
+        self.main_window.position_label = widget_factory.create_label("X: 0.000, Y: 0.000")
         self.main_window.status_bar.addPermanentWidget(self.main_window.position_label)
 
         # Point status label
-        self.main_window.type_label = QLabel("Status: --")
+        self.main_window.type_label = widget_factory.create_label("Status: --")
         self.main_window.ui.point_edit.type_label = self.main_window.type_label
         self.main_window.status_bar.addPermanentWidget(self.main_window.type_label)
 

@@ -1,8 +1,8 @@
 Creating encoded bundle...
 Loaded config from transfer_config.json
 Creating application bundle...
-Skipping large file (129.3MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
-Found 205 files to bundle
+Skipping large file (129.8MB): .serena/cache/python/document_symbols_cache_v23-06-25.pkl
+Found 200 files to bundle
 Bundled: .pre-commit-config.yaml
 Bundled: .txt
 Bundled: 2D Vector and Point Handling in 3DEqualizer.md
@@ -23,8 +23,8 @@ Bundled: conftest.py
 Bundled: CONSOLIDATION_EXECUTIVE_SUMMARY.txt
 Bundled: CONSOLIDATION_INDEX.md
 Bundled: CONSOLIDATION_QUICK_REFERENCE.txt
+Bundled: CONSOLIDATION_ROADMAP.md
 Bundled: CONSOLIDATION_SYNTHESIS.md
-Bundled: CORRECTED_QUICK_WINS.md
 Bundled: CRITICAL_FINDINGS.md
 Bundled: DEBUGGING_METHODOLOGY.md
 Bundled: KeyFrameTest.txt
@@ -37,9 +37,7 @@ Bundled: Point01_only.txt
 Bundled: pytest.ini
 Bundled: py_doc_r8.0.txt
 Bundled: QUICK_REFERENCE.md
-Bundled: QUICK_WINS_CHECKLIST.md
 Bundled: README.md
-Bundled: REFACTORING_ROADMAP_KISS_DRY_YAGNI.md
 Bundled: REGRESSION_PREVENTION.md
 Bundled: requirements.txt
 Bundled: run_tests.sh
@@ -50,7 +48,6 @@ Bundled: TEST_SUITE_COMPLIANCE_ANALYSIS.md
 Bundled: transfer_config.json
 Bundled: TYPE_SAFETY_CODE_PATTERNS.md
 Bundled: TYPE_SAFETY_VERIFICATION.md
-Bundled: VERIFICATION_REPORT.md
 Bundled: VISUAL_SETTINGS_REFACTOR_PLAN.md
 Bundled: VISUAL_SETTINGS_TYPE_SAFETY_INDEX.md
 Bundled: .claude/settings.local.json
@@ -100,7 +97,6 @@ Bundled: core/type_aliases.py
 Bundled: core/user_preferences.py
 Bundled: core/validation_types.py
 Bundled: core/validation_utils.py
-Bundled: core/y_flip_strategy.py
 Bundled: core/__init__.py
 Bundled: core/commands/base_command.py
 Bundled: core/commands/command_manager.py
@@ -132,7 +128,6 @@ Bundled: profiling/cache_profiler.py
 Bundled: profiling/zoom_cache_performance_fix.py
 Bundled: protocols/data.py
 Bundled: protocols/services.py
-Bundled: protocols/state.py
 Bundled: protocols/ui.py
 Bundled: protocols/__init__.py
 Bundled: rendering/optimized_curve_renderer.py
@@ -211,9 +206,9 @@ Bundled: ui/widgets/__init__.py
 Bundle created at: /tmp/curveeditor_bundle_temp
 Encoding bundle...
 Running: /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/venv/bin/python3 /mnt/c/CustomScripts/Python/Work/Linux/CurveEditor/transfer_cli.py /tmp/curveeditor_bundle_temp -o curveeditor_latest.txt -c 5120 --single-file --metadata -v
-Folder size: 2.50 MB
+Folder size: 2.46 MB
 Encoding folder: /tmp/curveeditor_bundle_temp
-Encoded size: 803128 bytes
+Encoded size: 785832 bytes
 Creating 1 chunks of 5120KB each
 Saved combined chunks to: curveeditor_latest.txt
 Saved metadata to: curveeditor_latest_metadata.json

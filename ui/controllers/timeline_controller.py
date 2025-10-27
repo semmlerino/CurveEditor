@@ -10,13 +10,9 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QObject, Qt, QTimer, Signal, Slot
-from PySide6.QtWidgets import (
-    QApplication,
-    QPushButton,
-    QSlider,
-    QSpinBox,
-    QStyle,
-)
+from PySide6.QtWidgets import QApplication, QStyle
+
+from ui import widget_factory
 
 if TYPE_CHECKING:
     from ui.state_manager import StateManager
@@ -148,50 +144,42 @@ class TimelineController(QObject):
 
         # ========== Navigation Widgets ==========
         # Frame spinbox
-        self.frame_spinbox: QSpinBox = QSpinBox()
-        self.frame_spinbox.setMinimum(1)
-        self.frame_spinbox.setMaximum(1000)  # Default max, will be updated
-        self.frame_spinbox.setValue(1)
-        self.frame_spinbox.setToolTip("Current frame")
+        self.frame_spinbox = widget_factory.create_spinbox(
+            minimum=1, maximum=1000, value=1, tooltip="Current frame"  # Default max, will be updated
+        )
 
         # Frame slider
-        self.frame_slider: QSlider = QSlider(Qt.Orientation.Horizontal)
-        self.frame_slider.setMinimum(1)
-        self.frame_slider.setMaximum(1000)  # Match spinbox max
-        self.frame_slider.setValue(1)
-        self.frame_slider.setToolTip("Scrub through frames")
+        self.frame_slider = widget_factory.create_slider(
+            minimum=1, maximum=1000, value=1, orientation=Qt.Orientation.Horizontal, tooltip="Scrub through frames"
+        )
 
         # Navigation buttons
-        self.btn_first: QPushButton = QPushButton()
-        self.btn_first.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward))
-        self.btn_first.setToolTip("First frame")
+        self.btn_first = widget_factory.create_button_with_icon(
+            icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipBackward), tooltip="First frame"
+        )
 
-        self.btn_prev: QPushButton = QPushButton()
-        self.btn_prev.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward))
-        self.btn_prev.setToolTip("Previous frame")
+        self.btn_prev = widget_factory.create_button_with_icon(
+            icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekBackward), tooltip="Previous frame"
+        )
 
-        self.btn_next: QPushButton = QPushButton()
-        self.btn_next.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward))
-        self.btn_next.setToolTip("Next frame")
+        self.btn_next = widget_factory.create_button_with_icon(
+            icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSeekForward), tooltip="Next frame"
+        )
 
-        self.btn_last: QPushButton = QPushButton()
-        self.btn_last.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward))
-        self.btn_last.setToolTip("Last frame")
+        self.btn_last = widget_factory.create_button_with_icon(
+            icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaSkipForward), tooltip="Last frame"
+        )
 
         # ========== Playback Widgets ==========
         # Play/pause button
-        self.btn_play_pause: QPushButton = QPushButton()
-        self.btn_play_pause.setIcon(style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        self.btn_play_pause.setCheckable(True)
-        self.btn_play_pause.setToolTip("Play/Pause (Spacebar)")
+        self.btn_play_pause = widget_factory.create_button_with_icon(
+            icon=style.standardIcon(QStyle.StandardPixmap.SP_MediaPlay), tooltip="Play/Pause (Spacebar)", checkable=True
+        )
 
         # FPS spinbox
-        self.fps_spinbox: QSpinBox = QSpinBox()
-        self.fps_spinbox.setMinimum(1)
-        self.fps_spinbox.setMaximum(120)
-        self.fps_spinbox.setValue(24)
-        self.fps_spinbox.setSuffix(" fps")
-        self.fps_spinbox.setToolTip("Playback speed")
+        self.fps_spinbox = widget_factory.create_spinbox(
+            minimum=1, maximum=120, value=24, tooltip="Playback speed", suffix=" fps"
+        )
 
     def _connect_signals(self) -> None:
         """Connect widget signals."""

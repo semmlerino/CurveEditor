@@ -12,15 +12,9 @@ from typing import TYPE_CHECKING
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
-    QCheckBox,
     QDockWidget,
-    QDoubleSpinBox,
     QFrame,
     QGridLayout,
-    QLabel,
-    QPushButton,
-    QSlider,
-    QSpinBox,
     QStatusBar,
     QStyle,
     QToolBar,
@@ -31,6 +25,7 @@ from PySide6.QtWidgets import (
 if TYPE_CHECKING:
     from .main_window import MainWindow
 
+from ui import widget_factory
 from ui.curve_view_widget import CurveViewWidget
 from ui.tracking_points_panel import TrackingPointsPanel
 
@@ -219,31 +214,24 @@ class MainWindowBuilder:
         _ = toolbar.addSeparator()
 
         # Add frame control to toolbar
-        _ = toolbar.addWidget(QLabel("Frame:"))
-        window.frame_spinbox = QSpinBox()
-        window.frame_spinbox.setMinimum(1)
-        window.frame_spinbox.setMaximum(1000)
-        window.frame_spinbox.setValue(1)
+        _ = toolbar.addWidget(widget_factory.create_label("Frame:"))
+        window.frame_spinbox = widget_factory.create_spinbox(minimum=1, maximum=1000, value=1)
         _ = toolbar.addWidget(window.frame_spinbox)
         window.ui.timeline.frame_spinbox = window.frame_spinbox  # Map to timeline group
         _ = toolbar.addSeparator()
 
         # Add view option checkboxes to toolbar
-        window.show_background_cb = QCheckBox("Background")
-        window.show_background_cb.setChecked(True)
+        window.show_background_cb = widget_factory.create_checkbox("Background", checked=True)
         _ = toolbar.addWidget(window.show_background_cb)
 
-        window.show_grid_cb = QCheckBox("Grid")
-        window.show_grid_cb.setChecked(False)
+        window.show_grid_cb = widget_factory.create_checkbox("Grid", checked=False)
         _ = toolbar.addWidget(window.show_grid_cb)
 
-        window.show_info_cb = QCheckBox("Info")
-        window.show_info_cb.setChecked(True)
+        window.show_info_cb = widget_factory.create_checkbox("Info", checked=True)
         _ = toolbar.addWidget(window.show_info_cb)
 
         # Add tooltip toggle checkbox
-        window.show_tooltips_cb = QCheckBox("Tooltips")
-        window.show_tooltips_cb.setChecked(False)  # Off by default
+        window.show_tooltips_cb = widget_factory.create_checkbox("Tooltips", checked=False)
         _ = toolbar.addWidget(window.show_tooltips_cb)
 
         # Create widgets needed for UIComponents compatibility
@@ -264,58 +252,47 @@ class MainWindowBuilder:
             window: The MainWindow instance
         """
         # Point editing widgets (used in properties panel if it exists)
-        window.point_x_spinbox = QDoubleSpinBox()
-        window.point_x_spinbox.setRange(-10000, 10000)
-        window.point_x_spinbox.setDecimals(3)
-        window.point_x_spinbox.setEnabled(False)
+        window.point_x_spinbox = widget_factory.create_double_spinbox(
+            minimum=-10000, maximum=10000, decimals=3, enabled=False
+        )
         window.ui.point_edit.x_edit = window.point_x_spinbox
 
-        window.point_y_spinbox = QDoubleSpinBox()
-        window.point_y_spinbox.setRange(-10000, 10000)
-        window.point_y_spinbox.setDecimals(3)
-        window.point_y_spinbox.setEnabled(False)
+        window.point_y_spinbox = widget_factory.create_double_spinbox(
+            minimum=-10000, maximum=10000, decimals=3, enabled=False
+        )
         window.ui.point_edit.y_edit = window.point_y_spinbox
 
         # Visualization sliders (used in properties panel if it exists)
         # Slider range 1-20 maps to point radius 0.25-5.0 (each tick = 0.25)
-        window.point_size_slider = QSlider(Qt.Orientation.Horizontal)
-        window.point_size_slider.setMinimum(1)
-        window.point_size_slider.setMaximum(20)
-        window.point_size_slider.setValue(10)  # Default 2.5 (10 * 0.25)
+        window.point_size_slider = widget_factory.create_slider(
+            minimum=1, maximum=20, value=10  # Default 2.5 (10 * 0.25)
+        )
         window.ui.visualization.point_size_slider = window.point_size_slider
 
-        window.line_width_slider = QSlider(Qt.Orientation.Horizontal)
-        window.line_width_slider.setMinimum(1)
-        window.line_width_slider.setMaximum(10)
-        window.line_width_slider.setValue(2)
+        window.line_width_slider = widget_factory.create_slider(minimum=1, maximum=10, value=2)
         window.ui.visualization.line_width_slider = window.line_width_slider
 
         # Keep btn_play_pause as it's used for playback functionality (though not visible)
-        window.btn_play_pause = QPushButton()
-        window.btn_play_pause.setIcon(window.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay))
-        window.btn_play_pause.setCheckable(True)
+        window.btn_play_pause = widget_factory.create_button_with_icon(
+            icon=window.style().standardIcon(QStyle.StandardPixmap.SP_MediaPlay), checkable=True
+        )
         window.ui.timeline.play_button = window.btn_play_pause  # Map to timeline group
 
-        window.fps_spinbox = QSpinBox()
-        window.fps_spinbox.setMinimum(1)
-        window.fps_spinbox.setMaximum(120)
-        window.fps_spinbox.setValue(24)
-        window.fps_spinbox.setSuffix(" fps")
+        window.fps_spinbox = widget_factory.create_spinbox(
+            minimum=1, maximum=120, value=24, suffix=" fps"
+        )
         window.ui.timeline.fps_spinbox = window.fps_spinbox  # Map to timeline group
 
-        window.frame_slider = QSlider(Qt.Orientation.Horizontal)
-        window.frame_slider.setMinimum(1)
-        window.frame_slider.setMaximum(1000)
-        window.frame_slider.setValue(1)
+        window.frame_slider = widget_factory.create_slider(minimum=1, maximum=1000, value=1)
         window.ui.timeline.timeline_slider = window.frame_slider  # Map to timeline group
 
-        window.total_frames_label = QLabel("1")
+        window.total_frames_label = widget_factory.create_label("1")
         window.ui.status.info_label = window.total_frames_label  # Map to status group
-        window.point_count_label = QLabel("Points: 0")
+        window.point_count_label = widget_factory.create_label("Points: 0")
         window.ui.status.quality_score_label = window.point_count_label  # Map to status group
-        window.selected_count_label = QLabel("Selected: 0")
+        window.selected_count_label = widget_factory.create_label("Selected: 0")
         window.ui.status.quality_coverage_label = window.selected_count_label  # Map to status group
-        window.bounds_label = QLabel("Bounds: N/A")
+        window.bounds_label = widget_factory.create_label("Bounds: N/A")
         window.ui.status.quality_consistency_label = window.bounds_label  # Map to status group
 
     def _build_central_widget(self, window: MainWindow) -> None:

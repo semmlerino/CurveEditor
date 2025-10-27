@@ -1,0 +1,718 @@
+2025-10-27 09:42:08 - __main__ - INFO - ShotBot logging initialized
+2025-10-27 09:42:08 - __main__ - INFO - Log file: /nethome/gabriel-h/.shotbot/logs/shotbot.log
+2025-10-27 09:42:08 - __main__ - INFO - Console log level: WARNING
+2025-10-27 09:42:08 - debug_utils - INFO - Enhanced debugging enabled
+2025-10-27 09:42:08 - debug_utils - INFO - Debug level: all
+2025-10-27 09:42:08 - debug_utils - INFO -   Timing: False
+2025-10-27 09:42:08 - debug_utils - INFO -   I/O: False
+2025-10-27 09:42:08 - debug_utils - INFO -   State: False
+2025-10-27 09:42:08 - debug_utils - INFO -   Trace: False
+2025-10-27 09:42:08 - debug_utils - INFO - 
+============================================================
+2025-10-27 09:42:08 - debug_utils - INFO - System Diagnostics
+2025-10-27 09:42:08 - debug_utils - INFO - ============================================================
+2025-10-27 09:42:08 - debug_utils - INFO - {
+  "timestamp": "2025-10-27T09:42:08.853063",
+  "platform": "Linux-5.14.0-503.14.1.el9_5.x86_64-x86_64-with-glibc2.34",
+  "python": "3.11.10 (main, Oct 23 2024, 21:49:40) [GCC 11.4.1 20230605 (Red Hat 11.4.1-2)]",
+  "python_executable": "/software/bluebolt/rez/packages/core/python/3.11.10/platform-linux/arch-x86_64/os-rocky9/bin/python3",
+  "hostname": "tempest.blue-bolt.lan",
+  "user": "gabriel-h",
+  "cwd": "/nethome/gabriel-h",
+  "pid": 3710647,
+  "PATH": [
+    "/software/bluebolt/rez/packages/core/python/3.11.10/platform-linux/arch-x86_64/os-rocky9/bin",
+    "/software/bluebolt/rez/packages/thirdparty/PySide6_Essentials/6.8.2.1/9645a50b415bcaad6bcde791aeb0859a43c56501/bin",
+    "/software/bluebolt/rez/packages/thirdparty/numpy/2.3.3/9645a50b415bcaad6bcde791aeb0859a43c56501/bin",
+    "/software/bluebolt/rez/packages/thirdparty/imageio/2.37.0/9645a50b415bcaad6bcde791aeb0859a43c56501/bin",
+    "/usr/local/bin"
+  ],
+  "fd_count": 18,
+  "memory": {
+    "rss_mb": 99.765625,
+    "percent": 0.07792905459699191
+  },
+  "ulimits": [
+    "real-time non-blocking time  (microseconds, -R) unlimited",
+    "core file size              (blocks, -c) unlimited",
+    "data seg size               (kbytes, -d) unlimited",
+    "scheduling priority                 (-e) 0",
+    "file size                   (blocks, -f) unlimited"
+  ]
+}
+2025-10-27 09:42:08 - debug_utils - INFO - ============================================================
+
+2025-10-27 09:42:08 - threede_scene_finder_optimized - INFO - ThreeDESceneFinder: Using optimized implementation (5-7x performance improvement)
+2025-10-27 09:42:08 - runnable_tracker - DEBUG - QRunnableTracker initialized
+2025-10-27 09:42:08 - cache_manager.CacheManager - DEBUG - Ensured cache directory: /nethome/gabriel-h/.shotbot/cache/production
+2025-10-27 09:42:08 - cache_manager.CacheManager - INFO - SimpleCacheManager initialized: /nethome/gabriel-h/.shotbot/cache/production
+2025-10-27 09:42:09 - process_pool_manager.ProcessPoolManager - INFO - ProcessPoolManager initialized with 4 workers
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Using ProcessPoolManager for process execution
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Ensured cache directory: /nethome/gabriel-h/.shotbot/cache/production
+2025-10-27 09:42:09 - cache_manager.CacheManager - INFO - SimpleCacheManager initialized: /nethome/gabriel-h/.shotbot/cache/production
+2025-10-27 09:42:09 - cleanup_manager.CleanupManager - DEBUG - CleanupManager initialized
+2025-10-27 09:42:09 - refresh_orchestrator.RefreshOrchestrator - DEBUG - RefreshOrchestrator initialized
+2025-10-27 09:42:09 - settings_manager.SettingsManager - INFO - Settings manager initialized: /nethome/gabriel-h/.config/ShotBot/ShotBot.conf
+2025-10-27 09:42:09 - controllers.settings_controller.SettingsController - DEBUG - SettingsController initialized
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - INFO - ThreeDEItemModel initialized with Model/View architecture
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - INFO - ThreeDEItemModel initialized
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Creating ShotModel with 366x faster startup
+2025-10-27 09:42:09 - shot_model.ShotModel - INFO - Loaded 33 shots from cache
+2025-10-27 09:42:09 - shot_model.ShotModel - INFO - Initializing with async loading strategy
+2025-10-27 09:42:09 - shot_model.ShotModel - INFO - Loaded 33 shots from cache instantly
+2025-10-27 09:42:09 - shot_model.ShotModel - INFO - Started background shot loading
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Model initialized with 33 cached shots
+2025-10-27 09:42:09 - utils - DEBUG - Found username 'gabriel-h' from $USER
+2025-10-27 09:42:09 - utils - DEBUG - Excluding users: {'gabriel-h'}
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - INFO - ParallelShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - INFO - PreviousShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - filesystem_coordinator.FilesystemCoordinator - DEBUG - FilesystemCoordinator initialized with 300s TTL
+2025-10-27 09:42:09 - previous_shots_model.PreviousShotsModel - INFO - Loaded 26 previous shots from persistent cache
+2025-10-27 09:42:09 - previous_shots_model.PreviousShotsModel - INFO - PreviousShotsModel initialized
+2025-10-27 09:42:09 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - Created FIFO at /tmp/shotbot_commands.fifo
+2025-10-27 09:42:09 - persistent_terminal_manager.PersistentTerminalManager - INFO - PersistentTerminalManager initialized with FIFO: /tmp/shotbot_commands.fifo
+2025-10-27 09:42:09 - launcher.config_manager.LauncherConfigManager - INFO - Loaded 1 launchers from config
+2025-10-27 09:42:09 - launcher.repository.LauncherRepository - INFO - Loaded 1 launchers from storage
+2025-10-27 09:42:09 - launcher.process_manager.LauncherProcessManager - INFO - LauncherProcessManager initialized with cleanup interval 5000ms
+2025-10-27 09:42:09 - launcher_manager.LauncherManager - INFO - LauncherManager initialized with 1 launchers
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - INFO - ShotItemModel initialized with Model/View architecture
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - INFO - ShotItemModel initialized
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - INFO - Model updated: 33 items, thumbnails: 0 preserved, 0 evicted
+2025-10-27 09:42:09 - base_thumbnail_delegate - DEBUG - ShotGridDelegate initialized with optimized painting
+2025-10-27 09:42:09 - shot_grid_delegate - DEBUG - ShotGridDelegate initialized
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - DEBUG - ShotGridView initialized
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - DEBUG - Model set with 33 items
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - INFO - ShotGridView initialized with Model/View architecture
+2025-10-27 09:42:09 - base_thumbnail_delegate - DEBUG - ThreeDEGridDelegate initialized with optimized painting
+2025-10-27 09:42:09 - threede_grid_delegate - DEBUG - ThreeDEGridDelegate initialized
+2025-10-27 09:42:09 - threede_grid_view.ThreeDEGridView - DEBUG - ThreeDEGridView initialized
+2025-10-27 09:42:09 - threede_grid_view.ThreeDEGridView - INFO - ThreeDEGridView initialized with Model/View architecture
+2025-10-27 09:42:09 - previous_shots_item_model.PreviousShotsItemModel - INFO - PreviousShotsItemModel initialized with Model/View architecture
+2025-10-27 09:42:09 - previous_shots_item_model.PreviousShotsItemModel - INFO - Model updated: 26 items, thumbnails: 0 preserved, 0 evicted
+2025-10-27 09:42:09 - previous_shots_item_model.PreviousShotsItemModel - DEBUG - Updated with 26 previous shots
+2025-10-27 09:42:09 - previous_shots_item_model.PreviousShotsItemModel - INFO - PreviousShotsItemModel initialized
+2025-10-27 09:42:09 - base_thumbnail_delegate - DEBUG - ShotGridDelegate initialized with optimized painting
+2025-10-27 09:42:09 - shot_grid_delegate - DEBUG - ShotGridDelegate initialized
+2025-10-27 09:42:09 - previous_shots_view.PreviousShotsView - DEBUG - PreviousShotsView initialized
+2025-10-27 09:42:09 - previous_shots_view.PreviousShotsView - DEBUG - Model set with 26 items
+2025-10-27 09:42:09 - previous_shots_view.PreviousShotsView - INFO - PreviousShotsView initialized with Model/View architecture
+2025-10-27 09:42:09 - notification_manager - DEBUG - NotificationManager initialized
+2025-10-27 09:42:09 - notification_manager - INFO - NotificationManager initialized with UI references
+2025-10-27 09:42:09 - progress_manager - DEBUG - ProgressManager initialized
+2025-10-27 09:42:09 - progress_manager - INFO - ProgressManager initialized with status bar reference
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Using ThreeDEController for 3DE scene management
+2025-10-27 09:42:09 - controllers.threede_controller.ThreeDEController - DEBUG - ThreeDEController signals connected
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Using LauncherController for launcher management
+2025-10-27 09:42:09 - controllers.launcher_controller.LauncherController - DEBUG - Launcher signals connected
+2025-10-27 09:42:09 - controllers.launcher_controller.LauncherController - DEBUG - LauncherController initialized
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - DEBUG - Thumbnail size changed to 250px
+2025-10-27 09:42:09 - controllers.settings_controller.SettingsController - DEBUG - UI settings applied
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Cache TTL set to 1440 minutes
+2025-10-27 09:42:09 - controllers.settings_controller.SettingsController - DEBUG - Cache settings applied
+2025-10-27 09:42:09 - controllers.settings_controller.SettingsController - INFO - Settings loaded successfully
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Using async initialization (already started in __init__)
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Session warmer thread started in background
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - INFO - Model updated: 33 items, thumbnails: 0 preserved, 0 evicted
+2025-10-27 09:42:09 - main_window - DEBUG - Starting background session pre-warming
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - DEBUG - Populated show filter with 1 shows
+2025-10-27 09:42:09 - shot_grid_view.ShotGridView - INFO - Populated show filter with 1 shows
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Displayed 33 cached shots instantly
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - INFO - Model updated: 81 items, thumbnails: 0 preserved, 0 evicted
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - INFO - Set 81 scenes in model
+2025-10-27 09:42:09 - threede_grid_view.ThreeDEGridView - DEBUG - Populated show filter with 1 shows
+2025-10-27 09:42:09 - threede_grid_view.ThreeDEGridView - INFO - Populated show filter with 1 shows
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Shots already loaded from cache, triggering previous shots refresh immediately
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - 3DE cache is valid - skipping initial scan
+2025-10-27 09:42:09 - main_window.MainWindow - INFO - Shot model now uses reactive signals - background polling disabled for shots
+2025-10-27 09:42:09 - controllers.launcher_controller.LauncherController - INFO - 🎯 Set current shot: DM_062_3900 (cleared scene context)
+2025-10-27 09:42:09 - runnable_tracker - DEBUG - Registered InfoPanelPixmapLoader (active: 1, total: 1)
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - plate_discovery - INFO - Found 1 primary plates: ['FG01']
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for nuke
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for maya
+2025-10-27 09:42:09 - shot_info_panel - DEBUG - Successfully loaded info panel thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3900_thumb.jpg
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for 3de
+2025-10-27 09:42:09 - runnable_tracker - DEBUG - Unregistered InfoPanelPixmapLoader (active: 0)
+2025-10-27 09:42:09 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for rv
+2025-10-27 09:42:09 - controllers.settings_controller.SettingsController - INFO - Settings saved successfully
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 0: DM_062_3900
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3900_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for DM_062_3900 from cache 
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DB_256/1210_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for DB_256_1210 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 8: TB_090_0060
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0060/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0060/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/TB_090/0060
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0060/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0060/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for TB_090_0060
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 9: TB_090_0020
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0020/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0020/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/TB_090/0020
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0020/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/TB_090/TB_090_0020/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for TB_090_0020
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 10: GG_099_0040
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_099/GG_099_0040/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/GG_099/GG_099_0040/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/GG_099/0040
+2025-10-27 09:42:09 - utils - DEBUG - Found large turnover plate EXR: FG01 - GG_099_0040_turnover-plate_FG01_lin_sgamut3cine_v001.1027.exr (23.6MB) - will resize
+2025-10-27 09:42:09 - cache_manager.CacheManager - ERROR - PIL thumbnail processing failed: cannot identify image file '/shows/jack_ryan/shots/GG_099/GG_099_0040/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/GG_099_0040_turnover-plate_FG01_lin_sgamut3cine_v001.1027.exr'
+2025-10-27 09:42:09 - cache_manager.CacheManager - ERROR - Failed to process thumbnail: Failed to process thumbnail: cannot identify image file '/shows/jack_ryan/shots/GG_099/GG_099_0040/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/GG_099_0040_turnover-plate_FG01_lin_sgamut3cine_v001.1027.exr'
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - WARNING - Failed to cache thumbnail from /shows/jack_ryan/shots/GG_099/GG_099_0040/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/GG_099_0040_turnover-plate_FG01_lin_sgamut3cine_v001.1027.exr
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 11: AS_193_1880
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/AS_193/1880_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for AS_193_1880 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 12: AS_159_0020
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/AS_159/AS_159_0020/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/AS_159/AS_159_0020/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/AS_159/0020
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/AS_159/AS_159_0020/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/AS_159/AS_159_0020/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for AS_159_0020
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 13: GG_120_0440
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_120/0440_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for GG_120_0440 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 14: GG_120_0460
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_120/0460_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for GG_120_0460 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 15: GG_134_1400
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1400/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1400/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/GG_134/1400
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1400/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1400/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for GG_134_1400
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 16: GG_134_1020
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1020/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1020/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/GG_134/1020
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1020/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1020/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for GG_134_1020
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 17: GG_134_1040
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1040/publish/editorial/cutref/v001/jpg/1920x1080
+
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1240/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1240/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for GG_134_1240
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 23: GG_120_0500
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_120/0500_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for GG_120_0500 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 24: GG_134_1300 
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 29: GG_134_1420
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1420/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1420/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/GG_134/1420
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate base does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1420/publish/turnover/plate/input_plate
+2025-10-27 09:42:09 - utils - DEBUG - Turnover plate directory does not exist: /shows/jack_ryan/shots/GG_134/GG_134_1420/publish/turnover/plate
+2025-10-27 09:42:09 - utils - DEBUG - No 1001.exr files found in publish folder for GG_134_1420
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 30: 999_xx_999
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/999_xx/999_xx_999/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/999_xx/999_xx_999/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/999_xx/999_xx_999/user/gabriel-h/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate
+2025-10-27 09:42:09 - utils - INFO - Found user workspace JPEG: 999_xx_999_mm-default_FG01_undistorted_out_srgb_v001.1001.jpeg (user: gabriel-h, output_type: scene, plate: FG01, version: v001)
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/999_xx/999_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for 999_xx_999 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 31: DM_066_3580
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_066/3580_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for DM_066_3580 from cache
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Starting thumbnail load for item 32: DM_067_3780
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_067/3780_thumb.jpg
+2025-10-27 09:42:09 - shot_item_model.ShotItemModel - DEBUG - Loaded thumbnail for DM_067_3780 from cache
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - INFO - ParallelShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - INFO - PreviousShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - DEBUG - Progress callback set for ParallelShotsFinder
+2025-10-27 09:42:09 - previous_shots_worker.PreviousShotsWorker - INFO - PreviousShotsWorker initialized for user: gabriel-h
+2025-10-27 09:42:09 - previous_shots_model.PreviousShotsModel - INFO - Starting previous shots scan in background thread
+2025-10-27 09:42:09 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: CREATED -> STARTING
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:09 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: STARTING -> RUNNING
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 0: 278_TST_0000
+2025-10-27 09:42:09 - previous_shots_worker.PreviousShotsWorker - INFO - Starting previous shots scan
+2025-10-27 09:42:09 - previous_shots_worker.PreviousShotsWorker - INFO - Using targeted search approach
+2025-10-27 09:42:09 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for 278_TST_0000 (show=jack_ryan, seq=278_TST, shot=0000)
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/278_TST/278_TST_0000/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - INFO - TargetedShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/278_TST/278_TST_0000/publish/mm/default/FG01/undistorted_plate
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - INFO - TargetedShotsFinder initialized for user: gabriel-h
+2025-10-27 09:42:09 - utils - DEBUG - JPEG base path does not exist: /shows/jack_ryan/shots/278_TST/278_TST_0000/publish/mm/default/FG01/undistorted_plate/v001/jpeg
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - DEBUG - Progress callback set for TargetedShotsFinder
+2025-10-27 09:42:09 - utils - DEBUG - No undistorted JPEG thumbnails found for jack_ryan/278_TST/0000
+2025-10-27 09:42:09 - previous_shots_finder.ParallelShotsFinder - INFO - Using targeted search approach for maximum performance
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - INFO - Extracted 1 unique shows from 33 active shots
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - DEBUG - Shows: ['jack_ryan']
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - INFO - Using targeted search in 1 shows instead of scanning all shows
+2025-10-27 09:42:09 - targeted_shot_finder.TargetedShotsFinder - DEBUG - Scanning show jack_ryan: find /shows/jack_ryan/shots -type d -path */user/gabriel-h -maxdepth 4
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/278_TST/278_TST_0000/user/tony-a/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate
+2025-10-27 09:42:09 - utils - INFO - Found user workspace JPEG: 278_TST_0000_mm-default_FG01_undistorted_out_srgb_v001.1180.jpeg (user: tony-a, output_type: scene, plate: FG01, version: v001)
+2025-10-27 09:42:09 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene 278_TST_0000: /shows/jack_ryan/shots/278_TST/278_TST_0000/user/tony-a/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate/v001/4312x2304/jpeg/278_TST_0000_mm-default_FG01_undistorted_out_srgb_v001.1180.jpeg
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/278_TST/0000_thumb.jpg
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for 278_TST_0000 from cache
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 1: 280_TST_0000
+2025-10-27 09:42:09 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for 280_TST_0000 (show=jack_ryan, seq=280_TST, shot=0000)
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/280_TST/280_TST_0000/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG02 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/280_TST/280_TST_0000/publish/mm/default/FG02/undistorted_plate
+2025-10-27 09:42:09 - utils - DEBUG - JPEG base path does not exist: /shows/jack_ryan/shots/280_TST/280_TST_0000/publish/mm/default/FG02/undistorted_plate/v001/jpeg
+2025-10-27 09:42:09 - utils - DEBUG - No undistorted JPEG thumbnails found for jack_ryan/280_TST/0000
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG02 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v002 in /shows/jack_ryan/shots/280_TST/280_TST_0000/user/tony-a/mm/nuke/outputs/mm-default/scene/FG02/undistorted_plate
+2025-10-27 09:42:09 - utils - INFO - Found user workspace JPEG: 280_TST_0000_mm-default_FG02_undistorted_out_srgb_v002.1067.jpeg (user: tony-a, output_type: scene, plate: FG02, version: v002)
+2025-10-27 09:42:09 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene 280_TST_0000: /shows/jack_ryan/shots/280_TST/280_TST_0000/user/tony-a/mm/nuke/outputs/mm-default/scene/FG02/undistorted_plate/v002/4312x2304/jpeg/280_TST_0000_mm-default_FG02_undistorted_out_srgb_v002.1067.jpeg
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/280_TST/0000_thumb.jpg
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for 280_TST_0000 from cache
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 2: AS_193_1900
+2025-10-27 09:42:09 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for AS_193_1900 (show=jack_ryan, seq=AS_193, shot=1900)
+2025-10-27 09:42:09 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene AS_193_1900: /shows/jack_ryan/shots/AS_193/AS_193_1900/publish/editorial/cutref/v001/jpg/1920x1080/AS_193_1900_editorial-cutref_v001.1074.jpg
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/AS_193/1900_thumb.jpg
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for AS_193_1900 from cache
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 3: DA_000_0005
+2025-10-27 09:42:09 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DA_000_0005 (show=jack_ryan, seq=DA_000, shot=0005)
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/DA_000/DA_000_0005/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Undistorted plate path does not exist: /shows/jack_ryan/shots/DA_000/DA_000_0005/publish/mm/default/FG01/undistorted_plate
+2025-10-27 09:42:09 - utils - DEBUG - No undistorted JPEG thumbnails found for jack_ryan/DA_000/0005
+2025-10-27 09:42:09 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:09 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/DA_000/DA_000_0005/user/sarah-b/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate
+2025-10-27 09:42:09 - utils - INFO - Found user workspace JPEG: DA_000_0005_mm-default_FG01_undistorted_out_srgb_v001.1214.jpeg (user: sarah-b, output_type: scene, plate: FG01, version: v001)
+2025-10-27 09:42:09 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DA_000_0005: /shows/jack_ryan/shots/DA_000/DA_000_0005/user/sarah-b/mm/nuke/outputs/mm-default/scene/FG01/undistorted_plate/v001/4312x2304/jpeg/DA_000_0005_mm-default_FG01_undistorted_out_srgb_v001.1214.jpeg
+2025-10-27 09:42:09 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DA_000/0005_thumb.jpg
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DA_000_0005 from cache
+2025-10-27 09:42:09 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 4: DA_000_0010
+2025-10-27 09:42:09 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DA_000_0010 (show=jack_ryan, seq=DA_000, shot=0010)
+2025-10-27 09:42:09 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/DA_000/DA_000_0010/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:09 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/DA_000/DA_000_0010/publish/mm/default
+2025-10-27 09:42:09 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/DA_000/0010
+2025-10-27 09:42:10 - utils - DEBUG - Found large turnover plate EXR: PL01 - DA_000_0010_turnover-plate_PL01_lin_sgamut3cine_v001.1044.exr (29.5MB) - will resize
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DA_000_0010: /shows/jack_ryan/shots/DA_000/DA_000_0010/publish/turnover/plate/input_plate/PL01/v001/exr/4312x2304/DA_000_0010_turnover-plate_PL01_lin_sgamut3cine_v001.1044.exr
+2025-10-27 09:42:10 - cache_manager.CacheManager - ERROR - PIL thumbnail processing failed: cannot identify image file '/shows/jack_ryan/shots/DA_000/DA_000_0010/publish/turnover/plate/input_plate/PL01/v001/exr/4312x2304/DA_000_0010_turnover-plate_PL01_lin_sgamut3cine_v001.1044.exr'
+2025-10-27 09:42:10 - cache_manager.CacheManager - ERROR - Failed to process thumbnail: Failed to process thumbnail: cannot identify image file '/shows/jack_ryan/shots/DA_000/DA_000_0010/publish/turnover/plate/input_plate/PL01/v001/exr/4312x2304/DA_000_0010_turnover-plate_PL01_lin_sgamut3cine_v001.1044.exr'
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - WARNING - Failed to cache thumbnail from /shows/jack_ryan/shots/DA_000/DA_000_0010/publish/turnover/plate/input_plate/PL01/v001/exr/4312x2304/DA_000_0010_turnover-plate_PL01_lin_sgamut3cine_v001.1044.exr
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 5: DA_000_0020
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DA_000_0020 (show=jack_ryan, seq=DA_000, shot=0020)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/DA_000/DA_000_0020/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: FG02 (type: FG, priority: 0)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/DA_000/DA_000_0020/publish/mm/default/FG02/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found undistorted JPEG thumbnail: DA_000_0020_mm-default_FG02_undistorted_out_srgb_v001.1279.jpeg (camera: FG02, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DA_000_0020: /shows/jack_ryan/shots/DA_000/DA_000_0020/publish/mm/default/FG02/undistorted_plate/v001/jpeg/4312x2304/DA_000_0020_mm-default_FG02_undistorted_out_srgb_v001.1279.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DA_000/0020_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DA_000_0020 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 6: DA_280_0160
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DA_280_0160 (show=jack_ryan, seq=DA_280, shot=0160)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DA_280_0160: /shows/jack_ryan/shots/DA_280/DA_280_0160/publish/editorial/cutref/v001/jpg/1920x1080/DA_
+001.1044.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/2620_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_2620 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 15: DM_062_2640
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_2640 (show=jack_ryan, seq=DM_062, shot=2640)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_2640: /shows/jack_ryan/shots/DM_062/DM_062_2640/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_2640_editorial-cutref_v001.1043.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/2640_thumb.jpg
+
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3260: /shows/jack_ryan/shots/DM_062/DM_062_3260/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3260_editorial-cutref_v001.1038.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3260_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3260 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 24: DM_062_3280
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3280 (show=jack_ryan, seq=DM_062, shot=3280)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3280: /shows/jack_ryan/shots/DM_062/DM_062_3280/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3280_editorial-cutref_v001.1030.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3280_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3280 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 25: DM_062_3300
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3300 (show=jack_ryan, seq=DM_062, shot=3300)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3300: /shows/jack_ryan/shots/DM_062/DM_062_3300/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3300_editorial-cutref_v001.1039.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3300_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3300 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 26: DM_062_3590
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3590 (show=jack_ryan, seq=DM_062, shot=3590)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3590: /shows/jack_ryan/shots/DM_062/DM_062_3590/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3590_editorial-cutref_v001.1034.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3590_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3590 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 27: DM_062_3680
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3680 (show=jack_ryan, seq=DM_062, shot=3680)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3680: /shows/jack_ryan/shots/DM_062/DM_062_3680/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3680_editorial-cutref_v001.1049.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3680_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3680 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 28: DM_062_3900
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3900 (show=jack_ryan, seq=DM_062, shot=3900)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3900: /shows/jack_ryan/shots/DM_062/DM_062_3900/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3900_editorial-cutref_v001.1036.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3900_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3900 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 29: DM_062_3960
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_062_3960 (show=jack_ryan, seq=DM_062, shot=3960)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_062_3960: /shows/jack_ryan/shots/DM_062/DM_062_3960/publish/editorial/cutref/v001/jpg/1920x1080/DM_062_3960_editorial-cutref_v001.1058.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/3960_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_062_3960 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 30: DM_066_3580
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_066_3580 (show=jack_ryan, seq=DM_066, shot=3580)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_066_3580: /shows/jack_ryan/shots/DM_066/DM_066_3580/publish/editorial/cutref/v001/jpg/1920x1080/DM_066_3580_editorial-cutref_v001.1032.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_066/3580_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_066_3580 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 31: DM_068_4260
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for DM_068_4260 (show=jack_ryan, seq=DM_068, shot=4260)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene DM_068_4260: /shows/jack_ryan/shots/DM_068/DM_068_4260/publish/editorial/cutref/v001/jpg/1920x1080/DM_068_4260_editorial-cutref_v001.1147.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_068/4260_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for DM_068_4260 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 32: FF_278_0680
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_0680 (show=jack_ryan, seq=FF_278, shot=0680)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_0680: /shows/jack_ryan/shots/FF_278/FF_278_0680/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_0680_editorial-cutref_v001.1098.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/0680_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_0680 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 33: FF_278_0760
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_0760 (show=jack_ryan, seq=FF_278, shot=0760)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_0760: /shows/jack_ryan/shots/FF_278/FF_278_0760/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_0760_editorial-cutref_v001.1074.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/0760_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_0760 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 34: FF_278_0800
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_0800 (show=jack_ryan, seq=FF_278, shot=0800)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_0800: /shows/jack_ryan/shots/FF_278/FF_278_0800/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_0800_editorial-cutref_v001.1065.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/0800_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_0800 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 35: FF_278_3280
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_3280 (show=jack_ryan, seq=FF_278, shot=3280)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_3280: /shows/jack_ryan/shots/FF_278/FF_278_3280/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_3280_editorial-cutref_v001.1027.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/3280_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_3280 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 36: FF_278_3300
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_3300 (show=jack_ryan, seq=FF_278, shot=3300)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_3300: /shows/jack_ryan/shots/FF_278/FF_278_3300/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_3300_editorial-cutref_v001.1030.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/3300_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_3300 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 37: FF_278_3320
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_3320 (show=jack_ryan, seq=FF_278, shot=3320)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/FF_278/FF_278_3320/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - MM default path does not exist: /shows/jack_ryan/shots/FF_278/FF_278_3320/publish/mm/default
+2025-10-27 09:42:10 - utils - DEBUG - No user workspace JPEGs found for jack_ryan/FF_278/3320
+2025-10-27 09:42:10 - utils - DEBUG - Found large turnover plate EXR: FG01 - FF_278_3320_turnover-plate_FG01_lin_sgamut3cine_v001.1003.exr (26.9MB) - will resize
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_3320: /shows/jack_ryan/shots/FF_278/FF_278_3320/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/FF_278_3320_turnover-plate_FG01_lin_sgamut3cine_v001.1003.exr
+2025-10-27 09:42:10 - cache_manager.CacheManager - ERROR - PIL thumbnail processing failed: cannot identify image file '/shows/jack_ryan/shots/FF_278/FF_278_3320/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/FF_278_3320_turnover-plate_FG01_lin_sgamut3cine_v001.1003.exr'
+2025-10-27 09:42:10 - cache_manager.CacheManager - ERROR - Failed to process thumbnail: Failed to process thumbnail: cannot identify image file '/shows/jack_ryan/shots/FF_278/FF_278_3320/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/FF_278_3320_turnover-plate_FG01_lin_sgamut3cine_v001.1003.exr'
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - WARNING - Failed to cache thumbnail from /shows/jack_ryan/shots/FF_278/FF_278_3320/publish/turnover/plate/input_plate/FG01/v001/exr/4312x2304/FF_278_3320_turnover-plate_FG01_lin_sgamut3cine_v001.1003.exr
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 38: FF_278_4380
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_4380 (show=jack_ryan, seq=FF_278, shot=4380)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_4380: /shows/jack_ryan/shots/FF_278/FF_278_4380/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_4380_editorial-cutref_v001.1059.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/4380_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_4380 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 39: FF_278_4460
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_4460 (show=jack_ryan, seq=FF_278, shot=4460)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_4460: /shows/jack_ryan/shots/FF_278/FF_278_4460/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_4460_editorial-cutref_v001.1022.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/4460_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_4460 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 40: FF_278_4580
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_4580 (show=jack_ryan, seq=FF_278, shot=4580)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_4580: /shows/jack_ryan/shots/FF_278/FF_278_4580/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_4580_editorial-cutref_v001.1022.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/4580_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_4580 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 41: FF_278_4680
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for FF_278_4680 (show=jack_ryan, seq=FF_278, shot=4680)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene FF_278_4680: /shows/jack_ryan/shots/FF_278/FF_278_4680/publish/editorial/cutref/v001/jpg/1920x1080/FF_278_4680_editorial-cutref_v001.1126.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/FF_278/4680_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for FF_278_4680 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 42: GF_000_0040
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_000_0040 (show=jack_ryan, seq=GF_000, shot=0040)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GF_000/GF_000_0040/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: PL01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/GF_000/GF_000_0040/publish/mm/default/PL01/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found undistorted JPEG thumbnail: GF_000_0040_mm-default_PL01_undistorted_out_srgb_v001.1007.jpeg (camera: PL01, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_000_0040: /shows/jack_ryan/shots/GF_000/GF_000_0040/publish/mm/default/PL01/undistorted_plate/v001/jpeg/4312x2304/GF_000_0040_mm-default_PL01_undistorted_out_srgb_v001.1007.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_000/0040_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_000_0040 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 43: GF_000_0050
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_000_0050 (show=jack_ryan, seq=GF_000, shot=0050)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GF_000/GF_000_0050/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: PL01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/GF_000/GF_000_0050/publish/mm/default/PL01/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found undistorted JPEG thumbnail: GF_000_0050_mm-default_PL01_undistorted_out_srgb_v001.1044.jpeg (camera: PL01, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_000_0050: /shows/jack_ryan/shots/GF_000/GF_000_0050/publish/mm/default/PL01/undistorted_plate/v001/jpeg/4312x2304/GF_000_0050_mm-default_PL01_undistorted_out_srgb_v001.1044.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_000/0050_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_000_0050 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 44: GF_256_0020
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_0020 (show=jack_ryan, seq=GF_256, shot=0020)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_0020: /shows/jack_ryan/shots/GF_256/GF_256_0020/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_0020_editorial-cutref_v001.1044.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/0020_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_0020 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 45: GF_256_0280
+
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 53: GF_256_0860
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_0860 (show=jack_ryan, seq=GF_256, shot=0860)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_0860: /shows/jack_ryan/shots/GF_256/GF_256_0860/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_0860_editorial-cutref_v001.1052.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/0860_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_0860 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 54: GF_256_0880
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_0880 (show=jack_ryan, seq=GF_256, shot=0880)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_0880: /shows/jack_ryan/shots/GF_256/GF_256_0880/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_0880_editorial-cutref_v001.1108.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/0880_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_0880 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 55: GF_256_0900
+
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 63: GF_256_1100
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1100 (show=jack_ryan, seq=GF_256, shot=1100)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1100: /shows/jack_ryan/shots/GF_256/GF_256_1100/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1100_editorial-cutref_v001.1037.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1100_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1100 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 64: GF_256_1120
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1120 (show=jack_ryan, seq=GF_256, shot=1120)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1120: /shows/jack_ryan/shots/GF_256/GF_256_1120/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1120_editorial-cutref_v001.1043.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1120_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1120 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 65: GF_256_1140
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1140 (show=jack_ryan, seq=GF_256, shot=1140)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1140: /shows/jack_ryan/shots/GF_256/GF_256_1140/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1140_editorial-cutref_v001.1040.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1140_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1140 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 66: GF_256_1160
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1160 (show=jack_ryan, seq=GF_256, shot=1160)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1160: /shows/jack_ryan/shots/GF_256/GF_256_1160/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1160_editorial-cutref_v001.1030.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1160_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1160 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 67: GF_256_1170
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1170 (show=jack_ryan, seq=GF_256, shot=1170)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1170: /shows/jack_ryan/shots/GF_256/GF_256_1170/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1170_editorial-cutref_v001.1030.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1170_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1170 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 68: GF_256_1180
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1180 (show=jack_ryan, seq=GF_256, shot=1180)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1180: /shows/jack_ryan/shots/GF_256/GF_256_1180/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1180_editorial-cutref_v001.1116.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1180_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1180 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 69: GF_256_1200
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1200 (show=jack_ryan, seq=GF_256, shot=1200)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1200: /shows/jack_ryan/shots/GF_256/GF_256_1200/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1200_editorial-cutref_v001.1030.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1200_thumb.jpg
+
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GF_256_1420 (show=jack_ryan, seq=GF_256, shot=1420)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GF_256_1420: /shows/jack_ryan/shots/GF_256/GF_256_1420/publish/editorial/cutref/v001/jpg/1920x1080/GF_256_1420_editorial-cutref_v001.1032.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GF_256/1420_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GF_256_1420 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 74: GG_000_0050
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GG_000_0050 (show=jack_ryan, seq=GG_000, shot=0050)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/GG_000/GG_000_0050/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: PL01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/GG_000/GG_000_0050/publish/mm/default/PL01/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found undistorted JPEG thumbnail: GG_000_0050_mm-default_PL01_undistorted_out_srgb_v001.1056.jpeg (camera: PL01, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GG_000_0050: /shows/jack_ryan/shots/GG_000/GG_000_0050/publish/mm/default/PL01/undistorted_plate/v001/jpeg/4312x2304/GG_000_0050_mm-default_PL01_undistorted_out_srgb_v001.1056.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_000/0050_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GG_000_0050 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 75: GG_099_0060
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GG_099_0060 (show=jack_ryan, seq=GG_099, shot=0060)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GG_099_0060: /shows/jack_ryan/shots/GG_099/GG_099_0060/publish/editorial/cutref/v001/jpg/1920x1080/GG_099_0060_editorial-cutref_v001.1190.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_099/0060_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GG_099_0060 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 76: GG_132_0780
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for GG_132_0780 (show=jack_ryan, seq=GG_132, shot=0780)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene GG_132_0780: /shows/jack_ryan/shots/GG_132/GG_132_0780/publish/editorial/cutref/v001/jpg/1920x1080/GG_132_0780_editorial-cutref_v001.1018.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/GG_132/0780_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for GG_132_0780 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 77: MA_074_0340
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for MA_074_0340 (show=jack_ryan, seq=MA_074, shot=0340)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene MA_074_0340: /shows/jack_ryan/shots/MA_074/MA_074_0340/publish/editorial/cutref/v001/jpg/1920x1080/MA_074_0340_editorial-cutref_v001.1162.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/MA_074/0340_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for MA_074_0340 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 78: MV_000_0010
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for MV_000_0010 (show=jack_ryan, seq=MV_000, shot=0010)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/MV_000/MV_000_0010/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: PL01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/MV_000/MV_000_0010/publish/mm/default/PL01/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found undistorted JPEG thumbnail: MV_000_0010_mm-default_PL01_undistorted_out_srgb_v001.1084.jpeg (camera: PL01, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene MV_000_0010: /shows/jack_ryan/shots/MV_000/MV_000_0010/publish/mm/default/PL01/undistorted_plate/v001/jpeg/4312x2304/MV_000_0010_mm-default_PL01_undistorted_out_srgb_v001.1084.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/MV_000/0010_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for MV_000_0010 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 79: MV_242_0010
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for MV_242_0010 (show=jack_ryan, seq=MV_242, shot=0010)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene MV_242_0010: /shows/jack_ryan/shots/MV_242/MV_242_0010/publish/editorial/cutref/v001/jpg/1920x1080/MV_242_0010_editorial-cutref_v001.1043.jpg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/MV_242/0010_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for MV_242_0010 from cache
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Starting thumbnail load for item 80: SF_000_0030
+2025-10-27 09:42:10 - threede_scene_model - DEBUG - ThreeDEScene.get_thumbnail_path() called for SF_000_0030 (show=jack_ryan, seq=SF_000, shot=0030)
+2025-10-27 09:42:10 - utils - DEBUG - Thumbnail directory does not exist: /shows/jack_ryan/shots/SF_000/SF_000_0030/publish/editorial/cutref/v001/jpg/1920x1080
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: pl01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Undistorted plate path does not exist: /shows/jack_ryan/shots/SF_000/SF_000_0030/publish/mm/default/pl01/undistorted_plate
+2025-10-27 09:42:10 - utils - DEBUG - No undistorted JPEG thumbnails found for jack_ryan/SF_000/0030
+2025-10-27 09:42:10 - utils - DEBUG - Found plate: pl01 (type: PL, priority: 0.5)
+2025-10-27 09:42:10 - utils - DEBUG - Found latest version v001 in /shows/jack_ryan/shots/SF_000/SF_000_0030/user/ryan-p/mm/nuke/outputs/mm-default/undistort/pl01/undistorted_plate
+2025-10-27 09:42:10 - utils - INFO - Found user workspace JPEG: SF_000_0030_mm-default_pl01_undistorted_out_srgb_v001.1142.jpeg (user: ryan-p, output_type: undistort, plate: pl01, version: v001)
+2025-10-27 09:42:10 - threede_scene_model - INFO - ✅ Found thumbnail for 3DE scene SF_000_0030: /shows/jack_ryan/shots/SF_000/SF_000_0030/user/ryan-p/mm/nuke/outputs/mm-default/undistort/pl01/undistorted_plate/v001/4312x2304/jpeg/SF_000_0030_mm-default_pl01_undistorted_out_srgb_v001.1142.jpeg
+2025-10-27 09:42:10 - cache_manager.CacheManager - DEBUG - Using existing thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/SF_000/0030_thumb.jpg
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - Loaded thumbnail for SF_000_0030 from cache
+2025-10-27 09:42:10 - progress_manager - DEBUG - Started progress operation: Scanning for previous shots (type: STATUS_BAR)
+2025-10-27 09:42:10 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:10 - progress_manager - DEBUG - Started progress operation: Refreshing shots (type: STATUS_BAR)
+2025-10-27 09:42:10 - notification_manager - INFO - Success notification: Refreshing shots completed (0.0s)
+2025-10-27 09:42:10 - progress_manager - DEBUG - Finished progress operation: Refreshing shots (success: True)
+2025-10-27 09:42:10 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:10 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:10 - targeted_shot_finder.TargetedShotsFinder - DEBUG - Found 33 shots in show jack_ryan
+2025-10-27 09:42:10 - targeted_shot_finder.TargetedShotsFinder - INFO - Targeted search found 26 approved shots in 1.1 seconds (was 60-120s with global search)
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Skipping shot_found emission - signals already emitted
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - INFO - Previous shots scan completed in 1.09s. Found 26 approved shots.
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: RUNNING -> STOPPING
+2025-10-27 09:42:10 - previous_shots_model.PreviousShotsModel - DEBUG - No new shots found - cache unchanged
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: STOPPING -> STOPPED
+2025-10-27 09:42:10 - previous_shots_model.PreviousShotsModel - DEBUG - Reset scanning flag
+2025-10-27 09:42:10 - previous_shots_model.PreviousShotsModel - DEBUG - Safely cleaning up worker thread
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: Already stopping/stopped (STOPPED)
+2025-10-27 09:42:10 - previous_shots_finder.ParallelShotsFinder - INFO - Stop requested for ParallelShotsFinder
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Stop requested for PreviousShotsWorker
+2025-10-27 09:42:10 - previous_shots_model.PreviousShotsModel - DEBUG - Worker thread cleanup completed
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: Disconnecting 0 signals
+2025-10-27 09:42:10 - previous_shots_worker.PreviousShotsWorker - DEBUG - Worker 139634543133248: STOPPED -> DELETED (on finished)
+2025-10-27 09:42:10 - notification_manager - INFO - Success notification: Scanning for previous shots completed (0.2s)
+2025-10-27 09:42:10 - progress_manager - DEBUG - Finished progress operation: Scanning for previous shots (success: True)
+2025-10-27 09:42:10 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:10 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:11 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:11 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:11 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:11 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:11 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:11 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:11 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+
+2025-10-27 09:42:15 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:15 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+
+2025-10-27 09:42:18 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:18 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:18 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:18 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+
+2025-10-27 09:42:23 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:23 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:23 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:23 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:24 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:24 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:24 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:24 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:24 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:24 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:24 - shot_model.ShotModel - INFO - Parsing ws output with 33 lines
+2025-10-27 09:42:24 - shot_model.ShotModel - INFO - First line of ws output: workspace /shows/jack_ryan/shots/DM_062/DM_062_3900
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - ws output line 1: workspace /shows/jack_ryan/shots/DM_062/DM_062_3900
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - ws output line 2: workspace /shows/jack_ryan/shots/DM_062/DM_062_4140
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - ws output line 3: workspace /shows/jack_ryan/shots/DM_062/DM_062_3720
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 1: workspace_path=/shows/jack_ryan/shots/DM_062/DM_062_3900, show=jack_ryan, sequence=DM_062, shot=3900
+
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 11: workspace_path=/shows/jack_ryan/shots/GG_099/GG_099_0040, show=jack_ryan, sequence=GG_099, shot=0040
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 12: workspace_path=/shows/jack_ryan/shots/AS_193/AS_193_1880, show=jack_ryan, sequence=AS_193, shot=1880
+
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 29: workspace_path=/shows/jack_ryan/shots/GG_134/GG_134_1360, show=jack_ryan, sequence=GG_134, shot=1360
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 30: workspace_path=/shows/jack_ryan/shots/GG_134/GG_134_1420, show=jack_ryan, sequence=GG_134, shot=1420
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 31: workspace_path=/shows/jack_ryan/shots/999_xx/999_xx_999, show=jack_ryan, sequence=999_xx, shot=999
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 32: workspace_path=/shows/jack_ryan/shots/DM_066/DM_066_3580, show=jack_ryan, sequence=DM_066, shot=3580
+2025-10-27 09:42:24 - shot_model.ShotModel - DEBUG - Parsed line 33: workspace_path=/shows/jack_ryan/shots/DM_067/DM_067_3780, show=jack_ryan, sequence=DM_067, shot=3780
+2025-10-27 09:42:24 - shot_model.ShotModel - INFO - Parsed 33 shots from ws -sg output
+2025-10-27 09:42:24 - main_window.SessionWarmer - DEBUG - Worker 139634544173504: Disconnecting 0 signals
+2025-10-27 09:42:24 - main_window.SessionWarmer - DEBUG - Worker 139634544173504: CREATED -> STOPPED (on finished)
+2025-10-27 09:42:24 - shot_model.ShotModel - INFO - Background load complete: no changes (33 shots)
+2025-10-27 09:42:24 - notification_manager - INFO - Info notification: 33 shots (no changes)
+2025-10-27 09:42:24 - refresh_orchestrator.RefreshOrchestrator - DEBUG - Refresh completed without changes
+2025-10-27 09:42:24 - utils - DEBUG - Found username 'gabriel-h' from $USER
+2025-10-27 09:42:24 - utils - DEBUG - Excluding users: {'gabriel-h'}
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: Connected signal with ConnectionType.QueuedConnection
+2025-10-27 09:42:24 - controllers.threede_controller.ThreeDEController - DEBUG - Connected all worker signals to controller
+2025-10-27 09:42:24 - shot_model.AsyncShotLoader - DEBUG - Worker 139634544172928: Disconnecting 0 signals
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: CREATED -> STARTING
+2025-10-27 09:42:24 - shot_model.AsyncShotLoader - DEBUG - Worker 139634544172928: CREATED -> STOPPED (on finished)
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Worker 139634543181120: STARTING -> RUNNING
+2025-10-27 09:42:24 - threede_scene_worker.QtProgressReporter - DEBUG - QtProgressReporter created in thread: <threede_scene_worker.ThreeDESceneWorker(0x37679c0) at 0x7eff33583d40>
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - DEBUG - Progress reporter created and connected in worker thread
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - INFO - Starting enhanced 3DE scene discovery
+2025-10-27 09:42:24 - progress_manager - DEBUG - Started progress operation: Scanning for 3DE scenes (type: STATUS_BAR)
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - INFO - Starting progressive 3DE scene discovery
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - INFO - Discovering ALL 3DE scenes in shows using parallel file-first strategy
+2025-10-27 09:42:24 - threede_scene_worker.ThreeDESceneWorker - INFO - Using parallel discovery with progress reporting
+2025-10-27 09:42:24 - progress_manager - DEBUG - Started progress operation: Scanning for 3DE scenes (type: STATUS_BAR)
+2025-10-27 09:42:24 - filesystem_scanner.FileSystemScanner - INFO - === STARTING find_all_3de_files_in_show_targeted (optimized) ===
+2025-10-27 09:42:24 - filesystem_scanner.FileSystemScanner - INFO -   show_root: /shows
+2025-10-27 09:42:24 - filesystem_scanner.FileSystemScanner - INFO -   show: jack_ryan
+2025-10-27 09:42:24 - filesystem_scanner.FileSystemScanner - INFO - Using single-search strategy to find all .3de files
+2025-10-27 09:42:24 - filesystem_scanner.FileSystemScanner - DEBUG - Running find command: find /shows/jack_ryan/shots ( -path */render -o -path */comp -o -path */output -o -path */cache -o -path */tmp -o -path */temp -o -path */backup ) -prune -o -type f ( -path */user/* -o -path */publish/* ) ( -name *.3de -o -name *.3DE ) -print
+2025-10-27 09:42:24 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:24 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:24 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:24 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81) 
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - controllers.launcher_controller.LauncherController - INFO - 🎯 Set current shot: DM_062_4140 (cleared scene context)
+2025-10-27 09:42:27 - runnable_tracker - DEBUG - Registered InfoPanelPixmapLoader (active: 1, total: 2)
+2025-10-27 09:42:27 - utils - DEBUG - Found plate: FG01 (type: FG, priority: 0)
+2025-10-27 09:42:27 - plate_discovery - INFO - Found 1 primary plates: ['FG01']
+2025-10-27 09:42:27 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for nuke
+2025-10-27 09:42:27 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for maya
+2025-10-27 09:42:27 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for 3de
+2025-10-27 09:42:27 - main_window.MainWindow - DEBUG - Auto-selected first plate 'FG01' for rv
+2025-10-27 09:42:27 - shot_info_panel - DEBUG - Successfully loaded info panel thumbnail: /nethome/gabriel-h/.shotbot/cache/production/thumbnails/jack_ryan/DM_062/4140_thumb.jpg
+2025-10-27 09:42:27 - controllers.settings_controller.SettingsController - INFO - Settings saved successfully
+2025-10-27 09:42:27 - runnable_tracker - DEBUG - Unregistered InfoPanelPixmapLoader (active: 0)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:27 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:27 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33) 
+2025-10-27 09:42:30 - controllers.launcher_controller.LauncherController - INFO -    - _current_scene: None
+2025-10-27 09:42:30 - controllers.launcher_controller.LauncherController - INFO -    - _current_shot: DM_062_4140
+2025-10-27 09:42:30 - controllers.launcher_controller.LauncherController - WARNING - ⚠️  No scene context - falling back to shot context
+2025-10-27 09:42:30 - plate_discovery - DEBUG - Workspace script directory: /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01
+2025-10-27 09:42:30 - plate_discovery - DEBUG - Found 1 existing scripts for FG01
+2025-10-27 09:42:30 - nuke_launch_handler.NukeLaunchHandler - INFO - Setting up runtime filter for 1 problematic plugin paths in NUKE_PATH
+2025-10-27 09:42:30 - nuke_launch_handler.NukeLaunchHandler - DEBUG - Generated runtime NUKE_PATH filter: FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\.0\.0rc9/python-3\.11/init" | tr "\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH"
+2025-10-27 09:42:30 - nuke_launch_handler.NukeLaunchHandler - INFO - Unsetting OCIO to use Nuke's built-in configuration
+2025-10-27 09:42:30 - nuke_launch_handler.NukeLaunchHandler - DEBUG - Generated Nuke environment fixes: FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\.0\.0rc9/python-3\.11/init" | tr "\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache"
+2025-10-27 09:42:30 - command_launcher.CommandLauncher - DEBUG - Constructed rez command with bash -ilc: rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\.0\.0rc9/python-3\.11/init" | tr "\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk"
+2025-10-27 09:42:30 - command_launcher.CommandLauncher - DEBUG - Constructed command for nuke:
+  Command: 'rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\\.0\\.0rc9/python-3\\.11/init" | tr "\\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk"'
+  Length: 566 chars
+  Workspace: /shows/jack_ryan/shots/DM_062/DM_062_4140
+  Shot: DM_062_4140
+2025-10-27 09:42:30 - command_launcher.CommandLauncher - DEBUG - Added & for GUI app nuke in persistent terminal
+2025-10-27 09:42:30 - command_launcher.CommandLauncher - INFO - Sending command to persistent terminal: rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\.0\.0rc9/python-3\.11/init" | tr "\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk &"
+2025-10-27 09:42:30 - command_launcher.CommandLauncher - DEBUG - Command details:
+  Original: 'rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\\.0\\.0rc9/python-3\\.11/init" | tr "\\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk"'
+  To send: 'rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\\.0\\.0rc9/python-3\\.11/init" | tr "\\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk &"'
+  Is GUI app: True
+  Auto-background: True
+2025-10-27 09:42:30 - persistent_terminal_manager.PersistentTerminalManager - INFO - Terminal not running, launching new instance...
+2025-10-27 09:42:30 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - Trying to launch terminal with: gnome-terminal
+2025-10-27 09:42:30 - persistent_terminal_manager.PersistentTerminalManager - INFO - Terminal launched successfully with PID: 3714824
+2025-10-27 09:42:32 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - Preparing to send command to FIFO:
+  Command: 'rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\\.0\\.0rc9/python-3\\.11/init" | tr "\\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk &"'
+  Length: 568 chars
+  FIFO: /tmp/shotbot_commands.fifo
+  Terminal PID: 3714824
+2025-10-27 09:42:32 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - Acquiring write lock for FIFO...
+2025-10-27 09:42:32 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - Write lock acquired, proceeding with FIFO write
+2025-10-27 09:42:32 - persistent_terminal_manager.PersistentTerminalManager - INFO - Successfully sent command to terminal via FIFO: rez env nuke python-3.11 -- bash -ilc "ws /shows/jack_ryan/shots/DM_062/DM_062_4140 && FILTERED_NUKE_PATH=$(echo "$NUKE_PATH" | tr ":" "\n" | grep -v -e "/software/bluebolt/rez/packages/bluebolt/nuke_tools/4\.0\.0rc9/python-3\.11/init" | tr "\n" ":" | sed "s/:$//") && export NUKE_PATH="$FILTERED_NUKE_PATH" && unset OCIO && export NUKE_DISABLE_CRASH_REPORTING=1 && export NUKE_TEMP_DIR="/tmp" && export NUKE_DISK_CACHE="/tmp/nuke_cache" && nuke /shows/jack_ryan/shots/DM_062/DM_062_4140/user/gabriel-h/mm/nuke/scripts/FG01/DM_062_4140_mm-default_FG01_scene_v001.nk &"
+2025-10-27 09:42:32 - persistent_terminal_manager.PersistentTerminalManager - DEBUG - FIFO path: /tmp/shotbot_commands.fifo, Terminal PID: 3714824
+2025-10-27 09:42:32 - command_launcher.CommandLauncher - DEBUG - Command successfully sent to persistent terminal
+2025-10-27 09:42:32 - notification_manager - DEBUG - Toast notification shown: Launched nuke successfully (SUCCESS)
+2025-10-27 09:42:32 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:32 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:32 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:32 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:32 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:32 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
+2025-10-27 09:42:32 - shot_item_model.ShotItemModel - DEBUG - _load_visible_thumbnails: checking 33 items (range 0-33, total items: 33)
+2025-10-27 09:42:32 - threede_item_model.ThreeDEItemModel - DEBUG - _load_visible_thumbnails: checking 81 items (range 0-81, total items: 81)
