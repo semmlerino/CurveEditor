@@ -249,6 +249,7 @@ class ApplicationState(QObject):
             # Initialize default metadata
             self._curve_metadata[curve_name] = {"visible": True}
 
+        logger.info(f"[APP_STATE] Emitting curves_changed for '{curve_name}' with {len(data)} points")
         self._emit(self.curves_changed, (self._curves_data.copy(),))
 
         logger.debug(f"Set curve data for '{curve_name}': {len(data)} points")

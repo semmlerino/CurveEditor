@@ -246,8 +246,8 @@ class TestCenteringIntegration:
 
     def test_auto_centering_on_point_selection(self, qtbot):
         """Test that selecting a point automatically centers when centering mode is enabled."""
-        from ui.main_window import MainWindow
         from stores.application_state import get_application_state
+        from ui.main_window import MainWindow
 
         # Create main window with curve widget
         main_window = MainWindow(auto_load_data=False)
@@ -267,6 +267,7 @@ class TestCenteringIntegration:
         app_state.set_active_curve("TestCurve")
 
         # Update main window's curve widget
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data(curve_data)
 
         # Enable centering mode
@@ -318,8 +319,8 @@ class TestCenteringIntegration:
 
     def test_auto_centering_on_active_curve_change(self, qtbot):
         """Test that changing active curve auto-centers when centering mode is enabled."""
-        from ui.main_window import MainWindow
         from stores.application_state import get_application_state
+        from ui.main_window import MainWindow
 
         # Create main window with curve widget
         main_window = MainWindow(auto_load_data=False)
@@ -336,6 +337,7 @@ class TestCenteringIntegration:
         app_state.set_frame(1)
 
         # Set first curve active and update widget
+        assert main_window.curve_widget is not None
         main_window.curve_widget.set_curve_data([p.to_tuple3() for p in points1])
 
         # Enable centering mode

@@ -350,6 +350,8 @@ class TimelineTabWidget(QWidget):
         """
         if point_name:
             self.active_point_label.setText(f"Timeline: {point_name}")
+            # Refresh timeline with the new active timeline point's data
+            self._on_curves_changed(self._app_state.get_all_curves())
         else:
             self.active_point_label.setText("No point")
 
@@ -382,11 +384,25 @@ class TimelineTabWidget(QWidget):
     def _on_curves_changed(self, curves: dict[str, CurveDataList]) -> None:
         """Handle ApplicationState curves_changed signal."""
 
-        # Get active curve data
+        logger.info(f"[TIMELINE] _on_curves_changed called with {len(curves)} curves")
+
+        # Invalidate status cache when curve data changes (segmentation may have changed)
+        self.status_cache.invalidate_all()
+        logger.info(f"[TIMELINE] Invalidated all cache entries (cache size: {len(self.status_cache._cache)})")  # pyright: ignore[reportPrivateUsage]
+
+        # Get active timeline point data (the curve whose timeline should be displayed)
         from services import get_data_service
 
-        active_curve = self._app_state.active_curve
-        if not active_curve or active_curve not in curves:
+        # Use active_timeline_point from StateManager, fallback to active_curve if not set
+        active_timeline_point = None
+        if self._state_manager:
+            active_timeline_point = self._state_manager.active_timeline_point
+
+        # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
+        if not active_timeline_point:
+            active_timeline_point = self._app_state.active_curve
+
+        if not active_timeline_point or active_timeline_point not in curves:
             # Check if image sequence is loaded even without tracking data
             total_frames = get_application_state().get_total_frames()
             if total_frames > 1:
@@ -397,7 +413,7 @@ class TimelineTabWidget(QWidget):
                 self.set_frame_range(1, 1)
             return
 
-        curve_data = curves[active_curve]
+        curve_data = curves[active_timeline_point]
         logger.debug(f"_on_curves_changed: got {len(curve_data) if curve_data else 0} points from ApplicationState")
 
         if not curve_data:
@@ -431,7 +447,10 @@ class TimelineTabWidget(QWidget):
             data_service = get_data_service()
             frame_status = data_service.get_frame_range_point_status(curve_data)
 
+            inactive_count = 0
             for frame, status in frame_status.items():
+                if status.is_inactive:
+                    inactive_count += 1
                 self.update_frame_status(
                     frame,
                     keyframe_count=status.keyframe_count,
@@ -444,6 +463,7 @@ class TimelineTabWidget(QWidget):
                     has_selected=status.has_selected,
                 )
 
+            logger.info(f"[TIMELINE] Updated {len(frame_status)} frames ({inactive_count} inactive)")
             logger.debug(f"Timeline updated from ApplicationState: {len(frame_status)} frames")
 
     @safe_slot
@@ -460,11 +480,16 @@ class TimelineTabWidget(QWidget):
 
         Args:
             selection: Selected indices
-            curve_name: Curve with selection change (None uses active curve)
+            curve_name: Curve with selection change (None uses active timeline point)
         """
-        # Use ApplicationState - fallback to active curve if curve_name not provided
+        # Use StateManager's active_timeline_point, fallback to active_curve if not set
         if not curve_name:
-            curve_name = self._app_state.active_curve
+            if self._state_manager:
+                curve_name = self._state_manager.active_timeline_point
+            # Fallback to active_curve if active_timeline_point not set (e.g., in tests)
+            if not curve_name:
+                curve_name = self._app_state.active_curve
+
         if not curve_name:
             return
 

@@ -348,10 +348,11 @@ class SegmentedCurve:
             # Frame is in an inactive segment - check if it has an actual point first
             actual_point = segment.get_point_at_frame(frame)
             if actual_point:
-                # Frame has an actual point (e.g., endframe) - return its position
+                # Frame has an actual point (e.g., tracked data) - return its position
+                # This preserves data: tracked points return their actual positions even in gaps
                 return (actual_point.x, actual_point.y)
             else:
-                # Frame is in gap - return held position
+                # Frame is in gap with no actual point - return held position
                 return self._get_held_position_for_gap(frame)
         else:
             # Frame is not in any segment - check if it's in a gap or beyond all segments
@@ -446,25 +447,36 @@ class SegmentedCurve:
     def _get_position_beyond_segments(self, frame: int) -> tuple[float, float] | None:
         """Get position for a frame beyond all segments.
 
-        Only returns a held position if the last point is an endframe,
-        otherwise returns None (no position available beyond data).
+        Returns a held position if there's an endframe with no keyframes after it.
+        This implements the rule: "After an endframe, if there are no keyframes
+        afterwards, all subsequent frames should be inactive."
 
         Args:
             frame: Frame number beyond all segments
 
         Returns:
-            Held position from last endframe or None
+            Held position from last endframe (if no keyframes follow) or None
         """
         if not self.all_points:
             return None
 
-        # Find the last point in the curve
-        last_point = max(self.all_points, key=lambda p: p.frame)
+        # Find the last ENDFRAME in the curve
+        last_endframe: CurvePoint | None = None
+        for point in self.all_points:
+            if point.is_endframe and (last_endframe is None or point.frame > last_endframe.frame):
+                last_endframe = point
 
-        # Only return held position if the last point is an endframe
-        # and the frame is after it
-        if last_point.is_endframe and frame > last_point.frame:
-            return (last_point.x, last_point.y)
+        # If there's an endframe, check if any keyframes come after it
+        if last_endframe:
+            # Check if there are any keyframes after this endframe
+            has_keyframe_after = any(
+                point.status == PointStatus.KEYFRAME and point.frame > last_endframe.frame
+                for point in self.all_points
+            )
+
+            # If no keyframes after endframe, all frames beyond should hold the endframe position
+            if not has_keyframe_after and frame > last_endframe.frame:
+                return (last_endframe.x, last_endframe.y)
 
         return None
 
@@ -663,12 +675,16 @@ class SegmentedCurve:
         """Create SegmentedCurve from legacy curve data format.
 
         Args:
-            curve_data: List of point tuples in legacy format
+            curve_data: List of point tuples in legacy format or CurvePoint objects
 
         Returns:
             New SegmentedCurve instance
         """
         from core.models import CurvePoint
 
-        points = [CurvePoint.from_tuple(pt) for pt in curve_data]
+        # Convert tuples to CurvePoint objects (if not already)
+        points = [
+            pt if isinstance(pt, CurvePoint) else CurvePoint.from_tuple(pt)
+            for pt in curve_data
+        ]
         return cls.from_points(points)

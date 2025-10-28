@@ -903,29 +903,36 @@ class MainWindow(QMainWindow):  # Implements MainWindowProtocol (structural typi
             self._safe_set_label(self.type_label, "Status: --")
             return
 
-        # Check segment activity FIRST
+        # Check if there's an exact point at current frame FIRST
+        from core.models import CurvePoint, PointStatus
+
+        points = [CurvePoint.from_tuple(p) for p in curve_data]
+        current_point = next((p for p in points if p.frame == current_frame), None)
+
+        # ENDFRAMES are ALWAYS displayed as active (they're the last active frame before a gap)
+        # Check this BEFORE segment activity to ensure endframes always show correctly
+        if current_point and current_point.status == PointStatus.ENDFRAME:
+            self._safe_set_label(self.type_label, "Status: ENDFRAME")
+            return
+
+        # Now check segment activity (for non-ENDFRAME points)
         from core.curve_segments import SegmentedCurve
 
         segmented_curve = SegmentedCurve.from_curve_data(curve_data)
         segment = segmented_curve.get_segment_at_frame(current_frame)
 
-        # If in an inactive segment, always show "Inactive" regardless of point presence
+        # If in an inactive segment, show "Inactive" (tracked points after endframes)
         if segment is not None and not segment.is_active:
             self._safe_set_label(self.type_label, "Status: Inactive")
             return
 
-        # Check if there's an exact point at current frame
-        from core.models import CurvePoint
-
-        points = [CurvePoint.from_tuple(p) for p in curve_data]
-        current_point = next((p for p in points if p.frame == current_frame), None)
-
+        # In active segment - show point status if exists
         if current_point:
             # Display the point's status
             status_name = current_point.status.name
             self._safe_set_label(self.type_label, f"Status: {status_name}")
         else:
-            # No point at current frame
+            # No point at current frame (gap in active segment)
             self._safe_set_label(self.type_label, "Status: Inactive")
 
     def update_ui_state(self) -> None:

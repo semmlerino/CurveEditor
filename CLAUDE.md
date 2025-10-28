@@ -502,11 +502,10 @@ x, y = data_service.get_position_at_frame(curve_name, frame)  # Returns held pos
 
 **Insert Track** fills gaps using 3DEqualizer-style deformation algorithm. Critical status handling:
 
-- **First filled point**: `KEYFRAME` status (starts new active segment after gap)
-- **Subsequent points**: `TRACKED` status (continuation of interpolated data)
+- **All filled points**: `TRACKED` status (tracking data copied from source)
 - **Original ENDFRAME**: Converted to `KEYFRAME` (gap is now closed)
 
-**Why this matters**: `SegmentedCurve` treats `TRACKED` points after `ENDFRAME` as inactive segments (3DEqualizer gap semantics). The first `KEYFRAME` signals "gap is filled, resume active segment" so renderer draws solid lines instead of dashed gap visualization.
+**Why this matters**: The converted ENDFRAME->KEYFRAME activates the segment. All filled frames are tracking data, so they get TRACKED status. The KEYFRAME at the gap boundary signals "segment is active" so the renderer draws solid lines instead of dashed gap visualization.
 
 **Files**: `core/insert_track_algorithm.py` (status assignment), `core/curve_segments.py:from_points()` (segment activity logic)
 

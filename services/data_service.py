@@ -461,11 +461,31 @@ class DataService:
         # First pass: collect basic status counts
         frame_status = {}
         endframe_frames: set[int] = set()  # Track which frames have endframes
-        sorted_points = sorted(points, key=lambda p: p[0] if len(p) > 0 else getattr(p, "frame", 0))
+        # Sort by frame number - handle both tuple and CurvePoint formats
+        sorted_points = sorted(points, key=lambda p: (p[0] if isinstance(p, (tuple, list)) and len(p) >= 3 else getattr(p, "frame", 0)))  # pyright: ignore[reportUnnecessaryIsInstance]
 
         for _i, point in enumerate(sorted_points):
             # Handle both tuple format and CurvePoint objects
-            if len(point) >= 3:  # Tuple format (point is always list | tuple)
+            if hasattr(point, "frame"):  # CurvePoint object
+                frame = point.frame  # pyright: ignore[reportAttributeAccessIssue]
+                if frame not in frame_status:
+                    frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
+
+                status = getattr(point, "status", "normal")
+                status_value = status.value if isinstance(status, PointStatus) else str(status)
+
+                if status_value == "interpolated":
+                    frame_status[frame][1] += 1
+                elif status_value == "keyframe":
+                    frame_status[frame][0] += 1
+                elif status_value == "tracked":
+                    frame_status[frame][2] += 1
+                elif status_value == "endframe":
+                    frame_status[frame][3] += 1
+                    endframe_frames.add(frame)
+                else:  # normal
+                    frame_status[frame][4] += 1
+            elif len(point) >= 3:  # Tuple format (already know it's not CurvePoint from above)
                 frame = point[0]
                 if frame not in frame_status:
                     # [keyframe, interpolated, tracked, endframe, normal, is_startframe, is_inactive, selected]
@@ -494,25 +514,6 @@ class DataService:
                         endframe_frames.add(frame)
                     else:  # normal or unknown
                         frame_status[frame][4] += 1
-            elif getattr(point, "frame", None) is not None:  # CurvePoint object
-                frame = point.frame
-                if frame not in frame_status:
-                    frame_status[frame] = [0, 0, 0, 0, 0, False, False, False]
-
-                status = getattr(point, "status", "normal")
-                status_value = status.value if isinstance(status, PointStatus) else str(status)
-
-                if status_value == "interpolated":
-                    frame_status[frame][1] += 1
-                elif status_value == "keyframe":
-                    frame_status[frame][0] += 1
-                elif status_value == "tracked":
-                    frame_status[frame][2] += 1
-                elif status_value == "endframe":
-                    frame_status[frame][3] += 1
-                    endframe_frames.add(frame)
-                else:  # normal
-                    frame_status[frame][4] += 1
 
         # Second pass: detect startframes and inactive regions using SegmentedCurve
         # This provides accurate gap detection and startframe identification
@@ -557,6 +558,10 @@ class DataService:
                     # A frame is inactive ONLY if it's in an inactive segment (e.g., tracked points after endframe)
                     # Gaps (segment is None) are NOT inactive, they just have no data
                     is_inactive = segment is not None and not segment.is_active
+                    # ENDFRAMES are ALWAYS displayed as active (they're the last active frame before a gap)
+                    # Only override if THIS specific frame is an endframe, not just in a segment containing one
+                    if frame in endframe_frames and frame_status[frame][3] > 0:  # Has endframe count > 0
+                        is_inactive = False
                     frame_status[frame][6] = is_inactive
                 else:
                     # Frame has no data at this frame
@@ -574,9 +579,9 @@ class DataService:
                         # Check if there's any keyframe between the endframe and this frame
                         has_keyframe_between = False
                         for pt in sorted_points:
-                            pt_frame = pt[0] if len(pt) > 0 else pt.frame
+                            pt_frame = pt[0] if isinstance(pt, (tuple, list)) and len(pt) >= 3 else getattr(pt, "frame", 0)  # pyright: ignore[reportUnnecessaryIsInstance]
                             if last_endframe_frame < pt_frame < frame:
-                                pt_status = pt[3] if len(pt) > 3 else getattr(pt, "status", "keyframe")
+                                pt_status = getattr(pt, "status", "keyframe") if hasattr(pt, "status") else (pt[3] if len(pt) > 3 else "keyframe")
                                 if pt_status == "keyframe" or getattr(pt_status, "value", None) == "keyframe":
                                     has_keyframe_between = True
                                     break

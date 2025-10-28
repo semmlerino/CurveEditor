@@ -92,7 +92,7 @@ def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tupl
         return None
 
     # TYPE 2: Status-based gap detection (3DEqualizer endframe markers)
-    # Gap = frames after ENDFRAME until next KEYFRAME (STARTFRAME)
+    # Gap = frames after ENDFRAME until next KEYFRAME or ENDFRAME (whichever comes first)
     # Find the most recent ENDFRAME before or at current_frame
     prev_endframe = None
     for p in reversed(points):
@@ -101,33 +101,37 @@ def find_gap_around_frame(curve_data: CurveDataList, current_frame: int) -> tupl
             break
 
     if prev_endframe:
-        # Find the next KEYFRAME after the ENDFRAME (this is the STARTFRAME)
-        next_keyframe = None
+        # Find the next KEYFRAME or ENDFRAME after the previous ENDFRAME
+        # (both can terminate a gap)
+        next_boundary = None
         for p in points:
-            if p.frame > prev_endframe.frame and p.status == PointStatus.KEYFRAME:
-                next_keyframe = p
+            if p.frame > prev_endframe.frame and p.status in (
+                PointStatus.KEYFRAME,
+                PointStatus.ENDFRAME,
+            ):
+                next_boundary = p
                 break
 
-        if next_keyframe:
-            # Gap is from frame after ENDFRAME to frame before KEYFRAME
+        if next_boundary:
+            # Gap is from frame after ENDFRAME to frame before the boundary
             gap_start = prev_endframe.frame + 1
-            gap_end = next_keyframe.frame - 1
+            gap_end = next_boundary.frame - 1
 
             # Check if current_frame is in this gap
             if gap_start <= current_frame <= gap_end:
                 logger.debug(
                     f"Status-based gap detected: frames {gap_start}-{gap_end} "
-                    + f"(between ENDFRAME at {prev_endframe.frame} and KEYFRAME at {next_keyframe.frame})"
+                    + f"(between ENDFRAME at {prev_endframe.frame} and {next_boundary.status.name} at {next_boundary.frame})"
                 )
                 return (gap_start, gap_end)
         else:
-            # ENDFRAME exists but no KEYFRAME after it - open-ended gap
+            # ENDFRAME exists but no KEYFRAME/ENDFRAME after it - open-ended gap
             # Check if current frame is after the ENDFRAME
             if current_frame > prev_endframe.frame:
                 # Can't fill open-ended gap
                 logger.debug(
                     f"Open-ended gap detected after ENDFRAME at {prev_endframe.frame} "
-                    + "(no KEYFRAME found to close gap)"
+                    + "(no KEYFRAME or ENDFRAME found to close gap)"
                 )
                 return None
 
@@ -263,8 +267,9 @@ def deform_curve_with_interpolated_offset(
     source_points_list = [CurvePoint.from_tuple(p) for p in source_data]
     source_points = {p.frame: p for p in source_points_list}
 
-    # Create result with all existing target points
-    result_points = list(target_points)
+    # Create result with existing target points EXCEPT gap frames
+    # (we'll replace gap frames with filled data)
+    result_points = [p for p in target_points if not (gap_start <= p.frame <= gap_end)]
 
     # Sort overlap offsets by frame (should already be sorted, but ensure)
     overlap_offsets.sort(key=lambda x: x[0])
@@ -293,10 +298,9 @@ def deform_curve_with_interpolated_offset(
                 new_x = source_point.x + interp_offset_x
                 new_y = source_point.y + interp_offset_y
 
-                # First filled point gets KEYFRAME status (starts new active segment after gap)
-                # Subsequent points get TRACKED status (continuations of the interpolated data)
-                # This ensures SegmentedCurve recognizes the filled gap as an active segment
-                point_status = PointStatus.KEYFRAME if gap_frames_filled == 0 else PointStatus.TRACKED
+                # All filled points get TRACKED status (tracking data copied from source)
+                # The converted ENDFRAME->KEYFRAME activates the segment
+                point_status = PointStatus.TRACKED
                 new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=point_status)
                 result_points.append(new_point)
                 gap_frames_filled += 1
@@ -360,8 +364,9 @@ def fill_gap_with_source(
 
     offset_x, offset_y = offset
 
-    # Create result with all existing target points
-    result_points = list(target_points)
+    # Create result with existing target points EXCEPT gap frames
+    # (we'll replace gap frames with filled data)
+    result_points = [p for p in target_points if not (gap_start <= p.frame <= gap_end)]
 
     # Add source data for gap frames
     gap_frames_filled = 0
@@ -372,10 +377,9 @@ def fill_gap_with_source(
             new_x = source_point.x + offset_x
             new_y = source_point.y + offset_y
 
-            # First filled point gets KEYFRAME status (starts new active segment after gap)
-            # Subsequent points get TRACKED status (continuations of the interpolated data)
-            # This ensures SegmentedCurve recognizes the filled gap as an active segment
-            point_status = PointStatus.KEYFRAME if gap_frames_filled == 0 else PointStatus.TRACKED
+            # All filled points get TRACKED status (tracking data copied from source)
+            # The converted ENDFRAME->KEYFRAME activates the segment
+            point_status = PointStatus.TRACKED
             new_point = CurvePoint(frame=frame, x=new_x, y=new_y, status=point_status)
             result_points.append(new_point)
             gap_frames_filled += 1

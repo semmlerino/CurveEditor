@@ -65,11 +65,11 @@ class TestInsertTrackGapStatus:
             target_data, source_data, gap_start=11, gap_end=20, overlap_offsets=overlap_offsets
         )
 
-        # Verify: First filled point (frame 11) is KEYFRAME
+        # Verify: Filled points are TRACKED (the converted ENDFRAME->KEYFRAME activates segment)
         result_dict = {pt[0]: pt for pt in result}
         first_filled = result_dict[11]
         assert len(first_filled) >= 4, "Point should have status"
-        assert first_filled[3] == "keyframe", "First filled point must be KEYFRAME to start active segment"
+        assert first_filled[3] == "tracked", "Filled points should be TRACKED (tracking data)"
 
     def test_deform_gap_subsequent_points_are_tracked(self):
         """Test that subsequent filled points get TRACKED status (Scenario 1)."""
@@ -137,11 +137,11 @@ class TestInsertTrackGapStatus:
         # Execute: Fill gap from source with offset
         result = fill_gap_with_source(target_data, source_data, gap_start=11, gap_end=20, offset=offset)
 
-        # Verify: First filled point (frame 11) is KEYFRAME
+        # Verify: Filled points are TRACKED (the converted ENDFRAME->KEYFRAME activates segment)
         result_dict = {pt[0]: pt for pt in result}
         first_filled = result_dict[11]
         assert len(first_filled) >= 4, "Point should have status"
-        assert first_filled[3] == "keyframe", "First filled point must be KEYFRAME"
+        assert first_filled[3] == "tracked", "Filled points should be TRACKED (tracking data)"
 
     def test_fill_gap_subsequent_points_are_tracked(self):
         """Test that subsequent filled points get TRACKED status (Scenario 2)."""
@@ -262,10 +262,10 @@ class TestInsertTrackEdgeCases:
         # Execute: Fill gap at start
         result = fill_gap_with_source(target_data, source_data, gap_start=1, gap_end=10, offset=offset)
 
-        # Verify: First filled point is KEYFRAME
+        # Verify: Filled points are TRACKED (tracking data)
         result_dict = {pt[0]: pt for pt in result}
         first_filled = result_dict[1]
-        assert first_filled[3] == "keyframe", "First point in curve should be KEYFRAME"  # pyright: ignore[reportGeneralTypeIssues]
+        assert first_filled[3] == "tracked", "Filled points should be TRACKED (tracking data)"  # pyright: ignore[reportGeneralTypeIssues]
 
     def test_gap_at_curve_end_first_filled_keyframe(self):
         """Test gap at end of curve: first filled point is KEYFRAME."""
@@ -283,10 +283,10 @@ class TestInsertTrackEdgeCases:
         # Execute: Fill gap at end (frames 11-20)
         result = fill_gap_with_source(target_data, source_data, gap_start=11, gap_end=20, offset=offset)
 
-        # Verify: First filled point (frame 11) is KEYFRAME
+        # Verify: Filled points are TRACKED (the converted ENDFRAME->KEYFRAME activates segment)
         result_dict = {pt[0]: pt for pt in result}
         first_filled = result_dict[11]
-        assert first_filled[3] == "keyframe", "First filled point should be KEYFRAME"  # pyright: ignore[reportGeneralTypeIssues]
+        assert first_filled[3] == "tracked", "Filled points should be TRACKED (tracking data)"  # pyright: ignore[reportGeneralTypeIssues]
 
         # Verify: ENDFRAME at frame 10 is converted
         endframe = result_dict[10]
@@ -307,10 +307,10 @@ class TestInsertTrackEdgeCases:
         # Execute: Fill single-frame gap
         result = fill_gap_with_source(target_data, source_data, gap_start=10, gap_end=10, offset=offset)
 
-        # Verify: Single filled point is KEYFRAME (first and only)
+        # Verify: Filled point is TRACKED (tracking data)
         result_dict = {pt[0]: pt for pt in result}
         filled = result_dict[10]
-        assert filled[3] == "keyframe", "Single filled point should be KEYFRAME"  # pyright: ignore[reportGeneralTypeIssues]
+        assert filled[3] == "tracked", "Filled point should be TRACKED (tracking data)"  # pyright: ignore[reportGeneralTypeIssues]
 
 
 if __name__ == "__main__":

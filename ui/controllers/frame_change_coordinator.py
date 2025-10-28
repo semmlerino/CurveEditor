@@ -107,6 +107,7 @@ class FrameChangeCoordinator:
         AFTER input handler completes, preventing widget state machine confusion.
         """
         from PySide6.QtCore import Qt
+
         from stores.application_state import get_application_state
 
         # Guard: Already connected, return early for idempotency

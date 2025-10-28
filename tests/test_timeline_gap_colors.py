@@ -394,8 +394,9 @@ class TestTimelineGapColors:
         # Verify it's marked as an endframe
         assert tab_10.endframe_count == 1, "Frame 10 should have 1 endframe"
 
-        # Verify it's in an inactive segment
-        assert tab_10.is_inactive is True, "Frame 10 should be marked as inactive"
+        # ENDFRAMES always display as active (not inactive), even if in inactive segment
+        # This is the fix for the bug - endframes were showing as gray instead of red
+        assert tab_10.is_inactive is False, "Frame 10 (ENDFRAME) should display as active (red), not inactive (gray)"
 
         # Most important: verify color is RED (endframe color), not GRAY (inactive color)
         color = tab_10._get_background_color()

@@ -906,11 +906,12 @@ class OptimizedCurveRenderer:
                             elif status_value == PointStatus.ENDFRAME.value:
                                 status = "endframe"
 
-            # Skip rendering points in inactive segments (show only dashed line)
-            if segmented_curve and frame != -1:
+            # Skip rendering points in inactive segments EXCEPT endframes
+            # (endframes are gap boundaries and must always be visible)
+            if segmented_curve and frame != -1 and status != "endframe":
                 segment = segmented_curve.get_segment_at_frame(frame)
                 if segment and not segment.is_active:
-                    continue  # Don't render points in inactive gap segments
+                    continue  # Don't render non-endframe points in inactive gap segments
 
             if is_current_frame:
                 current_frame_points.append(screen_pos)
